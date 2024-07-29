@@ -1,0 +1,31 @@
+# For more info on HTTP files go to https://aka.ms/vs/httpfile
+@host=https://localhost
+@port=5001
+@apiBaseUrl = {{host}}:{{port}}/api
+@jwt = {{login.response.body.token}}
+@formId = 1263081289527853056
+
+// Login to obtain JWT Token
+# @name login
+POST {{apiBaseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "developer@endatix.com",
+    "password": "password"
+}
+
+###
+// List all contributors
+GET {{apiBaseUrl}}/forms
+Authorization: Bearer {{jwt}}
+
+###
+// Get all form definitions
+GET {{apiBaseUrl}}/forms/{{formId}}/definitions
+Authorization: Bearer {{jwt}}
+
+###
+// List all submissions by Form Id
+GET {{apiBaseUrl}}/forms/{{formId}}/submissions?page=1&pageSize=10
+Authorization: Bearer {{jwt}}

@@ -1,0 +1,64 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30114.105
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{1578700B-C9E2-4469-BA9B-29E27B22EA25}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Core", "src\Endatix.Core\Endatix.Core.csproj", "{531E7DE9-E5E7-4F36-ADCD-DC38EFCBE762}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Infrastructure", "src\Endatix.Infrastructure\Endatix.Infrastructure.csproj", "{4A3F1337-0223-4465-B47B-34AE4A4F939A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.SqlServer", "src\Endatix.SqlServer\Endatix.SqlServer.csproj", "{1D20BF22-8D23-4F9C-815D-2E41DA1BF268}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Api", "src\Endatix.Api\Endatix.Api.csproj", "{7A737D72-AF20-4E8F-A66C-F3F3ADDF8619}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{36B61C3D-9B27-4EC5-8E9D-9BAE97EBA631}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Samples.WebApp", "samples\Endatix.Samples.WebApp\Endatix.Samples.WebApp.csproj", "{82CBA1DE-59BE-4D7F-AE15-522E05D22A22}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Samples.CustomEventHandlers", "samples\Endatix.Samples.CustomEventHandlers\Endatix.Samples.CustomEventHandlers.csproj", "{1DA4C4C3-7C14-4187-B574-C18E15316C89}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{531E7DE9-E5E7-4F36-ADCD-DC38EFCBE762}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{531E7DE9-E5E7-4F36-ADCD-DC38EFCBE762}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{531E7DE9-E5E7-4F36-ADCD-DC38EFCBE762}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{531E7DE9-E5E7-4F36-ADCD-DC38EFCBE762}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A3F1337-0223-4465-B47B-34AE4A4F939A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A3F1337-0223-4465-B47B-34AE4A4F939A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A3F1337-0223-4465-B47B-34AE4A4F939A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A3F1337-0223-4465-B47B-34AE4A4F939A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D20BF22-8D23-4F9C-815D-2E41DA1BF268}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D20BF22-8D23-4F9C-815D-2E41DA1BF268}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D20BF22-8D23-4F9C-815D-2E41DA1BF268}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D20BF22-8D23-4F9C-815D-2E41DA1BF268}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A737D72-AF20-4E8F-A66C-F3F3ADDF8619}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A737D72-AF20-4E8F-A66C-F3F3ADDF8619}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A737D72-AF20-4E8F-A66C-F3F3ADDF8619}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A737D72-AF20-4E8F-A66C-F3F3ADDF8619}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82CBA1DE-59BE-4D7F-AE15-522E05D22A22}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82CBA1DE-59BE-4D7F-AE15-522E05D22A22}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82CBA1DE-59BE-4D7F-AE15-522E05D22A22}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82CBA1DE-59BE-4D7F-AE15-522E05D22A22}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DA4C4C3-7C14-4187-B574-C18E15316C89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DA4C4C3-7C14-4187-B574-C18E15316C89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DA4C4C3-7C14-4187-B574-C18E15316C89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DA4C4C3-7C14-4187-B574-C18E15316C89}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{531E7DE9-E5E7-4F36-ADCD-DC38EFCBE762} = {1578700B-C9E2-4469-BA9B-29E27B22EA25}
+		{4A3F1337-0223-4465-B47B-34AE4A4F939A} = {1578700B-C9E2-4469-BA9B-29E27B22EA25}
+		{1D20BF22-8D23-4F9C-815D-2E41DA1BF268} = {1578700B-C9E2-4469-BA9B-29E27B22EA25}
+		{7A737D72-AF20-4E8F-A66C-F3F3ADDF8619} = {1578700B-C9E2-4469-BA9B-29E27B22EA25}
+		{82CBA1DE-59BE-4D7F-AE15-522E05D22A22} = {36B61C3D-9B27-4EC5-8E9D-9BAE97EBA631}
+		{1DA4C4C3-7C14-4187-B574-C18E15316C89} = {36B61C3D-9B27-4EC5-8E9D-9BAE97EBA631}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,28 @@
+﻿@page
+@using Endatix.Core.Entities
+@model Endatix.Samples.WebApp.Pages.IndexModel;
+@{
+    ViewData["Title"] = "Forms";
+}
+
+<div>
+    <h2>All Forms</h2>
+    <br />
+    <table>
+        <tr>
+            <th>
+                Name
+            </th>
+            <th>
+            </th>
+        </tr>
+    @foreach (Form form in Model.Forms)
+    {
+        <tr>
+            <td>@form.Name</td>
+            <td><a asp-page="./Form" asp-route-id="@form.Id">Render</a></td>
+            @* <td><a asp-page="./Edit" asp-route-id="@form.Id">Edit</a></td> *@
+        </tr>
+    }
+    </table>
+</div>

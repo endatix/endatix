@@ -1,0 +1,45 @@
+@page "{id}"
+@model Endatix.Samples.WebApp.Pages.EditModel
+@{
+    ViewData["Title"] = "Edit: " + Model.Form.Name;
+}
+@section Head {
+    <link href="https://unpkg.com/survey-jquery/defaultV2.min.css" type="text/css" rel="stylesheet">
+}
+@section Scripts {
+    <script type="text/javascript" src="https://unpkg.com/survey-jquery"></script>
+    <script>
+        $(function () {
+            $("#btnUpdate").click(function () {
+                $.ajax({
+                    method: "PATCH",
+                    url: "@Model.BaseUrl/api/forms/@Model.Form.Id/formDefinition",
+                    contentType: "application/json",
+                    data: JSON.stringify({ jsonData: $("#definitionJsonData").val() })
+                })
+                    .done(function (jsonData) {
+                        console.log("Form definition updated successfully.");
+                        window.history.back();
+                    })
+                    .fail(function () {
+                        console.log("Error updating form definition.");
+                    });
+            });
+
+            $.ajax({
+                method: "GET",
+                url: "@Model.BaseUrl/api/forms/@Model.Form.Id/formDefinition"
+            })
+                .done(function (formDefinition) {
+                    $("#definitionId").val(formDefinition.id);
+                    $("#definitionJsonData").val(formDefinition.jsonData);
+                })
+                .fail(function () {
+                    console.log("Error getting form definition.");
+                });
+        });
+    </script>
+}
+
+<textarea id="definitionJsonData" style="width: 100%; height:640px;"></textarea>
+<button id="btnUpdate">Update</button>
