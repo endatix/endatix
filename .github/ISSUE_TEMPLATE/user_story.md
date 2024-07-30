@@ -1,7 +1,7 @@
 ---
 name: User story
 about: Describe a user story for this feature
-title: ''
+title: '[FEATURE]'
 labels: 'enhancement'
 assignees: ''
 ---

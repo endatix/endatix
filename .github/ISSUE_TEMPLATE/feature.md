@@ -1,8 +1,8 @@
 ---
 name: Feature
 about: New Endatix feature
-title: ''
-labels: enhancement
+title: '[FEATURE]'
+labels: 'enhancement'
 assignees: ''
 ---
 
