@@ -3,95 +3,97 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormDefinitions.PartialUpdate;
 using FluentAssertions;
-using Moq;
+using NSubstitute;
 
-namespace Endatix.Core.UseCases.Tests.FormDefinitions.PartialUpdate;
+namespace Endatix.Core.Tests.UseCases.FormDefinitions.PartialUpdate;
 
 public class PartialUpdateFormDefinitionHandlerTests
 {
-    private readonly Mock<IRepository<FormDefinition>> _repositoryMock;
+    private readonly IRepository<FormDefinition> _repository;
     private readonly PartialUpdateFormDefinitionHandler _handler;
 
     public PartialUpdateFormDefinitionHandlerTests()
     {
-        _repositoryMock = new Mock<IRepository<FormDefinition>>();
-        _handler = new PartialUpdateFormDefinitionHandler(_repositoryMock.Object);
+        _repository = Substitute.For<IRepository<FormDefinition>>();
+        _handler = new PartialUpdateFormDefinitionHandler(_repository);
     }
 
     [Fact]
-    public async Task Handle_FormDefinitionNotFound_ShouldReturnNotFoundResult()
+    public async Task Handle_FormDefinitionNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var command = new PartialUpdateFormDefinitionCommand(1, 1, true, "{\"key\":\"value\"}", true);
-        _repositoryMock.Setup(x => x.GetByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((FormDefinition)null);
+        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, null, null);
+        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
+                   .Returns((FormDefinition)null);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Form definition not found.");
     }
 
     [Fact]
-    public async Task Handle_FormDefinitionFoundWithDifferentFormId_ShouldReturnNotFoundResult()
+    public async Task Handle_FormIdMismatch_ReturnsNotFoundResult()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, "{\"key\":\"value\"}", true) { FormId = 2 };
-        var command = new PartialUpdateFormDefinitionCommand(1, 1, true, "{\"key\":\"value\"}", true);
-        _repositoryMock.Setup(x => x.GetByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(formDefinition);
+        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 2 };
+        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, null, null);
+        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
+                   .Returns(formDefinition);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Form definition not found.");
     }
 
     [Fact]
-    public async Task Handle_FormDefinitionFound_ShouldUpdateAndReturnSuccessResult()
+    public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, "{\"key\":\"oldValue\"}", true) { FormId = 1 };
-        var command = new PartialUpdateFormDefinitionCommand(1, 1, false, "{\"key\":\"newValue\"}", false);
-        _repositoryMock.Setup(x => x.GetByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(formDefinition);
+        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        var request = new PartialUpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
+        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
+                   .Returns(formDefinition);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.IsDraft.Should().Be(false);
-        result.Value.JsonData.Should().Be("{\"key\":\"newValue\"}");
-        result.Value.IsActive.Should().Be(false);
-
-        _repositoryMock.Verify(x => x.UpdateAsync(It.IsAny<FormDefinition>(), It.IsAny<CancellationToken>()), Times.Once);
+        result.Value.IsDraft.Should().Be(request.IsDraft!.Value);
+        result.Value.JsonData.Should().Be(request.JsonData);
+        result.Value.IsActive.Should().Be(request.IsActive!.Value);
+        await _repository.Received(1).UpdateAsync(formDefinition, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_NullRequestFields_ShouldPreserveOldValues()
+    public async Task Handle_PartialUpdate_UpdatesOnlySpecifiedFields()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, "{\"key\":\"oldValue\"}", true) { FormId = 1 };
-        var command = new PartialUpdateFormDefinitionCommand(1, 1, null, null, null);
-        _repositoryMock.Setup(x => x.GetByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(formDefinition);
+        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, SampleData.FORM_DEFINITION_JSON_DATA_2, null);
+        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
+                   .Returns(formDefinition);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.IsDraft.Should().Be(true); // Old value preserved
-        result.Value.JsonData.Should().Be("{\"key\":\"oldValue\"}"); // Old value preserved
-        result.Value.IsActive.Should().Be(true); // Old value preserved
-
-        _repositoryMock.Verify(x => x.UpdateAsync(It.IsAny<FormDefinition>(), It.IsAny<CancellationToken>()), Times.Once);
+        result.Value.IsDraft.Should().Be(formDefinition.IsDraft);
+        result.Value.JsonData.Should().Be(request.JsonData);
+        result.Value.IsActive.Should().Be(formDefinition.IsActive);
+        await _repository.Received(1).UpdateAsync(formDefinition, Arg.Any<CancellationToken>());
     }
 }

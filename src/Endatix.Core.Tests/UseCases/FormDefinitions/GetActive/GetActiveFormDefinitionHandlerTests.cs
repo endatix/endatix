@@ -4,51 +4,54 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.FormDefinitions.GetActive;
 using FluentAssertions;
-using Moq;
+using NSubstitute;
 
-namespace Endatix.Core.UseCases.Tests.FormDefinitions.GetActive;
+namespace Endatix.Core.Tests.UseCases.FormDefinitions.GetActive;
 
 public class GetActiveFormDefinitionHandlerTests
 {
-    private readonly Mock<IRepository<FormDefinition>> _repositoryMock;
+    private readonly IRepository<FormDefinition> _repository;
     private readonly GetActiveFormDefinitionHandler _handler;
 
     public GetActiveFormDefinitionHandlerTests()
     {
-        _repositoryMock = new Mock<IRepository<FormDefinition>>();
-        _handler = new GetActiveFormDefinitionHandler(_repositoryMock.Object);
+        _repository = Substitute.For<IRepository<FormDefinition>>();
+        _handler = new GetActiveFormDefinitionHandler(_repository);
     }
 
     [Fact]
-    public async Task Handle_ActiveFormDefinitionNotFound_ShouldReturnNotFoundResult()
+    public async Task Handle_FormDefinitionNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var query = new GetActiveFormDefinitionQuery(1);
-        _repositoryMock.Setup(x => x.SingleOrDefaultAsync(It.IsAny<ActiveFormDefinitionByFormIdSpec>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((FormDefinition)null);
+        var request = new GetActiveFormDefinitionQuery(1);
+        _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+                   .Returns((FormDefinition)null);
 
         // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Active form definition not found.");
     }
 
     [Fact]
-    public async Task Handle_ActiveFormDefinitionFound_ShouldReturnSuccessResult()
+    public async Task Handle_ValidRequest_ReturnsActiveFormDefinition()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, "{\"key\":\"value\"}", true) { FormId = 1 };
-        var query = new GetActiveFormDefinitionQuery(1);
-        _repositoryMock.Setup(x => x.SingleOrDefaultAsync(It.IsAny<ActiveFormDefinitionByFormIdSpec>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(formDefinition);
+        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        var request = new GetActiveFormDefinitionQuery(1);
+        _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+                   .Returns(formDefinition);
 
         // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
         result.Value.Should().Be(formDefinition);
     }
 }

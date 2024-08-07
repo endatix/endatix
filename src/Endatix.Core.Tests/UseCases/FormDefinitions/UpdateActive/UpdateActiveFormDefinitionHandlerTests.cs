@@ -1,61 +1,60 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
-using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.FormDefinitions.UpdateActive;
 using FluentAssertions;
-using Moq;
-using Xunit;
+using NSubstitute;
 
-namespace Endatix.Core.UseCases.Tests.FormDefinitions.UpdateActive;
+namespace Endatix.Core.Tests.UseCases.FormDefinitions.UpdateActive;
 
 public class UpdateActiveFormDefinitionHandlerTests
 {
-    private readonly Mock<IRepository<FormDefinition>> _repositoryMock;
+    private readonly IRepository<FormDefinition> _repository;
     private readonly UpdateActiveFormDefinitionHandler _handler;
 
     public UpdateActiveFormDefinitionHandlerTests()
     {
-        _repositoryMock = new Mock<IRepository<FormDefinition>>();
-        _handler = new UpdateActiveFormDefinitionHandler(_repositoryMock.Object);
+        _repository = Substitute.For<IRepository<FormDefinition>>();
+        _handler = new UpdateActiveFormDefinitionHandler(_repository);
     }
 
     [Fact]
-    public async Task Handle_ActiveFormDefinitionNotFound_ShouldReturnNotFoundResult()
+    public async Task Handle_FormDefinitionNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var command = new UpdateActiveFormDefinitionCommand(1, true, "{\"key\":\"value\"}", true);
-        _repositoryMock.Setup(x => x.SingleOrDefaultAsync(It.IsAny<ActiveFormDefinitionByFormIdSpec>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((FormDefinition)null);
+        var request = new UpdateActiveFormDefinitionCommand(1, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+                   .Returns((FormDefinition)null);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Active form definition not found.");
     }
 
     [Fact]
-    public async Task Handle_ActiveFormDefinitionFound_ShouldUpdateAndReturnSuccessResult()
+    public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, "{\"key\":\"oldValue\"}", true) { FormId = 1 };
-        var command = new UpdateActiveFormDefinitionCommand(1, false, "{\"key\":\"newValue\"}", false);
-        _repositoryMock.Setup(x => x.SingleOrDefaultAsync(It.IsAny<ActiveFormDefinitionByFormIdSpec>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(formDefinition);
+        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        var request = new UpdateActiveFormDefinitionCommand(1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
+        _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+                   .Returns(formDefinition);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.IsDraft.Should().Be(false);
-        result.Value.JsonData.Should().Be("{\"key\":\"newValue\"}");
-        result.Value.IsActive.Should().Be(false);
-
-        _repositoryMock.Verify(x => x.UpdateAsync(It.IsAny<FormDefinition>(), It.IsAny<CancellationToken>()), Times.Once);
+        result.Value.IsDraft.Should().Be(request.IsDraft);
+        result.Value.JsonData.Should().Be(request.JsonData);
+        result.Value.IsActive.Should().Be(request.IsActive);
+        await _repository.Received(1).UpdateAsync(formDefinition, Arg.Any<CancellationToken>());
     }
 }

@@ -1,17 +1,53 @@
 using Endatix.Core.UseCases.FormDefinitions.Create;
 using FluentAssertions;
+using static Endatix.Core.Tests.ErrorMessages;
+using static Endatix.Core.Tests.ErrorType;
 
-namespace Endatix.Core.UseCases.Tests.FormDefinitions.Create;
+namespace Endatix.Core.Tests.UseCases.FormDefinitions.Create;
 
 public class CreateFormDefinitionCommandTests
 {
     [Fact]
-    public void Constructor_WithValidParameters_ShouldCreateCommand()
+    public void Constructor_NegativeOrZeroFormId_ThrowsArgumentException()
+    {
+        // Arrange
+        var formId = -1;
+        var jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
+        var isDraft = true;
+        var isActive = true;
+
+        // Act
+        Action act = () => new CreateFormDefinitionCommand(formId, isDraft, jsonData, isActive);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage(GetErrorMessage(nameof(formId), ZeroOrNegative));
+    }
+
+    [Fact]
+    public void Constructor_NullOrWhiteSpaceJsonData_ThrowsArgumentException()
     {
         // Arrange
         var formId = 1;
+        var jsonData = "";
         var isDraft = true;
-        var jsonData = "{\"key\":\"value\"}";
+        var isActive = true;
+
+        // Act
+        Action act = () => new CreateFormDefinitionCommand(formId, isDraft, jsonData, isActive);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage(GetErrorMessage(nameof(jsonData), Empty));
+    }
+
+    [Fact]
+    public void Constructor_ValidParameters_SetsPropertiesCorrectly()
+    {
+        // Arrange
+        var formId = 1;
+        var jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
+        var isDraft = true;
         var isActive = true;
 
         // Act
@@ -22,39 +58,5 @@ public class CreateFormDefinitionCommandTests
         command.IsDraft.Should().Be(isDraft);
         command.JsonData.Should().Be(jsonData);
         command.IsActive.Should().Be(isActive);
-    }
-
-    [Fact]
-    public void Constructor_WithNegativeFormId_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var formId = -1;
-        var isDraft = true;
-        var jsonData = "{\"key\":\"value\"}";
-        var isActive = true;
-
-        // Act
-        Action act = () => new CreateFormDefinitionCommand(formId, isDraft, jsonData, isActive);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("Required input formId cannot be zero or negative. (Parameter 'formId')");
-    }
-
-    [Fact]
-    public void Constructor_WithNullOrWhiteSpaceJsonData_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var formId = 1;
-        var isDraft = true;
-        var jsonData = " ";
-        var isActive = true;
-
-        // Act
-        Action act = () => new CreateFormDefinitionCommand(formId, isDraft, jsonData, isActive);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("Required input jsonData was empty. (Parameter 'jsonData')");
     }
 }

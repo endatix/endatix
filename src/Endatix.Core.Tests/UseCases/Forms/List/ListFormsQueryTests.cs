@@ -1,12 +1,12 @@
 using Endatix.Core.UseCases.Forms.List;
 using FluentAssertions;
 
-namespace Endatix.Core.UseCases.Tests.Forms.List;
+namespace Endatix.Core.Tests.UseCases.Forms.List;
 
 public class ListFormsQueryTests
 {
     [Fact]
-    public void Constructor_WithValidParameters_ShouldCreateQuery()
+    public void Constructor_ValidParameters_SetsPropertiesCorrectly()
     {
         // Arrange
         int? page = 1;
@@ -21,7 +21,7 @@ public class ListFormsQueryTests
     }
 
     [Fact]
-    public void Constructor_WithNullParameters_ShouldCreateQueryWithNullValues()
+    public void Constructor_NullPageAndPageSize_SetsPropertiesCorrectly()
     {
         // Arrange
         int? page = null;

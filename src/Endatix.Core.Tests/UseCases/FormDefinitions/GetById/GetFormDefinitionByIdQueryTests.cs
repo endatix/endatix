@@ -1,12 +1,44 @@
 using Endatix.Core.UseCases.FormDefinitions.GetById;
 using FluentAssertions;
+using static Endatix.Core.Tests.ErrorMessages;
+using static Endatix.Core.Tests.ErrorType;
 
-namespace Endatix.Core.UseCases.Tests.FormDefinitions.GetById;
+namespace Endatix.Core.Tests.UseCases.FormDefinitions.GetById;
 
 public class GetFormDefinitionByIdQueryTests
 {
     [Fact]
-    public void Constructor_WithValidParameters_ShouldCreateQuery()
+    public void Constructor_NegativeOrZeroFormId_ThrowsArgumentException()
+    {
+        // Arrange
+        var formId = -1;
+        var definitionId = 1;
+
+        // Act
+        Action act = () => new GetFormDefinitionByIdQuery(formId, definitionId);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage(GetErrorMessage(nameof(formId), ZeroOrNegative));
+    }
+
+    [Fact]
+    public void Constructor_NegativeOrZeroDefinitionId_ThrowsArgumentException()
+    {
+        // Arrange
+        var formId = 1;
+        var definitionId = -1;
+
+        // Act
+        Action act = () => new GetFormDefinitionByIdQuery(formId, definitionId);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage(GetErrorMessage(nameof(definitionId), ZeroOrNegative));
+    }
+
+    [Fact]
+    public void Constructor_ValidParameters_SetsPropertiesCorrectly()
     {
         // Arrange
         var formId = 1;
@@ -18,35 +50,5 @@ public class GetFormDefinitionByIdQueryTests
         // Assert
         query.FormId.Should().Be(formId);
         query.DefinitionId.Should().Be(definitionId);
-    }
-
-    [Fact]
-    public void Constructor_WithNegativeOrZeroFormId_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var formId = 0;
-        var definitionId = 1;
-
-        // Act
-        Action act = () => new GetFormDefinitionByIdQuery(formId, definitionId);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("Required input formId cannot be zero or negative. (Parameter 'formId')");
-    }
-
-    [Fact]
-    public void Constructor_WithNegativeOrZeroDefinitionId_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var formId = 1;
-        var definitionId = 0;
-
-        // Act
-        Action act = () => new GetFormDefinitionByIdQuery(formId, definitionId);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("Required input definitionId cannot be zero or negative. (Parameter 'definitionId')");
     }
 }

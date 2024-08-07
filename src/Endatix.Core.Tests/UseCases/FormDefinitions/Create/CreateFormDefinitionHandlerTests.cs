@@ -3,61 +3,58 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormDefinitions.Create;
 using FluentAssertions;
-using Moq;
+using NSubstitute;
 
-namespace Endatix.Core.UseCases.Tests.FormDefinitions.Create;
+namespace Endatix.Core.Tests.UseCases.FormDefinitions.Create;
 
 public class CreateFormDefinitionHandlerTests
 {
-    private readonly Mock<IRepository<FormDefinition>> _definitionsRepositoryMock;
-    private readonly Mock<IRepository<Form>> _formsRepositoryMock;
+    private readonly IRepository<FormDefinition> _definitionsRepository;
+    private readonly IRepository<Form> _formsRepository;
     private readonly CreateFormDefinitionHandler _handler;
 
     public CreateFormDefinitionHandlerTests()
     {
-        _definitionsRepositoryMock = new Mock<IRepository<FormDefinition>>();
-        _formsRepositoryMock = new Mock<IRepository<Form>>();
-        _handler = new CreateFormDefinitionHandler(_definitionsRepositoryMock.Object, _formsRepositoryMock.Object);
+        _definitionsRepository = Substitute.For<IRepository<FormDefinition>>();
+        _formsRepository = Substitute.For<IRepository<Form>>();
+        _handler = new CreateFormDefinitionHandler(_definitionsRepository, _formsRepository);
     }
 
     [Fact]
-    public async Task Handle_FormNotFound_ShouldReturnNotFoundResult()
+    public async Task Handle_FormNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var command = new CreateFormDefinitionCommand(1, true, "{\"key\":\"value\"}", true);
-        _formsRepositoryMock.Setup(x => x.GetByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Form)null);
+        var request = new CreateFormDefinitionCommand(1, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        _formsRepository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>()).Returns((Form)null);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Form not found.");
     }
 
     [Fact]
-    public async Task Handle_FormFound_ShouldCreateFormDefinition()
+    public async Task Handle_ValidRequest_CreatesNewFormDefinition()
     {
         // Arrange
         var form = new Form();
-        var command = new CreateFormDefinitionCommand(1, true, "{\"key\":\"value\"}", true);
-        _formsRepositoryMock.Setup(x => x.GetByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(form);
-        _definitionsRepositoryMock.Setup(x => x.AddAsync(It.IsAny<FormDefinition>(), It.IsAny<CancellationToken>()))
-            .Verifiable();
+        var request = new CreateFormDefinitionCommand(1, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        _formsRepository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>()).Returns(form);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Created);
         result.Value.Should().NotBeNull();
-        result.Value.FormId.Should().Be(command.FormId);
-        result.Value.IsDraft.Should().Be(command.IsDraft);
-        result.Value.JsonData.Should().Be(command.JsonData);
-        result.Value.IsActive.Should().Be(command.IsActive);
-
-        _definitionsRepositoryMock.Verify(x => x.AddAsync(It.IsAny<FormDefinition>(), It.IsAny<CancellationToken>()), Times.Once);
+        result.Value.FormId.Should().Be(request.FormId);
+        result.Value.IsDraft.Should().Be(request.IsDraft);
+        result.Value.JsonData.Should().Be(request.JsonData);
+        result.Value.IsActive.Should().Be(request.IsActive);
+        await _definitionsRepository.Received(1).AddAsync(Arg.Any<FormDefinition>(), Arg.Any<CancellationToken>());
     }
 }

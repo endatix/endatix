@@ -3,68 +3,72 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormDefinitions.GetById;
 using FluentAssertions;
-using Moq;
+using NSubstitute;
 
-namespace Endatix.Core.UseCases.Tests.FormDefinitions.GetById;
+namespace Endatix.Core.Tests.UseCases.FormDefinitions.GetById;
 
 public class GetFormDefinitionByIdHandlerTests
 {
-    private readonly Mock<IRepository<FormDefinition>> _repositoryMock;
+    private readonly IRepository<FormDefinition> _repository;
     private readonly GetFormDefinitionByIdHandler _handler;
 
     public GetFormDefinitionByIdHandlerTests()
     {
-        _repositoryMock = new Mock<IRepository<FormDefinition>>();
-        _handler = new GetFormDefinitionByIdHandler(_repositoryMock.Object);
+        _repository = Substitute.For<IRepository<FormDefinition>>();
+        _handler = new GetFormDefinitionByIdHandler(_repository);
     }
 
     [Fact]
-    public async Task Handle_FormDefinitionNotFound_ShouldReturnNotFoundResult()
+    public async Task Handle_FormDefinitionNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var query = new GetFormDefinitionByIdQuery(1, 1);
-        _repositoryMock.Setup(x => x.GetByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((FormDefinition)null);
+        var request = new GetFormDefinitionByIdQuery(1, 1);
+        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
+                   .Returns((FormDefinition)null);
 
         // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Form definition not found.");
     }
 
     [Fact]
-    public async Task Handle_FormDefinitionFoundWithDifferentFormId_ShouldReturnNotFoundResult()
+    public async Task Handle_FormIdMismatch_ReturnsNotFoundResult()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, "{\"key\":\"value\"}", true) { FormId = 2 };
-        var query = new GetFormDefinitionByIdQuery(1, 1);
-        _repositoryMock.Setup(x => x.GetByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(formDefinition);
+        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 2 };
+        var request = new GetFormDefinitionByIdQuery(1, 1);
+        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
+                   .Returns(formDefinition);
 
         // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Form definition not found.");
     }
 
     [Fact]
-    public async Task Handle_FormDefinitionFound_ShouldReturnSuccessResult()
+    public async Task Handle_ValidRequest_ReturnsFormDefinition()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, "{\"key\":\"value\"}", true) { FormId = 1 };
-        var query = new GetFormDefinitionByIdQuery(1, 1);
-        _repositoryMock.Setup(x => x.GetByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(formDefinition);
+        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        var request = new GetFormDefinitionByIdQuery(1, 1);
+        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
+                   .Returns(formDefinition);
 
         // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
         result.Value.Should().Be(formDefinition);
     }
 }

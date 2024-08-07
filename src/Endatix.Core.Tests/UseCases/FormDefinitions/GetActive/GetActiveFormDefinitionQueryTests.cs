@@ -1,12 +1,28 @@
 using Endatix.Core.UseCases.FormDefinitions.GetActive;
 using FluentAssertions;
+using static Endatix.Core.Tests.ErrorMessages;
+using static Endatix.Core.Tests.ErrorType;
 
-namespace Endatix.Core.UseCases.Tests.FormDefinitions.GetActive;
+namespace Endatix.Core.Tests.UseCases.FormDefinitions.GetActive;
 
 public class GetActiveFormDefinitionQueryTests
 {
     [Fact]
-    public void Constructor_WithValidParameters_ShouldCreateQuery()
+    public void Constructor_NegativeOrZeroFormId_ThrowsArgumentException()
+    {
+        // Arrange
+        var formId = -1;
+
+        // Act
+        Action act = () => new GetActiveFormDefinitionQuery(formId);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage(GetErrorMessage(nameof(formId), ZeroOrNegative));
+    }
+
+    [Fact]
+    public void Constructor_ValidParameters_SetsPropertiesCorrectly()
     {
         // Arrange
         var formId = 1;
@@ -16,19 +32,5 @@ public class GetActiveFormDefinitionQueryTests
 
         // Assert
         query.FormId.Should().Be(formId);
-    }
-
-    [Fact]
-    public void Constructor_WithNegativeOrZeroFormId_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var formId = 0;
-
-        // Act
-        Action act = () => new GetActiveFormDefinitionQuery(formId);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("Required input formId cannot be zero or negative. (Parameter 'formId')");
     }
 }

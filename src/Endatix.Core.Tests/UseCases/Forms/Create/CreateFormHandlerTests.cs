@@ -3,40 +3,44 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms.Create;
 using FluentAssertions;
-using Moq;
+using NSubstitute;
 
-namespace Endatix.Core.UseCases.Tests.Forms.Create;
+namespace Endatix.Core.Tests.UseCases.Forms.Create;
 
 public class CreateFormHandlerTests
 {
-    private readonly Mock<IRepository<Form>> _repositoryMock;
+    private readonly IRepository<Form> _repository;
     private readonly CreateFormHandler _handler;
 
     public CreateFormHandlerTests()
     {
-        _repositoryMock = new Mock<IRepository<Form>>();
-        _handler = new CreateFormHandler(_repositoryMock.Object);
+        _repository = Substitute.For<IRepository<Form>>();
+        _handler = new CreateFormHandler(_repository);
     }
 
     [Fact]
-    public async Task Handle_WithValidCommand_ShouldCreateAndReturnForm()
+    public async Task Handle_ValidRequest_CreatesForm()
     {
         // Arrange
-        var command = new CreateFormCommand("Test Form", "Test Description", true, "{\"key\":\"value\"}");
-        var form = new Form("Test Form", "Test Description", true, "{\"key\":\"value\"}");
-        _repositoryMock.Setup(x => x.AddAsync(It.IsAny<Form>(), It.IsAny<CancellationToken>()))
-            .Verifiable();
+        var request = new CreateFormCommand("Form Name", "Description", true, SampleData.FORM_DEFINITION_JSON_DATA_1);
+        Form? createdForm = null;
+        _repository.AddAsync(Arg.Do<Form>(form => createdForm = form), Arg.Any<CancellationToken>())
+                   .Returns(createdForm!);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Created);
         result.Value.Should().NotBeNull();
-        result.Value.Name.Should().Be(command.Name);
-        result.Value.Description.Should().Be(command.Description);
-        result.Value.IsEnabled.Should().Be(command.IsEnabled);
-
-        _repositoryMock.Verify(x => x.AddAsync(It.IsAny<Form>(), It.IsAny<CancellationToken>()), Times.Once);
+        result.Value.Should().Be(createdForm);
+        
+        createdForm.Should().NotBeNull();
+        createdForm!.Name.Should().Be(request.Name);
+        createdForm.Description.Should().Be(request.Description);
+        createdForm.IsEnabled.Should().Be(request.IsEnabled);
+        
+        await _repository.Received(1).AddAsync(createdForm, Arg.Any<CancellationToken>());
     }
 }

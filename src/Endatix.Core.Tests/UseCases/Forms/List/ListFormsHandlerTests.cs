@@ -1,44 +1,44 @@
 using Endatix.Core.Entities;
-using Endatix.Core.Filters;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Forms.List;
 using FluentAssertions;
-using Moq;
+using NSubstitute;
 
-namespace Endatix.Core.UseCases.Tests.Forms.List;
+namespace Endatix.Core.Tests.UseCases.Forms.List;
 
 public class ListFormsHandlerTests
 {
-    private readonly Mock<IRepository<Form>> _repositoryMock;
+    private readonly IRepository<Form> _repository;
     private readonly ListFormsHandler _handler;
 
     public ListFormsHandlerTests()
     {
-        _repositoryMock = new Mock<IRepository<Form>>();
-        _handler = new ListFormsHandler(_repositoryMock.Object);
+        _repository = Substitute.For<IRepository<Form>>();
+        _handler = new ListFormsHandler(_repository);
     }
 
     [Fact]
-    public async Task Handle_WithValidQuery_ShouldReturnSuccessResult()
+    public async Task Handle_ValidRequest_ReturnsForms()
     {
         // Arrange
         var forms = new List<Form>
         {
-            new Form("Form1", "Description1", true, "{\"key\":\"value1\"}"),
-            new Form("Form2", "Description2", false, "{\"key\":\"value2\"}")
+            new Form("Form 1", "Description 1", true, SampleData.FORM_DEFINITION_JSON_DATA_1),
+            new Form("Form 2", "Description 2", false, SampleData.FORM_DEFINITION_JSON_DATA_2)
         };
-
-        var query = new ListFormsQuery(1, 10);
-        _repositoryMock.Setup(x => x.ListAsync(It.IsAny<FormsSpec>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(forms);
+        var request = new ListFormsQuery(1, 10);
+        _repository.ListAsync(Arg.Any<FormsSpec>(), Arg.Any<CancellationToken>())
+                   .Returns(forms);
 
         // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
+        var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
         result.Value.Should().BeEquivalentTo(forms);
     }
 }

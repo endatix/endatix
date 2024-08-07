@@ -1,12 +1,30 @@
-using Endatix.Core.UseCases.FormDefinitions.List;
 using FluentAssertions;
+using static Endatix.Core.Tests.ErrorMessages;
+using static Endatix.Core.Tests.ErrorType;
+using Endatix.Core.UseCases.FormDefinitions.List;
 
-namespace Endatix.Core.UseCases.Tests.FormDefinitions.List;
+namespace Endatix.Core.Tests.UseCases.FormDefinitions.List;
 
 public class ListFormDefinitionsQueryTests
 {
     [Fact]
-    public void Constructor_WithValidParameters_ShouldCreateQuery()
+    public void Constructor_NegativeOrZeroFormId_ThrowsArgumentException()
+    {
+        // Arrange
+        var formId = -1;
+        int? page = 1;
+        int? pageSize = 10;
+
+        // Act
+        Action act = () => new ListFormDefinitionsQuery(formId, page, pageSize);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage(GetErrorMessage(nameof(formId), ZeroOrNegative));
+    }
+
+    [Fact]
+    public void Constructor_ValidParameters_SetsPropertiesCorrectly()
     {
         // Arrange
         var formId = 1;
@@ -20,21 +38,5 @@ public class ListFormDefinitionsQueryTests
         query.FormId.Should().Be(formId);
         query.Page.Should().Be(page);
         query.PageSize.Should().Be(pageSize);
-    }
-
-    [Fact]
-    public void Constructor_WithNegativeOrZeroFormId_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var formId = 0;
-        int? page = 1;
-        int? pageSize = 10;
-
-        // Act
-        Action act = () => new ListFormDefinitionsQuery(formId, page, pageSize);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("Required input formId cannot be zero or negative. (Parameter 'formId')");
     }
 }
