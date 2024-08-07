@@ -19,7 +19,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Samples.WebApp", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Samples.CustomEventHandlers", "samples\Endatix.Samples.CustomEventHandlers\Endatix.Samples.CustomEventHandlers.csproj", "{1DA4C4C3-7C14-4187-B574-C18E15316C89}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Core.Tests", "src\Endatix.Core.Tests\Endatix.Core.Tests.csproj", "{AE3977DF-7EA6-40AA-9DC4-7829BE25CFE0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Core.Tests", "tests\Endatix.Core.Tests\Endatix.Core.Tests.csproj", "{AE3977DF-7EA6-40AA-9DC4-7829BE25CFE0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

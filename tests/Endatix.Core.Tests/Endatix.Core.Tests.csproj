@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Endatix.Core\Endatix.Core.csproj" />
+    <ProjectReference Include="..\..\src\Endatix.Core\Endatix.Core.csproj" />
   </ItemGroup>
 
 </Project>
