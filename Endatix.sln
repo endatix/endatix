@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Samples.WebApp", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Samples.CustomEventHandlers", "samples\Endatix.Samples.CustomEventHandlers\Endatix.Samples.CustomEventHandlers.csproj", "{1DA4C4C3-7C14-4187-B574-C18E15316C89}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Core.Tests", "tests\Endatix.Core.Tests\Endatix.Core.Tests.csproj", "{AE3977DF-7EA6-40AA-9DC4-7829BE25CFE0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -49,6 +51,10 @@ Global
 		{1DA4C4C3-7C14-4187-B574-C18E15316C89}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1DA4C4C3-7C14-4187-B574-C18E15316C89}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1DA4C4C3-7C14-4187-B574-C18E15316C89}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AE3977DF-7EA6-40AA-9DC4-7829BE25CFE0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AE3977DF-7EA6-40AA-9DC4-7829BE25CFE0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AE3977DF-7EA6-40AA-9DC4-7829BE25CFE0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AE3977DF-7EA6-40AA-9DC4-7829BE25CFE0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -60,5 +66,6 @@ Global
 		{7A737D72-AF20-4E8F-A66C-F3F3ADDF8619} = {1578700B-C9E2-4469-BA9B-29E27B22EA25}
 		{82CBA1DE-59BE-4D7F-AE15-522E05D22A22} = {36B61C3D-9B27-4EC5-8E9D-9BAE97EBA631}
 		{1DA4C4C3-7C14-4187-B574-C18E15316C89} = {36B61C3D-9B27-4EC5-8E9D-9BAE97EBA631}
+		{AE3977DF-7EA6-40AA-9DC4-7829BE25CFE0} = {1578700B-C9E2-4469-BA9B-29E27B22EA25}
 	EndGlobalSection
 EndGlobal

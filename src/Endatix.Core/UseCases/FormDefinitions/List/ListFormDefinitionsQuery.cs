@@ -9,4 +9,18 @@ namespace Endatix.Core.UseCases.FormDefinitions.List;
 /// <summary>
 /// Query for listing form definitions with pagination.
 /// </summary>
-public record ListFormDefinitionsQuery(long FormId, int? Page, int? PageSize) : IQuery<Result<IEnumerable<FormDefinition>>>;
+public record ListFormDefinitionsQuery : IQuery<Result<IEnumerable<FormDefinition>>>
+{
+    public long FormId { get; init; }
+    public int? Page { get; init; }
+    public int? PageSize { get; init; }
+
+    public ListFormDefinitionsQuery(long formId, int? page, int? pageSize)
+    {
+        Guard.Against.NegativeOrZero(formId);
+
+        FormId = formId;
+        Page = page;
+        PageSize = pageSize;
+    }
+}
