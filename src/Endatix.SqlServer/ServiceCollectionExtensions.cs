@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Services;
+using Endatix.Infrastructure.Identity;
 
 namespace Endatix.SqlServer
 {
@@ -31,6 +32,7 @@ namespace Endatix.SqlServer
                 options.UseSqlServer(connectionString, b => b.MigrationsAssembly("SampleWebApp"));
             });
 
+            _ = services.AddDbContext<AppIdentityDbContext>(options => options.UseSqlServer(connectionString, options => options.MigrationsAssembly("Endatix.SqlServer")));
 
             services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
             services.AddScoped<IFormService, FormService>();

@@ -8,6 +8,9 @@ using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
 using Endatix.Core;
+using Microsoft.AspNetCore.Identity;
+using Endatix.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -92,8 +95,16 @@ public static class ServiceCollectionExtensions
 
                 Guard.Against.NullOrEmpty(signingKey, "signingKey", $"Cannot initialize application without a signingKey. Please check configuration for {nameof(SecuritySettings.JwtSigningKey)}");
 
-                services.AddAuthorization();
-                services.AddAuthenticationJwtBearer(s => s.SigningKey = signingKey);
+                // services.AddIdentityCore<AppUser>()
+                //     .AddEntityFrameworkStores<AppIdentityDbContext>()
+                //     .AddApiEndpoints();
+
+                // services.AddAuthorization();
+                // services.AddAuthentication()
+                //     .AddCookie(IdentityConstants.ApplicationScheme)
+                //     .AddBearerToken(IdentityConstants.BearerScheme);
+
+                // services.AddAuthenticationJwtBearer(s => s.SigningKey = signingKey);
                 services.AddScoped<ITokenService, JwtTokenService>();
                 logger.LogInformation("     >> Registering core authentication services");
             }

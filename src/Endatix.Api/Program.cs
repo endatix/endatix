@@ -8,6 +8,8 @@ using Endatix.SqlServer;
 using Endatix.Api.Infrastructure;
 using Endatix.Infrastructure.Email;
 using Endatix.Samples.CustomEventHandlers;
+using Endatix.Infrastructure.Identity.Extensions;
+using Endatix.Infrastructure.Identity;
 
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
@@ -40,6 +42,13 @@ try
                     ));
 
     builder.Services
+       .AddIdentityApiEndpoints<AppUser>()
+       .AddEntityFrameworkStores<AppIdentityDbContext>()
+       .Services
+       .AddAuthorization();
+
+
+    builder.Services
                 .AddCors()
                 .AddFastEndpoints()
                 .SwaggerDocument(o =>
@@ -70,17 +79,27 @@ try
     app.UseDefaultExceptionHandler(logger, true, true);
     app.UseHsts();
 
-    app.UseAuthentication()
-        .UseAuthorization();
+    if (app.Environment.IsDevelopment())
+    {
+        app.ApplyMigrations();
+    }
 
-    app.UseCors(b => b.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod())
-        .UseFastEndpoints(fastEndpoints =>
-            {
-                fastEndpoints.Versioning.Prefix = "v";
-                fastEndpoints.Endpoints.RoutePrefix = "api";
-                fastEndpoints.Serializer.Options.Converters.Add(new LongToStringConverter());
-            })
-        .UseSwaggerGen();
+    app.UseCors(b => b.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+
+    app.UseAuthentication()
+   .UseAuthorization();
+
+    app.MapGroup("/api")
+           .WithTags("Auth")
+           .MapIdentityApi<AppUser>();
+
+    app.UseFastEndpoints(fastEndpoints =>
+        {
+            fastEndpoints.Versioning.Prefix = "v";
+            fastEndpoints.Endpoints.RoutePrefix = "api";
+            fastEndpoints.Serializer.Options.Converters.Add(new LongToStringConverter());
+        })
+    .UseSwaggerGen();
 
     app.UseSerilogRequestLogging();
 

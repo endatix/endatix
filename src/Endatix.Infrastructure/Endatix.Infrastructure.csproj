@@ -9,7 +9,8 @@
 		<PackageReference Include="Ardalis.Specification.EntityFrameworkCore" Version="8.0.0" />
 		<PackageReference Include="FastEndpoints.Security" Version="5.26.0" />
 		<PackageReference Include="IdGen" Version="3.0.5" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.5" />
+		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0" />
 		<PackageReference Include="SendGrid" Version="9.29.3" />
 		<PackageReference Include="SendGrid.Extensions.DependencyInjection" Version="1.0.1" />
 	</ItemGroup>

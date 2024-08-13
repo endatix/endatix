@@ -2,17 +2,18 @@
 @host=https://localhost
 @port=5001
 @apiBaseUrl = {{host}}:{{port}}/api
-@jwt = {{login.response.body.token}}
+@jwt = {{login.response.body.accessToken}}
 @formId = 1263081289527853056
 
 // Login to obtain JWT Token
 # @name login
-POST {{apiBaseUrl}}/auth/login
+POST {{apiBaseUrl}}/login
 Content-Type: application/json
 
 {
+{
     "email": "developer@endatix.com",
-    "password": "password"
+    "password": "Pa$$123"
 }
 
 ###
