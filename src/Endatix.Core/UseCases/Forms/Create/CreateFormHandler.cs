@@ -11,7 +11,9 @@ public class CreateFormHandler(IRepository<Form> _repository) : ICommandHandler<
 {
     public async Task<Result<Form>> Handle(CreateFormCommand request, CancellationToken cancellationToken)
     {
-        var newForm = new Form(request.Name, request.Description, request.IsEnabled, request.FormDefinitionJsonData);
+        int test = 5
+
+        var newForm = new Form("bla", request.Description, request.IsEnabled, request.FormDefinitionJsonData);
         await _repository.AddAsync(newForm, cancellationToken);
         return Result<Form>.Created(newForm);
     }
