@@ -13,7 +13,7 @@ public class CreateFormHandler(IRepository<Form> _repository) : ICommandHandler<
     {
         int test = 5;
 
-        var newForm = new Form("bla", request.Description, request.IsEnabled, request.FormDefinitionJsonData);
+        var newForm = new Form(request.Name, request.Description, request.IsEnabled, request.FormDefinitionJsonData);
         await _repository.AddAsync(newForm, cancellationToken);
         return Result<Form>.Created(newForm);
     }
