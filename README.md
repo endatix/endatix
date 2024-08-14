@@ -3,7 +3,7 @@
 
 The open-source data collection and management library for .NET.
 
-Build secure, scalable, and integrated form-centric applications that work with [SurveyJS](https://github.com/surveyjs/survey-library) or any other JSON-based front-end. Empower business users with advanced workflows, automation and meaningful insights.
+Build secure, scalable, and integrated form-centric applications that work with [SurveyJS](https://github.com/surveyjs/survey-library). Empower business users with advanced workflows, automation and meaningful insights.
 
 ## What is this repository for?
 
