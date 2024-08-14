@@ -25,4 +25,4 @@ jobs:
       run: dotnet build --no-restore
 
     - name: Run tests
-      run: dotnet test --no-build --verbosity normal --project tests/Endatix.Core.Tests
+      run: dotnet test --no-build --verbosity normal tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj
