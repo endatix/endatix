@@ -25,6 +25,9 @@ node_modules/
 # Maven
 target/
 
+# Visual Studio
+.vs/
+
 # JetBrains IDE
 .idea/
 
