@@ -1,4 +1,5 @@
 # Endatix Data Platform #
+![.NET](https://github.com/endatix/endatix/actions/workflows/dotnet.yml/badge.svg)
 
 The open-source data collection and management library for .NET.
 
