@@ -1,6 +1,8 @@
 ﻿using MediatR;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Api.Infrastructure;
 

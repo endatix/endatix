@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Endatix.Core.Infrastructure.Result;
 using AppDomain = Endatix.Core.Infrastructure.Result;
+using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Api.Infrastructure;
 

@@ -2,14 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch Endatix.Api",
+      "name": "Launch Endatix.Web",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
       // If you have changed target frameworks, make sure to update the program path.
-      "program": "${workspaceFolder}/src/Endatix.Api/bin/Debug/net8.0/Endatix.Api.dll",
+      "program": "${workspaceFolder}/src/Endatix.Web/bin/Debug/net8.0/Endatix.Web.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/src/Endatix.Api",
+      "cwd": "${workspaceFolder}/src/Endatix.Web",
       "stopAtEntry": false,
       "serverReadyAction": {
         "action": "openExternally",
