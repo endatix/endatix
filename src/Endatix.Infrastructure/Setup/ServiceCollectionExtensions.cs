@@ -39,20 +39,6 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers services part of the Endatix.Infrastructure project and configures the services
-    /// </summary>
-    /// <param name="services">Service collection</param>
-    /// <param name="configuration">The action used to configure the options</param>
-    /// <returns>Service collection</returns>
-    public static IServiceCollection AddEndatixInfrastructure(this IServiceCollection services, Action<ConfigurationOptions> configuration)
-    {
-        var setupConfiguration = new ConfigurationOptions();
-        configuration.Invoke(setupConfiguration);
-
-        return services.AddEndatixInfrastructure(setupConfiguration);
-    }
-
-    /// <summary>
     /// Add specific Email sender implementation, which will also register configuration for the AppSettings and configure the DI container
     /// </summary>
     /// <typeparam name="TEmailSender">Must implement <c>IEmailSender</c> & <c>IHasInstallLogic</c></typeparam>
@@ -81,36 +67,6 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-
-    public static void AddMediatRInfrastructure(this IServiceCollection services, Action<MediatRConfigOptions>? options = null)
-    {
-        var logger = services.CreateLogger("MediatRInfrastructure");
-        logger.LogInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Started");
-        var meditROptions = new MediatRConfigOptions();
-        options?.Invoke(meditROptions);
-
-        var mediatRAssemblies = new[]
-        {
-            Endatix.Core.AssemblyReference.Assembly
-        };
-
-        if (meditROptions.AdditionalAssemblies.Length != 0)
-        {
-            mediatRAssemblies = [.. mediatRAssemblies, .. meditROptions.AdditionalAssemblies];
-        }
-
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(mediatRAssemblies!));
-        services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
-
-        if (meditROptions.IncludeLoggingPipeline)
-        {
-            services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingPipelineBehavior<,>));
-            logger.LogInformation("     >> Registering logging pipeline using the {ClassName} class", typeof(LoggingPipelineBehavior<,>).Name);
-        }
-
-        logger.LogInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Finished");
-    }
-
     /// <summary>
     /// Using this will register centralized MediatR pipeline logic based of the LoggingPipelineBehavior class
     /// </summary>
@@ -120,38 +76,5 @@ public static class ServiceCollectionExtensions
     {
         options.IncludeLoggingPipeline = true;
         return options;
-    }
-
-    private static IServiceCollection AddEndatixInfrastructure(this IServiceCollection services, ConfigurationOptions configuration)
-    {
-        var logger = services.CreateLogger("EndatixInfrastructure");
-        if (configuration.Security != null)
-        {
-            logger.LogInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Started");
-            var securityConfig = configuration.Security.SecurityConfiguration;
-            if (configuration.Security.EnableApiAuthentication)
-            {
-                services.Configure<SecuritySettings>(securityConfig);
-
-                var signingKey = securityConfig.GetRequiredSection(nameof(SecuritySettings.JwtSigningKey)).Value;
-
-                Guard.Against.NullOrEmpty(signingKey, "signingKey", $"Cannot initialize application without a signingKey. Please check configuration for {nameof(SecuritySettings.JwtSigningKey)}");
-
-                services.AddAuthorization();
-                services.AddAuthenticationJwtBearer(s => s.SigningKey = signingKey);
-                services.AddScoped<ITokenService, JwtTokenService>();
-                logger.LogInformation("     >> Registering core authentication services");
-            }
-
-            if (configuration.Security.EnableDevUsersFromConfig)
-            {
-                services.AddScoped<IAuthService, ConfigBasedAuthService>();
-                logger.LogInformation("     >> Registering {Interface} using the {ClassName} class", typeof(IAuthService).Name, typeof(ConfigBasedAuthService).Name);
-            }
-
-            logger.LogInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Finished");
-        }
-
-        return services;
     }
 }
