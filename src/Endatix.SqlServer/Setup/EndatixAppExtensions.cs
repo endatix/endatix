@@ -9,8 +9,17 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Setup;
 
-public static class EndatixWebAppExtensions
+/// <summary>
+/// Provides extension methods for configuring data persistence in the Endatix application.
+/// </summary>
+public static class EndatixAppExtensions
 {
+    /// <summary>
+    /// Adds data persistence to the specified <see cref="IEndatixApp"/> instance, configuring the application's database and optional Snowflake ID generation.
+    /// </summary>
+    /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
+    /// <param name="configuration">A delegate to configure the <see cref="IEndatixConfig"/> instance</param>
+    /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
     public static IEndatixApp AddDataPersistence(this IEndatixApp endatixApp, Action<IEndatixConfig> configuration)
     {
         IEndatixConfig configurationInstance = EndatixConfig.Configuration;
@@ -30,7 +39,7 @@ public static class EndatixWebAppExtensions
             endatixApp.Services.AddSingleton<IIdGenerator, SnowflakeIdGenerator>();
         }
 
-        endatixApp.LogBuilderInformation("Persistence using SqlServer configured");
+        endatixApp.LogSetupInformation("Persistence using SqlServer configured");
 
         return endatixApp;
     }

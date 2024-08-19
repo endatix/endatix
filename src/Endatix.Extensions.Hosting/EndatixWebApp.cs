@@ -6,9 +6,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Endatix.Extensions.Hosting;
 
+/// <summary>
+/// Implementation of the <see cref="IEndatixApp"/>. Wrapper class used for easy setup of the Endatix application
+/// </summary>
 internal class EndatixWebApp : IEndatixApp
 {
     const string BUILDER_LOG_PREFIX = "Endatix";
+
     private const string ORIGIN_TEMPLATE_VARIABLE = "{origin}";
 
     private readonly ILogger _logger;
@@ -25,27 +29,33 @@ internal class EndatixWebApp : IEndatixApp
         _builder = builder;
     }
 
+    /// <inheritdoc/>
     public ILogger Logger => _logger;
 
+    /// <inheritdoc/>
     public WebApplicationBuilder WebHostBuilder => _builder;
 
+    /// <inheritdoc/>
     public IServiceCollection Services => _builder.Services;
 
-    public void LogBuilderInformation(string message, params object?[] args)
+    /// <inheritdoc/>
+    public void LogSetupInformation(string message, params object?[] args)
     {
-        object[] logArgs = [BUILDER_LOG_PREFIX, ..args];
+        object[] logArgs = [BUILDER_LOG_PREFIX, .. args];
         Logger.LogInformation(ORIGIN_TEMPLATE_VARIABLE + ": " + message, logArgs);
     }
 
-    public void LogBuilderError(string message, params object?[] args)
+    /// <inheritdoc/>
+    public void LogSetupWarning(string message, params object?[] args)
     {
-        object[] logArgs = [BUILDER_LOG_PREFIX, ..args];
-        Logger.LogError(ORIGIN_TEMPLATE_VARIABLE + ": " + message, logArgs);
+        object[] logArgs = [BUILDER_LOG_PREFIX, .. args];
+        Logger.LogWarning(ORIGIN_TEMPLATE_VARIABLE + ": " + message, logArgs);
     }
 
-    public void LogBuilderWarning(string message, params object?[] args)
+    /// <inheritdoc/>
+    public void LogSetupError(string message, params object?[] args)
     {
-        object[] logArgs = [BUILDER_LOG_PREFIX, ..args];
-        Logger.LogWarning(ORIGIN_TEMPLATE_VARIABLE + ": " + message, logArgs);
+        object[] logArgs = [BUILDER_LOG_PREFIX, .. args];
+        Logger.LogError(ORIGIN_TEMPLATE_VARIABLE + ": " + message, logArgs);
     }
 }

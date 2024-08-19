@@ -1,5 +1,3 @@
-using System;
-using System.ComponentModel;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
@@ -20,14 +18,22 @@ using Serilog;
 
 namespace Endatix.Setup;
 
-public static class EndatixHostBuilderExtensions
+/// <summary>
+/// Provides extension methods for configuring various services and infrastructure components in the Endatix application.
+/// </summary>
+public static class EndatixAppExtensions
 {
+    /// <summary>
+    /// Adds Serilog logging to the specified <see cref="IEndatixApp"/> instance.
+    /// </summary>
+    /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
+    /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
     public static IEndatixApp AddSerilogLogging(this IEndatixApp endatixApp)
     {
         endatixApp.WebHostBuilder.Host.UseSerilog((context, loggerConfig) =>
                 loggerConfig.ReadFrom.Configuration(context.Configuration));
 
-        endatixApp.LogBuilderInformation("Serilog logging configured");
+        endatixApp.LogSetupInformation("Serilog logging configured");
 
         return endatixApp;
     }
@@ -39,7 +45,12 @@ public static class EndatixHostBuilderExtensions
         return endatixApp;
     }
 
-
+    /// <summary>
+    /// Adds domain services to the specified <see cref="IEndatixApp"/> instance.
+    /// </summary>
+    /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
+    /// <param name="configuration">The configured <see cref="IEndatixApp"/> instance.</param>
+    /// <returns></returns>
     public static IEndatixApp AddInfrastructure(this IEndatixApp endatixApp, Action<ConfigurationOptions> configuration)
     {
         var setupSettings = new ConfigurationOptions();
@@ -52,7 +63,7 @@ public static class EndatixHostBuilderExtensions
 
         if (setupSettings.Security != null)
         {
-            endatixApp.LogBuilderInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Started");
+            endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Started");
             var securityConfig = setupSettings.Security.SecurityConfiguration;
             if (setupSettings.Security.EnableApiAuthentication)
             {
@@ -65,24 +76,30 @@ public static class EndatixHostBuilderExtensions
                 services.AddAuthorization();
                 services.AddAuthenticationJwtBearer(s => s.SigningKey = signingKey);
                 services.AddScoped<ITokenService, JwtTokenService>();
-                endatixApp.LogBuilderInformation("     >> Registering core authentication services");
+                endatixApp.LogSetupInformation("     >> Registering core authentication services");
             }
 
             if (setupSettings.Security.EnableDevUsersFromConfig)
             {
                 services.AddScoped<IAuthService, ConfigBasedAuthService>();
-                endatixApp.LogBuilderInformation("     >> Registering {Interface} using the {ClassName} class", typeof(IAuthService).Name, typeof(ConfigBasedAuthService).Name);
+                endatixApp.LogSetupInformation("     >> Registering {Interface} using the {ClassName} class", typeof(IAuthService).Name, typeof(ConfigBasedAuthService).Name);
             }
 
-            endatixApp.LogBuilderInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Finished");
+            endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Finished");
         }
 
         return endatixApp;
     }
 
+    /// <summary>
+    /// Adds infrastructure services to the specified <see cref="IEndatixApp"/> instance, including security and email services, based of specified configuration options.
+    /// </summary>
+    /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
+    /// <param name="options">A delegate to configure the infrastructure options.</param>
+    /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
     public static IEndatixApp AddApplicationMessaging(this IEndatixApp endatixApp, Action<MediatRConfigOptions>? options = null)
     {
-        endatixApp.LogBuilderInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Started");
+        endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Started");
 
         var meditROptions = new MediatRConfigOptions();
         options?.Invoke(meditROptions);
@@ -104,10 +121,10 @@ public static class EndatixHostBuilderExtensions
         if (meditROptions.IncludeLoggingPipeline)
         {
             services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingPipelineBehavior<,>));
-            endatixApp.LogBuilderInformation("     >> Registering logging pipeline using the {ClassName} class", typeof(LoggingPipelineBehavior<,>).Name);
+            endatixApp.LogSetupInformation("     >> Registering logging pipeline using the {ClassName} class", typeof(LoggingPipelineBehavior<,>).Name);
         }
 
-        endatixApp.LogBuilderInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Finished");
+        endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Finished");
 
         return endatixApp;
     }
