@@ -8,13 +8,14 @@ using Endatix.Extensions.Hosting;
 using System.Runtime.Versioning;
 using Endatix.Core.Configuration;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Setup;
 
 
 public static class EndatixHostBuilderExtensions
 {
-    public static IEndatixApp UseEndatix(this WebApplicationBuilder builder, Logging.ILogger? logger = null)
+    public static IEndatixApp CreateEndatix(this WebApplicationBuilder builder, Logging.ILogger? logger = null)
     {
         Guard.Against.Null(builder);
 
@@ -37,29 +38,32 @@ public static class EndatixHostBuilderExtensions
     }
 
     [RequiresPreviewFeatures]
-    public static IEndatixApp UseDefaultSetup(this IEndatixApp endatixApp)
+    public static IEndatixApp AddDefaultSetup(this IEndatixApp endatixApp)
     {
         Guard.Against.Null(endatixApp);
 
         var builder = endatixApp.WebHostBuilder;
 
-        endatixApp.UseSerilogLogging();
+        endatixApp.AddSerilogLogging();
 
-        endatixApp.UseDomainServices();
+        endatixApp.AddDomainServices();
 
-        endatixApp.UseApplicationMessaging();
+        endatixApp.AddApplicationMessaging(options =>
+        {
+            options.UsePipelineLogging();
+        });
 
-        endatixApp.UseInfrastructure(configuration => configuration
+        endatixApp.AddInfrastructure(configuration => configuration
                                    .AddSecurityServices(options => options
                                        .AddApiAuthentication(builder.Configuration)
                                        .ReadDevUsersFromConfig()
                                    ));
 
-        endatixApp.UseSqlServer(configuration => configuration
-            .UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-            .UseCustomTablePrefix()
-            .UseSnowflakeIds(0)
-            .UseSampleData()
+        endatixApp.AddDataPersistence(configuration => configuration
+            .WithSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+            .WithCustomTablePrefix()
+            .WithSnowflakeIds(0)
+            .WithSampleData()
             );
 
         return endatixApp;

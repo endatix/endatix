@@ -7,7 +7,7 @@ namespace Endatix.Setup;
 
 public static class EndatixAppExtensions
 {
-    public static IEndatixApp UseApiEndpoints(this IEndatixApp endatixApp)
+    public static IEndatixApp AddApiEndpoints(this IEndatixApp endatixApp)
     {
         endatixApp.Services
                 .AddCors()

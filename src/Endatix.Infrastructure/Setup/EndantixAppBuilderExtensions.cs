@@ -16,14 +16,13 @@ using FastEndpoints.Security;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Serilog;
 
-namespace Endatix;
+namespace Endatix.Setup;
 
 public static class EndatixHostBuilderExtensions
 {
-    public static IEndatixApp UseSerilogLogging(this IEndatixApp endatixApp)
+    public static IEndatixApp AddSerilogLogging(this IEndatixApp endatixApp)
     {
         endatixApp.WebHostBuilder.Host.UseSerilog((context, loggerConfig) =>
                 loggerConfig.ReadFrom.Configuration(context.Configuration));
@@ -33,7 +32,7 @@ public static class EndatixHostBuilderExtensions
         return endatixApp;
     }
 
-    public static IEndatixApp UseDomainServices(this IEndatixApp endatixApp)
+    public static IEndatixApp AddDomainServices(this IEndatixApp endatixApp)
     {
         endatixApp.Services.AddScoped<IFormService, FormService>();
 
@@ -41,7 +40,7 @@ public static class EndatixHostBuilderExtensions
     }
 
 
-    public static IEndatixApp UseInfrastructure(this IEndatixApp endatixApp, Action<ConfigurationOptions> configuration)
+    public static IEndatixApp AddInfrastructure(this IEndatixApp endatixApp, Action<ConfigurationOptions> configuration)
     {
         var setupSettings = new ConfigurationOptions();
         configuration.Invoke(setupSettings);
@@ -81,14 +80,14 @@ public static class EndatixHostBuilderExtensions
         return endatixApp;
     }
 
-    public static IEndatixApp UseApplicationMessaging(this IEndatixApp endatixApp, Action<MediatRConfigOptions>? options = null)
+    public static IEndatixApp AddApplicationMessaging(this IEndatixApp endatixApp, Action<MediatRConfigOptions>? options = null)
     {
         endatixApp.LogBuilderInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Started");
 
-        var services = endatixApp.Services;
         var meditROptions = new MediatRConfigOptions();
         options?.Invoke(meditROptions);
 
+        var services = endatixApp.Services;
         var mediatRAssemblies = new[]
         {
             Endatix.Core.AssemblyReference.Assembly

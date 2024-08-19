@@ -1,39 +1,24 @@
 using Endatix.Setup;
-using Endatix.Api.Infrastructure;
-using FastEndpoints;
-using FastEndpoints.Swagger;
-using Serilog;
 
-try
-{
-    WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-    var endatixBuilder = builder.UseEndatix()
-                                .UseDefaultSetup()
-                                .UseApiEndpoints();
+var endatixBuilder = builder.CreateEndatix()
+                            .AddDefaultSetup()
+                            .AddApiEndpoints();
 
-    // TODO: expose custom plugin logic for plugin custom domain event handlers 
-    // builder.Services.AddMediatRInfrastructure(options =>
-    //                 {
-    //                     options.UsePipelineLogging();
-    //                     options.AdditionalAssemblies =
-    //                         [
-    //                             Endatix.Samples.CustomEventHandlers.AssemblyReference.Assembly
-    //                         ];
-    //                 });
+// TODO: expose custom plugin logic for plugin custom domain event handlers 
+// builder.Services.AddMediatRInfrastructure(options =>
+//                 {
+//                     options.UsePipelineLogging();
+//                     options.AdditionalAssemblies =
+//                         [
+//                             Endatix.Samples.CustomEventHandlers.AssemblyReference.Assembly
+//                         ];
+//                 });
 
-    var app = builder.Build();
+var app = builder.Build();
 
-    app.UseEndatixApi();
+app.UseEndatixApi();
 
-    app.Run();
+app.Run();
 
-}
-catch (Exception ex)
-{
-    Log.Fatal(ex, "An unhandled exception occurred during bootstrapping");
-}
-finally
-{
-    Log.CloseAndFlush();
-}
