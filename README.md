@@ -81,5 +81,5 @@ We recommend using GitHub Issues for public inquiries, bug reports, and feature 
 ## Other resources
 
 If you wish to learn more about Endatix and what you can do with it, please visit:
-- https://endatix.com
-- Documentation website (available soon)
+- **Endatix Website**: https://endatix.com
+- **Endatix Documentation**: Documentation website (available soon)
