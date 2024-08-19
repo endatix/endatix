@@ -18,7 +18,8 @@ var endatixBuilder = builder.CreateEndatix()
 
 var app = builder.Build();
 
-app.UseEndatixApi();
+app.UseEndatixMiddleware()
+            .UseEndatixApi();
 
 app.Run();
 
