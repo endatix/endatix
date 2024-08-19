@@ -1,4 +1,3 @@
-using MediatR;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 

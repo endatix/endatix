@@ -2,8 +2,11 @@
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 	<ItemGroup>
+		<PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
+		<PackageReference Include="serilog.sinks.async" Version="2.0.0" />
 		<PackageReference Include="Ardalis.EFCore.Extensions" Version="6.0.0" />
 		<PackageReference Include="Ardalis.Specification" Version="8.0.0" />
 		<PackageReference Include="Ardalis.Specification.EntityFrameworkCore" Version="8.0.0" />
@@ -12,8 +15,13 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.5" />
 		<PackageReference Include="SendGrid" Version="9.29.3" />
 		<PackageReference Include="SendGrid.Extensions.DependencyInjection" Version="1.0.1" />
+		<PackageReference Include="MediatR" Version="12.3.0" />
 	</ItemGroup>
 	<ItemGroup>
-	  <ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
+		<ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
+		<ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<Folder Include="Logging/" />
 	</ItemGroup>
 </Project>

@@ -1,9 +1,9 @@
 using System.Threading;
 using System.Threading.Tasks;
-using MediatR;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Events;
+using MediatR;
 
 namespace Endatix.Core.Handlers;
 

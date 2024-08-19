@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace Endatix.Api.Infrastructure;
+namespace Endatix.Infrastructure.Setup;
 
 /// <summary>
 /// Defines option for how MediatR registration should be done at startup

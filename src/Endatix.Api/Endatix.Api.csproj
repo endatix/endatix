@@ -12,8 +12,6 @@
     <PackageReference Include="FastEndpoints.Security" Version="5.26.0" />
     <PackageReference Include="FastEndpoints.Swagger" Version="5.26.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.5" />
-    <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
-    <PackageReference Include="serilog.sinks.async" Version="2.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
   </ItemGroup>
 
@@ -22,6 +20,7 @@
     <ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
     <ProjectReference Include="../Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
     <ProjectReference Include="../Endatix.SqlServer/Endatix.SqlServer.csproj" />
+    <ProjectReference Include="..\Endatix.Extensions.Hosting\Endatix.Extensions.Hosting.csproj" />
   </ItemGroup>
 
 </Project>

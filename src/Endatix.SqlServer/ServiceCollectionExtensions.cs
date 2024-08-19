@@ -3,9 +3,7 @@ using Endatix.Core.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Ardalis.GuardClauses;
-using Endatix.Core.Services;
 using Microsoft.Extensions.Logging;
-using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Services;
 
@@ -30,10 +28,6 @@ namespace Endatix.SqlServer
             {
                 options.UseSqlServer(connectionString, b => b.MigrationsAssembly("SampleWebApp"));
             });
-
-
-            services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
-            services.AddScoped<IFormService, FormService>();
 
             if (EndatixConfig.Configuration.UseSnowflakeIds)
             {
