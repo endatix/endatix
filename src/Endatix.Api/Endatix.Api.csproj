@@ -16,11 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../samples/Endatix.Samples.CustomEventHandlers/Endatix.Samples.CustomEventHandlers.csproj" />
     <ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
     <ProjectReference Include="../Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
-    <ProjectReference Include="../Endatix.SqlServer/Endatix.SqlServer.csproj" />
-    <ProjectReference Include="..\Endatix.Extensions.Hosting\Endatix.Extensions.Hosting.csproj" />
   </ItemGroup>
 
 </Project>
