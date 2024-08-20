@@ -1,13 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
-  <ItemGroup>
-    <ProjectReference Include="../../src/Endatix.Core/Endatix.Core.csproj" />
-  </ItemGroup>
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <EnablePackageValidation>false</EnablePackageValidation>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Endatix.Samples.WebApp</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../../src/Endatix.Core/Endatix.Core.csproj" />
+  </ItemGroup>
 </Project>

@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
     <PropertyGroup>
+        <PackageVersion>0.1.0-alpha</PackageVersion>
+    </PropertyGroup>
+    <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
-        <Company>Endatix Inc</Company>
+        <Company>Endatix, Inc.</Company>
         <Authors>Endatix team</Authors>
         <Copyright>Copyright © Endatix, Inc. $([System.DateTime]::Today.ToString('yyyy'))</Copyright>
         <Product>Endatix Platform</Product>
