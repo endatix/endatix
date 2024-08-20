@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Company>Endatix Inc</Company>
+        <Authors>Endatix team</Authors>
+        <Copyright>Copyright © Endatix, Inc. $([System.DateTime]::Today.ToString('yyyy'))</Copyright>
+        <Product>Endatix Platform</Product>
+        <PackageProjectUrl>https://endatix.com</PackageProjectUrl>
+        <PackageIconUrl>https://endatix.com/assets/images/endatix-white.svg</PackageIconUrl>
+        <PackageIcon>icon.png</PackageIcon>
+        <RepositoryUrl>https://github.com/endatix/endatix</RepositoryUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageTags>endatix,forms,open-source,data collection,data processing,data insights</PackageTags>
+        <NeutralLanguage>en-US</NeutralLanguage>
+        <Nullable>enable</Nullable>
+        <!-- <WarningsAsErrors>nullable</WarningsAsErrors> -->
+        <ImplicitUsings>enable</ImplicitUsings>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)/build/endatix-icon.png">
+          <Pack>True</Pack>
+          <PackagePath>icon.png</PackagePath>
+        </None>
+      </ItemGroup>
+    
+
+    <PropertyGroup>
+        <!-- https://devblogs.microsoft.com/visualstudio/vs-toolbox-accelerate-your-builds-of-sdk-style-net-projects/ -->
+        <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+    </PropertyGroup>
+</Project>
