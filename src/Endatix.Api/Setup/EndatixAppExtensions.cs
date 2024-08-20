@@ -25,8 +25,8 @@ public static class EndatixAppExtensions
                         o.ShortSchemaNames = true;
                         o.DocumentSettings = s =>
                         {
-                            s.Version = "v0";
-                            s.DocumentName = "Internal MVP (Alpha) Release";
+                            s.Version = "v0.1.0";
+                            s.DocumentName = "Alpha Release";
                             s.Title = "Endatix API";
                         };
                     });
