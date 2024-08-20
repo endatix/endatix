@@ -59,10 +59,6 @@ public static class EndatixHostBuilderExtensions
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
     /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the <paramref name="endatixApp"/> is null.</exception>
-    /// <remarks>
-    /// This method requires preview features to be enabled, as denoted by the <see cref="RequiresPreviewFeaturesAttribute"/>. To enable them add <code>    <EnablePreviewFeatures>true</EnablePreviewFeatures></code> to your csproj file
-    /// </remarks>
-    [RequiresPreviewFeatures]
     public static IEndatixApp AddDefaultSetup(this IEndatixApp endatixApp)
     {
         Guard.Against.Null(endatixApp);
