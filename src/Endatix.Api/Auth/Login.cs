@@ -14,7 +14,7 @@ public class Login(IMediator _mediator) : Endpoint<LoginRequest, LoginResponse>
         AllowAnonymous();
         Summary(s =>
         {
-            s.Summary = "Login endpoint";
+            s.Summary = "Log in";
             s.Description = "Authenticates an user based of valid credentials and returns JWT token";
             s.Responses[200] = "Use has been successfully authenticated";
             s.Responses[400] = "The supplied credentials are invalid!";
