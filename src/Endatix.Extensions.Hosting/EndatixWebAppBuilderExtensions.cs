@@ -28,22 +28,29 @@ public static class EndatixHostBuilderExtensions
     {
         Guard.Against.Null(builder);
 
-        if (logger == null)
-        {
-            var serilogLogger = new LoggerConfiguration()
-                .Enrich.FromLogContext()
-                .WriteTo.Async(wt => wt.Console(theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Sixteen, applyThemeToRedirectedOutput: true))
-                .CreateLogger();
-
-            logger = new SerilogLoggerFactory(serilogLogger)
-                .CreateLogger(nameof(EndatixWebApp));
-        }
-
+        logger ??= CreateSerilogLogger();
         var endatixWebApp = new EndatixWebApp(logger, builder);
 
         endatixWebApp.LogSetupInformation("Starting Endatix Web Application Host");
 
         return endatixWebApp;
+    }
+
+    /// <summary>
+    /// Creates the Serilog Logger to be used during the setup of the application + for setting it as the default Logger for the Host.
+    /// </summary>
+    /// <returns>the <see cref="ILogger"/>to be used for the Endatix application setup</returns>
+    private static Logging.ILogger CreateSerilogLogger()
+    {
+        Logging.ILogger? logger;
+        var serilogLogger = new LoggerConfiguration()
+                        .Enrich.FromLogContext()
+                        .WriteTo.Async(wt => wt.Console(theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Sixteen, applyThemeToRedirectedOutput: true))
+                        .CreateLogger();
+
+        logger = new SerilogLoggerFactory(serilogLogger)
+            .CreateLogger(nameof(EndatixWebApp));
+        return logger;
     }
 
     /// <summary>
