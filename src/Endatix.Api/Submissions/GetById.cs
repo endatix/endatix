@@ -21,8 +21,8 @@ public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<S
         Roles("Admin");
         Summary(s =>
         {
-            s.Summary = "Gets a single submission";
-            s.Description = "Get a single submission based of its Id and its respective formId";
+            s.Summary = "Get a single submission";
+            s.Description = "Gets a single submission based of its Id and its respective formId";
             s.Responses[200] = "The Submission was retrieved successfully";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found";
