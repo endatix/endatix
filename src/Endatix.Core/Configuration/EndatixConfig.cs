@@ -8,6 +8,8 @@ namespace Endatix.Core.Configuration
         public bool CreateDatabaseIfNotExist { get; set; } = false;
         public string? TablePrefix { get; set; }
         public string ConnectionString { get; set; }
+
+        public string? MigrationsAssembly { get; set; }
         public string DefaultFormDefinitionJson = "{\"logoPosition\": \"right\"}";
         public bool SeedSampleData { get; set; } = false;
     }

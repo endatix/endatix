@@ -4,7 +4,7 @@ namespace Endatix.Core.Configuration
 {
     public static class EndatixConfigExtensions
     {
-        public static IEndatixConfig UseSnowflakeIds(this IEndatixConfig config, int snowflakeGeneratorId)
+        public static IEndatixConfig WithSnowflakeIds(this IEndatixConfig config, int snowflakeGeneratorId)
         {
             Guard.Against.Negative(snowflakeGeneratorId, null, "Snowflake generator id cannot be negative.");
 
@@ -13,11 +13,12 @@ namespace Endatix.Core.Configuration
             return config;
         }
 
-        public static IEndatixConfig UseSqlServer(this IEndatixConfig config, string connectionString)
+        public static IEndatixConfig WithSqlServer(this IEndatixConfig config, string connectionString, string? migrationsAssembly = null)
         {
             Guard.Against.NullOrEmpty(connectionString, null, "Endatix connection string cannot be null or empty.");
 
             EndatixConfig.Configuration.ConnectionString = connectionString;
+            EndatixConfig.Configuration.MigrationsAssembly = migrationsAssembly;
             return config;
         }
 
@@ -27,7 +28,7 @@ namespace Endatix.Core.Configuration
         /// <param name="config"></param>
         /// <param name="tablePrefix">The table prefix. If null or empty, no prefix will be added</param>
         /// <returns>The configuration</returns>
-        public static IEndatixConfig UseCustomTablePrefix(this IEndatixConfig config, string tablePrefix = null)
+        public static IEndatixConfig WithCustomTablePrefix(this IEndatixConfig config, string tablePrefix = null)
         {
             if (!string.IsNullOrEmpty(tablePrefix))
             {
@@ -45,7 +46,7 @@ namespace Endatix.Core.Configuration
             return config;
         }
 
-        public static IEndatixConfig UseSampleData(this IEndatixConfig config)
+        public static IEndatixConfig WithSampleData(this IEndatixConfig config)
         {
             EndatixConfig.Configuration.SeedSampleData = true;
             return config;

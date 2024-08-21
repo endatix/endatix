@@ -8,6 +8,10 @@ using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
 using Endatix.Core;
+using Endatix.Infrastructure.Setup;
+using Endatix.Core.Infrastructure.Messaging;
+using MediatR;
+using Endatix.Core.Infrastructure.Logging;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -32,20 +36,6 @@ public static class ServiceCollectionExtensions
 
         var logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(loggerName);
         return logger;
-    }
-
-    /// <summary>
-    /// Registers services part of the Endatix.Infrastructure project and configures the services
-    /// </summary>
-    /// <param name="services">Service collection</param>
-    /// <param name="configuration">The action used to configure the options</param>
-    /// <returns>Service collection</returns>
-    public static IServiceCollection AddEndatixInfrastructure(this IServiceCollection services, Action<ConfigurationOptions> configuration)
-    {
-        var setupConfiguration = new ConfigurationOptions();
-        configuration.Invoke(setupConfiguration);
-
-        return services.AddEndatixInfrastructure(setupConfiguration);
     }
 
     /// <summary>
@@ -77,36 +67,14 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddEndatixInfrastructure(this IServiceCollection services, ConfigurationOptions configuration)
+    /// <summary>
+    /// Using this will register centralized MediatR pipeline logic based of the LoggingPipelineBehavior class
+    /// </summary>
+    /// <param name="options">MediatRConfigOptions options</param>
+    /// <returns>The updated MediatRConfigOptions</returns>
+    public static MediatRConfigOptions UsePipelineLogging(this MediatRConfigOptions options)
     {
-        var logger = services.CreateLogger("EndatixInfrastructure");
-        if (configuration.Security != null)
-        {
-            logger.LogInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Started");
-            var securityConfig = configuration.Security.SecurityConfiguration;
-            if (configuration.Security.EnableApiAuthentication)
-            {
-                services.Configure<SecuritySettings>(securityConfig);
-
-                var signingKey = securityConfig.GetRequiredSection(nameof(SecuritySettings.JwtSigningKey)).Value;
-
-                Guard.Against.NullOrEmpty(signingKey, "signingKey", $"Cannot initialize application without a signingKey. Please check configuration for {nameof(SecuritySettings.JwtSigningKey)}");
-
-                services.AddAuthorization();
-                services.AddAuthenticationJwtBearer(s => s.SigningKey = signingKey);
-                services.AddScoped<ITokenService, JwtTokenService>();
-                logger.LogInformation("     >> Registering core authentication services");
-            }
-
-            if (configuration.Security.EnableDevUsersFromConfig)
-            {
-                services.AddScoped<IAuthService, ConfigBasedAuthService>();
-                logger.LogInformation("     >> Registering {Interface} using the {ClassName} class", typeof(IAuthService).Name, typeof(ConfigBasedAuthService).Name);
-            }
-
-            logger.LogInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Finished");
-        }
-
-        return services;
+        options.IncludeLoggingPipeline = true;
+        return options;
     }
 }

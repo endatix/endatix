@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -12,16 +12,12 @@
     <PackageReference Include="FastEndpoints.Security" Version="5.26.0" />
     <PackageReference Include="FastEndpoints.Swagger" Version="5.26.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.5" />
-    <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
-    <PackageReference Include="serilog.sinks.async" Version="2.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../samples/Endatix.Samples.CustomEventHandlers/Endatix.Samples.CustomEventHandlers.csproj" />
     <ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
     <ProjectReference Include="../Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
-    <ProjectReference Include="../Endatix.SqlServer/Endatix.SqlServer.csproj" />
   </ItemGroup>
 
 </Project>
