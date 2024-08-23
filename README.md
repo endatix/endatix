@@ -1,5 +1,5 @@
 # Endatix Platform
-![.NET](https://github.com/endatix/endatix/actions/workflows/dotnet.yml/badge.svg)
+[![Build & Test](https://github.com/endatix/endatix/actions/workflows/build-ci.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/build-ci.yml)
 
 ## What is Endatix?
 
