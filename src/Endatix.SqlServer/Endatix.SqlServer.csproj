@@ -2,7 +2,11 @@
   <PropertyGroup>
     <PackageId>Endatix.Persistence.SqlServer</PackageId>
     <Title>Endatix - SqlServer</Title>
-    <Description>Adds support for using MS SQL Server database persistence with the Endatix Platform.</Description>
+    <Description>
+			This package provides implementations of the application's dependencies and external resources. It includes infrastructure-level services like database access, messaging, and other integrations.
+
+		  $(EndatixPlatformDescription)
+    </Description>
   </PropertyGroup>
 
   <PropertyGroup>

@@ -1,8 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<PackageId>Endatix.Core</PackageId>
-		<Title>Endatix - Core </Title>
-		<Description>The core of the Endatix Platform. Contains the domain model of the application and common abstractions.</Description>
+		<Title>Endatix - Core</Title>
+		<Description>
+			This package contains the core of the Endatix Platform. Includes the domain model,application level services and common abstractions
+
+		  	$(EndatixPlatformDescription)
+		</Description>
 	</PropertyGroup>
 
 	<PropertyGroup>

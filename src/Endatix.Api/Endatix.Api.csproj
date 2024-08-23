@@ -1,5 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <PackageId>Endatix.Api</PackageId>
+    <Title>Endatix - API </Title>
+    <Description>
+      This package contains the key presentation layer of the Endatix Platform, including both Public and Management APIs.
+
+      $(EndatixPlatformDescription)
+    </Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

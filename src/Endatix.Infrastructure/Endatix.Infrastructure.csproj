@@ -2,7 +2,11 @@
 	<PropertyGroup>
 		<PackageId>Endatix.Infrastructure</PackageId>
 		<Title>Endatix - Infrastructure</Title>
-		<Description>Provides implementations of application's dependencies and external resources.</Description>
+		<Description>
+			This package provides implementations of the application's dependencies and external resources. It includes infrastructure-level services like database access, messaging, and other integrations.
+
+		  	$(EndatixPlatformDescription)
+		</Description>
 	</PropertyGroup>
 
 	<PropertyGroup>
