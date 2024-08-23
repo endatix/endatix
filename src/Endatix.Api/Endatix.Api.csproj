@@ -18,5 +18,4 @@
     <ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
     <ProjectReference Include="../Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
   </ItemGroup>
-
 </Project>

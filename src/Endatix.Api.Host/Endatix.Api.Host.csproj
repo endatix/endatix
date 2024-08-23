@@ -6,7 +6,9 @@
   <PropertyGroup>
     <PackageId>Endatix.Api.Host</PackageId>
     <Title>Endatix - API Host</Title>
-    <Description>Install this package to host the Endatix API - the key presentation layer of the Endatix Platform. Inncludes Public and Management APIs</Description>
+    <Description>$(EndatixPlatformDescription)
+
+    Install this package to host the Endatix API - the key presentation layer of the Endatix Platform. Inncludes Public and Management APIs</Description>
   </PropertyGroup>
 
   <PropertyGroup>

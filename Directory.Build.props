@@ -5,16 +5,22 @@
     </PropertyGroup>
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
-        <Company>Endatix, Inc.</Company>
-        <Authors>Endatix team</Authors>
-        <Copyright>Copyright © Endatix, Inc. $([System.DateTime]::Today.ToString('yyyy'))</Copyright>
+        <Company>Endatix, Ltd.</Company>
+        <Authors>Endatix team and Community contributors</Authors>
+        <Owners>Endatix team and Community contributors</Owners>
+        <Copyright>Copyright © Endatix, Ltd. $([System.DateTime]::Today.ToString('yyyy'))</Copyright>
         <Product>Endatix Platform</Product>
         <PackageProjectUrl>https://endatix.com</PackageProjectUrl>
         <PackageIconUrl>https://endatix.com/assets/images/endatix-white.svg</PackageIconUrl>
         <PackageIcon>icon.png</PackageIcon>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <RepositoryUrl>https://github.com/endatix/endatix</RepositoryUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageTags>endatix,forms,open-source,data collection,data processing,data insights</PackageTags>
+        <EndatixPlatformDescription>Endatix Platform is an open-source data collection and management library for .NET.</EndatixPlatformDescription>
+    </PropertyGroup>
+
+    <PropertyGroup>
         <NeutralLanguage>en-US</NeutralLanguage>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
@@ -24,10 +30,14 @@
 
     <ItemGroup>
         <None Include="$(MSBuildThisFileDirectory)/build/endatix-icon.png">
-          <Pack>True</Pack>
-          <PackagePath>icon.png</PackagePath>
+            <Pack>True</Pack>
+            <PackagePath>icon.png</PackagePath>
         </None>
-      </ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)/README.md">
+            <Pack>True</Pack>
+            <PackagePath>README.md</PackagePath>
+        </None>
+    </ItemGroup>
 
     <PropertyGroup>
         <!-- https://devblogs.microsoft.com/visualstudio/vs-toolbox-accelerate-your-builds-of-sdk-style-net-projects/ -->
