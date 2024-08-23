@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 
-namespace Endatix.SqlServer.Config
+namespace Endatix.Persistence.SqlServer.Config
 {
     public class FormConfigurationSqlServer : IEntityTypeConfiguration<Form> 
     {

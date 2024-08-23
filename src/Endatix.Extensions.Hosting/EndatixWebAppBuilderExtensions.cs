@@ -5,7 +5,6 @@ using Serilog;
 using Serilog.Extensions.Logging;
 using Endatix.Framework.Hosting;
 using Endatix.Extensions.Hosting;
-using System.Runtime.Versioning;
 using Endatix.Core.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,4 +1,4 @@
-# Endatix.SqlServer
+# Endatix.Persistence.SqlServer
 
 Adds support for using MS SQL Server database persistence with the Endatix Platform. This package is crucial for applications that require SQL Server as the primary database.
 
@@ -8,7 +8,7 @@ Adds support for using MS SQL Server database persistence with the Endatix Platf
 ## Installation:
 
 ```bash
-dotnet add package Endatix.SqlServer
+dotnet add package Endatix.Persistence.SqlServer
 ```
 
 ## Recommended Usage:

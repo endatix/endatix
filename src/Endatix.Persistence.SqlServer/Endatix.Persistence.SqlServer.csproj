@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>Endatix.Persistence.SqlServer</PackageId>
-    <Title>Endatix - SqlServer</Title>
+    <Title>Endatix - SqlServer Persistence</Title>
     <Description>
 			This package provides implementations of the application's dependencies and external resources. It includes infrastructure-level services like database access, messaging, and other integrations.
 
