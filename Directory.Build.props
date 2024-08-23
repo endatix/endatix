@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
     <PropertyGroup>
-        <PackageVersion>0.1.0-alpha</PackageVersion>
-    </PropertyGroup>
-    <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <Company>Endatix, Ltd.</Company>
         <Authors>Endatix team and Community contributors</Authors>
