@@ -21,7 +21,7 @@ jobs:
   release-version:
     env:
       MAIN_PACKAGE_ID: "Endatix.Api.Host"
-      RELEASE_VERSION:
+      RELEASE_VERSION: ""
     runs-on: ubuntu-latest
     steps:
       - name: Set Release Version | From Tag
@@ -52,7 +52,7 @@ jobs:
         run: dotnet build -c Release -p:Version=${{ env.RELEASE_VERSION }}
 
       - name: Run tests
-        run: dotnet test --no-build --verbosity normal tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj
+        run: dotnet test -c Release --no-build --verbosity normal tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj
 
       - name: Prepare Packages
         run: dotnet pack --no-build -p:Version=${{ env.RELEASE_VERSION }} -o .artifacts
