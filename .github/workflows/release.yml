@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: true
+        description: Version (Semver without leading v)
+  push:
+    paths-ignore:
+      # - '**/*.md'
+      - 'src/docs/**/*'
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-alpha'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc'
+
+jobs:
+  release-version:
+    env:
+      PACKAGE_ID: "KungFunc.CLI.Demo"
+      RELEASE_VERSION:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set Release Version | From Tag
+        if: github.event_name == 'push'
+        run: |
+          echo "RELEASE_VERSION=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
+          echo "Using version ${{ env.RELEASE_VERSION }}"
+        shell: bash
+
+      - name: Set Release Version | Manual Input 
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "RELEASE_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          echo "Using version ${{ env.RELEASE_VERSION }}"
+
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.x"
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Build Project
+        run: dotnet build -c Release -p:Version=${{ env.RELEASE_VERSION }}
+
+      - name: Run tests
+        run: dotnet test --no-build --verbosity normal tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj
+
+      - name: Prepare Packages
+        run: dotnet pack --no-build -p:Version=${{ env.RELEASE_VERSION }} -o .artifacts
+
+      - name: Push to NuGet
+        run: dotnet nuget push '.artifacts/*.nupkg' -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: .artifacts/**/*
+
+      - name: Summary message
+        run: |
+          echo ">[!TIP] " >> $GITHUB_STEP_SUMMARY
+          echo ">### NuGet Packaging Complete! :outbox_tray:" >> $GITHUB_STEP_SUMMARY
+          echo ">check NuGet.org for package $PACKAGE_ID.${{ env.RELEASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo ":link: https://www.nuget.org/packages/$PACKAGE_ID/${{ env.RELEASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
