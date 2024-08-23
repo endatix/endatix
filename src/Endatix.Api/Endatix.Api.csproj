@@ -1,10 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Endatix.Api</PackageId>
+    <Title>Endatix - API </Title>
+    <Description>
+      This package contains the key presentation layer of the Endatix Platform, including both Public and Management APIs.
+
+      $(EndatixPlatformDescription)
+    </Description>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <RootNamespace>Endatix.Api</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,5 +28,4 @@
     <ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
     <ProjectReference Include="../Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
   </ItemGroup>
-
 </Project>

@@ -1,9 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
+		<PackageId>Endatix.Infrastructure</PackageId>
+		<Title>Endatix - Infrastructure</Title>
+		<Description>
+			This package provides implementations of the application's dependencies and external resources. It includes infrastructure-level services like database access, messaging, and other integrations.
+
+		  	$(EndatixPlatformDescription)
+		</Description>
+	</PropertyGroup>
+
+	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
 		<PackageReference Include="serilog.sinks.async" Version="2.0.0" />

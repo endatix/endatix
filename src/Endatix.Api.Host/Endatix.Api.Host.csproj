@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Endatix.Api\Endatix.Api.csproj" />
+    <ProjectReference Include="..\Endatix.Extensions.Hosting\Endatix.Extensions.Hosting.csproj" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PackageId>Endatix.Api.Host</PackageId>
+    <Title>Endatix - API Host</Title>
+    <Description>$(EndatixPlatformDescription)
+
+    Install this package to host the Endatix API - the key presentation layer of the Endatix Platform. Inncludes Public and Management APIs</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Endatix.Api.Host</RootNamespace>
+  </PropertyGroup>
+</Project>

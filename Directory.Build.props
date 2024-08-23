@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+    <PropertyGroup>
+        <PackageVersion>0.1.0-alpha</PackageVersion>
+    </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Company>Endatix, Ltd.</Company>
+        <Authors>Endatix team and Community contributors</Authors>
+        <Owners>Endatix team and Community contributors</Owners>
+        <Copyright>Copyright © Endatix, Ltd. $([System.DateTime]::Today.ToString('yyyy'))</Copyright>
+        <Product>Endatix Platform</Product>
+        <PackageProjectUrl>https://endatix.com</PackageProjectUrl>
+        <PackageIconUrl>https://endatix.com/assets/images/endatix-white.svg</PackageIconUrl>
+        <PackageIcon>icon.png</PackageIcon>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <RepositoryUrl>https://github.com/endatix/endatix</RepositoryUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageTags>endatix,forms,open-source,data collection,data processing,data insights</PackageTags>
+        <EndatixPlatformDescription>Endatix Platform is an open-source data collection and management library for .NET.</EndatixPlatformDescription>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <NeutralLanguage>en-US</NeutralLanguage>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)/build/endatix-icon.png">
+            <Pack>True</Pack>
+            <PackagePath>icon.png</PackagePath>
+        </None>
+        <None Include="README.md">
+            <Pack>True</Pack>
+            <PackagePath>README.md</PackagePath>
+        </None>
+    </ItemGroup>
+
+    <PropertyGroup>
+        <!-- https://devblogs.microsoft.com/visualstudio/vs-toolbox-accelerate-your-builds-of-sdk-style-net-projects/ -->
+        <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+    </PropertyGroup>
+</Project>
