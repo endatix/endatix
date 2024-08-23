@@ -1,11 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <PackageId>Endatix.Extensions.Hosting</PackageId>
-    <Title>Endatix - Hosting Extensions</Title>
-    <Description>Provides useful extension methods and utilities for hosting the Endatix Platform.</Description>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -14,6 +8,10 @@
 
   <ItemGroup>
     <PackageReference Include="Ardalis.GuardClauses" Version="4.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+
   </ItemGroup>
 
   <ItemGroup>

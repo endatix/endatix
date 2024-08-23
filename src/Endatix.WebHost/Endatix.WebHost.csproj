@@ -1,20 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-  <PropertyGroup>
-    <IsPackable>false</IsPackable>
-    <EnablePackageValidation>false</EnablePackageValidation>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <EnablePreviewFeatures>true</EnablePreviewFeatures>
-    <RootNamespace>Endatix.WebHost</RootNamespace>
-  </PropertyGroup>
-
 
   <ItemGroup>
     <ProjectReference Include="..\Endatix.Api\Endatix.Api.csproj" />
     <ProjectReference Include="..\Endatix.Extensions.Hosting\Endatix.Extensions.Hosting.csproj" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
 </Project>

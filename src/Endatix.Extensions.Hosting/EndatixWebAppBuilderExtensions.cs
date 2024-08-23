@@ -28,17 +28,7 @@ public static class EndatixHostBuilderExtensions
     {
         Guard.Against.Null(builder);
 
-        if (logger == null)
-        {
-            var serilogLogger = new LoggerConfiguration()
-                .Enrich.FromLogContext()
-                .WriteTo.Async(wt => wt.Console(theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Sixteen, applyThemeToRedirectedOutput: true))
-                .CreateLogger();
-
-            logger = new SerilogLoggerFactory(serilogLogger)
-                .CreateLogger(nameof(EndatixWebApp));
-        }
-
+        logger ??= CreateSerilogLogger();
         var endatixWebApp = new EndatixWebApp(logger, builder);
 
         endatixWebApp.LogSetupInformation("Starting Endatix Web Application Host");
@@ -47,15 +37,28 @@ public static class EndatixHostBuilderExtensions
     }
 
     /// <summary>
+    /// Creates the Serilog Logger to be used during the setup of the application + for setting it as the default Logger for the Host.
+    /// </summary>
+    /// <returns>the <see cref="ILogger"/>to be used for the Endatix application setup</returns>
+    private static Logging.ILogger CreateSerilogLogger()
+    {
+        Logging.ILogger? logger;
+        var serilogLogger = new LoggerConfiguration()
+                        .Enrich.FromLogContext()
+                        .WriteTo.Async(wt => wt.Console(theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Sixteen, applyThemeToRedirectedOutput: true))
+                        .CreateLogger();
+
+        logger = new SerilogLoggerFactory(serilogLogger)
+            .CreateLogger(nameof(EndatixWebApp));
+        return logger;
+    }
+
+    /// <summary>
     /// Adds the default setup configuration to the specified <see cref="IEndatixApp"/> instance.This includes adding logging, domain services, application messaging, infrastructure, and data persistence components to the application.
     /// </summary>
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
     /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the <paramref name="endatixApp"/> is null.</exception>
-    /// <remarks>
-    /// This method requires preview features to be enabled, as denoted by the <see cref="RequiresPreviewFeaturesAttribute"/>. To enable them add <code>    <EnablePreviewFeatures>true</EnablePreviewFeatures></code> to your csproj file
-    /// </remarks>
-    [RequiresPreviewFeatures]
     public static IEndatixApp AddDefaultSetup(this IEndatixApp endatixApp)
     {
         Guard.Against.Null(endatixApp);

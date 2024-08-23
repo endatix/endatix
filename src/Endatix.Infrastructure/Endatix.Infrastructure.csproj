@@ -9,7 +9,6 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<RootNamespace>Endatix.Infrastructure</RootNamespace>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -27,7 +26,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
-		<ProjectReference Include="../Endatix.Framework/Endatix.Framework.csproj" />
+		<ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="Logging/" />
