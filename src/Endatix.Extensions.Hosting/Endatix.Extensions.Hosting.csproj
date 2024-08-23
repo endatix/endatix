@@ -21,13 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
-
-  </ItemGroup>
-
-  <ItemGroup>
+    <ProjectReference Include="..\Endatix.Persistence.SqlServer\Endatix.Persistence.SqlServer.csproj" />
     <ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
     <ProjectReference Include="..\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
-    <ProjectReference Include="..\Endatix.SqlServer\Endatix.SqlServer.csproj" />
   </ItemGroup>
 
 </Project>

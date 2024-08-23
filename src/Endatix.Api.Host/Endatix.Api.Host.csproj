@@ -1,8 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <ProjectReference Include="..\Endatix.Api\Endatix.Api.csproj" />
-    <ProjectReference Include="..\Endatix.Extensions.Hosting\Endatix.Extensions.Hosting.csproj" />
-  </ItemGroup>
   <PropertyGroup>
     <PackageId>Endatix.Api.Host</PackageId>
     <Title>Endatix - API Host</Title>
@@ -17,4 +13,9 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Endatix.Api.Host</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Endatix.Api\Endatix.Api.csproj" />
+    <ProjectReference Include="..\Endatix.Extensions.Hosting\Endatix.Extensions.Hosting.csproj" />
+  </ItemGroup>
 </Project>
