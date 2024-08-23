@@ -53,3 +53,5 @@ Thumbs.db
 *.mov
 *.wmv
 
+# Remove local nuget packages created during testing
+.artifacts/

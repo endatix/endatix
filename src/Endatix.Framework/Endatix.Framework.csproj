@@ -1,4 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Endatix.Framework</PackageId>
+    <Title>Endatix - Framework</Title>
+    <Description>
+			This package provides common plugin and extensibility points used to extend or customize the Endatix Platform. It allows developers to build and integrate custom functionality within the platform.
+
+		  $(EndatixPlatformDescription)
+    </Description>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
