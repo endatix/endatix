@@ -2,7 +2,7 @@
 using FluentValidation;
 using Endatix.Infrastructure.Data.Config;
 
-namespace Endatix.Api.Forms;
+namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
 /// Validation rules for the <c>CreateFormRequest</c> class.

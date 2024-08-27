@@ -2,7 +2,7 @@
 using FluentValidation;
 using Endatix.Infrastructure.Data.Config;
 
-namespace Endatix.Api.Submissions;
+namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Validation rules for the <c>UpdateSubmissionRequest</c> class.

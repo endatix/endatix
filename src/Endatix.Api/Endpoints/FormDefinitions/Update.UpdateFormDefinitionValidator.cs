@@ -1,7 +1,7 @@
 ﻿using FastEndpoints;
 using FluentValidation;
 
-namespace Endatix.Api.FormDefinitions;
+namespace Endatix.Api.Endpoints.FormDefinitions;
 
 /// <summary>
 /// Validation rules for the <c>UpdateFormDefinitionRequest</c> class.

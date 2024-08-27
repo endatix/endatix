@@ -2,7 +2,7 @@
 using FluentValidation;
 using FluentValidation.Validators;
 
-namespace Endatix.Api.Auth;
+namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
 /// Validation rules for the <c>LoginRequest</c> class.

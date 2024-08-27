@@ -5,7 +5,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Forms.Create;
 
-namespace Endatix.Api.Forms;
+namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
 /// Endpoint for creating a new form and an active form definition.

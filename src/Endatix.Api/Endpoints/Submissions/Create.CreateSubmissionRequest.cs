@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Endatix.Api.Submissions;
+namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Request payload to be used with <see cref="Endatix.Api.Submissions.Create"/> endpoint

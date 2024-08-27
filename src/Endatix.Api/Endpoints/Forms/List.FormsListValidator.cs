@@ -1,7 +1,7 @@
 ﻿using FastEndpoints;
 using FluentValidation;
 
-namespace Endatix.Api.Forms;
+namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
 /// Validation rules for the <c>FormsListRequest</c> class.

@@ -1,6 +1,6 @@
 ﻿using Endatix.Core.Entities;
 
-namespace Endatix.Api.FormDefinitions;
+namespace Endatix.Api.Endpoints.FormDefinitions;
 
 /// <summary>
 /// Mapper from a form definition entity to a form definition API model.

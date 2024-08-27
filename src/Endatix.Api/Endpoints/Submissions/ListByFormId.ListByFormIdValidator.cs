@@ -1,7 +1,7 @@
 ﻿using FastEndpoints;
 using FluentValidation;
 
-namespace Endatix.Api.Submissions;
+namespace Endatix.Api.Endpoints.Submissions;
 
 public class ListByFormIdValidator : Validator<ListByFormIdRequest>
 {

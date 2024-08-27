@@ -2,7 +2,7 @@
 using FluentValidation;
 using Endatix.Infrastructure.Data.Config;
 
-namespace Endatix.Api.FormDefinitions;
+namespace Endatix.Api.Endpoints.FormDefinitions;
 
 /// <summary>
 /// Validation rules for the <c>CreateFormDefinitionRequest</c> class.

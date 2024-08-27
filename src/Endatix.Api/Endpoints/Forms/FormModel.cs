@@ -1,4 +1,4 @@
-﻿namespace Endatix.Api.Forms;
+﻿namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
 /// Model of a form.

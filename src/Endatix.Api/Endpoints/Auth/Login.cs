@@ -4,7 +4,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Security;
 using Endatix.Core.UseCases.Security.Login;
 
-namespace Endatix.Api.Auth;
+namespace Endatix.Api.Endpoints.Auth;
 
 public class Login(IMediator _mediator) : Endpoint<LoginRequest, LoginResponse>
 {

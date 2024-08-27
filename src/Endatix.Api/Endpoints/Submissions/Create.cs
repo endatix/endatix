@@ -5,7 +5,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions.Create;
 
-namespace Endatix.Api.Submissions;
+namespace Endatix.Api.Endpoints.Submissions;
 
 public class Create(IMediator _mediator) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, BadRequest, NotFound>>
 {

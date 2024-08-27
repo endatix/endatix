@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Endatix.Api.Common;
 
-namespace Endatix.Api.Submissions;
+namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Request object to get list of submissions for a given form

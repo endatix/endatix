@@ -1,4 +1,4 @@
-﻿namespace Endatix.Api.FormDefinitions;
+﻿namespace Endatix.Api.Endpoints.FormDefinitions;
 
 /// <summary>
 /// Model of a form definition.

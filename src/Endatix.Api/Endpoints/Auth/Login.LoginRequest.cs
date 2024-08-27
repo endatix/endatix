@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace Endatix.Api;
+﻿namespace Endatix.Api.Endpoints;
 
 /// <summary>
 /// Request model for initiating Login request

@@ -5,7 +5,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormDefinitions.UpdateActive;
 
-namespace Endatix.Api.FormDefinitions;
+namespace Endatix.Api.Endpoints.FormDefinitions;
 
 /// <summary>
 /// Endpoint for updating the active form definition.

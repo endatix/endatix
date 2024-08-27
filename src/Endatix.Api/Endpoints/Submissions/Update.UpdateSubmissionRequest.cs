@@ -1,4 +1,4 @@
-﻿namespace Endatix.Api.Submissions;
+﻿namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Request model for updating a form submission.

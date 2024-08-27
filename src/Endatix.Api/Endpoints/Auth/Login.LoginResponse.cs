@@ -1,4 +1,4 @@
-﻿namespace Endatix.Api.Auth;
+﻿namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
 /// A response record used in the Login result

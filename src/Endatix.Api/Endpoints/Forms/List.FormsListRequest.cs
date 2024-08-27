@@ -1,6 +1,6 @@
 ﻿using Endatix.Api.Common;
 
-namespace Endatix.Api.Forms;
+namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
 /// Request model for listing forms.

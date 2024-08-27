@@ -1,4 +1,4 @@
-﻿namespace Endatix.Api.FormDefinitions;
+﻿namespace Endatix.Api.Endpoints.FormDefinitions;
 
 /// <summary>
 /// Request model for partially updating the active form definition.

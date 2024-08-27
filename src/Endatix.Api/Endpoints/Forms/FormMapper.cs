@@ -1,6 +1,6 @@
 ﻿using Endatix.Core.Entities;
 
-namespace Endatix.Api.Forms;
+namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
 /// Mapper from a form entity to a form API model.

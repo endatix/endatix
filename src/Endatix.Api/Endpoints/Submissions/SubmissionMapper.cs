@@ -1,6 +1,6 @@
 ﻿using Endatix.Core.Entities;
 
-namespace Endatix.Api.Submissions;
+namespace Endatix.Api.Endpoints.Submissions;
 
 public class SubmissionMapper
 {

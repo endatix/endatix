@@ -6,7 +6,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
 
 
-namespace Endatix.Api.Submissions;
+namespace Endatix.Api.Endpoints.Submissions;
 
 public class ListByFormId(IMediator _mediator) : Endpoint<ListByFormIdRequest, Results<Ok<IEnumerable<SubmissionModel>>, BadRequest, NotFound>>
 {

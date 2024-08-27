@@ -1,4 +1,4 @@
-﻿namespace Endatix.Api.Forms;
+﻿namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
 /// Request model for creating a form with an active form definition.
