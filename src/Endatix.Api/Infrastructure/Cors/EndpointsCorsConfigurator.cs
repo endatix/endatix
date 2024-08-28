@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Endatix.Api.Infrastructure.Cors;
 
-public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILogger<EndpointsCorsConfigurator> logger, IEndatixApp endatixApp, IWildcardSearcher wildcardSearcher) : IConfigureOptions<CorsOptions>
+public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILogger<EndpointsCorsConfigurator> logger, IAppEnvironment appEnvironment, IWildcardSearcher wildcardSearcher) : IConfigureOptions<CorsOptions>
 {
     public const string ALLOW_ALL_POLICY_NAME = "AllowAll";
 
@@ -21,7 +21,7 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
         var settingsValue = corsSettings.Value;
         if (!settingsValue.CorsPolicies.Any())
         {
-            var isDevelopment = endatixApp.WebHostBuilder.Environment.IsDevelopment();
+            var isDevelopment = appEnvironment.IsDevelopment();
             options.DefaultPolicyName = isDevelopment ? ALLOW_ALL_POLICY_NAME : DISALLOW_ALL_POLICY_NAME;
             return;
         }
@@ -34,7 +34,7 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
             );
         }
 
-        var defaultPolicyName = settingsValue.DefaultPolicyName?? string.Empty;
+        var defaultPolicyName = settingsValue.DefaultPolicyName ?? string.Empty;
         var defaultPolicyExists = string.IsNullOrEmpty(defaultPolicyName) == false && options.GetPolicy(defaultPolicyName) != null;
         options.DefaultPolicyName = defaultPolicyExists ? defaultPolicyName : settingsValue?.CorsPolicies[0].PolicyName;
     }
