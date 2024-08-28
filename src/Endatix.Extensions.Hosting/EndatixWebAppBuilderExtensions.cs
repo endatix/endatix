@@ -29,9 +29,9 @@ public static class EndatixHostBuilderExtensions
 
         logger ??= CreateSerilogLogger();
         var endatixWebApp = new EndatixWebApp(logger, builder);
-
         endatixWebApp.LogSetupInformation("Starting Endatix Web Application Host");
-
+    
+        builder.Services.AddSingleton<IEndatixApp>(endatixWebApp);
         return endatixWebApp;
     }
 

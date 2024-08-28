@@ -1,0 +1,1 @@
+# Endatix.Core.Tests
