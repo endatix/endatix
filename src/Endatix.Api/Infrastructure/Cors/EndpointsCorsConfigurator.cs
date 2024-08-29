@@ -50,6 +50,8 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
             options.DefaultPolicyName = isDevelopment ? ALLOW_ALL_POLICY_NAME : DISALLOW_ALL_POLICY_NAME;
             isDefaultPolicySet = true;
         }
+
+        logger.LogDebug("Default Cors Policy is: {@policy}", options.GetPolicy(options.DefaultPolicyName));
     }
 
     private CorsPolicyBuilder BuildFrom(CorsPolicyBuilder builder, CorsPolicySetting policySetting)

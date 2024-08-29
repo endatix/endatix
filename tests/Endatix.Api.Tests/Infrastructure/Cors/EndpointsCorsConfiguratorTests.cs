@@ -313,6 +313,30 @@ public class EndpointsCorsConfiguratorTests
         actualPolicy?.ExposedHeaders.Should().Equal(providedExposedHeaders);
     }
 
+    [Fact]
+    public void Configure_WhenPreflightMaxAgeProvided_SetsIt()
+    {
+        // Arrange;
+        var ruleNameUnderTest = "SomeRule";
+        var corsSettings = Options.Create(new CorsSettings()
+        {
+            CorsPolicies = [
+                new CorsPolicySetting() {
+                    PolicyName = ruleNameUnderTest,
+                    PreflightMaxAgeInSeconds = 1200
+            }]
+        });
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
+
+        actualPolicy?.PreflightMaxAge.Should().BeCloseTo(TimeSpan.FromSeconds(1200), TimeSpan.FromMilliseconds(100));
+    }
+
     [Theory]
     [InlineData(true, true)]
     [InlineData(false, false)]
