@@ -2,7 +2,6 @@ using Endatix.Framework.Hosting;
 using Endatix.Api.Setup;
 using FastEndpoints;
 using FastEndpoints.Swagger;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Setup;
 
@@ -18,9 +17,8 @@ public static class EndatixAppExtensions
     /// <returns>An instance of <see cref="IEndatixApp"/> representing the configured application.</returns>
     public static IEndatixApp AddApiEndpoints(this IEndatixApp endatixApp)
     {
-        endatixApp.Services.AddApiServices();
+        endatixApp.Services.AddCorsMiddleware();
         endatixApp.Services
-                .AddCors()
                 .AddFastEndpoints()
                 .SwaggerDocument(o =>
                     {
