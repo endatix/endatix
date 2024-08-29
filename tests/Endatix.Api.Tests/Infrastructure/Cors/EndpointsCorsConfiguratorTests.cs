@@ -3,6 +3,7 @@ using Endatix.Framework.Hosting;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NSubstitute.ReceivedExtensions;
 
 namespace Endatix.Api.Tests.Infrastructure.Cors;
 
@@ -19,7 +20,7 @@ public class EndpointsCorsConfiguratorTests
         _logger = Substitute.For<ILogger<EndpointsCorsConfigurator>>();
         _corsSettings = Options.Create(new CorsSettings());
         _options = new CorsOptions();
-        _wildcardSearcher = Substitute.For<IWildcardSearcher>();
+        _wildcardSearcher = new CorsWildcardSearcher();
     }
 
     [Fact]
@@ -116,14 +117,13 @@ public class EndpointsCorsConfiguratorTests
         var policy = new CorsPolicySetting()
         {
             PolicyName = ruleNameUnderTest,
-            AllowedOrigins = ["https://some.origin", "asterisk.with.whitespace.should.be.correct", " *", "everything.after.it.should.be.ignored", "-"]
+            AllowedOrigins = ["*"]
         };
         CorsPolicySetting[] corsPolicies = [policy];
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = corsPolicies
         });
-        _wildcardSearcher.SearchForWildcard(policy.AllowedOrigins).Returns(CorsWildcardResult.MatchAll);
         var configurator = CreateCorsConfigurator(corsSettings);
 
         // Act
@@ -134,6 +134,287 @@ public class EndpointsCorsConfiguratorTests
 
         actualPolicy.Should().NotBeNull();
         actualPolicy?.AllowAnyOrigin.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Configure_OriginsIgnoreAllWildcard_SetsNoOrigins()
+    {
+        // Arrange;
+        var ruleNameUnderTest = "SomeRule";
+        var corsSettings = Options.Create(new CorsSettings()
+        {
+            CorsPolicies = [
+                new CorsPolicySetting() {
+                    PolicyName = ruleNameUnderTest,
+                    AllowedOrigins = [" -"]
+            }]
+        });
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
+
+        actualPolicy.Should().NotBeNull();
+        actualPolicy?.Origins.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public void Configure_OriginsProvided_SetsOriginsToCorsPolicy()
+    {
+        // Arrange;
+        var ruleNameUnderTest = "SomeRule";
+        IList<string> providedOrigins = ["origin1", "origin2", "origin3"];
+        var corsSettings = Options.Create(new CorsSettings()
+        {
+            CorsPolicies = [
+                new CorsPolicySetting() {
+                    PolicyName = ruleNameUnderTest,
+                    AllowedOrigins = providedOrigins
+            }]
+        });
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
+
+        actualPolicy.Should().NotBeNull();
+        actualPolicy?.Origins.Should().Equal(providedOrigins);
+    }
+
+    [Fact]
+    public void Configure_HeadersIgnoreAllWildcard_SetsNoHeaders()
+    {
+        // Arrange;
+        var ruleNameUnderTest = "SomeRule";
+        var corsSettings = Options.Create(new CorsSettings()
+        {
+            CorsPolicies = [
+                new CorsPolicySetting() {
+                    PolicyName = ruleNameUnderTest,
+                    AllowedHeaders = ["-"]
+            }]
+        });
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
+
+        actualPolicy.Should().NotBeNull();
+        actualPolicy?.Headers.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public void Configure_MethodsAllowAllWildcard_SetsAnyMethod()
+    {
+        // Arrange;
+        var ruleNameUnderTest = "SomeRule";
+        var corsSettings = Options.Create(new CorsSettings()
+        {
+            CorsPolicies = [
+                new CorsPolicySetting()
+                        {
+                            PolicyName = ruleNameUnderTest,
+                            AllowedMethods = ["*"]
+                        }]
+        });
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
+
+        actualPolicy?.AllowAnyMethod.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Configure_MethodsProvided_SetsAllowedMethods()
+    {
+        // Arrange;
+        var ruleNameUnderTest = "SomeRule";
+        var corsSettings = Options.Create(new CorsSettings()
+        {
+            CorsPolicies = [
+                new CorsPolicySetting() {
+                    PolicyName = ruleNameUnderTest,
+                    AllowedMethods = ["GET", "POST"]
+            }]
+        });
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
+
+        actualPolicy?.Methods.Should().Equal(["GET", "POST"]);
+    }
+
+    [Fact]
+    public void Configure_MethodsIgnoreAllWildcard_SetsNoMethods()
+    {
+        // Arrange;
+        var ruleNameUnderTest = "SomeRule";
+        var corsSettings = Options.Create(new CorsSettings()
+        {
+            CorsPolicies = [
+                new CorsPolicySetting() {
+                    PolicyName = ruleNameUnderTest,
+                    AllowedMethods = ["-"]
+            }]
+        });
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
+
+        actualPolicy.Should().NotBeNull();
+        actualPolicy?.Methods.Should().BeNullOrEmpty();
+    }
+
+
+    [Fact]
+    public void Configure_ExposedHeadersProvided_SetsExposedHeaders()
+    {
+        // Arrange;
+        var ruleNameUnderTest = "SomeRule";
+        IList<string> providedExposedHeaders = ["x-header-1", "x-header-2"];
+        var corsSettings = Options.Create(new CorsSettings()
+        {
+            CorsPolicies = [
+                new CorsPolicySetting() {
+                    PolicyName = ruleNameUnderTest,
+                    ExposedHeaders = providedExposedHeaders
+            }]
+        });
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
+
+        actualPolicy.Should().NotBeNull();
+        actualPolicy?.ExposedHeaders.Should().Equal(providedExposedHeaders);
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public void Configure_AllowCredentialsProvided_SetsSupportsCredentials(bool allowCredentialsValue, bool expectedValue)
+    {
+        // Arrange;
+        var ruleNameUnderTest = "SomeRule";
+        var corsSettings = Options.Create(new CorsSettings()
+        {
+            CorsPolicies = [
+                new CorsPolicySetting() {
+                    PolicyName = ruleNameUnderTest,
+                    AllowCredentials = allowCredentialsValue
+            }]
+        });
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
+
+        actualPolicy.Should().NotBeNull();
+        actualPolicy?.SupportsCredentials.Should().Be(expectedValue);
+    }
+
+    [Fact]
+    public void Configure_AllowCredentialsAndAnyOriginProvided_FiresWarning()
+    {
+        // Arrange;
+        var ruleNameUnderTest = "SomeRule";
+        var corsSettings = Options.Create(new CorsSettings()
+        {
+            CorsPolicies = [
+                new CorsPolicySetting() {
+                    PolicyName = ruleNameUnderTest,
+                    AllowCredentials = true,
+                    AllowedOrigins = ["*"]
+            }]
+        });
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        var expectedFormattedMessage = "Ignoring AllowCredentials and disallowing credentials. Details: The CORS protocol does not allow specifying a wildcard (any) origin and credentials at the same time. Configure the CORS policy by listing individual origins if credentials needs to be supported.";
+        _logger.Received(1).Log(
+          Arg.Is(LogLevel.Warning),
+          Arg.Is<EventId>(0),
+          Arg.Is<object>(x => x.ToString() == expectedFormattedMessage),
+          Arg.Is<Exception>(x => x == null),
+          Arg.Any<Func<object, Exception?, string>>());
+
+        var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
+        actualPolicy.Should().NotBeNull();
+        actualPolicy?.AllowAnyOrigin.Should().BeTrue();
+        actualPolicy?.SupportsCredentials.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Configure_WhenDefaultPolicyNameExists_SetsDefaultPolicy()
+    {
+        // Arrange
+        var corsSettings = Options.Create(new CorsSettings
+        {
+            DefaultPolicyName = "DefaultPolicy",
+            CorsPolicies = new List<CorsPolicySetting>
+            {
+                new CorsPolicySetting { PolicyName = "DefaultPolicy" },
+                new CorsPolicySetting { PolicyName = "AnotherPolicy" }
+            }
+        });
+
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        _options.DefaultPolicyName.Should().Be("DefaultPolicy");
+    }
+
+    [Fact]
+    public void Configure_WhenWrongDefaultPolicyName_SetsFirstPolicyAsDefault()
+    {
+        // Arrange
+        var corsSettings = Options.Create(new CorsSettings
+        {
+            DefaultPolicyName = "WrongName",
+            CorsPolicies = [new CorsPolicySetting { PolicyName = "FirstPolicyName" }]
+        });
+
+        var configurator = CreateCorsConfigurator(corsSettings);
+
+        // Act
+        configurator.Configure(_options);
+
+        // Assert
+        _options.DefaultPolicyName.Should().Be("FirstPolicyName");
+        _options.GetPolicy("FirstPolicyName").Should().NotBeNull();
     }
 
     /// <summary>

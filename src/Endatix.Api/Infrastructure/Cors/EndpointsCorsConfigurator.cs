@@ -16,27 +16,40 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
 
     public void Configure(CorsOptions options)
     {
-        AddDefaultPolicies(options);
+        AddPredefinedPolicies(options);
 
-        var settingsValue = corsSettings.Value;
-        if (!settingsValue.CorsPolicies.Any())
+        var settingsValue = corsSettings?.Value;
+        var isDefaultPolicySet = false;
+
+        if (settingsValue?.CorsPolicies is { Count: > 0 } corsPolicies)
+        {
+            foreach (var policySetting in corsPolicies)
+            {
+                options.AddPolicy(
+                    policySetting.PolicyName,
+                    policy => BuildFrom(policy, policySetting)
+                );
+
+                if (settingsValue?.DefaultPolicyName?.Equals(policySetting.PolicyName) == true)
+                {
+                    options.DefaultPolicyName = policySetting.PolicyName;
+                    isDefaultPolicySet = true;
+                }
+            }
+
+            if (!isDefaultPolicySet)
+            {
+                options.DefaultPolicyName = corsPolicies[0].PolicyName;
+                isDefaultPolicySet = true;
+            }
+        }
+
+        if (!isDefaultPolicySet)
         {
             var isDevelopment = appEnvironment.IsDevelopment();
             options.DefaultPolicyName = isDevelopment ? ALLOW_ALL_POLICY_NAME : DISALLOW_ALL_POLICY_NAME;
-            return;
+            isDefaultPolicySet = true;
         }
-
-        foreach (var policySetting in settingsValue.CorsPolicies)
-        {
-            options.AddPolicy(
-                policySetting.PolicyName,
-                policy => BuildFrom(policy, policySetting)
-            );
-        }
-
-        var defaultPolicyName = settingsValue.DefaultPolicyName ?? string.Empty;
-        var defaultPolicyExists = string.IsNullOrEmpty(defaultPolicyName) == false && options.GetPolicy(defaultPolicyName) != null;
-        options.DefaultPolicyName = defaultPolicyExists ? defaultPolicyName : settingsValue?.CorsPolicies[0].PolicyName;
     }
 
     private CorsPolicyBuilder BuildFrom(CorsPolicyBuilder builder, CorsPolicySetting policySetting)
@@ -126,10 +139,10 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
     }
 
     /// <summary>
-    /// Adds default CORS policies that will be available for use in the system
+    /// Adds predefined CORS policies that will be available for use in the system
     /// </summary>
     /// <param name="options">The <see cref="CorsOptions"/> passed by the DI via the <see cref="IConfigureOptions"/> interface</param>
-    private void AddDefaultPolicies(CorsOptions options)
+    private void AddPredefinedPolicies(CorsOptions options)
     {
         options.AddPolicy(ALLOW_ALL_POLICY_NAME, policy =>
         {
