@@ -12,6 +12,7 @@ const MainNav = () => {
   const logo = SitemapService.getLogo();
   const sitemapList = SitemapService.getTopLevelSitemap(true);
   const settingsNavItem = sitemap.Settings;
+  debugger
   return (
     <TooltipProvider>
       <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">

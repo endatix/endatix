@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -28,12 +29,17 @@ export default function Home() {
             </CardTitle>
             <CardDescription className="max-w-lg text-balance leading-relaxed">
               Endatix Hub is the new exciting way to manage your data collection
-              and processing workflows. Coming soon!
+              and processing workflows.
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            <p>Coming soon!</p>
+          </CardContent>
           <CardFooter>
             <Button className="mr-8">
-              <a href="https://endatix.com?utm_source=endatix-hub&utm_medium=product">Learn about Endatix</a>
+              <a href="https://endatix.com?utm_source=endatix-hub&utm_medium=product">
+                Learn about Endatix
+              </a>
             </Button>
             <Button variant="secondary">
               <a href="https://docs.endatix.com/docs/category/getting-started?utm_source=endatix-hub&utm_medium=product">
@@ -75,7 +81,7 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-           <Globe width={16} height={16} />
+          <Globe width={16} height={16} />
           Go to endatix.com →
         </a>
       </footer>

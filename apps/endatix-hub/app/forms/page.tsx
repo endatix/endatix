@@ -22,7 +22,7 @@ import { getForms } from "@/services/api";
 import FormsTable from "./forms-table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const Dashboard = async () => {
+const Forms = async () => {
   const forms = await getForms();
 
   return (
@@ -104,4 +104,4 @@ const Dashboard = async () => {
   );
 };
 
-export default Dashboard;
+export default Forms;

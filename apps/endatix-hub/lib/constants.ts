@@ -1,7 +1,7 @@
 import { INavItem } from "@/types/navigation-models";
 import {
   BrainCircuit,
-  FileText,
+  Blocks,
   Home,
   LineChart,
   Settings,
@@ -11,33 +11,33 @@ import {
 
 const sitemapArray: INavItem[] = [
   {
-    text: "Dashboard",
+    text: "Home",
     path: "/",
     IconType: Home,
   },
   {
     text: "Forms",
-    path: "/dashboard",
+    path: "/",
     IconType: TextCursorInput,
   },
   {
-    text: "Submissions",
-    path: "/submissions",
-    IconType: FileText,
-  },
-  {
     text: "Customers",
-    path: "/customers",
+    path: "/",
     IconType: Users2,
   },
   {
     text: "Analytics",
-    path: "/analytics",
+    path: "/",
     IconType: LineChart,
   },
   {
+    text: "Integrations",
+    path: "/",
+    IconType: Blocks,
+  },
+  {
     text: "Settings",
-    path: "/settings",
+    path: "/",
     IconType: Settings,
   },
 ];
@@ -45,6 +45,8 @@ const sitemapArray: INavItem[] = [
 type Sitemap = {
   [key: string]: INavItem;
 };
+
+export const comingSoonMessage : string = "We are working hard to provide great features to you. Stay tuned. Great stuff is on the way!";
 
 export const sitemap: Sitemap = sitemapArray.reduce((acc, item) => {
   acc[item.text] = item;

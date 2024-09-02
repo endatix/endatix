@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import localFont from "next/font/local";
 import { ThemeProvider } from "@/components/theme-provider";
-import Image from "next/image";
 import { PanelLeft, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,14 +12,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import MainNav from "@/components/layout-ui/navigation/main-nav";
 import MobileNav from "@/components/layout-ui/navigation/mobile-nav";
 import BreadcrumbNav from "@/components/layout-ui/navigation/breadcrumb-nav";
 import { SitemapService } from "@/services/sitemap-service";
-import Link from "next/link";
+import { Toaster } from "sonner";
+import AvatarIcon from "@/components/layout-ui/my-account/avatar-icon";
+import MainSearchBar from "@/components/layout-ui/navigation/main-search-bar";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -75,36 +75,14 @@ export default function RootLayout({
                   sitemap={sitemap}
                 ></BreadcrumbNav>
                 <div className="relative ml-auto flex-1 md:grow-0">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search..."
-                    className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-                  />
+                  <MainSearchBar />
                 </div>
                 <ModeToggle></ModeToggle>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="overflow-hidden rounded-full"
-                    >
-                      <Image
-                        src="/placeholder-user.jpg"
-                        width={36}
-                        height={36}
-                        alt="Avatar"
-                        className="overflow-hidden rounded-full"
-                      />
-                    </Button>
-                  </DropdownMenuTrigger>
+                  <AvatarIcon />
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Link href="/my-account/my-subscription">My Subscription</Link>
-                    </DropdownMenuItem>
                     <DropdownMenuItem>Settings</DropdownMenuItem>
                     <DropdownMenuItem>Support</DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -117,6 +95,7 @@ export default function RootLayout({
               </main>
             </div>
           </div>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

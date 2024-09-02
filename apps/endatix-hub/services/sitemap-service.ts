@@ -16,10 +16,10 @@ export class SitemapService {
 
   public static getTopLevelSitemap(excludeSettings: boolean = false) :  INavItem[] {
     const sitemapList: INavItem[] = [
-      sitemap.Dashboard,
+      sitemap.Home,
       sitemap.Forms,
-      sitemap.Submissions,
       sitemap.Customers,
+      sitemap.Integrations,
       sitemap.Analytics,
     ];
 
