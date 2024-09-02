@@ -32,8 +32,8 @@ export class SitemapService {
 
   public static getLogo(): INavItem {
     const logoNavItem: INavItem = {
-      path: "https://surveysocket.com",
-      text: "Survey Socket",
+      path: "https://endatix.com",
+      text: "Endatix",
       IconType: BrainCircuit,
     };
 
