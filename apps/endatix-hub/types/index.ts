@@ -25,6 +25,6 @@ export type Submission = {
   currentPage: number;
   metadata: string;
   completedAt: Date;
-  createdAt: Date
-  modifiedAt: Date
+  createdAt: Date;
+  modifiedAt: Date;
 };
