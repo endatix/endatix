@@ -19,8 +19,8 @@ export class SitemapService {
       sitemap.Home,
       sitemap.Forms,
       sitemap.Customers,
-      sitemap.Integrations,
       sitemap.Analytics,
+      sitemap.Integrations,
     ];
 
     if (!excludeSettings){
