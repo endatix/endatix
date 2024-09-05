@@ -80,7 +80,7 @@ const FormsTable = ({ data }: FormDataProps) => (
             </TooltipProvider>
           </TableCell>
           <TableCell className="hidden md:table-cell">
-            {new Date(form.dateTimeCreated).toLocaleString("en-US")}
+            {new Date(form.createdAt).toLocaleString("en-US")}
           </TableCell>
           <TableCell>
             <DropdownMenu>

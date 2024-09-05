@@ -37,7 +37,7 @@ const NavLink = ({
 
   return (
     <Link
-      onClick={(e) => {
+      onClick={() => {
         toast(comingSoonMessage);
       }}
       href={path}
