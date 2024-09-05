@@ -1,0 +1,41 @@
+services:
+  endatix-api:
+    build:
+      context: ./
+      dockerfile: src/Endatix.WebHost/Dockerfile
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
+      ConnectionStrings__DefaultConnection: ${CONNECTIONSTRINGS__DEFAULTCONNECTION}
+      Security__JwtSigningKey: ${SECURITY_JWT_SIGNING_KEY}
+      Security__JwtSigningKey__DevUsers__0__Email: ${SECURITY_JWT_SIGNING_KEY_DEV_USERS_0_EMAIL}
+      Security__JwtSigningKey__DevUsers__0__Password: ${SECURITY_JWT_SIGNING_KEY_DEV_USERS_0_PASSWORD}
+      Email__SendGridSettings__ApiKey: ${SENDGRID_API_KEY}
+    networks:
+      - appnetwork
+
+  endatix-hub:
+    build:
+      context: ./apps/endatix-hub
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    networks:
+      - appnetwork
+
+  endatix-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: ${SQLSERVER_SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    networks:
+      - appnetwork
+
+networks:
+  appnetwork:
+    driver: bridge
