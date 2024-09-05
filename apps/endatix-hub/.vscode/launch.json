@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug endatix-hub",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "nvm use v21.2.0 && pnpm dev",
+      "webRoot": "${workspaceFolder}"
+    }
+  ]
+}

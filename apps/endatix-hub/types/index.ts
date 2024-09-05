@@ -1,0 +1,30 @@
+export type Form = {
+  id: string;
+  name: string;
+  description: string;
+  isEnabled: boolean;
+  createdAt: Date;
+  modifiedAt: Date;
+};
+
+export type FormDefinition = {
+  id: string;
+  isDraft: boolean;
+  jsonData: string;
+  formId: string;
+  isActive: boolean;
+  createdAt: Date;
+  modifiedAt: Date;
+};
+
+export type Submission = {
+  id: string;
+  isComplete: boolean;
+  jsonData: string;
+  formDefinitionId: string;
+  currentPage: number;
+  metadata: string;
+  completedAt: Date;
+  createdAt: Date;
+  modifiedAt: Date;
+};
