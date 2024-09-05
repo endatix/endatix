@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace Endatix.Api.Infrastructure.Cors;
 
 /// <summary>
@@ -10,8 +8,7 @@ public class CorsPolicySettings
     /// <summary>
     /// The CORS policy name. Add unique and intuitive name
     /// </summary>
-    [Required]
-    public string PolicyName { get; set; }
+    public string PolicyName { get; set; } = "DefaultPolicy";
 
     /// <summary>
     /// Gets or sets the list of origins that should be allowed to make cross-origin calls

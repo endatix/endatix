@@ -1,6 +1,5 @@
 using Endatix.Framework.Hosting;
 using Microsoft.AspNetCore.Cors.Infrastructure;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
