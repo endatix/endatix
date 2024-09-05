@@ -6,9 +6,10 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ISitemapItem } from "@/types/navigation-models";
+import { INavItem, ISitemapItem } from "@/types/navigation-models";
 import React from "react";
 
 type BreadcrumbNavProps = {
@@ -21,6 +22,7 @@ type BreadcrumbNavProps = {
 
 const BreadcrumbNav = ({
   homeText,
+  sitemap,
   listClasses,
   activeClasses,
   capitalizeLinks = true,

@@ -16,11 +16,11 @@ export class SitemapService {
 
   public static getTopLevelSitemap(excludeSettings: boolean = false) :  INavItem[] {
     const sitemapList: INavItem[] = [
-      sitemap.Dashboard,
+      sitemap.Home,
       sitemap.Forms,
-      sitemap.Submissions,
       sitemap.Customers,
       sitemap.Analytics,
+      sitemap.Integrations,
     ];
 
     if (!excludeSettings){
@@ -32,8 +32,8 @@ export class SitemapService {
 
   public static getLogo(): INavItem {
     const logoNavItem: INavItem = {
-      path: "https://surveysocket.com",
-      text: "Survey Socket",
+      path: "https://endatix.com",
+      text: "Endatix",
       IconType: BrainCircuit,
     };
 

@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { ReactNode, useMemo } from "react";
 import { usePathname } from "next/navigation";
+import { toast } from "sonner";
+import { comingSoonMessage } from "@/lib/constants";
 
 type NavLinkProps = {
   path: string;
@@ -34,7 +36,13 @@ const NavLink = ({
   }, [activeClassName, className, isActive]);
 
   return (
-    <Link href={path} className={_className}>
+    <Link
+      onClick={(e) => {
+        toast(comingSoonMessage);
+      }}
+      href={path}
+      className={_className}
+    >
       {children}
       <span className="sr-only">{text}</span>
     </Link>
