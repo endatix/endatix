@@ -11,7 +11,7 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
 
     public const string DISALLOW_ALL_POLICY_NAME = "DisallowAll";
 
-    private readonly string[] _no_input_params = [];
+    private readonly string[] _noInputParams = [];
 
     public void Configure(CorsOptions options)
     {
@@ -84,9 +84,9 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
 
     private CorsWildcardResult AddAllowedOrigins(CorsPolicyBuilder builder, IList<string> allowedOrigins)
     {
-        if (allowedOrigins == null || allowedOrigins.Count == 0)
+        if (allowedOrigins is null or [])
         {
-            _ = builder.WithOrigins(_no_input_params);
+            _ = builder.WithOrigins(_noInputParams);
             return CorsWildcardResult.None;
         }
 
@@ -94,7 +94,7 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
         _ = wildcardSearchResult switch
         {
             CorsWildcardResult.MatchAll => builder.AllowAnyOrigin(),
-            CorsWildcardResult.IgnoreAll => builder.WithOrigins(_no_input_params),
+            CorsWildcardResult.IgnoreAll => builder.WithOrigins(_noInputParams),
             _ => builder.WithOrigins([.. allowedOrigins])
         };
 
@@ -103,9 +103,9 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
 
     private void AddAllowedHeaders(CorsPolicyBuilder builder, IList<string> allowedHeaders)
     {
-        if (allowedHeaders == null || allowedHeaders.Count == 0)
+        if (allowedHeaders is null or [])
         {
-            _ = builder.WithHeaders(_no_input_params);
+            _ = builder.WithHeaders(_noInputParams);
             return;
         }
 
@@ -113,7 +113,7 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
         _ = wildcardSearchResult switch
         {
             CorsWildcardResult.MatchAll => builder.AllowAnyHeader(),
-            CorsWildcardResult.IgnoreAll => builder.WithHeaders(_no_input_params),
+            CorsWildcardResult.IgnoreAll => builder.WithHeaders(_noInputParams),
             _ => builder.WithHeaders([.. allowedHeaders])
         };
 
@@ -122,9 +122,9 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
 
     private void AddAllowedMethods(CorsPolicyBuilder builder, IList<string> allowedMethods)
     {
-        if (allowedMethods == null || allowedMethods.Count == 0)
+        if (allowedMethods is null or [])
         {
-            _ = builder.WithMethods(_no_input_params);
+            _ = builder.WithMethods(_noInputParams);
             return;
         }
 
@@ -132,7 +132,7 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
         _ = wildcardSearchResult switch
         {
             CorsWildcardResult.MatchAll => builder.AllowAnyMethod(),
-            CorsWildcardResult.IgnoreAll => builder.WithMethods(_no_input_params),
+            CorsWildcardResult.IgnoreAll => builder.WithMethods(_noInputParams),
             _ => builder.WithMethods([.. allowedMethods])
         };
 
@@ -154,9 +154,9 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
 
         options.AddPolicy(DISALLOW_ALL_POLICY_NAME, policy =>
         {
-            _ = policy.WithOrigins(_no_input_params)
-                  .WithMethods(_no_input_params)
-                  .WithHeaders(_no_input_params);
+            _ = policy.WithOrigins(_noInputParams)
+                  .WithMethods(_noInputParams)
+                  .WithHeaders(_noInputParams);
         });
     }
 }
