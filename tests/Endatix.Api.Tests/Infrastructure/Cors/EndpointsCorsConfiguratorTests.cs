@@ -82,11 +82,11 @@ public class EndpointsCorsConfiguratorTests
         // Arrange
         var duplicatedName = "SameName";
         var specificOrigin = "https://hello.world";
-        CorsPolicySetting[] corsPolicies = [
-            new CorsPolicySetting(){
+        CorsPolicySettings[] corsPolicies = [
+            new CorsPolicySettings(){
                 PolicyName = duplicatedName
             },
-            new CorsPolicySetting(){
+            new CorsPolicySettings(){
                 PolicyName = duplicatedName,
                 AllowedOrigins = [specificOrigin]
             }
@@ -114,12 +114,12 @@ public class EndpointsCorsConfiguratorTests
     {
         // Arrange;
         var ruleNameUnderTest = "SomeRule";
-        var policy = new CorsPolicySetting()
+        var policy = new CorsPolicySettings()
         {
             PolicyName = ruleNameUnderTest,
             AllowedOrigins = ["*"]
         };
-        CorsPolicySetting[] corsPolicies = [policy];
+        CorsPolicySettings[] corsPolicies = [policy];
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = corsPolicies
@@ -144,7 +144,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = [
-                new CorsPolicySetting() {
+                new CorsPolicySettings() {
                     PolicyName = ruleNameUnderTest,
                     AllowedOrigins = [" -"]
             }]
@@ -170,7 +170,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = [
-                new CorsPolicySetting() {
+                new CorsPolicySettings() {
                     PolicyName = ruleNameUnderTest,
                     AllowedOrigins = providedOrigins
             }]
@@ -195,7 +195,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = [
-                new CorsPolicySetting() {
+                new CorsPolicySettings() {
                     PolicyName = ruleNameUnderTest,
                     AllowedHeaders = ["-"]
             }]
@@ -220,7 +220,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = [
-                new CorsPolicySetting()
+                new CorsPolicySettings()
                         {
                             PolicyName = ruleNameUnderTest,
                             AllowedMethods = ["*"]
@@ -245,7 +245,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = [
-                new CorsPolicySetting() {
+                new CorsPolicySettings() {
                     PolicyName = ruleNameUnderTest,
                     AllowedMethods = ["GET", "POST"]
             }]
@@ -269,7 +269,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = [
-                new CorsPolicySetting() {
+                new CorsPolicySettings() {
                     PolicyName = ruleNameUnderTest,
                     AllowedMethods = ["-"]
             }]
@@ -296,7 +296,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = [
-                new CorsPolicySetting() {
+                new CorsPolicySettings() {
                     PolicyName = ruleNameUnderTest,
                     ExposedHeaders = providedExposedHeaders
             }]
@@ -321,7 +321,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = [
-                new CorsPolicySetting() {
+                new CorsPolicySettings() {
                     PolicyName = ruleNameUnderTest,
                     PreflightMaxAgeInSeconds = 1200
             }]
@@ -347,7 +347,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = [
-                new CorsPolicySetting() {
+                new CorsPolicySettings() {
                     PolicyName = ruleNameUnderTest,
                     AllowCredentials = allowCredentialsValue
             }]
@@ -372,7 +372,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings()
         {
             CorsPolicies = [
-                new CorsPolicySetting() {
+                new CorsPolicySettings() {
                     PolicyName = ruleNameUnderTest,
                     AllowCredentials = true,
                     AllowedOrigins = ["*"]
@@ -405,10 +405,10 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings
         {
             DefaultPolicyName = "DefaultPolicy",
-            CorsPolicies = new List<CorsPolicySetting>
+            CorsPolicies = new List<CorsPolicySettings>
             {
-                new CorsPolicySetting { PolicyName = "DefaultPolicy" },
-                new CorsPolicySetting { PolicyName = "AnotherPolicy" }
+                new CorsPolicySettings { PolicyName = "DefaultPolicy" },
+                new CorsPolicySettings { PolicyName = "AnotherPolicy" }
             }
         });
 
@@ -428,7 +428,7 @@ public class EndpointsCorsConfiguratorTests
         var corsSettings = Options.Create(new CorsSettings
         {
             DefaultPolicyName = "WrongName",
-            CorsPolicies = [new CorsPolicySetting { PolicyName = "FirstPolicyName" }]
+            CorsPolicies = [new CorsPolicySettings { PolicyName = "FirstPolicyName" }]
         });
 
         var configurator = CreateCorsConfigurator(corsSettings);

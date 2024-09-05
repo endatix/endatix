@@ -54,7 +54,7 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
         logger.LogDebug("Default Cors Policy is: {@policy}", options.GetPolicy(options.DefaultPolicyName));
     }
 
-    private CorsPolicyBuilder BuildFrom(CorsPolicyBuilder builder, CorsPolicySetting policySetting)
+    private CorsPolicyBuilder BuildFrom(CorsPolicyBuilder builder, CorsPolicySettings policySetting)
     {
         AddAllowedHeaders(builder, policySetting.AllowedHeaders);
         AddAllowedMethods(builder, policySetting.AllowedMethods);

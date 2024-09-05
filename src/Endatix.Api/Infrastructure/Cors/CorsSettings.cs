@@ -14,7 +14,7 @@ public class CorsSettings : IEndatixSettings
     public string? DefaultPolicyName { get; set; }
 
     /// <summary>
-    /// List of CORS Policies using the <see cref="CorsPolicySetting"/> class
+    /// List of CORS Policies using the <see cref="CorsPolicySettings"/> class
     /// </summary>
-    public IList<CorsPolicySetting> CorsPolicies { get; set; } = [];
+    public IList<CorsPolicySettings> CorsPolicies { get; set; } = [];
 }

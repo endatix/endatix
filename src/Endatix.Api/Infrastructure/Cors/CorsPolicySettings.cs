@@ -5,7 +5,7 @@ namespace Endatix.Api.Infrastructure.Cors;
 /// <summary>
 /// Class used to define CORS policies via JSON in appSettings config files.
 /// </summary>
-public class CorsPolicySetting
+public class CorsPolicySettings
 {
     /// <summary>
     /// The CORS policy name. Add unique and intuitive name
