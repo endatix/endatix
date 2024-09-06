@@ -26,9 +26,9 @@ You have to choose one of the two provided setup scripts, depending on your oper
 
 ### Download Links
 
-- **Windows**: [Download setup.bat](https://raw.githubusercontent.com/endatix/endatix/main/docker/setup.bat)
-- **Linux/macOS**: [Download setup.sh](https://raw.githubusercontent.com/endatix/endatix/main/docker/setup.sh)
-- **Docker Compose File**: [Download docker-compose.prod.yml](https://raw.githubusercontent.com/endatix/endatix/main/docker/docker-compose.prod.yml)
+- **Windows**: [Download setup.bat](https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/setup.bat)
+- **Linux/macOS**: [Download setup.sh](https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/setup.sh)
+- **Docker Compose File**: [Download docker-compose.prod.yml](https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/docker-compose.prod.yml)
 
 ### Command-line Download Options (Using `curl`)
 
@@ -36,14 +36,14 @@ You can also download the required files via the terminal:
 
 #### For Windows Users:
 ```bash
-curl -o setup.bat https://raw.githubusercontent.com/endatix/endatix/main/docker/setup.bat
-curl -o docker-compose.prod.yml https://raw.githubusercontent.com/endatix/endatix/main/docker/docker-compose.prod.yml
+curl -o setup.bat https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/setup.bat
+curl -o docker-compose.prod.yml https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/docker-compose.prod.yml
 ```
 
 #### For Linux/macOS Users:
 ```bash
-curl -o setup.sh https://raw.githubusercontent.com/endatix/endatix/main/docker/setup.sh
-curl -o docker-compose.prod.yml https://raw.githubusercontent.com/endatix/endatix/main/docker/docker-compose.prod.yml
+curl -o setup.sh https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/setup.sh
+curl -o docker-compose.prod.yml https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/docker-compose.prod.yml
 ```
 
 ---
