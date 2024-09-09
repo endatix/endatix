@@ -1,6 +1,9 @@
 @echo off
 setlocal
 
+REM Check if Pester is loaded in PowerShell and remove it if present
+powershell -Command "if (Get-Module -Name Pester -ErrorAction SilentlyContinue) { Remove-Module -Name Pester -Force; Write-Host 'Pester has been disabled because this script cannot run with it enabled.' }"
+
 REM Check if Docker is installed
 docker --version >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
