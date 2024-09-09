@@ -6,7 +6,7 @@ services:
     image: endatix/endatix-api
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
-      ConnectionStrings__DefaultConnection: ${CONNECTIONSTRINGS__DEFAULTCONNECTION}
+      ConnectionStrings__DefaultConnection: Server=endatix-db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};Initial Catalog=endatix;TrustServerCertificate=True;
       Security__JwtSigningKey: ${SECURITY_JWT_SIGNING_KEY}
       Security__JwtSigningKey__DevUsers__0__Email: ${SECURITY_JWT_SIGNING_KEY_DEV_USERS_0_EMAIL}
       Security__JwtSigningKey__DevUsers__0__Password: ${SECURITY_JWT_SIGNING_KEY_DEV_USERS_0_PASSWORD}
