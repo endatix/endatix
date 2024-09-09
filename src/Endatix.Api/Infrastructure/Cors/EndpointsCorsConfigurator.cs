@@ -82,61 +82,49 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
         return builder;
     }
 
-    private CorsWildcardResult AddAllowedOrigins(CorsPolicyBuilder builder, IList<string> allowedOrigins)
+    private CorsWildcardResult AddAllowedOrigins(CorsPolicyBuilder builder, IList<string> allowedOrigins) => AddValuesOrApplyWildcard(
+            builder,
+            allowedOrigins,
+            (builder, allowedOrigins) => builder.WithOrigins(allowedOrigins),
+            (builder) => builder.AllowAnyOrigin()
+         );
+
+    private void AddAllowedHeaders(CorsPolicyBuilder builder, IList<string> allowedHeaders) => AddValuesOrApplyWildcard(
+            builder,
+            allowedHeaders,
+            (builder, allowedHeaders) => builder.WithHeaders(allowedHeaders),
+            (builder) => builder.AllowAnyHeader()
+         );
+
+    private void AddAllowedMethods(CorsPolicyBuilder builder, IList<string> allowedMethods) => AddValuesOrApplyWildcard(
+            builder,
+            allowedMethods,
+            (builder, allowedMethods) => builder.WithMethods(allowedMethods),
+            (builder) => builder.AllowAnyMethod()
+         );
+
+    private CorsWildcardResult AddValuesOrApplyWildcard(
+    CorsPolicyBuilder builder,
+    IList<string> values,
+    Func<CorsPolicyBuilder, string[], CorsPolicyBuilder> withSpecificValues,
+    Func<CorsPolicyBuilder, CorsPolicyBuilder> allowAny)
     {
-        if (allowedOrigins is null or [])
+        if (values is null or [])
         {
-            _ = builder.WithOrigins(_noInputParams);
+            _ = withSpecificValues(builder, _noInputParams);
             return CorsWildcardResult.None;
         }
 
-        var wildcardSearchResult = wildcardSearcher.SearchForWildcard(allowedOrigins);
+        var wildcardSearchResult = wildcardSearcher.SearchForWildcard(values);
         _ = wildcardSearchResult switch
         {
-            CorsWildcardResult.MatchAll => builder.AllowAnyOrigin(),
-            CorsWildcardResult.IgnoreAll => builder.WithOrigins(_noInputParams),
-            _ => builder.WithOrigins([.. allowedOrigins])
+            CorsWildcardResult.MatchAll => allowAny(builder),
+            CorsWildcardResult.IgnoreAll => withSpecificValues(builder, _noInputParams),
+            _ => withSpecificValues(builder, [.. values])
         };
 
         return wildcardSearchResult;
-    }
-
-    private void AddAllowedHeaders(CorsPolicyBuilder builder, IList<string> allowedHeaders)
-    {
-        if (allowedHeaders is null or [])
-        {
-            _ = builder.WithHeaders(_noInputParams);
-            return;
-        }
-
-        var wildcardSearchResult = wildcardSearcher.SearchForWildcard(allowedHeaders);
-        _ = wildcardSearchResult switch
-        {
-            CorsWildcardResult.MatchAll => builder.AllowAnyHeader(),
-            CorsWildcardResult.IgnoreAll => builder.WithHeaders(_noInputParams),
-            _ => builder.WithHeaders([.. allowedHeaders])
-        };
-
-        return;
-    }
-
-    private void AddAllowedMethods(CorsPolicyBuilder builder, IList<string> allowedMethods)
-    {
-        if (allowedMethods is null or [])
-        {
-            _ = builder.WithMethods(_noInputParams);
-            return;
-        }
-
-        var wildcardSearchResult = wildcardSearcher.SearchForWildcard(allowedMethods);
-        _ = wildcardSearchResult switch
-        {
-            CorsWildcardResult.MatchAll => builder.AllowAnyMethod(),
-            CorsWildcardResult.IgnoreAll => builder.WithMethods(_noInputParams),
-            _ => builder.WithMethods([.. allowedMethods])
-        };
-
-        return;
+        ;
     }
 
     /// <summary>
