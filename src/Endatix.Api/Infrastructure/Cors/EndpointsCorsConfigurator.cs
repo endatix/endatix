@@ -29,7 +29,7 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
                     policy => BuildFrom(policy, policySetting)
                 );
 
-                if (settingsValue?.DefaultPolicyName?.Equals(policySetting.PolicyName) == true)
+                if (settingsValue.DefaultPolicyName == policySetting.PolicyName)
                 {
                     options.DefaultPolicyName = policySetting.PolicyName;
                     isDefaultPolicySet = true;
