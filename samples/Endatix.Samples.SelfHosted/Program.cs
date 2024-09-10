@@ -1,6 +1,4 @@
-using Endatix.Core.UseCases.Forms.List;
 using Endatix.Setup;
-using MediatR;
 
 var builder = WebApplication.CreateBuilder(args);
 
