@@ -55,3 +55,6 @@ Thumbs.db
 
 # Remove local nuget packages created during testing
 .artifacts/
+
+# Environment variables
+.env
