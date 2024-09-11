@@ -12,6 +12,15 @@ services:
       - "5001:8080"
     networks:
       - appnetwork
+    depends_on:
+      endatix-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 5s
+      retries: 5
+      start_period: 5s
+      timeout: 2s
 
   endatix-hub:
     image: endatix/endatix-hub:latest
@@ -21,6 +30,9 @@ services:
       - "3000:3000"
     networks:
       - appnetwork
+    depends_on:
+      endatix-api:
+        condition: service_healthy
 
   endatix-db:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -31,6 +43,12 @@ services:
       - "1433:1433"
     networks:
       - appnetwork
+    healthcheck:
+      test: ["CMD", "opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${SQLSERVER_SA_PASSWORD}", "-Q", "SELECT 1", "-C"]
+      interval: 5s
+      retries: 5
+      start_period: 5s
+      timeout: 2s
 
 networks:
   appnetwork:
