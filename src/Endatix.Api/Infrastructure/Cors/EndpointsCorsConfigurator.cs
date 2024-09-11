@@ -67,7 +67,14 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
             return builder;
         }
 
-        _ = policySetting.AllowCredentials ? builder.AllowCredentials() : builder.DisallowCredentials();
+        if (policySetting.AllowCredentials)
+        {
+            builder.AllowCredentials();
+        }
+        else
+        {
+            builder.DisallowCredentials();
+        }
 
         if (policySetting.ExposedHeaders?.Count > 0)
         {
