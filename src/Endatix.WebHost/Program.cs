@@ -2,6 +2,8 @@ using Endatix.Setup;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddHealthChecks();
+
 var endatixBuilder = builder.CreateEndatix()
                             .AddDefaultSetup()
                             .AddApiEndpoints();
@@ -9,7 +11,8 @@ var endatixBuilder = builder.CreateEndatix()
 var app = builder.Build();
 
 app.UseEndatixMiddleware()
-            .UseEndatixApi();
+    .UseEndatixApi();
+
+app.MapHealthChecks("/healthz");
 
 app.Run();
-
