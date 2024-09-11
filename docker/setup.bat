@@ -38,9 +38,9 @@ setlocal enabledelayedexpansion
 
 REM Prompt for environment variables and store them in variables
 set /p ASPNETCORE_ENVIRONMENT="Enter ASPNETCORE_ENVIRONMENT (e.g., Development): "
-set /p SECURITY_JWT_SIGNING_KEY="Enter SECURITY_JWT_SIGNING_KEY (JWT signing key): "
-set /p SECURITY_DEV_USERS_0_EMAIL="Enter SECURITY_DEV_USERS_0_EMAIL (Dev user email for API auth): "
-set /p SECURITY_DEV_USERS_0_PASSWORD="Enter SECURITY_DEV_USERS_0_PASSWORD (Dev user password for API auth, min 8 chars): "
+set /p SECURITY_JWT_SIGNING_KEY="Enter SECURITY_JWT_SIGNING_KEY (JWT signing key to be used in Endatix API): "
+set /p SECURITY_DEV_USERS_0_EMAIL="Enter SECURITY_DEV_USERS_0_EMAIL (Test user email for API auth): "
+set /p SECURITY_DEV_USERS_0_PASSWORD="Enter SECURITY_DEV_USERS_0_PASSWORD (Test user password for API auth, min 8 chars): "
 set /p SENDGRID_API_KEY="Enter SENDGRID_API_KEY (SendGrid API key for sending emails, skip if not present): "
 set /p SQLSERVER_SA_PASSWORD="Enter SQLSERVER_SA_PASSWORD (SQL Server container admin user password, min 8 chars, include uppercase, lowercase, digit and special char): "
 

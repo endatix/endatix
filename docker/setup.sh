@@ -30,13 +30,13 @@ echo "# Environment variables for Endatix" > .env
 read -p "Enter ASPNETCORE_ENVIRONMENT (e.g., Development): " ASPNETCORE_ENVIRONMENT
 echo "ASPNETCORE_ENVIRONMENT=$ASPNETCORE_ENVIRONMENT" >> .env
 
-read -p "Enter SECURITY_JWT_SIGNING_KEY (JWT signing key): " SECURITY_JWT_SIGNING_KEY
+read -p "Enter SECURITY_JWT_SIGNING_KEY (JWT signing key to be used in Endatix API): " SECURITY_JWT_SIGNING_KEY
 echo "SECURITY_JWT_SIGNING_KEY=$SECURITY_JWT_SIGNING_KEY" >> .env
 
-read -p "Enter SECURITY_DEV_USERS_0_EMAIL (Dev user email for API auth): " SECURITY_DEV_USERS_0_EMAIL
+read -p "Enter SECURITY_DEV_USERS_0_EMAIL (Test user email for API auth): " SECURITY_DEV_USERS_0_EMAIL
 echo "SECURITY_DEV_USERS_0_EMAIL=$SECURITY_DEV_USERS_0_EMAIL" >> .env
 
-read -p "Enter SECURITY_DEV_USERS_0_PASSWORD (Dev user password for API auth, min 8 chars): " SECURITY_DEV_USERS_0_PASSWORD
+read -p "Enter SECURITY_DEV_USERS_0_PASSWORD (Test user password for API auth, min 8 chars): " SECURITY_DEV_USERS_0_PASSWORD
 echo "SECURITY_DEV_USERS_0_PASSWORD=$SECURITY_DEV_USERS_0_PASSWORD" >> .env
 
 read -p "Enter SENDGRID_API_KEY (SendGrid API key for sending emails, skip if not present): " SENDGRID_API_KEY

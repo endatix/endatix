@@ -11,6 +11,8 @@ Before proceeding, please ensure the following are installed on your machine:
 
 The easiest and recommended way to get both of them is to install [Docker Desktop](https://docs.docker.com/get-docker/).
 
+The scripts run successfully with `Docker version 26.1.1` and `Docker Compose version v2.27.0`. In case of compatibility issues, try these or later versions.
+
 ---
 
 ## Step 1: Download the Necessary Files
@@ -28,7 +30,7 @@ You have to choose one of the two provided setup scripts, depending on your oper
 
 - **Windows**: [Download setup.bat](https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/setup.bat)
 - **Linux/macOS**: [Download setup.sh](https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/setup.sh)
-- **Docker Compose File**: [Download docker-compose.prod.yml](https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/docker-compose.prod.yml)
+- **Docker Compose File**: [Download docker-compose.dev.yml](https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/docker-compose.dev.yml)
 
 ### Command-line Download Options (Using `curl`)
 
@@ -37,20 +39,20 @@ You can also download the required files via the terminal:
 #### For Windows Users:
 ```bash
 curl -o setup.bat https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/setup.bat
-curl -o docker-compose.prod.yml https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/docker-compose.prod.yml
+curl -o docker-compose.dev.yml https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/docker-compose.dev.yml
 ```
 
 #### For Linux/macOS Users:
 ```bash
 curl -o setup.sh https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/setup.sh
-curl -o docker-compose.prod.yml https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/docker-compose.prod.yml
+curl -o docker-compose.dev.yml https://raw.githubusercontent.com/endatix/endatix/feature/issue-84-set-up-docker/docker/docker-compose.dev.yml
 ```
 
 ---
 
 ## Step 2: Running the Setup Script
 
-Once you've downloaded the setup script and `docker-compose.prod.yml` file, follow these instructions based on your operating system:
+Once you've downloaded the setup script and `docker-compose.dev.yml` file, follow these instructions based on your operating system:
 
 ### **For Windows Users**:
 1. **Navigate** to the folder where you downloaded the files.
@@ -78,12 +80,12 @@ Once you've downloaded the setup script and `docker-compose.prod.yml` file, foll
 
 During the setup, the script will ask for the following environment variables. Here’s a quick overview of what each one means:
 
-- **ASPNETCORE_ENVIRONMENT**: Set this to `Production` for the production environment.
-- **SECURITY_JWT_SIGNING_KEY**: The secret key used to sign JWT tokens for authentication.
-- **SECURITY_JWT_SIGNING_KEY_DEV_USERS_0_EMAIL**: Email of a dev user for testing purposes.
-- **SECURITY_JWT_SIGNING_KEY_DEV_USERS_0_PASSWORD**: Password for the dev user.
-- **SENDGRID_API_KEY**: Your API key for sending emails through SendGrid.
-- **SQLSERVER_SA_PASSWORD**: The SA (System Administrator) password for SQL Server.
+- **ASPNETCORE_ENVIRONMENT**: Set this to `Development`. The containers are not ready for production environment, because they lack https connection, prod level security for the configuration and others.
+- **SECURITY_JWT_SIGNING_KEY**: The secret key to be used in Endatix API to sign JWT tokens for authentication.
+- **SECURITY_DEV_USERS_0_EMAIL**: Email of a user to be set in Endatix API for testing purposes. A new user will be created with this email.
+- **SECURITY_DEV_USERS_0_PASSWORD**: Password of a user to be set in Endatix API for testing purposes. It must be minimum 8 characters. A new user will be created with this password.
+- **SENDGRID_API_KEY**: The API key to be used for sending emails through SendGrid (optional).
+- **SQLSERVER_SA_PASSWORD**: The SA (System Administrator) password to be set for the SQL Server running in a container. It must be minimum 8 characters and include an uppercase and lowercase letters, a digit and a special character. A new user will be created with this password.
 
 You will be prompted one by one to provide these values. The script will automatically save them in a `.env` file, ensuring your environment is configured correctly.
 
@@ -104,7 +106,7 @@ Once you’ve entered the necessary environment variables:
 To verify that everything is working correctly:
 
 - For **Endatix Hub** (admin console), open your browser and navigate to http://localhost:3000
-- For **Endatix API**, navigate to http://localhost:5001/swagger, use the authentication endpoint with the dev user credentials entered during the setup and explore the other API endpoints.
+- For **Endatix API**, navigate to http://localhost:5001/swagger, use the authentication endpoint with the user credentials entered during the setup and explore the other API endpoints, e.g. `GET /api/forms`.
 
 ---
 
@@ -119,7 +121,7 @@ If you encounter any issues during the setup:
 To stop the containers, run the following command:
 
 ```bash
-docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.dev.yml down
 ```
 
 ---
