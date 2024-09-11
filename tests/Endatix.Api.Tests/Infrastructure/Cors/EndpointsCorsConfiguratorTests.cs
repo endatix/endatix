@@ -101,10 +101,8 @@ public class EndpointsCorsConfiguratorTests
         configurator.Configure(_options);
 
         // Assert
-        var defaultPolicyName = _options.DefaultPolicyName;
         var policyWithDuplicatedName = _options.GetPolicy(duplicatedName);
 
-        defaultPolicyName.Should().Be(duplicatedName);
         policyWithDuplicatedName.Should().NotBeNull();
         policyWithDuplicatedName?.Origins.Should().Equal([specificOrigin]);
     }
@@ -421,10 +419,13 @@ public class EndpointsCorsConfiguratorTests
         _options.DefaultPolicyName.Should().Be("DefaultPolicy");
     }
 
-    [Fact]
-    public void Configure_WhenWrongDefaultPolicyName_SetsFirstPolicyAsDefault()
+    [Theory]
+    [InlineData(true, EndpointsCorsConfigurator.ALLOW_ALL_POLICY_NAME)]
+    [InlineData(false, EndpointsCorsConfigurator.DISALLOW_ALL_POLICY_NAME)]
+    public void Configure_WhenWrongDefaultPolicyName_SetsCorrectFallback(bool isDevelopmentEnvironment, string expectedDefaultPolicyName)
     {
         // Arrange
+        _appEnvironment.IsDevelopment().Returns(isDevelopmentEnvironment);
         var corsSettings = Options.Create(new CorsSettings
         {
             DefaultPolicyName = "WrongName",
@@ -437,8 +438,8 @@ public class EndpointsCorsConfiguratorTests
         configurator.Configure(_options);
 
         // Assert
-        _options.DefaultPolicyName.Should().Be("FirstPolicyName");
         _options.GetPolicy("FirstPolicyName").Should().NotBeNull();
+        _options.DefaultPolicyName.Should().Be(expectedDefaultPolicyName);
     }
 
     /// <summary>

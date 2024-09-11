@@ -35,12 +35,6 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
                     isDefaultPolicySet = true;
                 }
             }
-
-            if (!isDefaultPolicySet)
-            {
-                options.DefaultPolicyName = corsPolicies[0].PolicyName;
-                isDefaultPolicySet = true;
-            }
         }
 
         if (!isDefaultPolicySet)
