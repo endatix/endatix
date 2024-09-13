@@ -54,7 +54,12 @@ curl -o docker-compose.dev.yml https://raw.githubusercontent.com/endatix/endatix
 
 ## Step 2: Running the Setup Script
 
-Once you've downloaded the setup script and `docker-compose.dev.yml` file, follow these instructions based on your operating system:
+**Note:** Ensure that the following local ports are not occupied:
+- 1443 - needed for SQL Server, ensure there are no instances running locally on this port
+- 5001 - to run Endatix API
+- 3000 - to run Endatix Hub
+
+Once you have the setup script and `docker-compose.dev.yml` file, follow these instructions based on your operating system:
 
 #### For Windows Users:
 1. **Navigate** to the folder where you downloaded the files.
