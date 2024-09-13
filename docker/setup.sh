@@ -8,12 +8,6 @@ if ! [ -x "$(command -v docker)" ]; then
   exit 1
 fi
 
-# Check if Docker Compose is installed
-if ! [ -x "$(command -v docker-compose)" ]; then
-  echo "Docker Compose is not installed. Please install Docker Compose before proceeding."
-  exit 1
-fi
-
 # Check if docker-compose.dev.yml exists in the current directory
 if [ ! -f "docker-compose.dev.yml" ]; then
   echo "docker-compose.dev.yml not found in the current directory. Please ensure it is present."
@@ -47,9 +41,9 @@ echo "SQLSERVER_SA_PASSWORD=$SQLSERVER_SA_PASSWORD" >> .env
 
 echo ".env file created successfully with the provided values."
 
-# Run docker-compose with the .env file and docker-compose.dev.yml
+# Run docker compose with the .env file and docker-compose.dev.yml
 echo "Starting Docker Compose..."
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 if [ $? -ne 0 ]; then
   echo "Failed to start Docker Compose. Please check the logs for more details."

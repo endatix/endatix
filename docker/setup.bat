@@ -12,14 +12,6 @@ IF %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-REM Check if Docker Compose is installed
-docker-compose --version >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 (
-    echo Docker Compose is not installed. Please install Docker Compose before proceeding.
-    pause
-    exit /b 1
-)
-
 REM Check if docker-compose.dev.yml exists in the current directory
 IF NOT EXIST "docker-compose.dev.yml" (
     echo docker-compose.dev.yml not found in the current directory. Please ensure it is present.
@@ -59,9 +51,9 @@ endlocal
 
 echo .env file created successfully with the provided values.
 
-REM Run docker-compose with the .env file and docker-compose.dev.yml
+REM Run docker compose with the .env file and docker-compose.dev.yml
 echo Starting Docker Compose...
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 IF %ERRORLEVEL% NEQ 0 (
     echo Failed to start Docker Compose. Please check the logs for more details.

@@ -121,7 +121,7 @@ If you encounter any issues during the setup:
 To stop the containers, run the following command:
 
 ```bash
-docker-compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml down
 ```
 
 ---
