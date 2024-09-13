@@ -8,6 +8,7 @@ using Endatix.Extensions.Hosting;
 using Endatix.Core.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Endatix.Framework.Setup;
 
 namespace Endatix.Setup;
 
@@ -29,8 +30,9 @@ public static class EndatixHostBuilderExtensions
 
         logger ??= CreateSerilogLogger();
         var endatixWebApp = new EndatixWebApp(logger, builder);
-
         endatixWebApp.LogSetupInformation("Starting Endatix Web Application Host");
+
+        builder.Services.AddEndatixFrameworkServices();
 
         return endatixWebApp;
     }
