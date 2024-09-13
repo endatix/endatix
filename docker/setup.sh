@@ -30,7 +30,7 @@ echo "ASPNETCORE_ENVIRONMENT=$ASPNETCORE_ENVIRONMENT" >> .env
 
 read -p "Enter SECURITY_JWT_SIGNING_KEY (JWT signing key to be used in Endatix API, skip to use the default value): " SECURITY_JWT_SIGNING_KEY
 SECURITY_JWT_SIGNING_KEY=${SECURITY_JWT_SIGNING_KEY:-'L2yGC_Vpd3k#L[<9Zb,h?.HT:n'\''T/5CTDmBpDskU?NAaT$sLfRU'}
-echo "SECURITY_JWT_SIGNING_KEY=$SECURITY_JWT_SIGNING_KEY" >> .env
+echo "SECURITY_JWT_SIGNING_KEY='$SECURITY_JWT_SIGNING_KEY'" >> .env
 
 read -p "Enter SECURITY_DEV_USERS_0_EMAIL (Test user email for API auth, skip to use the default value 'developer@endatix.com'): " SECURITY_DEV_USERS_0_EMAIL
 SECURITY_DEV_USERS_0_EMAIL=${SECURITY_DEV_USERS_0_EMAIL:-developer@endatix.com}
@@ -58,4 +58,11 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "Docker Compose started successfully. Your containers should be up and running."
+echo "Docker Compose started successfully. Your containers should be up and running. Access the platform at:"
+echo "http://localhost:5001/swagger for Endatix API"
+echo "http://localhost:3000 for Endatix Hub"
+echo ""
+echo "The initial setup of Endatix Platform is completed."
+echo "To stop the containers use `docker compose -f docker-compose.dev.yml stop`."
+echo "To start again the containers use `docker compose -f docker-compose.dev.yml start`."
+echo "To delete the containers use `docker compose -f docker-compose.dev.yml down`."

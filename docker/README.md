@@ -21,6 +21,8 @@ To get the Endatix Platform running you need just two files:
 - a setup script
 - a docker-compose file
 
+**Note:** If you have already cloned [Endatix repository](https://github.com/endatix/endatix), the necessary files are  present in the folder `/docker`.
+
 You have to choose one of the two provided setup scripts, depending on your operating system:
 
 - **For Windows**: Use the `.bat` file
@@ -119,6 +121,15 @@ To stop the containers, run the following command:
 ```bash
 docker compose -f docker-compose.dev.yml down
 ```
+
+---
+
+## Further Usage
+
+After the initial setup is completed, the commands for some useful actions are:
+- `docker compose -f docker-compose.dev.yml stop` to stop the containers
+- `docker compose -f docker-compose.dev.yml start` to start again the containers
+- `docker compose -f docker-compose.dev.yml down` to delete the containers
 
 ---
 

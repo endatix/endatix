@@ -74,4 +74,11 @@ IF %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-echo Docker Compose started successfully. Your containers should be up and running.
+echo Docker Compose started successfully. Your containers should be up and running. Access the platform at:
+echo http://localhost:5001/swagger for Endatix API
+echo http://localhost:3000 for Endatix Hub
+echo.
+echo The initial setup of Endatix Platform is completed.
+echo To stop the containers use `docker compose -f docker-compose.dev.yml stop`
+echo To start again the containers use `docker compose -f docker-compose.dev.yml start`
+echo To delete the containers use `docker compose -f docker-compose.dev.yml down`
