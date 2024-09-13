@@ -1,6 +1,5 @@
 import { INavItem } from "@/types/navigation-models";
 import {
-  BrainCircuit,
   Blocks,
   Home,
   LineChart,

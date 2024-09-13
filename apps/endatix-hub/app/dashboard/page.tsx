@@ -21,12 +21,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getForms } from "@/services/api";
 import { Form } from "@/types";
+import { getForms } from "@/services/api";
 import FormsTable from "./forms-table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const Forms = () => {
+const Dashboard = async () => {
   const [forms, setForms] = useState<Form[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,4 +133,4 @@ const Forms = () => {
   );
 };
 
-export default Forms;
+export default Dashboard;
