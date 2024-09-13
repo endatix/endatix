@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo "Welcome to Endatix Platform! This script will help you quickly set up the platform using Docker. For additional details and troubleshooting, please check README.md."
+echo ""
+
 # Ensure the script is executable by running: chmod +x setup.sh
 
 # Check if Docker is installed
@@ -17,26 +20,31 @@ fi
 echo "Docker and Docker Compose are installed, and docker-compose.dev.yml is found."
 
 # Create or overwrite the .env file
-echo "Creating .env file..."
+echo "Creating .env file and setting the necessary environment variables..."
 echo "# Environment variables for Endatix" > .env
 
-# Collect environment variables from the user
-read -p "Enter ASPNETCORE_ENVIRONMENT (e.g., Development): " ASPNETCORE_ENVIRONMENT
+# Prompt for environment variables with default values if nothing is entered
+read -p "Enter ASPNETCORE_ENVIRONMENT (skip to use the default value 'Development'): " ASPNETCORE_ENVIRONMENT
+ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
 echo "ASPNETCORE_ENVIRONMENT=$ASPNETCORE_ENVIRONMENT" >> .env
 
-read -p "Enter SECURITY_JWT_SIGNING_KEY (JWT signing key to be used in Endatix API): " SECURITY_JWT_SIGNING_KEY
+read -p "Enter SECURITY_JWT_SIGNING_KEY (JWT signing key to be used in Endatix API, skip to use the default value): " SECURITY_JWT_SIGNING_KEY
+SECURITY_JWT_SIGNING_KEY=${SECURITY_JWT_SIGNING_KEY:-'L2yGC_Vpd3k#L[<9Zb,h?.HT:n'\''T/5CTDmBpDskU?NAaT$sLfRU'}
 echo "SECURITY_JWT_SIGNING_KEY=$SECURITY_JWT_SIGNING_KEY" >> .env
 
-read -p "Enter SECURITY_DEV_USERS_0_EMAIL (Test user email for API auth): " SECURITY_DEV_USERS_0_EMAIL
+read -p "Enter SECURITY_DEV_USERS_0_EMAIL (Test user email for API auth, skip to use the default value 'developer@endatix.com'): " SECURITY_DEV_USERS_0_EMAIL
+SECURITY_DEV_USERS_0_EMAIL=${SECURITY_DEV_USERS_0_EMAIL:-developer@endatix.com}
 echo "SECURITY_DEV_USERS_0_EMAIL=$SECURITY_DEV_USERS_0_EMAIL" >> .env
 
-read -p "Enter SECURITY_DEV_USERS_0_PASSWORD (Test user password for API auth, min 8 chars): " SECURITY_DEV_USERS_0_PASSWORD
+read -p "Enter SECURITY_DEV_USERS_0_PASSWORD (Test user password for API auth, skip to use the default value 'password'): " SECURITY_DEV_USERS_0_PASSWORD
+SECURITY_DEV_USERS_0_PASSWORD=${SECURITY_DEV_USERS_0_PASSWORD:-password}
 echo "SECURITY_DEV_USERS_0_PASSWORD=$SECURITY_DEV_USERS_0_PASSWORD" >> .env
 
-read -p "Enter SENDGRID_API_KEY (SendGrid API key for sending emails, skip if not present): " SENDGRID_API_KEY
+read -p "Enter SENDGRID_API_KEY (SendGrid API key for sending emails, skip for not sending emails): " SENDGRID_API_KEY
 echo "SENDGRID_API_KEY=$SENDGRID_API_KEY" >> .env
 
-read -p "Enter SQLSERVER_SA_PASSWORD (SQL Server container admin user password, min 8 chars, include uppercase, lowercase, digit and special char): " SQLSERVER_SA_PASSWORD
+read -p "Enter SQLSERVER_SA_PASSWORD (SQL Server container admin user password, skip to use the default value 'DbPa$$w0rD'): " SQLSERVER_SA_PASSWORD
+SQLSERVER_SA_PASSWORD=${SQLSERVER_SA_PASSWORD:-DbPa$$w0rD}
 echo "SQLSERVER_SA_PASSWORD=$SQLSERVER_SA_PASSWORD" >> .env
 
 echo ".env file created successfully with the provided values."

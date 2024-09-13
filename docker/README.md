@@ -54,16 +54,16 @@ curl -o docker-compose.dev.yml https://raw.githubusercontent.com/endatix/endatix
 
 Once you've downloaded the setup script and `docker-compose.dev.yml` file, follow these instructions based on your operating system:
 
-### **For Windows Users**:
+#### For Windows Users:
 1. **Navigate** to the folder where you downloaded the files.
 2. **Run the Setup Script**: 
    - Double-click `setup.bat` or run the following command in **Command Prompt** or **PowerShell**:
    ```bash
    setup.bat
    ```
-3. **Follow the prompts** to enter the required environment variables when prompted (see Step 3 below).
+3. **Follow the prompts** to enter the required environment variables when prompted (see details below).
 
-### **For Linux/macOS Users**:
+#### For Linux/macOS Users:
 1. **Make the script executable** (if not already):
    ```bash
    chmod +x setup.sh
@@ -72,26 +72,22 @@ Once you've downloaded the setup script and `docker-compose.dev.yml` file, follo
    ```bash
    ./setup.sh
    ```
-3. **Follow the prompts** to enter the required environment variables when prompted (see Step 3 below).
+3. **Follow the prompts** to enter the required environment variables when prompted (see details below).
 
----
+### Environment Variables Configuration Details
 
-## Step 3: Environment Variable Configuration
+During the setup, the script will ask for the following environment variables. Most of them have default values that can be used if no values is entered. Here’s a quick overview of what each one means:
 
-During the setup, the script will ask for the following environment variables. Here’s a quick overview of what each one means:
-
-- **ASPNETCORE_ENVIRONMENT**: Set this to `Development`. The containers are not ready for production environment, because they lack https connection, prod level security for the configuration and others.
-- **SECURITY_JWT_SIGNING_KEY**: The secret key to be used in Endatix API to sign JWT tokens for authentication.
-- **SECURITY_DEV_USERS_0_EMAIL**: Email of a user to be set in Endatix API for testing purposes. A new user will be created with this email.
-- **SECURITY_DEV_USERS_0_PASSWORD**: Password of a user to be set in Endatix API for testing purposes. It must be minimum 8 characters. A new user will be created with this password.
-- **SENDGRID_API_KEY**: The API key to be used for sending emails through SendGrid (optional).
-- **SQLSERVER_SA_PASSWORD**: The SA (System Administrator) password to be set for the SQL Server running in a container. It must be minimum 8 characters and include an uppercase and lowercase letters, a digit and a special character. A new user will be created with this password.
+- **ASPNETCORE_ENVIRONMENT**: Do not enter anything to use the default value `Development`. The containers are not ready for production environment, because they lack https connection, prod level security for the configuration and others.
+- **SECURITY_JWT_SIGNING_KEY**: The secret key to be used in Endatix API to sign JWT tokens for authentication. The default value is `L2yGC_Vpd3k#L[<9Zb,h?.HT:n'T/5CTDmBpDskU?NAaT$sLfRU`.
+- **SECURITY_DEV_USERS_0_EMAIL**: Email of a user to be set in Endatix API for testing purposes. A new user will be created with this email. The default value is `developer@endatix.com`.
+- **SECURITY_DEV_USERS_0_PASSWORD**: Password of a user to be set in Endatix API for testing purposes. It must be minimum 8 characters. A new user will be created with this password. The default value is `password`.
+- **SENDGRID_API_KEY**: The API key to be used for sending emails through SendGrid. Skip for not sending emails.
+- **SQLSERVER_SA_PASSWORD**: The SA (System Administrator) password to be set for the SQL Server running in a container. A new user will be created with this password. The default value is `DbPa649w0rD`. Check [SQL Server Password Policy](https://learn.microsoft.com/en-us/sql/relational-databases/security/password-policy) to ensure the password you enter is according to the policy.
 
 You will be prompted one by one to provide these values. The script will automatically save them in a `.env` file, ensuring your environment is configured correctly.
 
----
-
-## Step 4: Automatic Setup and Startup
+### Getting the Images and Creating the Containers
 
 Once you’ve entered the necessary environment variables:
 
@@ -101,7 +97,7 @@ Once you’ve entered the necessary environment variables:
 
 ---
 
-## Step 5: Verify the Setup
+## Step 3: Verify the Setup
 
 To verify that everything is working correctly:
 
