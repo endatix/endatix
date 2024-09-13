@@ -1,5 +1,8 @@
+name: endatix
+
 services:
   endatix-api:
+    container_name: endatix-api
     image: endatix/endatix-api:latest
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
@@ -23,6 +26,7 @@ services:
       timeout: 2s
 
   endatix-hub:
+    container_name: endatix-hub
     image: endatix/endatix-hub:latest
     environment:
       NODE_ENV: development
@@ -35,6 +39,7 @@ services:
         condition: service_healthy
 
   endatix-db:
+    container_name: endatix-db
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       ACCEPT_EULA: Y

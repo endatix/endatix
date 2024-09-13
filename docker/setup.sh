@@ -22,7 +22,7 @@ echo "Docker and Docker Compose are installed, and docker-compose.dev.yml is fou
 # Function to escape single quotes in variables
 escape_single_quotes() {
   local input="$1"
-  echo "${input//\'/\\\'}"  # Replace every ' with \'
+  echo "$input" | sed "s/'/\\\'/g"
 }
 
 # Create or overwrite the .env file
@@ -64,11 +64,15 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "Docker Compose started successfully. Your containers should be up and running. Access the platform at:"
-echo "http://localhost:5001/swagger for Endatix API"
-echo "http://localhost:3000 for Endatix Hub"
+echo "Docker Compose started successfully! 🚀"
+echo "---------------------------------------------------"
+echo "Access the Endatix containers at:"
+echo "          🔗 http://localhost:5001/swagger for Endatix API"
+echo "          🔗 http://localhost:3000 for Endatix Hub"
 echo ""
-echo "The initial setup of Endatix Platform is completed."
+echo "✅ The initial setup of Endatix Platform is completed."
+echo "---------------------------------------------------"
 echo "To stop the containers use \`docker compose -f docker-compose.dev.yml stop\`."
 echo "To start again the containers use \`docker compose -f docker-compose.dev.yml start\`."
 echo "To delete the containers use \`docker compose -f docker-compose.dev.yml down\`."
+echo ""

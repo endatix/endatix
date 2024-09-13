@@ -1,5 +1,8 @@
+name: endatix
+
 services:
   endatix-api:
+    container_name: endatix-api
     build:
       context: ./
       dockerfile: src/Endatix.WebHost/Dockerfile
@@ -26,6 +29,7 @@ services:
       timeout: 2s
 
   endatix-hub:
+    container_name: endatix-hub
     build:
       context: ./apps/endatix-hub
       dockerfile: Dockerfile
@@ -41,6 +45,7 @@ services:
         condition: service_healthy
 
   endatix-db:
+    container_name: endatix-db
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       ACCEPT_EULA: Y
