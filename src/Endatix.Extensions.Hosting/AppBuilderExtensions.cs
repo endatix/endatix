@@ -26,6 +26,8 @@ public static class AppBuilderExtensions
 
         app.UseHttpsRedirection();
 
+        app.ApplyDbMigrations();
+
         var middleware = new EndatixMiddleware(app);
 
         return middleware;

@@ -24,6 +24,7 @@
 		<PackageReference Include="FastEndpoints.Security" Version="5.26.0" />
 		<PackageReference Include="IdGen" Version="3.0.5" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.5" />
+		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0" />
 		<PackageReference Include="SendGrid" Version="9.29.3" />
 		<PackageReference Include="SendGrid.Extensions.DependencyInjection" Version="1.0.1" />
 		<PackageReference Include="MediatR" Version="12.3.0" />
@@ -33,6 +34,8 @@
 		<ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
 	</ItemGroup>
 	<ItemGroup>
+		<Folder Include="Identity/Authentication/" />
+		<Folder Include="Identity/Authorization/" />
 		<Folder Include="Logging/" />
 	</ItemGroup>
 </Project>

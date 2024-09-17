@@ -9,6 +9,7 @@ using Endatix.Infrastructure;
 using Endatix.Infrastructure.Auth;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Email;
+using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Setup;
 using FastEndpoints.Security;
 using MediatR;
@@ -61,32 +62,7 @@ public static class EndatixAppExtensions
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
 
-        if (setupSettings.Security != null)
-        {
-            endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Started");
-            var securityConfig = setupSettings.Security.SecurityConfiguration;
-            if (setupSettings.Security.EnableApiAuthentication)
-            {
-                services.Configure<SecuritySettings>(securityConfig);
-
-                var signingKey = securityConfig.GetRequiredSection(nameof(SecuritySettings.JwtSigningKey)).Value;
-
-                Guard.Against.NullOrEmpty(signingKey, "signingKey", $"Cannot initialize application without a signingKey. Please check configuration for {nameof(SecuritySettings.JwtSigningKey)}");
-
-                services.AddAuthorization();
-                services.AddAuthenticationJwtBearer(s => s.SigningKey = signingKey);
-                services.AddScoped<ITokenService, JwtTokenService>();
-                endatixApp.LogSetupInformation("     >> Registering core authentication services");
-            }
-
-            if (setupSettings.Security.EnableDevUsersFromConfig)
-            {
-                services.AddScoped<IAuthService, ConfigBasedAuthService>();
-                endatixApp.LogSetupInformation("     >> Registering {Interface} using the {ClassName} class", typeof(IAuthService).Name, typeof(ConfigBasedAuthService).Name);
-            }
-
-            endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Finished");
-        }
+        endatixApp.SetupIdentity(setupSettings);
 
         return endatixApp;
     }

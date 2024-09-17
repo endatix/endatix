@@ -14,9 +14,9 @@ public class JwtTokenService : ITokenService
 {
     private readonly SecuritySettings _settings;
 
-    public JwtTokenService(IOptions<SecuritySettings> _securityOptions)
+    public JwtTokenService(IOptions<SecuritySettings> securityOptions)
     {
-        _settings = _securityOptions.Value;
+        _settings = securityOptions.Value;
 
         Guard.Against.NullOrEmpty(_settings.JwtSigningKey, nameof(_settings.JwtSigningKey), "Signing key cannot be empty");
         Guard.Against.NegativeOrZero(_settings.JwtExpiryInMinutes, nameof(_settings.JwtExpiryInMinutes), "Token expiration must be positive number representing minutes for token lifetime");
