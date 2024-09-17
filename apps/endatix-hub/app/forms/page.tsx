@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { File, ListFilter, PlusCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -19,11 +22,37 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getForms } from "@/services/api";
+import { Form } from "@/types";
 import FormsTable from "./forms-table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const Forms = async () => {
-  const forms = await getForms();
+const Forms = () => {
+  const [forms, setForms] = useState<Form[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchForms() {
+      try {
+        const data = await getForms();
+        setForms(data);
+        setLoading(false);
+      } catch (err) {
+        setError("Failed to load forms");
+        setLoading(false);
+      }
+    }
+
+    fetchForms();
+  }, []);
+
+  if (loading) {
+    return <div>Loading forms...</div>;
+  }
+
+  if (error) {
+    return <div>{error}</div>;
+  }
 
   return (
     <Tabs defaultValue="all">

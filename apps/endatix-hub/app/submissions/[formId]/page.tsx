@@ -1,9 +1,4 @@
 import { getSubmissionsByFormId } from '@/services/api';
-import { Submission } from '@/types';
-
-type ResponsesProps = {
-  responses: Response[];
-};
 
 const Responses = async ({ params }: { params: { formId: string } }) => {
   const { formId } = params;
