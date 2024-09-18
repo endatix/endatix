@@ -20,10 +20,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
-      interval: 5s
-      retries: 5
-      start_period: 5s
-      timeout: 2s
+      interval: 15s
+      retries: 3
+      start_period: 30s
+      timeout: 3s
 
   endatix-hub:
     container_name: endatix-hub
@@ -50,10 +50,10 @@ services:
       - appnetwork
     healthcheck:
       test: ["CMD", "opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${SQLSERVER_SA_PASSWORD}", "-Q", "SELECT 1", "-C"]
-      interval: 5s
-      retries: 5
-      start_period: 5s
-      timeout: 2s
+      interval: 15s
+      retries: 3
+      start_period: 30s
+      timeout: 3s
 
 networks:
   appnetwork:

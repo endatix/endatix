@@ -2,6 +2,7 @@ using Endatix.Framework.Hosting;
 using Endatix.Setup;
 using Microsoft.AspNetCore.Builder;
 using Serilog;
+using Serilog.Events;
 
 namespace Endatix.Setup;
 
@@ -22,7 +23,18 @@ public static class AppBuilderExtensions
         app.UseAuthentication()
             .UseAuthorization();
 
-        app.UseSerilogRequestLogging();
+        app.UseSerilogRequestLogging(options =>
+        {
+            options.GetLevel = (httpContext, elapsed, ex) =>
+            {
+                if (httpContext.Request.Path.StartsWithSegments("/healthz"))
+                {
+                    return LogEventLevel.Verbose;
+                }
+
+                return LogEventLevel.Information;
+            };
+        });
 
         app.UseHttpsRedirection();
 
