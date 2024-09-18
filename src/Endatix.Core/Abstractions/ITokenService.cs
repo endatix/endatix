@@ -1,4 +1,4 @@
-﻿using Endatix.Core.UseCases.Security;
+﻿using Endatix.Core.UseCases.Identity;
 
 namespace Endatix.Core.Abstractions;
 

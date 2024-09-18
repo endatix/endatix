@@ -1,12 +1,11 @@
 ﻿using FastEndpoints;
-using Endatix.Infrastructure.Identity;
-using Microsoft.AspNetCore.Identity;
-using Endatix.Core.Abstractions;
-using Endatix.Core.UseCases.Security;
+using MediatR;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Identity.Login;
 
 namespace Endatix.Api.Endpoints.Auth;
 
-public class Login(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, ITokenService tokenService) : Endpoint<LoginRequest, LoginResponse>
+public class Login(IMediator mediator) : Endpoint<LoginRequest, LoginResponse>
 {
     public override void Configure()
     {
@@ -23,35 +22,22 @@ public class Login(UserManager<AppUser> userManager, SignInManager<AppUser> sign
 
     public override async Task HandleAsync(LoginRequest request, CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByEmailAsync(request.Email);
+        var loginCommand = new LoginCommand(request.Email, request.Password);
+        var result = await mediator.Send(loginCommand, cancellationToken);
 
-        if (user is null || !user.EmailConfirmed)
+        if (result.IsInvalid())
         {
-            ThrowError("User not found");
+            ThrowError("The supplied credentials are invalid!");
         }
-
-        var userVerified = await userManager.CheckPasswordAsync(user, request.Password);
-        if (!userVerified)
+        else
         {
-            ThrowError("Supplied credentials are not valid");
+            LoginResponse successfulResponse = new()
+            {
+                Email = request.Email,
+                Token = result.Value.Token,
+                RefreshToken = string.Empty
+            };
+            await SendOkAsync(successfulResponse, cancellationToken);
         }
-
-        var userDto = new UserDto(user.Email, [], "SystemInfo");
-        var token = tokenService.IssueToken(userDto);
-        var refreshToken = GenerateRefreshToken();
-
-        var response = new LoginResponse
-        {
-            Email = userDto.Email,
-            Token = token.Token,
-            RefreshToken = refreshToken
-        };
-
-        await SendOkAsync(response, cancellationToken);
-    }
-
-    private string GenerateRefreshToken()
-    {
-        return Convert.ToBase64String(Guid.NewGuid().ToByteArray());
     }
 }

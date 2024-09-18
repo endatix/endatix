@@ -29,7 +29,6 @@ public static class IdentitySetup
         endatixApp.Services
                 .AddIdentityCore<AppUser>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
-                .AddSignInManager()
                 .AddDefaultTokenProviders();
 
 
@@ -52,13 +51,9 @@ public static class IdentitySetup
             }
         );
         endatixApp.Services.AddAuthentication(options => options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme);
-
         endatixApp.Services.AddAuthorization();
-
         endatixApp.Services.AddScoped<ITokenService, JwtTokenService>();
-        endatixApp.LogSetupInformation("     >> Registering core authentication services");
-        endatixApp.Services.AddScoped<IAuthService, ConfigBasedAuthService>();
-        endatixApp.LogSetupInformation("     >> Registering {Interface} using the {ClassName} class", typeof(IAuthService).Name, typeof(ConfigBasedAuthService).Name);
+        endatixApp.Services.AddScoped<IAuthService, AuthService>();
 
         endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Finished");
 

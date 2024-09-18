@@ -1,7 +1,5 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Security;
+﻿using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Identity;
 
 namespace Endatix.Core.Abstractions;
 

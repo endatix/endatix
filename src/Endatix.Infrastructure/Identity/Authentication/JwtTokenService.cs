@@ -2,7 +2,7 @@
 using Ardalis.GuardClauses;
 using Microsoft.Extensions.Options;
 using Endatix.Core.Abstractions;
-using Endatix.Core.UseCases.Security;
+using Endatix.Core.UseCases.Identity;
 using Endatix.Infrastructure.Auth;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
