@@ -28,6 +28,7 @@ public static class MiddlewareExtensions
         var app = endatixMiddleware.App;
 
         app.UseDefaultExceptionHandler(app.Logger, true, true);
+
         app.UseFastEndpoints(fastEndpoints =>
         {
             fastEndpoints.Versioning.Prefix = "v";
