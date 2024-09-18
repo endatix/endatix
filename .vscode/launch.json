@@ -24,6 +24,25 @@
       }
     },
     {
+      "name": "Launch Endatix.Samples.SelfHosted",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      // If you have changed target frameworks, make sure to update the program path.
+      "program": "${workspaceFolder}/samples/Endatix.Samples.SelfHosted/bin/Debug/net8.0/Endatix.Samples.SelfHosted.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/samples/Endatix.Samples.SelfHosted",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
       "name": ".NET Core Attach",
       "type": "coreclr",
       "request": "attach",
