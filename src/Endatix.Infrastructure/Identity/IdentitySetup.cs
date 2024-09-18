@@ -1,11 +1,15 @@
+using System.Text;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Framework.Hosting;
+using Endatix.Identity.Authentication;
 using Endatix.Infrastructure.Auth;
 using FastEndpoints.Security;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -21,19 +25,35 @@ public static class IdentitySetup
         var signingKey = securityConfig.GetRequiredSection(nameof(SecuritySettings.JwtSigningKey)).Value;
         Guard.Against.NullOrEmpty(signingKey, "signingKey", $"Cannot initialize application without a signingKey. Please check configuration for {nameof(SecuritySettings.JwtSigningKey)}");
 
-        endatixApp.Services.AddAuthorization();
-
-        endatixApp.Services
-                .AddAuthentication(options => options.DefaultScheme = "Cookies")
-                .AddCookie(IdentityConstants.ApplicationScheme);
 
         endatixApp.Services
                 .AddIdentityCore<AppUser>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
+                .AddSignInManager()
                 .AddDefaultTokenProviders();
 
+
         // TODO: Move this to Fast Endpoints
-        endatixApp.Services.AddAuthenticationJwtBearer(s => s.SigningKey = signingKey);
+        endatixApp.Services.AddAuthenticationJwtBearer(
+            signingOptions => signingOptions.SigningKey = signingKey,
+            bearerOptions =>
+            {
+                bearerOptions.RequireHttpsMetadata = false;
+                bearerOptions.TokenValidationParameters = new TokenValidationParameters
+                {
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+                    ValidIssuer = "configuration['JwtSettings:Issuer']",
+                    ValidAudience = "configuration['JwtSettings:Audience']",
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromSeconds(15)
+                };
+            }
+        );
+        endatixApp.Services.AddAuthentication(options => options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme);
+
+        endatixApp.Services.AddAuthorization();
 
         endatixApp.Services.AddScoped<ITokenService, JwtTokenService>();
         endatixApp.LogSetupInformation("     >> Registering core authentication services");

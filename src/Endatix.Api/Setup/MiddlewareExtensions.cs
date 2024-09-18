@@ -21,7 +21,7 @@ public static class MiddlewareExtensions
     /// If null, a default policy that allows any origin, header, and method is applied.</param>
     /// <returns>The <see cref="IEndatixMiddleware"/> instance after the middleware is configured.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the <paramref name="endatixMiddleware"/> is null.</exception>
-    public static IEndatixMiddleware UseEndatixApi(this IEndatixMiddleware endatixMiddleware, Action<CorsPolicyBuilder>? configurePolicy = null)
+    public static IEndatixMiddleware UseEndatixApi(this IEndatixMiddleware endatixMiddleware)
     {
         Guard.Against.Null(endatixMiddleware);
 
@@ -34,6 +34,7 @@ public static class MiddlewareExtensions
             fastEndpoints.Versioning.Prefix = "v";
             fastEndpoints.Endpoints.RoutePrefix = "api";
             fastEndpoints.Serializer.Options.Converters.Add(new LongToStringConverter());
+            fastEndpoints.Security.PermissionsClaimType = "permission";
         });
         app.UseSwaggerGen();
         app.UseCors();

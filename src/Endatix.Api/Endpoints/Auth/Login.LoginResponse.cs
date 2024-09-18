@@ -14,4 +14,9 @@ public record LoginResponse
     /// Authentication token returned upon success
     /// </summary>
     public required string Token { get; set; }
+
+    /// <summary>
+    /// Refresh token returned upon success
+    /// </summary>
+    public required string RefreshToken { get; set; }
 }
