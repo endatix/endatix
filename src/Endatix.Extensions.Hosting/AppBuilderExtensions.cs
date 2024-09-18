@@ -26,9 +26,14 @@ public static class AppBuilderExtensions
         app.UseSerilogRequestLogging(options =>
         {
             options.GetLevel = (httpContext, elapsed, ex) =>
-                httpContext.Request.Path.StartsWithSegments("/healthz") ?
-                    LogEventLevel.Verbose :
-                    LogEventLevel.Information;
+            {
+                if (httpContext.Request.Path.StartsWithSegments("/healthz"))
+                {
+                    return LogEventLevel.Verbose;
+                }
+
+                return LogEventLevel.Information;
+            };
         });
 
         app.UseHttpsRedirection();
