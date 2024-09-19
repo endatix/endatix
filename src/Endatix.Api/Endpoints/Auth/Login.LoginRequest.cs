@@ -3,15 +3,15 @@
 /// <summary>
 /// Request model for initiating Login request
 /// </summary>
-public class LoginRequest
+public record LoginRequest
 {
     /// <summary>
     /// Email of the user. Must be a valid email address
     /// </summary>
-    public string Email { get; set; }
+    public string Email { get; init; }
 
     /// <summary>
     /// Password of the account
     /// </summary>
-    public string Password { get; set; }
+    public string Password { get; init; }
 }

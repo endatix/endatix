@@ -4,6 +4,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Framework.Hosting;
 using Endatix.Identity.Authentication;
 using Endatix.Infrastructure.Auth;
+using Endatix.Infrastructure.Identity.Registration;
 using FastEndpoints.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -54,6 +55,7 @@ public static class IdentitySetup
         endatixApp.Services.AddAuthorization();
         endatixApp.Services.AddScoped<ITokenService, JwtTokenService>();
         endatixApp.Services.AddScoped<IAuthService, AuthService>();
+        endatixApp.Services.AddScoped<IUserRegistrationService, UserRegistrationService>();
 
         endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Finished");
 

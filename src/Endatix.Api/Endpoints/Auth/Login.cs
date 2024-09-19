@@ -17,6 +17,7 @@ public class Login(IMediator mediator) : Endpoint<LoginRequest, LoginResponse>
             s.Description = "Authenticates a user based on valid credentials and returns JWT token and refresh token";
             s.Responses[200] = "User has been successfully authenticated";
             s.Responses[400] = "The supplied credentials are invalid!";
+            s.ExampleRequest = new LoginRequest("user@example.com", "Password123!");
         });
     }
 

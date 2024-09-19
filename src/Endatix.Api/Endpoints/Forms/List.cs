@@ -18,7 +18,7 @@ public class List(IMediator _mediator) : Endpoint<FormsListRequest, Results<Ok<I
     public override void Configure()
     {
         Get("forms");
-        //Roles("Admin");
+        Roles("Admin");
         Permissions("forms.read");
         Summary(s =>
         {
