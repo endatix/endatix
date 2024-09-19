@@ -20,7 +20,7 @@ public static class ApplicationBuilderExtensions
         var isDevelopment = webApp.Environment.IsDevelopment();
         var applyMigrations = webApp.Configuration.GetValue<bool>("Endatix:ApplyMigrations");
 
-        if (isDevelopment || applyMigrations)
+        if (applyMigrations)
         {
             using IServiceScope scope = app.ApplicationServices.CreateScope();
             using AppIdentityDbContext context = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
