@@ -32,12 +32,7 @@ public class Login(IMediator mediator) : Endpoint<LoginRequest, LoginResponse>
         }
         else
         {
-            LoginResponse successfulResponse = new()
-            {
-                Email = request.Email,
-                Token = result.Value.Token,
-                RefreshToken = string.Empty
-            };
+            var successfulResponse = new LoginResponse(request.Email, result.Value.Token, string.Empty);
             await SendOkAsync(successfulResponse, cancellationToken);
         }
     }
