@@ -1,4 +1,5 @@
 using Endatix.Api.Endpoints.Auth;
+using Endatix.Api.Tests.TestExtensions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity;
 using Endatix.Core.UseCases.Identity.Login;
@@ -52,12 +53,13 @@ public class LoginTests
         _mediator.Send(loginCommand).Returns(errorLoginResult);
 
         // Act
-        Func<Task> endpointAction = async () => await _endpoint.HandleAsync(request, default);
+        Func<Task> act = async () => await _endpoint.HandleAsync(request, default);
 
         // Assert
-        await Assert.ThrowsAsync<ValidationFailureException>(endpointAction);
+        var expectedErrorMessage = "The supplied credentials are invalid!";
+        await act.Should().ThrowValidationFailureAsync(expectedErrorMessage);
         _endpoint.ValidationFailed.Should().BeTrue();
-        _endpoint.ValidationFailures.Should().Contain(f => 
-            f.ErrorMessage == "The supplied credentials are invalid!");
+        _endpoint.ValidationFailures.Should().Contain(f =>
+            f.ErrorMessage == expectedErrorMessage);
     }
 }
