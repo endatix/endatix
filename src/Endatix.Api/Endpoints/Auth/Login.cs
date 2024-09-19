@@ -5,8 +5,14 @@ using Endatix.Core.UseCases.Identity.Login;
 
 namespace Endatix.Api.Endpoints.Auth;
 
+/// <summary>
+/// Endpoint for user authentication
+/// </summary>
 public class Login(IMediator mediator) : Endpoint<LoginRequest, LoginResponse>
 {
+    /// <summary>
+    /// Configures the endpoint
+    /// </summary>
     public override void Configure()
     {
         Post("/auth/login");
@@ -21,6 +27,12 @@ public class Login(IMediator mediator) : Endpoint<LoginRequest, LoginResponse>
         });
     }
 
+    /// <summary>
+    /// Handles the login request
+    /// </summary>
+    /// <param name="request">The login request containing user credentials</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>A task representing the asynchronous operation</returns>
     public override async Task HandleAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var loginCommand = new LoginCommand(request.Email, request.Password);
