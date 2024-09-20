@@ -1,4 +1,3 @@
-using System;
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Domain;
 
@@ -29,15 +28,11 @@ namespace Endatix.Core.Entities;
             FormDefinitionId = formDefinitionId.Value;
         }
 
-        IsComplete = isComplete;
         JsonData = jsonData;
         CurrentPage = currentPage;
         Metadata = metadata;
 
-        if (isComplete)
-        {
-            CreatedAt = DateTime.UtcNow;
-        }
+        SetCompletionStatus(isComplete);
     }
 
     public void Update(string jsonData, long formDefinitionId, bool isComplete = true, int currentPage = 1, string metadata = null)
@@ -50,9 +45,14 @@ namespace Endatix.Core.Entities;
         CurrentPage = currentPage;
         Metadata = metadata;
 
-        if (!IsComplete && isComplete == true)
+        SetCompletionStatus(isComplete);
+    }
+
+    private void SetCompletionStatus(bool newIsCompleteValue)
+    {
+        if (!IsComplete && newIsCompleteValue)
         {
-            IsComplete = isComplete;
+            IsComplete = true;
             CompletedAt = DateTime.UtcNow;
         }
     }
