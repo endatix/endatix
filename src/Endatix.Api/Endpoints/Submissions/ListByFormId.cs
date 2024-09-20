@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
+using Endatix.Infrastructure.Identity.Authorization;
 
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -13,7 +14,7 @@ public class ListByFormId(IMediator _mediator) : Endpoint<ListByFormIdRequest, R
     public override void Configure()
     {
         Get("forms/{formId}/submissions");
-        Roles("Admin");
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Get a list of Submissions for a given form";

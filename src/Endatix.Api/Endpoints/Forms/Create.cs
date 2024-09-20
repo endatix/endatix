@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Forms.Create;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -18,7 +19,7 @@ public class Create(IMediator _mediator) : Endpoint<CreateFormRequest, Results<C
     public override void Configure()
     {
         Post("forms");
-        Roles("Admin");
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Create a new form";
@@ -38,10 +39,10 @@ public class Create(IMediator _mediator) : Endpoint<CreateFormRequest, Results<C
         var result = await _mediator.Send(
             new CreateFormCommand(request.Name!, request.Description, request.IsEnabled!.Value, request.FormDefinitionJsonData!),
             cancellationToken);
-        
+
         return result.ToEndpointResponse<
             Results<Created<CreateFormResponse>, BadRequest>,
             Form,
             CreateFormResponse>(FormMapper.Map<CreateFormResponse>);
-    }    
+    }
 }
