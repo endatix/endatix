@@ -1,17 +1,10 @@
-using System.Security.Claims;
-using System.Text;
-using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Framework.Hosting;
 using Endatix.Identity.Authentication;
 using Endatix.Infrastructure.Auth;
 using Endatix.Infrastructure.Identity.Registration;
-using FastEndpoints.Security;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Endatix.Infrastructure.Identity;
 
