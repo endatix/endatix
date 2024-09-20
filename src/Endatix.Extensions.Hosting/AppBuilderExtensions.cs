@@ -18,9 +18,9 @@ public static class AppBuilderExtensions
     public static IEndatixMiddleware UseEndatixMiddleware(this WebApplication app)
     {
         app.UseHsts();
-
-        app.UseAuthentication()
-            .UseAuthorization();
+        app.UseHttpsRedirection();
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         app.UseSerilogRequestLogging(options =>
         {
@@ -34,8 +34,6 @@ public static class AppBuilderExtensions
                 return LogEventLevel.Information;
             };
         });
-
-        app.UseHttpsRedirection();
 
         app.ApplyDbMigrations();
 

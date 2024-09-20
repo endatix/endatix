@@ -26,38 +26,11 @@ public static class IdentitySetup
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
 
-        var jwtSettings = endatixApp.WebHostBuilder.Configuration
-            .GetRequiredSection(JwtOptions.SECTION_NAME)
-            .Get<JwtOptions>();
-
         endatixApp.Services
                 .AddIdentityCore<AppUser>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
 
-        // TODO: Move this to Fast Endpoints
-        endatixApp.Services.AddAuthenticationJwtBearer(
-            signingOptions => signingOptions.SigningKey = jwtSettings.SigningKey,
-            bearerOptions =>
-            {
-                bearerOptions.RequireHttpsMetadata = false;
-                bearerOptions.TokenValidationParameters = new TokenValidationParameters
-                {
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
-                    ValidIssuer = jwtSettings.Issuer,
-                    ValidAudiences = jwtSettings.Audiences,
-                    // ValidateIssuer = true,
-                    // ValidateAudience = true,
-                    // ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromSeconds(15)
-                };
-            }
-        );
-        endatixApp.Services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        });
-        endatixApp.Services.AddAuthorization();
         endatixApp.Services.AddScoped<ITokenService, JwtTokenService>();
         endatixApp.Services.AddScoped<IAuthService, AuthService>();
         endatixApp.Services.AddScoped<IUserRegistrationService, UserRegistrationService>();

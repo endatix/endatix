@@ -2,6 +2,13 @@ using Endatix.Framework.Hosting;
 using Endatix.Api.Setup;
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using FastEndpoints.Security;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.Extensions.DependencyInjection;
+using Endatix.Infrastructure.Identity;
+using Microsoft.Extensions.Configuration;
+using Ardalis.GuardClauses;
 
 namespace Endatix.Setup;
 
@@ -17,7 +24,32 @@ public static class EndatixAppExtensions
     /// <returns>An instance of <see cref="IEndatixApp"/> representing the configured application.</returns>
     public static IEndatixApp AddApiEndpoints(this IEndatixApp endatixApp)
     {
-        endatixApp.Services.AddCorsMiddleware();
+        Guard.Against.Null(endatixApp?.WebHostBuilder?.Configuration);
+        var jwtSettings = endatixApp.WebHostBuilder.Configuration
+                         .GetRequiredSection(JwtOptions.SECTION_NAME)
+                         .Get<JwtOptions>();
+        Guard.Against.Null(jwtSettings);
+
+        endatixApp.Services.AddAuthenticationJwtBearer(
+                   signingOptions => signingOptions.SigningKey = jwtSettings.SigningKey,
+                   bearerOptions =>
+                   {
+                       bearerOptions.RequireHttpsMetadata = false;
+                       bearerOptions.TokenValidationParameters = new TokenValidationParameters
+                       {
+                           IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
+                           ValidIssuer = jwtSettings.Issuer,
+                           ValidAudiences = jwtSettings.Audiences,
+                           ValidateIssuer = true,
+                           ValidateAudience = true,
+                           ValidateLifetime = true,
+                           ValidateIssuerSigningKey = true,
+                           ClockSkew = TimeSpan.FromSeconds(15)
+                       };
+                   });
+
+        endatixApp.Services.AddAuthorization();
+        endatixApp.Services.AddCorsServices();
         endatixApp.Services
                 .AddFastEndpoints()
                 .SwaggerDocument(o =>

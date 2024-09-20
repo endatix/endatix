@@ -1,20 +1,14 @@
-using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Services;
 using Endatix.Framework.Hosting;
-using Endatix.Infrastructure;
-using Endatix.Infrastructure.Auth;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Email;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Setup;
-using FastEndpoints.Security;
 using MediatR;
-using Microsoft.EntityFrameworkCore.Migrations.Operations;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 

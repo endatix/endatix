@@ -17,7 +17,7 @@ public class JwtOptions
     /// This is required and must be set in the configuration.
     /// </summary>
     [Required]
-    public string? SigningKey { get; set; }
+    public string SigningKey { get; set; }
 
     /// <summary>
     /// The expiration time of the JWT token in minutes.
