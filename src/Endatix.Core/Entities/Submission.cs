@@ -32,7 +32,7 @@ namespace Endatix.Core.Entities;
         CurrentPage = currentPage;
         Metadata = metadata;
 
-        SetCompletionData(isComplete);
+        SetCompletionStatus(isComplete);
     }
 
     public void Update(string jsonData, long formDefinitionId, bool isComplete = true, int currentPage = 1, string metadata = null)
@@ -45,10 +45,10 @@ namespace Endatix.Core.Entities;
         CurrentPage = currentPage;
         Metadata = metadata;
 
-        SetCompletionData(isComplete);
+        SetCompletionStatus(isComplete);
     }
 
-    private void SetCompletionData(bool newIsCompleteValue)
+    private void SetCompletionStatus(bool newIsCompleteValue)
     {
         if (!IsComplete && newIsCompleteValue)
         {
