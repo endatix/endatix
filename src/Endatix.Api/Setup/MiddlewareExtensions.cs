@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using Ardalis.GuardClauses;
 using Endatix.Api.Infrastructure;
 using Endatix.Framework.Hosting;
+using Endatix.Infrastructure.Identity;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
@@ -34,7 +36,8 @@ public static class MiddlewareExtensions
             fastEndpoints.Versioning.Prefix = "v";
             fastEndpoints.Endpoints.RoutePrefix = "api";
             fastEndpoints.Serializer.Options.Converters.Add(new LongToStringConverter());
-            fastEndpoints.Security.PermissionsClaimType = "permission";
+            fastEndpoints.Security.RoleClaimType = ClaimTypes.Role;
+            fastEndpoints.Security.PermissionsClaimType = ClaimNames.Permission;
         });
         app.UseSwaggerGen();
         app.UseCors();

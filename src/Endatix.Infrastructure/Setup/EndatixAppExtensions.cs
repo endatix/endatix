@@ -13,6 +13,7 @@ using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Setup;
 using FastEndpoints.Security;
 using MediatR;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -62,6 +63,7 @@ public static class EndatixAppExtensions
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
 
+        endatixApp.AddDataOptions();
         endatixApp.SetupIdentity(setupSettings);
 
         return endatixApp;
@@ -101,6 +103,21 @@ public static class EndatixAppExtensions
         }
 
         endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Finished");
+
+        return endatixApp;
+    }
+
+    /// <summary>
+    /// Adds data options to the specified <see cref="IEndatixApp"/> instance, based on the configuration options.
+    /// </summary>
+    /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
+    /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
+    private static IEndatixApp AddDataOptions(this IEndatixApp endatixApp)
+    {
+        endatixApp.Services.AddOptions<DataOptions>()
+            .BindConfiguration(DataOptions.SECTION_NAME)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         return endatixApp;
     }

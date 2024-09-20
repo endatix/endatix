@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
@@ -20,38 +21,42 @@ public static class IdentitySetup
     {
         endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Started");
 
-        var securityConfig = configurationOptions.Security.SecurityConfiguration;
-        endatixApp.Services.Configure<SecuritySettings>(securityConfig);
+        endatixApp.Services.AddOptions<JwtOptions>()
+                .BindConfiguration(JwtOptions.SECTION_NAME)
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
 
-        var signingKey = securityConfig.GetRequiredSection(nameof(SecuritySettings.JwtSigningKey)).Value;
-        Guard.Against.NullOrEmpty(signingKey, "signingKey", $"Cannot initialize application without a signingKey. Please check configuration for {nameof(SecuritySettings.JwtSigningKey)}");
-
+        var jwtSettings = endatixApp.WebHostBuilder.Configuration
+            .GetRequiredSection(JwtOptions.SECTION_NAME)
+            .Get<JwtOptions>();
 
         endatixApp.Services
                 .AddIdentityCore<AppUser>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
 
-
         // TODO: Move this to Fast Endpoints
         endatixApp.Services.AddAuthenticationJwtBearer(
-            signingOptions => signingOptions.SigningKey = signingKey,
+            signingOptions => signingOptions.SigningKey = jwtSettings.SigningKey,
             bearerOptions =>
             {
                 bearerOptions.RequireHttpsMetadata = false;
                 bearerOptions.TokenValidationParameters = new TokenValidationParameters
                 {
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
-                    ValidIssuer = "configuration['JwtSettings:Issuer']",
-                    ValidAudience = "configuration['JwtSettings:Audience']",
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
+                    ValidIssuer = jwtSettings.Issuer,
+                    ValidAudiences = jwtSettings.Audiences,
+                    // ValidateIssuer = true,
+                    // ValidateAudience = true,
+                    // ValidateLifetime = true,
                     ClockSkew = TimeSpan.FromSeconds(15)
                 };
             }
         );
-        endatixApp.Services.AddAuthentication(options => options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme);
+        endatixApp.Services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        });
         endatixApp.Services.AddAuthorization();
         endatixApp.Services.AddScoped<ITokenService, JwtTokenService>();
         endatixApp.Services.AddScoped<IAuthService, AuthService>();

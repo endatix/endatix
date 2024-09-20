@@ -1,5 +1,4 @@
 using Endatix.Framework.Hosting;
-using Endatix.Setup;
 using Microsoft.AspNetCore.Builder;
 using Serilog;
 using Serilog.Events;

@@ -1,10 +1,9 @@
 using Endatix.Infrastructure.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Setup;
 
@@ -17,10 +16,12 @@ public static class ApplicationBuilderExtensions
             throw new ArgumentException("The provided IApplicationBuilder is not a WebApplication", nameof(app));
         }
 
-        var isDevelopment = webApp.Environment.IsDevelopment();
-        var applyMigrations = webApp.Configuration.GetValue<bool>("Endatix:ApplyMigrations");
+        var dataOptions = webApp.Services
+            .GetRequiredService<IOptions<DataOptions>>()
+            .Value;
+ 
 
-        if (applyMigrations)
+        if (dataOptions.ApplyMigrations)
         {
             using IServiceScope scope = app.ApplicationServices.CreateScope();
             using AppIdentityDbContext context = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();

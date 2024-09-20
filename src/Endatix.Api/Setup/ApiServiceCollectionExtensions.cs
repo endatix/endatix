@@ -16,7 +16,7 @@ public static class ApiServiceCollectionExtensions
     {
         services.AddCors();
         services.AddOptions<CorsSettings>()
-               .BindConfiguration("Endatix:Cors")
+               .BindConfiguration(CorsSettings.SECTION_NAME)
                .ValidateDataAnnotations();
 
         services.AddTransient<IConfigureOptions<CorsOptions>, EndpointsCorsConfigurator>();

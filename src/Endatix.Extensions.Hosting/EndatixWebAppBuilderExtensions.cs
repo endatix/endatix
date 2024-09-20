@@ -78,7 +78,6 @@ public static class EndatixHostBuilderExtensions
         endatixApp.AddInfrastructure(configuration => configuration
                                    .AddSecurityServices(options => options
                                        .AddApiAuthentication(builder.Configuration)
-                                       .ReadDevUsersFromConfig()
                                    ));
 
         endatixApp.AddDataPersistence(configuration => configuration

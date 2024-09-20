@@ -2,24 +2,22 @@
 using Microsoft.Extensions.Options;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Identity;
 using Microsoft.AspNetCore.Identity;
 using Endatix.Infrastructure.Identity;
+using Endatix.Core.Entities.Identity;
 
 namespace Endatix.Infrastructure.Auth;
 
 internal sealed class AuthService : IAuthService
 {
     private readonly UserManager<AppUser> _userManager;
-    private readonly SecuritySettings _securitySettings;
 
-    public AuthService(UserManager<AppUser> userManager, IOptions<SecuritySettings> securitySettings)
+    public AuthService(UserManager<AppUser> userManager)
     {
         _userManager = userManager;
-        _securitySettings = securitySettings.Value;
     }
 
-    public async Task<Result<UserDto>> ValidateCredentials(string email, string password, CancellationToken cancellationToken)
+    public async Task<Result<User>> ValidateCredentials(string email, string password, CancellationToken cancellationToken)
     {
         Guard.Against.NullOrEmpty(email, nameof(email));
         Guard.Against.NullOrEmpty(password, nameof(password));
@@ -37,8 +35,6 @@ internal sealed class AuthService : IAuthService
              return Result.Invalid(new ValidationError("The supplied credentials are invalid!"));
         }
 
-        var userDto = new UserDto(email, [], "SystemInfo");
-
-        return Result.Success(userDto);
+        return Result.Success(user.ToUserEntity());
     }
 }
