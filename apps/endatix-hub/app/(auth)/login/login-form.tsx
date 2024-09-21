@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useActionState } from "react";
-import { cn } from "@/lib/utils"
 
-const SignInForm = () => {
+const LoginForm = () => {
   const [state, formAction] = useActionState(signIn, null);
 
   return (
@@ -30,7 +29,7 @@ const SignInForm = () => {
             required
           />
         </div>
-        {state?.errors?.email && <p>{state.errors.email}</p>}
+        {state?.errors?.email && <ErrorMessage message={state.errors.email.toString()} />}
         <div className="grid gap-2">
           <div className="flex items-center">
             <Label htmlFor="password">Password</Label>
@@ -43,20 +42,24 @@ const SignInForm = () => {
           </div>
           <Input id="password" type="password" name="password" required />
         </div>
-        {state?.errors?.password && (
-          <p>Password must {state.errors.password}</p>
-        )}
+        {state?.errors?.password && <ErrorMessage message={`Password must ${state.errors.password}`} />}
         <Button type="submit" className="w-full">
           Login
         </Button>
       </div>
-      {state?.error && (
-        <p className="mt-2 text-sm font-medium text-destructive">
-          {state.error}
-        </p>
-      )}
+      {state?.error && <ErrorMessage message={state.error} /> }
     </form>
   );
 };
 
-export default SignInForm;
+export interface ErrorMessageProps {
+  message: string
+}
+
+const ErrorMessage = ({ message }: ErrorMessageProps) => {
+  return (
+    <p className="mt-2 text-sm font-medium text-destructive">{message}</p>
+  )
+}
+
+export default LoginForm;

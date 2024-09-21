@@ -1,16 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
-import SignInForm from "./signin-form";
+import LoginForm from "./login-form";
+import type { Metadata } from 'next'
 
-export default function SignInPage() {
-  const description =
-  "Endatix sign in page. The first column has the login form with email and password. There's a Forgot your password link and a link to sign up if you do not have an account. The second column has a cover image.";
+export const metadata: Metadata = {
+  title: 'Login',
+  description: "Endatix sign in page. The first column has the login form with email and password. There's a Forgot your password link and a link to sign up if you do not have an account. The second column has a cover image."
+}
+
+export default function LoginPage() {
 
   return (
     <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[350px] gap-6">
-          <SignInForm />
+          <LoginForm />
           <div className="mt-4 text-center text-sm">
             Don&apos;t have an account?{" "}
             <Link href="#" className="underline">
