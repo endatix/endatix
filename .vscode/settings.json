@@ -10,7 +10,8 @@
     "explorer.fileNesting.enabled": true,
     "explorer.fileNesting.patterns": {
         "*.cs": "${capture}.*.cs",
-        "I*.cs": "$(capture).cs"
+        "I*.cs": "$(capture).cs",
+        ".env": "*.env, .env.*, .envrc, env.d.ts"
     },
     "csharp.preview.improvedLaunchExperience": true,
     "dotnet.automaticallySyncWithActiveItem": true
