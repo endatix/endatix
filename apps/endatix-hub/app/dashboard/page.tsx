@@ -26,7 +26,7 @@ import { getForms } from "@/services/api";
 import FormsTable from "./forms-table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const Dashboard = async () => {
+const Dashboard = () => {
   const [forms, setForms] = useState<Form[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ const Dashboard = async () => {
         const data = await getForms();
         setForms(data);
         setLoading(false);
-      } catch (err) {
+      } catch {
         setError("Failed to load forms");
         setLoading(false);
       }

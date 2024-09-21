@@ -1,20 +1,22 @@
+"use server";
+
 import { getIronSession, SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-export interface SessionData {
+interface SessionData {
     username: string;
     token: string;
     isLoggedIn: boolean;
 }
 
-export const defaultSession: SessionData = {
+const defaultSession: SessionData = {
     username: "",
     token: "",
     isLoggedIn: false,
 };
 
-export const sessionOptions: SessionOptions = {
+const sessionOptions: SessionOptions = {
     password: `${process.env.SESSION_SECRET}`,
     cookieName: "endatix-hub.session",
     cookieOptions: {
@@ -36,8 +38,6 @@ export const getSession = async () => {
 }
 
 export const login = async (token: string, username: string) => {
-    "use server";
-
     const session = await getSession();
 
     session.token = token;
@@ -49,11 +49,9 @@ export const login = async (token: string, username: string) => {
     revalidatePath("/login");
 }
 
-export const logout = async () =>  {
-    "use server";
-  
-    const session = await getSession();
-    session.destroy();
-
-    revalidatePath("/login");
-  }
+//const logout = async () =>  { 
+ //   const session = await getSession();
+ //   session.destroy();
+//
+ //   revalidatePath("/login");
+ // }

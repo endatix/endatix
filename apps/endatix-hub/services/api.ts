@@ -1,10 +1,18 @@
 import { AuthenticationRequest, AuthenticationResponse } from "@/lib/authDefinitions";
 import { Form, Submission } from "../types";
+import { getSession } from "@/lib/auth-service";
 
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
 export const getForms = async (): Promise<Form[]> => {
-  const response = await fetch(`${API_BASE_URL}/forms`);
+  let session = await getSession();
+
+
+  const response = await fetch(`${API_BASE_URL}/forms`, {
+    headers: {
+      Authorization: `Bearer ${session.token}`
+    }
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch data");
   }
