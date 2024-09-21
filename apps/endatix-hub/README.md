@@ -2,23 +2,30 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+First, run the development server. We recommend using pnpm dev:
 
 ```bash
+pnpm dev
+# or
 npm run dev
 # or
 yarn dev
 # or
-pnpm dev
-# or
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. If you want to run the site in https, run `pnpm run dev-https` command.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Environment Variables
+
+These are managed by the Next.js powered Endatix hub and stored in the this "endatix-hub" folder.
+
+- **ENDATIX_BASE_URL** - [REQUIRED] this sets the base Url for the Endatix API, e.g. `SESSION_SECRET==https://localhost:5001`
+- **SESSION_SECRET** - [REQUIRED] sets the key to encrypt the session cookies for the Endatix APP. Use strong password, e.g. `SESSION_SECRET=aMfPaLkxa7asa2MFdn6E4sLKOIas1FUzh8&geGm`
 
 ## Learn More
 
