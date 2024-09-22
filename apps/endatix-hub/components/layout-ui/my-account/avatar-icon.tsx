@@ -2,8 +2,7 @@
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { comingSoonMessage } from "@/lib/constants";
-import { toast } from "sonner";
+import { showComingSoonMessage } from "../utils/coming-soon-message";
 
 const AvatarIcon = () => {
   return (
@@ -14,7 +13,7 @@ const AvatarIcon = () => {
         className="overflow-hidden rounded-full"
         onClick={(e) => {
           e.preventDefault();
-          toast(comingSoonMessage);
+          showComingSoonMessage(e);
         }}
       >
         <Image

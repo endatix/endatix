@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import LoginForm from "./login-form";
+import LoginForm from "./ui/login-form";
 import type { Metadata } from 'next'
+import { showComingSoonMessage } from "@/components/layout-ui/utils/coming-soon-message";
+import NewAccountLink from "./ui/new-account-link";
 
 export const metadata: Metadata = {
   title: 'Login',
@@ -15,12 +17,7 @@ export default function LoginPage() {
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[350px] gap-6">
           <LoginForm />
-          <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link href="#" className="underline">
-              Sign up
-            </Link>
-          </div>
+          <NewAccountLink />
         </div>
       </div>
       <div className="hidden bg-muted lg:block">
