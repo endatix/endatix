@@ -7,14 +7,13 @@ export default async function Survey({ params }: { params: { formId: string } })
   const surveyJson = await getServerSideProps(params.formId);
   return (
     <div className="flex min-h-screen flex-col items-center p-8">
-      <SurveyComponent definition={surveyJson} />
+      <SurveyComponent definition={surveyJson} formId={params.formId} />
     </div>
   );
 }
 
 const getServerSideProps = async (formId: string) => {
 
-  console.log(formId);
   const res = await fetch('https://localhost:5001/api/forms/'+ formId +'/definition');
   const surveyJson = await res.json();
 
