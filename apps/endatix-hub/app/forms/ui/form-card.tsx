@@ -18,6 +18,8 @@ type FormCardProps = React.ComponentProps<typeof Card> & {
 }
 
 const FormCard = ({ form, className, ...props }: FormCardProps) => {
+  const getFormLabel = () => form.isEnabled ? "Active" : "Disabled";
+
   return (
     <Card
       onClick={() => { console.log(`Clicked form #${form.id}`) }}
@@ -25,8 +27,8 @@ const FormCard = ({ form, className, ...props }: FormCardProps) => {
       <CardHeader>
         <div className="flex ml-auto text-xs text-foreground">
           <Badge variant="outline">
-            <span className="flex h-2 w-2 mr-1 rounded-full bg-green-600" />
-            Active
+            <span className={cn("flex h-2 w-2 mr-1 rounded-full", form.isEnabled ? "bg-green-600" : "bg-gray-600")} />
+            {getFormLabel()}
           </Badge>
         </div>
         <CardTitle className="text-xl">{form.name}</CardTitle>

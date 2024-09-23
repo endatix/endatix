@@ -1,23 +1,20 @@
-import { getSubmissionsByFormId } from '@/services/api';
+import PageTitle from '@/components/headings/page-title';
+import { Separator } from '@/components/ui/separator';
+import { getFormById, getSubmissionsByFormId } from '@/services/api';
+import SubmissionsTable from './ui/submissions-table';
 
 const Responses = async ({ params }: { params: { formId: string } }) => {
   const { formId } = params;
-  const responses = await getSubmissionsByFormId(formId);
+  const submissions = await getSubmissionsByFormId(formId);
+  const form = await getFormById(formId);
 
   return (
-    <div>
-      <h1>Responses for {formId}</h1>
-      {responses.length > 0 ? (
-        <ul>
-          {responses.map((response) => (
-            <li key={response.id}>{response.jsonData}</li>
-          ))}
-        </ul>
-      ) : (
-        <p>No responses found.</p>
-      )}
-    </div>
+    <>
+      <PageTitle title={`Submissions for ${form.name}`} />
+      <Separator className="my-4" />
+      <SubmissionsTable data={submissions} />
+    </>
   );
-};
+}
 
 export default Responses;

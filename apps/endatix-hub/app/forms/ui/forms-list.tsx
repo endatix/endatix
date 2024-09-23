@@ -13,6 +13,18 @@ const FormsList = ({ data }: FormDataProps) => {
                 {data.map((form) => (
                     <FormCard form={form} key={form.id} />
                 ))}
+                {data.map((form) => (
+                    <FormCard form={form} key={form.id} />
+                ))}
+                {data.map((form) => (
+                    <FormCard form={form} key={form.id} />
+                ))}
+                {data.map((form) => (
+                    <FormCard form={form} key={form.id} />
+                ))}
+                {data.map((form) => (
+                    <FormCard form={form} key={form.id} />
+                ))}
             </div>
             <FormSheet />
         </>

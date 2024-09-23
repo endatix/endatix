@@ -102,12 +102,31 @@ export const getSubmissionsByFormId = async (
       Authorization: `Bearer ${session.token}`
     }
   });
-  
+
   if (!response.ok) {
     throw new Error("Failed to fetch data");
   }
   return response.json();
 };
+
+export const getFormById = async (formId: string): Promise<Form> => {
+  let session = await getSession();
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+  
+  const response = await fetch(`${API_BASE_URL}/forms/${formId}`, {
+    headers: {
+      Authorization: `Bearer ${session.token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch data");
+  }
+
+  return response.json();
+}
 
 export const authenticate = async (
   request: AuthenticationRequest

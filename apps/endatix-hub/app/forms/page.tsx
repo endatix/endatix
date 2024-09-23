@@ -9,12 +9,11 @@ const Forms = async () => {
   const forms = await getForms();
 
   return (
-    <div>
+    <>
       <PageTitle title="Forms" />
       <Separator className="my-4" />
       <FormsList data={forms} />
-    </div>
-
+    </>
   );
 };
 
