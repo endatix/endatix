@@ -1,4 +1,4 @@
-import { AuthenticationRequest, AuthenticationResponse } from "@/lib/authDefinitions";
+import { AuthenticationRequest, AuthenticationResponse } from "@/lib/auth-definitions";
 import { Form, Submission } from "../types";
 import { getSession } from "@/lib/auth-service";
 

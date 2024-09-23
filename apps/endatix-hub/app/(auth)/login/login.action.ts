@@ -4,7 +4,7 @@ import { login } from "@/lib/auth-service";
 import {
   AuthenticationRequest,
   AuthenticationRequestSchema,
-} from "@/lib/authDefinitions";
+} from "@/lib/auth-definitions";
 import { authenticate } from "@/services/api";
 import { redirect } from 'next/navigation'
 
