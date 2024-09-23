@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ReactNode, useMemo } from "react";
 import { usePathname } from "next/navigation";
-import { showComingSoonMessage } from "../utils/coming-soon-message";
+import { showComingSoonMessage } from "../teasers/coming-soon-link";
 
 type NavLinkProps = {
   path: string;

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { showComingSoonMessage } from "../utils/coming-soon-message";
+import { showComingSoonMessage } from "../teasers/coming-soon-link";
 
 const AvatarIcon = () => {
   return (

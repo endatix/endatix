@@ -21,9 +21,10 @@ interface FieldErrors {
   password?: string[]
 }
 
-export async function loginAction(prevState: any, queryData: any): Promise<LoginActionState> {
-  const email = queryData.get("email");
-  const password = queryData.get("password");
+export async function loginAction(prevState: unknown, formData: FormData): Promise<LoginActionState> {
+  console.log(`prevState is ${prevState}`);
+  const email = formData.get("email");
+  const password = formData.get("password");
 
   const validatedFields = AuthenticationRequestSchema.safeParse({
     email: email,
@@ -37,18 +38,19 @@ export async function loginAction(prevState: any, queryData: any): Promise<Login
     } as LoginActionState;
   }
 
-  var authRequest: AuthenticationRequest = {
-    email: email,
-    password: password,
+  const data = validatedFields.data;
+  const authRequest: AuthenticationRequest = {
+    email: data.email,
+    password: data.password,
   };
 
   try {
     const authenticationResponse = await authenticate(authRequest);
     const { email, token } = authenticationResponse;
     await login(token, email);
-  } catch (error: any) {
+  } catch (error: unknown) {
     let errorMessage = "We cannot log you in at this time. Please check your credentials and try again";
-    if (error?.cause?.code == CONNECTION_REFUSED_CODE) {
+    if (error instanceof Error && error?.cause && typeof error.cause === 'object' && 'code' in error.cause && error.cause.code == CONNECTION_REFUSED_CODE) {
       errorMessage = "Cannot connect to the Endatix API. Please check your settings and restart the Endatix Hub application";
     }
 
