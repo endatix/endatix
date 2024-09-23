@@ -59,6 +59,12 @@ importers:
       sonner:
         specifier: ^1.5.0
         version: 1.5.0(react-dom@19.0.0-rc-e4953922-20240919(react@19.0.0-rc-e4953922-20240919))(react@19.0.0-rc-e4953922-20240919)
+      survey-core:
+        specifier: latest
+        version: 1.12.2
+      survey-react-ui:
+        specifier: latest
+        version: 1.12.2(react-dom@19.0.0-rc-e4953922-20240919(react@19.0.0-rc-e4953922-20240919))(react@19.0.0-rc-e4953922-20240919)(survey-core@1.12.2)
       tailwind-merge:
         specifier: ^2.5.2
         version: 2.5.2
@@ -2199,6 +2205,16 @@ packages:
   supports-preserve-symlinks-flag@1.0.0:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
+
+  survey-core@1.12.2:
+    resolution: {integrity: sha512-Mdr7Jvocov8HezLAmTWRxVQcpdtZMU6vm6YoCvV/93aYe4zp7lw+Gbi1L3CfmYnJr0xmNBXiNeLV44JDnz8MYw==}
+
+  survey-react-ui@1.12.2:
+    resolution: {integrity: sha512-gmt28oGraJUSEOYuXodWXZQSj3jXe1h18Jaz+QZmbVwSsUmArvqvsv/kUYeTm8QO4uOR9fjTCi9xgj35Q58YQg==}
+    peerDependencies:
+      react: ^16.5.0 || ^17.0.1 || ^18.2.0
+      react-dom: ^16.5.0 || ^17.0.1 || ^18.2.0
+      survey-core: 1.12.2
 
   tailwind-merge@2.5.2:
     resolution: {integrity: sha512-kjEBm+pvD+6eAwzJL2Bi+02/9LFLal1Gs61+QB7HvTfQQ0aXwC5LGT8PEt1gS0CWKktKe6ysPTAy3cBC5MeiIg==}
@@ -4672,6 +4688,14 @@ snapshots:
       has-flag: 4.0.0
 
   supports-preserve-symlinks-flag@1.0.0: {}
+
+  survey-core@1.12.2: {}
+
+  survey-react-ui@1.12.2(react-dom@19.0.0-rc-e4953922-20240919(react@19.0.0-rc-e4953922-20240919))(react@19.0.0-rc-e4953922-20240919)(survey-core@1.12.2):
+    dependencies:
+      react: 19.0.0-rc-e4953922-20240919
+      react-dom: 19.0.0-rc-e4953922-20240919(react@19.0.0-rc-e4953922-20240919)
+      survey-core: 1.12.2
 
   tailwind-merge@2.5.2: {}
 
