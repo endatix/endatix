@@ -3,11 +3,16 @@
 import { Model } from 'survey-core'
 import { Survey } from 'survey-react-ui'
 import 'survey-core/defaultV2.css'
-// import { json } from '../../data/survey_json.js'
   
-export default function SurveyComponent() {
-  const model = new Model("{}");
-  return (
-    <Survey model={model}/>
-  );
-}
+interface SurveyComponentProps {
+    definition: string;
+  }
+
+export default function SurveyComponent({ definition }: SurveyComponentProps) { 
+    const model = new Model(definition);
+    
+    return (
+     <Survey model={model} />
+    );
+  }
+  
