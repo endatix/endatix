@@ -1,6 +1,7 @@
 import { AuthenticationRequest, AuthenticationResponse } from "@/lib/authDefinitions";
 import { Form, FormDefinition, Submission } from "../types";
 import { getSession } from "@/lib/auth-service";
+import { redirect } from "next/navigation";
 
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
@@ -91,7 +92,17 @@ export const getFormDefinitionByFormId = async (formId: string): Promise<FormDef
 export const getSubmissionsByFormId = async (
   formId: string
 ): Promise<Submission[]> => {
-  const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions`);
+  let session = await getSession();
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions`, {
+    headers: {
+      Authorization: `Bearer ${session.token}`
+    }
+  });
+  
   if (!response.ok) {
     throw new Error("Failed to fetch data");
   }
