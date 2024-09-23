@@ -1,8 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
 import LoginForm from "./ui/login-form";
-import type { Metadata } from 'next'
-import { showComingSoonMessage } from "@/components/layout-ui/utils/coming-soon-message";
+import type { Metadata } from 'next';
 import NewAccountLink from "./ui/new-account-link";
 
 export const metadata: Metadata = {

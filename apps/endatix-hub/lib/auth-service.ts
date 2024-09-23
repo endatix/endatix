@@ -1,6 +1,6 @@
 "use server";
 
-import { SignJWT, jwtVerify } from "jose";
+import { JWTPayload, SignJWT, jwtVerify } from "jose";
 import { getIronSession, SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -31,7 +31,7 @@ const securityOptions = {
     secretKey: new TextEncoder().encode(`${process.env.SESSION_SECRET}`)
 };
 
-export const encryptToken = async (payload: any) => {
+export const encryptToken = async (payload: JWTPayload) => {
     return await new SignJWT(payload)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
@@ -39,7 +39,7 @@ export const encryptToken = async (payload: any) => {
         .sign(securityOptions.secretKey);
 }
 
-export const decryptToken = async (token: string): Promise<any> => {
+export const decryptToken = async (token: string): Promise<JWTPayload> => {
     const { payload } = await jwtVerify(token, securityOptions.secretKey, {
         algorithms: ["HS256"],
     });
@@ -67,6 +67,8 @@ export const login = async (token: string, username: string) => {
     }
 
     const expirationDate = new Date(jwtToken.exp * 1000)
+    console.log(`Expiration date is ${expirationDate}`);
+    
     session.token = token;
     session.username = username;
     session.isLoggedIn = true;
