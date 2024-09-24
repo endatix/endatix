@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Endatix.Infrastructure.Identity;
 using Microsoft.Extensions.Configuration;
 using Ardalis.GuardClauses;
+using Microsoft.Extensions.Hosting;
 
 namespace Endatix.Setup;
 
@@ -30,11 +31,12 @@ public static class EndatixAppExtensions
                          .Get<JwtOptions>();
         Guard.Against.Null(jwtSettings);
 
+        var isDevelopment = endatixApp.WebHostBuilder.Environment.IsDevelopment();
         endatixApp.Services.AddAuthenticationJwtBearer(
                    signingOptions => signingOptions.SigningKey = jwtSettings.SigningKey,
                    bearerOptions =>
                    {
-                       bearerOptions.RequireHttpsMetadata = false;
+                       bearerOptions.RequireHttpsMetadata = isDevelopment ? false : true;
                        bearerOptions.TokenValidationParameters = new TokenValidationParameters
                        {
                            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
