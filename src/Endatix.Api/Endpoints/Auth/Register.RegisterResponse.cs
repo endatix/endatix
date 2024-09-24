@@ -5,4 +5,4 @@ namespace Endatix.Api.Endpoints.Auth;
 /// </summary>
 /// <param name="Success">Indicates whether the registration was successful.</param>
 /// <param name="Message">A message describing the outcome of the registration attempt.</param>
-public record RegisterResponse(bool Success = false, string Message = "");
+public record RegisterResponse(bool Success, string Message);
