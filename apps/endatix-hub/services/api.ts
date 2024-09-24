@@ -5,11 +5,11 @@ import { getSession } from "@/lib/auth-service";
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
 export const getForms = async (): Promise<Form[]> => {
-  let session = await getSession();
+  const currentSession = await getSession();
 
   const response = await fetch(`${API_BASE_URL}/forms`, {
     headers: {
-      Authorization: `Bearer ${session.token}`
+      Authorization: `Bearer ${currentSession.token}`
     }
   });
 
