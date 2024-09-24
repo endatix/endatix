@@ -18,6 +18,8 @@ namespace Endatix.Setup;
 /// </summary>
 public static class EndatixAppExtensions
 {
+    private const int JWT_CLOCK_SKEW = 15;
+
     /// <summary>
     /// Adds the API Endpoints associated provided by the Endatix app
     /// </summary>
@@ -46,7 +48,7 @@ public static class EndatixAppExtensions
                            ValidateAudience = true,
                            ValidateLifetime = true,
                            ValidateIssuerSigningKey = true,
-                           ClockSkew = TimeSpan.FromSeconds(15)
+                           ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW)
                        };
                    });
 
