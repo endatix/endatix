@@ -45,7 +45,7 @@
     {
       "name": ".NET Core Attach",
       "type": "coreclr",
-      "request": "attach",
+      "request": "attach"
     }
   ]
 }
