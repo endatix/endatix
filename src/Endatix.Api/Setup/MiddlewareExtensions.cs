@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using Ardalis.GuardClauses;
 using Endatix.Api.Infrastructure;
 using Endatix.Framework.Hosting;
+using Endatix.Infrastructure.Identity;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
@@ -21,18 +23,21 @@ public static class MiddlewareExtensions
     /// If null, a default policy that allows any origin, header, and method is applied.</param>
     /// <returns>The <see cref="IEndatixMiddleware"/> instance after the middleware is configured.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the <paramref name="endatixMiddleware"/> is null.</exception>
-    public static IEndatixMiddleware UseEndatixApi(this IEndatixMiddleware endatixMiddleware, Action<CorsPolicyBuilder>? configurePolicy = null)
+    public static IEndatixMiddleware UseEndatixApi(this IEndatixMiddleware endatixMiddleware)
     {
         Guard.Against.Null(endatixMiddleware);
 
         var app = endatixMiddleware.App;
 
         app.UseDefaultExceptionHandler(app.Logger, true, true);
+
         app.UseFastEndpoints(fastEndpoints =>
         {
             fastEndpoints.Versioning.Prefix = "v";
             fastEndpoints.Endpoints.RoutePrefix = "api";
             fastEndpoints.Serializer.Options.Converters.Add(new LongToStringConverter());
+            fastEndpoints.Security.RoleClaimType = ClaimTypes.Role;
+            fastEndpoints.Security.PermissionsClaimType = ClaimNames.Permission;
         });
         app.UseSwaggerGen();
         app.UseCors();

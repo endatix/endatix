@@ -45,8 +45,6 @@ type Sitemap = {
   [key: string]: INavItem;
 };
 
-export const comingSoonMessage : string = "We are working hard to provide great features to you. Stay tuned. Great stuff is on the way!";
-
 export const sitemap: Sitemap = sitemapArray.reduce((acc, item) => {
   acc[item.text] = item;
   return acc;

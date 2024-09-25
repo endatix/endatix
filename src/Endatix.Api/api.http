@@ -4,7 +4,21 @@
 @apiBaseUrl = {{host}}:{{port}}/api
 @jwt = {{login.response.body.token}}
 @formId = 1263081289527853056
+@validUsername=developer@endatix.com
+@validPassword=P@$$word1
 
+// Register user
+# @name register
+POST {{apiBaseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "email": "developer@endatix.com",
+    "password": "P@$$word1",
+    "confirmPassword": "P@$$word1"
+}
+
+###
 // Login to obtain JWT Token
 # @name login
 POST {{apiBaseUrl}}/auth/login
@@ -12,11 +26,11 @@ Content-Type: application/json
 
 {
     "email": "developer@endatix.com",
-    "password": "password"
+    "password": "P@$$word1"
 }
 
 ###
-// List all contributors
+// List all forms
 GET {{apiBaseUrl}}/forms
 Authorization: Bearer {{jwt}}
 

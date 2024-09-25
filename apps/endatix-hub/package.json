@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next dev --turbo",
+    "dev-https": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next dev --turbo  --experimental-https",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -15,16 +16,20 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.2",
+    "babel-plugin-react-compiler": "0.0.0-experimental-6067d4e-20240919",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "iron-session": "^8.0.3",
+    "jose": "^5.9.2",
     "lucide-react": "^0.436.0",
-    "next": "15.0.0-canary.138",
+    "next": "15.0.0-canary.161",
     "next-themes": "^0.3.0",
-    "react": "19.0.0-rc-7771d3a7-20240827",
-    "react-dom": "19.0.0-rc-7771d3a7-20240827",
+    "react": "19.0.0-rc-e4953922-20240919",
+    "react-dom": "19.0.0-rc-e4953922-20240919",
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.2",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -32,7 +37,7 @@
     "@types/react-dom": "^18",
     "cross-env": "^7.0.3",
     "eslint": "^8",
-    "eslint-config-next": "15.0.0-canary.135",
+    "eslint-config-next": "15.0.0-canary.161",
     "eslint-plugin-jest-dom": "^5.4.0",
     "eslint-plugin-testing-library": "^6.3.0",
     "postcss": "^8",
