@@ -1,6 +1,5 @@
 import { JWTPayload, SignJWT, jwtVerify, decodeJwt } from "jose";
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
 import { JWTInvalid } from "jose/errors";
 import { cache } from "react";
 
@@ -122,8 +121,6 @@ export class AuthService {
             expires: expires,
             path: '/',
         });
-
-        revalidatePath("/login");
     }
 
     async getSession(): Promise<SessionData> {
@@ -155,8 +152,6 @@ export class AuthService {
         if (cookies().has(this.cookieOptions.name)) {
             cookies().delete(this.cookieOptions.name);
         }
-
-        revalidatePath("/login");
     }
 
     private async encryptToken(payload: JWTPayload, expiration: Date) {
@@ -194,8 +189,8 @@ export class AuthService {
     }
 }
 
-export const getSession = cache(async () : Promise<SessionData> => {
+export const getSession = cache(async (): Promise<SessionData> => {
     const authService = new AuthService();
     const session = await authService.getSession();
-    return session
-})
+    return session;
+});
