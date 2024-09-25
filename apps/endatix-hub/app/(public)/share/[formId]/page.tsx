@@ -1,5 +1,7 @@
 import dynamic from 'next/dynamic';
-const SurveyComponent = dynamic(() => import("@/components/survey"), { ssr: false });
+const SurveyComponent = dynamic(() => import('@/components/survey'), {
+  ssr: false, 
+});
 
 
 export default async function Survey({ params }: { params: { formId: string } }) {

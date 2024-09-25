@@ -48,3 +48,21 @@ export const authenticate = async (
 
   return response.json();
 };
+
+export const submitForm = async (
+  formId: string,
+  submissionData: any
+): Promise<Submission[]> => {
+  const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(submissionData),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch data");
+  }
+  return response.json();
+};
