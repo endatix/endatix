@@ -6,7 +6,6 @@ import {
   AuthenticationRequestSchema,
 } from "@/lib/auth-definitions";
 import { authenticate } from "@/services/api";
-import { redirect } from 'next/navigation'
 
 const CONNECTION_REFUSED_CODE = "ECONNREFUSED";
 
@@ -62,5 +61,5 @@ export async function loginAction(prevState: unknown, formData: FormData): Promi
     } as LoginActionState;
   }
 
-  redirect("/");
+  return { success: true }
 }
