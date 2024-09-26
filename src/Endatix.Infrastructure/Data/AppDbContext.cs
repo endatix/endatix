@@ -1,17 +1,15 @@
-using System;
-using System.Linq;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
 using Endatix.Core.Configuration;
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
+using Endatix.Framework;
 
 namespace Endatix.Infrastructure.Data
 {
+    /// <summary>
+    /// Represents the application database context for persisting the Endatix Domain entities
+    /// </summary>
     public class AppDbContext : DbContext
     {
         private readonly ILogger _logger;
@@ -21,7 +19,7 @@ namespace Endatix.Infrastructure.Data
             _logger = logger;
             _idGenerator = idGenerator;
             // TODO: Make optional
-            bool isDatabaseNew = this.Database.EnsureCreated();
+            var isDatabaseNew = this.Database.EnsureCreated();
 
             if (isDatabaseNew && EndatixConfig.Configuration.SeedSampleData)
             {
@@ -48,31 +46,13 @@ namespace Endatix.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            // Create a list of assemblies to scan for model builder configurations
-            List<Assembly> assemblies = new List<Assembly>();
-
-            // The entry assembly might contain user defined model builder configurations
-            Assembly entryAssembly = Assembly.GetEntryAssembly();
-            assemblies.Add(entryAssembly);
-
-            // Get all Endatix assemblies that are referenced within the project
-            var appDomainAssemblies = AppDomain.CurrentDomain.GetAssemblies().
-                Where(assembly => assembly.GetName().Name.StartsWith("Endantix."));
-
-            assemblies.AddRange(appDomainAssemblies);
-
-            // Scan each assembly for model builder configurations and apply them
-            foreach (Assembly assembly in assemblies)
+            var endatixAssemblies = GetType().Assembly.GetEndatixPlatormAssemblies();
+            foreach (var assembly in endatixAssemblies)
             {
                 builder.ApplyConfigurationsFromAssembly(assembly);
             }
 
-            #region Prefix table names
-            foreach (var entity in builder.Model.GetEntityTypes())
-            {
-                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name));
-            }
-            #endregion
+            PrefixTableNames(builder);
 
             base.OnModelCreating(builder);
         }
@@ -83,7 +63,8 @@ namespace Endatix.Infrastructure.Data
             return base.SaveChanges();
         }
 
-        public async override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default(CancellationToken))
+        /// <inheritdoc/>
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             ProcessEntities();
             return await base.SaveChangesAsync(true, cancellationToken);
@@ -91,7 +72,7 @@ namespace Endatix.Infrastructure.Data
 
         private void ProcessEntities()
         {
-            var entries = this.ChangeTracker.Entries()
+            var entries = ChangeTracker.Entries()
                 .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
             foreach (var entry in entries)
@@ -112,6 +93,19 @@ namespace Endatix.Infrastructure.Data
                         entry.CurrentValues["ModifiedAt"] = DateTime.UtcNow;
                         break;
                 }
+            }
+        }
+
+        private void PrefixTableNames(ModelBuilder builder)
+        {
+            if (builder?.Model?.GetEntityTypes() == null)
+            {
+                return;
+            }
+
+            foreach (var entity in builder.Model.GetEntityTypes())
+            {
+                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name));
             }
         }
     }
