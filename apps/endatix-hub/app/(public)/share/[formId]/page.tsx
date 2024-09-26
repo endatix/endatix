@@ -10,8 +10,8 @@ const SurveyComponent = dynamic(() => import('@/components/survey'), {
 export default async function Survey({ params }: { params: { formId: string } }) {
   const surveyJson = await getServerSideProps(params.formId);
 
-  if(surveyJson) {
-    formJson = JSON.parse(surveyJson);
+  if(!surveyJson) {
+    return <div>Form not found</div>;
   }
 
   return (
@@ -24,11 +24,11 @@ export default async function Survey({ params }: { params: { formId: string } })
 const getServerSideProps = async (formId: string) => {
 
   let form: Form | null = null;
-  let formJson: Object | null = null;
+  let formJson: string | null = null;
 
   try {
     const response: FormDefinition = await getFormDefinitionByFormId(formId);
-    formJson = response?.jsonData ? JSON.parse(response.jsonData) : null;
+    formJson = response?.jsonData ? response.jsonData : null;
   } catch (error) {
     console.error("Failed to load form:", error);
     formJson = null;
