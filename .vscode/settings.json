@@ -1,5 +1,17 @@
 {
     "cSpell.words": [
         "Endatix"
-    ]
+    ],
+    "files.exclude": {
+        "**/node_modules/": true,
+        "**/bin/": true,
+        "**/obj/": true
+    },
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.patterns": {
+        "*.cs": "${capture}.*.cs",
+        "I*.cs": "$(capture).cs"
+    },
+    "csharp.preview.improvedLaunchExperience": true,
+    "dotnet.automaticallySyncWithActiveItem": true
 }

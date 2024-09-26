@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Forms.GetById;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -18,7 +19,7 @@ public class GetById(IMediator _mediator) : Endpoint<GetFormByIdRequest, Results
     public override void Configure()
     {
         Get("forms/{formId}");
-        Roles("Admin");
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Get a form by ID";
