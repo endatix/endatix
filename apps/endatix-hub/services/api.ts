@@ -6,6 +6,7 @@ const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
 export const getForms = async (): Promise<Form[]> => {
   let session = await getSession();
+  debugger
 
   const response = await fetch(`${API_BASE_URL}/forms`, {
     headers: {
@@ -49,7 +50,7 @@ export const authenticate = async (
   return response.json();
 };
 
-export const submitForm = async (
+export const SubmitForm = async (
   formId: string,
   submissionData: any
 ): Promise<Submission[]> => {
@@ -62,7 +63,7 @@ export const submitForm = async (
     body: JSON.stringify(submissionData),
   });
   if (!response.ok) {
-    throw new Error("Failed to fetch data");
+    throw new Error("Failed to submit response");
   }
   return response.json();
 };

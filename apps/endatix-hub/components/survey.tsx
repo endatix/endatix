@@ -3,7 +3,8 @@
 import { Model } from 'survey-core'
 import { Survey } from 'survey-react-ui'
 import 'survey-core/defaultV2.css'
-import { submitForm } from '@/services/api';
+import { startTransition } from "react";
+import { submitForm } from '@/app/(public)/share/[formId]/action.submit';
   
 interface SurveyComponentProps {
     definition: string;
@@ -23,10 +24,9 @@ export default async function SurveyComponent({ definition, formId }: SurveyComp
         isComplete: true,
         metadata: JSON.stringify(metadata, null, 3),
       };
-
-
-      debugger
-      const responses = await submitForm(formId, submissionData);
+      startTransition(async () => {
+        await submitForm(formId, submissionData);
+      })
   }
   return <Survey model={model} onComplete={onFormComplete} />;
 }

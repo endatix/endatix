@@ -5,7 +5,6 @@ const SurveyComponent = dynamic(() => import('@/components/survey'), {
 
 
 export default async function Survey({ params }: { params: { formId: string } }) {
-  // console.log(params.formId);
   const surveyJson = await getServerSideProps(params.formId);
   return (
     <div className="flex min-h-screen flex-col items-center p-8">
