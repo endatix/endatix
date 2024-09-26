@@ -1,8 +1,17 @@
 ﻿namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
-/// Request model for initiating Login request
+/// This Represents the request for the "/login" endpoint, handled by the <see cref="Login.HandleAsync"/> method.
 /// </summary>
-/// <param name="Email">Email of the user. Must be a valid email address</param>
-/// <param name="Password">Password of the account</param>
-public record LoginRequest(string Email, string Password);
+public record LoginRequest(string Email, string Password)
+{
+    /// <summary>
+    /// The Email of the user. Must be a valid email address
+    /// </summary>
+    public string Email { get; init; } = Email;
+
+    /// <summary>
+    /// The Password of the account
+    /// </summary>
+    public string Password { get; init; } = Password;
+}
