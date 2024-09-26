@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Persistence.SqlServer.Migrations
 {
     [DbContext(typeof(AppIdentityDbContext))]
-    [Migration("20240926113505_InitialIdentity")]
+    [Migration("20240926144627_InitialIdentity")]
     partial class InitialIdentity
     {
         /// <inheritdoc />
@@ -36,6 +36,9 @@ namespace Endatix.Persistence.SqlServer.Migrations
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")

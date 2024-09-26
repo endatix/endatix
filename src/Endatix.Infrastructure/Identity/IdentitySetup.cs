@@ -20,7 +20,8 @@ public static class IdentitySetup
                 .ValidateOnStart();
 
         endatixApp.Services
-                .AddIdentity<AppUser, AppRole>()
+                .AddIdentityCore<AppUser>()
+                .AddRoles<AppRole>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
 
