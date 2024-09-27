@@ -12,7 +12,7 @@ public static class AssemblyExtensions
     /// </summary>
     /// <param name="assembly">The assembly to start from</param>
     /// <returns>A HashSet of Endatix platform assemblies to ensure no duplication of assemblies</returns>
-    public static HashSet<Assembly> GetEndatixPlatormAssemblies(this Assembly assembly)
+    public static HashSet<Assembly> GetEndatixPlatformAssemblies(this Assembly assembly)
     {
         HashSet<Assembly> endatixAssemblies = [];
         if (assembly == null || !assembly.IsEndatixAssembly())
@@ -32,8 +32,12 @@ public static class AssemblyExtensions
         var appDomainAssemblies = AppDomain
             .CurrentDomain
             .GetAssemblies()
-            .Where(assembly => assembly.IsEndatixAssembly())
-            .Select(endatixAssemblies.Add);
+            .Where(assembly => assembly.IsEndatixAssembly());
+
+        foreach (var endatixAssembly in appDomainAssemblies)
+        {
+            endatixAssemblies.Add(endatixAssembly);
+        }
 
         return endatixAssemblies;
     }
@@ -45,7 +49,8 @@ public static class AssemblyExtensions
     /// <returns>True if the assembly is an Endatix assembly, otherwise false</returns>
     private static bool IsEndatixAssembly(this Assembly assembly)
     {
-        var assemblyName = assembly?.GetName()?.Name ?? string.Empty;
-        return assemblyName.StartsWith("Endatix.");
+        var assemblyName = assembly?.GetName()?.Name;
+
+        return assemblyName?.StartsWith("Endatix.") == true;
     }
 }

@@ -46,7 +46,7 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
-        var endatixAssemblies = GetType().Assembly.GetEndatixPlatormAssemblies();
+        var endatixAssemblies = GetType().Assembly.GetEndatixPlatformAssemblies();
         foreach (var assembly in endatixAssemblies)
         {
             builder.ApplyConfigurationsFromAssembly(assembly);
