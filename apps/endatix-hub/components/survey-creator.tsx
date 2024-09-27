@@ -11,7 +11,7 @@ import { updateFormStatusAction } from "@/app/forms/[formId]/update-form-status.
 import "survey-core/defaultV2.css";
 import "survey-creator-core/survey-creator-core.css";
 
-interface SurveyCreatorProps {
+export interface SurveyCreatorProps {
   formId: string;
   formJson: Object | null;
   formName: string;
@@ -25,20 +25,20 @@ const defaultCreatorOptions: ICreatorOptions = {
   showTranslationTab: true
 };
 
-export default function SurveyCreatorWidget({ formId, formJson, formName, formIdLabel, isEnabled, options }: SurveyCreatorProps) {
-  const [enabled, setEnabled] = useState(isEnabled);
+export default function SurveyCreatorWidget(props: SurveyCreatorProps) {
+  const [enabled, setEnabled] = useState(props.isEnabled);
   const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
   const [creator, setCreator] = useState<SurveyCreator | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [name, setName] = useState(formName);
+  const [name, setName] = useState(props.formName);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [originalName, setOriginalName] = useState(formName);
+  const [originalName, setOriginalName] = useState(props.formName);
 
   useEffect(() => {
     if (!creator) {
-        const newCreator = new SurveyCreator(options || defaultCreatorOptions);
-        newCreator.JSON = formJson;
+        const newCreator = new SurveyCreator(props.options || defaultCreatorOptions);
+        newCreator.JSON = props.formJson;
         newCreator.saveSurveyFunc = (no: number, callback: (num: number, status: boolean) => void) => {
         console.log(JSON.stringify(newCreator?.JSON));
         callback(no, true);
@@ -46,7 +46,7 @@ export default function SurveyCreatorWidget({ formId, formJson, formName, formId
         setCreator(newCreator);
     }
 
-  }, [creator, formJson, options]);
+  }, [creator, props.formJson, props.options]);
 
   useEffect(() => {
     if (isEditingName) {
@@ -65,7 +65,7 @@ export default function SurveyCreatorWidget({ formId, formJson, formName, formId
 
       const updatedFormJson = creator?.JSON;
 
-      const result = await updateFormDefinitionJsonAction(formId, updatedFormJson);
+      const result = await updateFormDefinitionJsonAction(props.formId, updatedFormJson);
       if (!result.success) {
         throw new Error(result.error);
       }
@@ -81,7 +81,7 @@ export default function SurveyCreatorWidget({ formId, formJson, formName, formId
   const handleNameSave = async () => {
     if (name !== originalName) {
       startTransition(async () => {
-        await updateFormNameAction(formId, name);
+        await updateFormNameAction(props.formId, name);
 
         setOriginalName(name);
         setName(name);
@@ -110,7 +110,7 @@ export default function SurveyCreatorWidget({ formId, formJson, formName, formId
 
   const toggleEnabled = async (enabled : boolean) => {
     startTransition(async () => {
-        await updateFormStatusAction(formId, enabled);
+        await updateFormStatusAction(props.formId, enabled);
     })
   }
 
@@ -145,7 +145,7 @@ export default function SurveyCreatorWidget({ formId, formJson, formName, formId
           </span>
         )}
 
-        <span className="text-gray-600 mr-16">ID: {formIdLabel}</span>
+        <span className="text-gray-600 mr-16">ID: {props.formIdLabel}</span>
 
         <label className="flex items-center space-x-2">
         <span>Enabled</span>

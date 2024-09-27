@@ -1,12 +1,19 @@
 import dynamic from "next/dynamic";
 import { Form, FormDefinition } from "../../../types";
 import { getFormById, getFormDefinitionByFormId } from "@/services/api";
+import { SurveyCreatorProps } from "@/components/survey-creator";
 
 const SurveyCreatorComponent = dynamic(() => import('@/components/survey-creator'), {
   ssr: false,
 });
 
-export default async function FormCreator({ params }: { params: { formId: string } }) {
+interface FormCreatorPageProps {
+  params: {
+    formId: string;
+  };
+}
+
+const FormCreatorPage = async ({ params }: FormCreatorPageProps) => {
   const { formId } = params;
 
   let form: Form | null = null;
@@ -26,15 +33,19 @@ export default async function FormCreator({ params }: { params: { formId: string
     return <div>Form not found</div>;
   }
 
+  const props: SurveyCreatorProps = {
+    formId: formId,
+    formJson: formJson,
+    formName: form.name,
+    formIdLabel: form.id,
+    isEnabled: form.isEnabled
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center p-8">
-      <SurveyCreatorComponent
-        formId={formId}
-        formJson={formJson}
-        formName={form.name}
-        formIdLabel={form.id}
-        isEnabled={form.isEnabled}
-      />
+      <SurveyCreatorComponent {...props} />
     </div>
   );
 }
+
+export default FormCreatorPage
