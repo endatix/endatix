@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Endatix.Core.Abstractions;
+using Endantix.Infrastructure.Data;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -8,12 +10,27 @@ namespace Endatix.Infrastructure.Identity;
 /// </summary>
 public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 {
-    public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options) : base(options) { }
+    private readonly IIdGenerator<long> _idGenerator;
+
+    public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options, IIdGenerator<long> idGenerator) : base(options)
+    {
+        _idGenerator = idGenerator;
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        builder.HasDefaultSchema("identity");
+
         base.OnModelCreating(builder);
 
-        builder.HasDefaultSchema("identity");
+        builder.Entity<AppUser>()
+               .Property(e => e.Id)
+               .HasValueGenerator((_, _) => new SnowflakeValueGenerator(_idGenerator))
+               .ValueGeneratedNever();
+
+        builder.Entity<AppRole>()
+               .Property(e => e.Id)
+               .HasValueGenerator((_, _) => new SnowflakeValueGenerator(_idGenerator))
+               .ValueGeneratedNever();
     }
 }

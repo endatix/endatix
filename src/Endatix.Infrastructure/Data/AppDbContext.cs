@@ -13,8 +13,8 @@ namespace Endatix.Infrastructure.Data
     public class AppDbContext : DbContext
     {
         private readonly ILogger _logger;
-        private readonly IIdGenerator _idGenerator;
-        public AppDbContext(DbContextOptions<AppDbContext> options, ILogger<AppDbContext> logger, IIdGenerator idGenerator) : base(options)
+        private readonly IIdGenerator<long> _idGenerator;
+        public AppDbContext(DbContextOptions<AppDbContext> options, ILogger<AppDbContext> logger, IIdGenerator<long> idGenerator) : base(options)
         {
             _logger = logger;
             _idGenerator = idGenerator;

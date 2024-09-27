@@ -26,10 +26,7 @@ namespace Endatix.Persistence.SqlServer.Migrations
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppRole", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -59,10 +56,7 @@ namespace Endatix.Persistence.SqlServer.Migrations
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppUser", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Persistence.SqlServer.Migrations
 {
     [DbContext(typeof(AppIdentityDbContext))]
-    [Migration("20240926144627_InitialIdentity")]
+    [Migration("20240927151731_InitialIdentity")]
     partial class InitialIdentity
     {
         /// <inheritdoc />
@@ -29,10 +29,7 @@ namespace Endatix.Persistence.SqlServer.Migrations
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppRole", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -62,10 +59,7 @@ namespace Endatix.Persistence.SqlServer.Migrations
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppUser", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");

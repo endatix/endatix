@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
@@ -9,7 +8,7 @@ namespace Endatix.Infrastructure.Data;
 /// <summary>
 /// Class that inserts preprogrammed sample data into the database. Designed for creating sample data. Can evolve to support testing case or SDK templates
 /// </summary>
-public class DataSeeder(ILogger _logger, IIdGenerator _idGenerator, AppDbContext dbContext)
+public class DataSeeder(ILogger _logger, IIdGenerator<long> _idGenerator, AppDbContext dbContext)
 {
     /// <summary>
     /// Main method to load data into the database

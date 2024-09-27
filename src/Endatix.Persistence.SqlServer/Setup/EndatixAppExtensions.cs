@@ -5,7 +5,6 @@ using Endatix.Core.Configuration;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -44,7 +43,7 @@ public static class EndatixAppExtensions
 
         if (EndatixConfig.Configuration.UseSnowflakeIds)
         {
-            endatixApp.Services.AddSingleton<IIdGenerator, SnowflakeIdGenerator>();
+            endatixApp.Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         }
 
         endatixApp.LogSetupInformation("Persistence using SqlServer configured");
