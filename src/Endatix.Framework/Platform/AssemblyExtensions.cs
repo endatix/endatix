@@ -46,6 +46,6 @@ public static class AssemblyExtensions
     private static bool IsEndatixAssembly(this Assembly assembly)
     {
         var assemblyName = assembly?.GetName()?.Name ?? string.Empty;
-        return assemblyName.StartsWith("Endantix.");
+        return assemblyName.StartsWith("Endatix.");
     }
 }

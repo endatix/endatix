@@ -46,6 +46,8 @@ public static class EndatixAppExtensions
             endatixApp.Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         }
 
+        endatixApp.Services.AddSingleton<EfCoreValueGeneratorFactory>();
+
         endatixApp.LogSetupInformation("Persistence using SqlServer configured");
 
         return endatixApp;

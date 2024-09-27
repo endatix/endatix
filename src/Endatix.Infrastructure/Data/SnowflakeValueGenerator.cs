@@ -2,7 +2,7 @@ using Endatix.Core.Abstractions;
 using Microsoft.EntityFrameworkCore.ValueGeneration;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
-namespace Endantix.Infrastructure.Data;
+namespace Endatix.Infrastructure.Data;
 
 /// <summary>
 /// This class is a custom value generator for EF Core, specifically designed to work with Snowflake identifiers.

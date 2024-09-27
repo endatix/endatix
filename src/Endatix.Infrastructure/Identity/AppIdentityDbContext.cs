@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Endatix.Core.Abstractions;
-using Endantix.Infrastructure.Data;
+using Endatix.Infrastructure.Data;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -10,27 +9,27 @@ namespace Endatix.Infrastructure.Identity;
 /// </summary>
 public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 {
-    private readonly IIdGenerator<long> _idGenerator;
+    private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
 
-    public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options, IIdGenerator<long> idGenerator) : base(options)
+    public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options, EfCoreValueGeneratorFactory valueGeneratorFactory) : base(options)
     {
-        _idGenerator = idGenerator;
+        _valueGeneratorFactory = valueGeneratorFactory;
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
-        builder.HasDefaultSchema("identity");
-
         base.OnModelCreating(builder);
+
+        builder.HasDefaultSchema("identity");
 
         builder.Entity<AppUser>()
                .Property(e => e.Id)
-               .HasValueGenerator((_, _) => new SnowflakeValueGenerator(_idGenerator))
+               .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
                .ValueGeneratedNever();
 
         builder.Entity<AppRole>()
                .Property(e => e.Id)
-               .HasValueGenerator((_, _) => new SnowflakeValueGenerator(_idGenerator))
+                .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
                .ValueGeneratedNever();
     }
 }
