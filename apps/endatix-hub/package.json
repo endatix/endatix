@@ -27,6 +27,10 @@
     "react": "19.0.0-rc-e4953922-20240919",
     "react-dom": "19.0.0-rc-e4953922-20240919",
     "sonner": "^1.5.0",
+    "survey-core": "^1.12.2",
+    "survey-creator-core": "^1.12.2",
+    "survey-creator-react": "^1.12.2",
+    "survey-react-ui": "^1.12.2",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.8"
