@@ -14,8 +14,8 @@ export default function Layout({
   children: React.ReactNode;
 }>) {
   return (
-    <span>
+    <div>
       {children}
-    </span>
+    </div>
   );
 }
