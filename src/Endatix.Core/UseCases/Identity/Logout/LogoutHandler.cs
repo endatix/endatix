@@ -1,6 +1,8 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using MediatR;
 
 namespace Endatix.Core.UseCases.Identity.Login;
 
@@ -8,7 +10,11 @@ namespace Endatix.Core.UseCases.Identity.Login;
 /// This class is responsible for handling the logout command.
 /// It revokes the tokens for the user and returns the result of the operation.
 /// </summary>
-public class LogoutHandler(ITokenService tokenService, IUserService userService) : ICommandHandler<LogoutCommand, Result<string>>
+public class LogoutHandler(
+    ITokenService tokenService,
+    IUserService userService,
+    IMediator mediator
+    ) : ICommandHandler<LogoutCommand, Result>
 {
     public const string INVALID_LOGOUT_REQUEST_MESSAGE = "Invalid request or authentication state.";
     public const string SUCCESS_LOGOUT_MESSAGE = "User logged out successfully.";
@@ -22,12 +28,14 @@ public class LogoutHandler(ITokenService tokenService, IUserService userService)
     public async Task<Result<string>> Handle(LogoutCommand request, CancellationToken cancellationToken)
     {
         var userResult = await userService.GetUserAsync(request.ClaimsPrincipal, cancellationToken);
-        if (userResult.IsSuccess && userResult is { } userToLogout)
+        if (userResult.IsSuccess && userResult.Value is { } userToLogout)
         {
             var tokenRevocationResult = await tokenService.RevokeTokensAsync(userToLogout, cancellationToken);
 
             if (tokenRevocationResult.IsSuccess)
             {
+                await mediator.Publish(new UserLoggedOutEvent(userToLogout), cancellationToken);
+
                 return Result.Success(SUCCESS_LOGOUT_MESSAGE);
             }
         }
