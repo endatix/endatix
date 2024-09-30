@@ -48,9 +48,9 @@ internal sealed class JwtTokenService : ITokenService
 
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
         var subject = new ClaimsIdentity(claims: [
-                new Claim(JwtRegisteredClaimNames.Sub, forUser.ExternalId.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, forUser.Email),
-                new Claim(ClaimTypes.NameIdentifier, forUser.ExternalId.ToString()),
+                new Claim(JwtRegisteredClaimNames.Sub, forUser.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, forUser.Email.ToString()),
+                new Claim(ClaimTypes.NameIdentifier, forUser.UserName.ToString()),
                 new Claim(ClaimTypes.Role, RoleNames.ADMIN),
                 new Claim(ClaimNames.Permission, Allow.AllowAll)
             ]);
@@ -71,8 +71,10 @@ internal sealed class JwtTokenService : ITokenService
     }
 
     /// <inheritdoc />
-    public Task<Result> RevokeTokensAsync(User forUser, CancellationToken cancellationToken = default) {
-        if (forUser == null){
+    public Task<Result> RevokeTokensAsync(User forUser, CancellationToken cancellationToken = default)
+    {
+        if (forUser == null)
+        {
             return Task.FromResult(Result.NotFound());
         }
 
