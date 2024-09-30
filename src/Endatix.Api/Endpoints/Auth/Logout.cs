@@ -1,5 +1,4 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.Login;
 using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
@@ -34,12 +33,8 @@ public class Logout(IMediator mediator) : EndpointWithoutRequest<Results<Ok<Logo
     {
 
         var logoutUserCmd = new LogoutCommand(User);
-        var logoutOperationResult = await mediator.Send(logoutUserCmd, cancellationToken);
+        var logoutResult = await mediator.Send(logoutUserCmd, cancellationToken);
 
-        var logoutResponse = logoutOperationResult.IsSuccess ?
-            Result.Success(new LogoutResponse("User logged out successfully.")) :
-            Result.Invalid(new ValidationError("Invalid request or authentication state."));
-
-        return logoutResponse.ToEndpointResponse<Results<Ok<LogoutResponse>, BadRequest>, LogoutResponse>();
+        return logoutResult.ToEndpointResponse<Results<Ok<LogoutResponse>, BadRequest>, string, LogoutResponse>((message) => new LogoutResponse(message)); 
     }
 }

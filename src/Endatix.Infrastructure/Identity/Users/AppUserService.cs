@@ -12,11 +12,13 @@ namespace Endatix.Infrastructure.Identity.Users;
 public class AppUserService(UserManager<AppUser> userManager) : IUserService
 {
     /// <inheritdoc />
-    public async Task<Result<User>> GetUserAsync(ClaimsPrincipal claimsPrincipal, CancellationToken cancellationToken = default){
-        if (claimsPrincipal == null){
+    public async Task<Result<User>> GetUserAsync(ClaimsPrincipal claimsPrincipal, CancellationToken cancellationToken = default)
+    {
+        if (claimsPrincipal == null)
+        {
             return Result.NotFound();
         }
-        
+
         var user = await userManager.GetUserAsync(claimsPrincipal);
         if (user == null)
         {

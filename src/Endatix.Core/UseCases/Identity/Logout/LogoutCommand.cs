@@ -4,4 +4,4 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.Identity.Login;
 
-public record LogoutCommand(ClaimsPrincipal ClaimsPrincipal) : ICommand<Result>;
+public record LogoutCommand(ClaimsPrincipal ClaimsPrincipal) : ICommand<Result<string>>;
