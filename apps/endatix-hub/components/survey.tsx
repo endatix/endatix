@@ -4,7 +4,7 @@ import { Model } from 'survey-core'
 import { Survey } from 'survey-react-ui'
 import 'survey-core/defaultV2.css'
 import { startTransition } from "react";
-import { submitForm } from '@/app/(public)/share/[formId]/action.submit';
+import { SubmitFormAction } from '@/app/(public)/share/[formId]/submit-form.action';
   
 interface SurveyComponentProps {
     definition: string;
@@ -25,7 +25,7 @@ export default async function SurveyComponent({ definition, formId }: SurveyComp
         metadata: JSON.stringify(metadata, null, 3),
       };
       startTransition(async () => {
-        await submitForm(formId, submissionData);
+        await SubmitFormAction(formId, submissionData);
       })
   }
   return <Survey model={model} onComplete={onFormComplete} />;
