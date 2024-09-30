@@ -18,7 +18,9 @@ public sealed class User : BaseEntity, IAggregateRoot
         bool isVerified
         )
     {
-        Guard.Against.Null(id);
+        Guard.Against.NegativeOrZero(id);
+        Guard.Against.NullOrWhiteSpace(userName);
+        Guard.Against.NullOrWhiteSpace(email);
 
         Id = id;
         UserName = userName;

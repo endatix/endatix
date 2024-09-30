@@ -17,7 +17,8 @@ public sealed class Role : BaseEntity, IAggregateRoot
         string? description
         )
     {
-        Guard.Against.Null(id);
+        Guard.Against.NegativeOrZero(id);
+        Guard.Against.NullOrWhiteSpace(name);
 
         Id = id;
         Name = name;
