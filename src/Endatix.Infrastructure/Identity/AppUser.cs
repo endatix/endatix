@@ -10,7 +10,7 @@ namespace Endatix.Infrastructure.Identity;
 /// </summary>
 public class AppUser : IdentityUser<long>
 {
-    internal User ToUserEntity()
+    public User ToUserEntity()
     {
         Guard.Against.NullOrEmpty(UserName);
         Guard.Against.NullOrEmpty(Email);

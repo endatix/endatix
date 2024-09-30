@@ -12,7 +12,7 @@ public class Register(IMediator mediator) : Endpoint<RegisterRequest, RegisterRe
 {
     public override void Configure()
     {
-        Post("/auth/register");
+        Post("auth/register");
         AllowAnonymous();
         Summary(s =>
         {

@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Endatix.Core.Infrastructure.Result;
 using AppDomain = Endatix.Core.Infrastructure.Result;
@@ -26,6 +26,34 @@ public static partial class ResultExtensions
                 TypedResults.Ok() :
                 TypedResults.Ok(mapper((TEntity)result.GetValue())),
             ResultStatus.Created => TypedResults.Created("", mapper((TEntity)result.GetValue())),
+            ResultStatus.NoContent => TypedResults.NoContent(),
+            ResultStatus.NotFound => NotFoundEntity(result),
+            ResultStatus.Unauthorized => UnAuthorized(result),
+            ResultStatus.Forbidden => Forbidden(result),
+            ResultStatus.Invalid => TypedResults.BadRequest(result.ValidationErrors),
+            ResultStatus.Error => UnprocessableEntity(result),
+            ResultStatus.Conflict => ConflictEntity(result),
+            ResultStatus.Unavailable => UnavailableEntity(result),
+            ResultStatus.CriticalError => CriticalEntity(result),
+            _ => throw new NotSupportedException($"Result {result.Status} conversion is not supported."),
+        };
+
+        return (TResults)(dynamic)httpResult;
+    }
+
+ /// <summary>
+    /// Convert a <see cref="Result{TEntity}"/> to an instance of <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c>
+    /// </summary>
+    /// <typeparam name="TResults">The Results object listing all the possible status endpoint responses</typeparam>
+    /// <typeparam name="T">The result success model to be returned to the response</typeparam>
+    /// <param name="result">The <see cref="AppDomain.IResult" /> to be converted to <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c></param>
+    /// <returns></returns>
+    internal static TResults ToEndpointResponse<TResults, T>(this AppDomain.IResult result)
+    {
+        var httpResult = result.Status switch
+        {
+            ResultStatus.Ok => TypedResults.Ok((T)result.GetValue()),
+            ResultStatus.Created => TypedResults.Created(),
             ResultStatus.NoContent => TypedResults.NoContent(),
             ResultStatus.NotFound => NotFoundEntity(result),
             ResultStatus.Unauthorized => UnAuthorized(result),
