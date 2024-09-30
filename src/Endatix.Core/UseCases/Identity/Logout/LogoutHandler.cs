@@ -14,7 +14,7 @@ public class LogoutHandler(
     ITokenService tokenService,
     IUserService userService,
     IMediator mediator
-    ) : ICommandHandler<LogoutCommand, Result>
+    ) : ICommandHandler<LogoutCommand, Result<string>>
 {
     public const string INVALID_LOGOUT_REQUEST_MESSAGE = "Invalid request or authentication state.";
     public const string SUCCESS_LOGOUT_MESSAGE = "User logged out successfully.";
