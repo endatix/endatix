@@ -6,8 +6,7 @@ const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
 export const getForms = async (): Promise<Form[]> => {
   let session = await getSession();
-  debugger
-
+  
   const response = await fetch(`${API_BASE_URL}/forms`, {
     headers: {
       Authorization: `Bearer ${session.token}`
