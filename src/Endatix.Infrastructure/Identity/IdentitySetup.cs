@@ -21,9 +21,10 @@ public static class IdentitySetup
 
         endatixApp.Services
                 .AddIdentityCore<AppUser>()
+                .AddRoles<AppRole>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
-
+;
         endatixApp.Services.AddScoped<ITokenService, JwtTokenService>();
         endatixApp.Services.AddScoped<IAuthService, AuthService>();
         endatixApp.Services.AddScoped<IUserRegistrationService, UserRegistrationService>();

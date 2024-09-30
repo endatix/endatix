@@ -13,25 +13,20 @@ public sealed class User : BaseEntity, IAggregateRoot
 {
     public User(
         long id,
-        string externalId,
         string userName,
         string email,
         bool isVerified
         )
     {
-        Guard.Against.Null(id);
+        Guard.Against.NegativeOrZero(id);
+        Guard.Against.NullOrWhiteSpace(userName);
+        Guard.Against.NullOrWhiteSpace(email);
 
         Id = id;
-        ExternalId = externalId;
         UserName = userName;
         Email = email;
         IsVerified = isVerified;
     }
-
-    /// <summary>
-    /// External identifier for the user, typically used for integration with external systems.
-    /// </summary>
-    public string ExternalId { get; private set; }
 
     /// <summary>
     /// The user's chosen username for the application.
