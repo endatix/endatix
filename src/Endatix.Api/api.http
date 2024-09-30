@@ -30,6 +30,13 @@ Content-Type: application/json
 }
 
 ###
+// Logout an authenticated user
+# @name logout
+POST {{apiBaseUrl}}/auth/logout
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+###
 // List all forms
 GET {{apiBaseUrl}}/forms
 Authorization: Bearer {{jwt}}

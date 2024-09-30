@@ -15,7 +15,7 @@ public class Login(IMediator mediator) : Endpoint<LoginRequest, LoginResponse>
     /// </summary>
     public override void Configure()
     {
-        Post("/auth/login");
+        Post("auth/login");
         AllowAnonymous();
         Summary(s =>
         {

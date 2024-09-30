@@ -3,12 +3,12 @@ using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Identity;
 
-namespace Endatix.Infrastructure.Identity.Registration;
+namespace Endatix.Infrastructure.Identity.Users;
 
 /// <summary>
 /// Implements the user registration service.
 /// </summary>
-public class UserRegistrationService(UserManager<AppUser> userManager, IUserStore<AppUser> userStore) : IUserRegistrationService
+public class AppUserRegistrationService(UserManager<AppUser> userManager, IUserStore<AppUser> userStore) : IUserRegistrationService
 {
     /// <inheritdoc />
     public async Task<Result<User>> RegisterUserAsync(string email, string password, CancellationToken cancellationToken)
