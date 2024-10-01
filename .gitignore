@@ -51,5 +51,6 @@ Thumbs.db
 # Remove local nuget packages created during testing
 .artifacts/
 
-# Environment variables
+# Environment variables & secrets
 .env
+.github/workflows/.secrets
