@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Endatix.Infrastructure.Identity;
 using Microsoft.Extensions.Configuration;
 using Ardalis.GuardClauses;
+using Microsoft.Extensions.Hosting;
 
 namespace Endatix.Setup;
 
@@ -17,6 +18,8 @@ namespace Endatix.Setup;
 /// </summary>
 public static class EndatixAppExtensions
 {
+    private const int JWT_CLOCK_SKEW = 15;
+
     /// <summary>
     /// Adds the API Endpoints associated provided by the Endatix app
     /// </summary>
@@ -30,11 +33,12 @@ public static class EndatixAppExtensions
                          .Get<JwtOptions>();
         Guard.Against.Null(jwtSettings);
 
+        var isDevelopment = endatixApp.WebHostBuilder.Environment.IsDevelopment();
         endatixApp.Services.AddAuthenticationJwtBearer(
                    signingOptions => signingOptions.SigningKey = jwtSettings.SigningKey,
                    bearerOptions =>
                    {
-                       bearerOptions.RequireHttpsMetadata = false;
+                       bearerOptions.RequireHttpsMetadata = isDevelopment ? false : true;
                        bearerOptions.TokenValidationParameters = new TokenValidationParameters
                        {
                            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
@@ -44,7 +48,7 @@ public static class EndatixAppExtensions
                            ValidateAudience = true,
                            ValidateLifetime = true,
                            ValidateIssuerSigningKey = true,
-                           ClockSkew = TimeSpan.FromSeconds(15)
+                           ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW)
                        };
                    });
 

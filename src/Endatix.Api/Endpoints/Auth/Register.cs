@@ -12,7 +12,7 @@ public class Register(IMediator mediator) : Endpoint<RegisterRequest, RegisterRe
 {
     public override void Configure()
     {
-        Post("/auth/register");
+        Post("auth/register");
         AllowAnonymous();
         Summary(s =>
         {
@@ -31,14 +31,10 @@ public class Register(IMediator mediator) : Endpoint<RegisterRequest, RegisterRe
 
         if (!result.IsSuccess)
         {
-           ThrowError("Registration failed. Please check your input and try again.");
+            ThrowError("Registration failed. Please check your input and try again.");
         }
 
-        RegisterResponse successfulResponse = new()
-        {
-            Success = true,
-            Message = "User has been successfully registered"
-        };
+        var successfulResponse = new RegisterResponse(Success: true, Message: "User has been successfully registered");
 
         await SendOkAsync(successfulResponse, cancellationToken);
     }

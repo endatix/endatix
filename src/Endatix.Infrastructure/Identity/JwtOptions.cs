@@ -33,8 +33,8 @@ public class JwtOptions
 
     /// <summary>
     /// List of valid audiences for the JWT token.
-    /// Example: ["www.myapp.com", "https://localhost:3000", "endatix-app"]
+    /// Example: ["www.myapp.com", "https://localhost:3000", "my-endatix-app"]
     /// Default value: Empty list
     /// </summary>
-    public IList<string> Audiences { get; set; } = ["endatix-app"];
+    public IList<string> Audiences { get; set; } = ["endatix-hub"];
 }
