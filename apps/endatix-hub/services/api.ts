@@ -6,7 +6,7 @@ const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
 export const getForms = async (): Promise<Form[]> => {
   let session = await getSession();
-
+  
   const response = await fetch(`${API_BASE_URL}/forms`, {
     headers: {
       Authorization: `Bearer ${session.token}`
@@ -114,5 +114,23 @@ export const authenticate = async (
     throw new Error("Failed to fetch data");
   }
 
+  return response.json();
+};
+
+export const sendSubmission = async (
+  formId: string,
+  submissionData: any
+): Promise<Submission[]> => {
+  const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(submissionData),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to submit response");
+  }
   return response.json();
 };

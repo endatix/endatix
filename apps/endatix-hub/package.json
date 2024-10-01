@@ -33,7 +33,9 @@
     "survey-react-ui": "^1.12.2",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "survey-core": "latest",
+    "survey-react-ui": "latest"
   },
   "devDependencies": {
     "@types/node": "^20",
