@@ -24,7 +24,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 These are managed by the Next.js powered Endatix hub and stored in the this "endatix-hub" folder.
 
-- **ENDATIX_BASE_URL** - [REQUIRED] this sets the base Url for the Endatix API, e.g. `SESSION_SECRET==https://localhost:5001`
+- **ENDATIX_BASE_URL** - [REQUIRED] this sets the base Url for the Endatix API, e.g. `ENDATIX_BASE_URL=https://localhost:5001`
 - **SESSION_SECRET** - [REQUIRED] sets the key to encrypt the session cookies for the Endatix APP. Use strong password, e.g. `SESSION_SECRET=aMfPaLkxa7asa2MFdn6E4sLKOIas1FUzh8&geGm`
 
 ## Learn More

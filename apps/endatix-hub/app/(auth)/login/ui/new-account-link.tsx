@@ -1,6 +1,6 @@
 "use client";
 
-import { showComingSoonMessage } from "@/components/layout-ui/utils/coming-soon-message";
+import { showComingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
 import Link from "next/link";
 
 const NewAccountLink = () => (
