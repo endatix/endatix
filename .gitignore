@@ -53,4 +53,4 @@ Thumbs.db
 
 # Environment variables & secrets
 .env
-.github/workflows/.secrets
+.secrets
