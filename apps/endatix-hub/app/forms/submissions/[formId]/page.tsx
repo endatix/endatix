@@ -1,12 +1,12 @@
 import PageTitle from '@/components/headings/page-title';
 import { Separator } from '@/components/ui/separator';
-import { getFormById, getSubmissionsByFormId } from '@/services/api';
+import { getForm, getSubmissions } from '@/services/api';
 import SubmissionsTable from './ui/submissions-table';
 
 const Responses = async ({ params }: { params: { formId: string } }) => {
   const { formId } = params;
-  const submissions = await getSubmissionsByFormId(formId);
-  const form = await getFormById(formId);
+  const submissions = await getSubmissions(formId);
+  const form = await getForm(formId);
 
   return (
     <>

@@ -1,6 +1,6 @@
 import { FormDefinition } from '@/types';
 import dynamic from 'next/dynamic';
-import { getFormDefinitionByFormId } from "@/services/api";
+import { getFormDefinition } from "@/services/api";
 
 const SurveyComponent = dynamic(() => import('@/components/survey'), {
   ssr: false,
@@ -22,11 +22,10 @@ export default async function Survey({ params }: { params: { formId: string } })
 }
 
 const getServerSideProps = async (formId: string) => {
-
   let formJson: string | null = null;
 
   try {
-    const response: FormDefinition = await getFormDefinitionByFormId(formId);
+    const response: FormDefinition = await getFormDefinition(formId);
     formJson = response?.jsonData ? response.jsonData : null;
   } catch (error) {
     console.error("Failed to load form:", error);
