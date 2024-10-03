@@ -4,18 +4,23 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.Identity.Login;
 
-public class LoginHandler(IAuthService authService, ITokenService tokenService) : ICommandHandler<LoginCommand, Result<TokenDto>>
+public class LoginHandler(IAuthService authService, ITokenService tokenService) : ICommandHandler<LoginCommand, Result<AuthTokensDto>>
 {
-    public async Task<Result<TokenDto>> Handle(LoginCommand request, CancellationToken cancellationToken)
+    public async Task<Result<AuthTokensDto>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         var validationResult = await authService.ValidateCredentials(request.Email, request.Password, cancellationToken);
 
-        if (validationResult.IsInvalid()){
+        if (validationResult.IsInvalid())
+        {
             return Result.Invalid(validationResult.ValidationErrors);
         }
 
-        var token = tokenService.IssueToken(validationResult.Value);
+        var user = validationResult.Value;
+        var accessToken = tokenService.IssueAccessToken(user);
+        var refreshToken = tokenService.IssueRefreshToken();
 
-        return Result.Success(token);
+        await authService.StoreRefreshToken(user.Id, refreshToken.Token, refreshToken.ExpireAt, cancellationToken);
+
+        return Result.Success(new AuthTokensDto(accessToken, refreshToken));
     }
 }
