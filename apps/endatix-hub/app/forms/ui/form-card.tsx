@@ -20,6 +20,16 @@ type FormCardProps = React.ComponentProps<typeof Card> & {
 const FormCard = ({ form, className, ...props }: FormCardProps) => {
   const getFormLabel = () => form.isEnabled ? "Active" : "Disabled";
 
+  const getSubmissionsLabel = () => {
+    const count = form.submissionsCount ?? 0;
+    if (count === 0) {
+      return "No submissions yet";
+    }
+
+    const submissionWord = count === 1? "submission" : "submissions";
+    return `${count} ${submissionWord}`;
+  }
+
   return (
     <Card
       onClick={() => { console.log(`Clicked form #${form.id}`) }}
@@ -32,15 +42,13 @@ const FormCard = ({ form, className, ...props }: FormCardProps) => {
           </Badge>
         </div>
         <CardTitle className="text-xl">{form.name}</CardTitle>
-        <CardDescription>
-          <div className="space-y-1">
-            <span className="text-sm font-medium leading-none pr-2">
-              Created on:
-            </span>
-            <span className="text-sm text-muted-foreground">
-              {new Date(form.createdAt).toDateString()}
-            </span>
-          </div>
+        <CardDescription className="p-1">
+          <span className="text-sm font-medium leading-none pr-2">
+            Created on:
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {new Date(form.createdAt).toDateString()}
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -52,7 +60,7 @@ const FormCard = ({ form, className, ...props }: FormCardProps) => {
         <div className="flex items-center gap-2">
           <Link href={`forms/submissions/${form.id}`}>
             <Badge variant="default">
-              {Math.round(Math.random() * 25)} submissions
+              {getSubmissionsLabel()}
             </Badge>
           </Link>
         </div>

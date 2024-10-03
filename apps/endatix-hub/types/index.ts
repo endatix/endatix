@@ -1,10 +1,11 @@
 export type Form = {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   isEnabled: boolean;
   createdAt: Date;
-  modifiedAt: Date;
+  modifiedAt?: Date;
+  submissionsCount?: number
 };
 
 export type FormDefinition = {
