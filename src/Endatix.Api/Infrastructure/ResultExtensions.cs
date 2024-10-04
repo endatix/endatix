@@ -13,7 +13,7 @@ public static partial class ResultExtensions
     /// Convert a <see cref="Result{TEntity}"/> to an instance of <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c>
     /// </summary>
     /// <typeparam name="TResults">The Results object listing all the possible status endpoint responses</typeparam>
-    /// <typeparam name="TEntity">The result entiry type being received</typeparam>
+    /// <typeparam name="TEntity">The result entity type being received</typeparam>
     /// <typeparam name="TResponseModel">The HTTP endpoint response model value type being returned</typeparam>
     /// <param name="result">The command/query result to convert to an <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c></param>
     /// <param name="mapper">The mapper to convert from command/query result to HTTP endpoint response model</param>
