@@ -1,5 +1,5 @@
 import { Form, FormDefinition } from "../../../types";
-import { getForm, getFormDefinition } from "@/services/api";
+import { getForm, getActiveFormDefinition } from "@/services/api";
 import FormEditor from "./ui/form-editor";
 
 interface FormCreatorPageProps {
@@ -17,7 +17,7 @@ const FormCreatorPage = async ({ params }: FormCreatorPageProps) => {
   try {
     form = await getForm(formId);
 
-    const response: FormDefinition = await getFormDefinition(formId);
+    const response: FormDefinition = await getActiveFormDefinition(formId);
     formJson = response?.jsonData ? JSON.parse(response.jsonData) : null;
   } catch (error) {
     console.error("Failed to load form:", error);

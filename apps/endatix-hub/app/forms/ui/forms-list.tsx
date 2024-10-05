@@ -42,8 +42,6 @@ const FormsList = ({ forms }: FormDataProps) => {
 
     const selectedForm = useMemo(() => forms.find(form => form.id === selectedFormId), [selectedFormId, forms]);
 
-
-
     return (
         <>
             <div className="items-start justify-center gap-4 rounded-lg p-4 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -56,7 +54,10 @@ const FormsList = ({ forms }: FormDataProps) => {
                     />
                 ))}
             </div>
-            <FormSheet selectedForm={selectedForm} />
+
+            {selectedForm && (
+                <FormSheet selectedForm={selectedForm} />
+            )}
         </>
     );
 }
