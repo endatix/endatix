@@ -12,7 +12,7 @@ const Forms = async () => {
     <>
       <PageTitle title="Forms" />
       <Separator className="my-4" />
-      <FormsList data={forms} />
+      <FormsList forms={forms} />
     </>
   );
 };

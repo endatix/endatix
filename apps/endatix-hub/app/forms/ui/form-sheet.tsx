@@ -1,50 +1,121 @@
 "use client";
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { ArrowRight, Pencil } from 'lucide-react';
 import {
     Sheet,
-    SheetClose,
     SheetContent,
     SheetDescription,
     SheetFooter,
     SheetHeader,
     SheetTitle,
-} from "@/components/ui/sheet"
+} from "@/components/ui/sheet";
+import { Form } from "@/types";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
-const FormSheet = () => {
-    return (
-        <Sheet open={false}>
-            <SheetContent className="w-[400px] sm:w-[540px]">
-                <SheetHeader>
-                    <SheetTitle>Edit form</SheetTitle>
-                    <SheetDescription>
-                        Make changes to your profile here. Click save when you're done.
-                    </SheetDescription>
-                </SheetHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">
-                            Title
-                        </Label>
-                        <Input id="name" value="Pedro Duarte" className="col-span-3" />
+type FormSheetProps = {
+    selectedForm: Form | null
+}
+
+const FormSheet = ({ selectedForm }: FormSheetProps) => {
+    const getFormattedDate = (date?: Date) => {
+        if (!date) {
+            return;
+        }
+
+        return new Date(date).toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', month: '2-digit', day: '2-digit', year: 'numeric', hour12: true });
+    }
+
+    const getFormatDescription = (): string => {
+        return selectedForm?.description ?? "This ensures that the first <span> is treated as an inline-block element, which helps maintain its visibility and allows it to occupy space even if its height or width is small. You can also consider adding a min-w or min-h class if you want to enforce a specific size.";
+    }
+
+    const getSubmissionsLabel = () => {
+        const count = selectedForm?.submissionsCount ?? 0;
+        if (count === 0) {
+            return "No submissions yet";
+        }
+
+        return `${count}`;
+    }
+
+    if (!selectedForm) {
+        return <></>
+    } else
+        return (
+            <Sheet modal={false} open={selectedForm != null} >
+                <SheetContent className="w-[600px] sm:w-[480px] sm:max-w-none">
+                    <SheetHeader>
+                        <SheetTitle>
+                            {selectedForm?.name}
+                        </SheetTitle>
+                        <SheetDescription>
+                            {selectedForm?.description}
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="my-8 flex justify-between space-x-2">
+                        <Link href={`forms/${selectedForm.id}`}>
+                            <Button variant={"outline"}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit Form
+                            </Button>
+                        </Link>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="username" className="text-right">
-                            Description
-                        </Label>
-                        <Input id="username" value="@peduarte" className="col-span-3" />
+                    <div className="grid gap-2 py-4">
+                        <div className="grid grid-cols-4 py-2 items-start gap-4">
+                            <span className="text-right self-start">
+                                Description
+                            </span>
+                            <p className="text-sm text-muted-foreground col-span-3">
+                                {getFormatDescription()}
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-4 py-2 items-center gap-4">
+                            <span className="text-right self-start">
+                                Status
+                            </span>
+                            <div className="col-span-3">
+                                <span className={cn("inline-block h-2 w-2 mr-1 rounded-full", selectedForm.isEnabled ? "bg-green-600" : "bg-gray-600")} />
+                                <span className="text-sm text-muted-foreground">
+                                    {selectedForm.isEnabled ? "Enabled" : "Disabled"}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 py-2 items-center gap-4">
+                            <span className="text-right self-start">
+                                Created on
+                            </span>
+                            <span className="text-sm text-muted-foreground col-span-3">
+                                {getFormattedDate(selectedForm.createdAt)}
+                            </span>
+                        </div>
+                        <Separator />
+                        <div className="grid grid-cols-4 py-2 items-center gap-4">
+                            <span className="text-right self-start">
+                                Submissions
+                            </span>
+                            <div className="text-sm text-muted-foreground col-span-3">
+                                {getSubmissionsLabel()}
+                            </div>
+                        </div>
+                        {selectedForm?.submissionsCount > 0 && (
+                            <div>
+                                <Link href={`/forms/submissions/${selectedForm.id}`}>
+                                    <Button variant={"ghost"}>
+                                        <ArrowRight className="mr-2 h-4 w-4" />
+                                        View Submissions
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
                     </div>
-                </div>
-                <SheetFooter>
-                    <SheetClose asChild>
-                        <Button type="submit">Save changes</Button>
-                    </SheetClose>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
-    )
+                    <SheetFooter>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet >
+        )
 }
 
 export default FormSheet;

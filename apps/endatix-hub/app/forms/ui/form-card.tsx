@@ -14,10 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 type FormCardProps = React.ComponentProps<typeof Card> & {
-  form: Form
+  form: Form,
+  isSelected: boolean
 }
 
-const FormCard = ({ form, className, ...props }: FormCardProps) => {
+const FormCard = ({ form, isSelected, className, ...props }: FormCardProps) => {
   const getFormLabel = () => form.isEnabled ? "Active" : "Disabled";
 
   const getSubmissionsLabel = () => {
@@ -32,8 +33,7 @@ const FormCard = ({ form, className, ...props }: FormCardProps) => {
 
   return (
     <Card
-      onClick={() => { console.log(`Clicked form #${form.id}`) }}
-      className={cn("flex cursor-pointer w-full flex-col gap-1 hover:bg-accent", className)} {...props}>
+      className={cn("flex cursor-pointer w-full flex-col gap-1 hover:bg-accent", isSelected ? "bg-accent" : "", className)} {...props}>
       <CardHeader>
         <div className="flex ml-auto text-xs text-foreground">
           <Badge variant="outline">
