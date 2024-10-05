@@ -4,7 +4,7 @@ import { getForm, getSubmissions } from '@/services/api';
 import SubmissionsTable from './ui/submissions-table';
 
 const Responses = async ({ params }: { params: { formId: string } }) => {
-  const { formId } = params;
+  const { formId } = await params;
   const submissions = await getSubmissions(formId);
   const form = await getForm(formId);
 

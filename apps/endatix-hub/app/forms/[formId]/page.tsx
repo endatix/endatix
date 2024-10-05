@@ -1,11 +1,6 @@
-import dynamic from "next/dynamic";
 import { Form, FormDefinition } from "../../../types";
 import { getForm, getFormDefinition } from "@/services/api";
-import { SurveyCreatorProps } from "@/components/survey-creator";
-
-const SurveyCreatorComponent = dynamic(() => import('@/components/survey-creator'), {
-  ssr: false,
-});
+import FormEditor from "./ui/form-editor";
 
 interface FormCreatorPageProps {
   params: {
@@ -14,7 +9,7 @@ interface FormCreatorPageProps {
 }
 
 const FormCreatorPage = async ({ params }: FormCreatorPageProps) => {
-  const { formId } = params;
+  const { formId } = await params;
 
   let form: Form | null = null;
   let formJson: object | null = null;
@@ -43,7 +38,7 @@ const FormCreatorPage = async ({ params }: FormCreatorPageProps) => {
 
   return (
     <div className="flex min-h-screen flex-col items-center p-8">
-      <SurveyCreatorComponent {...props} />
+      <FormEditor {...props} />
     </div>
   );
 }
