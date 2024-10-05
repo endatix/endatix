@@ -1,8 +1,3 @@
-# These are some examples of commonly ignored file patterns.
-# You should customize this list as applicable to your project.
-# Learn more about .gitignore:
-#     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
-
 # Node artifact files
 node_modules/
 
@@ -56,5 +51,6 @@ Thumbs.db
 # Remove local nuget packages created during testing
 .artifacts/
 
-# Environment variables
+# Environment variables & secrets
 .env
+.secrets
