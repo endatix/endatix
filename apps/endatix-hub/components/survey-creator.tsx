@@ -13,7 +13,7 @@ import "survey-creator-core/survey-creator-core.css";
 
 export interface SurveyCreatorProps {
   formId: string;
-  formJson: Object | null;
+  formJson: object | null;
   formName: string;
   formIdLabel: string;
   isEnabled: boolean;

@@ -1,9 +1,9 @@
-import { Form, FormDefinition } from '@/types';
+import { FormDefinition } from '@/types';
 import dynamic from 'next/dynamic';
 import { getFormDefinitionByFormId } from "@/services/api";
 
 const SurveyComponent = dynamic(() => import('@/components/survey'), {
-  ssr: false, 
+  ssr: false,
 });
 
 
@@ -23,7 +23,6 @@ export default async function Survey({ params }: { params: { formId: string } })
 
 const getServerSideProps = async (formId: string) => {
 
-  let form: Form | null = null;
   let formJson: string | null = null;
 
   try {

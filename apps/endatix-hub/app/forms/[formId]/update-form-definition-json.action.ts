@@ -2,7 +2,7 @@
 
 import { updateFormDefinition } from "@/services/api";
 
-export async function updateFormDefinitionJsonAction(formId: string, formJson: Object | null) {
+export async function updateFormDefinitionJsonAction(formId: string, formJson: object | null) {
   try {
     await updateFormDefinition(formId, JSON.stringify(formJson));
     return { success: true };

@@ -17,7 +17,7 @@ const FormCreatorPage = async ({ params }: FormCreatorPageProps) => {
   const { formId } = params;
 
   let form: Form | null = null;
-  let formJson: Object | null = null;
+  let formJson: object | null = null;
 
   try {
     form = await getFormById(formId);
