@@ -46,10 +46,8 @@ const FormSheet = ({ selectedForm }: FormSheetProps) => {
         return (selectedForm?.submissionsCount && selectedForm.submissionsCount > 0) ?? false;
     }
 
-    if (!selectedForm) {
-        return <></>
-    } else
-        return (
+    return (
+        selectedForm && (
             <Sheet modal={false} open={selectedForm != null} >
                 <SheetContent className="w-[600px] sm:w-[480px] sm:max-w-none">
                     <SheetHeader>
@@ -141,6 +139,7 @@ const FormSheet = ({ selectedForm }: FormSheetProps) => {
                 </SheetContent>
             </Sheet>
         )
+    );
 }
 
 export default FormSheet;

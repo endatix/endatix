@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Submission } from "@/types";
 import SubmissionRow from "./submission-row";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useActionState, useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import SubmissionSheet from "./submission-sheet";
 
@@ -41,7 +41,10 @@ const SubmissionsTable = ({ data }: SubmissionsTableProps) => {
             </Suspense>
           ))}
         </TableBody>
-        <SubmissionSheet submission={selectedSubmission} />
+
+        {selectedSubmission && (
+          <SubmissionSheet submission={selectedSubmission} />
+        )}
       </Table>
     </>
   );

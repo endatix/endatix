@@ -79,9 +79,9 @@ export const updateForm = async (formId: string, data: { name?: string, isEnable
   }
 };
 
-export const getFormDefinition = async (formId: string, allowAnonymous: boolean = false): Promise<FormDefinition> => {
+export const getActiveFormDefinition = async (formId: string, allowAnonymous: boolean = false): Promise<FormDefinition> => {
   const requestOptions: RequestInit = {};
-  if (allowAnonymous) {
+  if (!allowAnonymous) {
     const session = await getSession();
 
     if (!session.isLoggedIn) {
@@ -101,6 +101,35 @@ export const getFormDefinition = async (formId: string, allowAnonymous: boolean 
 
   return response.json();
 };
+
+export const getFormDefinition = async (formId: string, definitionId: string) : Promise<FormDefinition> => {
+  if (!formId) {
+    throw new Error(`FormId is required`);
+  }
+
+  if (!definitionId) {
+    throw new Error(`DefinitionId is required`);
+  }
+
+  const requestOptions: RequestInit = {};
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+
+  requestOptions.headers = {
+    Authorization: `Bearer ${session?.token}`,
+  }
+
+  const response = await fetch(`${API_BASE_URL}/forms/${formId}/definitions/${definitionId}`, requestOptions);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch form definition');
+  }
+
+  return response.json();
+}
 
 export const updateFormDefinition = async (formId: string, jsonData: string): Promise<void> => {
   let session = await getSession();
