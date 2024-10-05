@@ -1,16 +1,17 @@
-﻿using FastEndpoints;
-using MediatR;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Forms.List;
+using FastEndpoints;
+using MediatR;
+using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Api.Infrastructure;
 
 namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
 /// Endpoint for listing forms.
 /// </summary>
-public class List(IMediator _mediator) : Endpoint<FormsListRequest, Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>>
+public class List(IMediator mediator) : Endpoint<FormsListRequest, Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -18,7 +19,7 @@ public class List(IMediator _mediator) : Endpoint<FormsListRequest, Results<Ok<I
     public override void Configure()
     {
         Get("forms");
-        Roles("Admin");
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "List forms";
@@ -35,7 +36,7 @@ public class List(IMediator _mediator) : Endpoint<FormsListRequest, Results<Ok<I
     /// <param name="cancellationToken">Cancellation token for the async operation.</param>
     public override async Task<Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>> ExecuteAsync(FormsListRequest request, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(
+        var result = await mediator.Send(
             new ListFormsQuery(request.Page, request.PageSize),
             cancellationToken);
 

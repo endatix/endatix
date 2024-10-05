@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Endatix.Core.Infrastructure.Result;
 using AppDomain = Endatix.Core.Infrastructure.Result;

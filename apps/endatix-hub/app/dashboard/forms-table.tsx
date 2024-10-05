@@ -50,7 +50,7 @@ const FormsTable = ({ data }: FormDataProps) => (
     </TableHeader>
     <TableBody>
       {data.map((form) => (
-        <TableRow key={form.name}>
+        <TableRow key={form.id}>
           <TableCell className="hidden sm:table-cell">
             <Image
               alt="Form image"
