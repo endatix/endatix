@@ -8,6 +8,7 @@ import DropdownAnswer from "./dropdown-answer";
 import RankingAnswer from "./ranking-answer";
 import { Label } from "@/components/ui/label";
 import MatrixAnswer from "./matrix-answer";
+import CommentAnswer from "./comment-answer";
 
 export interface ViewAnswerProps
     extends React.HtmlHTMLAttributes<HTMLInputElement> {
@@ -22,15 +23,12 @@ export enum QuestionType {
     Dropdown = "dropdown",
     Ranking = "ranking",
     Matrix = "matrix",
+    Comment = "comment",
     Unsupported = "unsupported",
 }
 
 const AnswerViewer = ({ forQuestion }: ViewAnswerProps) => {
     const questionType = forQuestion.getType() ?? "unsupported";
-
-    if (questionType === QuestionType.Matrix) {
-        debugger;
-    }
 
     const renderTextAnswer = () => (
         <>
@@ -116,8 +114,22 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) => {
     )
 
     const renderMatrixAnswer = () => (
-       <MatrixAnswer question={forQuestion} />
+        <MatrixAnswer question={forQuestion} />
     );
+
+    const renderCommentAnswer = () => (
+        <CommentAnswer question={forQuestion} />
+    );
+
+    const renderUnknownAnswer = () => {
+        <>
+            <Label
+                className="text-left col-span-2">
+                {forQuestion.title}
+            </Label>
+            <p className="col-span-3">{forQuestion.value}</p>;
+        </>
+    }
 
     switch (questionType) {
         case QuestionType.Text:
@@ -134,8 +146,10 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) => {
             return renderRankingAnswer();
         case QuestionType.Matrix:
             return renderMatrixAnswer();
+        case QuestionType.Comment:
+            return renderCommentAnswer();
         default:
-            return <p className="col-span-3">Unsupported question type</p>;
+            return renderUnknownAnswer();
     }
 };
 

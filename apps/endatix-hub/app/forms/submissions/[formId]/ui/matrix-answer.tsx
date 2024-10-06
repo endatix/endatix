@@ -50,7 +50,7 @@ const MatrixAnswer = ({
                 <>
                     <Label
                         htmlFor={answer.question}
-                        className="text-right col-span-2 text-muted-foreground">
+                        className="text-right col-span-2 text-sm text-muted-foreground">
                         {answer.question}
                     </Label>
                     <div key={answer.question} className="col-span-3 items-center text-sm">

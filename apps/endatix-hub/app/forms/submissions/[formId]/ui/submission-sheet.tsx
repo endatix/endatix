@@ -83,7 +83,7 @@ const SubmissionSheet = ({ submission }: SubmissionSheetProps) => {
         submission &&
         surveyModel && (
             <Sheet modal={false} open={submission != null}>
-                <SheetContent className="w-[720px] sm:w-[620px] sm:max-w-none">
+                <SheetContent className="w-[720px] sm:w-[620px] sm:max-w-none overflow-auto">
                     <SheetHeader>
                         <SheetTitle>
                             {surveyModel?.title} <Link2 className="inline-block ml-4" />
