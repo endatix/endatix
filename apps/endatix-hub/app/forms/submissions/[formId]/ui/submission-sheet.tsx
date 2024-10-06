@@ -1,12 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParams } from 'next/navigation';
 import {
     Sheet,
-    SheetClose,
     SheetContent,
     SheetFooter,
     SheetHeader,
@@ -20,6 +18,8 @@ import { Download, Link as Link2, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { comingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+import AnswerViewer from "./answer-viewer";
 
 type SubmissionSheetProps = {
     submission: Submission | null
@@ -29,6 +29,14 @@ const SubmissionSheet = ({ submission }: SubmissionSheetProps) => {
     const params = useParams<{ formId: string }>();
     const [surveyModel, setSurveyModel] = useState<Model>();
     const [questions, setQuestions] = useState<Question[]>();
+
+    const getFormattedDate = (date?: Date) => {
+        if (!date) {
+            return;
+        }
+
+        return new Date(date).toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', month: '2-digit', day: '2-digit', year: 'numeric', hour12: true });
+    }
 
     const changeSelectedSubmission = async () => {
         startTransition(async () => {
@@ -43,7 +51,7 @@ const SubmissionSheet = ({ submission }: SubmissionSheetProps) => {
                 const submissionData = JSON.parse(submission?.jsonData);
                 survey.data = submissionData;
                 setSurveyModel(survey);
-                setQuestions(survey.getAllQuestions(false, true, true));
+                setQuestions(survey.getAllQuestions(true, true, true));
             }
         })
     }
@@ -63,8 +71,7 @@ const SubmissionSheet = ({ submission }: SubmissionSheetProps) => {
             <Sheet modal={false} open={submission != null}>
                 <SheetContent className="w-[720px] sm:w-[620px] sm:max-w-none">
                     <SheetHeader>
-                        <SheetTitle>{surveyModel?.title} <Link2 className="inline-block" /></SheetTitle>
-
+                        <SheetTitle>{surveyModel?.title} <Link2 className="inline-block ml-4" /></SheetTitle>
                     </SheetHeader>
                     <div className="my-8 flex space-x-2">
                         <Link href="#" onClick={() => toast(comingSoonMessage)}>
@@ -86,19 +93,48 @@ const SubmissionSheet = ({ submission }: SubmissionSheetProps) => {
                         </Link>
                     </div>
                     <div className="grid gap-4 py-4">
-                        {questions?.map(question => (
-                            <div className="grid grid-cols-3 items-center gap-4">
-                                <Label htmlFor={question.name} className="text-right col-span-1">
-                                    {question.title}
-                                </Label>
-                                <Input disabled id={question.name} value={question.value} className="col-span-2" />
-                            </div>
-                        ))}
+                        {questions?.map(question => {
+                            return (
+                                <div className="grid grid-cols-5 items-center gap-4">
+                                    <Label htmlFor={question.name} className="text-right col-span-2">
+                                        {question.title} {question.getType()}
+                                    </Label>
+                                    <AnswerViewer
+                                        key={question.id}
+                                        forQuestion={question} />
+                                </div>
+                            );
+                        })}
                     </div>
+                    <div className="grid grid-cols-5 py-2 items-center gap-4">
+                        <span className="text-right self-start col-span-2">
+                            Is Complete
+                        </span>
+                        <span className="text-sm text-muted-foreground col-span-3">
+                            <span className={cn("flex h-2 w-2 mr-1 rounded-full inline-block", submission.isComplete ? "bg-green-600" : "bg-gray-600")} />
+                            {submission.isComplete ? "Yes" : "No"}
+                        </span>
+                    </div>
+                    {submission.isComplete ? (
+                        <div className="grid grid-cols-5 py-2 items-center gap-4">
+                            <span className="text-right self-start col-span-2">
+                                Submitted on
+                            </span>
+                            <span className="text-sm text-muted-foreground col-span-3">
+                                {getFormattedDate(submission.completedAt)}
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-5 py-2 items-center gap-4">
+                            <span className="text-right self-start col-span-2">
+                                Last updated on
+                            </span>
+                            <span className="text-sm text-muted-foreground col-span-3">
+                                {getFormattedDate(submission.createdAt)}
+                            </span>
+                        </div>
+                    )}
                     <SheetFooter>
-                        <SheetClose asChild>
-                            <Button type="submit">Save changes</Button>
-                        </SheetClose>
                     </SheetFooter>
                 </SheetContent>
             </Sheet>

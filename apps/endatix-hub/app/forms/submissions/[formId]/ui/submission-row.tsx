@@ -12,6 +12,7 @@ import Link from "next/link";
 type SubmissionsRowProps = {
     item: Submission;
     onClick: () => void;
+    isSelected: boolean;
 };
 
 const getStatusLabel = (isComplete: boolean) => isComplete ? "Yes" : "No";
@@ -28,9 +29,9 @@ const getCompletionTime = (startedAt: Date, completedAt: Date): string => {
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-const SubmissionRow = ({ item, onClick }: SubmissionsRowProps) => {
+const SubmissionRow = ({ item, onClick, isSelected }: SubmissionsRowProps) => {
     return (
-        <TableRow key={item.id} onClick={onClick}>
+        <TableRow key={item.id} onClick={onClick} className={isSelected ? "bg-accent" : ""}>
             <TableCell>
                 <Badge variant="outline">
                     <span className={cn("flex h-2 w-2 mr-1 rounded-full", item.isComplete ? "bg-green-600" : "bg-gray-600")} />
