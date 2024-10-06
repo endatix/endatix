@@ -2,7 +2,6 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Question } from "survey-core"
 
-
 interface RadioGroupAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
     question: Question
 }

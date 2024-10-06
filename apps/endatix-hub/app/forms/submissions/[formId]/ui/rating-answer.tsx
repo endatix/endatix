@@ -18,17 +18,17 @@ const RatingAnswer: React.FC<RatingAnswerProps> = ({ question, ...props }) => {
 
     return (
         <>
-            <div  {...props} className={cn("flex items-center gap-2", props.className)}>
+            <div  {...props} className={cn("flex items-center gap-1", props.className)}>
                 {ratingScale.map((scale, index) => (
                     <React.Fragment key={index}>
                         {scale <= ratingValue ? (
-                            <Star className="text-primary fill-primary" />
+                            <Star className="h-4 w-4 text-primary fill-primary cursor-not-allowed" />
                         ) : (
-                            <Star className="text-primary" />
+                            <Star className="h-4 w-4 text-primary cursor-not-allowed" />
                         )}
                     </React.Fragment>
                 ))}
-               <span className="pt-4 text-sm text-muted-foreground">{ratingText}</span>
+               <span className="pt-2 text-sm text-muted-foreground">{ratingText}</span>
             </div>
         </>
     );

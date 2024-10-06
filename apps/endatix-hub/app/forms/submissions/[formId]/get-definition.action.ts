@@ -4,7 +4,7 @@ import { getFormDefinition } from '@/services/api';
 
 export interface GetDefinitionRequest {
     formId: string,
-    definitionId: string
+    definitionId?: string
 }
 
 export interface SelectedDefinitionResult {

@@ -15,7 +15,7 @@ interface DropdownAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
       const value = question.value;
       let text = value;
   
-      const selectedChoice = question.choices.find((c) => c.value === 2);
+      const selectedChoice = question.choices.find((c : Question) => c.value === 2);
       if (selectedChoice) {
         text = selectedChoice.title;
       }
