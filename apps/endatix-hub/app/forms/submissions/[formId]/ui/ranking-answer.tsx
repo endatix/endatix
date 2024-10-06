@@ -9,7 +9,7 @@ interface RankingAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
 const RankingAnswer = ({ question, className, ...props }: RankingAnswerProps) => {
     const rankedAnswers: string[] = question.value;
     return (
-        <div className={cn("flex flex-col", className)}>
+        <div className={cn("flex flex-col", className)} {...props}>
             {rankedAnswers.map(answer => (
                 <div key={answer} className="flex items-center text-sm">
                     <GripVertical className="w-4 h-4 cursor-not-allowed text-muted-foreground" />
