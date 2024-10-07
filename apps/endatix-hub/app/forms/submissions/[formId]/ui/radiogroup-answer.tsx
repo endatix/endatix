@@ -6,7 +6,7 @@ import { Question } from "survey-core"
 interface RadioGroupAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
     question: Question
 }
-const RadioGroupAnswer = ({ question, className, ...props }: RadioGroupAnswerProps) => {
+const RadioGroupAnswer = ({ question, className }: RadioGroupAnswerProps) => {
     if (question.value === undefined) {
         return <Minus className="h-4 w-4" />;
     }

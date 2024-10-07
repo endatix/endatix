@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Submission } from "@/types";
 import SubmissionRow from "./submission-row";
-import { Suspense, useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import SubmissionSheet from "./submission-sheet";
 
@@ -19,35 +19,33 @@ type SubmissionsTableProps = {
 
 const SubmissionsTable = ({ data }: SubmissionsTableProps) => {
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
-  const selectedSubmissionIdRef = useRef<string | null>(selectedSubmissionId);
-
-  // Key event handler
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (!selectedSubmissionId) {
-      return;
-    }
-
-    if (e.key === "Escape") {
-      setSelectedSubmissionId(null); // Deselect
-      return;
-    }
-
-    const currentIndex = data.findIndex(s => s.id === selectedSubmissionId);
-    if (e.key === "ArrowUp" || e.key === "ArrowRight") {
-      const prevIndex = (currentIndex > 0 ? currentIndex - 1 : data.length - 1);
-      setSelectedSubmissionId(data[prevIndex].id);
-    } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
-      const nextIndex = (currentIndex < data.length - 1 ? currentIndex + 1 : 0);
-      setSelectedSubmissionId(data[nextIndex].id);
-    }
-  };
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedSubmissionId) {
+        return;
+      }
+
+      if (e.key === "Escape") {
+        setSelectedSubmissionId(null); // Deselect
+        return;
+      }
+
+      const currentIndex = data.findIndex(s => s.id === selectedSubmissionId);
+      if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+        const prevIndex = (currentIndex > 0 ? currentIndex - 1 : data.length - 1);
+        setSelectedSubmissionId(data[prevIndex].id);
+      } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+        const nextIndex = (currentIndex < data.length - 1 ? currentIndex + 1 : 0);
+        setSelectedSubmissionId(data[nextIndex].id);
+      }
+    };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectedSubmissionId]);
+  }, [selectedSubmissionId, data]);
 
   const selectedSubmission = useMemo(
     () => data.find(s => s.id === selectedSubmissionId),
