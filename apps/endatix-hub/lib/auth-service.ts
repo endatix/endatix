@@ -47,7 +47,7 @@ export const decryptToken = async (token: string): Promise<JWTPayload> => {
 }
 
 export const getSession = async () => {
-    const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+    const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
 
     if (!session.isLoggedIn) {
         session.isLoggedIn = defaultSession.isLoggedIn;

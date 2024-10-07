@@ -1,32 +1,33 @@
 import { FormDefinition } from '@/types';
-import dynamic from 'next/dynamic';
-import { getFormDefinitionByFormId } from "@/services/api";
+import { getActiveFormDefinition } from "@/services/api";
+import SurveyJsContainer from './ui/survey-js-container';
 
-const SurveyComponent = dynamic(() => import('@/components/survey'), {
-  ssr: false,
-});
+interface ShareSurveyPageProps {
+  params: {
+    formId: string;
+  };
+}
 
+export default async function ShareSurveyPage({ params }: ShareSurveyPageProps) {
+  const { formId } = await params;
+  const surveyJson = await getServerSideProps(formId);
 
-export default async function Survey({ params }: { params: { formId: string } }) {
-  const surveyJson = await getServerSideProps(params.formId);
-
-  if(!surveyJson) {
+  if (!surveyJson) {
     return <div>Form not found</div>;
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center p-8">
-      <SurveyComponent definition={surveyJson} formId={params.formId} />
+      <SurveyJsContainer formId={formId} definition={surveyJson} />
     </div>
   );
 }
 
 const getServerSideProps = async (formId: string) => {
-
   let formJson: string | null = null;
 
   try {
-    const response: FormDefinition = await getFormDefinitionByFormId(formId);
+    const response: FormDefinition = await getActiveFormDefinition(formId);
     formJson = response?.jsonData ? response.jsonData : null;
   } catch (error) {
     console.error("Failed to load form:", error);
