@@ -1,7 +1,6 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { useParams } from "next/navigation";
 import {
     Sheet,
@@ -49,27 +48,27 @@ const SubmissionSheet = ({ submission }: SubmissionSheetProps) => {
         });
     };
 
-    const changeSelectedSubmission = async () => {
-        startTransition(async () => {
-            const getDefinitionRequest: GetDefinitionRequest = {
-                formId: params.formId,
-                definitionId: submission?.formDefinitionId,
-            };
-            const result: SelectedDefinitionResult = await getDefinition(
-                getDefinitionRequest
-            );
-            if (result.isSuccess && result.definitionsData && submission) {
-                const json = JSON.parse(result.definitionsData);
-                const survey = new Model(json);
-                const submissionData = JSON.parse(submission?.jsonData);
-                survey.data = submissionData;
-                setSurveyModel(survey);
-                setQuestions(survey.getAllQuestions(true, true, true));
-            }
-        });
-    };
-
     useEffect(() => {
+        const changeSelectedSubmission = async () => {
+            startTransition(async () => {
+                const getDefinitionRequest: GetDefinitionRequest = {
+                    formId: params.formId,
+                    definitionId: submission?.formDefinitionId,
+                };
+                const result: SelectedDefinitionResult = await getDefinition(
+                    getDefinitionRequest
+                );
+                if (result.isSuccess && result.definitionsData && submission) {
+                    const json = JSON.parse(result.definitionsData);
+                    const survey = new Model(json);
+                    const submissionData = JSON.parse(submission?.jsonData);
+                    survey.data = submissionData;
+                    setSurveyModel(survey);
+                    setQuestions(survey.getAllQuestions(true, true, true));
+                }
+            });
+        };
+
         const fetchDefinition = async () => {
             if (submission) {
                 await changeSelectedSubmission();
@@ -77,7 +76,7 @@ const SubmissionSheet = ({ submission }: SubmissionSheetProps) => {
         };
 
         fetchDefinition();
-    }, [submission]);
+    }, [submission, params]);
 
     return (
         submission &&
