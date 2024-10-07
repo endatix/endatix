@@ -44,6 +44,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@18.3.0)(@types/react@18.3.5)(react-dom@19.0.0-rc-e4953922-20240919(react@19.0.0-rc-e4953922-20240919))(react@19.0.0-rc-e4953922-20240919)
+      '@swc/helpers':
+        specifier: ^0.5.13
+        version: 0.5.13
       babel-plugin-react-compiler:
         specifier: 0.0.0-experimental-6067d4e-20240919
         version: 0.0.0-experimental-6067d4e-20240919
@@ -77,6 +80,9 @@ importers:
       sonner:
         specifier: ^1.5.0
         version: 1.5.0(react-dom@19.0.0-rc-e4953922-20240919(react@19.0.0-rc-e4953922-20240919))(react@19.0.0-rc-e4953922-20240919)
+      styled-jsx:
+        specifier: ^5.1.6
+        version: 5.1.6(react@19.0.0-rc-e4953922-20240919)
       survey-core:
         specifier: ^1.12.4
         version: 1.12.4
