@@ -1,6 +1,7 @@
-
+import Image from "next/image";
 import NavLink from "./nav-link";
 import Link from "next/link";
+import EndatixLogoSvg from "@/public/icons/icon.svg";
 import { SitemapService } from "@/services/sitemap-service";
 
 const MobileNav = () => {
@@ -10,9 +11,14 @@ const MobileNav = () => {
     <nav className="grid gap-6 text-lg font-medium">
       <Link
         href={logo.path}
-        className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
+        className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-sm text-lg font-semibold text-primary-foreground md:text-base"
       >
-        <logo.IconType className="h-5 w-5 transition-all group-hover:scale-110" />
+        <Image
+          aria-hidden
+          className="h-8 w-8 transition-all group-hover:scale-110 rounded-sm"
+          src={EndatixLogoSvg}
+          alt="logo"
+        />
         <span className="sr-only">{logo.text}</span>
       </Link>
       {sitemapList.map((navItem) => (
