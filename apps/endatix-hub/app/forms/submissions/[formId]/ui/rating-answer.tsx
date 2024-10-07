@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Star } from "lucide-react";
+import { Minus, Star } from "lucide-react";
 import React from "react";
 import { Question } from "survey-core";
 
@@ -16,21 +16,23 @@ const RatingAnswer: React.FC<RatingAnswerProps> = ({ question, ...props }) => {
     const ratingScale = Array.from({ length: (maxRating - minRating) / ratingStep + 1 }, (_, i) => minRating + i * ratingStep);
 
 
+    if (question.value === undefined) {
+        return <Minus className="h-4 w-4" />
+    }
+
     return (
-        <>
-            <div  {...props} className={cn("flex items-center gap-1", props.className)}>
-                {ratingScale.map((scale, index) => (
-                    <React.Fragment key={index}>
-                        {scale <= ratingValue ? (
-                            <Star className="h-4 w-4 text-primary fill-primary cursor-not-allowed" />
-                        ) : (
-                            <Star className="h-4 w-4 text-primary cursor-not-allowed" />
-                        )}
-                    </React.Fragment>
-                ))}
-               <span className="pt-2 text-sm text-muted-foreground">{ratingText}</span>
-            </div>
-        </>
+        <div  {...props} className={cn("flex items-center gap-1", props.className)}>
+            {ratingScale.map((scale, index) => (
+                <React.Fragment key={index}>
+                    {scale <= ratingValue ? (
+                        <Star className="h-4 w-4 text-primary fill-primary cursor-not-allowed" />
+                    ) : (
+                        <Star className="h-4 w-4 text-primary cursor-not-allowed" />
+                    )}
+                </React.Fragment>
+            ))}
+            <span className="pt-2 text-sm text-muted-foreground">{ratingText}</span>
+        </div>
     );
 }
 

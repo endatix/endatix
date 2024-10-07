@@ -1,5 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import { Minus } from "lucide-react";
 import React from "react";
 import { Question } from "survey-core";
 
@@ -13,17 +15,18 @@ interface MatrixAnswer {
 }
 
 const MatrixAnswer = ({
-    question,
-    className,
-    ...props
+    question
 }: MatrixAnswerProps) => {
-    const getMatrixAnswers = (): Array<MatrixAnswer> => {
+    const matrixAnswers = React.useMemo(() => {
         if (!question.rows || !question.columns) {
             return [];
         }
 
         const answers: Array<MatrixAnswer> = [];
         question.rows.forEach((row) => {
+            if (!question?.value) {
+                return;
+            }
             const rowText = row.text;
             const answerValue = question.value[row.id];
             const answerText = question.columns.find(c => c.value === answerValue).title;
@@ -37,16 +40,16 @@ const MatrixAnswer = ({
         });
 
         return answers;
-    }
+    }, [question.rows, question.columns, question.value]);
 
     return (
         <>
             <Label
                 htmlFor={question.name}
-                className="text-left col-span-5">
+                className={cn("text-left ", (matrixAnswers.length > 0 ? "col-span-5" : "col-span-2"))}>
                 {question.title}
             </Label>
-            {getMatrixAnswers().map(answer => (
+            {matrixAnswers.map(answer => (
                 <>
                     <Label
                         htmlFor={answer.question}
@@ -58,7 +61,8 @@ const MatrixAnswer = ({
                     </div>
                 </>
             ))}
-            <Separator className="col-span-5"/>
+            {!matrixAnswers.length && <Minus className="h-4 w-4" />}
+            {matrixAnswers.length > 0 && <Separator className="col-span-5" />}
         </>
     );
 };
