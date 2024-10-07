@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 
-const SurveyComponent = dynamic(() => import('@/components/survey'), {
+const SurveyComponent = dynamic(() => import('@/components/survey-component'), {
     ssr: false,
 });
 
