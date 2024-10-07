@@ -1,4 +1,4 @@
-import { Form, FormDefinition } from "../../../types";
+import { Form, FormDefinition } from "../../../../types";
 import { getForm, getActiveFormDefinition } from "@/services/api";
 import FormEditor from "./ui/form-editor";
 
