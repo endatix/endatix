@@ -65,6 +65,11 @@ internal sealed class AuthService : IAuthService
         Guard.Against.NullOrEmpty(token, nameof(token));
 
         var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return Result.Invalid(new ValidationError("Invalid user"));
+        }
+
         var tokenHash = _passwordHasher.HashPassword(user, token);
 
         user.RefreshTokenHash = tokenHash;

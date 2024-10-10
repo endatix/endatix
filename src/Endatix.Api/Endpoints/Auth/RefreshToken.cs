@@ -27,6 +27,12 @@ public class RefreshToken(IMediator mediator) : Endpoint<RefreshTokenRequest, Re
         });
     }
 
+    /// <summary>
+    /// Handles the refresh token request.
+    /// </summary>
+    /// <param name="request">The request containing the authorization header and refresh token.</param>
+    /// <param name="cancellationToken">Cancellation token for the request.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public override async Task HandleAsync(RefreshTokenRequest request, CancellationToken cancellationToken)
     {
         var authHeader = request.Authorization;

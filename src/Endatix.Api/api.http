@@ -37,7 +37,7 @@ Authorization: Bearer {{jwt}}
 Content-Type: application/json
 
 {
-    "refreshToken": "example-refresh-token"
+    "refreshToken": "{{login.response.body.$.refreshToken}}"
 }
 
 ###
