@@ -44,7 +44,7 @@ public class Login(IMediator mediator) : Endpoint<LoginRequest, LoginResponse>
         }
         else
         {
-            var successfulResponse = new LoginResponse(request.Email, result.Value.Token, string.Empty);
+            var successfulResponse = new LoginResponse(request.Email, result.Value.AccessToken.Token, result.Value.RefreshToken.Token);
             await SendOkAsync(successfulResponse, cancellationToken);
         }
     }
