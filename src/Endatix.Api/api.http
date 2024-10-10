@@ -2,10 +2,10 @@
 @host=https://localhost
 @port=5001
 @apiBaseUrl = {{host}}:{{port}}/api
-@jwt = {{login.response.body.token}}
+@jwt = {{login.response.body.$.accessToken}}
 @formId = 1263081289527853056
-@validUsername=developer@endatix.com
-@validPassword=P@$$word1
+@validEmail=user@example.com
+@validPassword=Password123!
 
 // Register user
 # @name register
@@ -13,9 +13,9 @@ POST {{apiBaseUrl}}/auth/register
 Content-Type: application/json
 
 {
-    "email": "developer@endatix.com",
-    "password": "P@$$word1",
-    "confirmPassword": "P@$$word1"
+    "email": "{{validEmail}}",
+    "password": "{{validPassword}}",
+    "confirmPassword": "{{validPassword}}"
 }
 
 ###
@@ -25,8 +25,19 @@ POST {{apiBaseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "developer@endatix.com",
-    "password": "P@$$word1"
+    "email": "{{validEmail}}",
+    "password": "{{validPassword}}"
+}
+
+###
+// Refresh JWT token
+# @name refresh
+POST {{apiBaseUrl}}/auth/refresh-token
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+    "refreshToken": "example-refresh-token"
 }
 
 ###

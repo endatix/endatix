@@ -1,10 +1,14 @@
+using FastEndpoints;
+
 namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
 /// Represents the request for the "/refresh-token" endpoint
 /// </summary>
-public record RefreshTokenRequest(long UserId, string RefreshToken)
+public record RefreshTokenRequest(string? Authorization, string? RefreshToken)
 {
-    public long UserId { get; init; } = UserId;
-    public string RefreshToken { get; init; } = RefreshToken;
+    [FromHeader]
+    public string? Authorization { get; init; } = Authorization;
+
+    public string? RefreshToken { get; init; } = RefreshToken;
 }

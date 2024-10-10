@@ -11,14 +11,32 @@ public class RefreshTokenHandler(IAuthService authService, ITokenService tokenSe
 {
     public async Task<Result<AuthTokensDto>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        var validationResult = await authService.ValidateRefreshToken(request.UserId, request.RefreshToken, cancellationToken);
+        var accessTokenValidationResult = tokenService.ValidateAccessToken(request.AccessToken, validateLifetime: false);
 
-        if (validationResult.IsInvalid())
+        if (accessTokenValidationResult.IsInvalid())
         {
-            return Result.Invalid(validationResult.ValidationErrors);
+            return Result.Invalid(accessTokenValidationResult.ValidationErrors);
         }
 
-        var user = validationResult.Value;
+        if (!accessTokenValidationResult.IsSuccess)
+        {
+            return Result.Error();
+        }
+
+        var userId = accessTokenValidationResult.Value;
+        var refreshTokenValidationResult = await authService.ValidateRefreshToken(userId, request.RefreshToken, cancellationToken);
+
+        if (refreshTokenValidationResult.IsInvalid())
+        {
+            return Result.Invalid(refreshTokenValidationResult.ValidationErrors);
+        }
+
+        if (!refreshTokenValidationResult.IsSuccess)
+        {
+            return Result.Error();
+        }
+
+        var user = refreshTokenValidationResult.Value;
         var accessToken = tokenService.IssueAccessToken(user);
         var refreshToken = tokenService.IssueRefreshToken();
 

@@ -15,6 +15,11 @@ public class LoginHandler(IAuthService authService, ITokenService tokenService) 
             return Result.Invalid(validationResult.ValidationErrors);
         }
 
+        if (!validationResult.IsSuccess)
+        {
+            return Result.Error();
+        }
+
         var user = validationResult.Value;
         var accessToken = tokenService.IssueAccessToken(user);
         var refreshToken = tokenService.IssueRefreshToken();

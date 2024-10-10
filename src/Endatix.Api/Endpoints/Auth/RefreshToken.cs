@@ -23,18 +23,20 @@ public class RefreshToken(IMediator mediator) : Endpoint<RefreshTokenRequest, Re
             s.Description = "Generates a new access token using a valid refresh token.";
             s.Responses[200] = "Access token successfully refreshed.";
             s.Responses[400] = "Invalid or expired refresh token.";
-            s.ExampleRequest = new RefreshTokenRequest(1234567890, "your-refresh-token-here");
+            s.ExampleRequest = new { RefreshToken = "example-refresh-token" };
         });
     }
 
     public override async Task HandleAsync(RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        var refreshCommand = new RefreshTokenCommand(request.UserId, request.RefreshToken);
+        var authHeader = request.Authorization;
+        var accessToken = authHeader!["Bearer ".Length..].Trim();
+        var refreshCommand = new RefreshTokenCommand(accessToken, request.RefreshToken!);
         var result = await mediator.Send(refreshCommand, cancellationToken);
 
         if (result.IsInvalid())
         {
-            ThrowError("Invalid or expired refresh token.");
+            ThrowError("Invalid or expired token.");
         }
         else
         {
