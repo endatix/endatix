@@ -1,13 +1,15 @@
 ﻿namespace Endatix.Core.Abstractions;
 
 /// <summary>
-/// Represents a component that is able to generate unique identifiers
+/// Represents a component that is able to generate unique identifiers of a specific type
 /// </summary>
-public interface IIdGenerator
+/// <typeparam name="TKey">The type of the identifier</typeparam>
+public interface IIdGenerator<TKey> where TKey: IEquatable<TKey>
 {
     /// <summary>
-    /// Generates a unique identifier. Implementation must be tread safe
+    /// Generates a unique identifier of the specified type. Implementation must be tread safe
     /// </summary>
-    /// <returns>A unique identifier</returns>
-    long CreateId();
+    /// <returns>A unique identifier of the specified type</returns>
+    TKey CreateId();
 }
+

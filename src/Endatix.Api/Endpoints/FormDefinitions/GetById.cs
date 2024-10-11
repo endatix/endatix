@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormDefinitions.GetById;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
 
@@ -18,7 +19,7 @@ public class GetById(IMediator _mediator) : Endpoint<GetFormDefinitionByIdReques
     public override void Configure()
     {
         Get("forms/{formId}/definitions/{definitionId}");
-        Roles("Admin");
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Get a form definition by ID";

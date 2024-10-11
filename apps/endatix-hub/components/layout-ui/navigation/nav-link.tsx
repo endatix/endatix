@@ -1,9 +1,9 @@
 "use client";
+
 import Link from "next/link";
 import { ReactNode, useMemo } from "react";
 import { usePathname } from "next/navigation";
-import { toast } from "sonner";
-import { comingSoonMessage } from "@/lib/constants";
+import { showComingSoonMessage } from "../teasers/coming-soon-link";
 
 type NavLinkProps = {
   path: string;
@@ -37,8 +37,10 @@ const NavLink = ({
 
   return (
     <Link
-      onClick={() => {
-        toast(comingSoonMessage);
+      onClick={(event) => {
+        if (currentPath != HOME_ROUTE_PATH) {
+          showComingSoonMessage(event);
+        }
       }}
       href={path}
       className={_className}
