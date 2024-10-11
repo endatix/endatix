@@ -1,11 +1,6 @@
-import dynamic from "next/dynamic";
-import { Form, FormDefinition } from "../../../types";
-import { getFormById, getFormDefinitionByFormId } from "@/services/api";
-import { SurveyCreatorProps } from "@/components/survey-creator";
-
-const SurveyCreatorComponent = dynamic(() => import('@/components/survey-creator'), {
-  ssr: false,
-});
+import { Form, FormDefinition } from "../../../../types";
+import { getForm, getActiveFormDefinition } from "@/services/api";
+import FormEditor from "./ui/form-editor";
 
 interface FormCreatorPageProps {
   params: {
@@ -14,15 +9,15 @@ interface FormCreatorPageProps {
 }
 
 const FormCreatorPage = async ({ params }: FormCreatorPageProps) => {
-  const { formId } = params;
+  const { formId } = await params;
 
   let form: Form | null = null;
   let formJson: object | null = null;
 
   try {
-    form = await getFormById(formId);
+    form = await getForm(formId);
 
-    const response: FormDefinition = await getFormDefinitionByFormId(formId);
+    const response: FormDefinition = await getActiveFormDefinition(formId);
     formJson = response?.jsonData ? JSON.parse(response.jsonData) : null;
   } catch (error) {
     console.error("Failed to load form:", error);
@@ -43,7 +38,7 @@ const FormCreatorPage = async ({ params }: FormCreatorPageProps) => {
 
   return (
     <div className="flex min-h-screen flex-col items-center p-8">
-      <SurveyCreatorComponent {...props} />
+      <FormEditor {...props} />
     </div>
   );
 }

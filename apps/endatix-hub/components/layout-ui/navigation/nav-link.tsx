@@ -38,7 +38,9 @@ const NavLink = ({
   return (
     <Link
       onClick={(event) => {
-        showComingSoonMessage(event);
+        if (currentPath != HOME_ROUTE_PATH) {
+          showComingSoonMessage(event);
+        }
       }}
       href={path}
       className={_className}

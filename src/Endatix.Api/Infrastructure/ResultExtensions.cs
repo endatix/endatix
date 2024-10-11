@@ -9,6 +9,19 @@ namespace Endatix.Api.Infrastructure;
 #if NET7_0_OR_GREATER
 public static partial class ResultExtensions
 {
+     /// <summary>
+     /// Converts a <see cref="Result{TResponse}"/> to an instance of <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c>
+     /// without applying any mapping to the response model.
+     /// </summary>
+     /// <typeparam name="TResults">The Results object listing all the possible status endpoint responses</typeparam>
+     /// <typeparam name="TResponse">The HTTP endpoint response model value type being returned</typeparam>
+     /// <param name="result">The command/query result to convert to an <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c></param>
+     /// <returns></returns>
+     internal static TResults ToEndpointResponse<TResults, TResponse>(this AppDomain.IResult result)
+    {
+        return result.ToEndpointResponse<TResults, TResponse, TResponse>((response) => response);
+
+    }
     /// <summary>
     /// Convert a <see cref="Result{TEntity}"/> to an instance of <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c>
     /// </summary>
@@ -45,7 +58,12 @@ public static partial class ResultExtensions
     {
         var details = new StringBuilder("Next error(s) occurred:");
 
-        foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+        foreach (var error in result.Errors)
+        {
+            details.Append("* ");
+            details.Append(error);
+            details.AppendLine();
+        }
 
         return TypedResults.UnprocessableEntity(new ProblemDetails
         {
@@ -60,7 +78,13 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+            {
+                details.Append("* ");
+                details.Append(error);
+                details.AppendLine();
+            }
+
 
             return TypedResults.NotFound(new ProblemDetails
             {
@@ -80,7 +104,13 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+            {
+                details.Append("* ");
+                details.Append(error);
+                details.AppendLine();
+            }
+
 
             return TypedResults.Conflict(new ProblemDetails
             {
@@ -100,7 +130,12 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+            {
+                details.Append("* ");
+                details.Append(error);
+                details.AppendLine();
+            }
 
             return TypedResults.Problem(new ProblemDetails()
             {
@@ -121,7 +156,12 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+            {
+                details.Append("* ");
+                details.Append(error);
+                details.AppendLine();
+            }
 
             return TypedResults.Problem(new ProblemDetails
             {
@@ -142,7 +182,12 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+            {
+                details.Append("* ");
+                details.Append(error);
+                details.AppendLine();
+            }
 
             return TypedResults.Problem(new ProblemDetails
             {
@@ -163,7 +208,12 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+            {
+                details.Append("* ");
+                details.Append(error);
+                details.AppendLine();
+            }
 
             return TypedResults.Problem(new ProblemDetails
             {

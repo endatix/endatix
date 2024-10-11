@@ -8,6 +8,8 @@ import {
   Users2,
 } from "lucide-react";
 
+export const HOME_ROUTE_PATH = "/";
+
 const sitemapArray: INavItem[] = [
   {
     text: "Home",
@@ -16,7 +18,7 @@ const sitemapArray: INavItem[] = [
   },
   {
     text: "Forms",
-    path: "/",
+    path: "/forms",
     IconType: TextCursorInput,
   },
   {
