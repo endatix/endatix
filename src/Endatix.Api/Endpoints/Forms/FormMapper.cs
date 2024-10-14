@@ -32,3 +32,14 @@ public class FormMapper
     public static IEnumerable<T> Map<T>(IEnumerable<Form> forms) where T : FormModel, new() =>
         forms.Select(Map<T>).ToList();
 }
+
+public static class FormMapperExtensions {
+    /// <summary>
+    /// Extension method to expose the consumption of the <see cref="FormMapper.Map{T}(Form)"/> method.
+    /// </summary>
+    /// <param name="forms">The collection of form entities.</param>
+    /// <returns>A collection of mapped form API models.</returns>
+    public static IEnumerable<FormModel> ToFormModel(this IEnumerable<Form> forms){
+        return forms.Select(FormMapper.Map<FormModel>);
+    }
+}
