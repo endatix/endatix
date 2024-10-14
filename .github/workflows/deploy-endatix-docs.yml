@@ -1,0 +1,68 @@
+name: Deploy Endatix Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/endatix-docs/**/*"
+  workflow_dispatch:
+
+jobs:
+  deploy-endatix-docs:
+    env:
+      STORE_PATH:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./docs/endatix-docs
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.6"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.2
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: 🥡 Install Dependancies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🏗️ Build Project
+        run: pnpm run build
+
+      - name: 🚡 Upload package to FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{secrets.DOCS_FTP_URL}}
+          username: ${{secrets.DOCS_SITE_FTP_USER}}
+          password: ${{secrets.DOCS_FTP_PASS}}
+          local-dir: "./build/"
+          exclude: |
+            markdown-page/**
+
+      - name: Summary message
+        run: |
+          echo ">[!TIP] " >> $GITHUB_STEP_SUMMARY
+          echo "> ### Job Complete! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo ">check site at https://docs.endatix.com/" >> $GITHUB_STEP_SUMMARY

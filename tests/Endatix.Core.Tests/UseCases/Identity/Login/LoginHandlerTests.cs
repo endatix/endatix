@@ -1,3 +1,4 @@
+using MediatR;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
@@ -10,13 +11,15 @@ public class LoginHandlerTests
 {
     private readonly IAuthService _authService;
     private readonly ITokenService _tokenService;
+    private readonly IMediator _mediator;
     private readonly LoginHandler _handler;
 
     public LoginHandlerTests()
     {
         _authService = Substitute.For<IAuthService>();
         _tokenService = Substitute.For<ITokenService>();
-        _handler = new LoginHandler(_authService, _tokenService);
+        _mediator = Substitute.For<IMediator>();
+        _handler = new LoginHandler(_authService, _tokenService, _mediator);
     }
 
     [Fact]
