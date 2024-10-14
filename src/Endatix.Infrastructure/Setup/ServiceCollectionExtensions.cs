@@ -1,17 +1,9 @@
-﻿using System;
-using Ardalis.GuardClauses;
-using FastEndpoints.Security;
-using Microsoft.Extensions.Configuration;
-using Endatix.Infrastructure;
-using Endatix.Infrastructure.Auth;
+﻿using Ardalis.GuardClauses;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
 using Endatix.Core;
 using Endatix.Infrastructure.Setup;
-using Endatix.Core.Infrastructure.Messaging;
-using MediatR;
-using Endatix.Core.Infrastructure.Logging;
 
 namespace Microsoft.Extensions.DependencyInjection;
 

@@ -6,12 +6,11 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
-using Endatix.Infrastructure.Identity;
 using Endatix.Core.Entities.Identity;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Identity.Authentication;
+namespace Endatix.Infrastructure.Identity.Authentication;
 
 /// <summary>
 /// Implements the <see cref="ITokenService" /> interface to manage JWT tokens for users.

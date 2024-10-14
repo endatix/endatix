@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Api.Tests.Endpoints.Auth;
 
-
 public class LoginTests
 {
     private readonly IMediator _mediator;
@@ -43,9 +42,9 @@ public class LoginTests
         // Assert
         _endpoint.HttpContext.Response.StatusCode.Should().Be(200);
         response.Should().NotBeNull();
-        // response!.Email.Should().Be("user@example.com");
-        // response.Token.Should().Be("valid_token");
-        // TODO: Fix this test!
+        response!.Email.Should().Be("user@example.com");
+        response.AccessToken.Should().Be("valid_access_token");
+        response.RefreshToken.Should().Be("valid_refresh_token");
     }
 
     [Fact]

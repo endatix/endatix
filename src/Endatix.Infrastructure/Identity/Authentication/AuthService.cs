@@ -2,10 +2,9 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Identity;
-using Endatix.Infrastructure.Identity;
 using Endatix.Core.Entities.Identity;
 
-namespace Endatix.Infrastructure.Auth;
+namespace Endatix.Infrastructure.Identity.Authentication;
 
 internal sealed class AuthService : IAuthService
 {
