@@ -1,16 +1,15 @@
-﻿using FastEndpoints;
-using MediatR;
+﻿using MediatR;
+using FastEndpoints;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Forms.List;
+using Endatix.Api.Infrastructure;
 
 namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
 /// Endpoint for listing forms.
 /// </summary>
-public class List(IMediator _mediator) : Endpoint<FormsListRequest, Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>>
+public class List(IMediator mediator) : Endpoint<FormsListRequest, Results<Ok<IEnumerable<FormModel>>, BadRequest>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -33,15 +32,14 @@ public class List(IMediator _mediator) : Endpoint<FormsListRequest, Results<Ok<I
     /// </summary>
     /// <param name="request">The request model containing pagination details.</param>
     /// <param name="cancellationToken">Cancellation token for the async operation.</param>
-    public override async Task<Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>> ExecuteAsync(FormsListRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<IEnumerable<FormModel>>, BadRequest>> ExecuteAsync(FormsListRequest request, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(
+        var result = await mediator.Send(
             new ListFormsQuery(request.Page, request.PageSize),
             cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>,
-            IEnumerable<Form>,
-            IEnumerable<FormModel>>(FormMapper.Map<FormModel>);
+        return TypedResultsBuilder
+            .MapResult(result, forms => forms.ToFormModel())
+            .ConfigureResults<Ok<IEnumerable<FormModel>>, BadRequest>();
     }
 }
