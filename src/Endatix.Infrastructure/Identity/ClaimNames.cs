@@ -6,6 +6,11 @@ namespace Endatix.Infrastructure.Identity;
 public static class ClaimNames
 {
     /// <summary>
+    /// Represents a claim for user roles.
+    /// </summary>
+    public const string Role = "role";
+
+    /// <summary>
     /// Represents a claim for user permissions.
     /// </summary>
     public const string Permission = "permission";

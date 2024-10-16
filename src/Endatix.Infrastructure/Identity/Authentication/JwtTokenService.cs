@@ -6,18 +6,19 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
-using Endatix.Infrastructure.Identity;
 using Endatix.Core.Entities.Identity;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Identity.Authentication;
+namespace Endatix.Infrastructure.Identity.Authentication;
 
 /// <summary>
 /// Implements the <see cref="ITokenService" /> interface to manage JWT tokens for users.
 /// </summary>
 internal sealed class JwtTokenService : ITokenService
 {
+    private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
+
     private readonly JwtOptions _jwtOptions;
 
     /// <summary>
@@ -32,11 +33,12 @@ internal sealed class JwtTokenService : ITokenService
         Guard.Against.NullOrEmpty(_jwtOptions.SigningKey, nameof(_jwtOptions.SigningKey), "Signing key cannot be empty. Please check your appSettings.");
         Guard.Against.NullOrEmpty(_jwtOptions.Issuer, nameof(_jwtOptions.Issuer), "Issuer cannot be empty. Please check your appSettings");
         Guard.Against.NullOrEmpty(_jwtOptions.Audiences, nameof(_jwtOptions.Audiences), "You need at least one audience in your appSettings.");
-        Guard.Against.NegativeOrZero(_jwtOptions.ExpiryInMinutes, nameof(_jwtOptions.ExpiryInMinutes), "Token expiration must be positive number representing minutes for token lifetime");
+        Guard.Against.NegativeOrZero(_jwtOptions.AccessExpiryInMinutes, nameof(_jwtOptions.AccessExpiryInMinutes), "Access Token expiration must be positive number representing minutes for access token lifetime");
+        Guard.Against.NegativeOrZero(_jwtOptions.RefreshExpiryInDays, nameof(_jwtOptions.RefreshExpiryInDays), "Refresh Token expiration must be positive number representing days for refresh token lifetime");
     }
 
     /// <inheritdoc />
-    public TokenDto IssueToken(User forUser, string? forAudience = null)
+    public TokenDto IssueAccessToken(User forUser, string? forAudience = null)
     {
         var secret = _jwtOptions.SigningKey;
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
@@ -58,7 +60,7 @@ internal sealed class JwtTokenService : ITokenService
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = subject,
-            Expires = DateTime.Now.AddMinutes(_jwtOptions.ExpiryInMinutes),
+            Expires = DateTime.UtcNow.AddMinutes(_jwtOptions.AccessExpiryInMinutes),
             SigningCredentials = credentials,
             Issuer = _jwtOptions.Issuer,
             Audience = forAudience
@@ -68,6 +70,44 @@ internal sealed class JwtTokenService : ITokenService
         var token = handler.CreateToken(tokenDescriptor);
 
         return new TokenDto(handler.WriteToken(token), token.ValidTo);
+    }
+
+    public async Task<Result<long>> ValidateAccessTokenAsync(string accessToken, bool validateLifetime = true)
+    {
+        var validationParameters = new TokenValidationParameters
+        {
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey)),
+            ValidIssuer = _jwtOptions.Issuer,
+            ValidAudiences = _jwtOptions.Audiences,
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = validateLifetime,
+            ValidateIssuerSigningKey = true,
+            ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW_IN_SECONDS)
+        };
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var result = await tokenHandler.ValidateTokenAsync(accessToken, validationParameters);
+        if (!result.IsValid)
+        {
+            return Result.Invalid(new ValidationError(result.Exception?.Message ?? "Invalid access token"));
+        }
+
+        var validatedJwtToken = (JwtSecurityToken)result.SecurityToken;
+        if (!long.TryParse(validatedJwtToken.Subject, out var userId))
+        {
+            return Result.Invalid(new ValidationError("Invalid user ID"));
+        }
+
+        return Result.Success(userId);
+    }
+
+    public TokenDto IssueRefreshToken()
+    {
+        var token = Guid.NewGuid().ToString("N");
+        var expireAt = DateTime.UtcNow.AddDays(_jwtOptions.RefreshExpiryInDays);
+
+        return new TokenDto(token, expireAt);
     }
 
     /// <inheritdoc />

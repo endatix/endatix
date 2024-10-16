@@ -1,8 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Abstractions;
 using Endatix.Framework.Hosting;
-using Endatix.Identity.Authentication;
-using Endatix.Infrastructure.Auth;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
