@@ -61,6 +61,10 @@ public static class EndatixAppExtensions
         endatixApp.AddDataOptions();
         endatixApp.SetupIdentity(setupSettings);
 
+        endatixApp.Services.AddOptions<AssistantOptions>()
+                .BindConfiguration(AssistantOptions.SECTION_NAME)
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
         endatixApp.Services.AddScoped<IAssistantService, AssistantService>();
 
         return endatixApp;

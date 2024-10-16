@@ -1,19 +1,19 @@
 using System;
 using System.Threading.Tasks;
 using Endatix.Core.Abstractions;
+using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 
 namespace Endatix.Infrastructure.Assistant;
 
 public class AssistantService : IAssistantService
 {
-    private readonly string apiKey = "";
     private readonly string model = "gpt-4o";
     private readonly ChatClient client;
 
-    public AssistantService()
+    public AssistantService(IOptions<AssistantOptions> assistantOptions)
     {
-        client = new(model: model, apiKey: apiKey);
+        client = new(model: model, apiKey: assistantOptions.Value.OpenAiApiKey);
     }
 
     public string DefineForm(string prompt, string? definition = null)
