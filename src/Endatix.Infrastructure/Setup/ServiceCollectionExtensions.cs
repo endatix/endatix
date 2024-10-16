@@ -1,17 +1,11 @@
-﻿using System;
-using Ardalis.GuardClauses;
-using FastEndpoints.Security;
-using Microsoft.Extensions.Configuration;
-using Endatix.Infrastructure;
-using Endatix.Infrastructure.Auth;
+﻿using Ardalis.GuardClauses;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
 using Endatix.Core;
 using Endatix.Infrastructure.Setup;
-using Endatix.Core.Infrastructure.Messaging;
-using MediatR;
-using Endatix.Core.Infrastructure.Logging;
+using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Core.Features.WebHooks;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -76,5 +70,26 @@ public static class ServiceCollectionExtensions
     {
         options.IncludeLoggingPipeline = true;
         return options;
+    }
+
+    /// <summary>
+    /// This method adds WebHook processing services to the specified <see cref="IServiceCollection"/> instance.
+    /// </summary>
+    /// <param name="services">The <see cref="IServiceCollection"/> instance to configure.</param>
+    /// <returns>The configured <see cref="IServiceCollection"/> instance.</returns>
+    public static IServiceCollection AddWebHookProcessing(this IServiceCollection services)
+    {
+        services.AddSingleton<IBackgroundTasksQueue, BackgroundTasksQueue>();
+        services.AddSingleton(typeof(IWebHookService<>), typeof(BackgroundTaskWebHookService<>));
+        services.AddHostedService<WebHookBackgroundWorker>();
+
+        services.AddHttpClient<WebHookServer>((serviceProvider, client) =>
+               {
+                   const int DEFAULT_WEBHOOK_REQUEST_TIMEOUT_IN_SECONDS = 10;
+                   client.Timeout = TimeSpan.FromSeconds(DEFAULT_WEBHOOK_REQUEST_TIMEOUT_IN_SECONDS);
+                   client.DefaultRequestHeaders.UserAgent.ParseAdd(WebHookRequestHeaders.Constants.ENDATIX_USER_AGENT);
+               });
+
+        return services;
     }
 }

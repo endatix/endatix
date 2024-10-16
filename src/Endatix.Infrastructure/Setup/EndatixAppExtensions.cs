@@ -60,6 +60,7 @@ public static class EndatixAppExtensions
 
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
+        services.AddWebHookProcessing();
 
         if (setupSettings.Security != null)
         {
