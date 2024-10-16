@@ -6,16 +6,10 @@ using Endatix.Core.Entities.Identity;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 
-internal sealed class AuthService : IAuthService
+internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHasher<AppUser> passwordHasher) : IAuthService
 {
-    private readonly UserManager<AppUser> _userManager;
-    private readonly IPasswordHasher<AppUser> _passwordHasher;
-
-    public AuthService(UserManager<AppUser> userManager, IPasswordHasher<AppUser> passwordHasher)
-    {
-        _userManager = userManager;
-        _passwordHasher = passwordHasher;
-    }
+    private readonly UserManager<AppUser> _userManager = userManager;
+    private readonly IPasswordHasher<AppUser> _passwordHasher = passwordHasher;
 
     public async Task<Result<User>> ValidateCredentials(string email, string password, CancellationToken cancellationToken)
     {

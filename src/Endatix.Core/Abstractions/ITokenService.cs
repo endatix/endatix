@@ -23,7 +23,7 @@ public interface ITokenService
     /// <param name="accessToken">The access token to validate.</param>
     /// <param name="validateLifetime">Indicates whether the token's lifetime should be validated. Default value is true.</param>
     /// <returns>A Result containing the user ID if the token is valid.</returns>
-    Result<long> ValidateAccessToken(string accessToken, bool validateLifetime = true);
+    Task<Result<long>> ValidateAccessTokenAsync(string accessToken, bool validateLifetime = true);
 
     /// <summary>
     /// Revokes tokens associated with the specified user.

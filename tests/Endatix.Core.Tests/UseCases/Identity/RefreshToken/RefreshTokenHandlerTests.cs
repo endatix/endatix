@@ -28,8 +28,8 @@ public class RefreshTokenHandlerTests
         // Arrange
         var command = new RefreshTokenCommand("invalid_access_token", "refresh_token");
         var validationErrors = new List<ValidationError> { new("Invalid access token") };
-        _tokenService.ValidateAccessToken(command.AccessToken, false)
-            .Returns(Result.Invalid(validationErrors));
+        _tokenService.ValidateAccessTokenAsync(command.AccessToken, false)
+            .Returns(Task.FromResult<Result<long>>(Result.Invalid(validationErrors)));
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -44,8 +44,8 @@ public class RefreshTokenHandlerTests
     {
         // Arrange
         var command = new RefreshTokenCommand("access_token", "refresh_token");
-        _tokenService.ValidateAccessToken(command.AccessToken, false)
-            .Returns(Result.Error());
+        _tokenService.ValidateAccessTokenAsync(command.AccessToken, false)
+            .Returns(Task.FromResult<Result<long>>(Result.Error()));
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -62,8 +62,8 @@ public class RefreshTokenHandlerTests
         var userId = 1;
         var validationErrors = new List<ValidationError> { new("Invalid refresh token") };
 
-        _tokenService.ValidateAccessToken(command.AccessToken, false)
-            .Returns(Result<long>.Success(userId));
+        _tokenService.ValidateAccessTokenAsync(command.AccessToken, false)
+            .Returns(Task.FromResult(Result.Success((long)userId)));
         _authService.ValidateRefreshToken(userId, command.RefreshToken, Arg.Any<CancellationToken>())
             .Returns(Result.Invalid(validationErrors));
 
@@ -82,8 +82,8 @@ public class RefreshTokenHandlerTests
         var command = new RefreshTokenCommand("access_token", "refresh_token");
         var userId = 1;
 
-        _tokenService.ValidateAccessToken(command.AccessToken, false)
-            .Returns(Result<long>.Success(userId));
+        _tokenService.ValidateAccessTokenAsync(command.AccessToken, false)
+            .Returns(Task.FromResult(Result.Success((long)userId)));
         _authService.ValidateRefreshToken(userId, command.RefreshToken, Arg.Any<CancellationToken>())
             .Returns(Result.Error());
 
@@ -104,8 +104,8 @@ public class RefreshTokenHandlerTests
         var newAccessToken = new TokenDto("new_access_token", DateTime.UtcNow.AddMinutes(15));
         var newRefreshToken = new TokenDto("new_refresh_token", DateTime.UtcNow.AddDays(7));
 
-        _tokenService.ValidateAccessToken(command.AccessToken, false)
-            .Returns(Result<long>.Success(userId));
+        _tokenService.ValidateAccessTokenAsync(command.AccessToken, false)
+            .Returns(Task.FromResult(Result.Success((long)userId)));
         _authService.ValidateRefreshToken(userId, command.RefreshToken, Arg.Any<CancellationToken>())
             .Returns(Result<User>.Success(user));
         _tokenService.IssueAccessToken(user).Returns(newAccessToken);

@@ -72,7 +72,7 @@ internal sealed class JwtTokenService : ITokenService
         return new TokenDto(handler.WriteToken(token), token.ValidTo);
     }
 
-    public Result<long> ValidateAccessToken(string accessToken, bool validateLifetime = true)
+    public async Task<Result<long>> ValidateAccessTokenAsync(string accessToken, bool validateLifetime = true)
     {
         var validationParameters = new TokenValidationParameters
         {
@@ -86,18 +86,14 @@ internal sealed class JwtTokenService : ITokenService
             ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW_IN_SECONDS)
         };
 
-        JwtSecurityToken validatedJwtToken;
-        try
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var result = await tokenHandler.ValidateTokenAsync(accessToken, validationParameters);
+        if (!result.IsValid)
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            tokenHandler.ValidateToken(accessToken, validationParameters, out var validatedToken);
-            validatedJwtToken = (JwtSecurityToken)validatedToken;
-        }
-        catch (Exception ex)
-        {
-            return Result.Invalid(new ValidationError(ex.Message));
+            return Result.Invalid(new ValidationError(result.Exception?.Message ?? "Invalid access token"));
         }
 
+        var validatedJwtToken = (JwtSecurityToken)result.SecurityToken;
         if (!long.TryParse(validatedJwtToken.Subject, out var userId))
         {
             return Result.Invalid(new ValidationError("Invalid user ID"));

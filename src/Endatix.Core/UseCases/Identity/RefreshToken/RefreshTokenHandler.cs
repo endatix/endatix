@@ -11,7 +11,7 @@ public class RefreshTokenHandler(IAuthService authService, ITokenService tokenSe
 {
     public async Task<Result<AuthTokensDto>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        var accessTokenValidationResult = tokenService.ValidateAccessToken(request.AccessToken, validateLifetime: false);
+        var accessTokenValidationResult = await tokenService.ValidateAccessTokenAsync(request.AccessToken, validateLifetime: false);
 
         if (accessTokenValidationResult.IsInvalid())
         {

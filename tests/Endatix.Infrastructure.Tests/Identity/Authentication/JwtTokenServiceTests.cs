@@ -165,7 +165,7 @@ public class JwtTokenServiceTests
     }
 
     [Fact]
-    public void ValidateAccessToken_ValidToken_ReturnsSuccessWithUserId()
+    public async Task ValidateAccessToken_ValidToken_ReturnsSuccessWithUserId()
     {
         // Arrange
         var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
@@ -175,7 +175,7 @@ public class JwtTokenServiceTests
         var token = tokenService.IssueAccessToken(user);
 
         // Act
-        var result = tokenService.ValidateAccessToken(token.Token);
+        var result = await tokenService.ValidateAccessTokenAsync(token.Token);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -183,7 +183,7 @@ public class JwtTokenServiceTests
     }
 
     [Fact]
-    public void ValidateAccessToken_InvalidToken_ReturnsInvalidResult()
+    public async Task ValidateAccessToken_InvalidToken_ReturnsInvalidResult()
     {
         // Arrange
         var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
@@ -191,7 +191,7 @@ public class JwtTokenServiceTests
         var tokenService = new JwtTokenService(optionsWrapper);
 
         // Act
-        var result = tokenService.ValidateAccessToken("invalidToken");
+        var result = await tokenService.ValidateAccessTokenAsync("invalidToken");
 
         // Assert
         result.IsSuccess.Should().BeFalse();
