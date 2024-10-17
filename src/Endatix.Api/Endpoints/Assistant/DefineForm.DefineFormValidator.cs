@@ -20,5 +20,13 @@ public class DefineFormValidator : Validator<DefineFormRequest>
         RuleFor(x => x.Definition)
             .MaximumLength(10000)
             .When(x => x.Definition != null);
+
+        RuleFor(x => x.AssistantId)
+            .NotEmpty()
+            .When(x => x.AssistantId != null);
+
+        RuleFor(x => x.ThreadId)
+            .NotEmpty()
+            .When(x => x.ThreadId != null);
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using Endatix.Core.UseCases.Assistant.DefineForm;
 
 namespace Endatix.Core.Abstractions;
 
@@ -12,6 +13,8 @@ public interface IAssistantService
     /// </summary>
     /// <param name="prompt">The prompt describing the form to be defined.</param>
     /// <param name="definition">An optional existing definition to be refined or expanded.</param>
-    /// <returns>A string containing the form definition.</returns>
-    string DefineForm(string prompt, string? definition = null);
+    /// <param name="assistantId">An optional ID of the assistant to use for adjusting the form definition.</param>
+    /// <param name="threadId">An optional ID of the conversation thread to use for adjusting the form definition.</param>
+    /// <returns>An AssistedDefinitionDto containing the form definition and associated IDs.</returns>
+    Task<AssistedDefinitionDto> DefineFormAsync(string prompt, string? definition = null, string? assistantId = null, string? threadId = null);
 }

@@ -36,12 +36,16 @@ public class DefineForm(IMediator _mediator) : Endpoint<DefineFormRequest, Resul
     public override async Task<Results<Ok<DefineFormResponse>, BadRequest>> ExecuteAsync(DefineFormRequest request, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(
-            new DefineFormCommand(request.Prompt, request.Definition),
+            new DefineFormCommand(request.Prompt, request.Definition, request.AssistantId, request.ThreadId),
             cancellationToken);
 
         return result.ToEndpointResponse<
             Results<Ok<DefineFormResponse>, BadRequest>,
-            string,
-            DefineFormResponse>(definition => new DefineFormResponse { Definition = definition });
+            AssistedDefinitionDto,
+            DefineFormResponse>(assistedDefinition => new DefineFormResponse {
+                Definition = assistedDefinition.Definition,
+                AssistantId = assistedDefinition.AssistantId,
+                ThreadId = assistedDefinition.ThreadId
+            });
     }
 }

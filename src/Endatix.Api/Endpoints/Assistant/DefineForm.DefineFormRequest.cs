@@ -14,4 +14,14 @@ public class DefineFormRequest
     /// Optional existing form definition to refine or modify.
     /// </summary>
     public string? Definition { get; set; }
+
+    /// <summary>
+    /// Optional assistant ID for continuing a conversation.
+    /// </summary>
+    public string? AssistantId { get; set; }
+
+    /// <summary>
+    /// Optional thread ID for continuing a conversation.
+    /// </summary>
+    public string? ThreadId { get; set; }
 }
