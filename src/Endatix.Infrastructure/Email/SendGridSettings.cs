@@ -7,10 +7,9 @@ namespace Endatix.Infrastructure.Email;
 /// </summary>
 public class SendGridSettings
 {
-
     /// <summary>
     /// The SendGrid API key that will be used for the API requests
     /// </summary>
     [Required]
-    public string ApiKey { get; set; }
+    public string? ApiKey { get; set; }
 }

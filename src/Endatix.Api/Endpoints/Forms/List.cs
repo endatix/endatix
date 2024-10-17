@@ -18,7 +18,7 @@ public class List(IMediator _mediator) : Endpoint<FormsListRequest, Results<Ok<I
     public override void Configure()
     {
         Get("forms");
-        Roles("Admin");
+        AllowAnonymous();
         Summary(s =>
         {
             s.Summary = "List forms";

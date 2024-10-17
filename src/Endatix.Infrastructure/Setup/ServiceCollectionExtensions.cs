@@ -1,17 +1,9 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
 using Ardalis.GuardClauses;
-using FastEndpoints.Security;
-using Microsoft.Extensions.Configuration;
-using Endatix.Infrastructure;
-using Endatix.Infrastructure.Auth;
-using Microsoft.Extensions.Logging;
+using Endatix.Core;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
-using Endatix.Core;
 using Endatix.Infrastructure.Setup;
-using Endatix.Core.Infrastructure.Messaging;
-using MediatR;
-using Endatix.Core.Infrastructure.Logging;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -42,7 +34,7 @@ public static class ServiceCollectionExtensions
     /// Add specific Email sender implementation, which will also register configuration for the AppSettings and configure the DI container
     /// </summary>
     /// <typeparam name="TEmailSender">Must implement <c>IEmailSender</c> & <c>IHasInstallLogic</c></typeparam>
-    /// <typeparam name="TSettings">The POCO class that will be used for storing the confiuration</typeparam>
+    /// <typeparam name="TSettings">The POCO class that will be used for storing the configuration</typeparam>
     /// <param name="services"></param>
     /// <returns>Services ready to follow the AddServices pattern</returns>
     public static IServiceCollection AddEmailSender<TEmailSender, TSettings>(this IServiceCollection services)
