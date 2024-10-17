@@ -14,15 +14,23 @@
                 Name
             </th>
             <th>
+                Id
+            </th>
+            <th>
+                Is Enabled
+            </th>
+            <th>
             </th>
         </tr>
-    @foreach (Form form in Model.Forms)
-    {
-        <tr>
-            <td>@form.Name</td>
-            <td><a asp-page="./Form" asp-route-id="@form.Id">Render</a></td>
-            @* <td><a asp-page="./Edit" asp-route-id="@form.Id">Edit</a></td> *@
-        </tr>
-    }
+        @foreach (var form in Model.Forms)
+        {
+            <tr>
+                <td>@form.Name</td>
+                <td>@form.Id</td>
+                <td><input type="checkbox" disabled @(form.IsEnabled ? "checked" : "")></td>
+                <td><a asp-page="./Form" asp-route-id="@form.Id">Render</a></td>
+
+            </tr>
+        }
     </table>
 </div>

@@ -1,6 +1,7 @@
 ﻿
 using System.Net;
 using System.Text.Json;
+using Endatix.Samples.WebApp.ApiClient.Model;
 using Endatix.Samples.WebApp.ApiClient.Model.Requests;
 using Endatix.Samples.WebApp.ApiClient.Model.Responses;
 
@@ -9,6 +10,18 @@ namespace Endatix.Samples.WebApp.ApiClient;
 public class EndatixClient(HttpClient client) : IEndatixClient
 {
     private readonly HttpClient _client = client;
+
+    public async Task<IEnumerable<FormModel>> GetFormsAsync(FormListRequest request, CancellationToken cancellationToken = default)
+    {
+        var formsList = await _client.GetFromJsonAsync<IEnumerable<FormModel>>($"forms?page={request.Page}&pageSize={request.PageSize}", cancellationToken);
+
+        if (formsList is not { })
+        {
+            return [];
+        }
+
+        return formsList;
+    }
 
     public async Task<FormDefinitionResponse?> GetActiveDefinitionAsync(long formId, CancellationToken cancellationToken)
     {

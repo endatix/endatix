@@ -28,7 +28,7 @@ public class FormModel : PageModel
     public async Task OnGetAsync(long id, CancellationToken cancellationToken)
     {
         FormId = id.ToString();
-        FormDefinitionResponse form = await _client.GetActiveDefinitionAsync(id, cancellationToken);
+        var form = await _client.GetActiveDefinitionAsync(id, cancellationToken);
 
         _logger.LogInformation("Form fetching complete. Results is {@response}", form);
         if (form != null)

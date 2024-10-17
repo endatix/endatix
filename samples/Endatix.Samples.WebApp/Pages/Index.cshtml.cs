@@ -1,26 +1,25 @@
 ﻿using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Options;
-using Endatix.Core.Entities;
 using Endatix.Samples.WebApp.ApiClient;
+using Models = Endatix.Samples.WebApp.ApiClient.Model;
 
 namespace Endatix.Samples.WebApp.Pages;
 public class IndexModel : PageModel
 {
     private readonly ILogger<IndexModel> _logger;
-    private readonly HttpClientOptions _settings;
+    private readonly IEndatixClient _client;
 
-    public List<Form> Forms { get; set; }
+    public IEnumerable<Models.FormModel> Forms { get; private set; } = [];
+    
+    public string? ErrorMessage { get; private set; }
 
-    public IndexModel(ILogger<IndexModel> logger, IOptions<HttpClientOptions> options)
+    public IndexModel(ILogger<IndexModel> logger, IEndatixClient client)
     {
         _logger = logger;
-        _settings = options.Value;
+        _client = client;
     }
 
     public async Task OnGetAsync()
     {
-        Forms = [
-           new(){Id = _settings.ContactUsFormId, Name = "Contact Us Form"}
-       ];
+        Forms = await _client.GetFormsAsync(new());
     }
 }
