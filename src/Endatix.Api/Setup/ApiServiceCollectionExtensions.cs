@@ -12,11 +12,11 @@ public static class ApiServiceCollectionExtensions
     /// </summary>
     /// <param name="services">the <see cref="IServiceCollection"/> services</param>
     /// <returns>Updated <see cref="IServiceCollection"/> with CORS related middleware and services</returns>
-    public static IServiceCollection AddCorsMiddleware(this IServiceCollection services)
+    public static IServiceCollection AddCorsServices(this IServiceCollection services)
     {
         services.AddCors();
         services.AddOptions<CorsSettings>()
-               .BindConfiguration("Endatix:Cors")
+               .BindConfiguration(CorsSettings.SECTION_NAME)
                .ValidateDataAnnotations();
 
         services.AddTransient<IConfigureOptions<CorsOptions>, EndpointsCorsConfigurator>();

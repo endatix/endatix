@@ -1,5 +1,4 @@
-﻿using System;
-using Ardalis.GuardClauses;
+﻿using Ardalis.GuardClauses;
 using Microsoft.Extensions.Configuration;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -24,10 +23,6 @@ public class ConfigurationOptions
 
     public class SecurityOptions
     {
-        internal const string DEFAULT_CONFIG_SECTION_NAME = "Security";
-
-        internal IConfigurationSection SecurityConfiguration { get; set; }
-
         internal bool EnableApiAuthentication { get; set; } = false;
 
         internal bool EnableDevUsersFromConfig { get; set; } = false;
@@ -41,7 +36,6 @@ public class ConfigurationOptions
         public SecurityOptions AddApiAuthentication(ConfigurationManager configurationManager)
         {
             Guard.Against.Null(configurationManager);
-            SecurityConfiguration = configurationManager.GetRequiredSection(DEFAULT_CONFIG_SECTION_NAME);
 
             EnableApiAuthentication = true;
             return this;
@@ -57,21 +51,7 @@ public class ConfigurationOptions
         {
             Guard.Against.Null(securitySection);
 
-            SecurityConfiguration = securitySection;
-
             EnableApiAuthentication = true;
-            return this;
-        }
-
-        /// <summary>
-        /// Registers Users from the AppSettings config. For more info see <see cref="SecuritySettings.DevUsers"/>
-        /// </summary>
-        /// <returns>modified SecurityOptions</returns>
-        public SecurityOptions ReadDevUsersFromConfig()
-        {
-            Guard.Against.Expression(_ => EnableApiAuthentication == false, EnableApiAuthentication, $"You must enable API authentication before calling {nameof(ReadDevUsersFromConfig)}. Call {nameof(AddApiAuthentication)} first");
-
-            EnableDevUsersFromConfig = true;
             return this;
         }
     }

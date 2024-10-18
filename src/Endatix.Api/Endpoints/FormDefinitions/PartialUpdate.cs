@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormDefinitions.PartialUpdate;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
 
@@ -18,7 +19,7 @@ public class PartialUpdate(IMediator _mediator) : Endpoint<PartialUpdateFormDefi
     public override void Configure()
     {
         Patch("forms/{formId}/definitions/{definitionId}");
-        Roles("Admin");
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Partially update a form definition";
