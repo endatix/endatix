@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc.RazorPages;
 using Endatix.Samples.WebApp.ApiClient;
 using Models = Endatix.Samples.WebApp.ApiClient.Model;
+using Endatix.Samples.WebApp.ApiClient.Common;
 
 namespace Endatix.Samples.WebApp.Pages;
 public class IndexModel : PageModel
@@ -9,8 +10,8 @@ public class IndexModel : PageModel
     private readonly IEndatixClient _client;
 
     public IEnumerable<Models.FormModel> Forms { get; private set; } = [];
-    
-    public string? ErrorMessage { get; private set; }
+
+    public ApiError? ErrorState { get; private set; }
 
     public IndexModel(ILogger<IndexModel> logger, IEndatixClient client)
     {
@@ -20,6 +21,11 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
-        Forms = await _client.GetFormsAsync(new());
+        var formsApiResult = await _client.GetFormsAsync(new());
+
+        formsApiResult.Match(
+            onSuccess: forms => Forms = forms,
+            onError: error => ErrorState = error
+            );
     }
 }
