@@ -20,10 +20,16 @@ public class JwtOptions
     public string SigningKey { get; set; }
 
     /// <summary>
-    /// The expiration time of the JWT token in minutes.
-    /// Default value: 60 minutes (1 hour)
+    /// The expiration time of the JWT access token in minutes.
+    /// Default value: 15 minutes
     /// </summary>
-    public int ExpiryInMinutes { get; set; } = 60;
+    public int AccessExpiryInMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// The expiration time of the JWT refresh token in minutes.
+    /// Default value: 7 days
+    /// </summary>
+    public int RefreshExpiryInDays { get; set; } = 7;
 
     /// <summary>
     /// Valid issuer for the JWT token.
