@@ -4,6 +4,7 @@ using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Services;
 using Endatix.Framework.Hosting;
+using Endatix.Infrastructure.Assistant;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Email;
 using Endatix.Infrastructure.Identity;
@@ -59,6 +60,12 @@ public static class EndatixAppExtensions
 
         endatixApp.AddDataOptions();
         endatixApp.SetupIdentity(setupSettings);
+
+        endatixApp.Services.AddOptions<AssistantOptions>()
+                .BindConfiguration(AssistantOptions.SECTION_NAME)
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+        endatixApp.Services.AddScoped<IAssistantService, AssistantService>();
 
         return endatixApp;
     }
