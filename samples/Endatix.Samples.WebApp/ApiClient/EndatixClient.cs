@@ -13,6 +13,11 @@ namespace Endatix.Samples.WebApp.ApiClient;
 /// </summary>
 public class EndatixClient(HttpClient client) : IEndatixClient
 {
+    private static readonly JsonSerializerOptions _defaultJsonSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     /// <summary>
     /// Initiates an asynchronous operation to retrieve a list of forms based on the provided request parameters.
     /// </summary>
@@ -78,7 +83,7 @@ public class EndatixClient(HttpClient client) : IEndatixClient
 
     private async Task<ApiResult<TResponse>> SendAsJsonAsync<TResponse>(
     HttpRequestMessage requestMessage,
-    CancellationToken cancellationToken = default)
+    CancellationToken cancellationToken = default, JsonSerializerOptions? options = null)
     {
         try
         {
@@ -89,13 +94,9 @@ public class EndatixClient(HttpClient client) : IEndatixClient
                 try
                 {
                     var contentStream = await response.Content.ReadAsStreamAsync();
-                    var options = new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true,
-                        // Add any other default options that GetFromJsonAsync might use
-                    };
+                    var jsonSerializerOptions = options ?? _defaultJsonSerializerOptions;
 
-                    var result = await JsonSerializer.DeserializeAsync<TResponse>(contentStream, options, cancellationToken);
+                    var result = await JsonSerializer.DeserializeAsync<TResponse>(contentStream, jsonSerializerOptions, cancellationToken);
 
                     if (result is { } successApiResult)
                     {
