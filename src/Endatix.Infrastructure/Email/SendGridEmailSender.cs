@@ -11,6 +11,7 @@ using Endatix.Core.Features.Email;
 using SendGrid.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Endatix.Core;
+using Ardalis.GuardClauses;
 
 namespace Endatix.Infrastructure.Email;
 
@@ -33,11 +34,10 @@ public class SendGridEmailSender : IEmailSender, IHasConfigSection<SendGridSetti
     {
         services.AddSendGrid((provider, options) =>
        {
-           SendGridSettings? settings = provider.GetService<IOptions<SendGridSettings>>()?.Value;
-           if (settings != null)
-           {
-               options.ApiKey = settings.ApiKey;
-           };
+           var settings = provider.GetService<IOptions<SendGridSettings>>()?.Value;
+
+           Guard.Against.NullOrWhiteSpace(settings?.ApiKey);
+           options.ApiKey = settings.ApiKey;
        });
     };
 

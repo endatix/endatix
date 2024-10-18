@@ -18,14 +18,12 @@ public class EditModel : PageModel
         _configuration = configuration;
     }
 
-    public async Task OnGetAsync(long id)
+    public void OnGet(long id)
     {
-        var form = new Form();
-        if (form != null)
-        {
-            this.Form = form;
-        }
+        Form = new Form(){
+            Id = id
+        };
 
-        this.BaseUrl = _configuration["EndatixSettings:ApiBaseUrl"]?? string.Empty;
+        BaseUrl = _configuration["EndatixSettings:ApiBaseUrl"] ?? string.Empty;
     }
 }

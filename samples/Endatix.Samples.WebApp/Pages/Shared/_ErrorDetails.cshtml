@@ -1,0 +1,21 @@
+@using Endatix.Samples.WebApp.ApiClient.Common
+@model Endatix.Samples.WebApp.ApiClient.Common.ApiError;
+
+@if (Model != null)
+{
+    var error = Model;
+    <div class="alert alert-danger">
+    <h1>@error.Type.GetDisplayName()</h1>
+    <p>@error.Description</p>
+    @if (error.Details is { Count: > 0 } details)
+        {
+            <h3>Additional details:</h3>
+            <ul>
+                @foreach (var detail in details)
+                {
+                    <li>@detail</li>
+                }
+            </ul>
+        }
+    </div>
+}
