@@ -33,7 +33,7 @@ const FormCard = ({ form, isSelected, className, ...props }: FormCardProps) => {
 
   return (
     <Card
-      className={cn("flex cursor-pointer w-full flex-col gap-1 hover:bg-accent", isSelected ? "bg-accent" : "", className)} {...props}>
+      className={cn("flex cursor-pointer my-6 w-full flex-col gap-1 hover:bg-accent ", isSelected ? "bg-accent border-primary" : "", className)} {...props}>
       <CardHeader>
         <div className="flex ml-auto text-xs text-foreground">
           <Badge variant="outline">
