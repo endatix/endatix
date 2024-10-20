@@ -1,12 +1,12 @@
 import { DefineFormResponse } from "@/services/api";
 
-export interface IDefineFormResult {
+export interface IPromptResult {
     success?: boolean;
     errorMessage?: string;
     value?: DefineFormResponse;
 }
 
-export class DefineFormResult implements IDefineFormResult {
+export class PromptResult implements IPromptResult {
     success?: boolean;
     errorMessage?: string;
     value?: DefineFormResponse;
@@ -19,21 +19,21 @@ export class DefineFormResult implements IDefineFormResult {
 
     isError = (): boolean => this.success === false && this.errorMessage !== undefined;
 
-    static Success(value: DefineFormResponse): IDefineFormResult {
+    static Success(value: DefineFormResponse): IPromptResult {
         return {
             success: true,
             value: value
         }
     }
 
-    static Error(errorMessage: string): IDefineFormResult {
+    static Error(errorMessage: string): IPromptResult {
         return {
             success: false,
             errorMessage: errorMessage
         }
     }
 
-    static InitialState(): IDefineFormResult {
+    static InitialState(): IPromptResult {
         return {}
     }
 }

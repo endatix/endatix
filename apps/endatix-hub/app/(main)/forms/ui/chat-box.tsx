@@ -14,13 +14,13 @@ import { cn } from "@/lib/utils"
 import { defineFormAction } from "../define-form.action"
 import { useActionState } from "react"
 import { useFormStatus } from "react-dom"
-import { DefineFormResult, IDefineFormResult } from "../define-form-result"
+import { PromptResult, IPromptResult } from "../prompt-result"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 interface ChatBoxProps {
 }
 
-const initialState: IDefineFormResult = DefineFormResult.InitialState();
+const initialState: IPromptResult = PromptResult.InitialState();
 
 const SubmitButton = () => {
     const { pending } = useFormStatus();
