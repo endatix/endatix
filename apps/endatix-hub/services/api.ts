@@ -102,7 +102,7 @@ export const getActiveFormDefinition = async (formId: string, allowAnonymous: bo
   return response.json();
 };
 
-export const getFormDefinition = async (formId: string, definitionId: string) : Promise<FormDefinition> => {
+export const getFormDefinition = async (formId: string, definitionId: string): Promise<FormDefinition> => {
   if (!formId) {
     throw new Error(`FormId is required`);
   }
@@ -184,3 +184,38 @@ export const sendSubmission = async (formId: string, submissionData: any): Promi
 
   return response.json();
 };
+
+interface DefineFormRequest {
+  prompt: string;
+  definition?: string,
+  assistantId?: string,
+  threadId?: string
+}
+
+export interface DefineFormResponse {
+  definition?: string,
+  assistantId?: string,
+  threadId: string
+}
+
+export const defineForm = async (request: DefineFormRequest): Promise<DefineFormResponse> => {
+  let session = await getSession();
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/assistant/forms/define`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.token}`
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to process your prompt");
+  }
+
+  return response.json();
+}
