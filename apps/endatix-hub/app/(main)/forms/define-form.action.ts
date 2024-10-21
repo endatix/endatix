@@ -7,7 +7,6 @@ export async function defineFormAction(
   prevState: IPromptResult,
   formData: FormData
 ): Promise<IPromptResult> {
-  console.log(`prevState is ${JSON.stringify(prevState)}`);
   const prompt = formData.get("prompt");
 
   try {

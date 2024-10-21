@@ -18,18 +18,18 @@ interface FormCreateSheetProps {
 const CreateFormCard: FC<FormCreateSheetProps> = ({ title, description, icon: Icon, action, isSelected }) => {
   return (
     <Card className={cn("hover:border-primary hover:bg-accent focus:outline focus:outline-2 focus:outline-primary-500", isSelected && "border-primary bg-accent")}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
         <CardTitle className="text-lg font-medium">{title}</CardTitle>
-        <Icon className="h-8 w-8 text-muted-foreground" />
+        <Icon className="h-8 w-8 text-muted-foreground place-self-start" />
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4">
         <p className="text-xs text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
   );
 };
 
-const CreateFormSheet: FC = () => {
+const CreateFormSheet = ()  => {
   return (
     <SheetContent className="w-[600px] sm:w-[480px] sm:max-w-none flex flex-col h-screen justify-between">
       <SheetHeader className="mb-12">

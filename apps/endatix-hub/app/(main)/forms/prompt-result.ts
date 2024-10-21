@@ -1,17 +1,17 @@
-import { DefineFormResponse } from "@/services/api";
+import { DefineFormContext } from "@/services/api";
 
 export interface IPromptResult {
     success?: boolean;
     errorMessage?: string;
-    value?: DefineFormResponse;
+    value?: DefineFormContext;
 }
 
 export class PromptResult implements IPromptResult {
     success?: boolean;
     errorMessage?: string;
-    value?: DefineFormResponse;
+    value?: DefineFormContext;
 
-    private constructor(success?: boolean, errorMessage?: string, value?: DefineFormResponse) {
+    private constructor(success?: boolean, errorMessage?: string, value?: DefineFormContext) {
         this.success = success;
         this.errorMessage = errorMessage;
         this.value = value;
@@ -19,7 +19,7 @@ export class PromptResult implements IPromptResult {
 
     isError = (): boolean => this.success === false && this.errorMessage !== undefined;
 
-    static Success(value: DefineFormResponse): IPromptResult {
+    static Success(value: DefineFormContext): IPromptResult {
         return {
             success: true,
             value: value

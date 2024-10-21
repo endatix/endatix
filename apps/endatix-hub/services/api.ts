@@ -192,13 +192,13 @@ interface DefineFormRequest {
   threadId?: string
 }
 
-export interface DefineFormResponse {
+export interface DefineFormContext {
   definition?: string,
   assistantId?: string,
   threadId: string
 }
 
-export const defineForm = async (request: DefineFormRequest): Promise<DefineFormResponse> => {
+export const defineForm = async (request: DefineFormRequest): Promise<DefineFormContext> => {
   let session = await getSession();
   if (!session.isLoggedIn) {
     redirect("/login");

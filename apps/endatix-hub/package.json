@@ -34,6 +34,7 @@
     "next-themes": "^0.3.0",
     "react": "19.0.0-rc-cd22717c-20241013",
     "react-dom": "19.0.0-rc-cd22717c-20241013",
+    "react-resizable-panels": "^2.1.4",
     "sonner": "^1.5.0",
     "styled-jsx": "^5.1.6",
     "survey-core": "^1.12.4",

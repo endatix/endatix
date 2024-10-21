@@ -16,6 +16,7 @@ import { useActionState } from "react"
 import { useFormStatus } from "react-dom"
 import { PromptResult, IPromptResult } from "../prompt-result"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { redirect } from "next/navigation"
 
 interface ChatBoxProps {
 }
@@ -43,15 +44,23 @@ const ChatErrorAlert = ({ errorMessage }: { errorMessage: string | undefined }) 
 }
 
 const ChatBox = () => {
-    const [state, action] = useActionState(defineFormAction, initialState);
+    const [state, action, isPending] = useActionState(
+        async (prevState: IPromptResult, formData: FormData) => {
+            const promtResult = await defineFormAction(prevState, formData);
+            if (promtResult.success) {
+                localStorage.setItem('theForm', JSON.stringify(promtResult.value));
+
+                redirect("/forms/create");
+            }
+            return promtResult;
+        }, initialState);
 
     return (
         <div className="flex flex-col flex-1 gap-2">
-            {state.success === false && <ChatErrorAlert errorMessage={state.errorMessage} />}
+            {isPending && state.success === false && <ChatErrorAlert errorMessage={state.errorMessage} />}
             <form
                 action={action}
-                className="flex-1 relative overflow-hidden rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring"
-            >
+                className="flex-1 relative overflow-hidden rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring">
                 <Label htmlFor="prompt" className="sr-only">
                     Your prompt here
                 </Label>
