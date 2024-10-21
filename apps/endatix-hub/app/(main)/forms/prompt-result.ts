@@ -1,4 +1,4 @@
-import { DefineFormContext } from "@/services/api";
+import { DefineFormContext } from "@/lib/use-cases/assistant";
 
 export interface IPromptResult {
     success?: boolean;

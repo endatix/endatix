@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, CornerDownLeft, Mic, Paperclip } from 'lucide-react'
+import { AlertCircle, CornerDownLeft, Mic, Paperclip, StopCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -12,27 +12,11 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { defineFormAction } from '../define-form.action'
-import { useActionState } from 'react'
-import { useFormStatus } from 'react-dom'
-import { PromptResult, IPromptResult } from '../prompt-result'
+import { useActionState, useEffect } from 'react'
+import { IPromptResult, PromptResult } from '../prompt-result'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { AssistantStore, DefineFormCommand } from '@/lib/use-cases/assistant'
 import { redirect } from 'next/navigation'
-
-interface ChatBoxProps extends React.HTMLAttributes<HTMLDivElement> {
-    placeholder?: string;
-}
-
-const initialState: IPromptResult = PromptResult.InitialState();
-
-const SubmitButton = () => {
-    const { pending } = useFormStatus();
-    return (
-        <Button type='submit' size='sm' className={cn('ml-auto gap-1.5', pending ? 'opacity-50 cursor-progress' : '')} aria-disabled={pending} disabled={pending}>
-            {pending ? '...' : 'Chat'}
-            <CornerDownLeft className='size-3.5' />
-        </Button>
-    );
-}
 
 const ChatErrorAlert = ({ errorMessage }: { errorMessage: string | undefined }) => {
     return (
@@ -44,17 +28,85 @@ const ChatErrorAlert = ({ errorMessage }: { errorMessage: string | undefined }) 
     );
 }
 
-const ChatBox = ({ className, placeholder, ...props }: ChatBoxProps) => {
-    const [state, action] = useActionState(
-        async (prevState: IPromptResult, formData: FormData) => {
-            const promtResult = await defineFormAction(prevState, formData);
-            if (promtResult.success) {
-                localStorage.setItem('theForm', JSON.stringify(promtResult.value));
+const SubmitButton = ({ pending }: { pending: boolean }) => {
+    return (
+        <Button type='submit' size='sm' className={cn('ml-auto gap-1.5 w-24', (pending ? 'cursor-progress' : ''))} aria-disabled={pending} disabled={pending}>
+            Chat
+            {pending ? <StopCircle className='size-6' /> : <CornerDownLeft className='size-3' />}
+        </Button>
+    );
+}
 
-                redirect('/forms/create');
+const initialState = PromptResult.InitialState();
+
+interface ChatBoxProps extends React.HTMLAttributes<HTMLDivElement> {
+    requiresNewContext?: boolean;
+    placeholder?: string;
+    onPendingChange?: (pending: boolean) => void;
+    onStateChange?: (stateCommand: DefineFormCommand) => void;
+}
+
+const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, onStateChange, ...props }: ChatBoxProps) => {
+    const [state, action, pending] = useActionState(
+        async (prevState: IPromptResult, formData: FormData) => {
+            var contextStore = new AssistantStore();
+
+            if (requiresNewContext) {
+                contextStore.clear();
             }
-            return promtResult;
+
+            const formModel = contextStore.getFormModel();
+            if (formModel) {
+                formData.set("definition", JSON.stringify(formModel));
+            }
+
+            const formContext = contextStore.getChatContext();
+            if (formContext) {
+                formData.set("threadId", formContext.threadId ?? '');
+                formData.set("assistantId", formContext.assistantId ?? '');
+            }
+
+            const promptResult = await defineFormAction(prevState, formData);
+
+            if (promptResult.success && promptResult.value?.definition) {
+                var prompt = formData.get("prompt") as string;
+                contextStore.setFormModel(promptResult.value?.definition);
+
+                var currentContext = contextStore.getChatContext();
+                if (!currentContext) {
+                    currentContext = {
+                        messages: [],
+                        threadId: promptResult.value?.threadId ?? '',
+                        assistantId: promptResult.value?.assistantId ?? ''
+                    }
+                }
+
+                if (currentContext.messages === undefined) {
+                    currentContext.messages = [];
+                }
+
+                currentContext.messages.push({
+                    isAi: false,
+                    content: prompt
+                });
+                contextStore.setChatContext(currentContext);
+
+                if (onStateChange) {
+                    onStateChange(DefineFormCommand.fullStateUpdate);
+                }
+
+                if (window.location.pathname !== '/forms/create') {
+                    redirect('/forms/create');
+                }
+            }
+            return promptResult;
         }, initialState);
+
+    useEffect(() => {
+        if (onPendingChange) {
+            onPendingChange(pending);
+        }
+    }, [pending, onPendingChange]);
 
     return (
         <div className={`flex flex-col flex-1 gap-2 ${className}`} {...props}>
@@ -92,7 +144,7 @@ const ChatBox = ({ className, placeholder, ...props }: ChatBoxProps) => {
                             <TooltipContent side='top'>Use Microphone</TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                    <SubmitButton />
+                    <SubmitButton pending={pending} />
                 </div>
             </form>
         </div>

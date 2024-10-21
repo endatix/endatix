@@ -1,6 +1,5 @@
-"use client"
+'use client'
 
-import { Model } from 'survey-core'
 import { ICreatorOptions } from 'survey-creator-core'
 import { SurveyCreatorComponent, SurveyCreator } from 'survey-creator-react'
 import 'survey-core/defaultV2.css'
@@ -8,7 +7,7 @@ import 'survey-creator-core/survey-creator-core.css'
 import { useEffect, useState } from 'react'
 
 interface PreviewFormProps {
-    model: Model | null;
+    model: any;
 }
 
 const creatorOptions: ICreatorOptions = {
@@ -25,13 +24,13 @@ const PreviewForm = ({ model }: PreviewFormProps) => {
         }
 
         const newCreator = new SurveyCreator(creatorOptions);
-        newCreator.JSON = model?.toJSON();
+        newCreator.JSON = model;
         newCreator.saveSurveyFunc = (no: number, callback: (num: number, status: boolean) => void) => {
             console.log(JSON.stringify(newCreator?.JSON));
             callback(no, true);
         };
         setCreator(newCreator);
-    }, []);
+    }, [model]);
 
     return (
         creator && <SurveyCreatorComponent creator={creator} />

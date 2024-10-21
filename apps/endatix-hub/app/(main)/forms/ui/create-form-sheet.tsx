@@ -2,10 +2,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import ChatBox from './chat-box';
 import { Atom, BicepsFlexed, Code, Folder } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import DotLoader from '@/components/loaders/dot-loader';
 
 interface FormCreateSheetProps {
   title: string;
@@ -30,6 +31,8 @@ const CreateFormCard: FC<FormCreateSheetProps> = ({ title, description, icon: Ic
 };
 
 const CreateFormSheet = ()  => {
+  const [pending, setPending] = useState(false);
+
   return (
     <SheetContent className="w-[600px] sm:w-[480px] sm:max-w-none flex flex-col h-screen justify-between">
       <SheetHeader className="mb-12">
@@ -67,8 +70,9 @@ const CreateFormSheet = ()  => {
           />
         </div>
       </div>
+      {pending && <DotLoader className="flex-1 text-center m-auto" />}
       <SheetFooter className="flex-end">
-        <ChatBox/>
+        <ChatBox requiresNewContext={true} onPendingChange={(pending) => { setPending(pending); }} />
       </SheetFooter>
     </SheetContent>
   );

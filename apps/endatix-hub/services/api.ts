@@ -2,6 +2,7 @@ import { AuthenticationRequest, AuthenticationResponse } from "@/lib/authDefinit
 import { Form, FormDefinition, Submission } from "../types";
 import { getSession } from "@/lib/auth-service";
 import { redirect } from "next/navigation";
+import { DefineFormContext, DefineFormRequest } from "@/lib/use-cases/assistant";
 
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
@@ -184,19 +185,6 @@ export const sendSubmission = async (formId: string, submissionData: any): Promi
 
   return response.json();
 };
-
-interface DefineFormRequest {
-  prompt: string;
-  definition?: string,
-  assistantId?: string,
-  threadId?: string
-}
-
-export interface DefineFormContext {
-  definition?: string,
-  assistantId?: string,
-  threadId: string
-}
 
 export const defineForm = async (request: DefineFormRequest): Promise<DefineFormContext> => {
   let session = await getSession();
