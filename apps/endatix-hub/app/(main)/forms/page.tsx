@@ -4,7 +4,7 @@ import { getForms } from "@/services/api";
 import FormsList from "./ui/forms-list";
 import PageTitle from "@/components/headings/page-title";
 import { Button } from "@/components/ui/button";
-import { FilePlus2, Users } from "lucide-react";
+import { FilePlus2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import CreateFormSheet from "./ui/create-form-sheet";
