@@ -21,7 +21,10 @@ const CreateForm: NextPage = () => {
                             <PageTitle title="Create your form" />
                             <Atom className="h-12 w-12 text-muted-foreground" />
                         </div>
-                        <ChatBox className="flex-end flex-none" />
+                        <ChatBox
+                            className="flex-end flex-none"
+                            placeholder="Ask folloup (⌘+F), ↑ to select"
+                        />
                     </div>
                 </ResizablePanel>
             </ResizablePanelGroup>

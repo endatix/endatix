@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { redirect } from 'next/navigation'
 
 interface ChatBoxProps extends React.HTMLAttributes<HTMLDivElement> {
+    placeholder?: string;
 }
 
 const initialState: IPromptResult = PromptResult.InitialState();
@@ -43,7 +44,7 @@ const ChatErrorAlert = ({ errorMessage }: { errorMessage: string | undefined }) 
     );
 }
 
-const ChatBox = ({ className, ...props }: ChatBoxProps) => {
+const ChatBox = ({ className, placeholder, ...props }: ChatBoxProps) => {
     const [state, action] = useActionState(
         async (prevState: IPromptResult, formData: FormData) => {
             const promtResult = await defineFormAction(prevState, formData);
@@ -67,7 +68,7 @@ const ChatBox = ({ className, ...props }: ChatBoxProps) => {
                 <Textarea
                     id='prompt'
                     name='prompt'
-                    placeholder='What would you like to achieve with your form?'
+                    placeholder={placeholder ?? 'What would you like to achieve with your form?'}
                     className='min-h-12 resize-none border-0 p-3 shadow-none focus-visible:ring-0'
                 />
                 <div className='flex items-center p-3 pt-0'>
