@@ -33,7 +33,7 @@ const CreateForm: NextPage = () => {
             case DefineFormCommand.fullStateUpdate:
                 const formContext = contextStore.getChatContext();
                 const formModel = contextStore.getFormModel();
-                    (formModel);
+                (formModel);
                 setMessages(formContext.messages);
                 setFormModel(formModel);
                 break;
@@ -43,32 +43,30 @@ const CreateForm: NextPage = () => {
     }
 
     return (
-        <div>
-            <ResizablePanelGroup direction="horizontal" className="flex flex-1 space-y-2">
-                <ResizablePanel defaultSize={65}>
-                    <div className="flex h-screen p-8">
-                        {formModel && <PreviewFormContainer model={formModel} />}
+        <ResizablePanelGroup direction="horizontal" className="flex flex-1 space-y-2">
+            <ResizablePanel defaultSize={65}>
+                <div className="flex h-screen p-8">
+                    {formModel && <PreviewFormContainer model={formModel} />}
+                </div>
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={35} minSize={20}>
+                <div className="flex flex-col h-screen z-50 gap-4 bg-background p-6 border-l">
+                    <div className="flex items-center gap-2">
+                        <PageTitle title="Create your form" />
+                        <Atom className="h-8 w-8 text-muted-foreground" />
                     </div>
-                </ResizablePanel>
-                <ResizableHandle withHandle />
-                <ResizablePanel defaultSize={35} minSize={20}>
-                    <div className="flex flex-col h-screen z-50 gap-4 bg-background p-6 border-l">
-                        <div className="flex items-center gap-2">
-                            <PageTitle title="Create your form" />
-                            <Atom className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <ChatThread messages={messages} />
-                        {isWaiting && <DotLoader className="flex flex-none items-center m-auto" />}
-                        <ChatBox
-                            className="flex-end flex-none"
-                            placeholder="Ask folloup (⌘+F), ↑ to select"
-                            onPendingChange={(pending) => { setIsWaiting(pending); }}
-                            onStateChange={(stateCommand) => { defineFormHandler(stateCommand); }}
-                        />
-                    </div>
-                </ResizablePanel>
-            </ResizablePanelGroup>
-        </div>
+                    <ChatThread messages={messages} />
+                    {isWaiting && <DotLoader className="flex flex-none items-center m-auto" />}
+                    <ChatBox
+                        className="flex-end flex-none"
+                        placeholder="Ask folloup (⌘+F), ↑ to select"
+                        onPendingChange={(pending) => { setIsWaiting(pending); }}
+                        onStateChange={(stateCommand) => { defineFormHandler(stateCommand); }}
+                    />
+                </div>
+            </ResizablePanel>
+        </ResizablePanelGroup>
     );
 };
 

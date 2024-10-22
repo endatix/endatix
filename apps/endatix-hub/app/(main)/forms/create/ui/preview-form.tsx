@@ -4,8 +4,9 @@ import { ICreatorOptions } from 'survey-creator-core'
 import { SurveyCreatorComponent, SurveyCreator } from 'survey-creator-react'
 import 'survey-core/defaultV2.css'
 import 'survey-creator-core/survey-creator-core.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, RefObject } from 'react'
 import { ITheme } from 'survey-core'
+import './creator-styles.css'
 
 interface PreviewFormProps {
     model: any;
@@ -14,7 +15,7 @@ interface PreviewFormProps {
 const defaultTheme = {
     "themeName": "default",
     "colorPalette": "light",
-    "isPanelless": true,
+    "isPanelless": false,
     "backgroundImage": "",
     "backgroundOpacity": 0,
     "backgroundImageAttachment": "scroll",
@@ -108,14 +109,17 @@ const defaultTheme = {
 
 const creatorOptions: ICreatorOptions = {
     showPreview: true,
+    showJSONEditorTab: false,
     showTranslationTab: false,
-    showDesignerTab: false,
+    showDesignerTab: true,
     showLogicTab: true,
     themeForPreview: "Default"
 };
 
 const PreviewForm = ({ model }: PreviewFormProps) => {
     const [creator, setCreator] = useState<SurveyCreator | null>(null);
+    const surveyCreatorRef: RefObject<HTMLDivElement | null> = useRef(null);
+
     useEffect(() => {
         if (creator) {
             creator.JSON = model;
@@ -125,15 +129,22 @@ const PreviewForm = ({ model }: PreviewFormProps) => {
         const newCreator = new SurveyCreator(creatorOptions);
         newCreator.JSON = model;
         newCreator.theme = defaultTheme as ITheme;
+        newCreator.activeTab = "test";
         newCreator.saveSurveyFunc = (no: number, callback: (num: number, status: boolean) => void) => {
             console.log(JSON.stringify(newCreator?.JSON));
             callback(no, true);
         };
         setCreator(newCreator);
+
+        if (surveyCreatorRef.current) {
+            surveyCreatorRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
     }, [model]);
 
     return (
-        creator && <SurveyCreatorComponent creator={creator} />
+        <div ref={surveyCreatorRef}>
+            {creator && <SurveyCreatorComponent creator={creator} />}
+        </div>
     );
 }
 
