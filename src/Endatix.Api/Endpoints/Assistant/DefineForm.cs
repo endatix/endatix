@@ -43,6 +43,7 @@ public class DefineForm(IMediator _mediator) : Endpoint<DefineFormRequest, Resul
             Results<Ok<DefineFormResponse>, BadRequest>,
             AssistedDefinitionDto,
             DefineFormResponse>(assistedDefinition => new DefineFormResponse {
+                AssistantResponse = assistedDefinition.AssistantResponse,
                 Definition = assistedDefinition.Definition,
                 AssistantId = assistedDefinition.AssistantId,
                 ThreadId = assistedDefinition.ThreadId
