@@ -95,7 +95,7 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                     onStateChange(DefineFormCommand.fullStateUpdate);
                 }
 
-                if (window.location.pathname !== '/forms/create') {
+                if (window.location.pathname === '/forms') {
                     redirect('/forms/create');
                 }
             }

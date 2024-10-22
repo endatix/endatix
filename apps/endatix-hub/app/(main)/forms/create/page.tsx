@@ -24,8 +24,6 @@ const CreateForm: NextPage = () => {
             setMessages(currentContext.messages);
         }
 
-        var formJson = contextStore.getFormModel();
-        setFormModel(formJson);
         defineFormHandler(DefineFormCommand.fullStateUpdate);
     }, []);
 
@@ -35,8 +33,9 @@ const CreateForm: NextPage = () => {
             case DefineFormCommand.fullStateUpdate:
                 const formContext = contextStore.getChatContext();
                 const formModel = contextStore.getFormModel();
-                setFormModel(formModel);
+                    (formModel);
                 setMessages(formContext.messages);
+                setFormModel(formModel);
                 break;
             default:
                 break;

@@ -20,6 +20,7 @@ const PreviewForm = ({ model }: PreviewFormProps) => {
     const [creator, setCreator] = useState<SurveyCreator | null>(null);
     useEffect(() => {
         if (creator) {
+            creator.JSON = model;
             return;
         }
 
