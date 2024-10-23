@@ -66,21 +66,15 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                 formData.set("threadId", formContext.threadId ?? '');
                 formData.set("assistantId", formContext.assistantId ?? '');
             }
-
+  
             const promptResult = await defineFormAction(prevState, formData);
 
             if (promptResult.success && promptResult.value?.definition) {
                 const prompt = formData.get("prompt") as string;
                 contextStore.setFormModel(promptResult.value?.definition);
-
                 let currentContext = contextStore.getChatContext();
-                if (!currentContext) {
-                    currentContext = {
-                        messages: [],
-                        threadId: promptResult.value?.threadId ?? '',
-                        assistantId: promptResult.value?.assistantId ?? ''
-                    }
-                }
+                currentContext.threadId = promptResult.value?.threadId ?? '',
+                currentContext.assistantId = promptResult.value?.assistantId ?? ''
 
                 if (currentContext.messages === undefined) {
                     currentContext.messages = [];
