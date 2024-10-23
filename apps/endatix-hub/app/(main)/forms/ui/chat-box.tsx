@@ -124,7 +124,7 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                     id='prompt'
                     name='prompt'
                     placeholder={placeholder ?? 'What would you like to achieve with your form?'}
-                    className='min-h-12 resize-none border-0 p-3 shadow-none focus-visible:ring-0'
+                    className='min-h-12 resize-none border-0 p-3 shadow-none focus:outline-none focus-visible:ring-0'
                 />
                 <div className='flex items-center p-3 pt-0'>
                     <TooltipProvider>

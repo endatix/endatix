@@ -96,21 +96,18 @@ importers:
       sonner:
         specifier: ^1.5.0
         version: 1.5.0(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)
-      styled-jsx:
-        specifier: ^5.1.6
-        version: 5.1.6(react@19.0.0-rc-69d4b800-20241021)
       survey-core:
-        specifier: ^1.12.4
-        version: 1.12.4
+        specifier: ^1.12.7
+        version: 1.12.7
       survey-creator-core:
-        specifier: ^1.12.4
-        version: 1.12.4(survey-core@1.12.4)
+        specifier: ^1.12.7
+        version: 1.12.7(survey-core@1.12.7)
       survey-creator-react:
-        specifier: ^1.12.4
-        version: 1.12.4(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.4)(survey-creator-core@1.12.4(survey-core@1.12.4))(survey-react-ui@1.12.4(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.4))
+        specifier: ^1.12.7
+        version: 1.12.7(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.7)(survey-creator-core@1.12.7(survey-core@1.12.7))(survey-react-ui@1.12.7(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.7))
       survey-react-ui:
-        specifier: ^1.12.4
-        version: 1.12.4(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.4)
+        specifier: ^1.12.7
+        version: 1.12.7(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.7)
       tailwind-merge:
         specifier: ^2.5.2
         version: 2.5.2
@@ -2435,39 +2432,39 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
-  survey-core@1.12.4:
-    resolution: {integrity: sha512-I44B+xUZxfCqz6FbYAXDLe7I6HLq6X5XrApB5fld19OZSas7+LF/LpdsxE0U3bNwDOlx0oSR79fmtDGR5amYZw==}
+  survey-core@1.12.7:
+    resolution: {integrity: sha512-2fTWhv6gYl8+i+epeHRGa7kwSgf+iYpJHPOxNYuJ7SHz6BV0p0vjnw1pI5AEhfL47UNFN2+MqVN0M91FmbVa/A==}
 
-  survey-creator-core@1.12.4:
-    resolution: {integrity: sha512-bPsXOohVNJb75wMkZ0Mye6+ekEXc1h8rrIjQUccbrPw2GtYrsWZmXwu98EP6XL+E+oyBnAtP3VgES66PqduTww==}
+  survey-creator-core@1.12.7:
+    resolution: {integrity: sha512-2tlCw7nPrXhrqOiAO6G4Jx0MS43LBFtw/Lj80WOV9H+xjHf9jejL7nGeo9jpFuAIwxoJ99UOrLn+om+t1+e/Gg==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
       ace-builds: ^1.4.12
-      survey-core: 1.12.4
+      survey-core: 1.12.7
     peerDependenciesMeta:
       ace-builds:
         optional: true
 
-  survey-creator-react@1.12.4:
-    resolution: {integrity: sha512-XEiLyHvj9iIrvWLly1M346efBjrEADc0sSs+Ai2tewYbPueGGBhuhchx4lIU/epxe06KwAzr0yI+06Vpo279wA==}
+  survey-creator-react@1.12.7:
+    resolution: {integrity: sha512-Z69LUpOZ9TuIT+5RYroUlSa91pX2k47Nz830jy5J6u4jwg1z8TuRSdzh+/L1XtD1VPqmitJ/5+oVUTecxmP9lw==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
       ace-builds: ^1.4.12
       react: ^16.5.0 || ^17.0.1 || ^18.1.0
       react-dom: ^16.5.0 || ^17.0.1 || ^18.1.0
-      survey-core: 1.12.4
-      survey-creator-core: 1.12.4
-      survey-react-ui: 1.12.4
+      survey-core: 1.12.7
+      survey-creator-core: 1.12.7
+      survey-react-ui: 1.12.7
     peerDependenciesMeta:
       ace-builds:
         optional: true
 
-  survey-react-ui@1.12.4:
-    resolution: {integrity: sha512-RLZ3IzW5SR6jU7NvMTR+ODiz1CAK4rGCeoPc/h1yQT4L0wBhCIP5Kz/K5gS1iwm4zmTvhJSRr/SxUz1rE5edlQ==}
+  survey-react-ui@1.12.7:
+    resolution: {integrity: sha512-jrRNyajHxh6kv86vVR4ApalpHwZm/JBgOaOl8rlnok5H/ho35DSsVw8n3RASu4JgQO/HTuCS3xqzQKEQMLxksA==}
     peerDependencies:
       react: ^16.5.0 || ^17.0.1 || ^18.2.0
       react-dom: ^16.5.0 || ^17.0.1 || ^18.2.0
-      survey-core: 1.12.4
+      survey-core: 1.12.7
 
   tailwind-merge@2.5.2:
     resolution: {integrity: sha512-kjEBm+pvD+6eAwzJL2Bi+02/9LFLal1Gs61+QB7HvTfQQ0aXwC5LGT8PEt1gS0CWKktKe6ysPTAy3cBC5MeiIg==}
@@ -5131,25 +5128,25 @@ snapshots:
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
-  survey-core@1.12.4: {}
+  survey-core@1.12.7: {}
 
-  survey-creator-core@1.12.4(survey-core@1.12.4):
+  survey-creator-core@1.12.7(survey-core@1.12.7):
     dependencies:
-      survey-core: 1.12.4
+      survey-core: 1.12.7
 
-  survey-creator-react@1.12.4(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.4)(survey-creator-core@1.12.4(survey-core@1.12.4))(survey-react-ui@1.12.4(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.4)):
-    dependencies:
-      react: 19.0.0-rc-69d4b800-20241021
-      react-dom: 19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021)
-      survey-core: 1.12.4
-      survey-creator-core: 1.12.4(survey-core@1.12.4)
-      survey-react-ui: 1.12.4(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.4)
-
-  survey-react-ui@1.12.4(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.4):
+  survey-creator-react@1.12.7(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.7)(survey-creator-core@1.12.7(survey-core@1.12.7))(survey-react-ui@1.12.7(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.7)):
     dependencies:
       react: 19.0.0-rc-69d4b800-20241021
       react-dom: 19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021)
-      survey-core: 1.12.4
+      survey-core: 1.12.7
+      survey-creator-core: 1.12.7(survey-core@1.12.7)
+      survey-react-ui: 1.12.7(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.7)
+
+  survey-react-ui@1.12.7(react-dom@19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021))(react@19.0.0-rc-69d4b800-20241021)(survey-core@1.12.7):
+    dependencies:
+      react: 19.0.0-rc-69d4b800-20241021
+      react-dom: 19.0.0-rc-69d4b800-20241021(react@19.0.0-rc-69d4b800-20241021)
+      survey-core: 1.12.7
 
   tailwind-merge@2.5.2: {}
 
