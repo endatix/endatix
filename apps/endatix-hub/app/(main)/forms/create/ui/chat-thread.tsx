@@ -16,10 +16,14 @@ const ChatThread: React.FC<ChatThreadProps> = ({ messages, isTyping }) => {
     const lastMessageRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (lastMessageRef.current) {
-            lastMessageRef.current.scrollIntoView({ behavior: "smooth" });
-        }
-    }, [])
+        const timeout = setTimeout(() => {
+            if (!isTyping && messages.length > 0 && lastMessageRef.current) {
+                lastMessageRef.current.scrollIntoView({ behavior: "smooth" });
+            }
+        }, 500);
+
+        return () => clearTimeout(timeout);
+    }, [messages, isTyping])
 
     const scrollToLastMessage = () => {
         if (isTyping && lastMessageRef.current) {
@@ -64,7 +68,6 @@ const ChatThread: React.FC<ChatThreadProps> = ({ messages, isTyping }) => {
         </ScrollArea>
     );
 };
-
 export default ChatThread;
 
 

@@ -112,7 +112,7 @@ const CreateForm: NextPage = () => {
                         {isWaiting && <DotLoader className="flex flex-none items-center m-auto" />}
                         <ChatBox
                             className="flex-end flex-none"
-                            placeholder="Ask folloup (⌘+F), ↑ to select"
+                            placeholder="Ask followup (⌘F), ↑ to select"
                             onPendingChange={(pending) => { setIsWaiting(pending); }}
                             onStateChange={(stateCommand) => { defineFormHandler(stateCommand); }}
                         />
