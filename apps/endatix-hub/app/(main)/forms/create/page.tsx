@@ -12,25 +12,27 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ImperativePanelHandle } from 'react-resizable-panels'
 
-const SHEET_CSS = "fixed inset-x-0 top-0 h-screen"
+const SHEET_CSS = "absolute inset-x-0 top-0 h-screen"
 const CRITICAL_WIDTH = 600;
 
 const CreateForm: NextPage = () => {
     const chatPanelRef = useRef<ImperativePanelHandle>(null)
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [shouldType, setShouldType] = useState(false);
     const [isWaiting, setIsWaiting] = useState(false);
     const [messages, setMessages] = useState(new Array<Message>());
     const [formModel, setFormModel] = useState<any>({});
 
     useEffect(() => {
-        var contextStore = new AssistantStore();
-        var currentContext = contextStore.getChatContext();
+        const contextStore = new AssistantStore();
+        const currentContext = contextStore.getChatContext();
         if (currentContext?.messages) {
             setMessages(currentContext.messages);
         }
-
-        defineFormHandler(DefineFormCommand.fullStateUpdate);
+        const formModel = contextStore.getFormModel();
+        (formModel);
+        setFormModel(formModel);
 
         const checkWidth = () => {
             setIsMobile(window.innerWidth < CRITICAL_WIDTH)
@@ -51,6 +53,7 @@ const CreateForm: NextPage = () => {
                 const formContext = contextStore.getChatContext();
                 const formModel = contextStore.getFormModel();
                 (formModel);
+                setShouldType(true);
                 setMessages(formContext.messages);
                 setFormModel(formModel);
                 break;
@@ -94,7 +97,7 @@ const CreateForm: NextPage = () => {
                 onResize={(size) => handleResize(size)}
                 className="transition-all duration-300 ease-in-out"
             >
-                <div className="flex h-screen z-50 bg-background border-l pt-6 md:px-4">
+                <div className="flex h-screen shrink-0 z-50 bg-background border-l pt-6 md:px-4">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -105,7 +108,7 @@ const CreateForm: NextPage = () => {
                         {isCollapsed ? <ChevronLeft className="h-8 w-8 " /> : <ChevronRight className="h-8 w-8" />}
                     </Button>
                     {!isCollapsed && <div className="flex flex-col gap-4 sm:pt-12 p-6">
-                        <ChatThread messages={messages} />
+                        <ChatThread isTyping={shouldType} messages={messages} />
                         {isWaiting && <DotLoader className="flex flex-none items-center m-auto" />}
                         <ChatBox
                             className="flex-end flex-none"

@@ -55,11 +55,6 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                 contextStore.clear();
             }
 
-            const formModel = contextStore.getFormModel();
-            if (formModel) {
-                formData.set("definition", JSON.stringify(formModel));
-            }
-
             const formContext = contextStore.getChatContext();
             if (formContext) {
                 formData.set("threadId", formContext.threadId ?? '');

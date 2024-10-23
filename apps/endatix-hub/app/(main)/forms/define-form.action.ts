@@ -10,7 +10,6 @@ export async function defineFormAction(
   formData: FormData
 ): Promise<IPromptResult> {
   const prompt = formData.get("prompt");
-  const definition = formData.get("definition");
   const threadId = formData.get("threadId");
   const assistantId = formData.get("assistantId");
 
@@ -19,12 +18,11 @@ export async function defineFormAction(
       prompt: prompt as string
     } as DefineFormRequest;
 
-    if (definition && threadId && assistantId) {
-        request.definition = definition as string,
+    if (threadId && assistantId) {
         request.threadId = threadId as string,
         request.assistantId = assistantId as string
     }
-    
+
     const response = await defineForm(request);
 
     var validatedModel = new Model(response.definition);
