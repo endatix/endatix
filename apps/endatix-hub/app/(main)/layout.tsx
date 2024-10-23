@@ -37,11 +37,11 @@ export const metadata: Metadata = {
   description: "Your data on your terms",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+interface RootLayoutProps {
+  children: React.ReactNode
+}
+
+export default function RootLayout({ children }: RootLayoutProps) {
   const sitemap = SitemapService.getSitemap();
   return (
     <html lang="en" suppressHydrationWarning>

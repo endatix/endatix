@@ -11,7 +11,7 @@ interface SurveyComponentProps {
     formId: string;
   }
 
-export default async function SurveyComponent({ definition, formId }: SurveyComponentProps) {
+export default function SurveyComponent({ definition, formId }: SurveyComponentProps) {
     const model = new Model(definition);
 
     const onFormComplete = async (sender: Model) => {
