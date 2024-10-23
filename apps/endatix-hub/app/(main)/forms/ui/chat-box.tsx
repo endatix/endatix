@@ -53,6 +53,12 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
 
             if (requiresNewContext) {
                 contextStore.clear();
+                contextStore.setChatContext({
+                    messages: [],
+                    threadId: '',
+                    assistantId: '',
+                    isInitialPrompt: true
+                });
             }
 
             const formContext = contextStore.getChatContext();
@@ -64,10 +70,10 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
             const promptResult = await defineFormAction(prevState, formData);
 
             if (promptResult.success && promptResult.value?.definition) {
-                var prompt = formData.get("prompt") as string;
+                const prompt = formData.get("prompt") as string;
                 contextStore.setFormModel(promptResult.value?.definition);
 
-                var currentContext = contextStore.getChatContext();
+                let currentContext = contextStore.getChatContext();
                 if (!currentContext) {
                     currentContext = {
                         messages: [],
@@ -84,6 +90,10 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                     isAi: false,
                     content: prompt
                 });
+
+                if (currentContext.messages.length > 1) {
+                    currentContext.isInitialPrompt = false;
+                }
 
                 if (promptResult.value?.assistantResponse) {
                     currentContext.messages.push({

@@ -27,6 +27,11 @@ const CreateForm: NextPage = () => {
     useEffect(() => {
         const contextStore = new AssistantStore();
         const currentContext = contextStore.getChatContext();
+
+        if (currentContext?.isInitialPrompt) {
+            setShouldType(true);
+        }
+
         if (currentContext?.messages) {
             setMessages(currentContext.messages);
         }
