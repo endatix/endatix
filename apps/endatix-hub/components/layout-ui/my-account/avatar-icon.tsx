@@ -9,6 +9,7 @@ const AvatarIcon = () => {
     <>
       <Button
         variant="outline"
+        aria-label="my-account-menu"
         size="icon"
         className="overflow-hidden rounded-full"
         onClick={(e) => {

@@ -76,9 +76,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
                   homeText="Home"
                   sitemap={sitemap}
                 ></BreadcrumbNav>
-                <div className="relative ml-auto flex-1 md:grow-0">
-                  <MainSearchBar />
-                </div>
+                <MainSearchBar />
                 <ModeToggle></ModeToggle>
                 <DropdownMenu>
                   <AvatarIcon />

@@ -5,3 +5,23 @@
 .svc-flex-row {
     background: transparent !important;
 }
+
+/* Hide breadcrumb on create page */
+nav[aria-label="breadcrumb"] {
+    display: none;
+}
+
+/* Hide search bar on create page */
+div[aria-label="main-search-bar"] {
+    display: none;
+}
+
+/* Hide theme toggle on create page */
+button[aria-label="theme-toggle"] {
+    display: none;
+}
+
+/* Hide my account menu on create page */
+button[aria-label="my-account-menu"] {
+    display: none;
+}

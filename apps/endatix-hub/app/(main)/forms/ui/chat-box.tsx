@@ -89,6 +89,14 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                     isAi: false,
                     content: prompt
                 });
+
+                if (promptResult.value?.assistantResponse) {
+                    currentContext.messages.push({
+                        isAi: true,
+                        content: promptResult.value?.assistantResponse
+                    });
+                }
+
                 contextStore.setChatContext(currentContext);
 
                 if (onStateChange) {

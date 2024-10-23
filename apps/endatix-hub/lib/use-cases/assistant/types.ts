@@ -17,6 +17,7 @@ export interface DefineFormRequest {
 }
 
 export interface DefineFormContext {
+    assistantResponse: string,
     definition?: string,
     assistantId?: string,
     threadId: string

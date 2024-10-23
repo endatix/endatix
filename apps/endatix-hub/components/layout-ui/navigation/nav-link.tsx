@@ -24,6 +24,8 @@ const NavLink = ({
 }: NavLinkProps) => {
   const currentPath = usePathname();
 
+  const HOME_ROUTE_PATH = "/";
+  
   const isActive = useMemo(() => {
     if (!setIsActive || !path.startsWith("/")) {
       return false;
