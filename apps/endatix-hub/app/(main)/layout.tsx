@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import localFont from "next/font/local";
-import { ThemeProvider } from "@/components/theme-provider";
-import { PanelLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import type { Metadata } from "next"
+import "./globals.css"
+import localFont from "next/font/local"
+import { ThemeProvider } from "@/components/theme-provider"
+import { PanelLeft } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,7 +44,7 @@ export default function RootLayout({
 }>) {
   const sitemap = SitemapService.getSitemap();
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ThemeProvider
           attribute="class"
