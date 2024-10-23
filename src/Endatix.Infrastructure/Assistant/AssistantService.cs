@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.ClientModel;
 using Microsoft.Extensions.Options;
 using OpenAI.Assistants;
@@ -12,7 +13,8 @@ public class AssistantService : IAssistantService
 
     private const string ASSISTANT_NAME = "SurveyJS form creator";
     private const string ASSISTANT_INSTRUCTIONS = "You are an assistant that is an expert in SurveyJS and creating forms with it. "
-        + "When asked to generate a SurveyJS form definition, you return the JSON of the form definition.";
+        + "When asked to generate a SurveyJS form definition, you return the JSON of the form definition."
+        + "The responses must be in JSON format having one field `definition` with the generated definition and another field `response` having human friendly explanation about the result.";
     private const string NEW_DEFINITION_PROMPT_TEMPLATE = "Create a SurveyJS form based on the following prompt:\n{0}";
     private const string EXISTING_DEFINITION_PROMPT_TEMPLATE = "Following is a SurveyJS form inside triple backticks:\n```{0}```\nAdjust it based on the following prompt:\n{1}";
     private readonly string model = "gpt-4o";
@@ -57,8 +59,27 @@ public class AssistantService : IAssistantService
         }
 
         WaitToComplete(threadRun);
-        var newDefinition = await GetLastMessage(threadRun.ThreadId);
-        return new AssistedDefinitionDto(newDefinition, threadRun.AssistantId, threadRun.ThreadId);
+
+        string? newDefinition = null, response = null;
+        var lastMessage = await GetLastMessage(threadRun.ThreadId);
+        using (var doc = JsonDocument.Parse(lastMessage))
+        {
+            if (doc.RootElement.TryGetProperty("response", out var responseProperty))
+            {
+                response = responseProperty.GetRawText().Trim('"');
+            }
+            else
+            {
+                throw new InvalidOperationException("The assistant's response does not contain a `response` field.");
+            }
+
+            if (doc.RootElement.TryGetProperty("definition", out var definitionProperty))
+            {
+                newDefinition = definitionProperty.GetRawText().Trim('"');
+            }
+        }
+
+        return new AssistedDefinitionDto(response, newDefinition, threadRun.AssistantId, threadRun.ThreadId);
     }
 
     private void WaitToComplete(ThreadRun threadRun)
