@@ -2,31 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Endatix Hub: debug server-side",
+      "name": "🕹️ Endatix Hub: debug node",
       "type": "node-terminal",
       "request": "launch",
       "command": "pnpm dev"
-    },
-    {
-      "name": "Endatix Hub: debug client-side",
-      "type": "chrome",
-      "request": "launch",
-      "url": "http://localhost:3000"
-    },
-    {
-      "name": "Endatix Hub: debug full stack",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/node_modules/.bin/next",
-      "runtimeArgs": ["--inspect"],
-      "skipFiles": ["<node_internals>/**"],
-      "serverReadyAction": {
-        "action": "debugWithChrome",
-        "killOnServerStop": true,
-        "pattern": "- Local:.+(https?://.+)",
-        "uriFormat": "%s",
-        "webRoot": "${workspaceFolder}"
-      }
     }
   ]
 }
