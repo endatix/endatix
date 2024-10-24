@@ -110,7 +110,7 @@ const defaultTheme = {
 const creatorOptions: ICreatorOptions = {
     showPreview: true,
     showJSONEditorTab: false,
-    showTranslationTab: false,
+    showTranslationTab: true,
     showDesignerTab: true,
     showLogicTab: true,
     themeForPreview: "Default"
