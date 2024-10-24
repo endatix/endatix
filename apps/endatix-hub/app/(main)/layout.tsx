@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import localFont from "next/font/local";
-import { ThemeProvider } from "@/components/theme-provider";
-import { PanelLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import type { Metadata } from "next"
+import "./globals.css"
+import localFont from "next/font/local"
+import { ThemeProvider } from "@/components/theme-provider"
+import { PanelLeft } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,14 +37,17 @@ export const metadata: Metadata = {
   description: "Your data on your terms",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+interface RootLayoutProps {
+  children: React.ReactNode
+}
+
+export default function RootLayout({ children }: RootLayoutProps) {
   const sitemap = SitemapService.getSitemap();
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ThemeProvider
           attribute="class"
@@ -73,9 +76,7 @@ export default function RootLayout({
                   homeText="Home"
                   sitemap={sitemap}
                 ></BreadcrumbNav>
-                <div className="relative ml-auto flex-1 md:grow-0">
-                  <MainSearchBar />
-                </div>
+                <MainSearchBar />
                 <ModeToggle></ModeToggle>
                 <DropdownMenu>
                   <AvatarIcon />
