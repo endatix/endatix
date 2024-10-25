@@ -7,7 +7,7 @@ interface PageTitleProps {
 
 const PageTitle = ({ title, className, ...props }: PageTitleProps) => {
     return (
-        <h1 className={cn("text-2xl font-semibold tracking-tight", className)} {...props}>{title}</h1>
+        <h1 className={cn("text-4xl font-semibold tracking-tight", className)} {...props}>{title}</h1>
     );
 }
 
