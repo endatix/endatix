@@ -1,12 +1,12 @@
 'use client'
 
-import { ICreatorOptions } from 'survey-creator-core'
-import { SurveyCreatorComponent, SurveyCreator } from 'survey-creator-react'
+import { ICreatorOptions } from 'survey-creator-core/typings/creator-options'
+import { SurveyCreatorComponent, SurveyCreator, ICreatorTheme } from 'survey-creator-react'
 import 'survey-core/defaultV2.css'
 import 'survey-creator-core/survey-creator-core.css'
-import { useEffect, useState, useRef, RefObject } from 'react'
-import { ITheme } from 'survey-core'
 import './creator-styles.css'
+import { useEffect, useState } from 'react'
+
 
 interface PreviewFormProps {
     model: any;
@@ -110,7 +110,7 @@ const defaultTheme = {
 const creatorOptions: ICreatorOptions = {
     showPreview: true,
     showJSONEditorTab: false,
-    showTranslationTab: false,
+    showTranslationTab: true,
     showDesignerTab: true,
     showLogicTab: true,
     themeForPreview: "Default"
@@ -118,7 +118,6 @@ const creatorOptions: ICreatorOptions = {
 
 const PreviewForm = ({ model }: PreviewFormProps) => {
     const [creator, setCreator] = useState<SurveyCreator | null>(null);
-    const surveyCreatorRef: RefObject<HTMLDivElement | null> = useRef(null);
 
     useEffect(() => {
         if (creator) {
@@ -128,24 +127,18 @@ const PreviewForm = ({ model }: PreviewFormProps) => {
 
         const newCreator = new SurveyCreator(creatorOptions);
         newCreator.JSON = model;
-        newCreator.theme = defaultTheme as ITheme;
+        newCreator.theme = defaultTheme as ICreatorTheme;
         newCreator.activeTab = "test";
         newCreator.saveSurveyFunc = (no: number, callback: (num: number, status: boolean) => void) => {
             console.log(JSON.stringify(newCreator?.JSON));
             callback(no, true);
         };
         setCreator(newCreator);
-
-        if (surveyCreatorRef.current) {
-            surveyCreatorRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
     }, [model]);
 
     return (
-        <div ref={surveyCreatorRef}>
-            {creator && <SurveyCreatorComponent creator={creator} />}
-        </div>
+        creator && <SurveyCreatorComponent creator={creator} />
     );
 }
 
-export default PreviewForm; 
+export default PreviewForm;

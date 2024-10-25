@@ -53,11 +53,12 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
 
             if (requiresNewContext) {
                 contextStore.clear();
-            }
-
-            const formModel = contextStore.getFormModel();
-            if (formModel) {
-                formData.set("definition", JSON.stringify(formModel));
+                contextStore.setChatContext({
+                    messages: [],
+                    threadId: '',
+                    assistantId: '',
+                    isInitialPrompt: true
+                });
             }
 
             const formContext = contextStore.getChatContext();
@@ -65,21 +66,15 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                 formData.set("threadId", formContext.threadId ?? '');
                 formData.set("assistantId", formContext.assistantId ?? '');
             }
-
+  
             const promptResult = await defineFormAction(prevState, formData);
 
             if (promptResult.success && promptResult.value?.definition) {
-                var prompt = formData.get("prompt") as string;
+                const prompt = formData.get("prompt") as string;
                 contextStore.setFormModel(promptResult.value?.definition);
-
-                var currentContext = contextStore.getChatContext();
-                if (!currentContext) {
-                    currentContext = {
-                        messages: [],
-                        threadId: promptResult.value?.threadId ?? '',
-                        assistantId: promptResult.value?.assistantId ?? ''
-                    }
-                }
+                let currentContext = contextStore.getChatContext();
+                currentContext.threadId = promptResult.value?.threadId ?? '',
+                currentContext.assistantId = promptResult.value?.assistantId ?? ''
 
                 if (currentContext.messages === undefined) {
                     currentContext.messages = [];
@@ -89,6 +84,18 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                     isAi: false,
                     content: prompt
                 });
+
+                if (currentContext.messages.length > 1) {
+                    currentContext.isInitialPrompt = false;
+                }
+
+                if (promptResult.value?.assistantResponse) {
+                    currentContext.messages.push({
+                        isAi: true,
+                        content: promptResult.value?.assistantResponse
+                    });
+                }
+
                 contextStore.setChatContext(currentContext);
 
                 if (onStateChange) {
@@ -121,7 +128,7 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                     id='prompt'
                     name='prompt'
                     placeholder={placeholder ?? 'What would you like to achieve with your form?'}
-                    className='min-h-12 resize-none border-0 p-3 shadow-none focus-visible:ring-0'
+                    className='min-h-12 resize-none border-0 p-3 shadow-none focus:outline-none focus-visible:ring-0'
                 />
                 <div className='flex items-center p-3 pt-0'>
                     <TooltipProvider>

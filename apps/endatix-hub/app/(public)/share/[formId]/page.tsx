@@ -1,3 +1,5 @@
+"use server"
+
 import { FormDefinition } from '@/types';
 import { getActiveFormDefinition } from "@/services/api";
 import SurveyJsContainer from './ui/survey-js-container';
@@ -10,7 +12,7 @@ interface ShareSurveyPageProps {
 
 export default async function ShareSurveyPage({ params }: ShareSurveyPageProps) {
   const { formId } = await params;
-  const surveyJson = await getServerSideProps(formId);
+  const surveyJson = await getSurveyJson(formId);
 
   if (!surveyJson) {
     return <div>Form not found</div>;
@@ -23,7 +25,7 @@ export default async function ShareSurveyPage({ params }: ShareSurveyPageProps) 
   );
 }
 
-const getServerSideProps = async (formId: string) => {
+const getSurveyJson = async (formId: string) => {
   let formJson: string | null = null;
 
   try {

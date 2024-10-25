@@ -5,8 +5,9 @@ export type Message = {
 
 export type ChatContext = {
     assistantId?: string,
-    threadId: string
-    messages: Message[];
+    threadId: string,
+    messages: Message[],
+    isInitialPrompt?: boolean,
 };
 
 export interface DefineFormRequest {
@@ -17,6 +18,7 @@ export interface DefineFormRequest {
 }
 
 export interface DefineFormContext {
+    assistantResponse: string,
     definition?: string,
     assistantId?: string,
     threadId: string

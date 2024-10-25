@@ -31,7 +31,7 @@ const MainNav = () => {
           />
         </NavLink>
         {sitemapList.map((navItem) => (
-          <Tooltip key={navItem.path}>
+          <Tooltip key={navItem.text}>
             <TooltipTrigger asChild={false}>
               <NavLink path={navItem.path} text={navItem.text}>
                 <navItem.IconType className="h-5 w-5" />

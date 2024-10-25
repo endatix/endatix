@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef } from "react";
-import { startTransition } from "react";
-import { useRouter } from "next/navigation";
-import { ICreatorOptions } from "survey-creator-core";
-import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react";
+import { useState, useEffect, useRef } from "react"
+import { startTransition } from "react"
+import { useRouter } from "next/navigation"
+import { ICreatorOptions } from "survey-creator-core"
+import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react"
 import { updateFormDefinitionJsonAction } from "../app/(main)/forms/[formId]/update-form-definition-json.action"
-import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action";
-import { updateFormStatusAction } from "@/app/(main)/forms/[formId]/update-form-status.action";
-import "survey-core/defaultV2.css";
-import "survey-creator-core/survey-creator-core.css";
+import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action"
+import { updateFormStatusAction } from "@/app/(main)/forms/[formId]/update-form-status.action"
+import "survey-core/defaultV2.css"
+import "survey-creator-core/survey-creator-core.css"
 
 export interface SurveyCreatorProps {
   formId: string;
