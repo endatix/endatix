@@ -2,7 +2,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -29,12 +28,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateSubmissionRequest, Resu
         });
     }
 
-    /// <summary>
-    /// Executes the HTTP request for updating a form definition.
-    /// </summary>
-    /// <param name="request"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
+    /// <inheritdoc/>
     public override async Task<Results<Ok<UpdateSubmissionResponse>, BadRequest, NotFound>> ExecuteAsync(UpdateSubmissionRequest request, CancellationToken cancellationToken)
     {
         var updateSubmissionCommand = new UpdateSubmissionCommand(
@@ -48,9 +42,8 @@ public class Update(IMediator mediator) : Endpoint<UpdateSubmissionRequest, Resu
 
         var result = await mediator.Send(updateSubmissionCommand, cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Ok<UpdateSubmissionResponse>, BadRequest, NotFound>,
-            Submission,
-            UpdateSubmissionResponse>(SubmissionMapper.Map<UpdateSubmissionResponse>);
+        return TypedResultsBuilder
+            .MapResult(result, SubmissionMapper.Map<UpdateSubmissionResponse>)
+            .SetTypedResults<Ok<UpdateSubmissionResponse>, BadRequest, NotFound>();
     }
 }

@@ -27,11 +27,7 @@ public class List(IMediator mediator) : Endpoint<FormsListRequest, Results<Ok<IE
         });
     }
 
-    /// <summary>
-    /// Executes the HTTP request for listing forms.
-    /// </summary>
-    /// <param name="request">The request model containing pagination details.</param>
-    /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+    /// <inheritdoc/>
     public override async Task<Results<Ok<IEnumerable<FormModel>>, BadRequest>> ExecuteAsync(FormsListRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
@@ -40,6 +36,6 @@ public class List(IMediator mediator) : Endpoint<FormsListRequest, Results<Ok<IE
 
         return TypedResultsBuilder
             .MapResult(result, forms => forms.ToFormModel())
-            .ConfigureResults<Ok<IEnumerable<FormModel>>, BadRequest>();
+            .SetTypedResults<Ok<IEnumerable<FormModel>>, BadRequest>();
     }
 }

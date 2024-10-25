@@ -2,7 +2,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -25,7 +24,6 @@ public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<S
             s.Description = "Gets a single submission based of its Id and its respective formId";
             s.Responses[200] = "The Submission was retrieved successfully";
             s.Responses[400] = "Invalid input data.";
-            s.Responses[404] = "Form not found";
             s.Responses[404] = "Form submission not found";
         });
     }
@@ -36,9 +34,9 @@ public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<S
         var getSubmissionByIdQuery = new GetByIdQuery(request.FormId, request.SubmissionId);
         var result = await mediator.Send(getSubmissionByIdQuery, cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Ok<SubmissionModel>, BadRequest, NotFound>,
-            Submission,
-            SubmissionModel>(SubmissionMapper.Map<SubmissionModel>);
+        return TypedResultsBuilder
+                    .MapResult(result, SubmissionMapper.Map<SubmissionModel>)
+                    .SetTypedResults<Ok<SubmissionModel>, BadRequest, NotFound>();
+
     }
 }

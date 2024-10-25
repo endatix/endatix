@@ -103,7 +103,7 @@ public class TypedResultsBuilderTests
             .FromResult(result);
 
         // Act
-        Results<Ok<Source>, BadRequest> httpResult = resultsBuilder.ConfigureResults<Ok<Source>, BadRequest>();
+        Results<Ok<Source>, BadRequest> httpResult = resultsBuilder.SetTypedResults<Ok<Source>, BadRequest>();
 
         // Assert
         Assert.IsType<Results<Ok<Source>, BadRequest>>(httpResult);
@@ -120,7 +120,7 @@ public class TypedResultsBuilderTests
         // Act
         var action = () =>
         {
-            Results<Ok<Source>, BadRequest> httpResult = resultsBuilder.ConfigureResults<Ok<Source>, BadRequest>();
+            Results<Ok<Source>, BadRequest> httpResult = resultsBuilder.SetTypedResults<Ok<Source>, BadRequest>();
         };
 
         // Assert

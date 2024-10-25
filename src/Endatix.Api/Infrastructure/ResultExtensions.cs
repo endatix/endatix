@@ -3,12 +3,41 @@ using Microsoft.AspNetCore.Mvc;
 using Endatix.Core.Infrastructure.Result;
 using AppDomain = Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Infrastructure;
 
 #if NET7_0_OR_GREATER
 public static partial class ResultExtensions
 {
+    /// <summary>
+    /// Converts an IResult from an operation to a NotFound HTTP IResult with ProblemDetails.
+    /// </summary>
+    /// <param name="result">The IResult to convert.</param>
+    /// <returns>A NotFound HTTP IResult with ProblemDetails.</returns>
+    public static NotFound<ProblemDetails> ToNotFound(this AppDomain.IResult result)
+    {
+        var details = new StringBuilder("Next error(s) occurred:");
+
+        if (result.Errors.Any())
+        {
+            foreach (var error in result.Errors)
+            {
+                details.Append("* ").Append(error).AppendLine();
+            }
+        }
+        else
+        {
+            details.Append("* ").Append("Resource not found.").AppendLine();
+        }
+
+        return TypedResults.NotFound(new ProblemDetails
+        {
+            Title = "Resource not found.",
+            Detail = details.ToString()
+        });
+    }
+
     /// <summary>
     /// Convert a <see cref="Result{TEntity}"/> to an instance of <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c>
     /// </summary>
@@ -45,7 +74,8 @@ public static partial class ResultExtensions
     {
         var details = new StringBuilder("Next error(s) occurred:");
 
-        foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+        foreach (var error in result.Errors)
+            details.Append("* ").Append(error).AppendLine();
 
         return TypedResults.UnprocessableEntity(new ProblemDetails
         {
@@ -60,7 +90,8 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+                details.Append("* ").Append(error).AppendLine();
 
             return TypedResults.NotFound(new ProblemDetails
             {
@@ -80,7 +111,8 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+                details.Append("* ").Append(error).AppendLine();
 
             return TypedResults.Conflict(new ProblemDetails
             {
@@ -100,7 +132,8 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+                details.Append("* ").Append(error).AppendLine();
 
             return TypedResults.Problem(new ProblemDetails()
             {
@@ -121,7 +154,8 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+                details.Append("* ").Append(error).AppendLine();
 
             return TypedResults.Problem(new ProblemDetails
             {
@@ -142,7 +176,8 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+                details.Append("* ").Append(error).AppendLine();
 
             return TypedResults.Problem(new ProblemDetails
             {
@@ -163,7 +198,8 @@ public static partial class ResultExtensions
 
         if (result.Errors.Any())
         {
-            foreach (var error in result.Errors) details.Append("* ").Append(error).AppendLine();
+            foreach (var error in result.Errors)
+                details.Append("* ").Append(error).AppendLine();
 
             return TypedResults.Problem(new ProblemDetails
             {
