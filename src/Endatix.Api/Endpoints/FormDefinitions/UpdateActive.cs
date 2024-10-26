@@ -2,7 +2,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormDefinitions.UpdateActive;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
@@ -10,7 +9,7 @@ namespace Endatix.Api.Endpoints.FormDefinitions;
 /// <summary>
 /// Endpoint for updating the active form definition.
 /// </summary>
-public class UpdateActive(IMediator _mediator) : Endpoint<UpdateActiveFormDefinitionRequest, Results<Ok<UpdateActiveFormDefinitionResponse>, BadRequest, NotFound>>
+public class UpdateActive(IMediator mediator) : Endpoint<UpdateActiveFormDefinitionRequest, Results<Ok<UpdateActiveFormDefinitionResponse>, BadRequest, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -29,20 +28,15 @@ public class UpdateActive(IMediator _mediator) : Endpoint<UpdateActiveFormDefini
         });
     }
 
-    /// <summary>
-    /// Executes the HTTP request for updating the active form definition.
-    /// </summary>
-    /// <param name="request">The request model containing active form definition details.</param>
-    /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+    /// <inheritdoc />
     public override async Task<Results<Ok<UpdateActiveFormDefinitionResponse>, BadRequest, NotFound>> ExecuteAsync(UpdateActiveFormDefinitionRequest request, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(
+        var result = await mediator.Send(
             new UpdateActiveFormDefinitionCommand(request.FormId, request.IsDraft!.Value, request.JsonData!, request.IsActive!.Value),
             cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Ok<UpdateActiveFormDefinitionResponse>, BadRequest, NotFound>,
-            FormDefinition,
-            UpdateActiveFormDefinitionResponse>(FormDefinitionMapper.Map<UpdateActiveFormDefinitionResponse>);
+        return TypedResultsBuilder
+            .MapResult(result, FormDefinitionMapper.Map<UpdateActiveFormDefinitionResponse>)
+            .SetTypedResults<Ok<UpdateActiveFormDefinitionResponse>, BadRequest, NotFound>();
     }
 }

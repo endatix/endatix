@@ -2,13 +2,14 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
-
 
 namespace Endatix.Api.Endpoints.Submissions;
 
-public class ListByFormId(IMediator _mediator) : Endpoint<ListByFormIdRequest, Results<Ok<IEnumerable<SubmissionModel>>, BadRequest, NotFound>>
+/// <summary>
+/// Endpoint for listing submissions by form ID.
+/// </summary>
+public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Results<Ok<IEnumerable<SubmissionModel>>, BadRequest, NotFound>>
 {
     public override void Configure()
     {
@@ -24,15 +25,15 @@ public class ListByFormId(IMediator _mediator) : Endpoint<ListByFormIdRequest, R
         });
     }
 
+    /// <inheritdoc/>
     public override async Task<Results<Ok<IEnumerable<SubmissionModel>>, BadRequest, NotFound>> ExecuteAsync(ListByFormIdRequest request, CancellationToken cancellationToken)
     {
         var getSubmissionsQuery = new ListByFormIdQuery(request.FormId, request.Page, request.PageSize);
 
-        var result = await _mediator.Send(getSubmissionsQuery, cancellationToken);
+        var result = await mediator.Send(getSubmissionsQuery, cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Ok<IEnumerable<SubmissionModel>>, BadRequest, NotFound>,
-            IEnumerable<Submission>,
-            IEnumerable<SubmissionModel>>(SubmissionMapper.Map<SubmissionModel>);
+        return TypedResultsBuilder
+                    .MapResult(result, SubmissionMapper.Map<SubmissionModel>)
+                    .SetTypedResults<Ok<IEnumerable<SubmissionModel>>, BadRequest, NotFound>();
     }
 }

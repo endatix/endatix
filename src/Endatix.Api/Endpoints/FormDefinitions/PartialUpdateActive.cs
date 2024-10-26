@@ -2,7 +2,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
@@ -10,7 +9,7 @@ namespace Endatix.Api.Endpoints.FormDefinitions;
 /// <summary>
 /// Endpoint for partially updating the active form definition.
 /// </summary>
-public class PartialUpdateActive(IMediator _mediator) : Endpoint<PartialUpdateActiveFormDefinitionRequest, Results<Ok<PartialUpdateActiveFormDefinitionResponse>, BadRequest, NotFound>>
+public class PartialUpdateActive(IMediator mediator) : Endpoint<PartialUpdateActiveFormDefinitionRequest, Results<Ok<PartialUpdateActiveFormDefinitionResponse>, BadRequest, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -29,20 +28,15 @@ public class PartialUpdateActive(IMediator _mediator) : Endpoint<PartialUpdateAc
         });
     }
 
-    /// <summary>
-    /// Executes the HTTP request for partially updating the active form definition.
-    /// </summary>
-    /// <param name="request">The request model containing active form definition details.</param>
-    /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+    /// <inheritdoc />
     public override async Task<Results<Ok<PartialUpdateActiveFormDefinitionResponse>, BadRequest, NotFound>> ExecuteAsync(PartialUpdateActiveFormDefinitionRequest request, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(
+        var result = await mediator.Send(
             new PartialUpdateActiveFormDefinitionCommand(request.FormId, request.IsDraft, request.JsonData, request.IsActive),
             cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Ok<PartialUpdateActiveFormDefinitionResponse>, BadRequest, NotFound>,
-            FormDefinition,
-            PartialUpdateActiveFormDefinitionResponse>(FormDefinitionMapper.Map<PartialUpdateActiveFormDefinitionResponse>);
+        return TypedResultsBuilder
+            .MapResult(result, FormDefinitionMapper.Map<PartialUpdateActiveFormDefinitionResponse>)
+            .SetTypedResults<Ok<PartialUpdateActiveFormDefinitionResponse>, BadRequest, NotFound>();
     }
 }

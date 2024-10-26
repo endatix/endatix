@@ -1,12 +1,13 @@
 ﻿using FastEndpoints;
 using MediatR;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Security;
 using Endatix.Core.UseCases.Security.Login;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Api.Endpoints.Auth;
 
-public class Login(IMediator _mediator) : Endpoint<LoginRequest, LoginResponse>
+public class Login(IMediator mediator) : Endpoint<LoginRequest, Results<Ok<LoginResponse>, BadRequest<IEnumerable<ValidationError>>>>
 {
     public override void Configure()
     {
@@ -21,14 +22,15 @@ public class Login(IMediator _mediator) : Endpoint<LoginRequest, LoginResponse>
         });
     }
 
-    public override async Task HandleAsync(LoginRequest request, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public override async Task<Results<Ok<LoginResponse>, BadRequest<IEnumerable<ValidationError>>>> ExecuteAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var loginCommand = new LoginCommand(request.Email, request.Password);
-        Result<TokenDto> result = await _mediator.Send(loginCommand, cancellationToken);
+        var result = await mediator.Send(loginCommand, cancellationToken);
 
         if (result.IsInvalid())
         {
-            ThrowError("The supplied credentials are invalid!");
+            return TypedResults.BadRequest(result.ValidationErrors);
         }
         else
         {
@@ -37,7 +39,7 @@ public class Login(IMediator _mediator) : Endpoint<LoginRequest, LoginResponse>
                 Email = request.Email,
                 Token = result.Value.Token
             };
-            await SendOkAsync(successfulResponse, cancellationToken);
+            return TypedResults.Ok(successfulResponse);
         }
     }
 }
