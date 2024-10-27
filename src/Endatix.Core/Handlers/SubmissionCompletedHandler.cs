@@ -2,8 +2,6 @@ using Microsoft.Extensions.Logging;
 using Endatix.Core.Events;
 using MediatR;
 using Endatix.Core.Features.WebHooks;
-using Endatix.Core.Specifications;
-using Endatix.Core.Entities;
 
 namespace Endatix.Core.Handlers;
 

@@ -79,6 +79,8 @@ public static class ServiceCollectionExtensions
     /// <returns>The configured <see cref="IServiceCollection"/> instance.</returns>
     public static IServiceCollection AddWebHookProcessing(this IServiceCollection services)
     {
+        services.AddOptions<WebHookSettings>()
+               .BindConfiguration("Endatix:WebHooks");
         services.AddSingleton<IBackgroundTasksQueue, BackgroundTasksQueue>();
         services.AddSingleton(typeof(IWebHookService<>), typeof(BackgroundTaskWebHookService<>));
         services.AddHostedService<WebHookBackgroundWorker>();

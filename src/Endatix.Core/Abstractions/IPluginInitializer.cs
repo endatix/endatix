@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Core;
 
@@ -11,5 +10,5 @@ public interface IPluginInitializer
      /// <summary>
      /// Initialization delete to implement the install logic exposing IServiceCollection. Example use (services) => { logic here... };
      /// </summary>
-     abstract static Action<IServiceCollection> InitializationDelegate { get; }
+     static abstract Action<IServiceCollection> InitializationDelegate { get; }
 }
