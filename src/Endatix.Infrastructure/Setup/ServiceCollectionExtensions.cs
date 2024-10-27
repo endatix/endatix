@@ -5,6 +5,7 @@ using Endatix.Core.Features.Email;
 using Endatix.Infrastructure.Setup;
 using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Core.Features.WebHooks;
+using Endatix.Core;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
