@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Endatix.Core.Features.WebHooks;
 using Microsoft.Extensions.Logging;
+using Polly.Timeout;
 
 namespace Endatix.Infrastructure.Features.WebHooks;
 
@@ -20,36 +21,36 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
     /// <returns>A task that represents the asynchronous operation. The task result indicates if the WebHook was successfully processed.</returns>
     internal async Task<bool> FireWebHookAsync<T>(WebHookMessage<T> message, WebHookProps instructions, CancellationToken token)
     {
-        var isSuccess = false; // Flag to indicate if the WebHook was successfully processed
+        var isSuccess = false;
         try
         {
-            // Serialize the WebHook message to JSON
             var jsonContent = JsonSerializer.Serialize(message);
-            // Create a StringContent object with the serialized JSON and set the content type to application/json
             var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-            // Post the content to the specified URI
             var response = await httpClient.PostAsync(instructions.Uri, content, token);
 
-            // Check if the response was successful
             if (response.IsSuccessStatusCode)
             {
-                // Log a trace message indicating the WebHook was successfully processed
                 logger.LogTrace($"Successfully processed WebHook for Submission. Status Code: {response.StatusCode}");
-                isSuccess = true; // Set the success flag to true
+                isSuccess = true;
             }
             else
             {
-                // Log a warning message if the WebHook processing failed
-                logger.LogWarning($"Failed to process WebHook. Status Code: {response.StatusCode}");
+                logger.LogError($"Failed to process WebHook. Status Code: {response.StatusCode}");
             }
 
         }
+        catch (TaskCanceledException ex)
+        {
+            logger.LogError("Webhook execution was cancelled. Failed operation: {operation}.Item id: {id}. Destination: {url}. Error message: {message}.", message.Operation, message.Id, instructions.Uri, ex.Message);
+        }
+        catch (TimeoutRejectedException ex){
+            logger.LogError("Webhook execution rejected because of timeout. Failed operation: {operation}.Item id: {id}. Destination: {url}. Error message: {message}.", message.Operation, message.Id, instructions.Uri, ex.Message);
+        }
         catch (Exception ex)
         {
-            // Log an error message if an exception occurs during WebHook processing
             logger.LogError(ex, "Error occurred while processing WebHook @{message}.", message);
         }
 
-        return isSuccess; // Return the success flag
+        return isSuccess; 
     }
 }

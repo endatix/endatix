@@ -6,6 +6,13 @@ using Endatix.Infrastructure.Setup;
 using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Core;
+using Polly;
+using Polly.Retry;
+using Microsoft.Extensions.Http.Resilience;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Http;
+using System.Net;
+using Polly.Timeout;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -84,12 +91,32 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IBackgroundTasksQueue, BackgroundTasksQueue>();
         services.AddSingleton(typeof(IWebHookService<>), typeof(BackgroundTaskWebHookService<>));
         services.AddHostedService<WebHookBackgroundWorker>();
-
         services.AddHttpClient<WebHookServer>((serviceProvider, client) =>
                {
-                   const int DEFAULT_WEBHOOK_REQUEST_TIMEOUT_IN_SECONDS = 10;
+                   const int DEFAULT_WEBHOOK_REQUEST_TIMEOUT_IN_SECONDS = 120;
                    client.Timeout = TimeSpan.FromSeconds(DEFAULT_WEBHOOK_REQUEST_TIMEOUT_IN_SECONDS);
                    client.DefaultRequestHeaders.UserAgent.ParseAdd(WebHookRequestHeaders.Constants.ENDATIX_USER_AGENT);
+               })
+               .AddResilienceHandler("webhook-resilience", static builder =>
+               {
+                   builder.AddRetry(new HttpRetryStrategyOptions
+                   {
+                       BackoffType = DelayBackoffType.Exponential,
+                       Delay = TimeSpan.FromSeconds(5),
+                       MaxRetryAttempts = 5,
+                       UseJitter = true,
+                       ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                            .Handle<TimeoutRejectedException>()
+                            .Handle<HttpRequestException>()
+                            .HandleResult(response => !response.IsSuccessStatusCode)
+
+                   });
+                   builder.AddTimeout(TimeSpan.FromSeconds(10));
+                   builder.AddConcurrencyLimiter(new ConcurrencyLimiterOptions
+                   {
+                       PermitLimit = 10,
+                       QueueLimit = 10
+                   });
                });
 
         return services;
