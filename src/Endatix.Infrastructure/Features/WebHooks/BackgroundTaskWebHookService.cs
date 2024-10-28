@@ -22,19 +22,23 @@ internal class BackgroundTaskWebHookService<TPayload>(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task EnqueueWebHookAsync(WebHookMessage<TPayload> message, CancellationToken cancellationToken)
     {
-        await backgroundQueue.EnqueueAsync(async token =>
-         {
-             var destinationUrl = _webHookSettings.SubmissionCompleted.WebHookUrls?.FirstOrDefault();
-             if (!string.IsNullOrEmpty(destinationUrl))
+        var destinationUrls = _webHookSettings.SubmissionCompleted.WebHookUrls;
+        if (destinationUrls is null || !destinationUrls.Any())
+        {
+            return;
+        }
+
+        foreach (var destinationUrl in destinationUrls)
+        {
+            await backgroundQueue.EnqueueAsync(async token =>
              {
                  WebHookProps webHookProps = new(destinationUrl);
                  var result = await httpServer.FireWebHookAsync(message, webHookProps, token);
-             }
-         });
+             });
+        }
 
         return;
     }
-
 }
 
 /// <summary>

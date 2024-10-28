@@ -24,6 +24,12 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
         var isSuccess = false;
         try
         {
+            if (instructions.Uri is null || !Uri.IsWellFormedUriString(instructions.Uri, UriKind.Absolute))
+            {
+                logger.LogError("Invalid WebHook URI: {uri}. Skipping firing WebHook for {operation} and Id: {id}...", instructions.Uri, message.Operation, message.Id);
+                return false;
+            }
+
             var jsonContent = JsonSerializer.Serialize(message);
             var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
             var response = await httpClient.PostAsync(instructions.Uri, content, token);
@@ -43,7 +49,8 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
         {
             logger.LogError("Webhook execution was cancelled. Failed operation: {operation}.Item id: {id}. Destination: {url}. Error message: {message}.", message.Operation, message.Id, instructions.Uri, ex.Message);
         }
-        catch (TimeoutRejectedException ex){
+        catch (TimeoutRejectedException ex)
+        {
             logger.LogError("Webhook execution rejected because of timeout. Failed operation: {operation}.Item id: {id}. Destination: {url}. Error message: {message}.", message.Operation, message.Id, instructions.Uri, ex.Message);
         }
         catch (Exception ex)
@@ -51,6 +58,6 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
             logger.LogError(ex, "Error occurred while processing WebHook @{message}.", message);
         }
 
-        return isSuccess; 
+        return isSuccess;
     }
 }

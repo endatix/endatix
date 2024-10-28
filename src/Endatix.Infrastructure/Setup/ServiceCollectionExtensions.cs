@@ -7,12 +7,10 @@ using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Core;
 using Polly;
-using Polly.Retry;
 using Microsoft.Extensions.Http.Resilience;
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.Http;
-using System.Net;
 using Polly.Timeout;
+using Microsoft.Extensions.Options;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -87,23 +85,27 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddWebHookProcessing(this IServiceCollection services)
     {
         services.AddOptions<WebHookSettings>()
-               .BindConfiguration("Endatix:WebHooks");
+               .BindConfiguration("Endatix:WebHooks")
+               .ValidateDataAnnotations();
         services.AddSingleton<IBackgroundTasksQueue, BackgroundTasksQueue>();
         services.AddSingleton(typeof(IWebHookService<>), typeof(BackgroundTaskWebHookService<>));
         services.AddHostedService<WebHookBackgroundWorker>();
         services.AddHttpClient<WebHookServer>((serviceProvider, client) =>
                {
-                   const int DEFAULT_WEBHOOK_REQUEST_TIMEOUT_IN_SECONDS = 120;
-                   client.Timeout = TimeSpan.FromSeconds(DEFAULT_WEBHOOK_REQUEST_TIMEOUT_IN_SECONDS);
+                   var webHookSettings = serviceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
+
+                   client.Timeout = TimeSpan.FromSeconds(webHookSettings.PipelineTimeoutInSeconds);
                    client.DefaultRequestHeaders.UserAgent.ParseAdd(WebHookRequestHeaders.Constants.ENDATIX_USER_AGENT);
                })
-               .AddResilienceHandler("webhook-resilience", static builder =>
+               .AddResilienceHandler("webhook-resilience", static (builder, context) =>
                {
+                   var webHookSettings = context.ServiceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
+
                    builder.AddRetry(new HttpRetryStrategyOptions
                    {
                        BackoffType = DelayBackoffType.Exponential,
-                       Delay = TimeSpan.FromSeconds(5),
-                       MaxRetryAttempts = 5,
+                       Delay = TimeSpan.FromSeconds(webHookSettings.Delay),
+                       MaxRetryAttempts = webHookSettings.RetryAttempts,
                        UseJitter = true,
                        ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
                             .Handle<TimeoutRejectedException>()
@@ -111,11 +113,11 @@ public static class ServiceCollectionExtensions
                             .HandleResult(response => !response.IsSuccessStatusCode)
 
                    });
-                   builder.AddTimeout(TimeSpan.FromSeconds(10));
+                   builder.AddTimeout(TimeSpan.FromSeconds(webHookSettings.AttemptTimeoutInSeconds));
                    builder.AddConcurrencyLimiter(new ConcurrencyLimiterOptions
                    {
-                       PermitLimit = 10,
-                       QueueLimit = 10
+                       PermitLimit = webHookSettings.MaxConcurrentRequests,
+                       QueueLimit = webHookSettings.MaxQueueSize
                    });
                });
 
