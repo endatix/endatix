@@ -20,7 +20,7 @@ internal sealed class SubmissionCompletedHandler(IWebHookService webHookService,
     {
         logger.LogTrace("Handling Submission Created event for {@submissionId}", domainEvent.Submission);
 
-        var formSubmittedMessage = new WebHookMessage<SubmissionDto>(domainEvent.Submission.Id, "form_submitted", SubmissionDto.FromSubmission(domainEvent.Submission));
+        var formSubmittedMessage = new WebHookMessage<SubmissionDto>(domainEvent.Submission.Id, WebHookOperation.FormSubmitted, SubmissionDto.FromSubmission(domainEvent.Submission));
         await webHookService.EnqueueWebHookAsync(formSubmittedMessage, cancellationToken);
     }
 }

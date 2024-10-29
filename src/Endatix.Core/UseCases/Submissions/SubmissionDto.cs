@@ -1,3 +1,4 @@
+using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
@@ -14,11 +15,13 @@ namespace Endatix.Core.UseCases.Submissions;
 /// <param name="CurrentPage">The current page of the submission, if applicable.</param>
 /// <param name="CompletedAt">The date and time when the submission was completed, if applicable.</param>
 /// <param name="CreatedAt">The date and time when the submission was created.</param>
-public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object> JsonData, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt)
+public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object> JsonData, string Metadata, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt)
 {
     public long Id { get; init; } = Id;
     public bool IsComplete { get; init; } = IsComplete;
     public Dictionary<string, object> JsonData { get; init; } = JsonData;
+
+    public string  Metadata { get; init; } = Metadata;
     public long FormDefinitionId { get; init; } = FormDefinitionId;
     public int? CurrentPage { get; init; } = CurrentPage;
     public DateTime? CompletedAt { get; init; } = CompletedAt;
@@ -36,6 +39,7 @@ public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object>
                 submission.Id,
                  submission.IsComplete,
                  jsonData,
+                 submission.Metadata,
                  submission.FormDefinitionId,
                  submission.CurrentPage,
                  submission.CompletedAt,
@@ -44,7 +48,7 @@ public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object>
         }
         catch (JsonException ex)
         {
-            throw new InvalidOperationException("Failed to deserialize JSON data", ex);
+            throw new InvalidOperationException("Failed to deserialize Submission'sJSON data", ex);
         }
     }
 }

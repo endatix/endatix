@@ -23,33 +23,33 @@ public class WebHookSettings : IEndatixSettings
 
     /// <summary>
     /// Gets or sets the timeout for each attempt in seconds. Allowed range: 1-120.
-    /// </summary>  
+    /// </summary>
     [Range(1, 120)]
     public uint AttemptTimeoutInSeconds { get; set; } = DEFAULT_ATTEMPT_TIMEOUT_IN_SECONDS;
 
     /// <summary>
     /// Gets or sets the number of retry attempts. Allowed range: 1-10.
-    /// </summary>  
+    /// </summary>
     [Range(1, 10)]
     public int RetryAttempts { get; set; } = DEFAULT_RETRY_ATTEMPTS;
 
     /// <summary>
     /// Gets or sets the delay between retries in seconds. Allowed range: 1-60.
-    /// </summary>  
+    /// </summary>
     [Range(1, 60)]
     public int Delay { get; set; } = DEFAULT_DELAY_IN_SECONDS;
 
 
-    /// <summary>       
+    /// <summary>
     /// Gets or sets the maximum number of concurrent requests. Allowed range: 1-100.
-    /// </summary>  
+    /// </summary>
     [Range(1, 100)]
     public int MaxConcurrentRequests { get; set; } = DEFAULT_MAX_CONCURRENT_REQUESTS;
 
 
-    /// <summary>       
+    /// <summary>
     /// Gets or sets the maximum number of requests in the queue. Allowed range: 1-100.
-    /// </summary>  
+    /// </summary>
     [Range(1, 100)]
     public int MaxQueueSize { get; set; } = DEFAULT_MAX_QUEUE_SIZE;
 

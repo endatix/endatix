@@ -30,9 +30,14 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
                 return false;
             }
 
-            var jsonContent = JsonSerializer.Serialize(message);
-            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-            var response = await httpClient.PostAsync(instructions.Uri, content, token);
+            var content = CreateContent(message);
+            using var request = new HttpRequestMessage(HttpMethod.Post,instructions.Uri)
+            {
+                Content = content,
+            };
+            AddWebHookHeaders(request, message);
+
+            var response = await httpClient.SendAsync(request, token);
 
             if (response.IsSuccessStatusCode)
             {
@@ -59,5 +64,21 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
         }
 
         return isSuccess;
+    }
+
+
+    private StringContent CreateContent<T>(WebHookMessage<T> message)
+    {
+        var jsonContent = JsonSerializer.Serialize(message);
+        return new StringContent(jsonContent, Encoding.UTF8, "application/json");
+    }
+
+
+    private void AddWebHookHeaders<T>(HttpRequestMessage request, WebHookMessage<T> message)
+    {
+        request.Headers.Add(WebHookRequestHeaders.Event, message.Operation.EventName);
+        request.Headers.Add(WebHookRequestHeaders.Entity, message.Operation.Entity);
+        request.Headers.Add(WebHookRequestHeaders.Action, message.Operation.Action.GetDisplayName());
+        request.Headers.Add(WebHookRequestHeaders.HookId, message.Id.ToString());
     }
 }

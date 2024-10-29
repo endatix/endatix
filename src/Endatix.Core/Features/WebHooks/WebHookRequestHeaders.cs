@@ -7,15 +7,15 @@ public class WebHookRequestHeaders
 {
 
     /// <summary>
-    /// The event header. E.g. "SubmissionCompletedEvent"
+    /// The event header. E.g. "form_created"
     /// </summary>
     public static string Event => $"{Constants.COMMON_HEADER_PREFIX}-Event";
     /// <summary>
-    /// The entity header, e.g. "Submission"
+    /// The entity header, e.g. "submission"
     /// </summary>
-    public static string Entity => $"{Constants.COMMON_HEADER_PREFIX}-Action";
+    public static string Entity => $"{Constants.COMMON_HEADER_PREFIX}-Entity";
     /// <summary>
-    /// The action header, e.g. "Create".
+    /// The action header, e.g. "created".
     /// </summary>
     public static string Action => $"{Constants.COMMON_HEADER_PREFIX}-Action";
 
