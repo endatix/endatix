@@ -88,7 +88,7 @@ public static class ServiceCollectionExtensions
                .BindConfiguration("Endatix:WebHooks")
                .ValidateDataAnnotations();
         services.AddSingleton<IBackgroundTasksQueue, BackgroundTasksQueue>();
-        services.AddSingleton(typeof(IWebHookService<>), typeof(BackgroundTaskWebHookService<>));
+        services.AddSingleton(typeof(IWebHookService), typeof(BackgroundTaskWebHookService));
         services.AddHostedService<WebHookBackgroundWorker>();
         services.AddHttpClient<WebHookServer>((serviceProvider, client) =>
                {

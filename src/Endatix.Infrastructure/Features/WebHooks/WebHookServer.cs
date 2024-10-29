@@ -16,10 +16,10 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
     /// </summary>
     /// <typeparam name="T">The type of the payload carried by the WebHook message.</typeparam>
     /// <param name="message">The WebHook message to be sent.</param>
-    /// <param name="instructions">Properties for the WebHook, including the URI.</param>
+    /// <param name="instructions">Properties for the WebHook operation, including the destination URI.</param>
     /// <param name="token">A cancellation token.</param>
     /// <returns>A task that represents the asynchronous operation. The task result indicates if the WebHook was successfully processed.</returns>
-    internal async Task<bool> FireWebHookAsync<T>(WebHookMessage<T> message, WebHookProps instructions, CancellationToken token)
+    internal async Task<bool> FireWebHookAsync<T>(WebHookMessage<T> message, TaskInstructions instructions, CancellationToken token)
     {
         var isSuccess = false;
         try
