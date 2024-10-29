@@ -11,6 +11,8 @@ using Microsoft.Extensions.Http.Resilience;
 using System.Threading.RateLimiting;
 using Polly.Timeout;
 using Microsoft.Extensions.Options;
+using System.Collections.Immutable;
+using System.Net.Sockets;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -101,17 +103,20 @@ public static class ServiceCollectionExtensions
                {
                    var webHookSettings = context.ServiceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
 
+                   var exceptionsToHandle = new[]
+                    {
+                        typeof(TimeoutRejectedException),
+                        typeof(SocketException),
+                        typeof(HttpRequestException),
+                    }.ToImmutableArray();
+
                    builder.AddRetry(new HttpRetryStrategyOptions
                    {
                        BackoffType = DelayBackoffType.Exponential,
                        Delay = TimeSpan.FromSeconds(webHookSettings.Delay),
                        MaxRetryAttempts = webHookSettings.RetryAttempts,
                        UseJitter = true,
-                       ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-                            .Handle<TimeoutRejectedException>()
-                            .Handle<HttpRequestException>()
-                            .HandleResult(response => !response.IsSuccessStatusCode)
-
+                       ShouldHandle = ex => new ValueTask<bool>(exceptionsToHandle.Contains(ex.GetType()) || ex.Outcome.Result?.IsSuccessStatusCode == false)
                    });
                    builder.AddTimeout(TimeSpan.FromSeconds(webHookSettings.AttemptTimeoutInSeconds));
                    builder.AddConcurrencyLimiter(new ConcurrencyLimiterOptions
