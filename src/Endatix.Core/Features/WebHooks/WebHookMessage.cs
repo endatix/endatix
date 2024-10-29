@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Endatix.Core.Features.WebHooks;
 
 /// <summary>
@@ -12,6 +14,11 @@ public record WebHookMessage<TPayload>(long Id, WebHookOperation Operation, TPay
     public long Id { get; init; } = Id;
 
     /// <summary>
+    /// Gets or sets the name of the event associated with the message.
+    /// </summary>
+    public string EventName { get; set; } = Operation.EventName;
+
+    /// <summary>
     /// Gets or sets the display name of the action associated with the message.
     /// </summary>
     public string Action { get; set; } = Operation.Action.GetDisplayName();
@@ -19,6 +26,7 @@ public record WebHookMessage<TPayload>(long Id, WebHookOperation Operation, TPay
     /// <summary>
     /// Gets or sets the operation associated with the message.
     /// </summary>
+    [JsonIgnore]
     public WebHookOperation Operation { get; init; } = Operation;
 
     /// <summary>

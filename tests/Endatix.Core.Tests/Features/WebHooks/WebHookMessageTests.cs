@@ -24,7 +24,7 @@ public class WebHookMessageTests
     }
 
     [Fact]
-    public void WebHookMessage_WhenNullPayload_ShouldNotThrow()
+    public void WebHookMessage_WithNullPayload_DoesNotThrow()
     {
         // Arrange
         long expectedId = 1;

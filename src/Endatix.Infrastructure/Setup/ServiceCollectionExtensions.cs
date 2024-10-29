@@ -96,7 +96,7 @@ public static class ServiceCollectionExtensions
                {
                    var webHookSettings = serviceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
 
-                   client.Timeout = TimeSpan.FromSeconds(webHookSettings.PipelineTimeoutInSeconds);
+                   client.Timeout = TimeSpan.FromSeconds(webHookSettings.ServerSettings.PipelineTimeoutInSeconds);
                    client.DefaultRequestHeaders.UserAgent.ParseAdd(WebHookRequestHeaders.Constants.ENDATIX_USER_AGENT);
                })
                .AddResilienceHandler("webhook-resilience", static (builder, context) =>
@@ -113,16 +113,16 @@ public static class ServiceCollectionExtensions
                    builder.AddRetry(new HttpRetryStrategyOptions
                    {
                        BackoffType = DelayBackoffType.Exponential,
-                       Delay = TimeSpan.FromSeconds(webHookSettings.Delay),
-                       MaxRetryAttempts = webHookSettings.RetryAttempts,
+                       Delay = TimeSpan.FromSeconds(webHookSettings.ServerSettings.Delay),
+                       MaxRetryAttempts = webHookSettings.ServerSettings.RetryAttempts,
                        UseJitter = true,
                        ShouldHandle = ex => new ValueTask<bool>(exceptionsToHandle.Contains(ex.GetType()) || ex.Outcome.Result?.IsSuccessStatusCode == false)
                    });
-                   builder.AddTimeout(TimeSpan.FromSeconds(webHookSettings.AttemptTimeoutInSeconds));
+                   builder.AddTimeout(TimeSpan.FromSeconds(webHookSettings.ServerSettings.AttemptTimeoutInSeconds));
                    builder.AddConcurrencyLimiter(new ConcurrencyLimiterOptions
                    {
-                       PermitLimit = webHookSettings.MaxConcurrentRequests,
-                       QueueLimit = webHookSettings.MaxQueueSize
+                       PermitLimit = webHookSettings.ServerSettings.MaxConcurrentRequests,
+                       QueueLimit = webHookSettings.ServerSettings.MaxQueueSize
                    });
                });
 

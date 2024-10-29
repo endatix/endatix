@@ -1,4 +1,5 @@
 using Endatix.Core.Features.WebHooks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Features.WebHooks;
@@ -7,6 +8,7 @@ namespace Endatix.Infrastructure.Features.WebHooks;
 /// Handles the queuing of WebHook messages for asynchronous processing in the background.
 /// </summary>
 internal class BackgroundTaskWebHookService(
+    ILogger<BackgroundTaskWebHookService> logger,
     IBackgroundTasksQueue backgroundQueue,
     IOptions<WebHookSettings> webHookOptions,
     WebHookServer httpServer) : IWebHookService
@@ -21,9 +23,15 @@ internal class BackgroundTaskWebHookService(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task EnqueueWebHookAsync<TPayload>(WebHookMessage<TPayload> message, CancellationToken cancellationToken) where TPayload : notnull
     {
-        var destinationUrls = _webHookSettings.SubmissionCompleted.WebHookUrls;
+        if (!_webHookSettings.Events.FormSubmitted.IsEnabled)
+        {
+            logger.LogTrace("WebHook for FormSubmitted event is disabled. Skipping processing...");
+            return;
+        }
+        var destinationUrls = _webHookSettings.Events.FormSubmitted?.WebHookUrls;
         if (destinationUrls is null || !destinationUrls.Any())
         {
+            logger.LogTrace("No destination URLs found for FormSubmitted event. Skipping processing...");
             return;
         }
 
