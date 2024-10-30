@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import "./globals.css"
 import localFont from "next/font/local"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "@/components/controls/theme/theme-provider"
 import { PanelLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,7 +12,6 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { ModeToggle } from "@/components/mode-toggle";
 import MainNav from "@/components/layout-ui/navigation/main-nav";
 import MobileNav from "@/components/layout-ui/navigation/mobile-nav";
 import BreadcrumbNav from "@/components/layout-ui/navigation/breadcrumb-nav";
@@ -20,6 +19,7 @@ import { SitemapService } from "@/services/sitemap-service";
 import { Toaster } from "sonner";
 import AvatarIcon from "@/components/layout-ui/my-account/avatar-icon";
 import MainSearchBar from "@/components/layout-ui/navigation/main-search-bar";
+import NotificationsBell from "@/components/controls/notifications/notifications-bell"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -51,7 +51,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
@@ -77,7 +77,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
                   sitemap={sitemap}
                 ></BreadcrumbNav>
                 <MainSearchBar />
-                <ModeToggle></ModeToggle>
+                <NotificationsBell
+                  badgeStyle="dot"
+                  renderSampleData={false}
+                />
                 <DropdownMenu>
                   <AvatarIcon />
                   <DropdownMenuContent align="end">
