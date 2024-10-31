@@ -4,6 +4,7 @@ using Endatix.Core.Configuration;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Services;
+using Endatix.Persistence.SqlServer.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,8 +30,14 @@ public static class EndatixAppExtensions
 
         string? connectionString = EndatixConfig.Configuration.ConnectionString;
         string? migrationsAssembly = EndatixConfig.Configuration.MigrationsAssembly;
-        endatixApp.Services.AddDbContext<AppDbContext>(options =>
+
+        endatixApp.Services.AddSingleton<SqlEncryptionInitializer>();
+
+        endatixApp.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
         {
+            var encryptionInitializer = serviceProvider.GetRequiredService<SqlEncryptionInitializer>();
+            encryptionInitializer.Initialize();
+
             options.UseSqlServer(connectionString, b => b.MigrationsAssembly(migrationsAssembly));
         });
 
