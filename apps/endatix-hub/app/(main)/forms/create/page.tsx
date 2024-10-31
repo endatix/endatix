@@ -5,12 +5,14 @@ import { NextPage } from 'next'
 import ChatBox from '../ui/chat-box'
 import PreviewFormContainer from './ui/preview-form-container'
 import ChatThread from './ui/chat-thread'
-import { useEffect, useRef, useState } from 'react'
-import { AssistantStore, DefineFormCommand, Message } from '@/lib/use-cases/assistant'
+import { startTransition, useEffect, useRef, useState } from 'react'
+import { AssistantStore, CreateFormRequest, DefineFormCommand, Message } from '@/lib/use-cases/assistant'
 import DotLoader from '@/components/loaders/dot-loader'
 import { ChevronLeft, ChevronRight, FilePenLine, Globe, PlusCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ImperativePanelHandle } from 'react-resizable-panels'
+import { redirect } from 'next/navigation'
+import { createFormDraft } from './create-form.action'
 
 const SHEET_CSS = "absolute inset-x-0 top-0 h-screen"
 const CRITICAL_WIDTH = 600;
@@ -83,6 +85,24 @@ const CreateForm: NextPage = () => {
         }
     }
 
+    const openFormInEditor = async () => {
+        startTransition(async () => {
+
+            const request: CreateFormRequest = {
+                name: formModel["title"],
+                isEnabled: false,
+                description: formModel["description"],
+                formDefinitionJsonData: JSON.stringify(formModel)
+            }
+            const formResult = await createFormDraft(request);
+            if (formResult.isSuccess && formResult.formId) {
+                redirect(`/forms/${formResult.formId}`);
+            } else {
+                alert(formResult.error);
+            }
+        });
+    }
+
     return (
         <ResizablePanelGroup direction="horizontal" className={`${SHEET_CSS} flex flex-1 space-y-2`}>
             <ResizablePanel defaultSize={61}>
@@ -90,7 +110,7 @@ const CreateForm: NextPage = () => {
                     {formModel && <PreviewFormContainer model={formModel} />}
                 </div>
             </ResizablePanel>
-            <ResizableHandle  />
+            <ResizableHandle />
             <ResizablePanel
                 ref={chatPanelRef}
                 defaultSize={39}
@@ -124,7 +144,7 @@ const CreateForm: NextPage = () => {
                                 <PlusCircle className="mr-2 h-4 w-4" />
                                 Generate submissions
                             </Button>
-                            <Button variant="outline" size="sm" className="h-8 border-dashed">
+                            <Button onClick={openFormInEditor} variant="default" size="sm" className="h-8 border-dashed">
                                 <FilePenLine className="mr-2 h-4 w-4" />
                                 Continue in Editor
                             </Button>
