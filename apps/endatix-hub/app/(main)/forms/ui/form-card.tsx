@@ -11,7 +11,7 @@ import {
 import { Form } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { ChevronsRight, Download, EyeIcon, Globe, Link2, Lock } from "lucide-react";
+import { ArrowRight, Download, EyeIcon, Globe, Link2, Lock } from "lucide-react";
 import React from "react";
 import { Button } from "@/components/ui/button";
 
@@ -63,10 +63,10 @@ const SubmissionsLabel: React.FC<SubmissionsLabelProps> = ({
 
   return (
     <Button variant="link" asChild className="group justify-start p-0 inline-block align-baseline hover:no-underline">
-      <Link href={`forms/submissions/${formId}`} className="">
+      <Link href={`forms/submissions/${formId}`} className="py-2">
         <span className="text-2xl font-medium group-hover:text-primary text-muted-foreground transition-text duration-250 ease-in-out">{getFormattedSubmissionsCount()}</span>
         <span className="pl-2 text-sm group-hover:text-primary text-muted-foreground transition-text duration-250 ease-in-out">{submissionWord}</span>
-        <ChevronsRight className="mb-2 inline-block ml-2 h-8 w-8 opacity-0 transition-opacity duration-250 ease-in-out group-hover:opacity-100" />
+        <ArrowRight className="mb-0.5 inline-block ml-2 h-4 w-4 opacity-0 transition-opacity duration-250 ease-in-out group-hover:opacity-100" />
       </Link>
     </Button>
   )
