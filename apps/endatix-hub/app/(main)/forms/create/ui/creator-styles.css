@@ -16,6 +16,11 @@ div[aria-label="main-search-bar"] {
     display: none;
 }
 
+/* Hide notifications bell on create page */
+div[aria-label="notifications-bell"] {
+    display: none;
+}
+
 /* Hide theme toggle on create page */
 button[aria-label="theme-toggle"] {
     display: none;

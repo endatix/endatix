@@ -34,10 +34,9 @@ const ChatThread: React.FC<ChatThreadProps> = ({ messages, isTyping }) => {
     return (
         <ScrollArea className="relative h-full p-4">
             {messages.map((message, index) => (
-                <div
-                    ref={index === messages.length - 1 ? lastMessageRef : null}
-                    key={index}
+                <div key={index}
                     className={`flex relative ${message.isAi ? 'justify-start' : 'justify-end'} mb-4`}
+                    ref={index === messages.length - 1 ? lastMessageRef : null}
                 >
                     <div className={`flex items-start gap-2 max-w-[90%] ${message.isAi ? 'flex-row' : 'flex-row-reverse'}`}>
                         <Avatar className="w-12 h-12 p-2 bg-muted">

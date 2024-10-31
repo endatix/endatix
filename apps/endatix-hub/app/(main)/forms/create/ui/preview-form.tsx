@@ -111,8 +111,8 @@ const creatorOptions: ICreatorOptions = {
     showPreview: true,
     showJSONEditorTab: false,
     showTranslationTab: true,
-    showDesignerTab: true,
-    showLogicTab: true,
+    showDesignerTab: false,
+    showLogicTab: false,
     themeForPreview: "Default"
 };
 

@@ -55,7 +55,7 @@ const NotificationsBell: React.FC<NotificationsBellProps> = ({
 
     const notificationsCount = 11;
     return (
-        <div className={className} {...props} >
+        <div aria-label="notifications-bell" className={className} {...props} >
             <DropdownMenu >
                 <DropdownMenuTrigger asChild>
                     <Button variant={bellButtonVariant} size={bellButtonSize} className="relative">
