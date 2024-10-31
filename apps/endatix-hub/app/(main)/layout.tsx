@@ -78,7 +78,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
                 ></BreadcrumbNav>
                 <MainSearchBar />
                 <NotificationsBell
-                  badgeStyle="dot"
+                  badgeStyle="badge"
                   renderSampleData={false}
                 />
                 <DropdownMenu>

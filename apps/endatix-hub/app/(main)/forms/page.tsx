@@ -1,5 +1,3 @@
-"use server";
-
 import { getForms } from "@/services/api";
 import FormsList from "./ui/forms-list";
 import PageTitle from "@/components/headings/page-title";
@@ -17,7 +15,7 @@ const Forms = async () => {
       <PageTitle title="Forms" />
       <div className="flex-1 space-y-2">
         <Tabs defaultValue="all" className="space-y-0">
-          <div className="flex items-center justify-between space-y-0">
+          <div className="flex items-center justify-between space-y-0 mb-4">
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="public" disabled>Public </TabsTrigger>

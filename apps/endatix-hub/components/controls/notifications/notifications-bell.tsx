@@ -25,14 +25,17 @@ const NotificationBadge: React.FC<NotificationBadgeProps> = ({
     notificationsCount = 0,
     badgeStyle = 'badge'
 }) => {
+    const notificationsLabel = notificationsCount > 9 ? '9+' : notificationsCount.toString();
+    const paddingClasses = notificationsLabel.length > 1 ? 'px-1 py-0.5' : 'px-1.5 py-0.5 mr-0.5';
+
     if (notificationsCount <= 0) return null;
 
     const variants = {
         badge: (
             <Badge
-                className={`absolute text-white bg-endatix -top-2 -right-2 rounded-full px-2 py-0.5 text-xs`}
+                className={`absolute text-white bg-endatix -top-0 -right-2 rounded-full  text-xs ${paddingClasses}`}
             >
-                {notificationsCount}
+                {notificationsLabel}
             </Badge>
         ),
         dot: (
@@ -50,7 +53,7 @@ const NotificationsBell: React.FC<NotificationsBellProps> = ({
     renderSampleData,
     className, ...props }: NotificationsBellProps) => {
 
-    const notificationsCount = 3;
+    const notificationsCount = 11;
     return (
         <div className={className} {...props} >
             <DropdownMenu >
