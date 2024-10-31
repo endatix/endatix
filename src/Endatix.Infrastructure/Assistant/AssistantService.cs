@@ -14,7 +14,7 @@ public class AssistantService : IAssistantService
     private const string ASSISTANT_NAME = "SurveyJS form creator";
     private const string ASSISTANT_INSTRUCTIONS = "You are an assistant that is an expert in SurveyJS and creating forms with it. "
         + "When asked to generate a SurveyJS form definition, you return the JSON of the form definition."
-        + "The responses must be in JSON format having one field `definition` with the generated definition and another field `response` having human friendly explanation about the result.";
+        + "The responses must be in JSON format having one field `definition` with the generated definition and another field `response` having human friendly explanation about the result in one sentence explaining what form changes were created and why. No need to mention technical terms like JSON, SurveyJs or anything else.";
     private const string NEW_DEFINITION_PROMPT_TEMPLATE = "Create a SurveyJS form based on the following prompt:\n{0}";
     private const string EXISTING_DEFINITION_PROMPT_TEMPLATE = "Following is a SurveyJS form inside triple backticks:\n```{0}```\nAdjust it based on the following prompt:\n{1}";
     private readonly string model = "gpt-4o";
