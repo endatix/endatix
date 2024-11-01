@@ -1,0 +1,43 @@
+body {
+    overflow: hidden;
+}
+
+#creator {
+    width: 100%;
+    height: calc(100vh - 60px);
+    margin-top: 4px;
+    position: relative;
+}
+
+.svc-creator__banner {
+    display: none;
+}
+
+.svc-flex-row {
+    background: transparent !important;
+}
+
+/* Hide breadcrumb on create page */
+nav[aria-label="breadcrumb"] {
+    display: none;
+}
+
+/* Hide search bar on create page */
+div[aria-label="main-search-bar"] {
+    display: none;
+}
+
+/* Hide notifications bell on create page */
+div[aria-label="notifications-bell"] {
+    display: none;
+}
+
+/* Hide theme toggle on create page */
+button[aria-label="theme-toggle"] {
+    display: none;
+}
+
+/* Hide my account menu on create page */
+button[aria-label="my-account-menu"] {
+    display: none;
+}

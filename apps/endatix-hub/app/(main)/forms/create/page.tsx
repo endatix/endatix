@@ -5,7 +5,7 @@ import { NextPage } from 'next'
 import ChatBox from '../ui/chat-box'
 import PreviewFormContainer from './ui/preview-form-container'
 import ChatThread from './ui/chat-thread'
-import { startTransition, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { AssistantStore, CreateFormRequest, DefineFormCommand, Message } from '@/lib/use-cases/assistant'
 import DotLoader from '@/components/loaders/dot-loader'
 import { ChevronLeft, ChevronRight, FilePenLine, Globe, PlusCircle } from 'lucide-react'
@@ -25,6 +25,7 @@ const CreateForm: NextPage = () => {
     const [isWaiting, setIsWaiting] = useState(false);
     const [messages, setMessages] = useState(new Array<Message>());
     const [formModel, setFormModel] = useState<any>({});
+    const [isPending, startTransition] = useTransition()
 
     useEffect(() => {
         const contextStore = new AssistantStore();
@@ -144,9 +145,15 @@ const CreateForm: NextPage = () => {
                                 <PlusCircle className="mr-2 h-4 w-4" />
                                 Generate submissions
                             </Button>
-                            <Button onClick={openFormInEditor} variant="default" size="sm" className="h-8 border-dashed">
+                            <Button
+                                disabled={isPending}
+                                onClick={openFormInEditor}
+                                variant="default"
+                                size="sm"
+                                className="h-8 border-dashed"
+                            >
                                 <FilePenLine className="mr-2 h-4 w-4" />
-                                Continue in Editor
+                                {isPending ? 'Creating Form...' : 'Continue in Editor'}
                             </Button>
                         </div>
                         <ChatBox

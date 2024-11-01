@@ -1,15 +1,16 @@
 import { Form, FormDefinition } from "../../../../types";
 import { getForm, getActiveFormDefinition } from "@/services/api";
-import FormEditor from "./ui/form-editor";
+import { FormEditorProps } from "./ui/form-editor";
+import FormEditorContainer from "./ui/form-editor-container";
 
-interface FormCreatorPageProps {
+type Params = {
   params: {
     formId: string;
   };
-}
+};
 
-const FormCreatorPage = async ({ params }: FormCreatorPageProps) => {
-  const { formId } = await params;
+async function FormEditPage ({ params }: Promise<Params>) {
+  const formId = (await params).formId;
 
   let form: Form | null = null;
   let formJson: object | null = null;
@@ -28,7 +29,7 @@ const FormCreatorPage = async ({ params }: FormCreatorPageProps) => {
     return <div>Form not found</div>;
   }
 
-  const props: SurveyCreatorProps = {
+  const props: FormEditorProps = {
     formId: formId,
     formJson: formJson,
     formName: form.name,
@@ -37,10 +38,10 @@ const FormCreatorPage = async ({ params }: FormCreatorPageProps) => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center p-8">
-      <FormEditor {...props} />
+    <div className="h-dvh overflow-hidden gap-4">
+      <FormEditorContainer {...props} />
     </div>
   );
 }
 
-export default FormCreatorPage
+export default FormEditPage
