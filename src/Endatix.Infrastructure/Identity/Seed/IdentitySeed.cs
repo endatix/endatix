@@ -27,8 +27,7 @@ namespace Endatix.Infrastructure.Identity.Seed
             Guard.Against.Null(userManager);
             Guard.Against.Null(userRegistrationService);
 
-            var usersCount = userManager.Users.Count();
-            if (usersCount > 0)
+            if (userManager.Users.Any())
             {
                 return;
             }
