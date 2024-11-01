@@ -42,11 +42,16 @@ body {
         background-color: #fff;
     }
 
-    .spg-row.sd-page__row, .spg-button-group__item, .svc-tab-designer.sd-root-modern {
-        border: 0.5px solid $gray-color;
+    .svc-tab-designer.sd-root-modern {
+        border-left: 1px solid $gray-color;
+        border-right: 1px solid $gray-color;
     }
 
-    .sd-panel__header.sd-element__header {
+    .spg-row.sd-page__row, .spg-button-group__item {
+        border-bottom: 1px solid $gray-color;
+    }
+
+    .sd-panel__header.sd-element__header, .sd-row.sd-clearfix.sd-page__row {
         background-color: #fff;
     }
 }
