@@ -7,9 +7,6 @@ import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react"
 import { updateFormDefinitionJsonAction } from "../update-form-definition-json.action"
 import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action"
 import { updateFormStatusAction } from "@/app/(main)/forms/[formId]/update-form-status.action"
-import "survey-core/defaultV2.css"
-import 'survey-creator-core/survey-creator-core.fontless.css'
-import './creator-styles.css'
 import { ICreatorTheme } from "survey-creator-core/typings/creator-theme/creator-themes"
 import { Badge } from "@/components/ui/badge"
 import { Copy, Link2, Save } from "lucide-react"
@@ -18,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import './creator-styles.scss'
 
 interface FormEditorProps {
   formId: string;

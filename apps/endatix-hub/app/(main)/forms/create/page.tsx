@@ -106,7 +106,7 @@ const CreateForm: NextPage = () => {
 
     return (
         <ResizablePanelGroup direction="horizontal" className={`${SHEET_CSS} flex flex-1 space-y-2`}>
-            <ResizablePanel defaultSize={68}>
+            <ResizablePanel defaultSize={70}>
                 <div className="flex h-screen sm:pl-14 lg-pl-16 sm:pt-12 md:pt-4">
                     {formModel && <PreviewFormContainer model={formModel} />}
                 </div>
@@ -114,8 +114,8 @@ const CreateForm: NextPage = () => {
             <ResizableHandle />
             <ResizablePanel
                 ref={chatPanelRef}
-                defaultSize={32}
-                minSize={20}
+                defaultSize={30}
+                minSize={30}
                 collapsible={true}
                 collapsedSize={4}
                 onCollapse={() => setIsCollapsed(true)}
