@@ -84,7 +84,7 @@ const FormCard = ({ form, isSelected, className, ...props }: FormCardProps) => {
   }
 
   return (
-    <Card className={cn("flex cursor-pointer flex-col gap-1 hover:bg-accent", isSelected ? "bg-accent border-primary" : "", className)} {...props}>
+    <Card className={cn("flex cursor-pointer flex-col gap-1 hover:bg-accent justify-between", isSelected ? "bg-accent border-primary" : "", className)} {...props}>
       <CardHeader className="flex flex-row justify-between p-4 pt-6">
         <CardTitle className="text-2xl font-normal font-sans tracking-tigher">{form.name}</CardTitle>
         {form.isEnabled ?
@@ -104,7 +104,7 @@ const FormCard = ({ form, isSelected, className, ...props }: FormCardProps) => {
       </CardContent>
       <CardFooter className="pb-2 p-4">
         <div className="flex justify-between w-full">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <Link href="#" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center">
               <Link2 className="w-4 h-4 mr-1" />
               Share
