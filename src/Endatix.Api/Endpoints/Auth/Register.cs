@@ -1,5 +1,5 @@
-
 using Endatix.Core.UseCases.Register;
+using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using MediatR;
 
@@ -13,7 +13,7 @@ public class Register(IMediator mediator) : Endpoint<RegisterRequest, RegisterRe
     public override void Configure()
     {
         Post("auth/register");
-        AllowAnonymous();
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Register a new user";
