@@ -10,6 +10,8 @@ var endatixBuilder = builder.CreateEndatix()
 
 var app = builder.Build();
 
+app.SeedInitialUser();
+
 app.UseEndatixMiddleware()
     .UseEndatixApi();
 

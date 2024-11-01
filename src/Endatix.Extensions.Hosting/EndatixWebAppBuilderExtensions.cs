@@ -1,14 +1,19 @@
 using Ardalis.GuardClauses;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Logging = Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Extensions.Logging;
 using Endatix.Framework.Hosting;
 using Endatix.Extensions.Hosting;
 using Endatix.Core.Configuration;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Endatix.Framework.Setup;
+using Endatix.Core.Abstractions;
+using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Seed;
 
 namespace Endatix.Setup;
 
@@ -88,5 +93,28 @@ public static class EndatixHostBuilderExtensions
             );
 
         return endatixApp;
+    }
+
+    /// <summary>
+    /// Seeds an initial admin user account if no users exist in the system. Uses custom credentials from DataOptions if configured,
+    /// otherwise falls back to default values.
+    /// </summary>
+    /// <param name="app">The WebApplication instance to configure.</param>
+    /// <returns>The configured WebApplication instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if the <paramref name="app"/> is null.</exception>
+    public static WebApplication SeedInitialUser(this WebApplication app)
+    {
+        Guard.Against.Null(app);
+
+        using (var scope = app.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            var userRegistrationService = scope.ServiceProvider.GetRequiredService<IUserRegistrationService>();
+            var dataOptions = scope.ServiceProvider.GetRequiredService<IOptions<DataOptions>>().Value;
+
+            IdentitySeed.SeedInitialUser(userManager, userRegistrationService, dataOptions).Wait();
+        }
+
+        return app;
     }
 }
