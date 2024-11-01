@@ -3,6 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import UserAvatar from '@/components/user/user-avatar';
 import { Message } from '@/lib/use-cases/assistant';
 import { Pencil } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
@@ -39,10 +40,13 @@ const ChatThread: React.FC<ChatThreadProps> = ({ messages, isTyping }) => {
                     ref={index === messages.length - 1 ? lastMessageRef : null}
                 >
                     <div className={`flex items-start gap-2 max-w-[90%] ${message.isAi ? 'flex-row' : 'flex-row-reverse'}`}>
-                        <Avatar className="w-12 h-12 p-2 bg-muted">
-                            <AvatarImage className="h-10 p-1 pb-2.5 opacity-50" src={message.isAi ? '/icons/atom.svg?height=16&width=16' : '/icons/user.svg?height=16&width=16'} />
-                            <AvatarFallback>{message.isAi ? 'AI' : 'You'}</AvatarFallback>
-                        </Avatar>
+                        {message.isAi ?
+                            <Avatar className="w-12 h-12 p-2 bg-muted">
+                                <AvatarImage className="h-10 p-1 pb-2.5 opacity-50" src={'/icons/atom.svg?height=16&width=16'} />
+                                <AvatarFallback>AI</AvatarFallback>
+                            </Avatar> :
+                            <UserAvatar className="w-10 h-10 bg-muted" isLoggedIn={true} userName={"endatix"} />
+                        }
                         <div className={`flex p-3 rounded-lg ${message.isAi ? 'bg-secondary' : 'bg-blue-100 dark:bg-blue-900'}`}>
                             {message.isAi ? (
                                 <TypingEffect shouldAddEffect={isTyping && message.isAi && index === messages.length - 1} content={message.content} onNewWordTyped={() => scrollToLastMessage()} />

@@ -38,6 +38,6 @@ button[aria-label="theme-toggle"] {
 }
 
 /* Hide my account menu on create page */
-button[aria-label="my-account-menu"] {
+button[aria-label="my-account-dropdown"] {
     display: none;
 }
