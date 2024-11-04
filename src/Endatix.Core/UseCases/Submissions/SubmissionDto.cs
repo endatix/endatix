@@ -1,4 +1,3 @@
-using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
@@ -15,13 +14,13 @@ namespace Endatix.Core.UseCases.Submissions;
 /// <param name="CurrentPage">The current page of the submission, if applicable.</param>
 /// <param name="CompletedAt">The date and time when the submission was completed, if applicable.</param>
 /// <param name="CreatedAt">The date and time when the submission was created.</param>
-public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object> JsonData, string Metadata, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt)
+/// <param name="Metadata">Additional metadata related to the submission.</param>
+public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object> JsonData, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt, string? Metadata)
 {
     public long Id { get; init; } = Id;
     public bool IsComplete { get; init; } = IsComplete;
     public Dictionary<string, object> JsonData { get; init; } = JsonData;
-
-    public string  Metadata { get; init; } = Metadata;
+    public string? Metadata { get; init; } = Metadata;
     public long FormDefinitionId { get; init; } = FormDefinitionId;
     public int? CurrentPage { get; init; } = CurrentPage;
     public DateTime? CompletedAt { get; init; } = CompletedAt;
@@ -36,19 +35,19 @@ public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object>
             var jsonData = JsonSerializer.Deserialize<Dictionary<string, object>>(submission.JsonData) ?? [];
 
             return new SubmissionDto(
-                submission.Id,
-                 submission.IsComplete,
-                 jsonData,
-                 submission.Metadata,
-                 submission.FormDefinitionId,
-                 submission.CurrentPage,
-                 submission.CompletedAt,
-                 submission.CreatedAt
+                Id: submission.Id,
+                IsComplete: submission.IsComplete,
+                JsonData: jsonData,
+                FormDefinitionId: submission.FormDefinitionId,
+                CurrentPage: submission.CurrentPage,
+                CompletedAt: submission.CompletedAt,
+                CreatedAt: submission.CreatedAt,
+                Metadata: submission.Metadata
             );
         }
         catch (JsonException ex)
         {
-            throw new InvalidOperationException("Failed to deserialize Submission'sJSON data", ex);
+            throw new InvalidOperationException("Failed to deserialize Submission's JSON data", ex);
         }
     }
 }
