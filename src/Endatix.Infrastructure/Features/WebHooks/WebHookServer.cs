@@ -41,12 +41,12 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
 
             if (response.IsSuccessStatusCode)
             {
-                logger.LogTrace($"Successfully processed WebHook for Submission. Status Code: {response.StatusCode}");
+                logger.LogTrace($"Successfully processed WebHook for operation: {message.Operation}. Item id: {message.Id}. Status Code: {response.StatusCode}");
                 isSuccess = true;
             }
             else
             {
-                logger.LogError($"Failed to process WebHook. Status Code: {response.StatusCode}");
+                logger.LogError($"Failed to process WebHookfor operation: {message.Operation}. Item id: {message.Id}. Status Code: {response.StatusCode}");
             }
 
         }
