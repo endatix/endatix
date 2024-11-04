@@ -14,7 +14,7 @@ public class WebHookOperationTests
         formSubmitted.Should().NotBeNull();
         formSubmitted.EventName.Should().Be("form_submitted");
         formSubmitted.Entity.Should().Be("Submission");
-        formSubmitted.Action.Should().Be(ActionNames.Created);
+        formSubmitted.Action.Should().Be(ActionName.Created);
         formSubmitted.Action.GetDisplayName().Should().Be("created");
     }
 

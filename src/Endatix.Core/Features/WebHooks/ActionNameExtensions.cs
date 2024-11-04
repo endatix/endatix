@@ -13,7 +13,7 @@ public static class ActionNameExtensions
     /// </summary>
     /// <param name="action">The ActionNames enum value to retrieve the display name for.</param>
     /// <returns>The display name of the ActionNames enum value, or its string representation if no display name is found.</returns>
-    public static string GetDisplayName(this ActionNames action)
+    public static string GetDisplayName(this ActionName action)
     {
         var displayAttribute = action.GetType()
             .GetMember(action.ToString())

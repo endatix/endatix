@@ -5,7 +5,7 @@ namespace Endatix.Core.Features.WebHooks;
 /// <summary>
 /// Enum for defining the types of actions that can be performed on an entity.
 /// </summary>
-public enum ActionNames
+public enum ActionName
 {
     /// <summary>
     /// Represents the action of creating an entity.
