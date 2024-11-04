@@ -36,7 +36,7 @@ namespace Endatix.Infrastructure.Identity.Seed
             {
                 if (initialUserIsConfigured)
                 {
-                    logger.LogWarning("Initial user credentials are present in the configuration. They must be removed to prevent leaking. " +
+                    logger.LogWarning("Initial user credentials are present in the configuration. They must be removed to prevent their exposure. " +
                         "Check https://docs.endatix.com/docs/getting-started/installation for more information.");
                 }
 
