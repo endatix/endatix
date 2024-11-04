@@ -9,10 +9,23 @@ namespace Endatix.Infrastructure.Features.WebHooks;
 /// </summary>
 public class BackgroundTasksQueue : IBackgroundTasksQueue
 {
+    /// <summary>
+    /// The default capacity of the background tasks queue.
+    /// </summary>
+    public const int DEFAULT_QUEUE_CAPACITY = 10;
+
+    /// <summary>
+    /// The channel used to manage the queue of background tasks.
+    /// </summary>
+
     private readonly Channel<Func<CancellationToken, ValueTask>> _queue;
+
+    /// <summary>
+    /// A semaphore used to signal when a new task is available in the queue.
+    /// </summary>
     private readonly SemaphoreSlim _signal;
 
-    public BackgroundTasksQueue(int capacity = 10)
+    public BackgroundTasksQueue(int capacity = DEFAULT_QUEUE_CAPACITY)
     {
         // Capacity should be set based on the expected application load and number of concurrent threads accessing the queue. BoundedChannelFullMode.Wait will cause calls to WriteAsync() to return a task, which completes only when space became available. This leads to backpressure, in case too many publishers/calls start accumulating.
         var options = new BoundedChannelOptions(capacity)
@@ -47,7 +60,7 @@ public class BackgroundTasksQueue : IBackgroundTasksQueue
     {
         await _signal.WaitAsync(cancellationToken);
         var workItem = await _queue.Reader.ReadAsync(cancellationToken);
-        
+
         return workItem;
     }
 }
