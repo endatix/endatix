@@ -50,10 +50,12 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
             }
 
         }
+         // This exception is thrown when a single request times out (configured with WebHookSettings's AttemptTimeoutInSeconds setting)
         catch (TaskCanceledException ex)
         {
-            logger.LogError("Webhook execution was cancelled. Failed operation: {operation}.Item id: {id}. Destination: {url}. Error message: {message}.", message.Operation, message.Id, instructions.Uri, ex.Message);
+            logger.LogError("Webhook execution was cancelled due to timeout. Failed operation: {operation}. Item id: {id}. Destination: {url}. Error message: {message}.", message.Operation, message.Id, instructions.Uri, ex.Message);
         }
+        // This exception is thrown when the resilience pipeline cancels any further execution (max attempts or total timeout reached.)
         catch (TimeoutRejectedException ex)
         {
             logger.LogError("Webhook execution rejected because of timeout. Failed operation: {operation}.Item id: {id}. Destination: {url}. Error message: {message}.", message.Operation, message.Id, instructions.Uri, ex.Message);
