@@ -111,8 +111,9 @@ public static class EndatixHostBuilderExtensions
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
             var userRegistrationService = scope.ServiceProvider.GetRequiredService<IUserRegistrationService>();
             var dataOptions = scope.ServiceProvider.GetRequiredService<IOptions<DataOptions>>().Value;
+            var logger = scope.ServiceProvider.GetRequiredService<Logging.ILogger<WebApplication>>();
 
-            IdentitySeed.SeedInitialUser(userManager, userRegistrationService, dataOptions).Wait();
+            IdentitySeed.SeedInitialUser(userManager, userRegistrationService, dataOptions, logger).Wait();
         }
 
         return app;

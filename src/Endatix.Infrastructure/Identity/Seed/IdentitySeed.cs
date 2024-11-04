@@ -1,6 +1,7 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Identity.Seed
 {
@@ -19,24 +20,34 @@ namespace Endatix.Infrastructure.Identity.Seed
         /// <param name="userManager">ASP.NET Identity user manager</param>
         /// <param name="userRegistrationService">Service handling user registration logic</param>
         /// <param name="dataOptions">Configuration options containing optional custom initial user credentials</param>
+        /// <param name="logger">Logger instance</param>
         public static async Task SeedInitialUser(
             UserManager<AppUser> userManager,
             IUserRegistrationService userRegistrationService,
-            DataOptions dataOptions)
+            DataOptions dataOptions,
+            ILogger logger)
         {
             Guard.Against.Null(userManager);
             Guard.Against.Null(userRegistrationService);
 
+            var initialUserIsConfigured = dataOptions?.InitialUser != null;
+
             if (userManager.Users.Any())
             {
+                if (initialUserIsConfigured)
+                {
+                    logger.LogWarning("Initial user credentials are present in the configuration. They must be removed to prevent leaking. " +
+                        "Check https://docs.endatix.com/docs/getting-started/installation for more information.");
+                }
+
                 return;
             }
 
             string email, password;
-            if (dataOptions?.InitialUser != null)
+            if (initialUserIsConfigured)
             {
-                email = dataOptions.InitialUser.Email;
-                password = dataOptions.InitialUser.Password;
+                email = dataOptions!.InitialUser!.Email;
+                password = dataOptions!.InitialUser!.Password;
             }
             else
             {

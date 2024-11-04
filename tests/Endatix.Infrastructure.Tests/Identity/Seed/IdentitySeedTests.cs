@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Identity.Seed;
 using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using NSubstitute;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Tests.Identity.Seed;
 
@@ -13,6 +14,7 @@ public class IdentitySeedTests
     private readonly UserManager<AppUser> _userManager;
     private readonly IUserRegistrationService _userRegistrationService;
     private readonly DataOptions _dataOptions;
+    private readonly ILogger _logger;
 
     public IdentitySeedTests()
     {
@@ -21,6 +23,7 @@ public class IdentitySeedTests
             null, null, null, null, null, null, null, null);
         _userRegistrationService = Substitute.For<IUserRegistrationService>();
         _dataOptions = new DataOptions();
+        _logger = Substitute.For<ILogger>();
     }
 
     [Fact]
@@ -30,7 +33,7 @@ public class IdentitySeedTests
         UserManager<AppUser> userManager = null!;
 
         // Act
-        var act = () => IdentitySeed.SeedInitialUser(userManager, _userRegistrationService, _dataOptions);
+        var act = () => IdentitySeed.SeedInitialUser(userManager, _userRegistrationService, _dataOptions, _logger);
 
         // Assert
         var expectedMessage = ErrorMessages.GetErrorMessage(nameof(userManager), ErrorType.Null);
@@ -45,7 +48,7 @@ public class IdentitySeedTests
         IUserRegistrationService userRegistrationService = null!;
 
         // Act
-        var act = () => IdentitySeed.SeedInitialUser(_userManager, userRegistrationService, _dataOptions);
+        var act = () => IdentitySeed.SeedInitialUser(_userManager, userRegistrationService, _dataOptions, _logger);
 
         // Assert
         var expectedMessage = ErrorMessages.GetErrorMessage(nameof(userRegistrationService), ErrorType.Null);
@@ -61,7 +64,7 @@ public class IdentitySeedTests
         _userManager.Users.Returns(users);
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _dataOptions);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _dataOptions, _logger);
 
         // Assert
         await _userRegistrationService.DidNotReceive()
@@ -79,7 +82,7 @@ public class IdentitySeedTests
         var expectedPassword = "P@ssw0rd";
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, null);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, null, _logger);
 
         // Assert
         await _userRegistrationService.Received(1)
@@ -103,7 +106,7 @@ public class IdentitySeedTests
         };
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _dataOptions);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _dataOptions, _logger);
 
         // Assert
         await _userRegistrationService.Received(1)
