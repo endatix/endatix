@@ -1,9 +1,18 @@
-﻿using Microsoft.Extensions.Logging;
-using Ardalis.GuardClauses;
-using Endatix.Core;
+﻿using Ardalis.GuardClauses;
+using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
 using Endatix.Infrastructure.Setup;
+using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Core.Features.WebHooks;
+using Endatix.Core;
+using Polly;
+using Microsoft.Extensions.Http.Resilience;
+using System.Threading.RateLimiting;
+using Polly.Timeout;
+using Microsoft.Extensions.Options;
+using System.Collections.Immutable;
+using System.Net.Sockets;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -68,5 +77,55 @@ public static class ServiceCollectionExtensions
     {
         options.IncludeLoggingPipeline = true;
         return options;
+    }
+
+    /// <summary>
+    /// This method adds WebHook processing services to the specified <see cref="IServiceCollection"/> instance.
+    /// </summary>
+    /// <param name="services">The <see cref="IServiceCollection"/> instance to configure.</param>
+    /// <returns>The configured <see cref="IServiceCollection"/> instance.</returns>
+    public static IServiceCollection AddWebHookProcessing(this IServiceCollection services)
+    {
+        services.AddOptions<WebHookSettings>()
+               .BindConfiguration("Endatix:WebHooks")
+               .ValidateDataAnnotations();
+        services.AddSingleton<IBackgroundTasksQueue, BackgroundTasksQueue>();
+        services.AddSingleton(typeof(IWebHookService), typeof(BackgroundTaskWebHookService));
+        services.AddHostedService<WebHookBackgroundWorker>();
+        services.AddHttpClient<WebHookServer>((serviceProvider, client) =>
+               {
+                   var webHookSettings = serviceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
+
+                   client.Timeout = TimeSpan.FromSeconds(webHookSettings.ServerSettings.PipelineTimeoutInSeconds);
+                   client.DefaultRequestHeaders.UserAgent.ParseAdd(WebHookRequestHeaders.Constants.ENDATIX_USER_AGENT);
+               })
+               .AddResilienceHandler("webhook-resilience", static (builder, context) =>
+               {
+                   var webHookSettings = context.ServiceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
+
+                   var exceptionsToHandle = new[]
+                    {
+                        typeof(TimeoutRejectedException),
+                        typeof(SocketException),
+                        typeof(HttpRequestException),
+                    }.ToImmutableArray();
+
+                   builder.AddRetry(new HttpRetryStrategyOptions
+                   {
+                       BackoffType = DelayBackoffType.Exponential,
+                       Delay = TimeSpan.FromSeconds(webHookSettings.ServerSettings.Delay),
+                       MaxRetryAttempts = webHookSettings.ServerSettings.RetryAttempts,
+                       UseJitter = true,
+                       ShouldHandle = ex => new ValueTask<bool>(exceptionsToHandle.Contains(ex.GetType()) || ex.Outcome.Result?.IsSuccessStatusCode == false)
+                   });
+                   builder.AddTimeout(TimeSpan.FromSeconds(webHookSettings.ServerSettings.AttemptTimeoutInSeconds));
+                   builder.AddConcurrencyLimiter(new ConcurrencyLimiterOptions
+                   {
+                       PermitLimit = webHookSettings.ServerSettings.MaxConcurrentRequests,
+                       QueueLimit = webHookSettings.ServerSettings.MaxQueueSize
+                   });
+               });
+
+        return services;
     }
 }
