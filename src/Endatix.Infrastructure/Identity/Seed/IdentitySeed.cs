@@ -39,7 +39,7 @@ namespace Endatix.Infrastructure.Identity.Seed
                 if (initialUserIsConfigured)
                 {
                     logger.LogWarning("🔐 Initial user credentials are still present in the configuration and are not longer needed\r\n" +
-                        $"{LOG_INDENT}| Remove them to prevent their exposure to the outside world.\r\n" +
+                        $"{LOG_INDENT}| Remove them from the configuration file to prevent their exposure to the outside world.\r\n" +
                         $"{LOG_INDENT}| For more info check https://docs.endatix.com/docs/getting-started/installation");
                 }
 
