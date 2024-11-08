@@ -1,9 +1,9 @@
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Identity.Login;
-using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Endatix.Api.Infrastructure;
+using Endatix.Core.UseCases.Identity.Login;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.Auth;
 
@@ -35,6 +35,8 @@ public class Logout(IMediator mediator) : EndpointWithoutRequest<Results<Ok<Logo
         var logoutUserCmd = new LogoutCommand(User);
         var logoutResult = await mediator.Send(logoutUserCmd, cancellationToken);
 
-        return logoutResult.ToEndpointResponse<Results<Ok<LogoutResponse>, BadRequest>, string, LogoutResponse>((message) => new LogoutResponse(message)); 
+        return TypedResultsBuilder
+                .MapResult(logoutResult, (message) => new LogoutResponse(message))
+                .SetTypedResults<Ok<LogoutResponse>, BadRequest>();
     }
 }

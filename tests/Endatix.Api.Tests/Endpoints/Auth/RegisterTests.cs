@@ -1,9 +1,11 @@
-using Endatix.Api.Endpoints.Auth;
-using Endatix.Api.Tests.TestExtensions;
-using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Register;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Errors = Microsoft.AspNetCore.Mvc;
+using Endatix.Api.Endpoints.Auth;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Register;
+using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Api.Tests.Endpoints.Auth;
 
@@ -19,7 +21,7 @@ public class RegisterTests
     }
 
     [Fact]
-    public async Task HandleAsync_WithValidRequest_ReturnsOkResult()
+    public async Task ExecuteAsync_WithValidRequest_ReturnsOkResult()
     {
         // Arrange
         var request = new RegisterRequest("user@example.com", "Password123!", "Password123!");
@@ -29,35 +31,36 @@ public class RegisterTests
             .Returns(successResult);
 
         // Act
-        await _endpoint.HandleAsync(request, default);
-        var response = _endpoint.Response;
+        var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        _endpoint.HttpContext.Response.StatusCode.Should().Be(200);
-        response.Should().NotBeNull();
-        response!.Success.Should().BeTrue();
-        response.Message.Should().Be("User has been successfully registered");
+        var okResponse = response!.Result as Ok<RegisterResponse>;
+
+        okResponse.Should().NotBeNull();
+        _endpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        okResponse!.Value!.Success.Should().BeTrue();
+        okResponse!.Value!.Message.Should().Be("User has been successfully registered");
     }
 
     [Fact]
-    public async Task HandleAsync_WithInvalidRequest_ThrowsError()
+    public async Task ExecuteAsync_WithInvalidRequest_ThrowsError()
     {
         // Arrange
         var request = new RegisterRequest("invalid@example.com", "WeakPass", "WeakPass");
-        var registerCommand = new RegisterCommand(request.Email, request.Password);
         var errorResult = Result.Invalid();
 
         _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
 
         // Act
-        Func<Task> act = async () => await _endpoint.HandleAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var expectedErrorMessage = "Registration failed. Please check your input and try again.";
-        await act.Should().ThrowValidationFailureAsync(expectedErrorMessage);
-        _endpoint.ValidationFailed.Should().BeTrue();
-        _endpoint.ValidationFailures.Should().Contain(f =>
-            f.ErrorMessage == expectedErrorMessage);
+        var badResponse = response!.Result as BadRequest<Errors.ProblemDetails>;
+
+        badResponse.Should().NotBeNull();
+        badResponse!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        badResponse!.Value!.Status.Should().Be(StatusCodes.Status400BadRequest);
+        badResponse!.Value!.Title.Should().Be("Registration failed. Please check your input and try again.");
     }
 }

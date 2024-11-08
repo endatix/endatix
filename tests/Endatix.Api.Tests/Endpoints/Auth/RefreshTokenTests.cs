@@ -1,10 +1,11 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Errors = Microsoft.AspNetCore.Mvc;
 using Endatix.Api.Endpoints.Auth;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity;
 using Endatix.Core.UseCases.Identity.RefreshToken;
-using Endatix.Api.Tests.TestExtensions;
 
 namespace Endatix.Api.Tests.Endpoints.Auth;
 
@@ -20,7 +21,7 @@ public class RefreshTokenTests
     }
 
     [Fact]
-    public async Task HandleAsync_ValidTokens_ReturnsOkWithNewTokens()
+    public async Task ExecuteAsync_ValidTokens_ReturnsOkWithNewTokens()
     {
         // Arrange
         var request = new RefreshTokenRequest("Bearer old_access_token", "old_refresh_token");
@@ -35,18 +36,18 @@ public class RefreshTokenTests
            .Returns(successRefreshTokenResult);
 
         // Act
-        await _endpoint.HandleAsync(request, default);
-        var response = _endpoint.Response;
+        var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
         _endpoint.HttpContext.Response.StatusCode.Should().Be(200);
-        response.Should().NotBeNull();
-        response.AccessToken.Should().Be("new_access_token");
-        response.RefreshToken.Should().Be("new_refresh_token");
+        var okResult = response?.Result as Ok<RefreshTokenResponse>;
+        okResult?.Value.Should().NotBeNull();
+        okResult?.Value?.AccessToken.Should().Be("new_access_token");
+        okResult?.Value?.RefreshToken.Should().Be("new_refresh_token");
     }
 
     [Fact]
-    public async Task HandleAsync_WithInvalidCredentials_ThrowsValidationFailureException()
+    public async Task ExecuteAsync_WithInvalidCredentials_ThrowsValidationFailureException()
     {
         // Arrange
         var request = new RefreshTokenRequest("Bearer wrong_access_token", "wrong_refresh_token");
@@ -55,13 +56,12 @@ public class RefreshTokenTests
         _mediator.Send(refreshTokenCommand).Returns(errorRefreshTokenResult);
 
         // Act
-        Func<Task> act = async () => await _endpoint.HandleAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var expectedErrorMessage = "Invalid or expired token.";
-        await act.Should().ThrowValidationFailureAsync(expectedErrorMessage);
-        _endpoint.ValidationFailed.Should().BeTrue();
-        _endpoint.ValidationFailures.Should().Contain(f =>
-            f.ErrorMessage == expectedErrorMessage);
+        var badResult = response?.Result as BadRequest<Errors.ProblemDetails>;
+        badResult.Should().NotBeNull();
+        badResult?.StatusCode.Should().Be(400);
+        badResult?.Value?.Title.Should().Be("Invalid or expired token.");
     }
 }
