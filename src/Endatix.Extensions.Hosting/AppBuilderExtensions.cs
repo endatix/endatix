@@ -35,8 +35,8 @@ public static class AppBuilderExtensions
             };
         });
 
-        app.SeedInitialUser();
         app.ApplyDbMigrations();
+        app.SeedInitialUser();
 
         var middleware = new EndatixMiddleware(app);
 
