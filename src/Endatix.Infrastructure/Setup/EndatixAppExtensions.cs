@@ -56,6 +56,7 @@ public static class EndatixAppExtensions
 
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
+        services.AddWebHookProcessing();
 
         endatixApp.AddDataOptions();
         endatixApp.SetupIdentity(setupSettings);
@@ -87,7 +88,13 @@ public static class EndatixAppExtensions
             mediatRAssemblies = [.. mediatRAssemblies, .. meditROptions.AdditionalAssemblies];
         }
 
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(mediatRAssemblies!));
+        services.AddMediatR(config =>
+        {
+            config.RegisterServicesFromAssemblies(mediatRAssemblies!);
+            config.NotificationPublisher = new TaskToThreadPoolPublisher();
+            config.NotificationPublisherType = typeof(TaskToThreadPoolPublisher);
+
+        });
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
 
         if (meditROptions.IncludeLoggingPipeline)

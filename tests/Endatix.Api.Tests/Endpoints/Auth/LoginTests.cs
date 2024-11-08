@@ -5,7 +5,7 @@ using Endatix.Core.UseCases.Identity;
 using Endatix.Core.UseCases.Identity.Login;
 using FastEndpoints;
 using MediatR;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Tests.Endpoints.Auth;
 
@@ -36,34 +36,36 @@ public class LoginTests
            .Returns(successLoginResult);
 
         // Act
-        await _endpoint.HandleAsync(request, default);
-        var response = _endpoint.Response;
+        var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
+        var okResult = response!.Result.As<Ok<LoginResponse>>();
         _endpoint.HttpContext.Response.StatusCode.Should().Be(200);
         response.Should().NotBeNull();
-        response!.Email.Should().Be("user@example.com");
-        response.AccessToken.Should().Be("valid_access_token");
-        response.RefreshToken.Should().Be("valid_refresh_token");
+        response.Result.Should().BeAssignableTo<Ok<LoginResponse>>();
+        okResult.Should().NotBeNull();
+        okResult.Value.Should().NotBeNull();
+        okResult.Value?.Email.Should().Be("user@example.com");
+        okResult.Value?.AccessToken.Should().Be("valid_access_token");
+        okResult.Value?.RefreshToken.Should().Be("valid_refresh_token");
     }
 
     [Fact]
-    public async Task HandleAsync_WithInvalidCredentials_ThrowsValidationFailureException()
+    public async Task HandleAsync_WithInvalidCredentials_ReturnsBadRequestWithValidationFailure()
     {
         // Arrange
         var request = new LoginRequest("wrong.user@example.com", "Password123!");
         var loginCommand = new LoginCommand(request.Email, request.Password);
-        var errorLoginResult = Result.Invalid();
+        var errorLoginResult = Result.Invalid(new ValidationError("The supplied credentials are invalid!"));
         _mediator.Send(loginCommand).Returns(errorLoginResult);
 
         // Act
-        Func<Task> act = async () => await _endpoint.HandleAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var expectedErrorMessage = "The supplied credentials are invalid!";
-        await act.Should().ThrowValidationFailureAsync(expectedErrorMessage);
-        _endpoint.ValidationFailed.Should().BeTrue();
-        _endpoint.ValidationFailures.Should().Contain(f =>
-            f.ErrorMessage == expectedErrorMessage);
+        var badRequestResult = response!.Result.As<BadRequest<IEnumerable<ValidationError>>>();
+        badRequestResult.Should().NotBeNull();
+        badRequestResult.Value.Should().Contain(f =>
+            f.ErrorMessage == "The supplied credentials are invalid!");
     }
 }

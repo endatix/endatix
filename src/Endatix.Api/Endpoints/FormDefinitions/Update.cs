@@ -2,7 +2,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormDefinitions.Update;
 using Endatix.Infrastructure.Identity.Authorization;
 
@@ -11,7 +10,7 @@ namespace Endatix.Api.Endpoints.FormDefinitions;
 /// <summary>
 /// Endpoint for updating a form definition.
 /// </summary>
-public class Update(IMediator _mediator) : Endpoint<UpdateFormDefinitionRequest, Results<Ok<UpdateFormDefinitionResponse>, BadRequest, NotFound>>
+public class Update(IMediator mediator) : Endpoint<UpdateFormDefinitionRequest, Results<Ok<UpdateFormDefinitionResponse>, BadRequest, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -30,20 +29,15 @@ public class Update(IMediator _mediator) : Endpoint<UpdateFormDefinitionRequest,
         });
     }
 
-    /// <summary>
-    /// Executes the HTTP request for updating a form definition.
-    /// </summary>
-    /// <param name="request">The request model containing form definition details.</param>
-    /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+    /// <inheritdoc />
     public override async Task<Results<Ok<UpdateFormDefinitionResponse>, BadRequest, NotFound>> ExecuteAsync(UpdateFormDefinitionRequest request, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(
+        var result = await mediator.Send(
             new UpdateFormDefinitionCommand(request.FormId, request.DefinitionId, request.IsDraft!.Value, request.JsonData!, request.IsActive!.Value),
             cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Ok<UpdateFormDefinitionResponse>, BadRequest, NotFound>,
-            FormDefinition,
-            UpdateFormDefinitionResponse>(FormDefinitionMapper.Map<UpdateFormDefinitionResponse>);
+        return TypedResultsBuilder
+            .MapResult(result, FormDefinitionMapper.Map<UpdateFormDefinitionResponse>)
+            .SetTypedResults<Ok<UpdateFormDefinitionResponse>, BadRequest, NotFound>();
     }
 }

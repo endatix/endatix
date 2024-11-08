@@ -8,7 +8,7 @@ public class FormDefinitionResponse
     /// <summary>
     /// The ID of the form definition.
     /// </summary>
-    public long Id { get; set; }
+    public string? Id { get; set; }
 
     /// <summary>
     /// Indicates if the form definition is a draft.
@@ -23,7 +23,7 @@ public class FormDefinitionResponse
     /// <summary>
     /// The ID of the associated form.
     /// </summary>
-    public long FormId { get; set; }
+    public string? FormId { get; set; }
 
     /// <summary>
     /// Indicates if the form definition is active.

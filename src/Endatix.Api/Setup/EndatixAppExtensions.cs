@@ -2,14 +2,16 @@ using Endatix.Framework.Hosting;
 using Endatix.Api.Setup;
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Endatix.Api.Infrastructure;
+using Ardalis.GuardClauses;
+using Microsoft.Extensions.Configuration;
+using Endatix.Infrastructure.Identity;
+using Microsoft.Extensions.Hosting;
 using FastEndpoints.Security;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using Microsoft.Extensions.DependencyInjection;
-using Endatix.Infrastructure.Identity;
-using Microsoft.Extensions.Configuration;
-using Ardalis.GuardClauses;
-using Microsoft.Extensions.Hosting;
 
 namespace Endatix.Setup;
 
@@ -54,6 +56,8 @@ public static class EndatixAppExtensions
 
         endatixApp.Services.AddAuthorization();
         endatixApp.Services.AddCorsServices();
+        endatixApp.Services.AddDefaultJsonOptions();
+
         endatixApp.Services
                 .AddFastEndpoints()
                 .SwaggerDocument(o =>
@@ -68,5 +72,15 @@ public static class EndatixAppExtensions
                     });
 
         return endatixApp;
+    }
+
+    /// <summary>
+    /// Adds the default JSON options Endatix needs for minimal API results.
+    /// </summary>
+    private static IServiceCollection AddDefaultJsonOptions(this IServiceCollection services)
+    {
+        services.Configure<JsonOptions>(options => options.SerializerOptions.Converters.Add(new LongToStringConverter()));
+
+        return services;
     }
 }
