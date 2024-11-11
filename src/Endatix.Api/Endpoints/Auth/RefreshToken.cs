@@ -1,6 +1,8 @@
 using FastEndpoints;
 using MediatR;
-using Endatix.Core.Infrastructure.Result;
+using Errors = Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Identity.RefreshToken;
 
 namespace Endatix.Api.Endpoints.Auth;
@@ -8,7 +10,7 @@ namespace Endatix.Api.Endpoints.Auth;
 /// <summary>
 /// Endpoint for refreshing the access token using a refresh token
 /// </summary>
-public class RefreshToken(IMediator mediator) : Endpoint<RefreshTokenRequest, RefreshTokenResponse>
+public class RefreshToken(IMediator mediator) : Endpoint<RefreshTokenRequest, Results<Ok<RefreshTokenResponse>, BadRequest<Errors.ProblemDetails>>>
 {
     /// <summary>
     /// Configures the endpoint
@@ -27,27 +29,17 @@ public class RefreshToken(IMediator mediator) : Endpoint<RefreshTokenRequest, Re
         });
     }
 
-    /// <summary>
-    /// Handles the refresh token request.
-    /// </summary>
-    /// <param name="request">The request containing the authorization header and refresh token.</param>
-    /// <param name="cancellationToken">Cancellation token for the request.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public override async Task HandleAsync(RefreshTokenRequest request, CancellationToken cancellationToken)
+    /// <inheritdoc/>
+    public override async Task<Results<Ok<RefreshTokenResponse>, BadRequest<Errors.ProblemDetails>>> ExecuteAsync(RefreshTokenRequest request, CancellationToken cancellationToken)
     {
         var authHeader = request.Authorization;
         var accessToken = authHeader!["Bearer ".Length..].Trim();
         var refreshCommand = new RefreshTokenCommand(accessToken, request.RefreshToken!);
         var result = await mediator.Send(refreshCommand, cancellationToken);
 
-        if (result.IsInvalid())
-        {
-            ThrowError("Invalid or expired token.");
-        }
-        else
-        {
-            var response = new RefreshTokenResponse(result.Value.AccessToken.Token, result.Value.RefreshToken.Token);
-            await SendOkAsync(response, cancellationToken);
-        }
+        return TypedResultsBuilder
+                .MapResult(result, (tokenDto) => new RefreshTokenResponse(tokenDto.AccessToken.Token, tokenDto.RefreshToken.Token))
+                .SetErrorMessage("Invalid or expired token.")
+                .SetTypedResults<Ok<RefreshTokenResponse>, BadRequest<Errors.ProblemDetails>>();
     }
 }

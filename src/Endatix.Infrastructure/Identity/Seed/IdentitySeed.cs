@@ -13,6 +13,8 @@ namespace Endatix.Infrastructure.Identity.Seed
         private const string DEFAULT_ADMIN_EMAIL = "admin@endatix.com";
         private const string DEFAULT_ADMIN_PASSWORD = "P@ssw0rd";
 
+        private const string LOG_INDENT = "\t\t\t";
+
         /// <summary>
         /// Seeds an initial admin user into the system if no users exist.
         /// Uses custom credentials from dataOptions if provided, otherwise falls back to default values.
@@ -36,8 +38,9 @@ namespace Endatix.Infrastructure.Identity.Seed
             {
                 if (initialUserIsConfigured)
                 {
-                    logger.LogWarning("Initial user credentials are present in the configuration. They must be removed to prevent their exposure. " +
-                        "Check https://docs.endatix.com/docs/getting-started/installation for more information.");
+                    logger.LogWarning("🔐 Initial user credentials are still present in the configuration and are not longer needed\r\n" +
+                        $"{LOG_INDENT}| Remove them from the configuration file to prevent their exposure to the outside world.\r\n" +
+                        $"{LOG_INDENT}| For more info check https://docs.endatix.com/docs/getting-started/installation");
                 }
 
                 return;
@@ -56,6 +59,7 @@ namespace Endatix.Infrastructure.Identity.Seed
             }
 
             await userRegistrationService.RegisterUserAsync(email, password, CancellationToken.None);
+            logger.LogInformation($"👤 Initial user {email} created successfully! Please use it to authenticate.");
         }
     }
 }

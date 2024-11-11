@@ -6,11 +6,15 @@ using Endatix.Core.Entities.Identity;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 
+/// <summary>
+/// Provides authentication services based on ASP.NET Core Identity.
+/// </summary>  
 internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHasher<AppUser> passwordHasher) : IAuthService
 {
     private readonly UserManager<AppUser> _userManager = userManager;
     private readonly IPasswordHasher<AppUser> _passwordHasher = passwordHasher;
 
+    /// <inheritdoc/>
     public async Task<Result<User>> ValidateCredentials(string email, string password, CancellationToken cancellationToken)
     {
         Guard.Against.NullOrEmpty(email, nameof(email));
@@ -32,6 +36,7 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
         return Result.Success(user.ToUserEntity());
     }
 
+    /// <inheritdoc/>
     public async Task<Result<User>> ValidateRefreshToken(long userId, string token, CancellationToken cancellationToken)
     {
         Guard.Against.NegativeOrZero(userId, nameof(userId));
@@ -52,6 +57,7 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
         return Result.Success(user.ToUserEntity());
     }
 
+    /// <inheritdoc/>
     public async Task<Result> StoreRefreshToken(long userId, string token, DateTime expireAt, CancellationToken cancellationToken)
     {
         Guard.Against.NegativeOrZero(userId, nameof(userId));

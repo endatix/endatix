@@ -1,13 +1,13 @@
 ﻿using FastEndpoints;
 using MediatR;
-using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Http;
+using Errors = Microsoft.AspNetCore.Mvc;
 using Endatix.Core.UseCases.Identity.Login;
+using Endatix.Api.Infrastructure;
 
 namespace Endatix.Api.Endpoints.Auth;
 
-public class Login(IMediator mediator) : Endpoint<LoginRequest, Results<Ok<LoginResponse>, BadRequest<IEnumerable<ValidationError>>>>
+public class Login(IMediator mediator) : Endpoint<LoginRequest, Results<Ok<LoginResponse>, BadRequest<Errors.ProblemDetails>>>
 {
     /// <summary>
     /// Configures the endpoint
@@ -27,19 +27,13 @@ public class Login(IMediator mediator) : Endpoint<LoginRequest, Results<Ok<Login
     }
 
     /// <inheritdoc />
-    public override async Task<Results<Ok<LoginResponse>, BadRequest<IEnumerable<ValidationError>>>> ExecuteAsync(LoginRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<LoginResponse>, BadRequest<Errors.ProblemDetails>>> ExecuteAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var loginCommand = new LoginCommand(request.Email, request.Password);
         var result = await mediator.Send(loginCommand, cancellationToken);
 
-        if (result.IsInvalid())
-        {
-            return TypedResults.BadRequest(result.ValidationErrors);
-        }
-        else
-        {
-            var successfulResponse = new LoginResponse(request.Email, result.Value.AccessToken.Token, result.Value.RefreshToken.Token);
-            return TypedResults.Ok(successfulResponse);
-        }
+        return TypedResultsBuilder
+            .MapResult(result, tokenDto => new LoginResponse(request.Email, tokenDto.AccessToken.Token, tokenDto.RefreshToken.Token))
+            .SetTypedResults<Ok<LoginResponse>, BadRequest<Errors.ProblemDetails>>();
     }
 }

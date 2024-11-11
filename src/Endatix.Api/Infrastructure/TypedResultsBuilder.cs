@@ -58,6 +58,11 @@ public class TypedResultsBuilder<TData> : TypedResultsBuilder
     public Result<TData> SourceResult { get; init; }
 
     /// <summary>
+    /// The generic error message to be returned in case the source result is invalid.
+    /// </summary>
+    public string? ErrorMessage { get; protected set; }
+
+    /// <summary>
     /// Initializes a new instance of the TypedResultsBuilder with the specified source result.
     /// </summary>
     /// <param name="sourceResult">The source result to map.</param>
@@ -66,6 +71,18 @@ public class TypedResultsBuilder<TData> : TypedResultsBuilder
         Guard.Against.Null(sourceResult);
 
         SourceResult = sourceResult;
+    }
+
+    /// <summary>
+    /// Sets the error message for the TypedResultsBuilder instance.
+    /// </summary>
+    /// <param name="errorMessage">The error message to set.</param>
+    /// <returns>This instance of TypedResultsBuilder.</returns>
+    public TypedResultsBuilder<TData> SetErrorMessage(string errorMessage)
+    {
+        Guard.Against.NullOrWhiteSpace(errorMessage);
+        ErrorMessage = errorMessage;
+        return this;
     }
 
     /// <summary>
@@ -78,7 +95,8 @@ public class TypedResultsBuilder<TData> : TypedResultsBuilder
           where TResult1 : HttpResults.IResult
           where TResult2 : HttpResults.IResult
     {
-        return new TypedResultsBuilder<TData, TResult1, TResult2>(SourceResult);
+        return new TypedResultsBuilder<TData, TResult1, TResult2>(SourceResult, ErrorMessage);
+
     }
 
     /// <summary>
@@ -93,7 +111,7 @@ public class TypedResultsBuilder<TData> : TypedResultsBuilder
           where TResult2 : HttpResults.IResult
           where TResult3 : HttpResults.IResult
     {
-        return new TypedResultsBuilder<TData, TResult1, TResult2, TResult3>(SourceResult);
+        return new TypedResultsBuilder<TData, TResult1, TResult2, TResult3>(SourceResult, ErrorMessage);
     }
 }
 
@@ -109,11 +127,13 @@ where TResult1 : HttpResults.IResult
 where TResult2 : HttpResults.IResult
 {
     /// <summary>
-    /// Initializes a new instance of the TypedResultsBuilder with the specified source result.
+    /// Initializes a new instance of the TypedResultsBuilder with the specified source result and optional error message.
     /// </summary>
     /// <param name="sourceResult">The source result to map.</param>
-    protected internal TypedResultsBuilder(Result<TData> sourceResult) : base(sourceResult)
+    /// <param name="errorMessage">Optional error message to set.</param>
+    protected internal TypedResultsBuilder(Result<TData> sourceResult, string? errorMessage = null) : base(sourceResult)
     {
+        ErrorMessage = errorMessage;
     }
 
     /// <summary>
@@ -127,6 +147,21 @@ where TResult2 : HttpResults.IResult
         {
             ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
             ResultStatus.Invalid => TypedResults.BadRequest(),
+            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
+        };
+    }
+
+    /// <summary>
+    /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok and BadRequest.
+    /// </summary>
+    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
+    /// <returns>A Results instance for Ok and BadRequest.</returns>
+    public static implicit operator Results<Ok<TData>, BadRequest<ProblemDetails>>(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper)
+    {
+        return resultMapper.SourceResult.Status switch
+        {
+            ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
+            ResultStatus.Invalid => resultMapper.SourceResult.ToBadRequest(resultMapper.ErrorMessage),
             _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
         };
     }
@@ -175,8 +210,10 @@ where TResult3 : HttpResults.IResult
     /// Initializes a new instance of the TypedResultsBuilder with the specified source result.
     /// </summary>
     /// <param name="sourceResult">The source result to map.</param>
-    protected internal TypedResultsBuilder(Result<TData> sourceResult) : base(sourceResult)
+    /// <param name="errorMessage">Optional error message to set.</param>
+    protected internal TypedResultsBuilder(Result<TData> sourceResult, string? errorMessage = null) : base(sourceResult)
     {
+         ErrorMessage = errorMessage;
     }
 
     /// <summary>

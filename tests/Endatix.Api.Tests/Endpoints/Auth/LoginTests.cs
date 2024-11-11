@@ -1,10 +1,11 @@
 using Endatix.Api.Endpoints.Auth;
-using Endatix.Api.Tests.TestExtensions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity;
 using Endatix.Core.UseCases.Identity.Login;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
+using Errors = Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Tests.Endpoints.Auth;
@@ -21,7 +22,7 @@ public class LoginTests
     }
 
     [Fact]
-    public async Task HandleAsync_WithValidCredentials_ReturnsOkResult()
+    public async Task ExecuteAsync_WithValidCredentials_ReturnsOkResult()
     {
         // Arrange
         var request = new LoginRequest("user@example.com", "Password123!");
@@ -51,7 +52,7 @@ public class LoginTests
     }
 
     [Fact]
-    public async Task HandleAsync_WithInvalidCredentials_ReturnsBadRequestWithValidationFailure()
+    public async Task ExecuteAsync_WithInvalidCredentials_ReturnsBadRequestWithValidationFailure()
     {
         // Arrange
         var request = new LoginRequest("wrong.user@example.com", "Password123!");
@@ -63,9 +64,9 @@ public class LoginTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response!.Result.As<BadRequest<IEnumerable<ValidationError>>>();
-        badRequestResult.Should().NotBeNull();
-        badRequestResult.Value.Should().Contain(f =>
-            f.ErrorMessage == "The supplied credentials are invalid!");
+        var problemResult = response!.Result as BadRequest<Errors.ProblemDetails>;
+        problemResult.Should().NotBeNull();
+        problemResult?.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problemResult?.Value?.Detail.Should().Be("The supplied credentials are invalid!");
     }
 }
