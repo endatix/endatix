@@ -3,15 +3,20 @@
 /// <summary>
 /// A response record used in the Login result
 /// </summary>
-public record LoginResponse
+public record LoginResponse(string Email, string AccessToken, string RefreshToken)
 {
     /// <summary>
     /// Email for the user initiating the successful login request
     /// </summary>
-    public required string Email { get; set; }
+    public string Email { get; init; } = Email;
 
     /// <summary>
-    /// Authentication token returned upon success
+    /// Access token returned upon success
     /// </summary>
-    public required string Token { get; set; }
+    public string AccessToken { get; init; } = AccessToken;
+
+    /// <summary>
+    /// Refresh token returned upon success
+    /// </summary>
+    public string RefreshToken { get; init; } = RefreshToken;
 }

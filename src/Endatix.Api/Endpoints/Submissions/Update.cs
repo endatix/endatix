@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -17,7 +18,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateSubmissionRequest, Resu
     public override void Configure()
     {
         Put("forms/{formId}/submissions/{submissionId}");
-        Roles("Admin");
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Update a form submission";

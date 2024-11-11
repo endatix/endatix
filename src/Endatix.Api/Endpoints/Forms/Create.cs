@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Forms.Create;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -17,7 +18,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
     public override void Configure()
     {
         Post("forms");
-        Roles("Admin");
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Create a new form";
@@ -30,9 +31,8 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateFormResponse>, BadRequest>> ExecuteAsync(CreateFormRequest request, CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(
-            new CreateFormCommand(request.Name!, request.Description, request.IsEnabled!.Value, request.FormDefinitionJsonData!),
-            cancellationToken);
+        var createFormCommand = new CreateFormCommand(request.Name!, request.Description, request.IsEnabled!.Value, request.FormDefinitionJsonData!);
+        var result = await mediator.Send(createFormCommand, cancellationToken);
 
         return TypedResultsBuilder
             .MapResult(result, FormMapper.Map<CreateFormResponse>)

@@ -1,9 +1,10 @@
+using System.Reflection;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Configuration;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Services;
+using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,16 +29,24 @@ public static class EndatixAppExtensions
         Guard.Against.NullOrEmpty(EndatixConfig.Configuration.ConnectionString, null, "Endatix database connection not provided. Make sure to call WithSqlServer method and pass the connection string");
 
         string? connectionString = EndatixConfig.Configuration.ConnectionString;
-        string? migrationsAssembly = EndatixConfig.Configuration.MigrationsAssembly;
+        string? migrationsAssembly = EndatixConfig.Configuration.MigrationsAssembly ?? Assembly.GetExecutingAssembly().GetName().Name;
+
         endatixApp.Services.AddDbContext<AppDbContext>(options =>
         {
-            options.UseSqlServer(connectionString, b => b.MigrationsAssembly(migrationsAssembly));
+            options.UseSqlServer(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
+        });
+
+        endatixApp.Services.AddDbContext<AppIdentityDbContext>(options =>
+        {
+            options.UseSqlServer(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
         });
 
         if (EndatixConfig.Configuration.UseSnowflakeIds)
         {
-            endatixApp.Services.AddSingleton<IIdGenerator, SnowflakeIdGenerator>();
+            endatixApp.Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         }
+
+        endatixApp.Services.AddSingleton<EfCoreValueGeneratorFactory>();
 
         endatixApp.LogSetupInformation("Persistence using SqlServer configured");
 

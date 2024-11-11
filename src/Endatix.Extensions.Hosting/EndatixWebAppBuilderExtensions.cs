@@ -1,14 +1,19 @@
 using Ardalis.GuardClauses;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Logging = Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Extensions.Logging;
 using Endatix.Framework.Hosting;
 using Endatix.Extensions.Hosting;
 using Endatix.Core.Configuration;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Endatix.Framework.Setup;
+using Endatix.Core.Abstractions;
+using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Seed;
 
 namespace Endatix.Setup;
 
@@ -78,7 +83,6 @@ public static class EndatixHostBuilderExtensions
         endatixApp.AddInfrastructure(configuration => configuration
                                    .AddSecurityServices(options => options
                                        .AddApiAuthentication(builder.Configuration)
-                                       .ReadDevUsersFromConfig()
                                    ));
 
         endatixApp.AddDataPersistence(configuration => configuration

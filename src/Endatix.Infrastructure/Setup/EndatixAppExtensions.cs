@@ -1,18 +1,14 @@
-using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Services;
 using Endatix.Framework.Hosting;
-using Endatix.Infrastructure;
-using Endatix.Infrastructure.Auth;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Email;
+using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Setup;
-using FastEndpoints.Security;
 using MediatR;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
@@ -62,32 +58,8 @@ public static class EndatixAppExtensions
         services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
         services.AddWebHookProcessing();
 
-        if (setupSettings.Security != null)
-        {
-            endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Started");
-            var securityConfig = setupSettings.Security.SecurityConfiguration;
-            if (setupSettings.Security.EnableApiAuthentication)
-            {
-                services.Configure<SecuritySettings>(securityConfig);
-
-                var signingKey = securityConfig.GetRequiredSection(nameof(SecuritySettings.JwtSigningKey)).Value;
-
-                Guard.Against.NullOrEmpty(signingKey, "signingKey", $"Cannot initialize application without a signingKey. Please check configuration for {nameof(SecuritySettings.JwtSigningKey)}");
-
-                services.AddAuthorization();
-                services.AddAuthenticationJwtBearer(s => s.SigningKey = signingKey);
-                services.AddScoped<ITokenService, JwtTokenService>();
-                endatixApp.LogSetupInformation("     >> Registering core authentication services");
-            }
-
-            if (setupSettings.Security.EnableDevUsersFromConfig)
-            {
-                services.AddScoped<IAuthService, ConfigBasedAuthService>();
-                endatixApp.LogSetupInformation("     >> Registering {Interface} using the {ClassName} class", typeof(IAuthService).Name, typeof(ConfigBasedAuthService).Name);
-            }
-
-            endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Finished");
-        }
+        endatixApp.AddDataOptions();
+        endatixApp.SetupIdentity(setupSettings);
 
         return endatixApp;
     }
@@ -132,6 +104,21 @@ public static class EndatixAppExtensions
         }
 
         endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Finished");
+
+        return endatixApp;
+    }
+
+    /// <summary>
+    /// Adds data options to the specified <see cref="IEndatixApp"/> instance, based on the configuration options.
+    /// </summary>
+    /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
+    /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
+    private static IEndatixApp AddDataOptions(this IEndatixApp endatixApp)
+    {
+        endatixApp.Services.AddOptions<DataOptions>()
+            .BindConfiguration(DataOptions.SECTION_NAME)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         return endatixApp;
     }

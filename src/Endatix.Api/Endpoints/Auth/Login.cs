@@ -1,45 +1,39 @@
 ﻿using FastEndpoints;
 using MediatR;
-using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Security.Login;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Http;
+using Errors = Microsoft.AspNetCore.Mvc;
+using Endatix.Core.UseCases.Identity.Login;
+using Endatix.Api.Infrastructure;
 
 namespace Endatix.Api.Endpoints.Auth;
 
-public class Login(IMediator mediator) : Endpoint<LoginRequest, Results<Ok<LoginResponse>, BadRequest<IEnumerable<ValidationError>>>>
+public class Login(IMediator mediator) : Endpoint<LoginRequest, Results<Ok<LoginResponse>, BadRequest<Errors.ProblemDetails>>>
 {
+    /// <summary>
+    /// Configures the endpoint
+    /// </summary>
     public override void Configure()
     {
-        Post("/auth/login");
+        Post("auth/login");
         AllowAnonymous();
         Summary(s =>
         {
             s.Summary = "Log in";
-            s.Description = "Authenticates an user based of valid credentials and returns JWT token";
-            s.Responses[200] = "Use has been successfully authenticated";
+            s.Description = "Authenticates a user based on valid credentials and returns JWT token and refresh token";
+            s.Responses[200] = "User has been successfully authenticated";
             s.Responses[400] = "The supplied credentials are invalid!";
+            s.ExampleRequest = new LoginRequest("user@example.com", "Password123!");
         });
     }
 
     /// <inheritdoc />
-    public override async Task<Results<Ok<LoginResponse>, BadRequest<IEnumerable<ValidationError>>>> ExecuteAsync(LoginRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<LoginResponse>, BadRequest<Errors.ProblemDetails>>> ExecuteAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var loginCommand = new LoginCommand(request.Email, request.Password);
         var result = await mediator.Send(loginCommand, cancellationToken);
 
-        if (result.IsInvalid())
-        {
-            return TypedResults.BadRequest(result.ValidationErrors);
-        }
-        else
-        {
-            LoginResponse successfulResponse = new()
-            {
-                Email = request.Email,
-                Token = result.Value.Token
-            };
-            return TypedResults.Ok(successfulResponse);
-        }
+        return TypedResultsBuilder
+            .MapResult(result, tokenDto => new LoginResponse(request.Email, tokenDto.AccessToken.Token, tokenDto.RefreshToken.Token))
+            .SetTypedResults<Ok<LoginResponse>, BadRequest<Errors.ProblemDetails>>();
     }
 }

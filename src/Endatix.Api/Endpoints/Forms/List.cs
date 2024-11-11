@@ -3,6 +3,7 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.UseCases.Forms.List;
 using Endatix.Api.Infrastructure;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -17,7 +18,7 @@ public class List(IMediator mediator) : Endpoint<FormsListRequest, Results<Ok<IE
     public override void Configure()
     {
         Get("forms");
-        AllowAnonymous();
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "List forms";

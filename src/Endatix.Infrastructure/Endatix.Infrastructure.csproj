@@ -16,6 +16,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.5" />
 		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="8.10.0" />
 		<PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
 		<PackageReference Include="serilog.sinks.async" Version="2.0.0" />
@@ -25,15 +26,21 @@
 		<PackageReference Include="FastEndpoints.Security" Version="5.26.0" />
 		<PackageReference Include="IdGen" Version="3.0.5" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.5" />
+		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0" />
 		<PackageReference Include="SendGrid" Version="9.29.3" />
 		<PackageReference Include="SendGrid.Extensions.DependencyInjection" Version="1.0.1" />
 		<PackageReference Include="MediatR" Version="12.3.0" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
-		<ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
+		<ProjectReference Include="../Endatix.Framework/Endatix.Framework.csproj" />
 	</ItemGroup>
 	<ItemGroup>
+		<Folder Include="Identity/Authentication/" />
+		<Folder Include="Identity/Authorization/" />
 		<Folder Include="Logging/" />
 	</ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Endatix.Infrastructure.Tests" />
+  </ItemGroup>
 </Project>

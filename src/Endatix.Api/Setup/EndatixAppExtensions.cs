@@ -5,6 +5,13 @@ using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Endatix.Api.Infrastructure;
+using Ardalis.GuardClauses;
+using Microsoft.Extensions.Configuration;
+using Endatix.Infrastructure.Identity;
+using Microsoft.Extensions.Hosting;
+using FastEndpoints.Security;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace Endatix.Setup;
 
@@ -13,6 +20,8 @@ namespace Endatix.Setup;
 /// </summary>
 public static class EndatixAppExtensions
 {
+    private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
+
     /// <summary>
     /// Adds the API Endpoints associated provided by the Endatix app
     /// </summary>
@@ -20,7 +29,33 @@ public static class EndatixAppExtensions
     /// <returns>An instance of <see cref="IEndatixApp"/> representing the configured application.</returns>
     public static IEndatixApp AddApiEndpoints(this IEndatixApp endatixApp)
     {
-        endatixApp.Services.AddCorsMiddleware();
+        Guard.Against.Null(endatixApp?.WebHostBuilder?.Configuration);
+        var jwtSettings = endatixApp.WebHostBuilder.Configuration
+                         .GetRequiredSection(JwtOptions.SECTION_NAME)
+                         .Get<JwtOptions>();
+        Guard.Against.Null(jwtSettings);
+
+        var isDevelopment = endatixApp.WebHostBuilder.Environment.IsDevelopment();
+        endatixApp.Services.AddAuthenticationJwtBearer(
+                   signingOptions => signingOptions.SigningKey = jwtSettings.SigningKey,
+                   bearerOptions =>
+                   {
+                       bearerOptions.RequireHttpsMetadata = isDevelopment ? false : true;
+                       bearerOptions.TokenValidationParameters = new TokenValidationParameters
+                       {
+                           IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
+                           ValidIssuer = jwtSettings.Issuer,
+                           ValidAudiences = jwtSettings.Audiences,
+                           ValidateIssuer = true,
+                           ValidateAudience = true,
+                           ValidateLifetime = true,
+                           ValidateIssuerSigningKey = true,
+                           ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW_IN_SECONDS)
+                       };
+                   });
+
+        endatixApp.Services.AddAuthorization();
+        endatixApp.Services.AddCorsServices();
         endatixApp.Services.AddDefaultJsonOptions();
 
         endatixApp.Services

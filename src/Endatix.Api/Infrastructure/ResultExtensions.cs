@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Endatix.Core.Infrastructure.Result;
 using AppDomain = Endatix.Core.Infrastructure.Result;
@@ -10,6 +10,8 @@ namespace Endatix.Api.Infrastructure;
 #if NET7_0_OR_GREATER
 public static partial class ResultExtensions
 {
+    private const string DEFAULT_NOT_FOUND_TITLE = "Resource not found.";
+    private const string DEFAULT_BAD_REQUEST_TITLE = "There was a problem with your request.";
     /// <summary>
     /// Converts an IResult from an operation to a NotFound HTTP IResult with ProblemDetails.
     /// </summary>
@@ -28,21 +30,49 @@ public static partial class ResultExtensions
         }
         else
         {
-            details.Append("* ").Append("Resource not found.").AppendLine();
+            details.Append("* ").Append(DEFAULT_NOT_FOUND_TITLE).AppendLine();
         }
 
         return TypedResults.NotFound(new ProblemDetails
         {
-            Title = "Resource not found.",
-            Detail = details.ToString()
+            Title = DEFAULT_NOT_FOUND_TITLE,
+            Detail = details.ToString(),
+            Status = StatusCodes.Status404NotFound
         });
+    }
+
+    /// <summary>
+    /// Converts an IResult from an operation to a BadRequest HTTP IResult with ProblemDetails.
+    /// This method constructs a BadRequest response with ProblemDetails, including a title and detail.
+    /// The title defaults to "There was a problem with your request." if not provided.
+    /// The detail includes a list of validation errors if present, otherwise, it defaults to the default title.
+    /// </summary>
+    /// <param name="result">The IResult to convert.</param>
+    /// <param name="title">Optional title for the BadRequest response. Defaults to "There was a problem with your request."</param>
+    /// <returns>A BadRequest HTTP IResult with ProblemDetails.</returns>
+    public static BadRequest<ProblemDetails> ToBadRequest(this AppDomain.IResult result, string? title = null)
+    {
+        var details = DEFAULT_BAD_REQUEST_TITLE;
+        if (result.ValidationErrors.Any())
+        {
+            details = result.ValidationErrors.First().ErrorMessage;
+        }
+
+        var problemDetails = new ProblemDetails
+        {
+            Title = title ?? DEFAULT_BAD_REQUEST_TITLE,
+            Detail = details.ToString(),
+            Status = StatusCodes.Status400BadRequest
+        };
+
+        return TypedResults.BadRequest(problemDetails);
     }
 
     /// <summary>
     /// Convert a <see cref="Result{TEntity}"/> to an instance of <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c>
     /// </summary>
     /// <typeparam name="TResults">The Results object listing all the possible status endpoint responses</typeparam>
-    /// <typeparam name="TEntity">The result entiry type being received</typeparam>
+    /// <typeparam name="TEntity">The result entity type being received</typeparam>
     /// <typeparam name="TResponseModel">The HTTP endpoint response model value type being returned</typeparam>
     /// <param name="result">The command/query result to convert to an <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c></param>
     /// <param name="mapper">The mapper to convert from command/query result to HTTP endpoint response model</param>

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormDefinitions.Create;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
 
@@ -17,7 +18,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormDefinitionRequest, 
     public override void Configure()
     {
         Post("forms/{formId}/definitions");
-        Roles("Admin");
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Create a new form definition";

@@ -1,5 +1,4 @@
 using Endatix.Framework.Hosting;
-using Endatix.Setup;
 using Microsoft.AspNetCore.Builder;
 using Serilog;
 using Serilog.Events;
@@ -19,9 +18,9 @@ public static class AppBuilderExtensions
     public static IEndatixMiddleware UseEndatixMiddleware(this WebApplication app)
     {
         app.UseHsts();
-
-        app.UseAuthentication()
-            .UseAuthorization();
+        app.UseHttpsRedirection();
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         app.UseSerilogRequestLogging(options =>
         {
@@ -36,7 +35,8 @@ public static class AppBuilderExtensions
             };
         });
 
-        app.UseHttpsRedirection();
+        app.ApplyDbMigrations();
+        app.SeedInitialUser();
 
         var middleware = new EndatixMiddleware(app);
 

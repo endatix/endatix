@@ -5,6 +5,9 @@
       "name": "🚀 Endatix.WebHost",
       "type": "coreclr",
       "request": "launch",
+      "launchBrowser": {
+        "enabled": true
+      },
       "preLaunchTask": "build",
       "program": "${workspaceFolder}/src/Endatix.WebHost/bin/Debug/net8.0/Endatix.WebHost.dll",
       "args": [],
@@ -13,7 +16,7 @@
       "serverReadyAction": {
         "action": "openExternally",
         "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
-        "uriFormat": "%s/swagger"
+        "uriFormat": "%s/swagger/index.html"
       },
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development"
