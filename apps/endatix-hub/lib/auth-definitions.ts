@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export type AuthenticationResponse = {
   email: string;
-  token: string;
+  accessToken: string;
+  refreshToken: string;
 };
 
 export type AuthenticationRequest = {

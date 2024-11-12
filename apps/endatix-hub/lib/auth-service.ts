@@ -51,7 +51,8 @@ export function isError<T>(result: Result<T>): boolean {
 
 export interface SessionData {
     username: string;
-    token: string;
+    accessToken: string;
+    refreshToken: string;
     isLoggedIn: boolean;
 }
 
@@ -69,7 +70,8 @@ interface EndatixJwtPayload extends JWTPayload {
 }
 
 interface HubJwtPayload extends JWTPayload {
-    apiToken: string,
+    accessToken: string,
+    refreshToken: string,
     sub: string
 }
 
@@ -83,9 +85,12 @@ const HUB_COOKIE_OPTIONS: CookieOptions = {
 
 const ANONYMOUS_SESSION: SessionData = {
     username: "",
-    token: "",
+    accessToken: "",
+    refreshToken: "",
     isLoggedIn: false,
 };
+
+const SAFETY_MARGIN_IN_SECONDS = 10;
 
 export class AuthService {
     private readonly secretKey: Uint8Array;
@@ -94,22 +99,23 @@ export class AuthService {
         this.secretKey = new TextEncoder().encode(this.cookieOptions.encryptionKey);
     }
 
-    async login(authToken: string, username: string) {
-        if (!authToken || !username) {
+    async login(accessToken: string, refreshToken: string, username: string) {
+        if (!accessToken || !refreshToken || !username) {
             return;
         }
 
-        const jwtToken = decodeJwt<EndatixJwtPayload>(authToken);
+        const jwtToken = decodeJwt<EndatixJwtPayload>(accessToken);
         if (!jwtToken?.exp) {
             return;
         }
 
         const expires = new Date(jwtToken.exp * 1000);
-        expires.setSeconds(expires.getSeconds() - 10);
+        expires.setSeconds(expires.getSeconds() - SAFETY_MARGIN_IN_SECONDS);
 
         const hubJwtPayload: HubJwtPayload = {
             sub: username,
-            apiToken: authToken
+            accessToken: accessToken,
+            refreshToken: refreshToken
         };
         const hubSessionToken = await this.encryptToken(hubJwtPayload, expires);
 
@@ -134,7 +140,8 @@ export class AuthService {
         if (jwtTokenResult.kind == Kind.Success) {
             const sessionData: SessionData = {
                 isLoggedIn: true,
-                token: jwtTokenResult.value.apiToken,
+                accessToken: jwtTokenResult.value.accessToken,
+                refreshToken: jwtTokenResult.value.refreshToken,
                 username: jwtTokenResult.value.sub
             };
             return sessionData;

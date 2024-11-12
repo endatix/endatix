@@ -45,10 +45,10 @@ export async function loginAction(prevState: unknown, formData: FormData): Promi
 
   try {
     const authenticationResponse = await authenticate(authRequest);
-    const { email, token } = authenticationResponse;
+    const { email, accessToken, refreshToken } = authenticationResponse;
 
     const authService = new AuthService();
-    await authService.login(token, email);
+    await authService.login(accessToken, refreshToken, email);
   } catch (error: unknown) {
     let errorMessage = "We cannot log you in at this time. Please check your credentials and try again";
     if (error instanceof Error && error?.cause && typeof error.cause === 'object' && 'code' in error.cause && error.cause.code == CONNECTION_REFUSED_CODE) {
