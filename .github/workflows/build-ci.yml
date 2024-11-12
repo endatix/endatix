@@ -43,4 +43,4 @@ jobs:
         run: |
           echo ">[!TIP] " >> $GITHUB_STEP_SUMMARY
           echo ">### Test Coverage Summary :straight_ruler:" >> $GITHUB_STEP_SUMMARY
-          cat ./coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+          cat .coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
