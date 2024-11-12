@@ -2,14 +2,13 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch Endatix.WebHost",
+      "name": "🚀 Endatix.WebHost",
       "type": "coreclr",
       "request": "launch",
       "launchBrowser": {
         "enabled": true
       },
       "preLaunchTask": "build",
-      // If you have changed target frameworks, make sure to update the program path.
       "program": "${workspaceFolder}/src/Endatix.WebHost/bin/Debug/net8.0/Endatix.WebHost.dll",
       "args": [],
       "cwd": "${workspaceFolder}/src/Endatix.WebHost",
@@ -24,14 +23,31 @@
       }
     },
     {
-      "name": "Launch Endatix.Samples.SelfHosted",
+      "name": "📎 Sample: SelfHosted",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      // If you have changed target frameworks, make sure to update the program path.
       "program": "${workspaceFolder}/samples/Endatix.Samples.SelfHosted/bin/Debug/net8.0/Endatix.Samples.SelfHosted.dll",
       "args": [],
       "cwd": "${workspaceFolder}/samples/Endatix.Samples.SelfHosted",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
+      "name": "📎 Sample: WebApp",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/samples/Endatix.Samples.WebApp/bin/Debug/net8.0/Endatix.Samples.WebApp.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/samples/Endatix.Samples.WebApp",
       "stopAtEntry": false,
       "serverReadyAction": {
         "action": "openExternally",

@@ -2,7 +2,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormDefinitions.List;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authorization;
@@ -12,7 +11,7 @@ namespace Endatix.Api.Endpoints.FormDefinitions;
 /// <summary>
 /// Endpoint for listing form definitions.
 /// </summary>
-public class List(IMediator _mediator) : Endpoint<FormDefinitionsListRequest, Results<Ok<IEnumerable<FormDefinitionModel>>, BadRequest, NotFound>>
+public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Results<Ok<IEnumerable<FormDefinitionModel>>, BadRequest, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -31,20 +30,15 @@ public class List(IMediator _mediator) : Endpoint<FormDefinitionsListRequest, Re
         });
     }
 
-    /// <summary>
-    /// Executes the HTTP request for listing form definitions.
-    /// </summary>
-    /// <param name="request">The request model containing form ID and pagination details.</param>
-    /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+    /// <inheritdoc />
     public override async Task<Results<Ok<IEnumerable<FormDefinitionModel>>, BadRequest, NotFound>> ExecuteAsync(FormDefinitionsListRequest request, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(
+        var result = await mediator.Send(
             new ListFormDefinitionsQuery(request.FormId, request.Page, request.PageSize),
             cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Ok<IEnumerable<FormDefinitionModel>>, BadRequest, NotFound>,
-            IEnumerable<FormDefinition>,
-            IEnumerable<FormDefinitionModel>>(FormDefinitionMapper.Map<FormDefinitionModel>);
+        return TypedResultsBuilder
+            .MapResult(result, FormDefinitionMapper.Map<FormDefinitionModel>)
+            .SetTypedResults<Ok<IEnumerable<FormDefinitionModel>>, BadRequest, NotFound>();
     }
 }

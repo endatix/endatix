@@ -16,4 +16,10 @@ public class DataOptions
     /// Omit or set to false will prevent migrations from running unless explicitly set to true
     /// </summary>
     public bool ApplyMigrations { get; set; } = false;
+
+    /// <summary>
+    /// Initial user configuration to be created during setup.
+    /// </summary>
+    public InitialUserOptions? InitialUser { get; set; }
+
 }

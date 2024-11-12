@@ -83,7 +83,7 @@ const HomePage = () => {
         </a>
         <a
           className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://endatix.com?utm_source=endatix-app"
+          href="https://endatix.com?utm_source=endatix-hub"
           target="_blank"
           rel="noopener noreferrer"
         >

@@ -1,19 +1,22 @@
-
-using Endatix.Core.UseCases.Register;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Errors = Microsoft.AspNetCore.Mvc;
+using Endatix.Core.UseCases.Register;
+using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Api.Infrastructure;
 
 namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
 /// Endpoint for registering new user
 /// </summary>
-public class Register(IMediator mediator) : Endpoint<RegisterRequest, RegisterResponse>
+public class Register(IMediator mediator) : Endpoint<RegisterRequest, Results<Ok<RegisterResponse>, BadRequest<Errors.ProblemDetails>>>
 {
     public override void Configure()
     {
-        Post("/auth/register");
-        AllowAnonymous();
+        Post("auth/register");
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Register a new user";
@@ -24,22 +27,15 @@ public class Register(IMediator mediator) : Endpoint<RegisterRequest, RegisterRe
         });
     }
 
-    public override async Task HandleAsync(RegisterRequest request, CancellationToken cancellationToken)
+    /// <inheritdoc/>
+    public override async Task<Results<Ok<RegisterResponse>, BadRequest<Errors.ProblemDetails>>> ExecuteAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
         var registerUserCommand = new RegisterCommand(request.Email, request.Password);
-        var result = await mediator.Send(registerUserCommand, cancellationToken);
+        var userRegistrationResult = await mediator.Send(registerUserCommand, cancellationToken);
 
-        if (!result.IsSuccess)
-        {
-           ThrowError("Registration failed. Please check your input and try again.");
-        }
-
-        RegisterResponse successfulResponse = new()
-        {
-            Success = true,
-            Message = "User has been successfully registered"
-        };
-
-        await SendOkAsync(successfulResponse, cancellationToken);
+        return TypedResultsBuilder
+                .MapResult(userRegistrationResult, (user) => new RegisterResponse(Success: true, Message: "User has been successfully registered"))
+                .SetErrorMessage("Registration failed. Please check your input and try again.")
+                .SetTypedResults<Ok<RegisterResponse>, BadRequest<Errors.ProblemDetails>>();
     }
 }
