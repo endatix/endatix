@@ -51,5 +51,5 @@ jobs:
         run: |
           echo ">[!NOTE] " >> $GITHUB_STEP_SUMMARY
           echo ">#### 🧪 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
-          echo ">[![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=$BRANCH_NAME)](https://coveralls.io/github/endatix/endatix?branch=$BRANCH_NAME)]" >> $GITHUB_STEP_SUMMARY
+          echo ">[![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=$BRANCH_NAME)](https://coveralls.io/github/endatix/endatix?branch=$BRANCH_NAME)" >> $GITHUB_STEP_SUMMARY
           cat .coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
