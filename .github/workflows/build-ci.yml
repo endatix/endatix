@@ -39,14 +39,14 @@ jobs:
       - name: Add Summary Report
         run: reportgenerator -reports:".coverage/merged.cobertura.xml" -targetdir:".coverage/report" -reporttypes:"MarkdownSummaryGithub"
 
-      - name: Output Summary Report
-        run: |
-          echo ">[!NOTE] " >> $GITHUB_STEP_SUMMARY
-          echo ">#### 🧪 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
-          cat .coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
-
       - name: Upload to Coveralls
         uses: coverallsapp/github-action@v2
         with:
           format: cobertura
           file: .coverage/merged.cobertura.xml
+
+      - name: Output Summary Report
+        run: |
+          echo ">[!NOTE] " >> $GITHUB_STEP_SUMMARY
+          echo ">#### 🧪 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          cat .coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
