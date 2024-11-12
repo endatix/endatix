@@ -3,7 +3,7 @@
 
 [![Build & Test](https://github.com/endatix/endatix/actions/workflows/build-ci.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/build-ci.yml)
 [![Release](https://github.com/endatix/endatix/actions/workflows/release.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/release.yml)
-[![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=ci/138-test-coverage-report)](https://coveralls.io/github/endatix/endatix?branch=ci/138-test-coverage-report)
+[![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=main)](https://coveralls.io/github/endatix/endatix?branch=main
 
 ## What is Endatix?
 
