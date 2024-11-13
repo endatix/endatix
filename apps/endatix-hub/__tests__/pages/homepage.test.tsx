@@ -56,7 +56,7 @@ describe("Homepage", () => {
             },
             {
                 text: "Go to endatix.com →",
-                href: "https://endatix.com?utm_source=endatix-app",
+                href: "https://endatix.com?utm_source=endatix-hub",
             },
         ];
 
