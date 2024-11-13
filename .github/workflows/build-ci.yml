@@ -3,26 +3,53 @@ name: Build & Test
 on:
   push:
     branches:
-      - '**'
+      - "**"
 
 jobs:
-  build:
+  test:
+    env:
+      BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.x'
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.x"
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-    - name: Build
-      run: dotnet build --no-restore
+      - name: Build
+        run: dotnet build --no-restore
 
-    - name: Run tests
-      run: dotnet test --no-build --verbosity normal tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj
+      - name: Run .NET tests
+        run: dotnet test --no-build --collect:"XPlat Code Coverage;Format=cobertura" --results-directory:".coverage"
+
+      - name: Install DotNet Coverage
+        run: dotnet tool update --global dotnet-coverage
+
+      - name: Merge Coverage Reports
+        run: dotnet-coverage merge .coverage/endatix-hub/cobertura-coverage.xml .coverage/**/coverage.cobertura.xml -f cobertura -o .coverage/merged.cobertura.xml
+
+      - name: Install DotNet Report Generator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Add Summary Report
+        run: reportgenerator -reports:".coverage/merged.cobertura.xml" -targetdir:".coverage/report" -reporttypes:"MarkdownSummaryGithub"
+
+      - name: Upload to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          format: cobertura
+          file: .coverage/merged.cobertura.xml
+
+      - name: Output Summary Report
+        run: |
+          echo ">[!NOTE] " >> $GITHUB_STEP_SUMMARY
+          echo ">#### 🧪 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo ">[![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=$BRANCH_NAME)](https://coveralls.io/github/endatix/endatix?branch=$BRANCH_NAME)" >> $GITHUB_STEP_SUMMARY
+          cat .coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY

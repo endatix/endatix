@@ -10,8 +10,6 @@
 
   <ItemGroup>
     <PackageReference Include="FastEndpoints.Testing" Version="5.26.0" />
-    <PackageReference Include="coverlet.collector" Version="6.0.0" />
-    <PackageReference Include="FluentAssertions" Version="6.12.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="NSubstitute" Version="5.1.0" />
     <PackageReference Include="MediatR" Version="12.3.0" />
