@@ -1,4 +1,5 @@
 import { ChatContext } from "./types";
+import { SurveyModel } from "./survey";
 
 const KEYS = {
     CHAT_CONTEXT: 'edx_context_chat',
@@ -20,7 +21,7 @@ export class AssistantStore {
         this.storeItem(KEYS.CHAT_CONTEXT, context);
     }
 
-    public getFormModel(): any | null {
+    public getFormModel(): SurveyModel | null {
         return this.getItem(KEYS.FORM_JSON);
     }
 

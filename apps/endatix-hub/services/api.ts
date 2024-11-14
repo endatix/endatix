@@ -2,7 +2,7 @@ import { AuthenticationRequest, AuthenticationResponse } from "@/lib/authDefinit
 import { Form, FormDefinition, Submission } from "../types";
 import { getSession } from "@/lib/auth-service";
 import { redirect } from "next/navigation";
-import { DefineFormContext, DefineFormRequest } from "@/lib/use-cases/assistant";
+import { CreateFormRequest, DefineFormContext, DefineFormRequest } from "@/lib/use-cases/assistant";
 
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
@@ -62,6 +62,25 @@ export const getForm = async (formId: string): Promise<Form> => {
 
   return response.json();
 };
+
+export const createForm = async (formRequest: CreateFormRequest): Promise<Form> => {
+  let session = await getSession();
+
+  const response = await fetch(`${API_BASE_URL}/forms`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session?.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(formRequest),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create form");
+  }
+
+  return response.json();
+}
 
 export const updateForm = async (formId: string, data: { name?: string, isEnabled?: boolean }): Promise<void> => {
   let session = await getSession();

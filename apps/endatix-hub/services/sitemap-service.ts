@@ -20,6 +20,7 @@ export class SitemapService {
       sitemap.Forms,
       sitemap.Customers,
       sitemap.Analytics,
+      sitemap.Workflows,
       sitemap.Integrations,
     ];
 

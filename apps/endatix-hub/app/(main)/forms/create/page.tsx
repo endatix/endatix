@@ -5,12 +5,14 @@ import { NextPage } from 'next'
 import ChatBox from '../ui/chat-box'
 import PreviewFormContainer from './ui/preview-form-container'
 import ChatThread from './ui/chat-thread'
-import { useEffect, useRef, useState } from 'react'
-import { AssistantStore, DefineFormCommand, Message } from '@/lib/use-cases/assistant'
+import { useEffect, useRef, useState, useTransition } from 'react'
+import { AssistantStore, CreateFormRequest, DefineFormCommand, Message } from '@/lib/use-cases/assistant'
 import DotLoader from '@/components/loaders/dot-loader'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FilePenLine, Globe, PlusCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ImperativePanelHandle } from 'react-resizable-panels'
+import { redirect } from 'next/navigation'
+import { createFormDraft } from './create-form.action'
 
 const SHEET_CSS = "absolute inset-x-0 top-0 h-screen"
 const CRITICAL_WIDTH = 600;
@@ -23,6 +25,7 @@ const CreateForm: NextPage = () => {
     const [isWaiting, setIsWaiting] = useState(false);
     const [messages, setMessages] = useState(new Array<Message>());
     const [formModel, setFormModel] = useState<any>({});
+    const [isPending, startTransition] = useTransition()
 
     useEffect(() => {
         const contextStore = new AssistantStore();
@@ -83,18 +86,36 @@ const CreateForm: NextPage = () => {
         }
     }
 
+    const openFormInEditor = async () => {
+        startTransition(async () => {
+
+            const request: CreateFormRequest = {
+                name: formModel["title"],
+                isEnabled: false,
+                description: formModel["description"],
+                formDefinitionJsonData: JSON.stringify(formModel)
+            }
+            const formResult = await createFormDraft(request);
+            if (formResult.isSuccess && formResult.formId) {
+                redirect(`/forms/${formResult.formId}`);
+            } else {
+                alert(formResult.error);
+            }
+        });
+    }
+
     return (
         <ResizablePanelGroup direction="horizontal" className={`${SHEET_CSS} flex flex-1 space-y-2`}>
-            <ResizablePanel defaultSize={65}>
+            <ResizablePanel defaultSize={70}>
                 <div className="flex h-screen sm:pl-14 lg-pl-16 sm:pt-12 md:pt-4">
                     {formModel && <PreviewFormContainer model={formModel} />}
                 </div>
             </ResizablePanel>
-            <ResizableHandle withHandle />
+            <ResizableHandle />
             <ResizablePanel
                 ref={chatPanelRef}
-                defaultSize={35}
-                minSize={20}
+                defaultSize={30}
+                minSize={30}
                 collapsible={true}
                 collapsedSize={4}
                 onCollapse={() => setIsCollapsed(true)}
@@ -115,16 +136,36 @@ const CreateForm: NextPage = () => {
                     {!isCollapsed && <div className="flex flex-col gap-4 sm:pt-12 p-6">
                         <ChatThread isTyping={shouldType} messages={messages} />
                         {isWaiting && <DotLoader className="flex flex-none items-center m-auto" />}
+                        <div className="items-center gap-2 flex">
+                            <Button variant="outline" size="sm" className="h-8 border-dashed">
+                                <Globe className="mr-2 h-4 w-4" />
+                                Add languages
+                            </Button>
+                            <Button variant="outline" size="sm" className="h-8 border-dashed">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Generate submissions
+                            </Button>
+                            <Button
+                                disabled={isPending}
+                                onClick={openFormInEditor}
+                                variant="default"
+                                size="sm"
+                                className="h-8 border-dashed"
+                            >
+                                <FilePenLine className="mr-2 h-4 w-4" />
+                                {isPending ? 'Creating Form...' : 'Continue in Editor'}
+                            </Button>
+                        </div>
                         <ChatBox
                             className="flex-end flex-none"
-                            placeholder="Ask followup (⌘F), ↑ to select"
+                            placeholder="Ask a follow up (⌘F), ↑ to select"
                             onPendingChange={(pending) => { setIsWaiting(pending); }}
                             onStateChange={(stateCommand) => { defineFormHandler(stateCommand); }}
                         />
                     </div>}
                 </div>
-            </ResizablePanel>
-        </ResizablePanelGroup>
+            </ResizablePanel >
+        </ResizablePanelGroup >
     );
 };
 

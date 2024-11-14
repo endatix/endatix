@@ -23,3 +23,10 @@ export interface DefineFormContext {
     assistantId?: string,
     threadId: string
 }
+
+export interface CreateFormRequest {
+    name: string,
+    description: string,
+    isEnabled: boolean,
+    formDefinitionJsonData: string
+}

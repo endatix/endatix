@@ -42,7 +42,7 @@ const FormsList = ({ forms }: FormDataProps) => {
 
     return (
         <>
-            <div className="items-start justify-center gap-4 rounded-lg p-4 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 {forms.map((form) => (
                     <FormCard
                         key={form.id}

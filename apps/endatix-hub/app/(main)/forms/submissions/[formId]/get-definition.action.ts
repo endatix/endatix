@@ -18,6 +18,11 @@ export async function getDefinition({ formId, definitionId }: GetDefinitionReque
         isSuccess: false
     }
 
+    if (!definitionId) {
+        resultState.errors = ["Definition ID is required"];
+        return resultState;
+    }
+
     try {
         const formDefinition = await getFormDefinition(formId, definitionId);
         resultState.definitionsData = formDefinition?.jsonData;

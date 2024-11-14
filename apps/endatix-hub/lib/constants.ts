@@ -1,6 +1,7 @@
 import { INavItem } from "@/types/navigation-models";
 import {
   Blocks,
+  GitCompareArrows,
   Home,
   LineChart,
   Settings,
@@ -30,6 +31,11 @@ const sitemapArray: INavItem[] = [
     text: "Analytics",
     path: "/",
     IconType: LineChart,
+  },
+  {
+    text: "Workflows",
+    path: "/",
+    IconType: GitCompareArrows,
   },
   {
     text: "Integrations",

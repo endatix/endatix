@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { defineFormAction } from '../define-form.action'
-import { useActionState, useEffect } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { IPromptResult, PromptResult } from '../prompt-result'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AssistantStore, DefineFormCommand } from '@/lib/use-cases/assistant'
@@ -28,9 +28,9 @@ const ChatErrorAlert = ({ errorMessage }: { errorMessage: string | undefined }) 
     );
 }
 
-const SubmitButton = ({ pending }: { pending: boolean }) => {
+const SubmitButton = ({ pending, disabled }: { pending: boolean, disabled: boolean }) => {
     return (
-        <Button type='submit' size='sm' className={cn('ml-auto gap-1.5 w-24', (pending ? 'cursor-progress' : ''))} aria-disabled={pending} disabled={pending}>
+        <Button type='submit' size='sm' className={cn('ml-auto gap-1.5 w-24', (pending ? 'cursor-progress' : ''))} aria-disabled={pending} disabled={disabled || pending}>
             Chat
             {pending ? <StopCircle className='size-6' /> : <CornerDownLeft className='size-3' />}
         </Button>
@@ -47,6 +47,7 @@ interface ChatBoxProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, onStateChange, ...props }: ChatBoxProps) => {
+    const [input, setInput] = useState('')
     const [state, action, pending] = useActionState(
         async (prevState: IPromptResult, formData: FormData) => {
             var contextStore = new AssistantStore();
@@ -66,7 +67,7 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                 formData.set("threadId", formContext.threadId ?? '');
                 formData.set("assistantId", formContext.assistantId ?? '');
             }
-  
+
             const promptResult = await defineFormAction(prevState, formData);
 
             if (promptResult.success && promptResult.value?.definition) {
@@ -74,7 +75,7 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                 contextStore.setFormModel(promptResult.value?.definition);
                 let currentContext = contextStore.getChatContext();
                 currentContext.threadId = promptResult.value?.threadId ?? '',
-                currentContext.assistantId = promptResult.value?.assistantId ?? ''
+                    currentContext.assistantId = promptResult.value?.assistantId ?? ''
 
                 if (currentContext.messages === undefined) {
                     currentContext.messages = [];
@@ -127,6 +128,8 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                 <Textarea
                     id='prompt'
                     name='prompt'
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
                     placeholder={placeholder ?? 'What would you like to achieve with your form?'}
                     className='min-h-12 resize-none border-0 p-3 shadow-none focus:outline-none focus-visible:ring-0'
                 />
@@ -151,9 +154,10 @@ const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, 
                             <TooltipContent side='top'>Use Microphone</TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                    <SubmitButton pending={pending} />
+                    <SubmitButton pending={pending} disabled={input.length === 0} />
                 </div>
             </form>
+            <p className="text-center text-xs text-gray-500">Endatix may make mistakes. Please use with discretion.</p>
         </div>
     )
 }

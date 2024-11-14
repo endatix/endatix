@@ -1,11 +1,12 @@
 'use client'
 
-import { ICreatorOptions } from 'survey-creator-core/typings/creator-options'
-import { SurveyCreatorComponent, SurveyCreator, ICreatorTheme } from 'survey-creator-react'
-import 'survey-core/defaultV2.css'
-import 'survey-creator-core/survey-creator-core.css'
-import './creator-styles.css'
 import { useEffect, useState } from 'react'
+import { SurveyCreatorComponent, SurveyCreator } from 'survey-creator-react'
+import 'survey-core/defaultV2.css'
+import 'survey-creator-core/survey-creator-core.fontless.css'
+import './creator-styles.css'
+import { ICreatorOptions } from 'survey-creator-core'
+import { ICreatorTheme } from 'survey-creator-core/typings/creator-theme/creator-themes'
 
 
 interface PreviewFormProps {
@@ -111,7 +112,7 @@ const creatorOptions: ICreatorOptions = {
     showPreview: true,
     showJSONEditorTab: false,
     showTranslationTab: true,
-    showDesignerTab: true,
+    showDesignerTab: false,
     showLogicTab: true,
     themeForPreview: "Default"
 };
