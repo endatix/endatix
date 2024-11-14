@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next dev --turbo",
+    "dev-https": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next dev --turbo  --experimental-https",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -18,8 +19,11 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.2",
+    "babel-plugin-react-compiler": "0.0.0-experimental-6067d4e-20240919",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "iron-session": "^8.0.3",
+    "jose": "^5.9.2",
     "lucide-react": "^0.436.0",
     "next": "15.0.3",
     "next-themes": "^0.3.0",
@@ -27,7 +31,8 @@
     "react-dom": "19.0.0-rc-66855b96-20241106",
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.2",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@testing-library/react": "^16.0.1",

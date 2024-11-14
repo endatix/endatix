@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Identity;
-using FluentAssertions;
 using NSubstitute;
 using Endatix.Core.Tests;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
+using FluentAssertions;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authentication;
 

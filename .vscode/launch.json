@@ -61,7 +61,14 @@
     {
       "name": ".NET Core Attach",
       "type": "coreclr",
-      "request": "attach"
+      "request": "attach",
+    },
+    {
+      "name": "Debug Endatix Hub",
+      "cwd": "${workspaceFolder}/apps/endatix-hub",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pnpm dev"
     }
   ]
 }

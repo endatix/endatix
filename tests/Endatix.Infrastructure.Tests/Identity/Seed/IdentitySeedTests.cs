@@ -2,10 +2,10 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Tests;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Seed;
-using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using NSubstitute;
 using Microsoft.Extensions.Logging;
+using FluentAssertions;
 
 namespace Endatix.Infrastructure.Tests.Identity.Seed;
 
@@ -77,12 +77,13 @@ public class IdentitySeedTests
         // Arrange
         var users = Enumerable.Empty<AppUser>().AsQueryable();
         _userManager.Users.Returns(users);
+        DataOptions? nullOptions = null;
 
         var expectedEmail = "admin@endatix.com";
         var expectedPassword = "P@ssw0rd";
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, null, _logger);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, nullOptions!, _logger);
 
         // Assert
         await _userRegistrationService.Received(1)
