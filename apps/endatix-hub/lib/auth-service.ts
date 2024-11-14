@@ -1,86 +1,206 @@
-"use server";
-
-import { JWTPayload, SignJWT, jwtVerify } from "jose";
-import { getIronSession, SessionOptions } from "iron-session";
+import { JWTPayload, SignJWT, jwtVerify, decodeJwt } from "jose";
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
-import { decodeJwt } from "jose";
+import { JWTInvalid } from "jose/errors";
+import { cache } from "react";
 
-interface SessionData {
-    username: string;
-    token: string;
-    isLoggedIn: boolean;
+enum Kind {
+  Success,
+  Error,
 }
 
-const defaultSession: SessionData = {
-    username: "",
-    token: "",
-    isLoggedIn: false,
+type Success<T> = {
+  kind: Kind.Success;
+  value: T;
 };
 
-const sessionOptions: SessionOptions = {
-    password: `${process.env.SESSION_SECRET}`,
-    cookieName: "endatix-hub.session",
-    cookieOptions: {
-        // secure only works in `https` environments
-        secure: process.env.NODE_ENV === "production",
-    },
-};
-
-const securityOptions = {
-    secretKey: new TextEncoder().encode(`${process.env.SESSION_SECRET}`)
-};
-
-export const encryptToken = async (payload: JWTPayload) => {
-    return await new SignJWT(payload)
-        .setProtectedHeader({ alg: "HS256" })
-        .setIssuedAt()
-        .setExpirationTime("10 sec from now")
-        .sign(securityOptions.secretKey);
+enum ErrorType {
+  ValidationError,
+  Error,
 }
 
-export const decryptToken = async (token: string): Promise<JWTPayload> => {
-    const { payload } = await jwtVerify(token, securityOptions.secretKey, {
-        algorithms: ["HS256"],
+type Error = {
+  kind: Kind.Error;
+  errorType: ErrorType;
+  message: string;
+  details?: string;
+};
+
+type Result<T> = Success<T> | Error;
+
+export function Success<T>(value: T): Success<T> {
+  return { kind: Kind.Success, value };
+}
+
+export function Error<T>(error: Error): Result<T> {
+  return {
+    kind: Kind.Error,
+    errorType: error.errorType,
+    message: error.message,
+    details: error.details,
+  };
+}
+
+export function isSuccess<T>(result: Result<T>): boolean {
+  return result.kind === Kind.Success;
+}
+
+export function isError<T>(result: Result<T>): boolean {
+  return result.kind === Kind.Error;
+}
+
+export interface SessionData {
+  username: string;
+  accessToken: string;
+  refreshToken: string;
+  isLoggedIn: boolean;
+}
+
+interface CookieOptions {
+  name: string;
+  encryptionKey: string;
+  secure: boolean;
+  httpOnly: boolean;
+}
+
+interface EndatixJwtPayload extends JWTPayload {
+  permission?: string[];
+  role?: string[];
+}
+
+interface HubJwtPayload extends JWTPayload {
+  accessToken: string;
+  refreshToken: string;
+  sub: string;
+}
+
+const HUB_COOKIE_OPTIONS: CookieOptions = {
+  name: "endatix-hub.session",
+  encryptionKey: `${process.env.SESSION_SECRET}`,
+  secure: process.env.NODE_ENV === "production",
+  httpOnly: true,
+};
+
+const ANONYMOUS_SESSION: SessionData = {
+  username: "",
+  accessToken: "",
+  refreshToken: "",
+  isLoggedIn: false,
+};
+
+const SAFETY_MARGIN_IN_SECONDS = 10;
+
+export class AuthService {
+  private readonly secretKey: Uint8Array;
+
+  constructor(
+    private readonly cookieOptions: CookieOptions = HUB_COOKIE_OPTIONS
+  ) {
+    this.secretKey = new TextEncoder().encode(this.cookieOptions.encryptionKey);
+  }
+
+  async login(accessToken: string, refreshToken: string, username: string) {
+    if (!accessToken || !refreshToken || !username) {
+      return;
+    }
+
+    const jwtToken = decodeJwt<EndatixJwtPayload>(accessToken);
+    if (!jwtToken?.exp) {
+      return;
+    }
+
+    const expires = new Date(jwtToken.exp * 1000);
+    expires.setSeconds(expires.getSeconds() - SAFETY_MARGIN_IN_SECONDS);
+
+    const hubJwtPayload: HubJwtPayload = {
+      sub: username,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    };
+    const hubSessionToken = await this.encryptToken(hubJwtPayload, expires);
+
+    const cookieStore = await cookies();
+    cookieStore.set({
+      name: this.cookieOptions.name,
+      value: hubSessionToken,
+      httpOnly: true,
+      secure: this.cookieOptions.secure,
+      expires: expires,
+      path: "/",
     });
-    return payload;
-}
+  }
 
-export const getSession = async () => {
-    const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
+  async getSession(): Promise<SessionData> {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(this.cookieOptions.name);
 
-    if (!session.isLoggedIn) {
-        session.isLoggedIn = defaultSession.isLoggedIn;
-        session.username = defaultSession.username;
-        session.token = defaultSession.token;
+    if (!sessionCookie || !sessionCookie.value) {
+      return ANONYMOUS_SESSION;
     }
 
-    return session;
-}
-
-export const login = async (token: string, username: string) => {
-    const session = await getSession();
-
-    const jwtToken = decodeJwt(token);
-    if (!jwtToken.exp) {
-        return;
+    const jwtTokenResult = await this.decryptToken(sessionCookie.value);
+    if (jwtTokenResult.kind == Kind.Success) {
+      const sessionData: SessionData = {
+        isLoggedIn: true,
+        accessToken: jwtTokenResult.value.accessToken,
+        refreshToken: jwtTokenResult.value.refreshToken,
+        username: jwtTokenResult.value.sub,
+      };
+      return sessionData;
     }
 
-    const expirationDate = new Date(jwtToken.exp * 1000)
-    console.log(`Expiration date is ${expirationDate}`);
-    
-    session.token = token;
-    session.username = username;
-    session.isLoggedIn = true;
+    if (jwtTokenResult.kind === Kind.Error) {
+      console.error("Error during JWT token validaiton has occured");
+    }
 
-    await session.save();
+    return ANONYMOUS_SESSION;
+  }
 
-    revalidatePath("/login");
+  async logout() {
+    if (cookies().has(this.cookieOptions.name)) {
+      cookies().delete(this.cookieOptions.name);
+    }
+  }
+
+  private async encryptToken(payload: JWTPayload, expiration: Date) {
+    return await new SignJWT(payload)
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime(expiration)
+      .sign(this.secretKey);
+  }
+
+  private async decryptToken(token: string): Promise<Result<HubJwtPayload>> {
+    try {
+      const { payload } = await jwtVerify<HubJwtPayload>(
+        token,
+        this.secretKey,
+        {
+          algorithms: ["HS256"],
+        }
+      );
+
+      return Success<HubJwtPayload>(payload);
+    } catch (error: unknown) {
+      if (error instanceof JWTInvalid) {
+        return Error({
+          kind: Kind.Error,
+          errorType: ErrorType.ValidationError,
+          message: error?.code,
+          details: error.message,
+        });
+      }
+
+      return Error({
+        kind: Kind.Error,
+        errorType: ErrorType.Error,
+        message: "Error during token validaiton occured",
+      });
+    }
+  }
 }
 
-//const logout = async () =>  { 
-//   const session = await getSession();
-//   session.destroy();
-//
-//   revalidatePath("/login");
-// }
+export const getSession = cache(async (): Promise<SessionData> => {
+  const authService = new AuthService();
+  const session = await authService.getSession();
+  return session;
+});

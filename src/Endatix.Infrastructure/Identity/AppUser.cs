@@ -10,6 +10,16 @@ namespace Endatix.Infrastructure.Identity;
 /// </summary>
 public class AppUser : IdentityUser<long>
 {
+    /// <summary>
+    /// The user's refresh token.
+    /// </summary>
+    public string? RefreshTokenHash { get; set; }
+
+    /// <summary>
+    /// The user's refresh token expiry time.
+    /// </summary>
+    public DateTime? RefreshTokenExpireAt { get; set; }
+
     public User ToUserEntity()
     {
         Guard.Against.NullOrEmpty(UserName);

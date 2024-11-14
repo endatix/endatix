@@ -1,8 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Abstractions;
 using Endatix.Framework.Hosting;
-using Endatix.Identity.Authentication;
-using Endatix.Infrastructure.Auth;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,7 +27,6 @@ public static class IdentitySetup
                 .AddRoles<AppRole>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
-        ;
         endatixApp.Services.AddScoped<ITokenService, JwtTokenService>();
         endatixApp.Services.AddScoped<IAuthService, AuthService>();
         endatixApp.Services.AddScoped<IUserService, AppUserService>();

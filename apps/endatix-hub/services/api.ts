@@ -1,8 +1,8 @@
 import { AuthenticationRequest, AuthenticationResponse } from "@/lib/authDefinitions";
 import { Form, FormDefinition, Submission } from "../types";
-import { getSession } from "@/lib/auth-service";
 import { redirect } from "next/navigation";
 import { CreateFormRequest, DefineFormContext, DefineFormRequest } from "@/lib/use-cases/assistant";
+import { getSession } from "@/lib/auth-service";
 
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
@@ -183,6 +183,7 @@ export const getSubmissions = async (formId: string): Promise<Submission[]> => {
   if (!response.ok) {
     throw new Error("Failed to fetch data");
   }
+
   return response.json();
 };
 

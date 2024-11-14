@@ -2,12 +2,14 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions.Create;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
-public class Create(IMediator _mediator) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, BadRequest, NotFound>>
+/// <summary>
+/// Endpoint for creating a new form submission.
+/// </summary>
+public class Create(IMediator mediator) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, BadRequest, NotFound>>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -24,6 +26,7 @@ public class Create(IMediator _mediator) : Endpoint<CreateSubmissionRequest, Res
         });
     }
 
+    /// <inheritdoc/>
     public override async Task<Results<Created<CreateSubmissionResponse>, BadRequest, NotFound>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken cancellationToken)
     {
         var createCommand = new CreateSubmissionCommand(
@@ -34,11 +37,10 @@ public class Create(IMediator _mediator) : Endpoint<CreateSubmissionRequest, Res
             request.IsComplete
         );
 
-        var result = await _mediator.Send(createCommand, cancellationToken);
+        var result = await mediator.Send(createCommand, cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Created<CreateSubmissionResponse>, BadRequest, NotFound>,
-            Submission,
-            CreateSubmissionResponse>(SubmissionMapper.Map<CreateSubmissionResponse>);
+        return TypedResultsBuilder
+            .MapResult(result, SubmissionMapper.Map<CreateSubmissionResponse>)
+            .SetTypedResults<Created<CreateSubmissionResponse>, BadRequest, NotFound>();
     }
 }

@@ -2,15 +2,15 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormDefinitions.GetActive;
+using Errors = Microsoft.AspNetCore.Mvc;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
 
 /// <summary>
 /// Endpoint for getting the active form definition.
 /// </summary>
-public class GetActive(IMediator _mediator) : Endpoint<GetActiveFormDefinitionRequest, Results<Ok<FormDefinitionModel>, BadRequest, NotFound>>
+public class GetActive(IMediator mediator) : Endpoint<GetActiveFormDefinitionRequest, Results<Ok<FormDefinitionModel>, BadRequest, NotFound<Errors.ProblemDetails>>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -29,20 +29,16 @@ public class GetActive(IMediator _mediator) : Endpoint<GetActiveFormDefinitionRe
         });
     }
 
-    /// <summary>
-    /// Executes the HTTP request for getting the active form definition.
-    /// </summary>
-    /// <param name="request">The request model containing the form ID.</param>
-    /// <param name="cancellationToken">Cancellation token for the async operation.</param>
-    public override async Task<Results<Ok<FormDefinitionModel>, BadRequest, NotFound>> ExecuteAsync(GetActiveFormDefinitionRequest request, CancellationToken cancellationToken)
+    /// <inheritdoc/>
+    public override async Task<Results<Ok<FormDefinitionModel>, BadRequest, NotFound<Errors.ProblemDetails>>> ExecuteAsync(GetActiveFormDefinitionRequest request, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(
+        var result = await mediator.Send(
             new GetActiveFormDefinitionQuery(request.FormId),
             cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Ok<FormDefinitionModel>, BadRequest, NotFound>,
-            FormDefinition,
-            FormDefinitionModel>(FormDefinitionMapper.Map<FormDefinitionModel>);
+        return TypedResultsBuilder
+            .MapResult(result, FormDefinitionMapper.Map<FormDefinitionModel>)
+            .SetTypedResults<Ok<FormDefinitionModel>, BadRequest, NotFound<Errors.ProblemDetails>>();
+        ;
     }
 }

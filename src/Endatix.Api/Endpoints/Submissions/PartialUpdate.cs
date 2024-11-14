@@ -2,7 +2,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -29,12 +28,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateSubmissio
         });
     }
 
-    /// <summary>
-    /// Executes the HTTP request for partially updating a form submission.
-    /// </summary>
-    /// <param name="request"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
+    /// <inheritdoc/>
     public override async Task<Results<Ok<PartialUpdateSubmissionResponse>, BadRequest, NotFound>> ExecuteAsync(PartialUpdateSubmissionRequest request, CancellationToken cancellationToken)
     {
         var updateSubmissionCommand = new PartialUpdateSubmissionCommand(
@@ -48,9 +42,8 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateSubmissio
 
         var result = await mediator.Send(updateSubmissionCommand, cancellationToken);
 
-        return result.ToEndpointResponse<
-            Results<Ok<PartialUpdateSubmissionResponse>, BadRequest, NotFound>,
-            Submission,
-            PartialUpdateSubmissionResponse>(SubmissionMapper.Map<PartialUpdateSubmissionResponse>);
+        return TypedResultsBuilder
+            .MapResult(result, SubmissionMapper.Map<PartialUpdateSubmissionResponse>)
+            .SetTypedResults<Ok<PartialUpdateSubmissionResponse>, BadRequest, NotFound>();
     }
 }
