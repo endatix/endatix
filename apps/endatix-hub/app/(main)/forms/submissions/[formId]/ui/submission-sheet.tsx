@@ -61,7 +61,14 @@ const SubmissionSheet = ({ submission }: SubmissionSheetProps) => {
                 if (result.isSuccess && result.definitionsData && submission) {
                     const json = JSON.parse(result.definitionsData);
                     const survey = new Model(json);
-                    const submissionData = JSON.parse(submission?.jsonData);
+
+                    let submissionData = {};
+                    try {
+                        submissionData = JSON.parse(submission?.jsonData);
+                    } catch (ex) {
+                        console.warn("Error while parsing submission's JSON data", ex);
+                    }
+
                     survey.data = submissionData;
                     setSurveyModel(survey);
                     setQuestions(survey.getAllQuestions(true, true, true));

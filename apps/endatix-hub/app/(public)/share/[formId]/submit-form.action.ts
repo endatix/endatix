@@ -1,8 +1,8 @@
 "use server";
 
-import { sendSubmission } from '@/services/api';
+import { createSubmission } from '@/services/api';
 
 export async function submitFormAction(formId: string, submissionData: unknown) {
-    const response = sendSubmission(formId, submissionData);
+    const response = createSubmission(formId, submissionData);
     return response;
 }
