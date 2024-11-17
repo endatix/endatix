@@ -1,12 +1,11 @@
 "use server";
 
-import { login } from "@/lib/auth-service";
+import { AuthService } from "@/lib/auth-service";
 import {
   AuthenticationRequest,
   AuthenticationRequestSchema,
-} from "@/lib/authDefinitions";
+} from "@/lib/auth-definitions";
 import { authenticate } from "@/services/api";
-import { redirect } from 'next/navigation'
 
 const CONNECTION_REFUSED_CODE = "ECONNREFUSED";
 
@@ -46,12 +45,14 @@ export async function loginAction(prevState: unknown, formData: FormData): Promi
 
   try {
     const authenticationResponse = await authenticate(authRequest);
-    const { email, token } = authenticationResponse;
-    await login(token, email);
+    const { email, accessToken, refreshToken } = authenticationResponse;
+
+    const authService = new AuthService();
+    await authService.login(accessToken, refreshToken, email);
   } catch (error: unknown) {
     let errorMessage = "We cannot log you in at this time. Please check your credentials and try again";
     if (error instanceof Error && error?.cause && typeof error.cause === 'object' && 'code' in error.cause && error.cause.code == CONNECTION_REFUSED_CODE) {
-      errorMessage = "Cannot connect to the Endatix API. Please check your settings and restart the Endatix Hub application";
+      errorMessage = "Failed to connect to the Endatix API. Ensure your network connection and app settings are correct";
     }
 
     return {
@@ -60,5 +61,5 @@ export async function loginAction(prevState: unknown, formData: FormData): Promi
     } as LoginActionState;
   }
 
-  redirect("/");
+  return { success: true }
 }

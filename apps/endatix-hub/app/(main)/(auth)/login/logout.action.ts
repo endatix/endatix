@@ -1,11 +1,11 @@
-"use server"
+"use server";
 
-import { getSession } from '@/lib/auth-service';
+import { AuthService } from "@/lib/auth-service";
 import { redirect } from 'next/navigation'
 
 export async function logoutAction() {
-    const session = await getSession();
-    session.destroy()
+    const authService = new AuthService();
+    await authService.logout();
 
     redirect("/login");
 }
