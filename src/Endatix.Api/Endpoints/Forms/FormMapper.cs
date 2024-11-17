@@ -1,4 +1,5 @@
 ﻿using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Forms;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -22,7 +23,7 @@ public class FormMapper
         CreatedAt = form.CreatedAt,
         ModifiedAt = form.ModifiedAt
     };
-    
+
     /// <summary>
     /// Maps a collection of form entities to a collection of form API models.
     /// </summary>
@@ -33,13 +34,31 @@ public class FormMapper
         forms.Select(Map<T>).ToList();
 }
 
-public static class FormMapperExtensions {
+public static class FormMapperExtensions
+{
     /// <summary>
     /// Extension method to expose the consumption of the <see cref="FormMapper.Map{T}(Form)"/> method.
     /// </summary>
     /// <param name="forms">The collection of form entities.</param>
     /// <returns>A collection of mapped form API models.</returns>
-    public static IEnumerable<FormModel> ToFormModel(this IEnumerable<Form> forms){
+    public static IEnumerable<FormModel> ToFormModelList(this IEnumerable<Form> forms)
+    {
         return forms.Select(FormMapper.Map<FormModel>);
     }
+
+    public static IEnumerable<FormModel> ToFormModelList(this IEnumerable<FormDto> forms)
+    {
+        return forms.Select(formDto => formDto.ToFormModel());
+    }
+
+    public static FormModel ToFormModel(this FormDto formDto) => new FormModel()
+    {
+        Id = formDto.Id,
+        Name = formDto.Name,
+        Description = formDto.Description,
+        IsEnabled = formDto.IsEnabled,
+        CreatedAt = formDto.CreatedAt,
+        ModifiedAt = formDto.ModifiedAt,
+        SubmissionsCount = formDto.SubmissionsCount
+    };
 }

@@ -23,7 +23,7 @@ public record FormDto
     /// <summary>
     /// Indicates if the form is currently enabled.
     /// </summary>
-    public bool? IsEnabled { get; init; }
+    public bool IsEnabled { get; init; }
 
     /// <summary>
     /// Timestamp when the form was created.

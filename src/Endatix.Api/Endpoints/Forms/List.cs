@@ -36,7 +36,7 @@ public class List(IMediator mediator) : Endpoint<FormsListRequest, Results<Ok<IE
             cancellationToken);
 
         return TypedResultsBuilder
-            .MapResult(result, forms => forms.ToFormModel())
+            .MapResult(result, forms => forms.ToFormModelList())
             .SetTypedResults<Ok<IEnumerable<FormModel>>, BadRequest>();
     }
 }

@@ -10,6 +10,7 @@ public sealed class FormsWithSubmissionsCountSpec : Specification<Form, FormDto>
     public FormsWithSubmissionsCountSpec(PagingFilter filter)
     {
         Query
+         .OrderByDescending(x => x.CreatedAt)
          .Paginate(filter)
          .AsNoTracking();
 

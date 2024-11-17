@@ -22,8 +22,7 @@ public class ListFormsHandlerTests
     public async Task Handle_ValidRequest_ReturnsForms()
     {
         // Arrange
-        var formsList = new List<FormDto>
-        {
+        var formsList = new List<Form>        {
             new(){
                 Name = "Form 1",
                 Description = "Description 1",
@@ -36,7 +35,7 @@ public class ListFormsHandlerTests
             }
         };
         var request = new ListFormsQuery(1, 10);
-        _repository.ListAsync(Arg.Any<FormsWithSubmissionsCountSpec>(), Arg.Any<CancellationToken>())
+        _repository.ListAsync(Arg.Any<FormsSpec>(), Arg.Any<CancellationToken>())
                    .Returns(formsList);
 
         // Act
