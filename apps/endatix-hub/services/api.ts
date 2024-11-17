@@ -1,20 +1,30 @@
-import { AuthenticationRequest, AuthenticationResponse } from "@/lib/authDefinitions";
+import {
+  AuthenticationRequest,
+  AuthenticationResponse,
+} from "@/lib/auth-definitions";
 import { Form, FormDefinition, Submission } from "../types";
 import { redirect } from "next/navigation";
-import { CreateFormRequest, DefineFormContext, DefineFormRequest } from "@/lib/use-cases/assistant";
+import {
+  CreateFormRequest,
+  DefineFormContext,
+  DefineFormRequest,
+} from "@/lib/use-cases/assistant";
 import { getSession } from "@/lib/auth-service";
+import { HeaderBuilder } from "./header-builder";
 
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
 export const authenticate = async (
   request: AuthenticationRequest
 ): Promise<AuthenticationResponse> => {
+  const headers = new HeaderBuilder()
+    .acceptJson()
+    .provideJson()
+    .build();
+
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
+    headers: headers,
     body: JSON.stringify(request),
   });
 
@@ -27,11 +37,10 @@ export const authenticate = async (
 
 export const getForms = async (): Promise<Form[]> => {
   let session = await getSession();
+  const headers = new HeaderBuilder().withAuth(session).build();
 
-  const response = await fetch(`${API_BASE_URL}/forms`, {
-    headers: {
-      Authorization: `Bearer ${session.token}`
-    }
+  const response = await fetch(`${API_BASE_URL}/forms?pageSize=100`, {
+    headers: headers,
   });
 
   if (!response.ok) {
@@ -51,10 +60,13 @@ export const getForm = async (formId: string): Promise<Form> => {
   }
 
   requestOptions.headers = {
-    Authorization: `Bearer ${session?.token}`,
-  }
+    Authorization: `Bearer ${session?.accessToken}`,
+  };
 
-  const response = await fetch(`${API_BASE_URL}/forms/${formId}`, requestOptions);
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}`,
+    requestOptions
+  );
 
   if (!response.ok) {
     throw new Error("Failed to fetch form");
@@ -63,15 +75,19 @@ export const getForm = async (formId: string): Promise<Form> => {
   return response.json();
 };
 
-export const createForm = async (formRequest: CreateFormRequest): Promise<Form> => {
+export const createForm = async (
+  formRequest: CreateFormRequest
+): Promise<Form> => {
   let session = await getSession();
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .provideJson()
+    .build();
 
   const response = await fetch(`${API_BASE_URL}/forms`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${session?.token}`,
-      "Content-Type": "application/json",
-    },
+    headers: headers,
     body: JSON.stringify(formRequest),
   });
 
@@ -80,17 +96,22 @@ export const createForm = async (formRequest: CreateFormRequest): Promise<Form> 
   }
 
   return response.json();
-}
+};
 
-export const updateForm = async (formId: string, data: { name?: string, isEnabled?: boolean }): Promise<void> => {
+export const updateForm = async (
+  formId: string,
+  data: { name?: string; isEnabled?: boolean }
+): Promise<void> => {
   let session = await getSession();
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .provideJson()
+    .build();
 
   const response = await fetch(`${API_BASE_URL}/forms/${formId}`, {
     method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${session?.token}`,
-      "Content-Type": "application/json",
-    },
+    headers: headers,
     body: JSON.stringify(data),
   });
 
@@ -99,8 +120,13 @@ export const updateForm = async (formId: string, data: { name?: string, isEnable
   }
 };
 
-export const getActiveFormDefinition = async (formId: string, allowAnonymous: boolean = false): Promise<FormDefinition> => {
+export const getActiveFormDefinition = async (
+  formId: string,
+  allowAnonymous: boolean = false
+): Promise<FormDefinition> => {
   const requestOptions: RequestInit = {};
+  const headerBuilder = new HeaderBuilder();
+
   if (!allowAnonymous) {
     const session = await getSession();
 
@@ -108,12 +134,14 @@ export const getActiveFormDefinition = async (formId: string, allowAnonymous: bo
       redirect("/login");
     }
 
-    requestOptions.headers = {
-      Authorization: `Bearer ${session?.token}`,
-    }
+    headerBuilder.withAuth(session);
   }
 
-  const response = await fetch(`${API_BASE_URL}/forms/${formId}/definition`, requestOptions);
+  requestOptions.headers = headerBuilder.build();
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/definition`,
+    requestOptions
+  );
 
   if (!response.ok) {
     throw new Error(`Failed to fetch form definition for formId ${formId}`);
@@ -122,7 +150,10 @@ export const getActiveFormDefinition = async (formId: string, allowAnonymous: bo
   return response.json();
 };
 
-export const getFormDefinition = async (formId: string, definitionId: string): Promise<FormDefinition> => {
+export const getFormDefinition = async (
+  formId: string,
+  definitionId: string
+): Promise<FormDefinition> => {
   if (!formId) {
     throw new Error(`FormId is required`);
   }
@@ -138,28 +169,38 @@ export const getFormDefinition = async (formId: string, definitionId: string): P
     redirect("/login");
   }
 
-  requestOptions.headers = {
-    Authorization: `Bearer ${session?.token}`,
-  }
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .build();
 
-  const response = await fetch(`${API_BASE_URL}/forms/${formId}/definitions/${definitionId}`, requestOptions);
+  requestOptions.headers = headers;
+
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/definitions/${definitionId}`,
+    requestOptions
+  );
 
   if (!response.ok) {
-    throw new Error('Failed to fetch form definition');
+    throw new Error("Failed to fetch form definition");
   }
 
   return response.json();
-}
+};
 
-export const updateFormDefinition = async (formId: string, jsonData: string): Promise<void> => {
+export const updateFormDefinition = async (
+  formId: string,
+  jsonData: string
+): Promise<void> => {
   let session = await getSession();
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .provideJson()
+    .build();
 
   const response = await fetch(`${API_BASE_URL}/forms/${formId}/definition`, {
     method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${session?.token}`,
-      "Content-Type": "application/json",
-    },
+    headers: headers,
     body: JSON.stringify({ jsonData }),
   });
 
@@ -174,10 +215,10 @@ export const getSubmissions = async (formId: string): Promise<Submission[]> => {
     redirect("/login");
   }
 
+  const headers = new HeaderBuilder().withAuth(session).build();
+
   const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions`, {
-    headers: {
-      Authorization: `Bearer ${session.token}`
-    }
+    headers: headers,
   });
 
   if (!response.ok) {
@@ -187,17 +228,25 @@ export const getSubmissions = async (formId: string): Promise<Submission[]> => {
   return response.json();
 };
 
-export const sendSubmission = async (formId: string, submissionData: any): Promise<Submission> => {
+export const createSubmission = async (
+  formId: string,
+  submissionData: any
+): Promise<Submission> => {
+  const headers = new HeaderBuilder()
+    .acceptJson()
+    .provideJson()
+    .build();
+
   const requestOptions: RequestInit = {
     method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
+    headers: headers,
     body: JSON.stringify(submissionData),
   };
 
-  const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions`, requestOptions);
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/submissions`,
+    requestOptions
+  );
 
   if (!response.ok) {
     throw new Error("Failed to submit response");
@@ -206,18 +255,23 @@ export const sendSubmission = async (formId: string, submissionData: any): Promi
   return response.json();
 };
 
-export const defineForm = async (request: DefineFormRequest): Promise<DefineFormContext> => {
+export const defineForm = async (
+  request: DefineFormRequest
+): Promise<DefineFormContext> => {
   let session = await getSession();
   if (!session.isLoggedIn) {
     redirect("/login");
   }
 
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .provideJson()
+    .build();
+
   const response = await fetch(`${API_BASE_URL}/assistant/forms/define`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.token}`
-    },
+    headers: headers,
     body: JSON.stringify(request),
   });
 
@@ -226,4 +280,4 @@ export const defineForm = async (request: DefineFormRequest): Promise<DefineForm
   }
 
   return response.json();
-}
+};
