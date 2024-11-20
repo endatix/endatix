@@ -15,12 +15,15 @@ body {
     margin-top: 4px;
     position: relative;
 
-    .svc-creator__banner {
-        display: none;
-    }
-
     .svc-flex-row {
         background: transparent !important;
+    }
+
+    .svc-creator__banner {
+        background-color: #ff9814;
+        color: #fff;
+        position:relative;
+        bottom: 10px;
     }
 
     // Starting Overrides

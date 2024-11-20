@@ -1,5 +1,6 @@
 .svc-creator__banner {
-    display: none;
+    background-color: #ff9814;
+    color: #fff;
 }
 
 .svc-flex-row {

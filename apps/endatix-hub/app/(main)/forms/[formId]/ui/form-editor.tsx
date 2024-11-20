@@ -248,7 +248,7 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
 
   return (
     <>
-      <div className="flex justify-between items-center mt-0 pb-4 sticky top-0 z-50 w-full border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex justify-between items-center mt-0 pt-4 pb-4 sticky top-0 z-50 w-full border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex w-full items-center gap-8">
           <button
             onClick={handleSaveAndGoBack}
