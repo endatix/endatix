@@ -4,11 +4,6 @@ import {
 } from "@/lib/auth-definitions";
 import { Form, FormDefinition, Submission } from "../types";
 import { redirect } from "next/navigation";
-import {
-  CreateFormRequest,
-  DefineFormContext,
-  DefineFormRequest,
-} from "@/lib/use-cases/assistant";
 import { getSession } from "@/lib/auth-service";
 import { HeaderBuilder } from "./header-builder";
 
@@ -70,29 +65,6 @@ export const getForm = async (formId: string): Promise<Form> => {
 
   if (!response.ok) {
     throw new Error("Failed to fetch form");
-  }
-
-  return response.json();
-};
-
-export const createForm = async (
-  formRequest: CreateFormRequest
-): Promise<Form> => {
-  let session = await getSession();
-  const headers = new HeaderBuilder()
-    .withAuth(session)
-    .acceptJson()
-    .provideJson()
-    .build();
-
-  const response = await fetch(`${API_BASE_URL}/forms`, {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify(formRequest),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to create form");
   }
 
   return response.json();
@@ -250,33 +222,6 @@ export const createSubmission = async (
 
   if (!response.ok) {
     throw new Error("Failed to submit response");
-  }
-
-  return response.json();
-};
-
-export const defineForm = async (
-  request: DefineFormRequest
-): Promise<DefineFormContext> => {
-  let session = await getSession();
-  if (!session.isLoggedIn) {
-    redirect("/login");
-  }
-
-  const headers = new HeaderBuilder()
-    .withAuth(session)
-    .acceptJson()
-    .provideJson()
-    .build();
-
-  const response = await fetch(`${API_BASE_URL}/assistant/forms/define`, {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to process your prompt");
   }
 
   return response.json();

@@ -1,24 +1,51 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { FC, useState } from 'react';
-import ChatBox from './chat-box';
-import { Atom, BicepsFlexed, Code, Folder } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import DotLoader from '@/components/loaders/dot-loader';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { FC, useState } from "react";
+import ChatBox from "./chat-box";
+import { Atom, BicepsFlexed, Code, Folder } from "lucide-react";
+import { cn } from "@/lib/utils";
+import DotLoader from "@/components/loaders/dot-loader";
+import { showComingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
+
+type CreateFormOption =
+  | "from_scratch"
+  | "from_template"
+  | "from_json"
+  | "via_assistant";
 
 interface FormCreateSheetProps {
   title: string;
   description: string;
   icon: React.ElementType;
-  action: string;
+  action?: CreateFormOption;
   isSelected?: boolean;
+  onClick?: (event: React.MouseEvent<HTMLElement>) => void;
 }
 
-const CreateFormCard: FC<FormCreateSheetProps> = ({ title, description, icon: Icon, action, isSelected }) => {
+const CreateFormCard: FC<FormCreateSheetProps> = ({
+  title,
+  description,
+  icon: Icon,
+  action,
+  onClick,
+  isSelected,
+}) => {
   return (
-    <Card className={cn("hover:border-primary hover:bg-accent focus:outline focus:outline-2 focus:outline-primary-500", isSelected && "border-primary bg-accent")}>
+    <Card
+      onClick={onClick}
+      className={cn(
+        "hover:border-primary hover:bg-accent focus:outline focus:outline-2 focus:outline-primary-500",
+        isSelected && "border-primary bg-accent"
+      )}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
         <CardTitle className="text-lg font-medium">{title}</CardTitle>
         <Icon className="h-8 w-8 text-muted-foreground place-self-start" />
@@ -30,8 +57,9 @@ const CreateFormCard: FC<FormCreateSheetProps> = ({ title, description, icon: Ic
   );
 };
 
-const CreateFormSheet = ()  => {
+const CreateFormSheet = () => {
   const [pending, setPending] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<CreateFormOption>();
 
   return (
     <SheetContent className="w-[600px] sm:w-[480px] sm:max-w-none flex flex-col h-screen justify-between">
@@ -44,35 +72,52 @@ const CreateFormSheet = ()  => {
       <div className="flex flex-wrap items-start justify-center flex-grow">
         <div className="grid grid-cols-2 gap-6">
           <CreateFormCard
-            title="Use our AI Form Assistant"
-            description="The recommended way to create a form."
-            icon={Atom}
-            action="Use AI Assistant"
-            isSelected={true}
+            title="Start from Scratch"
+            description="Use the WYSIWYG Survey Creator to build your form."
+            icon={BicepsFlexed}
+            action="from_scratch"
+            isSelected={selectedOption === "from_scratch"}
+            onClick={() => setSelectedOption("from_scratch")}
           />
           <CreateFormCard
             title="Create from a Template"
             description="Choose from a variety of templates to get started."
             icon={Folder}
-            action="Create from Template"
+            action="from_template"
+            isSelected={selectedOption === "from_template"}
+            onClick={() => setSelectedOption("from_template")}
           />
           <CreateFormCard
             title="Paste your JSON Code"
             description="You have your JSON code ready? Paste it here."
             icon={Code}
-            action="Paste JSON Code"
+            action="from_json"
+            isSelected={selectedOption === "from_json"}
+            onClick={() => setSelectedOption("from_json")}
           />
           <CreateFormCard
-            title="Start from Scratch"
-            description="Use the WYSIWYG Survey Creator to build your form."
-            icon={BicepsFlexed}
-            action="Start from Scratch"
+            title="Use our AI Form Assistant"
+            description="The recommended way to create a form."
+            icon={Atom}
+            action="via_assistant"
+            isSelected={selectedOption === "via_assistant"}
+            onClick={(event) => {
+              setSelectedOption("via_assistant");
+              showComingSoonMessage(event);
+            }}
           />
         </div>
       </div>
       {pending && <DotLoader className="flex-1 text-center m-auto" />}
       <SheetFooter className="flex-end">
-        <ChatBox requiresNewContext={true} onPendingChange={(pending) => { setPending(pending); }} />
+        {selectedOption === "via_assistant" && (
+          <ChatBox
+            requiresNewContext={false}
+            onPendingChange={(pending) => {
+              setPending(pending);
+            }}
+          />
+        )}
       </SheetFooter>
     </SheetContent>
   );
