@@ -2,6 +2,14 @@
 <Project>
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
+        <NeutralLanguage>en-US</NeutralLanguage>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+    </PropertyGroup>
+
+    <PropertyGroup>
         <Company>Endatix, Ltd.</Company>
         <Authors>Endatix team and Community contributors</Authors>
         <Owners>Endatix team and Community contributors</Owners>
@@ -15,14 +23,6 @@
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageTags>endatix,forms,open-source,data collection,data processing,data insights</PackageTags>
         <EndatixPlatformDescription>Endatix Platform is an open-source data collection and management library for .NET.</EndatixPlatformDescription>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <NeutralLanguage>en-US</NeutralLanguage>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
     </PropertyGroup>
 
     <ItemGroup>

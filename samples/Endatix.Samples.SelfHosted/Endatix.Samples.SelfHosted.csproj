@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Endatix.Api.Host" Version="0.1.0" />
+    <PackageReference Include="Endatix.Api.Host" />
   </ItemGroup>
 
 </Project>

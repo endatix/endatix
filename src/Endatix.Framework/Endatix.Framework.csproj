@@ -16,8 +16,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Ardalis.GuardClauses" Version="4.5.0" />
-    <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
+    <PackageReference Include="Ardalis.GuardClauses" />
+    <PackageReference Include="Serilog.AspNetCore" />
   </ItemGroup>
 
 </Project>
