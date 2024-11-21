@@ -44,7 +44,7 @@ The code base consists of .NET projects having the following brief descriptions 
 
 ## Requirements
 
-* .NET 8.0
+* .NET 9.0
 * Entity Framework Core
 * MS SQL or Azure SQL
 * Node v20.12.2

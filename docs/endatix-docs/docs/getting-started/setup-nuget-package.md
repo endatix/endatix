@@ -8,7 +8,7 @@ This guide will help you quickly set up Endatix Platform using NuGet package man
 
 ## Prerequisites
 
-- .NET 8.0
+- .NET 9.0
 
 ## Step-by-Step Installation
 
