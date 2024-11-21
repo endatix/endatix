@@ -156,8 +156,9 @@ export class AuthService {
   }
 
   async logout() {
-    if (cookies().has(this.cookieOptions.name)) {
-      cookies().delete(this.cookieOptions.name);
+    const cookieStore = await cookies();
+    if (cookieStore.has(this.cookieOptions.name)) {
+      cookieStore.delete(this.cookieOptions.name);
     }
   }
 

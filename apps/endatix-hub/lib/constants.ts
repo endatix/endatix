@@ -1,12 +1,15 @@
 import { INavItem } from "@/types/navigation-models";
 import {
   Blocks,
+  GitCompareArrows,
   Home,
   LineChart,
   Settings,
   TextCursorInput,
   Users2,
 } from "lucide-react";
+
+export const HOME_ROUTE_PATH = "/";
 
 const sitemapArray: INavItem[] = [
   {
@@ -16,7 +19,7 @@ const sitemapArray: INavItem[] = [
   },
   {
     text: "Forms",
-    path: "/",
+    path: "/forms",
     IconType: TextCursorInput,
   },
   {
@@ -28,6 +31,11 @@ const sitemapArray: INavItem[] = [
     text: "Analytics",
     path: "/",
     IconType: LineChart,
+  },
+  {
+    text: "Workflows",
+    path: "/",
+    IconType: GitCompareArrows,
   },
   {
     text: "Integrations",

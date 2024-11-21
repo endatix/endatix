@@ -1,17 +1,17 @@
-"use server";
+"use server"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import AvatarIcon from "./avatar-icon"
+import { getSession } from "@/lib/auth-service"
 import LogoutButton from "./logout-button"
-import { getSession } from "@/lib/auth-service";
+import UserAvatar from "@/components/user/user-avatar"
 
-const MyAccountDropdown = async () => {
+const MyAccountDropdown: React.FC = async () => {
     const sessionData = await getSession();
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger>
-                <AvatarIcon />
+            <DropdownMenuTrigger aria-label="my-account-dropdown">
+                <UserAvatar className="w-9 h-9" isLoggedIn={sessionData.isLoggedIn} userName={sessionData.username} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
                 {sessionData.isLoggedIn ?

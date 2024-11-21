@@ -24,6 +24,8 @@ const NavLink = ({
 }: NavLinkProps) => {
   const currentPath = usePathname();
 
+  const ALLOWED_PAGES = ["/", "/forms"];
+
   const isActive = useMemo(() => {
     if (!setIsActive || !path.startsWith("/")) {
       return false;
@@ -38,7 +40,9 @@ const NavLink = ({
   return (
     <Link
       onClick={(event) => {
-        showComingSoonMessage(event);
+        if (!ALLOWED_PAGES.some(allowedPath => allowedPath === path)) {
+          showComingSoonMessage(event);
+        }
       }}
       href={path}
       className={_className}

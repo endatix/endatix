@@ -1,15 +1,21 @@
-"use client";
+"use client"
 
-import { logoutAction } from "@/app/(auth)/login/logout.action";
-import { startTransition } from "react";
-
+import { logoutAction } from "@/app/(main)/(auth)/login/logout.action";
+import { useTransition } from "react";
 
 const LogoutButton = () => {
+    const [isPending, startTransition] = useTransition();
+
     const handleLogout = async () => {
         startTransition(async () => {
             await logoutAction();
         })
     }
+
+    if (isPending) {
+        return <div>Logging out...</div>;
+    }
+
     return (
         <div
             className="cursor-pointer"

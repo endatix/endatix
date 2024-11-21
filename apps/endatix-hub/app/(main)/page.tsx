@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 const Home = () => {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
+    <div className="grid h-full grid-rows-[20px_1fr_20px] items-center justify-items-center p-8 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <div className="absolute top-0 right-0 left-0 bottom-0 bg-[url('/lines-and-stuff.svg')] brightness-[0.6] opacity-[0.4] dark:grayscale"></div>
       <div className="z-10 items-start flex flex-col gap-4 row-start-2 items-center sm:items-start">
         <Card className="sm:col-span-4 auto-rows-max bg-background">
