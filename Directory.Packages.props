@@ -11,10 +11,10 @@
     <PackageVersion Include="Ardalis.Specification" Version="8.0.0" />
     <PackageVersion Include="Ardalis.Specification.EntityFrameworkCore" Version="8.0.0" />
     <PackageVersion Include="Endatix.Api.Host" Version="0.1.0" />
-    <PackageVersion Include="FastEndpoints" Version="5.31.0" />
-    <PackageVersion Include="FastEndpoints.Security" Version="5.31.0" />
-    <PackageVersion Include="FastEndpoints.Swagger" Version="5.31.0" />
-    <PackageVersion Include="FastEndpoints.Testing" Version="5.31.0" />
+    <PackageVersion Include="FastEndpoints" Version="5.31.0.17-beta" />
+    <PackageVersion Include="FastEndpoints.Security" Version="5.31.0.17-beta" />
+    <PackageVersion Include="FastEndpoints.Swagger" Version="5.31.0.17-beta" />
+    <PackageVersion Include="FastEndpoints.Testing" Version="5.31.0.17-beta" />
     <PackageVersion Include="FluentAssertions" Version="6.12.2" />
     <PackageVersion Include="FluentValidation" Version="11.11.0" />
     <PackageVersion Include="IdGen" Version="3.0.7" />
@@ -34,7 +34,6 @@
     <PackageVersion Include="SendGrid" Version="9.29.3" />
     <PackageVersion Include="SendGrid.Extensions.DependencyInjection" Version="1.0.1" />
     <PackageVersion Include="Serilog.AspNetCore" Version="8.0.3" />
-    <PackageVersion Include="Swashbuckle.AspNetCore" Version="7.0.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
     <PackageVersion Include="serilog.sinks.async" Version="2.1.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
