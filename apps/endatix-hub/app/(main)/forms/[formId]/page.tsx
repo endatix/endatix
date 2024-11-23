@@ -4,12 +4,10 @@ import { FormEditorProps } from "./ui/form-editor";
 import FormEditorContainer from "./ui/form-editor-container";
 
 type Params = {
-  params: {
-    formId: string;
-  };
+  params: Promise<{ formId: string }>
 };
 
-async function FormEditPage ({ params }: Promise<Params>) {
+async function FormEditPage({ params }: Params) {
   const formId = (await params).formId;
 
   let form: Form | null = null;
@@ -44,4 +42,4 @@ async function FormEditPage ({ params }: Promise<Params>) {
   );
 }
 
-export default FormEditPage
+export default FormEditPage;

@@ -4,13 +4,12 @@ import { FormDefinition } from '@/types';
 import { getActiveFormDefinition } from "@/services/api";
 import SurveyJsContainer from './ui/survey-js-container';
 
-interface ShareSurveyPageProps {
-  params: {
-    formId: string;
-  };
-}
+type ShareSurveyPageProps = {
+  params: Promise<{ formId: string }>
+};
 
-export default async function ShareSurveyPage({ params }: ShareSurveyPageProps) {
+
+async function ShareSurveyPage({ params }: ShareSurveyPageProps) {
   const { formId } = await params;
   const surveyJson = await getSurveyJson(formId);
 
@@ -38,3 +37,5 @@ const getSurveyJson = async (formId: string) => {
 
   return formJson;
 }
+
+export default ShareSurveyPage;

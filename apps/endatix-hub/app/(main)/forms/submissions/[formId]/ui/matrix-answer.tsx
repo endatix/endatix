@@ -21,7 +21,7 @@ const MatrixAnswer = ({ question }: MatrixAnswerProps) => {
     }
 
     const answers: Array<MatrixAnswer> = [];
-    question.rows.forEach((row) => {
+    question.rows.forEach((row: any) => {
       if (!question?.value) {
         return;
       }
