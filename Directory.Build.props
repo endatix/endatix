@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
     <PropertyGroup>
+        <Version>0.1.1-beta</Version>
+        <InformationalVersion>This is an alpha prerelease package</InformationalVersion>
+    </PropertyGroup>
+
+    <PropertyGroup>
         <NeutralLanguage>en-US</NeutralLanguage>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>

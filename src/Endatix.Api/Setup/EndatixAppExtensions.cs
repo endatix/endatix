@@ -12,6 +12,8 @@ using Microsoft.Extensions.Hosting;
 using FastEndpoints.Security;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using NJsonSchema;
+using System.Reflection;
 
 namespace Endatix.Setup;
 
@@ -57,19 +59,20 @@ public static class EndatixAppExtensions
         endatixApp.Services.AddAuthorization();
         endatixApp.Services.AddCorsServices();
         endatixApp.Services.AddDefaultJsonOptions();
-
         endatixApp.Services
-                .AddFastEndpoints()
-                .SwaggerDocument(o =>
-                    {
-                        o.ShortSchemaNames = true;
-                        o.DocumentSettings = s =>
+                    .AddFastEndpoints()
+                    .SwaggerDocument(o =>
                         {
-                            s.Version = "v0.1.0";
-                            s.DocumentName = "Alpha Release";
-                            s.Title = "Endatix API";
-                        };
-                    });
+                            o.ShortSchemaNames = true;
+                            o.DocumentSettings = s =>
+                            {
+                                s.Version = GetFormattedVersion();
+                                s.Title = "Endatix Platform REST API";
+                                s.DocumentName = "alpha-version";
+                                s.Description = "The Endatix Platform is an open-source .NET library for data collection and management. This product is actively developed, and some API design characteristics may evolve. For more information, visit <a href=\"https://docs.endatix.com\">Endatix Documentation</a>.";
+                                s.SchemaSettings.SchemaType = SchemaType.OpenApi3;
+                            };
+                        });
 
         return endatixApp;
     }
@@ -82,5 +85,23 @@ public static class EndatixAppExtensions
         services.Configure<JsonOptions>(options => options.SerializerOptions.Converters.Add(new LongToStringConverter()));
 
         return services;
+    }
+
+    /// <summary>
+    /// Formats the Endatix API version string based on the provided Version in the Assembly.
+    /// If the version is null, it returns a default version string "unknown".
+    /// Otherwise, it formats the version string as "Major.Minor.Build-alpha|beta|rc".
+    /// </summary>
+    /// <returns>A formatted version string.</returns>
+    private static string GetFormattedVersion()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var assemblyVersion = assembly.GetName().Version;
+        if (assemblyVersion is null)
+        {
+            return "unknown";
+        }
+
+        return $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
     }
 }
