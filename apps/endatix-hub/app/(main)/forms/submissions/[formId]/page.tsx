@@ -3,7 +3,11 @@ import { Separator } from '@/components/ui/separator';
 import { getForm, getSubmissions } from '@/services/api';
 import SubmissionsTable from './ui/submissions-table';
 
-const Responses = async ({ params }: { params: { formId: string } }) => {
+type Params = {
+  params: Promise<{ formId: string }>
+};
+
+async function ResponsesPage({ params }: Params) {
   const { formId } = await params;
   const submissions = await getSubmissions(formId);
   const form = await getForm(formId);
@@ -17,4 +21,4 @@ const Responses = async ({ params }: { params: { formId: string } }) => {
   );
 }
 
-export default Responses;
+export default ResponsesPage;

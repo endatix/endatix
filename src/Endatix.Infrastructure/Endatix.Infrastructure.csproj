@@ -10,9 +10,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
-		<Nullable>enable</Nullable>
-		<ImplicitUsings>enable</ImplicitUsings>
+		<RootNamespace>Endatix.Infrastructure</RootNamespace>
 	</PropertyGroup>
 
 	<ItemGroup>

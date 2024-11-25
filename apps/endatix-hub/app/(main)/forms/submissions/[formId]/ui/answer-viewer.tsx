@@ -27,7 +27,7 @@ export enum QuestionType {
     Unsupported = "unsupported",
 }
 
-const AnswerViewer = ({ forQuestion }: ViewAnswerProps) => {
+const AnswerViewer = ({ forQuestion }: ViewAnswerProps) : React.JSX.Element => {
     const questionType = forQuestion.getType() ?? "unsupported";
 
     const renderTextAnswer = () => (
@@ -121,7 +121,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) => {
         <CommentAnswer question={forQuestion} />
     );
 
-    const renderUnknownAnswer = () => {
+    const renderUnknownAnswer = () => (
         <>
             <Label
                 className="text-left col-span-2">
@@ -129,7 +129,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) => {
             </Label>
             <p className="col-span-3">{forQuestion.value}</p>;
         </>
-    }
+    )
 
     switch (questionType) {
         case QuestionType.Text:

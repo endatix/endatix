@@ -10,9 +10,6 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Endatix.Api</RootNamespace>
   </PropertyGroup>
 
@@ -20,8 +17,6 @@
     <PackageReference Include="FastEndpoints" />
     <PackageReference Include="FastEndpoints.Security" />
     <PackageReference Include="FastEndpoints.Swagger" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-    <PackageReference Include="Swashbuckle.AspNetCore" />
   </ItemGroup>
 
   <ItemGroup>
