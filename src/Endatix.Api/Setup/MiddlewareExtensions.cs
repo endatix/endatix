@@ -6,6 +6,8 @@ using Endatix.Infrastructure.Identity;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Rewrite;
+using Microsoft.Extensions.Hosting;
 
 namespace Endatix.Setup;
 
@@ -35,7 +37,15 @@ public static class MiddlewareExtensions
             fastEndpoints.Security.RoleClaimType = ClaimTypes.Role;
             fastEndpoints.Security.PermissionsClaimType = ClaimNames.Permission;
         });
-        app.UseSwaggerGen();
+
+        if (endatixMiddleware.App.Environment.IsDevelopment())
+        {
+            var option = new RewriteOptions();
+            option.AddRedirect("^$", "swagger");
+            app.UseRewriter(option);
+            app.UseSwaggerGen();
+        }
+
         app.UseCors();
 
         return endatixMiddleware;
