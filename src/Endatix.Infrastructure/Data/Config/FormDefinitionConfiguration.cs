@@ -18,10 +18,7 @@ namespace Endatix.Infrastructure.Data.Config
                 .HasForeignKey(s => s.FormDefinitionId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // This will ensure only one definition per form can be active
-            builder.HasIndex(fd => new { fd.FormId, fd.IsActive })
-                .HasFilter("IsActive = 1")
-                .IsUnique();
+            builder.HasIndex(fd => fd.FormId);
         }
     }
 }

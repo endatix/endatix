@@ -17,7 +17,7 @@ public class CreateFormDefinitionHandler(IRepository<FormDefinition> definitions
             return Result.NotFound("Form not found.");
         }
 
-        var newFormDefinition = new FormDefinition(request.IsDraft, request.JsonData, request.IsActive)
+        var newFormDefinition = new FormDefinition(request.IsDraft, request.JsonData)
         {
             FormId = request.FormId
         };

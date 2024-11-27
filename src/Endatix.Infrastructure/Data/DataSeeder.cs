@@ -32,7 +32,7 @@ public class DataSeeder(ILogger _logger, IIdGenerator<long> _idGenerator, AppDbC
         {
             Id = _idGenerator.CreateId()
         };
-        sampleForm1.ActiveFormDefinition.Id = _idGenerator.CreateId();
+        sampleForm1.ActiveDefinition.Id = _idGenerator.CreateId();
 
         Form sampleForm2 = new("Booking Form", formDefinitionJson: BOOKING_FORM_JSON)
         {
@@ -43,7 +43,7 @@ public class DataSeeder(ILogger _logger, IIdGenerator<long> _idGenerator, AppDbC
         {
             Id = 1266039221823471616
         };
-        sampleForm3.ActiveFormDefinition.Id = _idGenerator.CreateId();
+        sampleForm3.ActiveDefinition.Id = _idGenerator.CreateId();
 
         dbContext.Forms.AddRange(sampleForm1, sampleForm2, sampleForm3);
         dbContext.SaveChanges();
@@ -53,13 +53,13 @@ public class DataSeeder(ILogger _logger, IIdGenerator<long> _idGenerator, AppDbC
         #endregion
 
         #region Populate Definitions
-        FormDefinition formDefinition2 = new(isActive: false, jsonData: PRODUCT_FEEDBACK_SURVEY_JSON)
+        FormDefinition formDefinition2 = new(jsonData: PRODUCT_FEEDBACK_SURVEY_JSON)
         {
             Form = sampleForm1,
             Id = _idGenerator.CreateId()
         };
 
-        FormDefinition formDefinition3 = new(isActive: false, jsonData: PRODUCT_FEEDBACK_SURVEY_JSON)
+        FormDefinition formDefinition3 = new(jsonData: PRODUCT_FEEDBACK_SURVEY_JSON)
         {
             Form = sampleForm1,
             Id = _idGenerator.CreateId()
@@ -72,7 +72,7 @@ public class DataSeeder(ILogger _logger, IIdGenerator<long> _idGenerator, AppDbC
         #endregion
 
         #region Populate Submissions
-        var submission1 = new Submission("{\"missing-feature\":\"Replicator\"}", formDefinitionId: sampleForm1.ActiveFormDefinition.Id)
+        var submission1 = new Submission("{\"missing-feature\":\"Replicator\"}", formDefinitionId: sampleForm1.ActiveDefinition.Id)
         {
             Id = _idGenerator.CreateId()
         };
@@ -88,7 +88,7 @@ public class DataSeeder(ILogger _logger, IIdGenerator<long> _idGenerator, AppDbC
         {
             Id = _idGenerator.CreateId()
         };
-        var submission5 = new Submission("{\"missing-feature\":\"Espresso Machine\"}", formDefinitionId: sampleForm1.ActiveFormDefinition.Id)
+        var submission5 = new Submission("{\"missing-feature\":\"Espresso Machine\"}", formDefinitionId: sampleForm1.ActiveDefinition.Id)
         {
             Id = _idGenerator.CreateId()
         };

@@ -1,19 +1,19 @@
-using System.Collections.Generic;
-using System.Linq;
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-  public partial class Form : BaseEntity, IAggregateRoot
-  {
-      public string Name { get; set; }
-      public string? Description { get; set; }
-      public bool IsEnabled { get; set; }
-      public FormDefinition ActiveFormDefinition => FormDefinitions?.FirstOrDefault(fd => fd.IsActive);
-      private readonly List<Submission> _submissions = [];
-      private readonly List<FormDefinition> _formDefinitions = [];
-      public IReadOnlyCollection<FormDefinition> FormDefinitions => _formDefinitions.AsReadOnly();
+public partial class Form : BaseEntity, IAggregateRoot
+{
+    public string Name { get; set; }
+    public string? Description { get; set; }
+    public bool IsEnabled { get; set; }
+    public FormDefinition? ActiveDefinition { get; private set; }
+    public long? ActiveDefinitionId { get; private set; }
+
+    private readonly List<Submission> _submissions = [];
+    private readonly List<FormDefinition> _formDefinitions = [];
+    public IReadOnlyCollection<FormDefinition> FormDefinitions => _formDefinitions.AsReadOnly();
 
     public Form()
     {
@@ -27,7 +27,7 @@ namespace Endatix.Core.Entities;
         Description = description;
         IsEnabled = isEnabled;
 
-        _formDefinitions.Add(new FormDefinition(isDraft: false, formDefinitionJson, isActive: true));
+        AddFormDefinition(formDefinitionJson, isDraft: false);
     }
 
     public void AddSubmission(string jsonData, long formDefintionId, bool isComplete = true, int currentPage = 1, string metadata = null)
@@ -50,8 +50,33 @@ namespace Endatix.Core.Entities;
         submission.Update(jsonData, formDefintionId, isComplete, currentPage);
     }
 
-    internal void SetActiveFormDefinition(FormDefinition formDefinition)
+    public void SetActiveFormDefinition(FormDefinition formDefinition)
     {
-        throw new System.NotImplementedException(); // TBD and implemented when versioning is fully supported, old implementation is in Git
+        Guard.Against.Null(formDefinition, nameof(formDefinition));
+
+        if (!_formDefinitions.Contains(formDefinition))
+        {
+            throw new InvalidOperationException("Cannot set a FormDefinition as active that doesn't belong to this form.");
+        }
+
+        if (ActiveDefinition != null)
+        {
+            ActiveDefinition.IsActive = false;
+        }
+
+        formDefinition.IsActive = true;
+        ActiveDefinition = formDefinition;
+        ActiveDefinitionId = formDefinition.Id;
+    }
+
+    public void AddFormDefinition(string jsonData, bool isDraft = false)
+    {
+        var formDefinition = new FormDefinition(isDraft, jsonData);
+        _formDefinitions.Add(formDefinition);
+
+        if (_formDefinitions.Count == 1)
+        {
+            SetActiveFormDefinition(formDefinition);
+        }
     }
 }
