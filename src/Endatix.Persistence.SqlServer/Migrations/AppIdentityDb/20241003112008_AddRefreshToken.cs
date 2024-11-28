@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Endatix.Persistence.SqlServer.Migrations
+namespace Endatix.Persistence.SqlServer.Migrations.AppIdentityDb
 {
     /// <inheritdoc />
     public partial class AddRefreshToken : Migration
