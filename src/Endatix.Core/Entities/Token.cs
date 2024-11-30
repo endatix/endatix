@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Ardalis.GuardClauses;
 
 namespace Endatix.Core.Entities;
 
@@ -11,16 +12,20 @@ public class Token
 
     public bool IsExpired => DateTime.UtcNow > ExpiresAt;
 
-    private Token() { }
+    public Token() { }
 
     public Token(int expiryInHours)
     {
+        Guard.Against.NegativeOrZero(expiryInHours);
+
         Value = GenerateToken();
         ExpiresAt = DateTime.UtcNow.AddHours(expiryInHours);
     }
 
     public void Extend(int expiryInHours)
     {
+        Guard.Against.NegativeOrZero(expiryInHours);
+
         ExpiresAt = DateTime.UtcNow.AddHours(expiryInHours);
     }
 
