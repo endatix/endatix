@@ -85,16 +85,26 @@ public class AppDbContext : DbContext
             {
                 case EntityState.Added:
                     // Generate an id if necessary
-                    if (entry.CurrentValues["Id"] is default(long))
+                    if (entry.CurrentValues.Properties.Any(p => p.Name == "Id") && 
+                        entry.CurrentValues["Id"] is default(long))
                     {
                         entry.CurrentValues["Id"] = _idGenerator.CreateId();
                     }
+                    
                     // Set the CreatedAt value
-                    entry.CurrentValues["CreatedAt"] = DateTime.UtcNow;
+                    if (entry.CurrentValues.Properties.Any(p => p.Name == "CreatedAt"))
+                    {
+                        entry.CurrentValues["CreatedAt"] = DateTime.UtcNow;
+                    }
+                    
                     break;
                 case EntityState.Modified:
                     // Set the ModifiedAt value
-                    entry.CurrentValues["ModifiedAt"] = DateTime.UtcNow;
+                    if (entry.CurrentValues.Properties.Any(p => p.Name == "ModifiedAt"))
+                    {
+                        entry.CurrentValues["ModifiedAt"] = DateTime.UtcNow;
+                    }
+                    
                     break;
             }
         }
