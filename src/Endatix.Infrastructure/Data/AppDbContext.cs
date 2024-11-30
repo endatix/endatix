@@ -30,9 +30,9 @@ public class AppDbContext : DbContext
 
     public DbSet<Form> Forms { get; set; }
 
-    public DbSet<Submission> Submissions { get; set; }
-
     public DbSet<FormDefinition> FormDefinitions { get; set; }
+
+    public DbSet<Submission> Submissions { get; set; }
 
     public override void AddRange(IEnumerable<object> entities)
     {
@@ -46,6 +46,8 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        builder.Ignore<Token>();
+
         var endatixAssemblies = GetType().Assembly.GetEndatixPlatformAssemblies();
         foreach (var assembly in endatixAssemblies)
         {
@@ -55,6 +57,8 @@ public class AppDbContext : DbContext
         PrefixTableNames(builder);
 
         base.OnModelCreating(builder);
+
+        builder.Entity<Submission>().OwnsOne(s => s.Token);
     }
 
     public override int SaveChanges()

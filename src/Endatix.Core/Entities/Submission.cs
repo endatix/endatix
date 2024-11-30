@@ -1,10 +1,11 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Entities;
 
 namespace Endatix.Core.Entities;
 
-  public partial class Submission : BaseEntity, IAggregateRoot
-  {
+public partial class Submission : BaseEntity, IAggregateRoot
+{
       public bool IsComplete { get; private set; }
       public string JsonData { get; private set; }
       public long FormDefinitionId { get; set; }
@@ -12,6 +13,7 @@ namespace Endatix.Core.Entities;
       public int? CurrentPage { get; private set; }
       public string? Metadata { get; private set; }
       public DateTime? CompletedAt { get; private set; }
+      public Token? Token { get; set; }
 
     public Submission()
     {

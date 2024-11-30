@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Endatix.Persistence.SqlServer.Migrations.AppDb
+namespace Endatix.Persistence.SqlServer.Migrations.AppEntity
 {
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
@@ -141,7 +141,29 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppDb
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.OwnsOne("Endatix.Core.Entities.Token", "Token", b1 =>
+                        {
+                            b1.Property<long>("SubmissionId")
+                                .HasColumnType("bigint");
+
+                            b1.Property<DateTime>("ExpiresAt")
+                                .HasColumnType("datetime2");
+
+                            b1.Property<string>("Value")
+                                .IsRequired()
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.HasKey("SubmissionId");
+
+                            b1.ToTable("Submissions");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SubmissionId");
+                        });
+
                     b.Navigation("FormDefinition");
+
+                    b.Navigation("Token");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Form", b =>

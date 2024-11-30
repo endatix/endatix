@@ -13,9 +13,9 @@ using Endatix.Core.Infrastructure.Result;
 namespace Endatix.Infrastructure.Identity.Authentication;
 
 /// <summary>
-/// Implements the <see cref="ITokenService" /> interface to manage JWT tokens for users.
+/// Implements the <see cref="IUserTokenService" /> interface to manage JWT tokens for users.
 /// </summary>
-internal sealed class JwtTokenService : ITokenService
+internal sealed class JwtTokenService : IUserTokenService
 {
     private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
 

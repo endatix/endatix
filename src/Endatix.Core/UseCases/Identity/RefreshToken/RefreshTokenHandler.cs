@@ -7,7 +7,7 @@ namespace Endatix.Core.UseCases.Identity.RefreshToken;
 /// <summary>
 /// Handles the refresh token logic by validating the refresh token and issuing new access and refresh tokens.
 /// </summary>
-public class RefreshTokenHandler(IAuthService authService, ITokenService tokenService) : ICommandHandler<RefreshTokenCommand, Result<AuthTokensDto>>
+public class RefreshTokenHandler(IAuthService authService, IUserTokenService tokenService) : ICommandHandler<RefreshTokenCommand, Result<AuthTokensDto>>
 {
     public async Task<Result<AuthTokensDto>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
