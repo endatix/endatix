@@ -31,7 +31,7 @@ public class SubmissionTokenServiceResolveTokenTests
         var token = string.Empty;
 
         // Act
-        var act = () => _sut.ResolveToken(token);
+        var act = () => _sut.ResolveTokenAsync(token);
 
         // Assert
         await act.Should().ThrowAsync<ArgumentException>()
@@ -46,7 +46,7 @@ public class SubmissionTokenServiceResolveTokenTests
         _repository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns((Submission)null!);
 
         // Act
-        var result = await _sut.ResolveToken(token);
+        var result = await _sut.ResolveTokenAsync(token);
 
         // Assert
         result.Should().NotBeNull();
@@ -65,7 +65,7 @@ public class SubmissionTokenServiceResolveTokenTests
         _repository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
 
         // Act
-        var result = await _sut.ResolveToken(token);
+        var result = await _sut.ResolveTokenAsync(token);
 
         // Assert
         result.Should().NotBeNull();

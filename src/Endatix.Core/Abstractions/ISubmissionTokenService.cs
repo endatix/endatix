@@ -15,12 +15,12 @@ public interface ISubmissionTokenService
     /// </summary>
     /// <param name="submissionId">The submission identifier to get a token for</param>
     /// <returns>A Result containing the secure token string if successful</returns>
-    Task<Result<string>> ObtainToken(long submissionId);
+    Task<Result<string>> ObtainTokenAsync(long submissionId);
 
     /// <summary>
     /// Resolves a secure token back to its original submission identifier.
     /// </summary>
     /// <param name="token">The token to resolve</param>
     /// <returns>A Result containing the submission identifier if successful</returns>
-    Task<Result<long>> ResolveToken(string token);
+    Task<Result<long>> ResolveTokenAsync(string token);
 }

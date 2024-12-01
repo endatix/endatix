@@ -23,7 +23,7 @@ public class SubmissionTokenService : ISubmissionTokenService
         _options = options.Value;
     }
 
-    public async Task<Result<string>> ObtainToken(long submissionId)
+    public async Task<Result<string>> ObtainTokenAsync(long submissionId)
     {
         Guard.Against.NegativeOrZero(submissionId);
 
@@ -46,7 +46,7 @@ public class SubmissionTokenService : ISubmissionTokenService
         return Result<string>.Success(submission.Token.Value);
     }
 
-    public async Task<Result<long>> ResolveToken(string token)
+    public async Task<Result<long>> ResolveTokenAsync(string token)
     {
         Guard.Against.NullOrEmpty(token);
 
