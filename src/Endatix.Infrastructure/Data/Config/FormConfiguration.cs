@@ -18,19 +18,17 @@ namespace Endatix.Infrastructure.Data.Config
                 .IsRequired();
 
             builder.HasMany(f => f.FormDefinitions)
-                .WithOne(fd => fd.Form)
+                .WithOne()
                 .HasForeignKey(fd => fd.FormId)
-                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(f => f.ActiveDefinition)
                 .WithOne()
                 .HasForeignKey<Form>(f => f.ActiveDefinitionId)
-                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasIndex(c => c.ActiveDefinitionId)
-                    .IsUnique();
+            builder.HasIndex(f => f.ActiveDefinitionId)
+                .IsUnique();
         }
     }
 }

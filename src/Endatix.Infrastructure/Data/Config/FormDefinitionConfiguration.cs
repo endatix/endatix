@@ -16,7 +16,8 @@ namespace Endatix.Infrastructure.Data.Config
             builder.HasMany(fd => fd.Submissions)
                 .WithOne(s => s.FormDefinition)
                 .HasForeignKey(s => s.FormDefinitionId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired();
 
             builder.HasIndex(fd => fd.FormId);
         }

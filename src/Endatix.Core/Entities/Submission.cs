@@ -5,20 +5,7 @@ namespace Endatix.Core.Entities;
 
 public partial class Submission : BaseEntity, IAggregateRoot
 {
-    public bool IsComplete { get; private set; }
-    public string JsonData { get; private set; }
-    public long FormId { get; private set; }
-    public Form Form { get; private set; }
-    public long FormDefinitionId { get; private set; }
-    public FormDefinition FormDefinition { get; private set; }
-    public int? CurrentPage { get; private set; }
-    public string? Metadata { get; private set; }
-    public DateTime? CompletedAt { get; private set; }
-
-    public Submission()
-    {
-
-    }
+    private Submission() { }
 
     public Submission(string jsonData, long formId, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {
@@ -34,6 +21,16 @@ public partial class Submission : BaseEntity, IAggregateRoot
 
         SetCompletionStatus(isComplete);
     }
+
+    public bool IsComplete { get; private set; }
+    public string JsonData { get; private set; }
+    public Form Form { get; private set; }
+    public long FormId { get; private set; }
+    public FormDefinition FormDefinition { get; private set; }
+    public long FormDefinitionId { get; private set; }
+    public int? CurrentPage { get; private set; }
+    public string? Metadata { get; private set; }
+    public DateTime? CompletedAt { get; private set; }
 
     public void Update(string jsonData, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {

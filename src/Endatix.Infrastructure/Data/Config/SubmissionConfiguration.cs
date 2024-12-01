@@ -12,6 +12,28 @@ namespace Endatix.ApplicationCore.Infrastructure.Data.Config
 
             builder.Property(s => s.Id)
                 .IsRequired();
+
+            builder.Property(s => s.FormId)
+                .IsRequired();
+
+            builder.Property(s => s.FormDefinitionId)
+                .IsRequired();
+
+            // Create indexes for foreign key lookups
+            builder.HasIndex(s => s.FormId);
+            builder.HasIndex(s => s.FormDefinitionId);
+            builder.HasIndex(s => new { s.FormId, s.FormDefinitionId });
+
+            // Configure foreign key constraints without navigation properties
+            builder.HasOne<Form>()
+                .WithMany()
+                .HasForeignKey(s => s.FormId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne<FormDefinition>()
+                .WithMany()
+                .HasForeignKey(s => s.FormDefinitionId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
