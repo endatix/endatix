@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -41,25 +39,6 @@ public class FormService : IFormService
         throw new System.NotImplementedException();
     }
 
-    public async Task<Submission> AddSubmissionAsync(long formId, Submission submission)
-    {
-        var formDefinition = await GetActiveFormDefinitionAsync(formId);
-        if (formDefinition == null)
-        {
-            throw new NotFoundException($"Definition for form with ID {formId} was not found.");
-        }
-
-        submission.FormDefinitionId = formDefinition.Id;
-
-        await _submissionRepository.AddAsync(submission);
-        return submission;
-    }
-
-    public async Task<Submission> AddSubmissionAsync(Form form, Submission submission)
-    {
-        return await AddSubmissionAsync(form.Id, submission);
-    }
-
     public Task UpdateSubmissionAsync(long formId, Submission submission)
     {
         throw new System.NotImplementedException();
@@ -87,10 +66,10 @@ public class FormService : IFormService
         var formDefinition = await _formDefinitionRepository.GetByIdAsync(formDefinitionId);
         if (formDefinition == null)
         {
-            throw new Exceptions.NotFoundException(formDefinitionId);
+            throw new NotFoundException(formDefinitionId);
         }
 
-        formDefinition.JsonData = jsonData;
+        formDefinition.Update(jsonData, null, null);
         await _formDefinitionRepository.UpdateAsync(formDefinition);
     }
 
@@ -103,7 +82,7 @@ public class FormService : IFormService
             throw new NotFoundException($"Definition for form with ID {formId} was not found.");
         }
 
-        formDefinition.JsonData = jsonData;
+        formDefinition.Update(jsonData, null, null);
         await _formDefinitionRepository.UpdateAsync(formDefinition);
     }
 }

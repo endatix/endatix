@@ -23,10 +23,11 @@ public class ListFormDefinitionsHandlerTests
     public async Task Handle_ValidRequest_ReturnsFormDefinitions()
     {
         // Arrange
+        var form = new Form("Test Form") { Id = 1 };
         var formDefinitions = new List<FormDefinition>
         {
-            new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 },
-            new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_2, false) { FormId = 1 }
+            new FormDefinition(form, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true),
+            new FormDefinition(form, true, SampleData.FORM_DEFINITION_JSON_DATA_2, false)
         };
         var request = new ListFormDefinitionsQuery(1, 1, 10);
         _repository.ListAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())

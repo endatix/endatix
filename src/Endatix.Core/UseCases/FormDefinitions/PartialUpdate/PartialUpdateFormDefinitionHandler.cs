@@ -1,6 +1,4 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using Endatix.Core.Entities;
+﻿using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -17,9 +15,7 @@ public class PartialUpdateFormDefinitionHandler(IRepository<FormDefinition> _rep
             return Result.NotFound("Form definition not found.");
         }
 
-        formDefinition.IsDraft = request.IsDraft ?? formDefinition.IsDraft;
-        formDefinition.JsonData = request.JsonData ?? formDefinition.JsonData;
-        formDefinition.IsActive = request.IsActive ?? formDefinition.IsActive;
+        formDefinition.Update(request.JsonData, request.IsDraft, request.IsActive);
         await _repository.UpdateAsync(formDefinition, cancellationToken);
         return Result.Success(formDefinition);
     }

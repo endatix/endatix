@@ -1,12 +1,15 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Services;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Infrastructure.Email;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Repositories;
 using Endatix.Infrastructure.Setup;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,6 +58,8 @@ public static class EndatixAppExtensions
         var services = endatixApp.Services;
 
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
+        services.AddScoped<IFormsRepository, FormsRepository>();
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
         services.AddWebHookProcessing();
 

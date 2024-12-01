@@ -40,7 +40,8 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        var form = new Form("Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(form, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
         var request = new PartialUpdateActiveFormDefinitionCommand(1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
         _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
                    .Returns(formDefinition);
@@ -62,7 +63,8 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     public async Task Handle_PartialUpdate_UpdatesOnlySpecifiedFields()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        var form = new Form("Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(form, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
         var request = new PartialUpdateActiveFormDefinitionCommand(1, null, SampleData.FORM_DEFINITION_JSON_DATA_2, null);
         _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
                    .Returns(formDefinition);

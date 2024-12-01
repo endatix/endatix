@@ -2,8 +2,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormDefinitions.Update;
-using FluentAssertions;
-using NSubstitute;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.Update;
 
@@ -39,8 +37,15 @@ public class UpdateFormDefinitionHandlerTests
     public async Task Handle_FormIdMismatch_ReturnsNotFoundResult()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 2 };
-        var request = new UpdateFormDefinitionCommand(1, 1, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        var notFoundFormId = 2;
+        var notFoundFormDefinitionId = 2;
+        var request = new UpdateFormDefinitionCommand(notFoundFormId, notFoundFormDefinitionId, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+
+        var testForm = new Form(SampleData.FORM_NAME_1) { Id = 123 };
+        var formDefinition = new FormDefinition(testForm, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true){
+            Id = 456
+        };
+
         _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
                    .Returns(formDefinition);
 
@@ -57,7 +62,8 @@ public class UpdateFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        var form = new Form(SampleData.FORM_NAME_1) { Id = 1 };
+        var formDefinition = new FormDefinition(form, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
         var request = new UpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
         _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
                    .Returns(formDefinition);

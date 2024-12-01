@@ -8,7 +8,9 @@ public class FormTests
     public void AddFormDefinition_WhenFirstDefinition_SetsItAsActive()
     {
         // Arrange & Act
-        var form = new Form("Test Form");
+        var form = new Form(SampleData.FORM_NAME_1);
+        var formDefinition = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        form.AddFormDefinition(formDefinition);
 
         // Assert
         form?.ActiveDefinition.Should().NotBeNull();
@@ -21,27 +23,28 @@ public class FormTests
     public void SetActiveFormDefinition_WhenChangingActive_UpdatesActiveStatusCorrectly()
     {
         // Arrange
-        var form = new Form("Test Form");
-        form.AddFormDefinition("{\"version\":\"1\"}");
-        form.AddFormDefinition("{\"version\":\"2\"}");
-        var previousActive = form.ActiveDefinition;
-        var newActive = form.FormDefinitions.Last();
+        var form = new Form(SampleData.FORM_NAME_1);
+        var formDefinition1 = new FormDefinition(form, jsonData: "{\"version\":\"1\"}");    
+        var formDefinition2 = new FormDefinition(form, jsonData: "{\"version\":\"2\"}");
+        form.AddFormDefinition(formDefinition1);
+        form.AddFormDefinition(formDefinition2);
 
         // Act
-        form.SetActiveFormDefinition(newActive);
+        form.SetActiveFormDefinition(formDefinition2);
 
         // Assert
-        Assert.False(previousActive?.IsActive);
-        Assert.True(newActive.IsActive);
-        Assert.Equal(newActive, form.ActiveDefinition);
+        Assert.False(formDefinition1?.IsActive);
+        Assert.True(formDefinition2.IsActive);
+        Assert.Equal(formDefinition2, form.ActiveDefinition);
     }
 
     [Fact]
     public void SetActiveFormDefinition_WithNonExistingDefinition_ThrowsException()
     {
         // Arrange
-        var form = new Form("Test Form");
-        var externalDefinition = new FormDefinition(false, "{\"test\":\"data\"}", false);
+        var form = new Form(SampleData.FORM_NAME_1);
+        var externalForm = new Form(SampleData.FORM_NAME_2);
+        var externalDefinition = new FormDefinition(externalForm, false, "{\"test\":\"data\"}", false);
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(

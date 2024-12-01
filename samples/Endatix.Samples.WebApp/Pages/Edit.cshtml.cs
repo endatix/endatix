@@ -8,9 +8,9 @@ public class EditModel : PageModel
     private readonly ILogger<IndexModel> _logger;
     private readonly IConfiguration _configuration;
 
-    public Form Form = new Form();
+    public Form? Form { get; set; }
 
-    public string BaseUrl = string.Empty;
+    public string BaseUrl { get; set; } = string.Empty;
 
     public EditModel(ILogger<IndexModel> logger, IConfiguration configuration)
     {
@@ -20,10 +20,6 @@ public class EditModel : PageModel
 
     public void OnGet(long id)
     {
-        Form = new Form(){
-            Id = id
-        };
-
         BaseUrl = _configuration["EndatixSettings:ApiBaseUrl"] ?? string.Empty;
     }
 }

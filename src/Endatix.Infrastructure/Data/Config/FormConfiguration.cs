@@ -4,7 +4,7 @@ using Endatix.Core.Entities;
 
 namespace Endatix.Infrastructure.Data.Config
 {
-    public class FormConfiguration : IEntityTypeConfiguration<Form> 
+    public class FormConfiguration : IEntityTypeConfiguration<Form>
     {
         public void Configure(EntityTypeBuilder<Form> builder)
         {
@@ -20,12 +20,17 @@ namespace Endatix.Infrastructure.Data.Config
             builder.HasMany(f => f.FormDefinitions)
                 .WithOne(fd => fd.Form)
                 .HasForeignKey(fd => fd.FormId)
-                .OnDelete(DeleteBehavior.NoAction);
-            
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.HasOne(f => f.ActiveDefinition)
                 .WithOne()
                 .HasForeignKey<Form>(f => f.ActiveDefinitionId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasIndex(c => c.ActiveDefinitionId)
+                    .IsUnique();
         }
     }
 }

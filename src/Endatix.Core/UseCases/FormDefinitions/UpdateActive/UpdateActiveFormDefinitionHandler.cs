@@ -19,9 +19,7 @@ public class UpdateActiveFormDefinitionHandler(IRepository<FormDefinition> _repo
             return Result.NotFound("Active form definition not found.");
         }
 
-        formDefinition.IsDraft = request.IsDraft;
-        formDefinition.JsonData = request.JsonData;
-        formDefinition.IsActive = request.IsActive;
+        formDefinition.Update(request.JsonData, request.IsDraft, request.IsActive);
         await _repository.UpdateAsync(formDefinition, cancellationToken);
         return Result.Success(formDefinition);
     }

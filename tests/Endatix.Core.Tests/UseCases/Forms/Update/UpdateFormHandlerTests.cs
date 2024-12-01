@@ -37,7 +37,7 @@ public class UpdateFormHandlerTests
     public async Task Handle_ValidRequest_UpdatesForm()
     {
         // Arrange
-        var form = new Form() { Id = 1, Name = SampleData.FORM_NAME_1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
+        var form = new Form(SampleData.FORM_NAME_1) { Id = 1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, false);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);

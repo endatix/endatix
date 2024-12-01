@@ -40,8 +40,10 @@ public class CreateFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_CreatesNewFormDefinition()
     {
         // Arrange
-        var form = new Form();
         var request = new CreateFormDefinitionCommand(1, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        var form = new Form(SampleData.FORM_NAME_1){
+            Id = request.FormId
+        };
         _formsRepository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>()).Returns(form);
 
         // Act

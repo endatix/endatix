@@ -10,8 +10,6 @@ namespace Endatix.Core.Abstractions;
       Task<Form> CreateFormAsync(string name, string formDefinitionJson = null, string description = null, bool isEnabled = false);
       Task DeleteFormAsync(long formId);
       Task<List<Submission>> GetSubmissionsAsync(long formDefinitionId);
-      Task<Submission> AddSubmissionAsync(long formId, Submission submission);
-      Task<Submission> AddSubmissionAsync(Form form, Submission submission);
       Task UpdateSubmissionAsync(long formId, Submission submission);
       Task UpdateSubmissionAsync(Form form, Submission submission);
       Task SetActiveFormDefinitionAsync(Form form, FormDefinition formDefinition);

@@ -5,37 +5,33 @@ namespace Endatix.Core.Entities;
 
 public partial class Form : BaseEntity, IAggregateRoot
 {
-    public string Name { get; set; }
-    public string? Description { get; set; }
-    public bool IsEnabled { get; set; }
-    public FormDefinition? ActiveDefinition { get; private set; }
-    public long? ActiveDefinitionId { get; private set; }
-
     private readonly List<Submission> _submissions = [];
     private readonly List<FormDefinition> _formDefinitions = [];
-    public IReadOnlyCollection<FormDefinition> FormDefinitions => _formDefinitions.AsReadOnly();
 
-    public Form()
-    {
+    private Form() { } // For EF Core
 
-    }
-
-    public Form(string name, string? description = null, bool isEnabled = false, string? formDefinitionJson = null)
+    public Form(string name, string? description = null, bool isEnabled = false)
     {
         Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
-
-        AddFormDefinition(formDefinitionJson, isDraft: false);
     }
 
-    public void AddSubmission(string jsonData, long formDefintionId, bool isComplete = true, int currentPage = 1, string metadata = null)
+    public string Name { get; set; }
+    public string? Description { get; set; }
+    public bool IsEnabled { get; set; }
+    public long? ActiveDefinitionId { get; private set; }
+
+    public FormDefinition? ActiveDefinition { get; private set; }
+    public IReadOnlyCollection<FormDefinition> FormDefinitions => _formDefinitions.AsReadOnly();
+
+    public void AddSubmission(string jsonData, long formDefinitionId, bool isComplete = true, int currentPage = 1, string metadata = null)
     {
         Guard.Against.NegativeOrZero(currentPage, nameof(currentPage));
         Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
 
-        _submissions.Add(new Submission(jsonData, formDefintionId, isComplete, currentPage, metadata));
+        _submissions.Add(new Submission(jsonData, Id, formDefinitionId, isComplete, currentPage, metadata));
     }
 
     public void UpdateSubmission(long submissionId, long formDefintionId, string jsonData, bool isComplete = true, int currentPage = 1)
@@ -61,17 +57,15 @@ public partial class Form : BaseEntity, IAggregateRoot
 
         if (ActiveDefinition != null)
         {
-            ActiveDefinition.IsActive = false;
+            ActiveDefinition.Update(null, null, false);
         }
 
-        formDefinition.IsActive = true;
         ActiveDefinition = formDefinition;
-        ActiveDefinitionId = formDefinition.Id;
+        formDefinition.Update(null, null, true);
     }
 
-    public void AddFormDefinition(string jsonData, bool isDraft = false)
+    public void AddFormDefinition(FormDefinition formDefinition)
     {
-        var formDefinition = new FormDefinition(isDraft, jsonData);
         _formDefinitions.Add(formDefinition);
 
         if (_formDefinitions.Count == 1)

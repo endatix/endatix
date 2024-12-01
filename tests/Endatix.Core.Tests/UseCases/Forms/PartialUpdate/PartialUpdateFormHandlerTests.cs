@@ -20,9 +20,10 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_FormNotFound_ReturnsNotFoundResult()
     {
         // Arrange
+        Form? notFoundForm = null;
         var request = new PartialUpdateFormCommand(1, null, null, null);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
-                   .Returns((Form)null);
+                   .Returns(notFoundForm);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -37,7 +38,13 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_ValidRequest_UpdatesForm()
     {
         // Arrange
-        var form = new Form() { Id = 1, Name = SampleData.FORM_NAME_1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
+        var form = new Form("Test Form")
+        {
+            Id = 1,
+            Name = SampleData.FORM_NAME_1,
+            Description = SampleData.FORM_DESCRIPTION_1,
+            IsEnabled = true
+        };
         var request = new PartialUpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, false);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
@@ -59,7 +66,7 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_PartialUpdate_UpdatesOnlySpecifiedFields()
     {
         // Arrange
-        var form = new Form() { Id = 1, Name = SampleData.FORM_NAME_1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
+        var form = new Form("Test Form") { Id = 1, Name = SampleData.FORM_NAME_1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
         var request = new PartialUpdateFormCommand(1, null, SampleData.FORM_DESCRIPTION_2, null);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);

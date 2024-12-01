@@ -22,9 +22,10 @@ public class GetFormDefinitionByIdHandlerTests
     public async Task Handle_FormDefinitionNotFound_ReturnsNotFoundResult()
     {
         // Arrange
+        FormDefinition? notFoundFormDefinition = null;
         var request = new GetFormDefinitionByIdQuery(1, 1);
         _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns((FormDefinition)null);
+                   .Returns(notFoundFormDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -39,8 +40,12 @@ public class GetFormDefinitionByIdHandlerTests
     public async Task Handle_FormIdMismatch_ReturnsNotFoundResult()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 2 };
-        var request = new GetFormDefinitionByIdQuery(1, 1);
+        var formDefinitionIdToReturn = 123;
+        var testForm = new Form(SampleData.FORM_NAME_1) { Id = 1 };
+        var formDefinition = new FormDefinition(testForm, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true){
+            Id = formDefinitionIdToReturn
+        };
+        var request = new GetFormDefinitionByIdQuery(456, 457);
         _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
                    .Returns(formDefinition);
 
@@ -57,7 +62,8 @@ public class GetFormDefinitionByIdHandlerTests
     public async Task Handle_ValidRequest_ReturnsFormDefinition()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        var testForm = new Form("Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(testForm, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
         var request = new GetFormDefinitionByIdQuery(1, 1);
         _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
                    .Returns(formDefinition);

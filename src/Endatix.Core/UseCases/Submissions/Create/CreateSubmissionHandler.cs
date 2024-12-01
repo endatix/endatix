@@ -31,11 +31,12 @@ public class CreateSubmissionHandler(
         }
 
         var submission = new Submission(
-            request.JsonData,
-            activeFormDefinition.Id,
-            request.IsComplete ?? DEFAULT_IS_COMPLETE,
-            request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            request.MetaData ?? DEFAULT_METADATA
+            jsonData: request.JsonData,
+            formId: request.FormId,
+            formDefinitionId: activeFormDefinition.Id,
+            isComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
+            currentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
+            metadata: request.MetaData ?? DEFAULT_METADATA
         );
 
         await submissionRepository.AddAsync(submission, cancellationToken);

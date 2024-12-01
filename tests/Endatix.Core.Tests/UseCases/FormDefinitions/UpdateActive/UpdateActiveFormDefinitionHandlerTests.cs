@@ -3,8 +3,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.FormDefinitions.UpdateActive;
-using FluentAssertions;
-using NSubstitute;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.UpdateActive;
 
@@ -23,9 +21,10 @@ public class UpdateActiveFormDefinitionHandlerTests
     public async Task Handle_FormDefinitionNotFound_ReturnsNotFoundResult()
     {
         // Arrange
+        FormDefinition? notFoundFormDefinition = null;
         var request = new UpdateActiveFormDefinitionCommand(1, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
         _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
-                   .Returns((FormDefinition)null);
+                   .Returns(notFoundFormDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -40,7 +39,11 @@ public class UpdateActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        var form = new Form(SampleData.FORM_NAME_1);
+        var formDefinition = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
+        {
+            Id = 1
+        };
         var request = new UpdateActiveFormDefinitionCommand(1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
         _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
                    .Returns(formDefinition);

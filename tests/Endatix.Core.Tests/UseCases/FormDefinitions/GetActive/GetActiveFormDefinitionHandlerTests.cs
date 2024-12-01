@@ -3,8 +3,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.FormDefinitions.GetActive;
-using FluentAssertions;
-using NSubstitute;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.GetActive;
 
@@ -24,8 +22,9 @@ public class GetActiveFormDefinitionHandlerTests
     {
         // Arrange
         var request = new GetActiveFormDefinitionQuery(1);
+        FormDefinition? notFoundFormDefinition = null;
         _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
-                   .Returns((FormDefinition)null);
+                   .Returns(notFoundFormDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -39,8 +38,9 @@ public class GetActiveFormDefinitionHandlerTests
     [Fact]
     public async Task Handle_ValidRequest_ReturnsActiveFormDefinition()
     {
-        // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
+        // Arrange  
+        var form = new Form(SampleData.FORM_NAME_1);
+        var formDefinition = new FormDefinition(form, false, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
         var request = new GetActiveFormDefinitionQuery(1);
         _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
                    .Returns(formDefinition);
