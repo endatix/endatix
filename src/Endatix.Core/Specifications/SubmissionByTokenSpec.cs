@@ -7,6 +7,8 @@ public class SubmissionByTokenSpec : Specification<Submission>
 {
     public SubmissionByTokenSpec(string token)
     {
-        Query.Where(s => s.Token != null && s.Token.Value == token);
+        Query
+            .AsNoTracking()
+            .Where(s => s.Token != null && s.Token.Value == token);
     }
 }
