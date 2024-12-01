@@ -9,7 +9,7 @@ using Endatix.Core.Infrastructure.Result;
 namespace Endatix.Core.UseCases.Submissions;
 
 /// <summary>
-/// Handler for partially updating a form definition.
+/// Handler for partially updating a form submission.
 /// </summary>
 public class PartialUpdateSubmissionHandler(IRepository<Submission> repository) : ICommandHandler<PartialUpdateSubmissionCommand, Result<Submission>>
 {
