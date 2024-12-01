@@ -15,7 +15,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository) 
 
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var submissionSpec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
+        var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
         var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
         if (submission == null)
         {
@@ -32,7 +32,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository) 
             request.Metadata ?? submission.Metadata
         );
 
-        await repository.UpdateAsync(submission, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
 
         return Result.Success(submission);
     }
