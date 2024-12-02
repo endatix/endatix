@@ -20,12 +20,12 @@ namespace Endatix.Infrastructure.Data.Config
             builder.HasMany(f => f.FormDefinitions)
                 .WithOne()
                 .HasForeignKey(fd => fd.FormId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.HasOne(f => f.ActiveDefinition)
                 .WithOne()
                 .HasForeignKey<Form>(f => f.ActiveDefinitionId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.HasIndex(f => f.ActiveDefinitionId)
                 .IsUnique();

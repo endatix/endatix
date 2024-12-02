@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -8,12 +9,12 @@ namespace Endatix.Core.Tests.UseCases.FormDefinitions.GetActive;
 
 public class GetActiveFormDefinitionHandlerTests
 {
-    private readonly IRepository<FormDefinition> _repository;
+    private readonly IFormsRepository _repository;
     private readonly GetActiveFormDefinitionHandler _handler;
 
     public GetActiveFormDefinitionHandlerTests()
     {
-        _repository = Substitute.For<IRepository<FormDefinition>>();
+        _repository = Substitute.For<IFormsRepository>();
         _handler = new GetActiveFormDefinitionHandler(_repository);
     }
 
@@ -22,9 +23,8 @@ public class GetActiveFormDefinitionHandlerTests
     {
         // Arrange
         var request = new GetActiveFormDefinitionQuery(1);
-        FormDefinition? notFoundFormDefinition = null;
         _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
-                   .Returns(notFoundFormDefinition);
+                   .Returns(Task.FromResult<Form?>(null));
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -38,12 +38,20 @@ public class GetActiveFormDefinitionHandlerTests
     [Fact]
     public async Task Handle_ValidRequest_ReturnsActiveFormDefinition()
     {
-        // Arrange  
-        var form = new Form(SampleData.FORM_NAME_1);
-        var formDefinition = new FormDefinition(form, false, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        // Arrange
+        var formWithActiveDefinition = new Form(SampleData.FORM_NAME_1)
+        {
+            Id = 1
+        };
+        var activeDefinition = new FormDefinition(formWithActiveDefinition, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        formWithActiveDefinition.AddFormDefinition(activeDefinition);
+
         var request = new GetActiveFormDefinitionQuery(1);
-        _repository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
-                   .Returns(formDefinition);
+
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            CancellationToken.None
+        ).Returns(formWithActiveDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -52,6 +60,6 @@ public class GetActiveFormDefinitionHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Should().Be(formDefinition);
+        result.Value.Id.Should().Be(activeDefinition.Id);
     }
 }

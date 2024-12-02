@@ -20,9 +20,12 @@ public class UpdateFormDefinitionHandlerTests
     public async Task Handle_FormDefinitionNotFound_ReturnsNotFoundResult()
     {
         // Arrange
+        FormDefinition? notFoundFormDefinition = null;
         var request = new UpdateFormDefinitionCommand(1, 1, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns((FormDefinition)null);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(notFoundFormDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -42,12 +45,15 @@ public class UpdateFormDefinitionHandlerTests
         var request = new UpdateFormDefinitionCommand(notFoundFormId, notFoundFormDefinitionId, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
 
         var testForm = new Form(SampleData.FORM_NAME_1) { Id = 123 };
-        var formDefinition = new FormDefinition(testForm, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true){
+        var formDefinition = new FormDefinition(testForm, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
+        {
             Id = 456
         };
 
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns(formDefinition);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(formDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -63,10 +69,12 @@ public class UpdateFormDefinitionHandlerTests
     {
         // Arrange
         var form = new Form(SampleData.FORM_NAME_1) { Id = 1 };
-        var formDefinition = new FormDefinition(form, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        var formDefinition = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         var request = new UpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns(formDefinition);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(formDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -77,7 +85,6 @@ public class UpdateFormDefinitionHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.IsDraft.Should().Be(request.IsDraft);
         result.Value.JsonData.Should().Be(request.JsonData);
-        result.Value.IsActive.Should().Be(request.IsActive);
         await _repository.Received(1).UpdateAsync(formDefinition, Arg.Any<CancellationToken>());
     }
 }

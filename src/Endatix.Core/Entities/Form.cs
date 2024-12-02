@@ -55,13 +55,7 @@ public partial class Form : BaseEntity, IAggregateRoot
             throw new InvalidOperationException("Cannot set a FormDefinition as active that doesn't belong to this form.");
         }
 
-        if (ActiveDefinition != null)
-        {
-            ActiveDefinition.Update(null, null, false);
-        }
-
         ActiveDefinition = formDefinition;
-        formDefinition.Update(null, null, true);
     }
 
     public void AddFormDefinition(FormDefinition formDefinition)

@@ -14,10 +14,9 @@ public class CreateFormDefinitionCommandTests
         var formId = -1;
         var jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
         var isDraft = true;
-        var isActive = true;
 
         // Act
-        Action act = () => new CreateFormDefinitionCommand(formId, isDraft, jsonData, isActive);
+        Action act = () => new CreateFormDefinitionCommand(formId, isDraft, jsonData);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -31,10 +30,9 @@ public class CreateFormDefinitionCommandTests
         var formId = 1;
         var jsonData = "";
         var isDraft = true;
-        var isActive = true;
 
         // Act
-        Action act = () => new CreateFormDefinitionCommand(formId, isDraft, jsonData, isActive);
+        Action act = () => new CreateFormDefinitionCommand(formId, isDraft, jsonData);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -48,15 +46,13 @@ public class CreateFormDefinitionCommandTests
         var formId = 1;
         var jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
         var isDraft = true;
-        var isActive = true;
-
+        
         // Act
-        var command = new CreateFormDefinitionCommand(formId, isDraft, jsonData, isActive);
+        var command = new CreateFormDefinitionCommand(formId, isDraft, jsonData);
 
         // Assert
         command.FormId.Should().Be(formId);
         command.IsDraft.Should().Be(isDraft);
         command.JsonData.Should().Be(jsonData);
-        command.IsActive.Should().Be(isActive);
     }
 }

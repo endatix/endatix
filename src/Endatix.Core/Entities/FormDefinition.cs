@@ -8,7 +8,9 @@ public partial class FormDefinition : BaseEntity, IAggregateRoot
 {
     private readonly List<Submission> _submissions = [];
 
-    public FormDefinition(Form form, bool isDraft = false, string? jsonData = null, bool isActive = true)
+    private FormDefinition() { }
+    
+    public FormDefinition(Form form, bool isDraft = false, string? jsonData = null)
     {
         Guard.Against.Null(form, nameof(form));
 
@@ -17,27 +19,29 @@ public partial class FormDefinition : BaseEntity, IAggregateRoot
         jsonData ??= EndatixConfig.Configuration.DefaultFormDefinitionJson;
         IsDraft = isDraft;
         JsonData = jsonData;
-        IsActive = isActive;
     }
 
     public bool IsDraft { get; private set; }
-    public int Version { get; private set; }
     public string JsonData { get; private set; }
     public long FormId { get; private set; }
     public Form Form { get; private set; }
-    public bool IsActive { get; private set; }
     public IReadOnlyCollection<Submission> Submissions => _submissions.AsReadOnly();
 
     /// <summary>
-    /// Update the form definition with the provided data.
+    /// Updates the form definition's JSON data with the provided value, or keeps the current data if null is provided.
     /// </summary>
-    /// <param name="jsonData">The new JSON data for the form definition.</param>
-    /// <param name="isDraft">The new draft status for the form definition.</param>
-    /// <param name="isActive">The new active status for the form definition.</param>
-    public void Update(string? jsonData, bool? isDraft, bool? isActive)
+    /// <param name="jsonData">The new JSON data for the form definition, or null to keep the current data.</param>
+    public void UpdateSchema(string? jsonData)
     {
         JsonData = jsonData ?? JsonData;
+    }
+
+    /// <summary>
+    /// Updates the form definition's draft status with the provided value, or keeps the current status if null is provided.
+    /// </summary>
+    /// <param name="isDraft">The new draft status for the form definition, or null to keep the current status.</param>
+    public void UpdateDraftStatus(bool? isDraft)
+    {
         IsDraft = isDraft ?? IsDraft;
-        IsActive = isActive ?? IsActive;
     }
 }

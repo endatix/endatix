@@ -15,17 +15,16 @@ public class FormTests
         // Assert
         form?.ActiveDefinition.Should().NotBeNull();
         form?.FormDefinitions.Should().HaveCount(1);
-        form?.ActiveDefinition?.IsActive.Should().BeTrue();
         form?.ActiveDefinition?.Should().Be(form?.FormDefinitions.First());
     }
 
     [Fact]
-    public void SetActiveFormDefinition_WhenChangingActive_UpdatesActiveStatusCorrectly()
+    public void SetActiveFormDefinition_WhenChangingActive_UpdatesActiveDefinitionCorrectly()
     {
         // Arrange
         var form = new Form(SampleData.FORM_NAME_1);
-        var formDefinition1 = new FormDefinition(form, jsonData: "{\"version\":\"1\"}");    
-        var formDefinition2 = new FormDefinition(form, jsonData: "{\"version\":\"2\"}");
+        var formDefinition1 = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);    
+        var formDefinition2 = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_2);
         form.AddFormDefinition(formDefinition1);
         form.AddFormDefinition(formDefinition2);
 
@@ -33,9 +32,7 @@ public class FormTests
         form.SetActiveFormDefinition(formDefinition2);
 
         // Assert
-        Assert.False(formDefinition1?.IsActive);
-        Assert.True(formDefinition2.IsActive);
-        Assert.Equal(formDefinition2, form.ActiveDefinition);
+        form.ActiveDefinition.Should().Be(formDefinition2);
     }
 
     [Fact]
@@ -44,7 +41,7 @@ public class FormTests
         // Arrange
         var form = new Form(SampleData.FORM_NAME_1);
         var externalForm = new Form(SampleData.FORM_NAME_2);
-        var externalDefinition = new FormDefinition(externalForm, false, "{\"test\":\"data\"}", false);
+        var externalDefinition = new FormDefinition(externalForm, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(

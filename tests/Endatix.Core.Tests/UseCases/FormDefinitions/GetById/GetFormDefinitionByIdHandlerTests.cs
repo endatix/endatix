@@ -2,8 +2,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormDefinitions.GetById;
-using FluentAssertions;
-using NSubstitute;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.GetById;
 
@@ -24,8 +22,10 @@ public class GetFormDefinitionByIdHandlerTests
         // Arrange
         FormDefinition? notFoundFormDefinition = null;
         var request = new GetFormDefinitionByIdQuery(1, 1);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns(notFoundFormDefinition);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(notFoundFormDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -42,12 +42,15 @@ public class GetFormDefinitionByIdHandlerTests
         // Arrange
         var formDefinitionIdToReturn = 123;
         var testForm = new Form(SampleData.FORM_NAME_1) { Id = 1 };
-        var formDefinition = new FormDefinition(testForm, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true){
+        var formDefinition = new FormDefinition(testForm, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
+        {
             Id = formDefinitionIdToReturn
         };
         var request = new GetFormDefinitionByIdQuery(456, 457);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns(formDefinition);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(formDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -63,10 +66,12 @@ public class GetFormDefinitionByIdHandlerTests
     {
         // Arrange
         var testForm = new Form("Test Form") { Id = 1 };
-        var formDefinition = new FormDefinition(testForm, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        var formDefinition = new FormDefinition(testForm, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         var request = new GetFormDefinitionByIdQuery(1, 1);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns(formDefinition);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(formDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

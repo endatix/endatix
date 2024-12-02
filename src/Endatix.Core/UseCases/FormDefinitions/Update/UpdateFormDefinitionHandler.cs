@@ -15,7 +15,8 @@ public class UpdateFormDefinitionHandler(IRepository<FormDefinition> repository)
             return Result.NotFound("Form definition not found.");
         }
 
-        formDefinition.Update(request.JsonData, request.IsDraft, request.IsActive);
+        formDefinition.UpdateSchema(request.JsonData);
+        formDefinition.UpdateDraftStatus(request.IsDraft);
         await repository.UpdateAsync(formDefinition, cancellationToken);
         return Result.Success(formDefinition);
     }

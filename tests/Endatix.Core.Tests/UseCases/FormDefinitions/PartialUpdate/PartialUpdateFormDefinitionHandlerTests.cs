@@ -22,8 +22,10 @@ public class PartialUpdateFormDefinitionHandlerTests
         // Arrange
         FormDefinition? notFoundFormDefinition = null;
         var request = new PartialUpdateFormDefinitionCommand(1, 1, null, null, null);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns(notFoundFormDefinition);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(notFoundFormDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -40,7 +42,7 @@ public class PartialUpdateFormDefinitionHandlerTests
         // Arrange
         var nonExistingFormId = 2;
         var form = new Form(SampleData.FORM_NAME_1) { Id = 1 };
-        var formDefinition = new FormDefinition(form, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        var formDefinition = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         var request = new PartialUpdateFormDefinitionCommand(nonExistingFormId, 1, null, null, null);
         _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
                    .Returns(formDefinition);
@@ -59,10 +61,12 @@ public class PartialUpdateFormDefinitionHandlerTests
     {
         // Arrange
         var testForm = new Form("Test Form") { Id = 1 };
-        var formDefinition = new FormDefinition(testForm, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        var formDefinition = new FormDefinition(testForm, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         var request = new PartialUpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns(formDefinition);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(formDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -73,7 +77,6 @@ public class PartialUpdateFormDefinitionHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.IsDraft.Should().Be(request.IsDraft!.Value);
         result.Value.JsonData.Should().Be(request.JsonData);
-        result.Value.IsActive.Should().Be(request.IsActive!.Value);
         await _repository.Received(1).UpdateAsync(formDefinition, Arg.Any<CancellationToken>());
     }
 
@@ -84,11 +87,13 @@ public class PartialUpdateFormDefinitionHandlerTests
         var form = new Form("Test Form"){
             Id = 1
         };
-        var formDefinition = new FormDefinition(form, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        var formDefinition = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         var request = new PartialUpdateFormDefinitionCommand(1, 1, null, SampleData.FORM_DEFINITION_JSON_DATA_2, null);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns(formDefinition);
-
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(formDefinition);
+    
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
 
@@ -98,7 +103,6 @@ public class PartialUpdateFormDefinitionHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.IsDraft.Should().Be(formDefinition.IsDraft);
         result.Value.JsonData.Should().Be(request.JsonData);
-        result.Value.IsActive.Should().Be(formDefinition.IsActive);
         await _repository.Received(1).UpdateAsync(formDefinition, Arg.Any<CancellationToken>());
     }
 }

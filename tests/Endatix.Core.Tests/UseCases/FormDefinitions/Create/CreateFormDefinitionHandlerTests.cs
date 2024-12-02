@@ -2,8 +2,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormDefinitions.Create;
-using FluentAssertions;
-using NSubstitute;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.Create;
 
@@ -24,8 +22,12 @@ public class CreateFormDefinitionHandlerTests
     public async Task Handle_FormNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var request = new CreateFormDefinitionCommand(1, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
-        _formsRepository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>()).Returns((Form)null);
+        Form? notFoundForm = null;
+        var request = new CreateFormDefinitionCommand(1, true, SampleData.FORM_DEFINITION_JSON_DATA_1);
+        _formsRepository.GetByIdAsync(
+            request.FormId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(notFoundForm);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -40,11 +42,15 @@ public class CreateFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_CreatesNewFormDefinition()
     {
         // Arrange
-        var request = new CreateFormDefinitionCommand(1, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
-        var form = new Form(SampleData.FORM_NAME_1){
+        var request = new CreateFormDefinitionCommand(1, true, SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var form = new Form(SampleData.FORM_NAME_1)
+        {
             Id = request.FormId
         };
-        _formsRepository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>()).Returns(form);
+        _formsRepository.GetByIdAsync(
+            request.FormId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(form);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -56,7 +62,6 @@ public class CreateFormDefinitionHandlerTests
         result.Value.FormId.Should().Be(request.FormId);
         result.Value.IsDraft.Should().Be(request.IsDraft);
         result.Value.JsonData.Should().Be(request.JsonData);
-        result.Value.IsActive.Should().Be(request.IsActive);
         await _definitionsRepository.Received(1).AddAsync(Arg.Any<FormDefinition>(), Arg.Any<CancellationToken>());
     }
 }

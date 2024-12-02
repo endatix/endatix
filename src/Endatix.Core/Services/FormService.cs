@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
@@ -8,11 +9,11 @@ namespace Endatix.Core.Services;
 
 public class FormService : IFormService
 {
-    private readonly IRepository<Form> _formRepository;
+    private readonly IFormsRepository _formRepository;
     private readonly IRepository<FormDefinition> _formDefinitionRepository;
     private readonly IRepository<Submission> _submissionRepository;
 
-    public FormService(IRepository<Form> formRepository, IRepository<FormDefinition> formDefinitionRepository, IRepository<Submission> submissionRepository)
+    public FormService(IFormsRepository formRepository, IRepository<FormDefinition> formDefinitionRepository, IRepository<Submission> submissionRepository)
     {
         _formRepository = formRepository;
         _formDefinitionRepository = formDefinitionRepository;
@@ -36,29 +37,30 @@ public class FormService : IFormService
 
     public async Task<List<Submission>> GetSubmissionsAsync(long formId)
     {
-        throw new System.NotImplementedException();
+        throw new NotImplementedException();
     }
 
     public Task UpdateSubmissionAsync(long formId, Submission submission)
     {
-        throw new System.NotImplementedException();
+        throw new NotImplementedException();
     }
 
     public Task UpdateSubmissionAsync(Form form, Submission submission)
     {
-        throw new System.NotImplementedException();
+        throw new NotImplementedException();
     }
 
     public Task SetActiveFormDefinitionAsync(Form form, FormDefinition formDefinition)
     {
-        throw new System.NotImplementedException(); // TBD and implemented when versioning is fully supported, old implementation is in Git
+        throw new NotImplementedException(); // TBD and implemented when versioning is fully supported, old implementation is in Git
     }
 
     public async Task<FormDefinition> GetActiveFormDefinitionAsync(long formId)
     {
         var spec = new ActiveFormDefinitionByFormIdSpec(formId);
-        var formDefinition = await _formDefinitionRepository.SingleOrDefaultAsync(spec);
-        return formDefinition;
+        var formWithActiveDefinition = await _formRepository.SingleOrDefaultAsync(spec);
+        var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
+        return activeDefinition;
     }
 
     public async Task UpdateFormDefinitionAsync(long formDefinitionId, string jsonData)
@@ -69,20 +71,21 @@ public class FormService : IFormService
             throw new NotFoundException(formDefinitionId);
         }
 
-        formDefinition.Update(jsonData, null, null);
+        formDefinition.UpdateSchema(jsonData);
         await _formDefinitionRepository.UpdateAsync(formDefinition);
     }
 
     public async Task UpdateActiveFormDefinitionAsync(long formId, string jsonData)
     {
         var spec = new ActiveFormDefinitionByFormIdSpec(formId);
-        var formDefinition = await _formDefinitionRepository.SingleOrDefaultAsync(spec);
-        if (formDefinition == null)
+        var formWithActiveDefinition = await _formRepository.SingleOrDefaultAsync(spec);
+        var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
+        if (formWithActiveDefinition == null || activeDefinition == null)
         {
             throw new NotFoundException($"Definition for form with ID {formId} was not found.");
         }
 
-        formDefinition.Update(jsonData, null, null);
-        await _formDefinitionRepository.UpdateAsync(formDefinition);
+        activeDefinition.UpdateSchema(jsonData);
+        await _formRepository.UpdateAsync(formWithActiveDefinition);
     }
 }

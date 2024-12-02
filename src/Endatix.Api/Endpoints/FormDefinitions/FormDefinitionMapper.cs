@@ -19,7 +19,6 @@ public class FormDefinitionMapper
         IsDraft = formDefinition.IsDraft,
         JsonData = formDefinition.JsonData,
         FormId = formDefinition.FormId.ToString(),
-        IsActive = formDefinition.IsActive,
         CreatedAt = formDefinition.CreatedAt,
         ModifiedAt = formDefinition.ModifiedAt
     };
