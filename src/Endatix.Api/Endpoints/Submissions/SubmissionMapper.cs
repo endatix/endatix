@@ -12,6 +12,7 @@ public class SubmissionMapper
         FormDefinitionId = submission.FormDefinitionId.ToString(),
         CurrentPage = submission.CurrentPage,
         Metadata = submission.Metadata,
+        Token = submission.Token?.Value,
         CompletedAt = submission.CompletedAt,
         CreatedAt = submission.CreatedAt,
         ModifiedAt = submission.ModifiedAt

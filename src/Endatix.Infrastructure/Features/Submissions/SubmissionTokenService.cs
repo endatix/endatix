@@ -23,11 +23,11 @@ public class SubmissionTokenService : ISubmissionTokenService
         _options = options.Value;
     }
 
-    public async Task<Result<string>> ObtainTokenAsync(long submissionId)
+    public async Task<Result<string>> ObtainTokenAsync(long submissionId, CancellationToken cancellationToken)
     {
         Guard.Against.NegativeOrZero(submissionId);
 
-        var submission = await _repository.GetByIdAsync(submissionId);
+        var submission = await _repository.GetByIdAsync(submissionId, cancellationToken);
         if (submission == null)
         {
             return Result.NotFound("Submission not found");
@@ -42,18 +42,23 @@ public class SubmissionTokenService : ISubmissionTokenService
             submission.Token.Extend(_options.TokenExpiryInHours);
         }
 
-        await _repository.SaveChangesAsync();
+        await _repository.SaveChangesAsync(cancellationToken);
         return Result<string>.Success(submission.Token.Value);
     }
 
-    public async Task<Result<long>> ResolveTokenAsync(string token)
+    public async Task<Result<long>> ResolveTokenAsync(string token, CancellationToken cancellationToken)
     {
         Guard.Against.NullOrEmpty(token);
 
-        var submission = await _repository.FirstOrDefaultAsync(new SubmissionByTokenSpec(token));
+        var submission = await _repository.FirstOrDefaultAsync(new SubmissionByTokenSpec(token), cancellationToken);
         if (submission == null || submission.Token!.IsExpired)
         {
             return Result.NotFound("Invalid or expired token");
+        }
+
+        if (submission.IsComplete)
+        {
+            return Result.NotFound("Submission completed");
         }
 
         return Result<long>.Success(submission.Id);
