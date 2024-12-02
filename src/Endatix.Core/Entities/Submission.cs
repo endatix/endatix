@@ -24,9 +24,8 @@ public partial class Submission : BaseEntity, IAggregateRoot
 
     public bool IsComplete { get; private set; }
     public string JsonData { get; private set; }
-    public Form Form { get; private set; }
-    public long FormId { get; private set; }
     public FormDefinition FormDefinition { get; private set; }
+    public long FormId { get; init; }
     public long FormDefinitionId { get; private set; }
     public int? CurrentPage { get; private set; }
     public string? Metadata { get; private set; }

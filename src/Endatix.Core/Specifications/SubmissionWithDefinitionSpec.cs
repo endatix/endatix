@@ -11,8 +11,8 @@ public class SubmissionWithDefinitionSpec : SingleResultSpecification<Submission
     public SubmissionWithDefinitionSpec(long formId, long submissionId)
     {
         Query
-            .Where(s => s.Id == submissionId && s.FormId == formId)
-            .Include(s => s.FormDefinition)
+            .Include(s => s.FormDefinition) 
+            .Where(s => s.Id == submissionId && s.FormDefinition.FormId == formId)
             .AsNoTracking();
     }
 }

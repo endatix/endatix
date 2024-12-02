@@ -17,10 +17,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     IsDraft = table.Column<bool>(type: "bit", nullable: false),
-                    Version = table.Column<int>(type: "int", nullable: false),
                     JsonData = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     FormId = table.Column<long>(type: "bigint", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
@@ -48,8 +46,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         name: "FK_Forms_FormDefinitions_ActiveDefinitionId",
                         column: x => x.ActiveDefinitionId,
                         principalTable: "FormDefinitions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -75,12 +72,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         column: x => x.FormDefinitionId,
                         principalTable: "FormDefinitions",
                         principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_Submissions_Forms_FormId",
-                        column: x => x.FormId,
-                        principalTable: "Forms",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
@@ -110,8 +101,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 table: "FormDefinitions",
                 column: "FormId",
                 principalTable: "Forms",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                principalColumn: "Id");
         }
 
         /// <inheritdoc />

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241129121301_InitialEntities")]
+    [Migration("20241202112105_InitialEntities")]
     partial class InitialEntities
     {
         /// <inheritdoc />
@@ -70,9 +70,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsDraft")
                         .HasColumnType("bit");
 
@@ -82,9 +79,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -140,7 +134,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasOne("Endatix.Core.Entities.FormDefinition", "ActiveDefinition")
                         .WithOne()
                         .HasForeignKey("Endatix.Core.Entities.Form", "ActiveDefinitionId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("ActiveDefinition");
                 });
@@ -150,7 +144,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasOne("Endatix.Core.Entities.Form", "Form")
                         .WithMany("FormDefinitions")
                         .HasForeignKey("FormId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.Navigation("Form");
                 });
@@ -162,14 +157,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasForeignKey("FormDefinitionId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
-
-                    b.HasOne("Endatix.Core.Entities.Form", "Form")
-                        .WithMany()
-                        .HasForeignKey("FormId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Form");
 
                     b.Navigation("FormDefinition");
                 });

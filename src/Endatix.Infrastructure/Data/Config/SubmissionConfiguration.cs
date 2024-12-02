@@ -4,7 +4,7 @@ using Endatix.Core.Entities;
 
 namespace Endatix.ApplicationCore.Infrastructure.Data.Config
 {
-    public class SubmissionConfiguration : IEntityTypeConfiguration<Submission> 
+    public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
     {
         public void Configure(EntityTypeBuilder<Submission> builder)
         {
@@ -14,26 +14,20 @@ namespace Endatix.ApplicationCore.Infrastructure.Data.Config
                 .IsRequired();
 
             builder.Property(s => s.FormId)
+               .IsRequired();
+
+            builder.Property(s => s.JsonData)
                 .IsRequired();
 
-            builder.Property(s => s.FormDefinitionId)
-                .IsRequired();
+            builder.HasOne(s => s.FormDefinition)
+                .WithMany(fd => fd.Submissions)
+                .HasForeignKey(s => s.FormDefinitionId)
+                .OnDelete(DeleteBehavior.NoAction)
+               .IsRequired();
 
-            // Create indexes for foreign key lookups
+            // Index for lookups
             builder.HasIndex(s => s.FormId);
             builder.HasIndex(s => s.FormDefinitionId);
-            builder.HasIndex(s => new { s.FormId, s.FormDefinitionId });
-
-            // Configure foreign key constraints without navigation properties
-            builder.HasOne<Form>()
-                .WithMany()
-                .HasForeignKey(s => s.FormId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne<FormDefinition>()
-                .WithMany()
-                .HasForeignKey(s => s.FormDefinitionId)
-                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

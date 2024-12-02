@@ -17,11 +17,6 @@ namespace Endatix.Infrastructure.Data.Config
                 .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
                 .IsRequired();
 
-            builder.HasMany(f => f.FormDefinitions)
-                .WithOne()
-                .HasForeignKey(fd => fd.FormId)
-                .OnDelete(DeleteBehavior.NoAction);
-
             builder.HasOne(f => f.ActiveDefinition)
                 .WithOne()
                 .HasForeignKey<Form>(f => f.ActiveDefinitionId)

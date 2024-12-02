@@ -7,9 +7,8 @@ namespace Endatix.Core.Entities;
 public partial class FormDefinition : BaseEntity, IAggregateRoot
 {
     private readonly List<Submission> _submissions = [];
-
     private FormDefinition() { }
-    
+
     public FormDefinition(Form form, bool isDraft = false, string? jsonData = null)
     {
         Guard.Against.Null(form, nameof(form));
@@ -21,11 +20,11 @@ public partial class FormDefinition : BaseEntity, IAggregateRoot
         JsonData = jsonData;
     }
 
+    public IReadOnlyList<Submission> Submissions => _submissions.AsReadOnly();
     public bool IsDraft { get; private set; }
     public string JsonData { get; private set; }
     public long FormId { get; private set; }
     public Form Form { get; private set; }
-    public IReadOnlyCollection<Submission> Submissions => _submissions.AsReadOnly();
 
     /// <summary>
     /// Updates the form definition's JSON data with the provided value, or keeps the current data if null is provided.
