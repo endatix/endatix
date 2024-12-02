@@ -16,13 +16,10 @@ namespace Endatix.Infrastructure.Data.Config
             builder.Property(fd => fd.JsonData)
                 .IsRequired();
 
-            builder.HasOne(fd => fd.Form)
+            builder.HasOne<Form>()
                 .WithMany(f => f.FormDefinitions)
-                .HasForeignKey(fd => fd.FormId)
-                .OnDelete(DeleteBehavior.NoAction)
-                .IsRequired();
-                
-            builder.HasIndex(fd => fd.FormId);
+                .IsRequired(false)
+                .HasForeignKey(fd => fd.FormId);
         }
     }
 }

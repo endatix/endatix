@@ -2,7 +2,6 @@ using System.Reflection;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Configuration;
-using Endatix.Core.Entities;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
@@ -32,27 +31,18 @@ public static class EndatixAppExtensions
         var connectionString = EndatixConfig.Configuration.ConnectionString;
         var migrationsAssembly = EndatixConfig.Configuration.MigrationsAssembly ?? Assembly.GetExecutingAssembly().GetName().Name;
 
-        endatixApp.Services.AddDbContext<AppDbContext>(options =>
+        endatixApp.Services.AddSingleton<DataSeeder>();
+        endatixApp.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
         {
-            options.EnableSensitiveDataLogging();
             options.UseSqlServer(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
-            options.UseSeeding((context, _) =>
+            options.UseAsyncSeeding(async (context, _, cancellationToken) =>
             {
-                var form = new Form("Product Feedback Survey");
-                context.Set<Form>().Add(form);
-                context.SaveChanges();
-
-                var formDefinition = new FormDefinition(form, jsonData: PRODUCT_FEEDBACK_SURVEY_JSON);
-                form.AddFormDefinition(formDefinition);
-                context.Set<FormDefinition>().Add(formDefinition);
-                context.SaveChanges();
+                if (EndatixConfig.Configuration.SeedSampleData)
+                {
+                    var dataSeeder = serviceProvider.GetRequiredService<DataSeeder>();
+                    await dataSeeder.PopulateSampleData(context, cancellationToken);
+                }
             });
-            // options.UseAsyncSeeding(async (context, _, cancellationToken) =>
-            // {
-            //     // Form sampleForm = new("Product Feedback Survey", formDefinitionJson: PRODUCT_FEEDBACK_SURVEY_JSON);
-            //     // await context.Set<Form>().AddAsync(sampleForm);
-            //     // await context.SaveChangesAsync();
-            // });
         });
 
         endatixApp.Services.AddDbContext<AppIdentityDbContext>(options =>

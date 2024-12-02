@@ -17,13 +17,17 @@ namespace Endatix.Infrastructure.Data.Config
                 .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
                 .IsRequired();
 
+            builder.HasMany(f => f.FormDefinitions)
+                .WithOne()
+                .HasForeignKey(fd => fd.FormId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.HasOne(f => f.ActiveDefinition)
                 .WithOne()
                 .HasForeignKey<Form>(f => f.ActiveDefinitionId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            builder.HasIndex(f => f.ActiveDefinitionId)
-                .IsUnique();
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

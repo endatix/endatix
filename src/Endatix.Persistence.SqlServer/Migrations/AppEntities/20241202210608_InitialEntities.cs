@@ -46,7 +46,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         name: "FK_Forms_FormDefinitions_ActiveDefinitionId",
                         column: x => x.ActiveDefinitionId,
                         principalTable: "FormDefinitions",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -101,7 +102,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 table: "FormDefinitions",
                 column: "FormId",
                 principalTable: "Forms",
-                principalColumn: "Id");
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
         }
 
         /// <inheritdoc />

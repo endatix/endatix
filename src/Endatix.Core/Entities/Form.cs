@@ -5,7 +5,6 @@ namespace Endatix.Core.Entities;
 
 public partial class Form : BaseEntity, IAggregateRoot
 {
-    private readonly List<Submission> _submissions = [];
     private readonly List<FormDefinition> _formDefinitions = [];
 
     private Form() { } // For EF Core
@@ -21,30 +20,12 @@ public partial class Form : BaseEntity, IAggregateRoot
     public string Name { get; set; }
     public string? Description { get; set; }
     public bool IsEnabled { get; set; }
+
     public long? ActiveDefinitionId { get; private set; }
 
     public FormDefinition? ActiveDefinition { get; private set; }
-    public IReadOnlyCollection<FormDefinition> FormDefinitions => _formDefinitions.AsReadOnly();
 
-    public void AddSubmission(string jsonData, long formDefinitionId, bool isComplete = true, int currentPage = 1, string metadata = null)
-    {
-        Guard.Against.NegativeOrZero(currentPage, nameof(currentPage));
-        Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
-
-        _submissions.Add(new Submission(jsonData, Id, formDefinitionId, isComplete, currentPage, metadata));
-    }
-
-    public void UpdateSubmission(long submissionId, long formDefintionId, string jsonData, bool isComplete = true, int currentPage = 1)
-    {
-        Guard.Against.NegativeOrZero(currentPage, nameof(currentPage));
-        Guard.Against.Null(submissionId, nameof(submissionId));
-
-        var submission = _submissions.FirstOrDefault(r => r.Id.Equals(submissionId));
-
-        Guard.Against.Null(submission, nameof(submission));
-
-        submission.Update(jsonData, formDefintionId, isComplete, currentPage);
-    }
+    public IReadOnlyCollection<FormDefinition>? FormDefinitions => _formDefinitions.AsReadOnly();
 
     public void SetActiveFormDefinition(FormDefinition formDefinition)
     {
@@ -58,11 +39,11 @@ public partial class Form : BaseEntity, IAggregateRoot
         ActiveDefinition = formDefinition;
     }
 
-    public void AddFormDefinition(FormDefinition formDefinition)
+    public void AddFormDefinition(FormDefinition formDefinition, bool isActive = true)
     {
         _formDefinitions.Add(formDefinition);
 
-        if (_formDefinitions.Count == 1)
+        if (isActive && _formDefinitions.Count == 1)
         {
             SetActiveFormDefinition(formDefinition);
         }

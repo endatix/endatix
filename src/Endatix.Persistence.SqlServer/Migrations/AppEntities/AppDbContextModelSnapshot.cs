@@ -131,20 +131,17 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasOne("Endatix.Core.Entities.FormDefinition", "ActiveDefinition")
                         .WithOne()
                         .HasForeignKey("Endatix.Core.Entities.Form", "ActiveDefinitionId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ActiveDefinition");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormDefinition", b =>
                 {
-                    b.HasOne("Endatix.Core.Entities.Form", "Form")
+                    b.HasOne("Endatix.Core.Entities.Form", null)
                         .WithMany("FormDefinitions")
                         .HasForeignKey("FormId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Form");
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Submission", b =>

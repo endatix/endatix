@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
-using Endatix.Core.Configuration;
-using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
 using Endatix.Framework;
 
@@ -12,20 +10,10 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public class AppDbContext : DbContext
 {
-    private readonly ILogger _logger;
     private readonly IIdGenerator<long> _idGenerator;
-    public AppDbContext(DbContextOptions<AppDbContext> options, ILogger<AppDbContext> logger, IIdGenerator<long> idGenerator) : base(options)
+    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator) : base(options)
     {
-        _logger = logger;
         _idGenerator = idGenerator;
-        // TODO: Make optional
-        var isDatabaseNew = this.Database.EnsureCreated();
-
-        if (isDatabaseNew && EndatixConfig.Configuration.SeedSampleData)
-        {
-            var dataSeeder = new DataSeeder(_logger, _idGenerator, this);
-            dataSeeder.PopulateTestData();
-        }
     }
 
     public DbSet<Form> Forms { get; set; }
@@ -33,16 +21,6 @@ public class AppDbContext : DbContext
     public DbSet<Submission> Submissions { get; set; }
 
     public DbSet<FormDefinition> FormDefinitions { get; set; }
-
-    public override void AddRange(IEnumerable<object> entities)
-    {
-        base.AddRange(entities);
-    }
-
-    public override void AddRange(params object[] entities)
-    {
-        base.AddRange(entities);
-    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
