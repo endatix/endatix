@@ -12,13 +12,13 @@ namespace Endatix.Core.Tests.UseCases.Identity.RefreshToken;
 public class RefreshTokenHandlerTests
 {
     private readonly IAuthService _authService;
-    private readonly ITokenService _tokenService;
+    private readonly IUserTokenService _tokenService;
     private readonly RefreshTokenHandler _handler;
 
     public RefreshTokenHandlerTests()
     {
         _authService = Substitute.For<IAuthService>();
-        _tokenService = Substitute.For<ITokenService>();
+        _tokenService = Substitute.For<IUserTokenService>();
         _handler = new RefreshTokenHandler(_authService, _tokenService);
     }
 

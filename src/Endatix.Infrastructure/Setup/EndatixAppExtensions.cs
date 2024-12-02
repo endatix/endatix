@@ -6,6 +6,7 @@ using Endatix.Core.Services;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Email;
+using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Setup;
 using MediatR;
@@ -59,6 +60,10 @@ public static class EndatixAppExtensions
         services.AddWebHookProcessing();
 
         endatixApp.AddDataOptions();
+
+        endatixApp.AddSubmissionOptions();
+        services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
+
         endatixApp.SetupIdentity(setupSettings);
 
         return endatixApp;
@@ -117,6 +122,21 @@ public static class EndatixAppExtensions
     {
         endatixApp.Services.AddOptions<DataOptions>()
             .BindConfiguration(DataOptions.SECTION_NAME)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        return endatixApp;
+    }
+
+    /// <summary>
+    /// Adds submission options to the specified <see cref="IEndatixApp"/> instance, based on the configuration options.
+    /// </summary>
+    /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
+    /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
+    private static IEndatixApp AddSubmissionOptions(this IEndatixApp endatixApp)
+    {
+        endatixApp.Services.AddOptions<SubmissionOptions>()
+            .BindConfiguration(SubmissionOptions.SECTION_NAME)
             .ValidateDataAnnotations()
             .ValidateOnStart();
 

@@ -1,9 +1,8 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using Endatix.Core.Entities;
+﻿using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.Submissions;
 
@@ -18,8 +17,9 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository) : IComm
     
     public async Task<Result<Submission>> Handle(UpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var submission = await repository.GetByIdAsync(request.SubmissionId, cancellationToken);
-        if (submission == null || submission.FormDefinition?.FormId != request.FormId)
+        var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
+        var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
+        if (submission == null)
         {
             return Result.NotFound("Form submission not found.");
         }

@@ -11,7 +11,7 @@ namespace Endatix.Core.UseCases.Identity.Login;
 /// It revokes the tokens for the user and returns the result of the operation.
 /// </summary>
 public class LogoutHandler(
-    ITokenService tokenService,
+    IUserTokenService tokenService,
     IUserService userService,
     IMediator mediator
     ) : ICommandHandler<LogoutCommand, Result<string>>

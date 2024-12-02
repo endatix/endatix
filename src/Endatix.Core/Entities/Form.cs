@@ -5,8 +5,8 @@ using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-  public partial class Form : BaseEntity, IAggregateRoot
-  {
+public partial class Form : BaseEntity, IAggregateRoot
+{
       public string Name { get; set; }
       public string? Description { get; set; }
       public bool IsEnabled { get; set; }

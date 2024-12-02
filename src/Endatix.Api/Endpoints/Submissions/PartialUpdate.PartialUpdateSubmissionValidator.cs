@@ -5,7 +5,7 @@ using Endatix.Infrastructure.Data.Config;
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
-/// Validation rules for the <c>UpdateSubmissionRequest</c> class.
+/// Validation rules for the <c>PartialUpdateSubmissionRequest</c> class.
 /// </summary>
 public class PartialUpdateSubmissionValidator : Validator<PartialUpdateSubmissionRequest>
 {
