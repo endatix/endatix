@@ -11,6 +11,8 @@ namespace Endatix.Infrastructure.Data;
 public class AppDbContext : DbContext
 {
     private readonly IIdGenerator<long> _idGenerator;
+
+    protected AppDbContext() { }
     public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator) : base(options)
     {
         _idGenerator = idGenerator;
