@@ -33,7 +33,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormDefin
     public override async Task<Results<Ok<PartialUpdateFormDefinitionResponse>, BadRequest, NotFound>> ExecuteAsync(PartialUpdateFormDefinitionRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
-            new PartialUpdateFormDefinitionCommand(request.FormId, request.DefinitionId, request.IsDraft, request.JsonData, request.IsActive),
+            new PartialUpdateFormDefinitionCommand(request.FormId, request.DefinitionId, request.IsDraft, request.JsonData),
             cancellationToken);
 
         return TypedResultsBuilder

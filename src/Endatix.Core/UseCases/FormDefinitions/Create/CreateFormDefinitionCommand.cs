@@ -13,7 +13,6 @@ public record CreateFormDefinitionCommand : ICommand<Result<FormDefinition>>
     public long FormId { get; init; }
     public bool IsDraft { get; init; }
     public string JsonData { get; init; }
-    public bool IsActive { get; init; }
 
     public CreateFormDefinitionCommand(long formId, bool isDraft, string jsonData)
     {

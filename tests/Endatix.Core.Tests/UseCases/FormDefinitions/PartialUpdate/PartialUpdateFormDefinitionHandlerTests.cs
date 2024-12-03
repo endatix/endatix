@@ -22,7 +22,7 @@ public class PartialUpdateFormDefinitionHandlerTests
     {
         // Arrange
         FormDefinition? notFoundFormDefinition = null;
-        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, null, null);
+        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, null);
         _repository.GetByIdAsync(
             request.DefinitionId,
             cancellationToken: Arg.Any<CancellationToken>()
@@ -45,7 +45,7 @@ public class PartialUpdateFormDefinitionHandlerTests
         var form = new Form(SampleData.FORM_NAME_1) { Id = 1 };
         var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
-        var request = new PartialUpdateFormDefinitionCommand(nonExistingFormId, 1, null, null, null);
+        var request = new PartialUpdateFormDefinitionCommand(nonExistingFormId, 1, null, null);
         _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
                    .Returns(formDefinition);
 
@@ -70,7 +70,7 @@ public class PartialUpdateFormDefinitionHandlerTests
         );
 
         testForm.AddFormDefinition(formDefinition);
-        var request = new PartialUpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
+        var request = new PartialUpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2);
         _repository.GetByIdAsync(
             request.DefinitionId,
             cancellationToken: Arg.Any<CancellationToken>()
@@ -104,7 +104,7 @@ public class PartialUpdateFormDefinitionHandlerTests
             formId: 1,
             formDefinitionId: 2
         );
-        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, SampleData.FORM_DEFINITION_JSON_DATA_2, null);
+        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, SampleData.FORM_DEFINITION_JSON_DATA_2);
         _repository.GetByIdAsync(
             request.DefinitionId,
             cancellationToken: Arg.Any<CancellationToken>()

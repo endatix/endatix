@@ -33,7 +33,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormDefinitionRequest, 
     public override async Task<Results<Ok<UpdateFormDefinitionResponse>, BadRequest, NotFound>> ExecuteAsync(UpdateFormDefinitionRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
-            new UpdateFormDefinitionCommand(request.FormId, request.DefinitionId, request.IsDraft!.Value, request.JsonData!, request.IsActive!.Value),
+            new UpdateFormDefinitionCommand(request.FormId, request.DefinitionId, request.IsDraft!.Value, request.JsonData!),
             cancellationToken);
 
         return TypedResultsBuilder

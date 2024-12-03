@@ -14,9 +14,8 @@ public record UpdateFormDefinitionCommand : ICommand<Result<FormDefinition>>
     public long DefinitionId { get; init; }
     public bool IsDraft { get; init; }
     public string JsonData { get; init; }
-    public bool IsActive { get; init; }
 
-    public UpdateFormDefinitionCommand(long formId, long definitionId, bool isDraft, string jsonData, bool isActive)
+    public UpdateFormDefinitionCommand(long formId, long definitionId, bool isDraft, string jsonData)
     {
         Guard.Against.NegativeOrZero(formId);
         Guard.Against.NegativeOrZero(definitionId);
@@ -26,6 +25,5 @@ public record UpdateFormDefinitionCommand : ICommand<Result<FormDefinition>>
         DefinitionId = definitionId;
         IsDraft = isDraft;
         JsonData = jsonData;
-        IsActive = isActive;
     }
 }

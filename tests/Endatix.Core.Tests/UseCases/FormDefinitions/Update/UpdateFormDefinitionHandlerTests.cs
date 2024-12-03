@@ -22,7 +22,7 @@ public class UpdateFormDefinitionHandlerTests
     {
         // Arrange
         FormDefinition? notFoundFormDefinition = null;
-        var request = new UpdateFormDefinitionCommand(1, 1, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        var request = new UpdateFormDefinitionCommand(1, 1, true, SampleData.FORM_DEFINITION_JSON_DATA_1);
         _repository.GetByIdAsync(
             request.DefinitionId,
             cancellationToken: Arg.Any<CancellationToken>()
@@ -43,7 +43,7 @@ public class UpdateFormDefinitionHandlerTests
         // Arrange
         var notFoundFormId = 2;
         var notFoundFormDefinitionId = 2;
-        var request = new UpdateFormDefinitionCommand(notFoundFormId, notFoundFormDefinitionId, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
+        var request = new UpdateFormDefinitionCommand(notFoundFormId, notFoundFormDefinitionId, true, SampleData.FORM_DEFINITION_JSON_DATA_1);
 
         var form = new Form(SampleData.FORM_NAME_1) { Id = 123 };
         var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
@@ -77,7 +77,7 @@ public class UpdateFormDefinitionHandlerTests
             formDefinitionId: 2
         );
         form.AddFormDefinition(formDefinition);
-        var request = new UpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
+        var request = new UpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2);
         _repository.GetByIdAsync(
             request.DefinitionId,
             cancellationToken: Arg.Any<CancellationToken>()

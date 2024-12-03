@@ -21,7 +21,7 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     public async Task Handle_FormDefinitionNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var request = new PartialUpdateActiveFormDefinitionCommand(1, null, null, null);
+        var request = new PartialUpdateActiveFormDefinitionCommand(1, null, null);
         _formRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             Arg.Any<CancellationToken>()
@@ -44,7 +44,7 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
         var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
 
-        var request = new PartialUpdateActiveFormDefinitionCommand(1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
+        var request = new PartialUpdateActiveFormDefinitionCommand(1, false, SampleData.FORM_DEFINITION_JSON_DATA_2);
         _formRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             Arg.Any<CancellationToken>()
@@ -70,7 +70,7 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
         var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
 
-        var request = new PartialUpdateActiveFormDefinitionCommand(1, null, SampleData.FORM_DEFINITION_JSON_DATA_2, null);
+        var request = new PartialUpdateActiveFormDefinitionCommand(1, null, SampleData.FORM_DEFINITION_JSON_DATA_2);
         _formRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             Arg.Any<CancellationToken>()
