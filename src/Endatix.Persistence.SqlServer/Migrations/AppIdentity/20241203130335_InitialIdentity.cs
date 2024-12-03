@@ -36,6 +36,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
+                    RefreshTokenHash = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RefreshTokenExpireAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),

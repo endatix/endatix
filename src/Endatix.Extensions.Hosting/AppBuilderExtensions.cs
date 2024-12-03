@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Configuration;
@@ -69,21 +70,27 @@ public static class AppBuilderExtensions
             using var scope = webApp.Services.CreateScope();
 
             using var appDbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-            if (appDbContext.Database.GetPendingMigrations().Any())
-            {
-                webApp.Logger.LogInformation("💽 Applying database migrations... for {appDbContext}", nameof(AppDbContext));
-                await appDbContext.Database.MigrateAsync();
-                webApp.Logger.LogInformation("💽 Database migrations applied for {appDbContext}", nameof(AppDbContext));
-            }
+            await ApplyMigrationForContextAsync(appDbContext, webApp);
 
             using var identityDbContext = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-            if (identityDbContext.Database.GetPendingMigrations().Any())
-            {
-                webApp.Logger.LogInformation("💽 Applying database migrations... for {appIdentityDbContext}", nameof(AppIdentityDbContext));
-                await identityDbContext.Database.MigrateAsync();
-                webApp.Logger.LogInformation("💽 Database migrations applied for {appIdentityDbContext}", nameof(AppIdentityDbContext));
-            }
+            await ApplyMigrationForContextAsync(identityDbContext, webApp);
+        }
+    }
+
+    private static async Task ApplyMigrationForContextAsync<T>(T dbContext, WebApplication webApp) where T : DbContext
+    {
+        Guard.Against.Null(dbContext);
+        Guard.Against.Null(webApp);
+
+        if (dbContext.Database.GetPendingMigrations().Any())
+        {
+            var startTime = Stopwatch.GetTimestamp();
+            webApp.Logger.LogInformation("💽 Applying database migrations for {dbContextName}", typeof(T).Name);
+
+            await dbContext.Database.MigrateAsync();
+
+            var elapsedTime = Stopwatch.GetElapsedTime(startTime);
+            webApp.Logger.LogInformation("💽 Database migrations applied for {dbContextName}. Took: {elapsedTime} ms.", typeof(T).Name, elapsedTime.TotalMilliseconds);
         }
     }
 

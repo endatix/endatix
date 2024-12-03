@@ -62,6 +62,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     CurrentPage = table.Column<int>(type: "int", nullable: true),
                     Metadata = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Token_Value = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Token_ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
