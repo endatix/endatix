@@ -22,10 +22,14 @@ public class ListFormDefinitionsHandlerTests
     {
         // Arrange
         var form = new Form("Test Form") { Id = 1 };
+        var formDefinition1 = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var formDefinition2 =  new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_2);
+        form.AddFormDefinition(formDefinition1);
+        form.AddFormDefinition(formDefinition2);
         var formDefinitions = new List<FormDefinition>
         {
-            new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1),
-            new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_2)
+            formDefinition1,
+            formDefinition2
         };
         var request = new ListFormDefinitionsQuery(1, 1, 10);
         _repository.ListAsync(

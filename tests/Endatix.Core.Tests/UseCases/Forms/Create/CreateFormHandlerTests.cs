@@ -25,7 +25,7 @@ public class CreateFormHandlerTests
         {
             Id = 123
         };
-        var createdFormDefinition = new FormDefinition(createdForm){
+        var createdFormDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1){
             Id = 456
         };
         createdForm.AddFormDefinition(createdFormDefinition);

@@ -43,7 +43,7 @@ public class GetActiveFormDefinitionHandlerTests
         {
             Id = 1
         };
-        var activeDefinition = new FormDefinition(formWithActiveDefinition, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var activeDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
         var request = new GetActiveFormDefinitionQuery(1);

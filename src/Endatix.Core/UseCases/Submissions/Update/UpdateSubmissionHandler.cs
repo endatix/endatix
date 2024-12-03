@@ -1,6 +1,4 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using Endatix.Core.Entities;
+﻿using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -12,10 +10,10 @@ namespace Endatix.Core.UseCases.Submissions;
 /// </summary>
 public class UpdateSubmissionHandler(IRepository<Submission> repository) : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
 {
-    private const bool DEFAULT_IS_COMPLETE  = true;
+    private const bool DEFAULT_IS_COMPLETE = true;
     private const int DEFAULT_CURRENT_PAGE = 1;
     private const string DEFAULT_METADATA = null;
-    
+
     public async Task<Result<Submission>> Handle(UpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
         var submission = await repository.GetByIdAsync(request.SubmissionId, cancellationToken);

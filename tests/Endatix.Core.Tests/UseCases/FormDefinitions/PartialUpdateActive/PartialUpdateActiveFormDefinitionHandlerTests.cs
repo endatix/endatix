@@ -41,7 +41,7 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     {
         // Arrange
         var form = new Form("Test Form") { Id = 1 };
-        var formDefinition = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
 
         var request = new PartialUpdateActiveFormDefinitionCommand(1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
@@ -67,7 +67,7 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     {
         // Arrange
         var form = new Form("Test Form") { Id = 1 };
-        var formDefinition = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
 
         var request = new PartialUpdateActiveFormDefinitionCommand(1, null, SampleData.FORM_DEFINITION_JSON_DATA_2, null);

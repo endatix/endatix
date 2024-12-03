@@ -25,7 +25,7 @@ public partial class Form : BaseEntity, IAggregateRoot
 
     public FormDefinition? ActiveDefinition { get; private set; }
 
-    public IReadOnlyCollection<FormDefinition>? FormDefinitions => _formDefinitions.AsReadOnly();
+    public IReadOnlyCollection<FormDefinition> FormDefinitions => _formDefinitions.AsReadOnly();
 
     public void SetActiveFormDefinition(FormDefinition formDefinition)
     {

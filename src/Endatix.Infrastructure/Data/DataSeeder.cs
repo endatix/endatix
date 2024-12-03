@@ -16,7 +16,7 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
     /// </summary>
     /// <param name="dbContext">The DbContext instance to use for database operations.</param>
     /// <param name="cancellationToken">A CancellationToken to observe while executing the operation.</param>
-    public async Task PopulateSampleData(DbContext dbContext, CancellationToken cancellationToken)
+    public async Task SeedSampleDataAsync(DbContext dbContext, CancellationToken cancellationToken)
     {
         try
         {

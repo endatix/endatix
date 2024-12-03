@@ -9,7 +9,7 @@ public class FormTests
     {
         // Arrange & Act
         var form = new Form(SampleData.FORM_NAME_1);
-        var formDefinition = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
 
         // Assert
@@ -23,8 +23,8 @@ public class FormTests
     {
         // Arrange
         var form = new Form(SampleData.FORM_NAME_1);
-        var formDefinition1 = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);    
-        var formDefinition2 = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_2);
+        var formDefinition1 = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var formDefinition2 = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_2);
         form.AddFormDefinition(formDefinition1);
         form.AddFormDefinition(formDefinition2);
 
@@ -41,7 +41,8 @@ public class FormTests
         // Arrange
         var form = new Form(SampleData.FORM_NAME_1);
         var externalForm = new Form(SampleData.FORM_NAME_2);
-        var externalDefinition = new FormDefinition(externalForm, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var externalDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        externalForm.AddFormDefinition(externalDefinition);
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(

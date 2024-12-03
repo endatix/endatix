@@ -64,7 +64,7 @@ public class SubmissionConstructorTests
             Id = 123
         };
         var jsonData = SampleData.SUBMISSION_JSON_DATA_1;
-        var formDefinition = new FormDefinition(form)
+        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 123
         };
@@ -89,7 +89,7 @@ public class SubmissionConstructorTests
         var form = new Form(SampleData.FORM_NAME_1){
             Id = 123    
         };
-        var formDefinition = new FormDefinition(form){
+        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1){
             Id = 456
         };
         form.AddFormDefinition(formDefinition);

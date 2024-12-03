@@ -1,17 +1,20 @@
 using Endatix.Setup;
 
-WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHealthChecks();
 
-var endatixBuilder = builder.CreateEndatix()
-                            .AddDefaultSetup()
-                            .AddApiEndpoints();
+builder.CreateEndatix()
+    .AddDefaultSetup()
+    .AddApiEndpoints();
 
 var app = builder.Build();
 
 app.UseEndatixMiddleware()
     .UseEndatixApi();
+
+await app.ApplyDbMigrationsAsync();
+await app.SeedInitialUserAsync();
 
 app.MapHealthChecks("/healthz");
 

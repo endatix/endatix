@@ -1,5 +1,16 @@
+using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Configuration;
 using Endatix.Framework.Hosting;
+using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Seed;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Events;
 
@@ -35,11 +46,66 @@ public static class AppBuilderExtensions
             };
         });
 
-        app.ApplyDbMigrations();
-        app.SeedInitialUser();
-
         var middleware = new EndatixMiddleware(app);
 
         return middleware;
+    }
+
+    /// <summary>
+    /// Applies database migrations for the AppIdentityDbContext if configured to do so.
+    /// </summary>
+    /// <param name="app">The IApplicationBuilder instance.</param>
+    public static async Task ApplyDbMigrationsAsync(this IApplicationBuilder app)
+    {
+        var webApp = app as WebApplication;
+        Guard.Against.Null(webApp, "The provided IApplicationBuilder is not a WebApplication");
+
+        var dataOptions = webApp.Services
+            .GetRequiredService<IOptions<DataOptions>>()
+            .Value;
+
+        if (dataOptions.ApplyMigrations)
+        {
+            using var scope = webApp.Services.CreateScope();
+
+            using var appDbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            if (appDbContext.Database.GetPendingMigrations().Any())
+            {
+                webApp.Logger.LogInformation("💽 Applying database migrations... for {appDbContext}", nameof(AppDbContext));
+                await appDbContext.Database.MigrateAsync();
+                webApp.Logger.LogInformation("💽 Database migrations applied for {appDbContext}", nameof(AppDbContext));
+            }
+
+            using var identityDbContext = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+            if (identityDbContext.Database.GetPendingMigrations().Any())
+            {
+                webApp.Logger.LogInformation("💽 Applying database migrations... for {appIdentityDbContext}", nameof(AppIdentityDbContext));
+                await identityDbContext.Database.MigrateAsync();
+                webApp.Logger.LogInformation("💽 Database migrations applied for {appIdentityDbContext}", nameof(AppIdentityDbContext));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Seeds an initial admin user account if no users exist in the system. Uses custom credentials from DataOptions if configured,
+    /// otherwise falls back to default values.
+    /// </summary>
+    /// <param name="app">The IApplicationBuilder instance.</param>
+    /// <exception cref="ArgumentNullException">Thrown if the <paramref name="app"/> is null.</exception>
+    public static async Task SeedInitialUserAsync(this IApplicationBuilder app)
+    {
+        var webApp = app as WebApplication;
+        Guard.Against.Null(webApp, "The provided IApplicationBuilder is not a WebApplication");
+
+        if (EndatixConfig.Configuration.SeedSampleData)
+        {
+            await using var scope = webApp.Services.CreateAsyncScope();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            var userRegistrationService = scope.ServiceProvider.GetRequiredService<IUserRegistrationService>();
+            var dataOptions = scope.ServiceProvider.GetRequiredService<IOptions<DataOptions>>().Value;
+
+            await IdentitySeed.SeedInitialUser(userManager, userRegistrationService, dataOptions, webApp.Logger);
+        }
     }
 }

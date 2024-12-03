@@ -1,6 +1,7 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Tests.TestUtils;
 using Endatix.Core.UseCases.FormDefinitions.Update;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.Update;
@@ -44,11 +45,12 @@ public class UpdateFormDefinitionHandlerTests
         var notFoundFormDefinitionId = 2;
         var request = new UpdateFormDefinitionCommand(notFoundFormId, notFoundFormDefinitionId, true, SampleData.FORM_DEFINITION_JSON_DATA_1, true);
 
-        var testForm = new Form(SampleData.FORM_NAME_1) { Id = 123 };
-        var formDefinition = new FormDefinition(testForm, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
+        var form = new Form(SampleData.FORM_NAME_1) { Id = 123 };
+        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 456
         };
+        form.AddFormDefinition(formDefinition);
 
         _repository.GetByIdAsync(
             request.DefinitionId,
@@ -69,7 +71,12 @@ public class UpdateFormDefinitionHandlerTests
     {
         // Arrange
         var form = new Form(SampleData.FORM_NAME_1) { Id = 1 };
-        var formDefinition = new FormDefinition(form, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var formDefinition = FormDefinitionFactory.CreateForTesting(
+            jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
+            formId: 1,
+            formDefinitionId: 2
+        );
+        form.AddFormDefinition(formDefinition);
         var request = new UpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
         _repository.GetByIdAsync(
             request.DefinitionId,

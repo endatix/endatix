@@ -1,18 +1,19 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Tests.TestUtils;
 using Endatix.Core.UseCases.FormDefinitions.GetById;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.GetById;
 
 public class GetFormDefinitionByIdHandlerTests
 {
-    private readonly IRepository<FormDefinition> _repository;
+    private readonly IFormsRepository _repository;
     private readonly GetFormDefinitionByIdHandler _handler;
 
     public GetFormDefinitionByIdHandlerTests()
     {
-        _repository = Substitute.For<IRepository<FormDefinition>>();
+        _repository = Substitute.For<IFormsRepository>();
         _handler = new GetFormDefinitionByIdHandler(_repository);
     }
 
@@ -22,8 +23,8 @@ public class GetFormDefinitionByIdHandlerTests
         // Arrange
         FormDefinition? notFoundFormDefinition = null;
         var request = new GetFormDefinitionByIdQuery(1, 1);
-        _repository.GetByIdAsync(
-            request.DefinitionId,
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<DefinitionByFormAndDefinitionIdSpec>(),
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(notFoundFormDefinition);
 
@@ -41,14 +42,18 @@ public class GetFormDefinitionByIdHandlerTests
     {
         // Arrange
         var formDefinitionIdToReturn = 123;
-        var testForm = new Form(SampleData.FORM_NAME_1) { Id = 1 };
-        var formDefinition = new FormDefinition(testForm, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
-        {
-            Id = formDefinitionIdToReturn
-        };
+        var form = new Form(SampleData.FORM_NAME_1) { Id = 1 };
+        var formDefinition = FormDefinitionFactory.CreateForTesting(
+            isDraft: false,
+            jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
+            formId: 1,
+            formDefinitionId: formDefinitionIdToReturn
+        );
+        form.AddFormDefinition(formDefinition);
+
         var request = new GetFormDefinitionByIdQuery(456, 457);
-        _repository.GetByIdAsync(
-            request.DefinitionId,
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<DefinitionByFormAndDefinitionIdSpec>(),
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(formDefinition);
 
@@ -65,11 +70,16 @@ public class GetFormDefinitionByIdHandlerTests
     public async Task Handle_ValidRequest_ReturnsFormDefinition()
     {
         // Arrange
-        var testForm = new Form("Test Form") { Id = 1 };
-        var formDefinition = new FormDefinition(testForm, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var form = new Form("Test Form") { Id = 1 };
+        var formDefinition = FormDefinitionFactory.CreateForTesting(
+            isDraft: false,
+            jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
+            formId: 1
+        );
+        form.AddFormDefinition(formDefinition);
         var request = new GetFormDefinitionByIdQuery(1, 1);
-        _repository.GetByIdAsync(
-            request.DefinitionId,
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<DefinitionByFormAndDefinitionIdSpec>(),
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(formDefinition);
 
@@ -78,8 +88,8 @@ public class GetFormDefinitionByIdHandlerTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
+        result.Value.FormId.Should().Be(formDefinition.FormId);
         result.Value.Should().Be(formDefinition);
     }
 }

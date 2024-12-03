@@ -17,7 +17,7 @@ public class CreateFormHandler : ICommandHandler<CreateFormCommand, Result<Form>
     public async Task<Result<Form>> Handle(CreateFormCommand request, CancellationToken cancellationToken)
     {
         var newForm = new Form(request.Name, request.Description, request.IsEnabled);
-        var newFormDefinition = new FormDefinition(newForm, jsonData: request.FormDefinitionJsonData);
+        var newFormDefinition = new FormDefinition(jsonData: request.FormDefinitionJsonData);
 
         var form = await _formsRepository.CreateFormWithDefinitionAsync(newForm, newFormDefinition, cancellationToken);
 

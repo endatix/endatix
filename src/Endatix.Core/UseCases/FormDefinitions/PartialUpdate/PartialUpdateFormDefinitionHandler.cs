@@ -5,11 +5,11 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.FormDefinitions.PartialUpdate;
 
-public class PartialUpdateFormDefinitionHandler(IRepository<FormDefinition> _repository) : ICommandHandler<PartialUpdateFormDefinitionCommand, Result<FormDefinition>>
+public class PartialUpdateFormDefinitionHandler(IRepository<FormDefinition> repository) : ICommandHandler<PartialUpdateFormDefinitionCommand, Result<FormDefinition>>
 {
     public async Task<Result<FormDefinition>> Handle(PartialUpdateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
-        var formDefinition = await _repository.GetByIdAsync(request.DefinitionId, cancellationToken);
+        var formDefinition = await repository.GetByIdAsync(request.DefinitionId, cancellationToken);
         if (formDefinition == null || formDefinition.FormId != request.FormId)
         {
             return Result.NotFound("Form definition not found.");
@@ -18,7 +18,7 @@ public class PartialUpdateFormDefinitionHandler(IRepository<FormDefinition> _rep
         formDefinition.UpdateSchema(request.JsonData);
         formDefinition.UpdateDraftStatus(request.IsDraft);
 
-        await _repository.UpdateAsync(formDefinition, cancellationToken);
+        await repository.UpdateAsync(formDefinition, cancellationToken);
         return Result.Success(formDefinition);
     }
 }
