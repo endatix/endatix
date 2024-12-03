@@ -29,7 +29,7 @@ public class SubmissionTokenServiceObtainTokenTests
     public async Task ObtainToken_InvalidSubmissionId_ThrowsArgumentException(long submissionId)
     {
         // Act
-        var act = () => _sut.ObtainTokenAsync(submissionId);
+        var act = () => _sut.ObtainTokenAsync(submissionId, CancellationToken.None);
 
         // Assert
         await act.Should().ThrowAsync<ArgumentException>()
@@ -44,12 +44,11 @@ public class SubmissionTokenServiceObtainTokenTests
         _repository.GetByIdAsync(submissionId).Returns((Submission)null!);
 
         // Act
-        var result = await _sut.ObtainTokenAsync(submissionId);
+        var result = await _sut.ObtainTokenAsync(submissionId, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
-        // result.Error.Should().Be("Submission not found");
         result.Errors.Should().Contain("Submission not found");
     }
 
@@ -62,7 +61,7 @@ public class SubmissionTokenServiceObtainTokenTests
         _repository.GetByIdAsync(submissionId).Returns(submission);
 
         // Act
-        var result = await _sut.ObtainTokenAsync(submissionId);
+        var result = await _sut.ObtainTokenAsync(submissionId, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();

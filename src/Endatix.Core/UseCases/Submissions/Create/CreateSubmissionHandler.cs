@@ -5,16 +5,18 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.Abstractions;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
 public class CreateSubmissionHandler(
     IRepository<Submission> submissionRepository,
     IRepository<FormDefinition> formDefinitionRepository,
+    ISubmissionTokenService tokenService,
     IMediator mediator
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
-    private const bool DEFAULT_IS_COMPLETE = true;
+    private const bool DEFAULT_IS_COMPLETE = false;
     private const int DEFAULT_CURRENT_PAGE = 1;
     private const string DEFAULT_METADATA = null;
 
@@ -39,6 +41,8 @@ public class CreateSubmissionHandler(
         );
 
         await submissionRepository.AddAsync(submission, cancellationToken);
+
+        await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
 
         await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
 
