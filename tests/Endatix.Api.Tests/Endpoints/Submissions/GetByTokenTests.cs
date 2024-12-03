@@ -3,8 +3,8 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
-using Endatix.Core.UseCases.Submissions;
 using Endatix.Api.Endpoints.Submissions;
+using Endatix.Core.UseCases.Submissions.GetByToken;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
@@ -82,5 +82,32 @@ public class GetByTokenTests
         okResult!.Value!.Id.Should().Be("1");
         okResult!.Value!.Token.Should().NotBeNull();
         okResult!.Value!.Token!.Should().Be(submission.Token.Value);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldMapRequestToQueryCorrectly()
+    {
+        // Arrange
+        var request = new GetByTokenRequest
+        {
+            FormId = 123,
+            SubmissionToken = "token-456"
+        };
+        var result = Result.Success(new Submission());
+        
+        _mediator.Send(Arg.Any<GetByTokenQuery>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<GetByTokenQuery>(query =>
+                query.Token == request.SubmissionToken &&
+                query.FormId == request.FormId
+            ),
+            Arg.Any<CancellationToken>()
+        );
     }
 }

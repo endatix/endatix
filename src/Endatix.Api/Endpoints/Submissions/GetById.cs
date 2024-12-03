@@ -2,8 +2,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Submissions;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.UseCases.Submissions.GetById;
 
 namespace Endatix.Api.Endpoints.Submissions;
 

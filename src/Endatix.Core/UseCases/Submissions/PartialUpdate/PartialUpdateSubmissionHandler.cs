@@ -4,7 +4,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 
-namespace Endatix.Core.UseCases.Submissions;
+namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 
 /// <summary>
 /// Handler for partially updating a form submission.

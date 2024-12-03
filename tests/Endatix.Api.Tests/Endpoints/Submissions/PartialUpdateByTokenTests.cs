@@ -3,8 +3,8 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
-using Endatix.Core.UseCases.Submissions;
 using Endatix.Api.Endpoints.Submissions;
+using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
@@ -92,5 +92,40 @@ public class PartialUpdateByTokenTests
         okResult!.Value!.Id.Should().Be("1");
         okResult!.Value!.Token.Should().NotBeNull();
         okResult!.Value!.Token!.Should().Be(submission.Token.Value);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldMapRequestToCommandCorrectly()
+    {
+        // Arrange
+        var request = new PartialUpdateSubmissionByTokenRequest
+        {
+            FormId = 123,
+            SubmissionToken = "token-456",
+            IsComplete = true,
+            CurrentPage = 2,
+            JsonData = """{ "field": "value" }""",
+            Metadata = """{ "key", "value" }"""
+        };
+        var result = Result.Success(new Submission());
+        
+        _mediator.Send(Arg.Any<PartialUpdateSubmissionByTokenCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<PartialUpdateSubmissionByTokenCommand>(cmd =>
+                cmd.Token == request.SubmissionToken &&
+                cmd.FormId == request.FormId &&
+                cmd.IsComplete == request.IsComplete &&
+                cmd.CurrentPage == request.CurrentPage &&
+                cmd.JsonData == request.JsonData &&
+                cmd.Metadata == request.Metadata
+            ),
+            Arg.Any<CancellationToken>()
+        );
     }
 }
