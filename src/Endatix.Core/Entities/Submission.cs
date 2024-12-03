@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Entities;
 
 namespace Endatix.Core.Entities;
 
@@ -30,6 +31,7 @@ public partial class Submission : BaseEntity, IAggregateRoot
     public int? CurrentPage { get; private set; }
     public string? Metadata { get; private set; }
     public DateTime? CompletedAt { get; private set; }
+    public Token? Token { get; private set; }
 
     public void Update(string jsonData, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {
@@ -42,6 +44,11 @@ public partial class Submission : BaseEntity, IAggregateRoot
         Metadata = metadata;
 
         SetCompletionStatus(isComplete);
+    }
+
+    public void UpdateToken(Token token)
+    {
+        Token = token;
     }
 
     private void SetCompletionStatus(bool newIsCompleteValue)

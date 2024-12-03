@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Endatix.Persistence.SqlServer.Migrations
+namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 {
     [DbContext(typeof(AppIdentityDbContext))]
-    [Migration("20240927151731_InitialIdentity")]
-    partial class InitialIdentity
+    [Migration("20241003112008_AddRefreshToken")]
+    partial class AddRefreshToken
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -97,6 +97,12 @@ namespace Endatix.Persistence.SqlServer.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RefreshTokenExpireAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RefreshTokenHash")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");

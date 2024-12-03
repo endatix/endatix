@@ -4,19 +4,16 @@ using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Endatix.Persistence.SqlServer.Migrations
+namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 {
     [DbContext(typeof(AppIdentityDbContext))]
-    [Migration("20241003112008_AddRefreshToken")]
-    partial class AddRefreshToken
+    partial class AppIdentityDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

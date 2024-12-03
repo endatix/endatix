@@ -10,14 +10,14 @@ namespace Endatix.Core.Tests.UseCases.Identity.Login;
 public class LoginHandlerTests
 {
     private readonly IAuthService _authService;
-    private readonly ITokenService _tokenService;
+    private readonly IUserTokenService _tokenService;
     private readonly IMediator _mediator;
     private readonly LoginHandler _handler;
 
     public LoginHandlerTests()
     {
         _authService = Substitute.For<IAuthService>();
-        _tokenService = Substitute.For<ITokenService>();
+        _tokenService = Substitute.For<IUserTokenService>();
         _mediator = Substitute.For<IMediator>();
         _handler = new LoginHandler(_authService, _tokenService, _mediator);
     }

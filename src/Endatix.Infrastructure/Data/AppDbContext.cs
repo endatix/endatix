@@ -18,12 +18,24 @@ public class AppDbContext : DbContext
 
     public DbSet<Form> Forms { get; set; }
 
+    public DbSet<FormDefinition> FormDefinitions { get; set; }
+
     public DbSet<Submission> Submissions { get; set; }
 
-    public DbSet<FormDefinition> FormDefinitions { get; set; }
+    public override void AddRange(IEnumerable<object> entities)
+    {
+        base.AddRange(entities);
+    }
+
+    public override void AddRange(params object[] entities)
+    {
+        base.AddRange(entities);
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        builder.Ignore<Token>();
+
         var endatixAssemblies = GetType().Assembly.GetEndatixPlatformAssemblies();
         foreach (var assembly in endatixAssemblies)
         {
@@ -33,6 +45,8 @@ public class AppDbContext : DbContext
         PrefixTableNames(builder);
 
         base.OnModelCreating(builder);
+
+        builder.Entity<Submission>().OwnsOne(s => s.Token);
     }
 
     public override int SaveChanges()
@@ -59,16 +73,26 @@ public class AppDbContext : DbContext
             {
                 case EntityState.Added:
                     // Generate an id if necessary
-                    if (entry.CurrentValues["Id"] is default(long))
+                    if (entry.CurrentValues.Properties.Any(p => p.Name == "Id") &&
+                        entry.CurrentValues["Id"] is default(long))
                     {
                         entry.CurrentValues["Id"] = _idGenerator.CreateId();
                     }
+
                     // Set the CreatedAt value
-                    entry.CurrentValues["CreatedAt"] = DateTime.UtcNow;
+                    if (entry.CurrentValues.Properties.Any(p => p.Name == "CreatedAt"))
+                    {
+                        entry.CurrentValues["CreatedAt"] = DateTime.UtcNow;
+                    }
+
                     break;
                 case EntityState.Modified:
                     // Set the ModifiedAt value
-                    entry.CurrentValues["ModifiedAt"] = DateTime.UtcNow;
+                    if (entry.CurrentValues.Properties.Any(p => p.Name == "ModifiedAt"))
+                    {
+                        entry.CurrentValues["ModifiedAt"] = DateTime.UtcNow;
+                    }
+
                     break;
             }
         }

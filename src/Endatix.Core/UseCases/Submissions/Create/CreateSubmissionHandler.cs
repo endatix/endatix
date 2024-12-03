@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
@@ -12,6 +13,7 @@ namespace Endatix.Core.UseCases.Submissions.Create;
 public class CreateSubmissionHandler(
     IRepository<Submission> submissionRepository,
     IFormsRepository formRepository,
+    ISubmissionTokenService tokenService,
     IMediator mediator
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
@@ -42,7 +44,7 @@ public class CreateSubmissionHandler(
         );
 
         await submissionRepository.AddAsync(submission, cancellationToken);
-
+        await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
         await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
 
         return Result<Submission>.Created(submission);

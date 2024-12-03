@@ -8,7 +8,7 @@ namespace Endatix.Core.UseCases.Identity.Login;
 
 public class LoginHandler(
     IAuthService authService,
-    ITokenService tokenService,
+    IUserTokenService tokenService,
     IMediator mediator
     ) : ICommandHandler<LoginCommand, Result<AuthTokensDto>>
 {
