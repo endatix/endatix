@@ -3,7 +3,6 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
-using Endatix.Core.Services;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Abstractions;
@@ -40,8 +39,6 @@ public static class EndatixAppExtensions
 
     public static IEndatixApp AddDomainServices(this IEndatixApp endatixApp)
     {
-        endatixApp.Services.AddScoped<IFormService, FormService>();
-
         return endatixApp;
     }
 
