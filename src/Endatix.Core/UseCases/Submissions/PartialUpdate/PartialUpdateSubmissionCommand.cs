@@ -2,7 +2,7 @@
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Core.UseCases.Submissions;
+namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 
 /// <summary>
 /// Command for partially updating a form submission.

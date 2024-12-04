@@ -2,7 +2,7 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Submissions;
+using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
