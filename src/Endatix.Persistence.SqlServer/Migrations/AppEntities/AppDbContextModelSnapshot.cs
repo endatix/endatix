@@ -141,7 +141,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasOne("Endatix.Core.Entities.Form", null)
                         .WithMany("FormDefinitions")
                         .HasForeignKey("FormId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Submission", b =>
@@ -162,9 +162,12 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                             b1.Property<string>("Value")
                                 .IsRequired()
-                                .HasColumnType("nvarchar(max)");
+                                .HasMaxLength(64)
+                                .HasColumnType("nvarchar(64)");
 
                             b1.HasKey("SubmissionId");
+
+                            b1.HasIndex("Value");
 
                             b1.ToTable("Submissions");
 

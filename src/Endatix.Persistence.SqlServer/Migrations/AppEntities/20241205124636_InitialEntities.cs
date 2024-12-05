@@ -62,7 +62,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     CurrentPage = table.Column<int>(type: "int", nullable: true),
                     Metadata = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    Token_Value = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Token_Value = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
                     Token_ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
@@ -99,13 +99,17 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 table: "Submissions",
                 column: "FormId");
 
+            migrationBuilder.CreateIndex(
+                name: "IX_Submissions_Token_Value",
+                table: "Submissions",
+                column: "Token_Value");
+
             migrationBuilder.AddForeignKey(
                 name: "FK_FormDefinitions_Forms_FormId",
                 table: "FormDefinitions",
                 column: "FormId",
                 principalTable: "Forms",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                principalColumn: "Id");
         }
 
         /// <inheritdoc />
