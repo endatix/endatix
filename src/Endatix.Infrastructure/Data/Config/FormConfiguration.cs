@@ -21,7 +21,7 @@ namespace Endatix.Infrastructure.Data.Config
                 .WithOne()
                 .HasForeignKey(fd => fd.FormId)
                 .IsRequired(false)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.HasOne(f => f.ActiveDefinition)
                 .WithOne()
