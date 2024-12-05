@@ -17,7 +17,7 @@ public class CreateSubmissionHandler(
     IMediator mediator
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
-    private const bool DEFAULT_IS_COMPLETE = true;
+    private const bool DEFAULT_IS_COMPLETE = false;
     private const int DEFAULT_CURRENT_PAGE = 1;
     private const string DEFAULT_METADATA = null;
 
@@ -29,7 +29,7 @@ public class CreateSubmissionHandler(
         var formWithActiveDefinition = await formRepository.SingleOrDefaultAsync(activeFormDefinitionSpec, cancellationToken);
         var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
 
-        if (formWithActiveDefinition == null || activeDefinition == null)
+        if (formWithActiveDefinition?.ActiveDefinition is null)
         {
             return Result.NotFound("Form not found. Cannot create a submission");
         }
