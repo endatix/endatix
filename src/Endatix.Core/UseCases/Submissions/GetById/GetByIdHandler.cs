@@ -23,11 +23,6 @@ public class GetByIdHandler(IRepository<Submission> repository) : IQueryHandler<
             return Result.NotFound("Submission not found");
         }
 
-        if (submission.FormDefinition == null)
-        {
-            return Result.NotFound("Form not found");
-        }
-
         return Result.Success(submission);
     }
 }
