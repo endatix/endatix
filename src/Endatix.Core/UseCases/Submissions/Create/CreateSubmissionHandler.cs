@@ -37,7 +37,7 @@ public class CreateSubmissionHandler(
             activeFormDefinition.Id,
             request.IsComplete ?? DEFAULT_IS_COMPLETE,
             request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            request.MetaData ?? DEFAULT_METADATA
+            request.Metadata ?? DEFAULT_METADATA
         );
 
         await submissionRepository.AddAsync(submission, cancellationToken);

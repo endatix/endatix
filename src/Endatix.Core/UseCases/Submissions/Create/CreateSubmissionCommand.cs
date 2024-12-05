@@ -9,7 +9,7 @@ namespace Endatix.Core.UseCases.Submissions.Create;
 /// </summary>
 /// <param name="FormId"></param>
 /// <param name="JsonData"></param>
-/// <param name="MetaData"></param>
+/// <param name="Metadata"></param>
 /// <param name="CurrentPage"></param>
 /// <param name="IsComplete"></param>
-public record CreateSubmissionCommand(long FormId, string JsonData, string? MetaData, int? CurrentPage, bool? IsComplete) : ICommand<Result<Submission>>;
+public record CreateSubmissionCommand(long FormId, string JsonData, string? Metadata, int? CurrentPage, bool? IsComplete) : ICommand<Result<Submission>>;
