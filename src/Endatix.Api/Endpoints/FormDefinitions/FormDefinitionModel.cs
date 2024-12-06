@@ -25,10 +25,6 @@ public class FormDefinitionModel
     /// </summary>
     public string? FormId { get; set; }
 
-    /// <summary>
-    /// Indicates if the form definition is active.
-    /// </summary>
-    public bool IsActive { get; set; }
 
     /// <summary>
     /// The date and time when the form definition was created.

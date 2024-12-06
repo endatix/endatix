@@ -21,8 +21,5 @@ public class UpdateActiveFormDefinitionValidator : Validator<UpdateActiveFormDef
 
         RuleFor(x => x.JsonData)
             .NotEmpty();
-
-        RuleFor(x => x.IsActive)
-            .NotEmpty();
     }
 }

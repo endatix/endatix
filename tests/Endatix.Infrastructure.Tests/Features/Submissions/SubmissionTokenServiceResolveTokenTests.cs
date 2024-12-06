@@ -60,8 +60,8 @@ public class SubmissionTokenServiceResolveTokenTests
         // Arrange
         var token = "valid-token";
         var submissionId = 1L;
-        var submission = new Submission { Id = submissionId };
-        submission.Token = new Token(24);
+        var submission = new Submission(SampleData.FORM_DEFINITION_JSON_DATA_1, 2, 3, false) { Id = submissionId };
+        submission.UpdateToken(new Token(24));
         _repository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
 
         // Act

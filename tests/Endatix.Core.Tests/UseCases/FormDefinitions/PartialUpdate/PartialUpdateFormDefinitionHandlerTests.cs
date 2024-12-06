@@ -1,9 +1,8 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Tests.TestUtils;
 using Endatix.Core.UseCases.FormDefinitions.PartialUpdate;
-using FluentAssertions;
-using NSubstitute;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.PartialUpdate;
 
@@ -22,9 +21,12 @@ public class PartialUpdateFormDefinitionHandlerTests
     public async Task Handle_FormDefinitionNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, null, null);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns((FormDefinition)null);
+        FormDefinition? notFoundFormDefinition = null;
+        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, null);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(notFoundFormDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -39,8 +41,11 @@ public class PartialUpdateFormDefinitionHandlerTests
     public async Task Handle_FormIdMismatch_ReturnsNotFoundResult()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 2 };
-        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, null, null);
+        var nonExistingFormId = 2;
+        var form = new Form(SampleData.FORM_NAME_1) { Id = 1 };
+        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        form.AddFormDefinition(formDefinition);
+        var request = new PartialUpdateFormDefinitionCommand(nonExistingFormId, 1, null, null);
         _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
                    .Returns(formDefinition);
 
@@ -57,10 +62,19 @@ public class PartialUpdateFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
-        var request = new PartialUpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2, false);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns(formDefinition);
+        var testForm = new Form("Test Form") { Id = 1 };
+        var formDefinition = FormDefinitionFactory.CreateForTesting(
+            jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
+            formId: 1,
+            formDefinitionId: 2
+        );
+
+        testForm.AddFormDefinition(formDefinition);
+        var request = new PartialUpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(formDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -69,9 +83,11 @@ public class PartialUpdateFormDefinitionHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.IsDraft.Should().Be(request.IsDraft!.Value);
-        result.Value.JsonData.Should().Be(request.JsonData);
-        result.Value.IsActive.Should().Be(request.IsActive!.Value);
+        var actualResult = result.Value;
+        actualResult.IsDraft.Should().Be(request.IsDraft!.Value);
+        actualResult.JsonData.Should().Be(request.JsonData);
+        actualResult.Id.Should().Be(2);
+        actualResult.FormId.Should().Be(1);
         await _repository.Received(1).UpdateAsync(formDefinition, Arg.Any<CancellationToken>());
     }
 
@@ -79,10 +95,20 @@ public class PartialUpdateFormDefinitionHandlerTests
     public async Task Handle_PartialUpdate_UpdatesOnlySpecifiedFields()
     {
         // Arrange
-        var formDefinition = new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 };
-        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, SampleData.FORM_DEFINITION_JSON_DATA_2, null);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
-                   .Returns(formDefinition);
+        var form = new Form("Test Form")
+        {
+            Id = 1
+        };
+         var formDefinition = FormDefinitionFactory.CreateForTesting(
+            jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
+            formId: 1,
+            formDefinitionId: 2
+        );
+        var request = new PartialUpdateFormDefinitionCommand(1, 1, null, SampleData.FORM_DEFINITION_JSON_DATA_2);
+        _repository.GetByIdAsync(
+            request.DefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>()
+        ).Returns(formDefinition);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -93,7 +119,6 @@ public class PartialUpdateFormDefinitionHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.IsDraft.Should().Be(formDefinition.IsDraft);
         result.Value.JsonData.Should().Be(request.JsonData);
-        result.Value.IsActive.Should().Be(formDefinition.IsActive);
         await _repository.Received(1).UpdateAsync(formDefinition, Arg.Any<CancellationToken>());
     }
 }

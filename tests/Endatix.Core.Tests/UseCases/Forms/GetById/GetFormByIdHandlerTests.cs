@@ -20,9 +20,10 @@ public class GetFormByIdHandlerTests
     public async Task Handle_FormNotFound_ReturnsNotFoundResult()
     {
         // Arrange
+        Form? notFoundForm = null;
         var request = new GetFormByIdQuery(1);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
-                   .Returns((Form)null);
+                   .Returns(notFoundForm);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -37,7 +38,7 @@ public class GetFormByIdHandlerTests
     public async Task Handle_ValidRequest_ReturnsForm()
     {
         // Arrange
-        var form = new Form() { Id = 1 };
+        var form = new Form("Test Form") { Id = 1 };
         var request = new GetFormByIdQuery(1);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);

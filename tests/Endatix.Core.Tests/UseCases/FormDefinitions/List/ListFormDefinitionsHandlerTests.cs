@@ -3,8 +3,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.FormDefinitions.List;
-using FluentAssertions;
-using NSubstitute;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.List;
 
@@ -23,14 +21,21 @@ public class ListFormDefinitionsHandlerTests
     public async Task Handle_ValidRequest_ReturnsFormDefinitions()
     {
         // Arrange
+        var form = new Form("Test Form") { Id = 1 };
+        var formDefinition1 = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var formDefinition2 =  new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_2);
+        form.AddFormDefinition(formDefinition1);
+        form.AddFormDefinition(formDefinition2);
         var formDefinitions = new List<FormDefinition>
         {
-            new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_1, true) { FormId = 1 },
-            new FormDefinition(true, SampleData.FORM_DEFINITION_JSON_DATA_2, false) { FormId = 1 }
+            formDefinition1,
+            formDefinition2
         };
         var request = new ListFormDefinitionsQuery(1, 1, 10);
-        _repository.ListAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
-                   .Returns(formDefinitions);
+        _repository.ListAsync(
+            Arg.Any<FormDefinitionsByFormIdSpec>(),
+            Arg.Any<CancellationToken>()
+        ).Returns(formDefinitions);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

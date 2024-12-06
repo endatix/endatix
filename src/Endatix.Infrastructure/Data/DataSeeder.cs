@@ -1,106 +1,97 @@
 ﻿using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
+using Microsoft.EntityFrameworkCore;
+using Endatix.Core.Abstractions;
 
 namespace Endatix.Infrastructure.Data;
 
 /// <summary>
-/// Class that inserts preprogrammed sample data into the database. Designed for creating sample data. Can evolve to support testing case or SDK templates
+/// This class is responsible for seeding the database with sample data. It is designed for creating sample data, but can evolve to support testing cases or SDK templates.
 /// </summary>
-public class DataSeeder(ILogger _logger, IIdGenerator<long> _idGenerator, AppDbContext dbContext)
+public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerator)
 {
     /// <summary>
-    /// Main method to load data into the database
+    /// This method seeds the database with sample data for demonstration purposes. It leverages the EF Core <see cref="DbContextOptionsBuilder.UseAsyncSeeding(Func{DbContext, CancellationToken, Task})"/> method for asynchronous seeding. For a comprehensive overview, refer to https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding#configuration-options-useseeding-and-useasyncseeding-methods
     /// </summary>
-    /// <param name="dbContext"></param>
-    /// <param name="logger"></param>
-    public void PopulateTestData()
+    /// <param name="dbContext">The DbContext instance to use for database operations.</param>
+    /// <param name="cancellationToken">A CancellationToken to observe while executing the operation.</param>
+    public async Task SeedSampleDataAsync(DbContext dbContext, CancellationToken cancellationToken)
     {
-        var hasFormsPopulated = dbContext.Forms.Any();
-        if (hasFormsPopulated)
+        try
         {
-            _logger.LogInformation("Found Form records in the database table. Skipping seeding data...");
-            return;
+            var hasForms = await dbContext.Set<Form>().AnyAsync(cancellationToken);
+            if (hasForms)
+            {
+                return;
+            }
+
+            logger.LogInformation("🌱 Seeding sample data...");
+            var startTime = Stopwatch.GetTimestamp();
+
+            var productFeedbackForm = CreateForm("Product Feedback Survey");
+            var bookingForm = CreateForm("Booking Form");
+            var contactUsForm = CreateForm("Contact Us Form", 1266039221823471616);
+
+            await dbContext.Set<Form>().AddRangeAsync([productFeedbackForm, bookingForm, contactUsForm], cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            var oldProductFeedbackDefinition = CreateDefinition(productFeedbackForm, PRODUCT_FEEDBACK_SURVEY_JSON);
+            _ = CreateDefinition(productFeedbackForm, PRODUCT_FEEDBACK_SURVEY_JSON);
+            _ = CreateDefinition(bookingForm, BOOKING_FORM_JSON);
+            _ = CreateDefinition(bookingForm, BOOKING_FORM_JSON, isActive: false);
+            _ = CreateDefinition(contactUsForm, CONTACT_US_FORM_JSON);
+
+            await dbContext.SaveChangesAsync();
+
+            await dbContext.Set<Submission>().AddRangeAsync([
+                CreateSubmission("{\"missing-feature\":\"Replicator\"}", productFeedbackForm),
+                CreateSubmission("{\"missing-feature\":\"Space Travel\"}", productFeedbackForm),
+                CreateSubmission("{\"missing-feature\":\"FSD\"}", productFeedbackForm, oldProductFeedbackDefinition.Id),
+                CreateSubmission("{\"missing-feature\":\"Dreambox\"}", productFeedbackForm),
+                CreateSubmission("{\"missing-feature\":\"Teleporter\"}", productFeedbackForm),
+                CreateSubmission("{\"room-type\":\"King\"}", bookingForm),
+                CreateSubmission("{\"room-type\":\"Queen\"}", bookingForm)
+            ], cancellationToken);
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            var elapsedTime = Stopwatch.GetElapsedTime(startTime);
+
+            logger.LogInformation("🌱 Sample data seeded. Time taken: {time} ms", elapsedTime.TotalMilliseconds);
         }
-
-        var stopWatch = Stopwatch.StartNew();
-        _logger.LogInformation("Seeding data initiated");
-
-        #region Populate Forms
-        Form sampleForm1 = new("Product Feedback Survey", formDefinitionJson: PRODUCT_FEEDBACK_SURVEY_JSON)
+        catch (Exception ex)
         {
-            Id = _idGenerator.CreateId()
+            logger.LogError(ex, "🌱 An error occurred while seeding sample data. Data seeding aborted. Details: {details}", ex.Message);
+            throw;
+        }
+    }
+
+    private Form CreateForm(string name, long? id = null)
+    {
+        return new Form(name)
+        {
+            Id = id ?? idGenerator.CreateId()
         };
-        sampleForm1.ActiveFormDefinition.Id = _idGenerator.CreateId();
+    }
 
-        Form sampleForm2 = new("Booking Form", formDefinitionJson: BOOKING_FORM_JSON)
+    private FormDefinition CreateDefinition(Form form, string jsonData, long? id = null, bool isActive = true)
+    {
+        var formDefinition = new FormDefinition(jsonData: jsonData)
         {
-            Id = _idGenerator.CreateId()
-        };
-
-        Form sampleForm3 = new("Contact Us Form", formDefinitionJson: CONTACT_US_FORM_JSON)
-        {
-            Id = 1266039221823471616
-        };
-        sampleForm3.ActiveFormDefinition.Id = _idGenerator.CreateId();
-
-        dbContext.Forms.AddRange(sampleForm1, sampleForm2, sampleForm3);
-        dbContext.SaveChanges();
-
-        _logger.LogInformation("     >> Sample forms added");
-
-        #endregion
-
-        #region Populate Definitions
-        FormDefinition formDefinition2 = new(isActive: false, jsonData: PRODUCT_FEEDBACK_SURVEY_JSON)
-        {
-            Form = sampleForm1,
-            Id = _idGenerator.CreateId()
+            Id = id ?? idGenerator.CreateId()
         };
 
-        FormDefinition formDefinition3 = new(isActive: false, jsonData: PRODUCT_FEEDBACK_SURVEY_JSON)
-        {
-            Form = sampleForm1,
-            Id = _idGenerator.CreateId()
-        };
-        dbContext.FormDefinitions.AddRange(formDefinition2, formDefinition3);
-        dbContext.SaveChanges();
+        form.AddFormDefinition(formDefinition, isActive);
+        return formDefinition;
+    }
 
-        _logger.LogInformation("     >> Additional form definitions added");
-
-        #endregion
-
-        #region Populate Submissions
-        var submission1 = new Submission("{\"missing-feature\":\"Replicator\"}", formDefinitionId: sampleForm1.ActiveFormDefinition.Id)
+    private Submission CreateSubmission(string jsonData, Form form, long? formDefinitionId = default)
+    {
+        return new Submission(jsonData, form.Id, formDefinitionId ?? form.ActiveDefinition!.Id)
         {
-            Id = _idGenerator.CreateId()
+            Id = idGenerator.CreateId()
         };
-        var submission2 = new Submission("{\"missing-feature\":\"Rakia Thing\"}", formDefinitionId: formDefinition2.Id)
-        {
-            Id = _idGenerator.CreateId()
-        };
-        var submission3 = new Submission("{\"missing-feature\":\"Auto-repair\"}", formDefinitionId: formDefinition2.Id)
-        {
-            Id = _idGenerator.CreateId()
-        };
-        var submission4 = new Submission("{\"missing-feature\":\"Chin\"}", formDefinitionId: formDefinition3.Id)
-        {
-            Id = _idGenerator.CreateId()
-        };
-        var submission5 = new Submission("{\"missing-feature\":\"Espresso Machine\"}", formDefinitionId: sampleForm1.ActiveFormDefinition.Id)
-        {
-            Id = _idGenerator.CreateId()
-        };
-
-        dbContext.Submissions.AddRange(submission1, submission2, submission3, submission4, submission5);
-        dbContext.SaveChanges();
-
-        _logger.LogInformation("     >> Form submissions added");
-        #endregion
-
-        stopWatch.Stop();
-        _logger.LogInformation("Seeding data completed. Time taken: {time} ms", stopWatch.ElapsedMilliseconds);
     }
 
     private const string PRODUCT_FEEDBACK_SURVEY_JSON = "{\"title\":\"Product Feedback Survey\",\"description\":\"Your opinion matters to us!\",\"logo\":\"https://api.surveyjs.io/private/Surveys/files?name=df89f942-7e47-48e0-9fc0-b64608584b4c\",\"logoFit\":\"cover\",\"logoPosition\":\"right\",\"logoHeight\":\"100px\",\"elements\":[{\"type\":\"radiogroup\",\"name\":\"discovery-source\",\"title\":\"How did you first hear about us?\",\"choices\":[\"Search engine (Google, Bing, etc.)\",\"Online newsletter\",\"Blog post\",\"Word of mouth\",\"Social media\"],\"showOtherItem\":true,\"otherPlaceholder\":\"Please specify...\",\"otherText\":\"Other\"},{\"type\":\"radiogroup\",\"name\":\"social-media-platform\",\"visibleIf\":\"{discovery-source} = 'Social media'\",\"title\":\"Which platform?\",\"choices\":[\"YouTube\",\"Facebook\",\"Instagram\",\"TikTok\",\"LinkedIn\"],\"showOtherItem\":true,\"otherPlaceholder\":\"Please specify...\",\"otherText\":\"Other\"},{\"type\":\"matrix\",\"name\":\"quality\",\"title\":\"To what extent do you agree with the following statements?\",\"columns\":[{\"value\":1,\"text\":\"Strongly disagree\"},{\"value\":2,\"text\":\"Disagree\"},{\"value\":3,\"text\":\"Undecided\"},{\"value\":4,\"text\":\"Agree\"},{\"value\":5,\"text\":\"Strongly agree\"}],\"rows\":[{\"text\":\"The product meets my needs\",\"value\":\"needs-are-met\"},{\"text\":\"Overall, I am satisfied with the product\",\"value\":\"satisfaction\"},{\"text\":\"Some product features require improvement\",\"value\":\"improvements-required\"}],\"columnMinWidth\":\"40px\",\"rowTitleWidth\":\"300px\"},{\"type\":\"rating\",\"name\":\"buying-experience\",\"title\":\"How would you rate the buying experience?\",\"minRateDescription\":\"Hated it!\",\"maxRateDescription\":\"Loved it!\"},{\"type\":\"comment\",\"name\":\"low-score-reason\",\"visibleIf\":\"{buying-experience} <= 3\",\"titleLocation\":\"hidden\",\"hideNumber\":true,\"placeholder\":\"What's the main reason for your score?\",\"maxLength\":500},{\"type\":\"boolean\",\"name\":\"have-used-similar-products\",\"title\":\"Have you used similar products before?\"},{\"type\":\"text\",\"name\":\"similar-products\",\"visibleIf\":\"{have-used-similar-products} = true\",\"titleLocation\":\"hidden\",\"hideNumber\":true,\"placeholder\":\"Please specify the similar products...\"},{\"type\":\"ranking\",\"name\":\"product-aspects-ranked\",\"title\":\"These are some important aspects of the product. Rank them in terms of your priority.\",\"description\":\"From the highest (the most important) to the lowest (the least important).\",\"choices\":[\"Technical support\",\"Price\",\"Delivery option\",\"Quality\",\"Ease of use\",\"Product warranties\"]},{\"type\":\"text\",\"name\":\"missing-feature\",\"title\":\"What's the ONE thing our product is missing?\"},{\"type\":\"dropdown\",\"name\":\"price-accuracy\",\"title\":\"Do you feel our product is worth the cost?\",\"choices\":[{\"value\":5,\"text\":\"Definitely\"},{\"value\":4,\"text\":\"Probably\"},{\"value\":3,\"text\":\"Maybe\"},{\"value\":2,\"text\":\"Probably not\"},{\"value\":1,\"text\":\"Definitely not\"}],\"allowClear\":false},{\"type\":\"boolean\",\"name\":\"have-additional-thoughts\",\"title\":\"Is there anything you'd like to add?\"},{\"type\":\"comment\",\"name\":\"additional-thoughts\",\"visibleIf\":\"{have-additional-thoughts} = true\",\"titleLocation\":\"hidden\",\"placeholder\":\"Please share your thoughts...\"}],\"showProgressBar\":\"top\",\"progressBarType\":\"questions\",\"widthMode\":\"static\",\"width\":\"864px\"}";

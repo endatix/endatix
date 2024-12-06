@@ -13,9 +13,8 @@ public record CreateFormDefinitionCommand : ICommand<Result<FormDefinition>>
     public long FormId { get; init; }
     public bool IsDraft { get; init; }
     public string JsonData { get; init; }
-    public bool IsActive { get; init; }
 
-    public CreateFormDefinitionCommand(long formId, bool isDraft, string jsonData, bool isActive)
+    public CreateFormDefinitionCommand(long formId, bool isDraft, string jsonData)
     {
         Guard.Against.NegativeOrZero(formId);
         Guard.Against.NullOrWhiteSpace(jsonData);
@@ -23,6 +22,5 @@ public record CreateFormDefinitionCommand : ICommand<Result<FormDefinition>>
         FormId = formId;
         IsDraft = isDraft;
         JsonData = jsonData;
-        IsActive = isActive;
     }
 }

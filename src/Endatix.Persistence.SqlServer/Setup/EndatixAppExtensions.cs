@@ -28,12 +28,21 @@ public static class EndatixAppExtensions
 
         Guard.Against.NullOrEmpty(EndatixConfig.Configuration.ConnectionString, null, "Endatix database connection not provided. Make sure to call WithSqlServer method and pass the connection string");
 
-        string? connectionString = EndatixConfig.Configuration.ConnectionString;
-        string? migrationsAssembly = EndatixConfig.Configuration.MigrationsAssembly ?? Assembly.GetExecutingAssembly().GetName().Name;
+        var connectionString = EndatixConfig.Configuration.ConnectionString;
+        var migrationsAssembly = EndatixConfig.Configuration.MigrationsAssembly ?? Assembly.GetExecutingAssembly().GetName().Name;
 
-        endatixApp.Services.AddDbContext<AppDbContext>(options =>
+        endatixApp.Services.AddSingleton<DataSeeder>();
+        endatixApp.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
         {
             options.UseSqlServer(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
+            options.UseAsyncSeeding(async (context, _, cancellationToken) =>
+            {
+                if (EndatixConfig.Configuration.SeedSampleData)
+                {
+                    var dataSeeder = serviceProvider.GetRequiredService<DataSeeder>();
+                    await dataSeeder.SeedSampleDataAsync(context, cancellationToken);
+                }
+            });
         });
 
         endatixApp.Services.AddDbContext<AppIdentityDbContext>(options =>

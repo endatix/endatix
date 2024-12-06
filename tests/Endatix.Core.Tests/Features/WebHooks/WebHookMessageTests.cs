@@ -11,7 +11,7 @@ public class WebHookMessageTests
         // Arrange
         long expectedId = 1;
         var formSubmittedOperation = WebHookOperation.FormSubmitted;
-        var expectedPayload = new Submission(expectedId.ToString());
+        var expectedPayload = new Submission(expectedId.ToString(), formId: 123, formDefinitionId: 456);
 
         // Act
         var webHookMessage = new WebHookMessage<Submission>(expectedId, formSubmittedOperation, expectedPayload);
