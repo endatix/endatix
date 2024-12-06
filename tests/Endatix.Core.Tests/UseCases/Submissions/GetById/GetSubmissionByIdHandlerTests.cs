@@ -2,7 +2,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.UseCases.Submissions;
+using Endatix.Core.UseCases.Submissions.GetById;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.GetById;
 

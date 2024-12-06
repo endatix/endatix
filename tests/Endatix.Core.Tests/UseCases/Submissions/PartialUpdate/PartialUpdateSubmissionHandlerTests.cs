@@ -1,9 +1,8 @@
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.UseCases.Submissions;
+using Endatix.Core.UseCases.Submissions.PartialUpdate;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.PartialUpdate;
 
