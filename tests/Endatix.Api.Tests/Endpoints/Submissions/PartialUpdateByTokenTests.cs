@@ -64,6 +64,7 @@ public class PartialUpdateByTokenTests
     {
         // Arrange
         var formId = 1L;
+        var formDefinitionId = 2L;
         var submissionToken = "valid-token";
         var jsonData = "{ }";
         var request = new PartialUpdateSubmissionByTokenRequest 
@@ -76,7 +77,8 @@ public class PartialUpdateByTokenTests
             Metadata = "test metadata"
         };
         
-        var submission = new Submission(jsonData) { Id = 1, Token = new Token(1) };
+        var submission = new Submission(jsonData, formId, formDefinitionId) { Id = 1 };
+        submission.UpdateToken(new Token(1));
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<PartialUpdateSubmissionByTokenCommand>(), Arg.Any<CancellationToken>())
@@ -107,7 +109,8 @@ public class PartialUpdateByTokenTests
             JsonData = """{ "field": "value" }""",
             Metadata = """{ "key", "value" }"""
         };
-        var result = Result.Success(new Submission());
+        var formDefinitionId = 456;
+        var result = Result.Success(new Submission(request.JsonData, request.FormId, formDefinitionId));
         
         _mediator.Send(Arg.Any<PartialUpdateSubmissionByTokenCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
