@@ -16,6 +16,8 @@ export default defineConfig({
         'types/**/*.ts',
       ],
       exclude: [
+        'node_modules/',
+        '**/*.d.ts',
         'components/ui/**/*.tsx',
       ],
       enabled: true,
