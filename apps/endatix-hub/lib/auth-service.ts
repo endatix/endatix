@@ -2,51 +2,7 @@ import { JWTPayload, SignJWT, jwtVerify, decodeJwt } from "jose";
 import { cookies } from "next/headers";
 import { JWTInvalid } from "jose/errors";
 import { cache } from "react";
-
-enum Kind {
-  Success,
-  Error,
-}
-
-type Success<T> = {
-  kind: Kind.Success;
-  value: T;
-};
-
-enum ErrorType {
-  ValidationError,
-  Error,
-}
-
-type Error = {
-  kind: Kind.Error;
-  errorType: ErrorType;
-  message: string;
-  details?: string;
-};
-
-type Result<T> = Success<T> | Error;
-
-export function Success<T>(value: T): Success<T> {
-  return { kind: Kind.Success, value };
-}
-
-export function Error<T>(error: Error): Result<T> {
-  return {
-    kind: Kind.Error,
-    errorType: error.errorType,
-    message: error.message,
-    details: error.details,
-  };
-}
-
-export function isSuccess<T>(result: Result<T>): boolean {
-  return result.kind === Kind.Success;
-}
-
-export function isError<T>(result: Result<T>): boolean {
-  return result.kind === Kind.Error;
-}
+import { Kind, Result } from "./result";
 
 export interface SessionData {
   username: string;
@@ -180,22 +136,13 @@ export class AuthService {
         }
       );
 
-      return Success<HubJwtPayload>(payload);
+      return Result.success<HubJwtPayload>(payload);
     } catch (error: unknown) {
       if (error instanceof JWTInvalid) {
-        return Error({
-          kind: Kind.Error,
-          errorType: ErrorType.ValidationError,
-          message: error?.code,
-          details: error.message,
-        });
+        return Result.validationError(error?.code, error.message);
       }
 
-      return Error({
-        kind: Kind.Error,
-        errorType: ErrorType.Error,
-        message: "Error during token validaiton occured",
-      });
+      return Result.error("Error during token validaiton occured");
     }
   }
 }

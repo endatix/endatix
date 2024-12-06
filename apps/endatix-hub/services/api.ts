@@ -6,6 +6,7 @@ import { Form, FormDefinition, Submission } from "../types";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-service";
 import { HeaderBuilder } from "./header-builder";
+import { SubmissionData } from "@/app/(public)/share/[formId]/submit-form.action";
 
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
@@ -202,8 +203,12 @@ export const getSubmissions = async (formId: string): Promise<Submission[]> => {
 
 export const createSubmission = async (
   formId: string,
-  submissionData: any
+  submissionData: SubmissionData
 ): Promise<Submission> => {
+  if (!formId) {
+    throw new Error("FormId is required");
+  }
+
   const headers = new HeaderBuilder()
     .acceptJson()
     .provideJson()
@@ -217,6 +222,38 @@ export const createSubmission = async (
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions`,
+    requestOptions
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to submit response");
+  }
+
+  return response.json();
+};
+
+export const updateExistingSubmission = async (
+  formId: string,
+  token: string,
+  submissionData: SubmissionData
+): Promise<Submission> => {
+  if (!formId || !token) {
+    throw new Error("FormId or token is required");
+  }
+
+  const headers = new HeaderBuilder()
+    .acceptJson()
+    .provideJson()
+    .build();
+
+  const requestOptions: RequestInit = {
+    method: "PATCH",
+    headers: headers,
+    body: JSON.stringify(submissionData),
+  };
+
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/submissions/by-token/${token}`,
     requestOptions
   );
 
