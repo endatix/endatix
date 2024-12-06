@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.FormDefinitions;
 using Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
+using Endatix.Infrastructure.Tests.TestUtils;
 
 namespace Endatix.Api.Tests.Endpoints.FormDefinitions;
 
@@ -26,7 +27,7 @@ public class PartialUpdateActiveTests
         var formId = 1L;
         var request = new PartialUpdateActiveFormDefinitionRequest { FormId = formId };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<PartialUpdateActiveFormDefinitionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -62,14 +63,16 @@ public class PartialUpdateActiveTests
     {
         // Arrange
         var formId = 1L;
-        var request = new PartialUpdateActiveFormDefinitionRequest 
-        { 
+        var formDefinitionId = 2L;
+        var isDraft = false;
+        var request = new PartialUpdateActiveFormDefinitionRequest
+        {
             FormId = formId,
             IsDraft = false,
             JsonData = "{ }"
         };
-        
-        var formDefinition = new FormDefinition(false, "{ }") { Id = 1, FormId = formId };
+
+        var formDefinition = FormDefinitionFactory.CreateForTesting(isDraft, "{ }", formId, formDefinitionId);
         var result = Result.Success(formDefinition);
 
         _mediator.Send(Arg.Any<PartialUpdateActiveFormDefinitionCommand>(), Arg.Any<CancellationToken>())
@@ -97,7 +100,7 @@ public class PartialUpdateActiveTests
             JsonData = "{ }"
         };
         var result = Result.Success(new FormDefinition(false, "{ }"));
-        
+
         _mediator.Send(Arg.Any<PartialUpdateActiveFormDefinitionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 

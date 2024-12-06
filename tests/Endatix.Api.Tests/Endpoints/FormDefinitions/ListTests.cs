@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.FormDefinitions;
 using Endatix.Core.UseCases.FormDefinitions.List;
+using Endatix.Infrastructure.Tests.TestUtils;
 
 namespace Endatix.Api.Tests.Endpoints.FormDefinitions;
 
@@ -26,7 +27,7 @@ public class ListTests
         var formId = 1L;
         var request = new FormDefinitionsListRequest { FormId = formId };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<ListFormDefinitionsQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -44,10 +45,10 @@ public class ListTests
         // Arrange
         var formId = 1L;
         var request = new FormDefinitionsListRequest { FormId = formId };
-        var formDefinitions = new List<FormDefinition> 
-        { 
-            new(true, "{ }") { Id = 1, FormId = formId },
-            new(false, "{ }") { Id = 2, FormId = formId }
+        var formDefinitions = new List<FormDefinition>
+        {
+            FormDefinitionFactory.CreateForTesting(true,"{ }", formId, 1),
+            FormDefinitionFactory.CreateForTesting(false,"{ }", formId, 2)
         };
         var result = Result.Success(formDefinitions.AsEnumerable());
 
@@ -68,14 +69,14 @@ public class ListTests
     public async Task ExecuteAsync_ShouldMapRequestToQueryCorrectly()
     {
         // Arrange
-        var request = new FormDefinitionsListRequest 
-        { 
+        var request = new FormDefinitionsListRequest
+        {
             FormId = 123,
             Page = 2,
             PageSize = 20
         };
         var result = Result.Success(Enumerable.Empty<FormDefinition>());
-        
+
         _mediator.Send(Arg.Any<ListFormDefinitionsQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -92,4 +93,4 @@ public class ListTests
             Arg.Any<CancellationToken>()
         );
     }
-} 
+}

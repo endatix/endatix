@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.FormDefinitions;
 using Endatix.Core.UseCases.FormDefinitions.Update;
+using Endatix.Infrastructure.Tests.TestUtils;
 
 namespace Endatix.Api.Tests.Endpoints.FormDefinitions;
 
@@ -33,7 +34,7 @@ public class UpdateTests
             JsonData = "{ }"
         };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<UpdateFormDefinitionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -77,15 +78,15 @@ public class UpdateTests
         // Arrange
         var formId = 1L;
         var definitionId = 1L;
-        var request = new UpdateFormDefinitionRequest 
-        { 
+        var request = new UpdateFormDefinitionRequest
+        {
             FormId = formId,
             DefinitionId = definitionId,
             IsDraft = false,
             JsonData = "{ }"
         };
-        
-        var formDefinition = new FormDefinition(false, "{ }") { Id = definitionId, FormId = formId };
+
+        var formDefinition = FormDefinitionFactory.CreateForTesting(false, "{ }", formId, definitionId);
         var result = Result.Success(formDefinition);
 
         _mediator.Send(Arg.Any<UpdateFormDefinitionCommand>(), Arg.Any<CancellationToken>())
@@ -114,7 +115,7 @@ public class UpdateTests
             JsonData = "{ }"
         };
         var result = Result.Success(new FormDefinition(false, "{ }"));
-        
+
         _mediator.Send(Arg.Any<UpdateFormDefinitionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 

@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.FormDefinitions;
 using Endatix.Core.UseCases.FormDefinitions.GetById;
+using Endatix.Infrastructure.Tests.TestUtils;
 
 namespace Endatix.Api.Tests.Endpoints.FormDefinitions;
 
@@ -66,7 +67,7 @@ public class GetByIdTests
         var formId = 1L;
         var definitionId = 1L;
         var request = new GetFormDefinitionByIdRequest { FormId = formId, DefinitionId = definitionId };
-        var formDefinition = new FormDefinition(true, "{ }") { Id = definitionId, FormId = formId };
+        var formDefinition = FormDefinitionFactory.CreateForTesting(true, "{ }", formId, definitionId);
         var result = Result.Success(formDefinition);
 
         _mediator.Send(Arg.Any<GetFormDefinitionByIdQuery>(), Arg.Any<CancellationToken>())
