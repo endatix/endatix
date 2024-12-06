@@ -3,8 +3,9 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Submissions.GetById;
 
-namespace Endatix.Core.UseCases.Submissions;
+namespace Endatix.Core.UseCases.Submissions.GetByToken;
 
 /// <summary>
 /// Handler for getting a submission by token

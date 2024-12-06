@@ -29,7 +29,7 @@ public class CreateSubmissionHandler(
         var formWithActiveDefinition = await formRepository.SingleOrDefaultAsync(activeFormDefinitionSpec, cancellationToken);
         var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
 
-        if (formWithActiveDefinition == null || activeDefinition == null)
+        if (formWithActiveDefinition?.ActiveDefinition is null)
         {
             return Result.NotFound("Form not found. Cannot create a submission");
         }

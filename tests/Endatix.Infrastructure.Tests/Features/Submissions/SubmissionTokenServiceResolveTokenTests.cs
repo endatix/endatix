@@ -72,4 +72,23 @@ public class SubmissionTokenServiceResolveTokenTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(submissionId);
     }
+
+    [Fact]
+    public async Task ResolveToken_WhenSubmissionIsComplete_ReturnsNotFound()
+    {
+        // Arrange
+        var formId = 1L;
+        var formDefinitionId = 2L;
+        var token = "valid-token";
+        var submission = new Submission("{ }", formId,formDefinitionId, isComplete: true);
+        submission.UpdateToken(new Token(24));
+        _repository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
+
+        // Act
+        var result = await _sut.ResolveTokenAsync(token, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain("Submission completed");
+    }
 }

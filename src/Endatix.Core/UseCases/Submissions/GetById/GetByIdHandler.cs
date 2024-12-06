@@ -6,7 +6,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 
-namespace Endatix.Core.UseCases.Submissions;
+namespace Endatix.Core.UseCases.Submissions.GetById;
 
 /// <summary>
 /// Handler for the <c>GetByIdQuery</c> class

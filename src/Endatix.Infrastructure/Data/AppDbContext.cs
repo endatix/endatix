@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
-using Endatix.Framework;
+using Ardalis.GuardClauses;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -24,31 +25,12 @@ public class AppDbContext : DbContext
 
     public DbSet<Submission> Submissions { get; set; }
 
-    public override void AddRange(IEnumerable<object> entities)
-    {
-        base.AddRange(entities);
-    }
-
-    public override void AddRange(params object[] entities)
-    {
-        base.AddRange(entities);
-    }
-
     protected override void OnModelCreating(ModelBuilder builder)
     {
-        builder.Ignore<Token>();
-
-        var endatixAssemblies = GetType().Assembly.GetEndatixPlatformAssemblies();
-        foreach (var assembly in endatixAssemblies)
-        {
-            builder.ApplyConfigurationsFromAssembly(assembly);
-        }
-
-        PrefixTableNames(builder);
-
         base.OnModelCreating(builder);
 
-        builder.Entity<Submission>().OwnsOne(s => s.Token);
+        builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        PrefixTableNames(builder);
     }
 
     public override int SaveChanges()
@@ -102,14 +84,31 @@ public class AppDbContext : DbContext
 
     private void PrefixTableNames(ModelBuilder builder)
     {
-        if (builder?.Model?.GetEntityTypes() == null)
+        Guard.Against.Null(builder);
+        var entityTypes = builder.Model.GetEntityTypes();
+        if (entityTypes is null || !entityTypes.Any())
         {
             return;
         }
 
-        foreach (var entity in builder.Model.GetEntityTypes())
+        foreach (var entity in entityTypes)
         {
-            builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name));
+            if (ShouldPrefixTable(entity))
+            {
+                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name));
+            }
         }
+    }
+
+    private bool ShouldPrefixTable(IMutableEntityType? entityType)
+    {
+        Guard.Against.Null(entityType);
+
+        if (entityType.IsOwned())
+        {
+            return false;
+        }
+
+        return true;
     }
 }
