@@ -1,6 +1,4 @@
-using FluentAssertions;
 using MediatR;
-using NSubstitute;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
@@ -50,17 +48,18 @@ public class PartialUpdateSubmissionByTokenHandlerTests
         // Arrange
         var token = "valid-token";
         var formId = 1L;
+        var formDefinitionId = 2L;
         var submissionId = 123L;
         var isComplete = true;
         var currentPage = 2;
         var jsonData = SampleData.SUBMISSION_JSON_DATA_1;
         var metadata = "test metadata";
-        
+
         var request = new PartialUpdateSubmissionByTokenCommand(
             token, formId, isComplete, currentPage, jsonData, metadata);
-        
+
         var tokenResult = Result.Success(submissionId);
-        var submission = new Submission(jsonData) { Id = submissionId };
+        var submission = new Submission(jsonData, formId, formDefinitionId) { Id = submissionId };
         var updateResult = Result.Success(submission);
 
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())
@@ -77,7 +76,7 @@ public class PartialUpdateSubmissionByTokenHandlerTests
         result.Value.Should().Be(submission);
 
         await _tokenService.Received(1).ObtainTokenAsync(submissionId, Arg.Any<CancellationToken>());
-        
+
         await _sender.Received(1).Send(
             Arg.Is<PartialUpdateSubmissionCommand>(cmd =>
                 cmd.SubmissionId == submissionId &&

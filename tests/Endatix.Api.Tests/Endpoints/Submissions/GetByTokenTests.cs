@@ -27,7 +27,7 @@ public class GetByTokenTests
         var submissionToken = "invalid-token";
         var request = new GetByTokenRequest { FormId = formId, SubmissionToken = submissionToken };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<GetByTokenQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -64,9 +64,11 @@ public class GetByTokenTests
     {
         // Arrange
         var formId = 1L;
+        var formDefinitionId = 2L;
         var submissionToken = "valid-token";
         var request = new GetByTokenRequest { FormId = formId, SubmissionToken = submissionToken };
-        var submission = new Submission { Id = 1, Token = new Token(1) };
+        var submission = new Submission("{}", formId, formDefinitionId) { Id = 1 };
+        submission.UpdateToken(new Token(1));
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<GetByTokenQuery>(), Arg.Any<CancellationToken>())
@@ -93,8 +95,10 @@ public class GetByTokenTests
             FormId = 123,
             SubmissionToken = "token-456"
         };
-        var result = Result.Success(new Submission());
-        
+        var formDefinitionId = 246L;
+
+        var result = Result.Success(new Submission("{}", request.FormId, formDefinitionId));
+
         _mediator.Send(Arg.Any<GetByTokenQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 

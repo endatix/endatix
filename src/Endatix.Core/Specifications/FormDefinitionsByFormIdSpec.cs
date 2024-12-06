@@ -6,11 +6,11 @@ namespace Endatix.Core.Specifications;
 
 public sealed class FormDefinitionsByFormIdSpec : Specification<FormDefinition>
 {
-    public FormDefinitionsByFormIdSpec(long formId, PagingFilter filter = null)
+    public FormDefinitionsByFormIdSpec(long formId, PagingFilter? filter = null)
     {
         Query
             .Where(fd => fd.FormId == formId)
-            .Paginate(filter)
+            .Paginate(filter!)
             .AsNoTracking();
     }
 }

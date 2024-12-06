@@ -24,9 +24,4 @@ public class UpdateFormDefinitionRequest
     /// The JSON data of the form definition.
     /// </summary>
     public string? JsonData { get; set; }
-
-    /// <summary>
-    /// Indicates if the form definition is active.
-    /// </summary>
-    public bool? IsActive { get; set; }
 }

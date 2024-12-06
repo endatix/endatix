@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -6,12 +6,13 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Repositories;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
 public class CreateSubmissionHandler(
     IRepository<Submission> submissionRepository,
-    IRepository<FormDefinition> formDefinitionRepository,
+    IFormsRepository formRepository,
     ISubmissionTokenService tokenService,
     IMediator mediator
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
@@ -25,25 +26,25 @@ public class CreateSubmissionHandler(
         // Consider moving Domain event logic to a separate service should we decide to move UseCases in separate project. This way the Domain logic will stay in the core project. Will also centralize it in one place
         // This way the code will transform to  return await _submissionService.CreateSubmission(createSubmissionDto);
         var activeFormDefinitionSpec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
-        var activeFormDefinition = await formDefinitionRepository.SingleOrDefaultAsync(activeFormDefinitionSpec, cancellationToken);
+        var formWithActiveDefinition = await formRepository.SingleOrDefaultAsync(activeFormDefinitionSpec, cancellationToken);
+        var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
 
-        if (activeFormDefinition == null)
+        if (formWithActiveDefinition?.ActiveDefinition is null)
         {
             return Result.NotFound("Form not found. Cannot create a submission");
         }
 
         var submission = new Submission(
-            request.JsonData,
-            activeFormDefinition.Id,
-            request.IsComplete ?? DEFAULT_IS_COMPLETE,
-            request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            request.Metadata ?? DEFAULT_METADATA
+            jsonData: request.JsonData,
+            formId: request.FormId,
+            formDefinitionId: activeDefinition.Id,
+            isComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
+            currentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
+            metadata: request.MetaData ?? DEFAULT_METADATA
         );
 
         await submissionRepository.AddAsync(submission, cancellationToken);
-
         await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
-
         await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
 
         return Result<Submission>.Created(submission);

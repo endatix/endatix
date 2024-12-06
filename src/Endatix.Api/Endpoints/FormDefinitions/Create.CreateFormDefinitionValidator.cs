@@ -23,8 +23,5 @@ public class CreateFormDefinitionValidator : Validator<CreateFormDefinitionReque
         RuleFor(x => x.JsonData)
             .NotEmpty()
             .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH);
-
-        RuleFor(x => x.IsActive)
-            .NotEmpty();
     }
 }

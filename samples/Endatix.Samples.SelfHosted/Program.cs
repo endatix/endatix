@@ -13,4 +13,8 @@ var app = builder.Build();
 app.UseEndatixMiddleware()
             .UseEndatixApi();
 
+// TODO: Uncomment after Nuget package is updated
+// await app.ApplyDbMigrationsAsync();
+// await app.SeedInitialUserAsync();
+
 app.Run();

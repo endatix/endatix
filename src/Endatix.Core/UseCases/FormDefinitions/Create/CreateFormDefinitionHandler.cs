@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -7,7 +8,7 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.FormDefinitions.Create;
 
-public class CreateFormDefinitionHandler(IRepository<FormDefinition> definitionsRepository, IRepository<Form> formsRepository) : ICommandHandler<CreateFormDefinitionCommand, Result<FormDefinition>>
+public class CreateFormDefinitionHandler(IFormsRepository formsRepository) : ICommandHandler<CreateFormDefinitionCommand, Result<FormDefinition>>
 {
     public async Task<Result<FormDefinition>> Handle(CreateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
@@ -17,12 +18,14 @@ public class CreateFormDefinitionHandler(IRepository<FormDefinition> definitions
             return Result.NotFound("Form not found.");
         }
 
-        var newFormDefinition = new FormDefinition(request.IsDraft, request.JsonData, request.IsActive)
+        var newFormDefinition = new FormDefinition(request.IsDraft, request.JsonData);
+        form.AddFormDefinition(newFormDefinition);
+        if (!newFormDefinition.IsDraft)
         {
-            FormId = request.FormId
-        };
+            form.SetActiveFormDefinition(newFormDefinition);
+        }
+        await formsRepository.UpdateAsync(form, cancellationToken);
 
-        await definitionsRepository.AddAsync(newFormDefinition, cancellationToken);
         return Result<FormDefinition>.Created(newFormDefinition);
     }
 }

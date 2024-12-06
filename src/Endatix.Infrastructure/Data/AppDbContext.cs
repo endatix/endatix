@@ -1,9 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
-using Endatix.Core.Configuration;
-using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
-using Endatix.Framework;
+using Ardalis.GuardClauses;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -12,20 +11,12 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public class AppDbContext : DbContext
 {
-    private readonly ILogger _logger;
     private readonly IIdGenerator<long> _idGenerator;
-    public AppDbContext(DbContextOptions<AppDbContext> options, ILogger<AppDbContext> logger, IIdGenerator<long> idGenerator) : base(options)
-    {
-        _logger = logger;
-        _idGenerator = idGenerator;
-        // TODO: Make optional
-        var isDatabaseNew = this.Database.EnsureCreated();
 
-        if (isDatabaseNew && EndatixConfig.Configuration.SeedSampleData)
-        {
-            var dataSeeder = new DataSeeder(_logger, _idGenerator, this);
-            dataSeeder.PopulateTestData();
-        }
+    protected AppDbContext() { }
+    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator) : base(options)
+    {
+        _idGenerator = idGenerator;
     }
 
     public DbSet<Form> Forms { get; set; }
@@ -34,31 +25,12 @@ public class AppDbContext : DbContext
 
     public DbSet<Submission> Submissions { get; set; }
 
-    public override void AddRange(IEnumerable<object> entities)
-    {
-        base.AddRange(entities);
-    }
-
-    public override void AddRange(params object[] entities)
-    {
-        base.AddRange(entities);
-    }
-
     protected override void OnModelCreating(ModelBuilder builder)
     {
-        builder.Ignore<Token>();
-
-        var endatixAssemblies = GetType().Assembly.GetEndatixPlatformAssemblies();
-        foreach (var assembly in endatixAssemblies)
-        {
-            builder.ApplyConfigurationsFromAssembly(assembly);
-        }
-
-        PrefixTableNames(builder);
-
         base.OnModelCreating(builder);
 
-        builder.Entity<Submission>().OwnsOne(s => s.Token);
+        builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        PrefixTableNames(builder);
     }
 
     public override int SaveChanges()
@@ -85,18 +57,18 @@ public class AppDbContext : DbContext
             {
                 case EntityState.Added:
                     // Generate an id if necessary
-                    if (entry.CurrentValues.Properties.Any(p => p.Name == "Id") && 
+                    if (entry.CurrentValues.Properties.Any(p => p.Name == "Id") &&
                         entry.CurrentValues["Id"] is default(long))
                     {
                         entry.CurrentValues["Id"] = _idGenerator.CreateId();
                     }
-                    
+
                     // Set the CreatedAt value
                     if (entry.CurrentValues.Properties.Any(p => p.Name == "CreatedAt"))
                     {
                         entry.CurrentValues["CreatedAt"] = DateTime.UtcNow;
                     }
-                    
+
                     break;
                 case EntityState.Modified:
                     // Set the ModifiedAt value
@@ -104,7 +76,7 @@ public class AppDbContext : DbContext
                     {
                         entry.CurrentValues["ModifiedAt"] = DateTime.UtcNow;
                     }
-                    
+
                     break;
             }
         }
@@ -112,14 +84,31 @@ public class AppDbContext : DbContext
 
     private void PrefixTableNames(ModelBuilder builder)
     {
-        if (builder?.Model?.GetEntityTypes() == null)
+        Guard.Against.Null(builder);
+        var entityTypes = builder.Model.GetEntityTypes();
+        if (entityTypes is null || !entityTypes.Any())
         {
             return;
         }
 
-        foreach (var entity in builder.Model.GetEntityTypes())
+        foreach (var entity in entityTypes)
         {
-            builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name));
+            if (ShouldPrefixTable(entity))
+            {
+                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name));
+            }
         }
+    }
+
+    private bool ShouldPrefixTable(IMutableEntityType? entityType)
+    {
+        Guard.Against.Null(entityType);
+
+        if (entityType.IsOwned())
+        {
+            return false;
+        }
+
+        return true;
     }
 }

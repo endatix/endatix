@@ -57,7 +57,7 @@ public class TypedResultsBuilderTests
     {
         // Arrange
         var result = Result.Success(new Source(1));
-        Func<Source, Destination>? mappingFunc = null;
+        Func<Source, Destination> mappingFunc = null!;
 
         // Act
         var action = () => TypedResultsBuilder.MapResult(result, mappingFunc);
@@ -70,7 +70,7 @@ public class TypedResultsBuilderTests
     public void MapResult_NoResultPassed_Throws()
     {
         // Arrange
-        Result<Source> nullResult = null;
+        Result<Source> nullResult = null!;
         Func<Source, Destination> mappingFunc = _ => new Destination("1");
 
         // Act

@@ -8,11 +8,11 @@ namespace Endatix.Core.Specifications;
 /// </summary>
 public class SubmissionWithDefinitionSpec : SingleResultSpecification<Submission>
 {
-    public SubmissionWithDefinitionSpec(long FormId, long SubmissionId)
+    public SubmissionWithDefinitionSpec(long formId, long submissionId)
     {
         Query
-            .Where(s => s.Id == SubmissionId && s.FormDefinition.FormId == FormId)
-            .Include(s => s.FormDefinition)
-            .AsNoTrackingWithIdentityResolution();
+            .Include(s => s.FormDefinition) 
+            .Where(s => s.Id == submissionId && s.FormDefinition.FormId == formId)
+            .AsNoTracking();
     }
 }

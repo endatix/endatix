@@ -1,5 +1,4 @@
 using Endatix.Core.UseCases.FormDefinitions.UpdateActive;
-using FluentAssertions;
 using static Endatix.Core.Tests.ErrorMessages;
 using static Endatix.Core.Tests.ErrorType;
 
@@ -14,10 +13,9 @@ public class UpdateActiveFormDefinitionCommandTests
         var formId = -1;
         var isDraft = true;
         var jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
-        var isActive = true;
 
         // Act
-        Action act = () => new UpdateActiveFormDefinitionCommand(formId, isDraft, jsonData, isActive);
+        Action act = () => new UpdateActiveFormDefinitionCommand(formId, isDraft, jsonData);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -31,10 +29,9 @@ public class UpdateActiveFormDefinitionCommandTests
         var formId = 1;
         var isDraft = true;
         var jsonData = "";
-        var isActive = true;
 
         // Act
-        Action act = () => new UpdateActiveFormDefinitionCommand(formId, isDraft, jsonData, isActive);
+        Action act = () => new UpdateActiveFormDefinitionCommand(formId, isDraft, jsonData);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -48,15 +45,13 @@ public class UpdateActiveFormDefinitionCommandTests
         var formId = 1;
         var isDraft = true;
         var jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
-        var isActive = true;
 
         // Act
-        var command = new UpdateActiveFormDefinitionCommand(formId, isDraft, jsonData, isActive);
+        var command = new UpdateActiveFormDefinitionCommand(formId, isDraft, jsonData);
 
         // Assert
         command.FormId.Should().Be(formId);
         command.IsDraft.Should().Be(isDraft);
         command.JsonData.Should().Be(jsonData);
-        command.IsActive.Should().Be(isActive);
     }
 }

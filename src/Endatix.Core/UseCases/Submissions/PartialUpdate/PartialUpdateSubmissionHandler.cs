@@ -1,4 +1,5 @@
-﻿using Endatix.Core.Entities;
+﻿
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -28,7 +29,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository) 
             request.JsonData ?? submission.JsonData,
             submission.FormDefinitionId,
             request.IsComplete ?? submission.IsComplete,
-            request.CurrentPage?? DEFAULT_CURRENT_PAGE,
+            request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
             request.Metadata ?? submission.Metadata
         );
 

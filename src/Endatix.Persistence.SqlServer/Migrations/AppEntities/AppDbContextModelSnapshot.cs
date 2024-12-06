@@ -4,19 +4,16 @@ using Endatix.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Endatix.Persistence.SqlServer.Migrations.AppEntity
+namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241130132351_AddSubmissionToken")]
-    partial class AddSubmissionToken
+    partial class AppDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -28,6 +25,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntity
             modelBuilder.Entity("Endatix.Core.Entities.Form", b =>
                 {
                     b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ActiveDefinitionId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreatedAt")
@@ -49,6 +49,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntity
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ActiveDefinitionId")
+                        .IsUnique()
+                        .HasFilter("[ActiveDefinitionId] IS NOT NULL");
+
                     b.ToTable("Forms", (string)null);
                 });
 
@@ -63,9 +67,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntity
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsDraft")
                         .HasColumnType("bit");
 
@@ -76,14 +77,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntity
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("Version")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("FormId", "IsActive")
-                        .IsUnique()
-                        .HasFilter("IsActive = 1");
+                    b.HasIndex("FormId");
 
                     b.ToTable("FormDefinitions", (string)null);
                 });
@@ -105,6 +101,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntity
                     b.Property<long>("FormDefinitionId")
                         .HasColumnType("bigint");
 
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
                     b.Property<bool>("IsComplete")
                         .HasColumnType("bit");
 
@@ -122,18 +121,27 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntity
 
                     b.HasIndex("FormDefinitionId");
 
+                    b.HasIndex("FormId");
+
                     b.ToTable("Submissions", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Form", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.FormDefinition", "ActiveDefinition")
+                        .WithOne()
+                        .HasForeignKey("Endatix.Core.Entities.Form", "ActiveDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ActiveDefinition");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormDefinition", b =>
                 {
-                    b.HasOne("Endatix.Core.Entities.Form", "Form")
+                    b.HasOne("Endatix.Core.Entities.Form", null)
                         .WithMany("FormDefinitions")
                         .HasForeignKey("FormId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Form");
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Submission", b =>
@@ -154,9 +162,12 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntity
 
                             b1.Property<string>("Value")
                                 .IsRequired()
-                                .HasColumnType("nvarchar(max)");
+                                .HasMaxLength(64)
+                                .HasColumnType("nvarchar(64)");
 
                             b1.HasKey("SubmissionId");
+
+                            b1.HasIndex("Value");
 
                             b1.ToTable("Submissions");
 

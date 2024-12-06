@@ -20,7 +20,7 @@ public class CreateSubmissionRequest
     /// <summary>
     /// Stringified form submission data
     /// </summary>
-    public string JsonData { get; set; }
+    public string? JsonData { get; set; }
 
     /// <summary>
     /// Stringified metadata related to the form submission

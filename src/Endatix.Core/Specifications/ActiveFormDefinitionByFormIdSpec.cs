@@ -3,10 +3,11 @@ using Endatix.Core.Entities;
 
 namespace Endatix.Core.Specifications; 
 
-public sealed class ActiveFormDefinitionByFormIdSpec : Specification<FormDefinition>, ISingleResultSpecification<FormDefinition>
+public sealed class ActiveFormDefinitionByFormIdSpec : Specification<Form>, ISingleResultSpecification<Form>
 {
     public ActiveFormDefinitionByFormIdSpec(long formId)
     {
-        Query.Where(fd => fd.FormId == formId && fd.IsActive);
+        Query.Where(f => f.Id == formId)
+             .Include(f => f.ActiveDefinition);
     }
 }

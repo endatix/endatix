@@ -1,7 +1,5 @@
 using Ardalis.GuardClauses;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Logging = Microsoft.Extensions.Logging;
@@ -11,9 +9,6 @@ using Endatix.Framework.Hosting;
 using Endatix.Extensions.Hosting;
 using Endatix.Core.Configuration;
 using Endatix.Framework.Setup;
-using Endatix.Core.Abstractions;
-using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Identity.Seed;
 
 namespace Endatix.Setup;
 
@@ -80,17 +75,16 @@ public static class EndatixHostBuilderExtensions
             options.UsePipelineLogging();
         });
 
-        endatixApp.AddInfrastructure(configuration => configuration
-                                   .AddSecurityServices(options => options
-                                       .AddApiAuthentication(builder.Configuration)
-                                   ));
-
         endatixApp.AddDataPersistence(configuration => configuration
             .WithSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
             .WithCustomTablePrefix()
             .WithSnowflakeIds(0)
             .WithSampleData()
             );
+
+        endatixApp.AddInfrastructure(configuration => configuration
+            .AddSecurityServices(options => options.AddApiAuthentication(builder.Configuration))
+        );
 
         return endatixApp;
     }
