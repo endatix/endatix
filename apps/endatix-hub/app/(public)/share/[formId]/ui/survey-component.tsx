@@ -57,10 +57,7 @@ export default function SurveyComponent({ definition, formId }: SurveyComponentP
     });
   }, []);
 
-  model.sendResultOnPageNext = false;
   model.onComplete.add(submitForm);
-  model.onPartialSend.add((data) => console.log("onPartialSend", data));
-
 
   return (
     <Survey
