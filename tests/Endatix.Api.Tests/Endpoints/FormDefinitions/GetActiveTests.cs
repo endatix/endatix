@@ -64,7 +64,7 @@ public class GetActiveTests
         // Arrange
         var formId = 1L;
         var request = new GetActiveFormDefinitionRequest { FormId = formId };
-        var formDefinition = new FormDefinition(true, "{ }", true) { Id = 1, FormId = formId };
+        var formDefinition = new FormDefinition(true, "{ }") { Id = 1 };
         var result = Result.Success(formDefinition);
 
         _mediator.Send(Arg.Any<GetActiveFormDefinitionQuery>(), Arg.Any<CancellationToken>())
@@ -86,7 +86,7 @@ public class GetActiveTests
     {
         // Arrange
         var request = new GetActiveFormDefinitionRequest { FormId = 123 };
-        var result = Result.Success(new FormDefinition(true, "{ }", true));
+        var result = Result.Success(new FormDefinition(true, "{ }"));
         
         _mediator.Send(Arg.Any<GetActiveFormDefinitionQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);

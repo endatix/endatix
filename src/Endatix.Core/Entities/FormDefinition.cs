@@ -21,7 +21,7 @@ public partial class FormDefinition : BaseEntity, IAggregateRoot
     public bool IsDraft { get; private set; }
     public string JsonData { get; private set; } = EndatixConfig.Configuration.DefaultFormDefinitionJson;
 
-    public long FormId { get; private set; }
+    public long FormId { get; set; }
 
     /// <summary>
     /// Updates the form definition's JSON data with the provided value, or keeps the current data if null is provided.

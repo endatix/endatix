@@ -76,7 +76,7 @@ public class PartialUpdateTests
             Metadata = "test metadata"
         };
         
-        var submission = new Submission(jsonData) { Id = submissionId };
+        var submission = new Submission(jsonData, formId, 2) { Id = submissionId };
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
@@ -105,7 +105,7 @@ public class PartialUpdateTests
             JsonData = """{ "field": "value" }""",
             Metadata = """{ "key": "value" }"""
         };
-        var result = Result.Success(new Submission());
+        var result = Result.Success(new Submission("""{ "field": "value" }""", 123, 2));
         
         _mediator.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

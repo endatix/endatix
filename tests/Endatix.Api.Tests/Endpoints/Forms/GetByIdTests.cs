@@ -63,7 +63,7 @@ public class GetByIdTests
         // Arrange
         var formId = 1L;
         var request = new GetFormByIdRequest { FormId = formId };
-        var form = new Form { Id = formId, Name = "Test Form" };
+        var form = new Form("Test Form") { Id = formId };
         var result = Result.Success(form);
 
         _mediator.Send(Arg.Any<GetFormByIdQuery>(), Arg.Any<CancellationToken>())
@@ -85,7 +85,7 @@ public class GetByIdTests
     {
         // Arrange
         var request = new GetFormByIdRequest { FormId = 123 };
-        var result = Result.Success(new Form());
+        var result = Result.Success(new Form("Test Form"));
         
         _mediator.Send(Arg.Any<GetFormByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);

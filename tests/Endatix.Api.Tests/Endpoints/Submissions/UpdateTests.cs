@@ -76,7 +76,7 @@ public class UpdateTests
             Metadata = "test metadata"
         };
         
-        var submission = new Submission(jsonData) { Id = submissionId };
+        var submission = new Submission(jsonData, formId, 456) { Id = submissionId };
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<UpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
@@ -105,7 +105,7 @@ public class UpdateTests
             JsonData = """{ "field": "value" }""",
             Metadata = """{ "key": "value" }"""
         };
-        var result = Result.Success(new Submission());
+        var result = Result.Success(new Submission(""""{ "field": "value" }"""", 123, 456));
         
         _mediator.Send(Arg.Any<UpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

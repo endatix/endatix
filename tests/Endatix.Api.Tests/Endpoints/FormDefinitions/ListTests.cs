@@ -46,8 +46,8 @@ public class ListTests
         var request = new FormDefinitionsListRequest { FormId = formId };
         var formDefinitions = new List<FormDefinition> 
         { 
-            new(true, "{ }", true) { Id = 1, FormId = formId },
-            new(false, "{ }", false) { Id = 2, FormId = formId }
+            new(true, "{ }") { Id = 1, FormId = formId },
+            new(false, "{ }") { Id = 2, FormId = formId }
         };
         var result = Result.Success(formDefinitions.AsEnumerable());
 

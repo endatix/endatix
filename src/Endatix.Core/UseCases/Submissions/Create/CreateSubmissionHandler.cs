@@ -37,10 +37,10 @@ public class CreateSubmissionHandler(
         var submission = new Submission(
             jsonData: request.JsonData,
             formId: request.FormId,
-            formDefinitionId: activeDefinition.Id,
+            formDefinitionId: activeDefinition!.Id,
             isComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
             currentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            metadata: request.MetaData ?? DEFAULT_METADATA
+            metadata: request.Metadata ?? DEFAULT_METADATA
         );
 
         await submissionRepository.AddAsync(submission, cancellationToken);

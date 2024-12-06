@@ -66,7 +66,7 @@ public class GetByIdTests
         var formId = 1L;
         var definitionId = 1L;
         var request = new GetFormDefinitionByIdRequest { FormId = formId, DefinitionId = definitionId };
-        var formDefinition = new FormDefinition(true, "{ }", true) { Id = definitionId, FormId = formId };
+        var formDefinition = new FormDefinition(true, "{ }") { Id = definitionId, FormId = formId };
         var result = Result.Success(formDefinition);
 
         _mediator.Send(Arg.Any<GetFormDefinitionByIdQuery>(), Arg.Any<CancellationToken>())
@@ -88,7 +88,7 @@ public class GetByIdTests
     {
         // Arrange
         var request = new GetFormDefinitionByIdRequest { FormId = 123, DefinitionId = 456 };
-        var result = Result.Success(new FormDefinition(true, "{ }", true));
+        var result = Result.Success(new FormDefinition(true, "{ }"));
         
         _mediator.Send(Arg.Any<GetFormDefinitionByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);

@@ -65,8 +65,8 @@ public class ListByFormIdTests
         var request = new ListByFormIdRequest { FormId = formId, Page = 1, PageSize = 10 };
         var submissions = new List<Submission> 
         { 
-            new() { Id = 1 },
-            new() { Id = 2 }
+            new("{ }", 1, 2) { Id = 1 },
+            new("{ }", 1, 2) { Id = 2 }
         };
         var result = Result.Success(submissions.AsEnumerable());
 

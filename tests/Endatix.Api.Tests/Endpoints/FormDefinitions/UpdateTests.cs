@@ -30,8 +30,7 @@ public class UpdateTests
             FormId = formId,
             DefinitionId = definitionId,
             IsDraft = false,
-            JsonData = "{ }",
-            IsActive = true
+            JsonData = "{ }"
         };
         var result = Result.Invalid();
         
@@ -57,8 +56,7 @@ public class UpdateTests
             FormId = formId,
             DefinitionId = definitionId,
             IsDraft = false,
-            JsonData = "{ }",
-            IsActive = true
+            JsonData = "{ }"
         };
         var result = Result.NotFound("Form definition not found");
 
@@ -84,11 +82,10 @@ public class UpdateTests
             FormId = formId,
             DefinitionId = definitionId,
             IsDraft = false,
-            JsonData = "{ }",
-            IsActive = true
+            JsonData = "{ }"
         };
         
-        var formDefinition = new FormDefinition(false, "{ }", true) { Id = definitionId, FormId = formId };
+        var formDefinition = new FormDefinition(false, "{ }") { Id = definitionId, FormId = formId };
         var result = Result.Success(formDefinition);
 
         _mediator.Send(Arg.Any<UpdateFormDefinitionCommand>(), Arg.Any<CancellationToken>())
@@ -114,10 +111,9 @@ public class UpdateTests
             FormId = 123,
             DefinitionId = 456,
             IsDraft = false,
-            JsonData = "{ }",
-            IsActive = true
+            JsonData = "{ }"
         };
-        var result = Result.Success(new FormDefinition(false, "{ }", true));
+        var result = Result.Success(new FormDefinition(false, "{ }"));
         
         _mediator.Send(Arg.Any<UpdateFormDefinitionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -131,8 +127,7 @@ public class UpdateTests
                 cmd.FormId == request.FormId &&
                 cmd.DefinitionId == request.DefinitionId &&
                 cmd.IsDraft == request.IsDraft &&
-                cmd.JsonData == request.JsonData &&
-                cmd.IsActive == request.IsActive
+                cmd.JsonData == request.JsonData
             ),
             Arg.Any<CancellationToken>()
         );
