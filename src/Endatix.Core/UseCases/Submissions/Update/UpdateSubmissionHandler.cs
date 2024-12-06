@@ -11,7 +11,7 @@ namespace Endatix.Core.UseCases.Submissions;
 /// </summary>
 public class UpdateSubmissionHandler(IRepository<Submission> repository) : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
 {
-    private const bool DEFAULT_IS_COMPLETE = true;
+    private const bool DEFAULT_IS_COMPLETE = false;
     private const int DEFAULT_CURRENT_PAGE = 1;
     private const string DEFAULT_METADATA = null;
 

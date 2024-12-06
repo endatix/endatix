@@ -6,7 +6,7 @@ namespace Endatix.Api.Tests.TestExtensions;
 /// <summary>
 /// Provides extension methods for various FluentAssertions methods, so that test code will be crisper and quicker to write
 /// </summary>
-internal static class FluentAssertionsЕxtensions
+internal static class FluentAssertionsExtensions
 {
     /// <summary>
     /// Asserts that the function throws a ValidationFailureException with the expected message.
