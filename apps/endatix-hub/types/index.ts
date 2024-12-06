@@ -25,6 +25,7 @@ export type Submission = {
   formDefinitionId: string;
   currentPage: number;
   metadata: string;
+  token: string;
   completedAt: Date;
   createdAt: Date;
   modifiedAt: Date;
