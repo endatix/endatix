@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { createSubmission, updateExistingSubmission } from '@/services/api';
 import { Result } from '@/lib/result';
-import { RequestCookie } from 'next/dist/compiled/@edge-runtime/cookies';
+import { RequestCookie, ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 import { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies';
 
 export type SubmissionData = {
@@ -19,9 +19,17 @@ export type SubmissionOperation = {
 
 export type SubmissionOperationResult = Result<SubmissionOperation>;
 
-const TOKENS_COOKIE = {
+const TOKENS_COOKIE_OPTIONS = {
     name: 'FPSK',
-    expirationInDays: 7
+    secure: process.env.NODE_ENV === 'production',
+    expirationInDays: 7,
+    getExpires: () => new Date(Date.now() + TOKENS_COOKIE_OPTIONS.expirationInDays * 24 * 60 * 60 * 1000),
+    getCookieOptions: (): Partial<ResponseCookie> => ({
+        httpOnly: true,
+        secure: TOKENS_COOKIE_OPTIONS.secure,
+        sameSite: "strict",
+        expires: TOKENS_COOKIE_OPTIONS.getExpires()
+    })
 };
 
 /**
@@ -35,7 +43,7 @@ const TOKENS_COOKIE = {
 export async function submitFormAction(formId: string, submissionData: SubmissionData): Promise<SubmissionOperationResult> {
     // Get cookie store and check for existing submission token
     const cookieStore = await cookies();
-    const partialSubmissionKeysCookie = cookieStore.get(TOKENS_COOKIE.name);
+    const partialSubmissionKeysCookie = cookieStore.get(TOKENS_COOKIE_OPTIONS.name);
     const tokenResult = getTokenFromCookie(partialSubmissionKeysCookie, formId);
 
     // If we have a valid token, update the existing submission and update the cookie if the submission fails or is complete
@@ -56,11 +64,11 @@ async function updateExistingSubmissionViaToken(
     try {
         const updatedSubmission = await updateExistingSubmission(formId, token, submissionData);
         if (updatedSubmission.isComplete) {
-            cookieStore.delete(TOKENS_COOKIE.name);
+            cookieStore.delete(TOKENS_COOKIE_OPTIONS.name);
         }
         return Result.success({ isSuccess: true });
     } catch (err) {
-        cookieStore.delete(TOKENS_COOKIE.name);
+        cookieStore.delete(TOKENS_COOKIE_OPTIONS.name);
         return Result.error('Failed to update existing submission. Details: ' + err);
     }
 }
@@ -102,25 +110,20 @@ function getTokenFromCookie(tokensCookie: RequestCookie | undefined, formId: str
 }
 
 function deleteTokenFromCookie(cookieStore: ReadonlyRequestCookies, formId: string) {
-    const partialTokens = JSON.parse(cookieStore.get(TOKENS_COOKIE.name)?.value || '{}');
+    const partialTokens = JSON.parse(cookieStore.get(TOKENS_COOKIE_OPTIONS.name)?.value || '{}');
     const { [formId]: _, ...remainingTokens } = partialTokens;
 
     if (Object.keys(remainingTokens).length === 0) {
-        cookieStore.delete(TOKENS_COOKIE.name);
+        cookieStore.delete(TOKENS_COOKIE_OPTIONS.name);
     } else {
-        cookieStore.set(TOKENS_COOKIE.name, JSON.stringify(remainingTokens), {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict'
-        });
+        const cookieValue = JSON.stringify(remainingTokens);
+        const cookieOptions = TOKENS_COOKIE_OPTIONS.getCookieOptions();
+        cookieStore.set(TOKENS_COOKIE_OPTIONS.name, cookieValue, cookieOptions);
     }
 }
 
 function setTokenInCookie(cookieStore: ReadonlyRequestCookies, formId: string, token: string) {
-    cookieStore.set(TOKENS_COOKIE.name, JSON.stringify({ [formId]: token }), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        expires: new Date(Date.now() + TOKENS_COOKIE.expirationInDays * 24 * 60 * 60 * 1000)
-    });
+    const cookieValue = JSON.stringify({ [formId]: token });
+    const cookieOptions = TOKENS_COOKIE_OPTIONS.getCookieOptions();
+    cookieStore.set(TOKENS_COOKIE_OPTIONS.name, cookieValue, cookieOptions);
 }   
