@@ -62,7 +62,7 @@ public class CreateSubmissionHandlerTests
             JsonData: "{ \"field\": \"value\" }", 
             IsComplete: true,
             CurrentPage: 3,
-            MetaData: "{ \"meta\": \"data\" }"
+            Metadata: "{ \"meta\": \"data\" }"
         );
         
         _formsRepository.SingleOrDefaultAsync(
@@ -85,7 +85,7 @@ public class CreateSubmissionHandlerTests
                 s.JsonData == request.JsonData &&
                 s.IsComplete == request.IsComplete &&
                 s.CurrentPage == request.CurrentPage &&
-                s.Metadata == request.MetaData
+                s.Metadata == request.Metadata
             ), 
             Arg.Any<CancellationToken>()
         );
