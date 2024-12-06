@@ -37,6 +37,48 @@ public class PartialUpdateSubmissionByTokenCommandTests
     }
 
     [Fact]
+    public void Constructor_NegativeCurrentPage_ThrowsArgumentException()
+    {
+        // Arrange
+        var token = "valid-token";
+        var formId = 1L;
+        int? negativeCurrentPage = -1;
+
+        // Act
+        Action act = () => new PartialUpdateSubmissionByTokenCommand(
+            token: token,
+            formId: formId,
+            isComplete: false,
+            currentPage: negativeCurrentPage,
+            jsonData: null,
+            metadata: null
+        );
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage(GetErrorMessage("currentPage.Value", Negative));
+    }
+
+    [Fact]
+    public void Constructor_OmittedCurrentPage_SetsPropertiesCorrectly()
+    {
+        // Arrange
+        var token = "valid-token";
+        var formId = 1L;
+        var isComplete = true;
+        int? currentPage = null;
+        var jsonData = "{}";
+        var metadata = string.Empty;
+
+        // Act
+        var command = new PartialUpdateSubmissionByTokenCommand(token, formId, isComplete, currentPage, jsonData, metadata);
+
+        // Assert
+        command.Should().NotBeNull();
+        command.CurrentPage.Should().Be(currentPage);
+    }
+
+    [Fact]
     public void Constructor_ValidParameters_SetsPropertiesCorrectly()
     {
         // Arrange

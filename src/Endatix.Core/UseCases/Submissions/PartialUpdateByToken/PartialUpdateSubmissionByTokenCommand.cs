@@ -22,6 +22,11 @@ public record PartialUpdateSubmissionByTokenCommand : ICommand<Result<Submission
         Guard.Against.NullOrEmpty(token);
         Guard.Against.NegativeOrZero(formId);
 
+        if (currentPage.HasValue)
+        {
+            Guard.Against.Negative(currentPage.Value);
+        }
+
         Token = token;
         FormId = formId;
         IsComplete = isComplete;
