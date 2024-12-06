@@ -10,7 +10,7 @@ public class SubmissionUpdateTests
     public void Update_NullJsonData_ThrowsArgumentNullException()
     {
         // Arrange
-        var submission = new Submission(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 123);
+        var submission = new Submission(SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
 
         // Act
         var action = () => submission.Update(null, formDefinitionId: 123);
@@ -24,7 +24,7 @@ public class SubmissionUpdateTests
     public void Update_EmptyJsonData_ThrowsArgumentException()
     {
         // Arrange
-        var submission = new Submission(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 123);
+        var submission = new Submission(SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
 
         // Act
         var action = () => submission.Update(string.Empty, formDefinitionId: 123);
@@ -38,7 +38,7 @@ public class SubmissionUpdateTests
     public void Update_NegativeFormDefinitionId_ThrowsArgumentException()
     {
         // Arrange
-        var submission = new Submission(SampleData.SUBMISSION_JSON_DATA_1);
+        var submission = new Submission(SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
         const long invalidFormDefinitionId = -1;
 
         // Act
@@ -53,9 +53,9 @@ public class SubmissionUpdateTests
     public void Update_ValidInput_UpdatesPropertiesCorrectly()
     {
         // Arrange
-        var submission = new Submission(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 123, isComplete: false);
+        var submission = new Submission(SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
         const string updatedJsonData = SampleData.SUBMISSION_JSON_DATA_2;
-        const long updatedFormDefinitionId = 456;
+        const long updatedFormDefinitionId = 789;
 
         // Act
         submission.Update(updatedJsonData, updatedFormDefinitionId, isComplete: false, currentPage: 3, metadata: "Updated");
@@ -73,7 +73,7 @@ public class SubmissionUpdateTests
     public void Update_CompleteSubmission_UpdatesCompletedAt()
     {
         // Arrange
-        var submission = new Submission(SampleData.SUBMISSION_JSON_DATA_1);
+        var submission = new Submission(SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
 
         // Act
         submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 123, isComplete: true);

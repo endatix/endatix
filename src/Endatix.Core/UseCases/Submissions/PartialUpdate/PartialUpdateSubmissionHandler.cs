@@ -1,10 +1,11 @@
-﻿using Endatix.Core.Entities;
+﻿
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 
-namespace Endatix.Core.UseCases.Submissions;
+namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 
 /// <summary>
 /// Handler for partially updating a form submission.
@@ -28,7 +29,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository) 
             request.JsonData ?? submission.JsonData,
             submission.FormDefinitionId,
             request.IsComplete ?? submission.IsComplete,
-            request.CurrentPage?? DEFAULT_CURRENT_PAGE,
+            request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
             request.Metadata ?? submission.Metadata
         );
 

@@ -3,7 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Core.UseCases.Submissions;
+namespace Endatix.Core.UseCases.Submissions.GetByToken;
 
 /// <summary>
 /// Query for getting a submission by FormId and Token

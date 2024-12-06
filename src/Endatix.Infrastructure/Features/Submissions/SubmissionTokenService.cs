@@ -35,7 +35,7 @@ public class SubmissionTokenService : ISubmissionTokenService
 
         if (submission.Token == null)
         {
-            submission.Token = new Token(_options.TokenExpiryInHours);
+            submission.UpdateToken(new Token(_options.TokenExpiryInHours));
         }
         else
         {

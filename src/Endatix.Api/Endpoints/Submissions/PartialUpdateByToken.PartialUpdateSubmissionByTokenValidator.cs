@@ -25,7 +25,7 @@ public class PartialUpdateSubmissionByTokenValidator : Validator<PartialUpdateSu
             .When(x => x.JsonData != null);
 
         RuleFor(x => x.CurrentPage)
-            .GreaterThan(0)
+            .GreaterThanOrEqualTo(0)
             .When(x => x.CurrentPage != null);
     }
-} 
+}

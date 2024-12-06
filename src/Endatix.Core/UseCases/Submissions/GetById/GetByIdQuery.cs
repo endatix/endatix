@@ -2,7 +2,7 @@
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Core.UseCases.Submissions;
+namespace Endatix.Core.UseCases.Submissions.GetById;
 
 /// <summary>
 /// Query for getting a submission by FormId and SubmissionId

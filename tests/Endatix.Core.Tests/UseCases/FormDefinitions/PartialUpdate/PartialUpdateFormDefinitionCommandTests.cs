@@ -15,10 +15,9 @@ public class PartialUpdateFormDefinitionCommandTests
         var definitionId = 1;
         bool? isDraft = true;
         string? jsonData = null;
-        bool? isActive = null;
 
         // Act
-        Action act = () => new PartialUpdateFormDefinitionCommand(formId, definitionId, isDraft, jsonData, isActive);
+        Action act = () => new PartialUpdateFormDefinitionCommand(formId, definitionId, isDraft, jsonData);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -33,10 +32,9 @@ public class PartialUpdateFormDefinitionCommandTests
         var definitionId = -1;
         bool? isDraft = true;
         string? jsonData = null;
-        bool? isActive = null;
 
         // Act
-        Action act = () => new PartialUpdateFormDefinitionCommand(formId, definitionId, isDraft, jsonData, isActive);
+        Action act = () => new PartialUpdateFormDefinitionCommand(formId, definitionId, isDraft, jsonData);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -51,17 +49,15 @@ public class PartialUpdateFormDefinitionCommandTests
         var definitionId = 1;
         bool? isDraft = true;
         string? jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
-        bool? isActive = true;
 
         // Act
-        var command = new PartialUpdateFormDefinitionCommand(formId, definitionId, isDraft, jsonData, isActive);
+        var command = new PartialUpdateFormDefinitionCommand(formId, definitionId, isDraft, jsonData);
 
         // Assert
         command.FormId.Should().Be(formId);
         command.DefinitionId.Should().Be(definitionId);
         command.IsDraft.Should().Be(isDraft);
         command.JsonData.Should().Be(jsonData);
-        command.IsActive.Should().Be(isActive);
     }
 
     [Fact]
@@ -72,16 +68,14 @@ public class PartialUpdateFormDefinitionCommandTests
         var definitionId = 1;
         bool? isDraft = null;
         string? jsonData = null;
-        bool? isActive = null;
 
         // Act
-        var command = new PartialUpdateFormDefinitionCommand(formId, definitionId, isDraft, jsonData, isActive);
+        var command = new PartialUpdateFormDefinitionCommand(formId, definitionId, isDraft, jsonData);
 
         // Assert
         command.FormId.Should().Be(formId);
         command.DefinitionId.Should().Be(definitionId);
         command.IsDraft.Should().BeNull();
         command.JsonData.Should().BeNull();
-        command.IsActive.Should().BeNull();
     }
 }

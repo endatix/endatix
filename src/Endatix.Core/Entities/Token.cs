@@ -12,7 +12,7 @@ public class Token
 
     public bool IsExpired => DateTime.UtcNow > ExpiresAt;
 
-    public Token() { }
+    private Token() { }
 
     public Token(int expiryInHours)
     {

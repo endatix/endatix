@@ -3,7 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Core.UseCases.Submissions;
+namespace Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
 
 /// <summary>
 /// Command for partially updating a form submission by token.
@@ -21,6 +21,11 @@ public record PartialUpdateSubmissionByTokenCommand : ICommand<Result<Submission
     {
         Guard.Against.NullOrEmpty(token);
         Guard.Against.NegativeOrZero(formId);
+
+        if (currentPage.HasValue)
+        {
+            Guard.Against.Negative(currentPage.Value);
+        }
 
         Token = token;
         FormId = formId;

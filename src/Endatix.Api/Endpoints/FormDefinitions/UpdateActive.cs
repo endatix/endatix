@@ -33,7 +33,7 @@ public class UpdateActive(IMediator mediator) : Endpoint<UpdateActiveFormDefinit
     public override async Task<Results<Ok<UpdateActiveFormDefinitionResponse>, BadRequest, NotFound>> ExecuteAsync(UpdateActiveFormDefinitionRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
-            new UpdateActiveFormDefinitionCommand(request.FormId, request.IsDraft!.Value, request.JsonData!, request.IsActive!.Value),
+            new UpdateActiveFormDefinitionCommand(request.FormId, request.IsDraft!.Value, request.JsonData!),
             cancellationToken);
 
         return TypedResultsBuilder

@@ -1,5 +1,4 @@
-using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Forms;
@@ -9,12 +8,12 @@ namespace Endatix.Core.Tests.UseCases.Forms.List;
 
 public class ListFormsHandlerTests
 {
-    private readonly IRepository<Form> _repository;
+    private readonly IFormsRepository _repository;
     private readonly ListFormsHandler _handler;
 
     public ListFormsHandlerTests()
     {
-        _repository = Substitute.For<IRepository<Form>>();
+        _repository = Substitute.For<IFormsRepository>();
         _handler = new ListFormsHandler(_repository);
     }
 
