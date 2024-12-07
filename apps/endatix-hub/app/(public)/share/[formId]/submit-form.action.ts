@@ -25,7 +25,7 @@ const TOKENS_COOKIE_OPTIONS = {
     expirationInDays: 7,
     getExpires: () => new Date(Date.now() + TOKENS_COOKIE_OPTIONS.expirationInDays * 24 * 60 * 60 * 1000),
     getCookieOptions: (): Partial<ResponseCookie> => ({
-        httpOnly: true,
+        httpOnly: false,
         secure: TOKENS_COOKIE_OPTIONS.secure,
         sameSite: "strict",
         expires: TOKENS_COOKIE_OPTIONS.getExpires()
