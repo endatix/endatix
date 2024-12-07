@@ -47,22 +47,53 @@ async function fetchPartialResponse(formId: string, token: string) {
 
 const SurveyJsWrapper = ({ formId, definition }: SurveyJsWrapperProps) => {
     const [partialResponse, setPartialResponse] = useState(null);
+    const [cookiesEnabled, setCookiesEnabled] = useState(true);
+
+
+    const areCookiesEnabled = () : boolean => {
+        if (!navigator.cookieEnabled) {
+            return false;
+        }
+
+        if (!document.cookie) {
+            document.cookie = "fkst";
+            if (document.cookie.length === 0) {
+                return false;
+            }
+
+            document.cookie = "";
+        }
+
+        return true;
+    }
 
     useEffect(() => {
+        const cookiesEnabled = areCookiesEnabled();
+        if (!cookiesEnabled) {
+            setCookiesEnabled(false);
+        }
+
         const tokenValue = getTokenFromCookie(formId);
 
         if (tokenValue) {
             fetchPartialResponse(formId, tokenValue)
-            .then(response => setPartialResponse(response));
+                .then(response => setPartialResponse(response));
         }
-    }, []);
+    }, [cookiesEnabled]);
 
     return (
-        <SurveyComponent
-            formId={formId}
-            definition={definition}
-            data={partialResponse}
-        />);
+        <>
+            {cookiesEnabled ? (
+                <SurveyComponent
+                    formId={formId}
+                    definition={definition}
+                    data={partialResponse}
+                />
+            ) : (
+                <div>Cookies are not enabled. You must enable cookies to continue.</div>
+            )}
+        </>
+    );
 }
 
 export default SurveyJsWrapper;
