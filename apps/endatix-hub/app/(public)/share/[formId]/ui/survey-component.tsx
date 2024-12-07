@@ -10,13 +10,22 @@ import { Result } from '@/lib/result'
 interface SurveyComponentProps {
   definition: string;
   formId: string;
+  data?: any;
 }
 
-export default function SurveyComponent({ definition, formId }: SurveyComponentProps) {
+export default function SurveyComponent({ definition, formId, data }: SurveyComponentProps) {
   const [isSubmitting, startSubmitting] = useTransition();
-  const model = useMemo(() => new Model(definition), [definition]);
+  const model = useMemo(() => {
+    const surveyModel = new Model(definition);
+    if (data) {
+      surveyModel.data = JSON.parse(data.jsonData);
+      surveyModel.currentPageNo = data.currentPage;
+    }
+    return surveyModel;
+  } , [definition, data]);
 
   const updatePartial = useCallback((sender: SurveyModel) => {
+
     if (isSubmitting) {
       return;
     }
