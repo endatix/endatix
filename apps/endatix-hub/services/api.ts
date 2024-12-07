@@ -123,10 +123,7 @@ export const getActiveFormDefinition = async (
   return response.json();
 };
 
-export const getFormDefinition = async (
-  formId: string,
-  definitionId: string
-): Promise<FormDefinition> => {
+export const getFormDefinition = async (formId: string, definitionId: string): Promise<FormDefinition> => {
   if (!formId) {
     throw new Error(`FormId is required`);
   }
@@ -263,3 +260,24 @@ export const updateExistingSubmission = async (
 
   return response.json();
 };
+
+export const getExistingSubmission = async (formId: string, token: string): Promise<Submission> => {
+  if (!formId || !token) {
+    throw new Error("FormId or token is required");
+  }
+
+  const headers = new HeaderBuilder()
+    .acceptJson()
+    .build();
+
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/submissions/by-token/${token}`,
+    { headers : headers }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch submission");
+  }
+
+  return response.json();
+}

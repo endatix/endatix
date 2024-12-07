@@ -6,23 +6,24 @@ import { useMemo, startTransition, useTransition, useCallback } from "react"
 import { updateQueue } from '../lib/update-queue'
 import { SubmissionData, submitFormAction } from '../submit-form.action'
 import { Result } from '@/lib/result'
+import { Submission } from '@/types'
 
 interface SurveyComponentProps {
   definition: string;
   formId: string;
-  data?: any;
+  submission?: Submission;
 }
 
-export default function SurveyComponent({ definition, formId, data }: SurveyComponentProps) {
+export default function SurveyComponent({ definition, formId, submission }: SurveyComponentProps) {
   const [isSubmitting, startSubmitting] = useTransition();
   const model = useMemo(() => {
     const surveyModel = new Model(definition);
-    if (data) {
-      surveyModel.data = JSON.parse(data.jsonData);
-      surveyModel.currentPageNo = data.currentPage;
+    if (submission) {
+      surveyModel.data = JSON.parse(submission.jsonData);
+      surveyModel.currentPageNo = submission.currentPage;
     }
     return surveyModel;
-  } , [definition, data]);
+  } , [definition, submission]);
 
   const updatePartial = useCallback((sender: SurveyModel) => {
 
