@@ -1,12 +1,13 @@
 'use client'
 
-import { Model, SurveyModel } from 'survey-core'
+import { SurveyModel } from 'survey-core'
 import { Survey } from 'survey-react-ui'
-import { useMemo, startTransition, useTransition, useCallback } from "react"
-import { updateQueue } from '../lib/update-queue'
-import { SubmissionData, submitFormAction } from '../submit-form.action'
+import { startTransition, useTransition, useCallback } from "react"
+import { useSubmissionQueue } from '../application/submission-queue'
 import { Result } from '@/lib/result'
 import { Submission } from '@/types'
+import { useSurveyModel } from './hooks/use-survey-model'
+import { SubmissionData, submitFormAction } from '../application/actions/submit-form.action'
 
 interface SurveyComponentProps {
   definition: string;
@@ -16,17 +17,10 @@ interface SurveyComponentProps {
 
 export default function SurveyComponent({ definition, formId, submission }: SurveyComponentProps) {
   const [isSubmitting, startSubmitting] = useTransition();
-  const model = useMemo(() => {
-    const surveyModel = new Model(definition);
-    if (submission) {
-      surveyModel.data = JSON.parse(submission.jsonData);
-      surveyModel.currentPageNo = submission.currentPage;
-    }
-    return surveyModel;
-  } , [definition, submission]);
+  const model = useSurveyModel(definition, submission);
+  const { enqueueSubmission, clearQueue } = useSubmissionQueue(formId);
 
   const updatePartial = useCallback((sender: SurveyModel) => {
-
     if (isSubmitting) {
       return;
     }
@@ -39,10 +33,7 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
     }
 
     startTransition(() => {
-      updateQueue.enqueue({
-        formId,
-        data: submissionData,
-      });
+      enqueueSubmission(submissionData);
     });
   }, []);
 
@@ -50,7 +41,7 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
     if (isSubmitting) {
       return;
     }
-    updateQueue.clear();
+    clearQueue();
     const formData = JSON.stringify(sender.data, null, 3);
 
     const submissionData: SubmissionData = {

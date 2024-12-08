@@ -1,10 +1,9 @@
-"use server";
+'use server'
 
 import { cookies } from 'next/headers';
-import { createSubmission, updateExistingSubmission } from '@/services/api';
+import { createSubmission, updateSubmission } from '@/services/api';
 import { Result } from '@/lib/result';
-import { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies';
-import { deleteTokenFromCookie, getTokenFromCookie, setTokenInCookie, TOKENS_COOKIE_OPTIONS } from './lib/cookie-store';
+import { FormTokenCookieStore } from '../../../../features/public-form/infrastructure/cookie-store';
 
 export type SubmissionData = {
     isComplete?: boolean;
@@ -30,32 +29,32 @@ export type SubmissionOperationResult = Result<SubmissionOperation>;
 export async function submitFormAction(formId: string, submissionData: SubmissionData): Promise<SubmissionOperationResult> {
     // Get cookie store and check for existing submission token
     const cookieStore = await cookies();
-    const partialSubmissionKeysCookie = cookieStore.get(TOKENS_COOKIE_OPTIONS.name);
-    const tokenResult = getTokenFromCookie(partialSubmissionKeysCookie, formId);
+    var tokenStore = new FormTokenCookieStore(cookieStore);
+    const tokenResult = tokenStore.getToken(formId);
 
     // If we have a valid token, update the existing submission and update the cookie if the submission fails or is complete
     if (Result.isSuccess(tokenResult)) {
-        return await updateExistingSubmissionViaToken(formId, tokenResult.value, submissionData, cookieStore);
+        return await updateExistingSubmissionViaToken(formId, tokenResult.value, submissionData, tokenStore);
     }
 
     // Otherwise create a new submission and update the cookie with the new token
-    return await createNewSubmission(formId, submissionData, cookieStore);
+    return await createNewSubmission(formId, submissionData, tokenStore);
 }
 
 async function updateExistingSubmissionViaToken(
     formId: string,
     token: string,
     submissionData: SubmissionData,
-    cookieStore: ReadonlyRequestCookies
+    tokenStore: FormTokenCookieStore
 ): Promise<Result<SubmissionOperation>> {
     try {
-        const updatedSubmission = await updateExistingSubmission(formId, token, submissionData);
+        const updatedSubmission = await updateSubmission(formId, token, submissionData);
         if (updatedSubmission.isComplete) {
-            cookieStore.delete(TOKENS_COOKIE_OPTIONS.name);
+            tokenStore.deleteToken(formId);
         }
         return Result.success({ isSuccess: true });
     } catch (err) {
-        cookieStore.delete(TOKENS_COOKIE_OPTIONS.name);
+        tokenStore.deleteToken(formId);
         return Result.error('Failed to update existing submission. Details: ' + err);
     }
 }
@@ -63,14 +62,14 @@ async function updateExistingSubmissionViaToken(
 async function createNewSubmission(
     formId: string,
     submissionData: SubmissionData,
-    cookieStore: ReadonlyRequestCookies
+    tokenStore: FormTokenCookieStore
 ): Promise<Result<SubmissionOperation>> {
     try {
         const createSubmissionResponse = await createSubmission(formId, submissionData);
         if (createSubmissionResponse.isComplete) {
-            deleteTokenFromCookie(cookieStore, formId);
+            tokenStore.deleteToken(formId);
         } else {
-            setTokenInCookie(cookieStore, formId, createSubmissionResponse.token);
+            tokenStore.setToken({ formId, token: createSubmissionResponse.token });
         }
 
         return Result.success({ isSuccess: true });

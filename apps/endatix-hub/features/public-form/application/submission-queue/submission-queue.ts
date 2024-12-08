@@ -1,12 +1,12 @@
 import { Result } from "@/lib/result";
-import { SubmissionData, submitFormAction } from "../submit-form.action";
+import { SubmissionData, submitFormAction } from "../actions/submit-form.action";
 
 interface QueueItem {
     formId: string;
     data: SubmissionData;
 }
 
-export class UpdateQueue {
+export class SubmissionQueue {
     private queue: QueueItem[] = [];
     private isProcessing = false;
 
@@ -43,4 +43,4 @@ export class UpdateQueue {
     }
 }
 
-export const updateQueue = new UpdateQueue();
+export const submissionQueue = new SubmissionQueue();

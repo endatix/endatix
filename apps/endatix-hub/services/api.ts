@@ -229,7 +229,7 @@ export const createSubmission = async (
   return response.json();
 };
 
-export const updateExistingSubmission = async (
+export const updateSubmission = async (
   formId: string,
   token: string,
   submissionData: SubmissionData
@@ -261,7 +261,7 @@ export const updateExistingSubmission = async (
   return response.json();
 };
 
-export const getExistingSubmission = async (formId: string, token: string): Promise<Submission> => {
+export const getSubmission = async (formId: string, token: string): Promise<Submission> => {
   if (!formId || !token) {
     throw new Error("FormId or token is required");
   }

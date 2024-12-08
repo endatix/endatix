@@ -12,7 +12,7 @@ const SurveyComponent = dynamic(() => import('./survey-component'), {
 interface SurveyJsWrapperProps {
     definition: string;
     formId: string;
-    submission?: Submission
+    submission?: Submission | undefined
 }
 
 const SurveyJsWrapper = ({ formId, definition, submission }: SurveyJsWrapperProps) => {
