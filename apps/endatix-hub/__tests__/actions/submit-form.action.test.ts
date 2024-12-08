@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, Mock, beforeEach } from 'vitest'
-import { submitFormAction } from '@/app/(public)/share/[formId]/submit-form.action'
-import { createSubmission, updateExistingSubmission } from '@/services/api'
 import { cookies } from 'next/headers'
 import { ErrorType, Result } from '@/lib/result'
+import { createSubmission, updateSubmission } from '@/services/api'
+import { submitFormAction } from '@/features/public-form/application/actions/submit-form.action'
 
 vi.mock('next/headers', () => ({
   cookies: vi.fn(() => ({
@@ -14,7 +14,7 @@ vi.mock('next/headers', () => ({
 
 vi.mock('@/services/api', () => ({
   createSubmission: vi.fn(),
-  updateExistingSubmission: vi.fn()
+  updateSubmission: vi.fn()
 }))
 
 describe('submitFormAction', () => {
@@ -72,13 +72,13 @@ describe('submitFormAction', () => {
     const mockUpdateResponse = {
       isComplete: true
     };
-    (updateExistingSubmission as Mock).mockResolvedValue(mockUpdateResponse)
+    (updateSubmission as Mock).mockResolvedValue(mockUpdateResponse)
 
     // Act
     const result = await submitFormAction('form-1', mockSubmissionData)
 
     // Assert
-    expect(updateExistingSubmission).toHaveBeenCalledWith(
+    expect(updateSubmission).toHaveBeenCalledWith(
       'form-1',
       'existing-token',
       mockSubmissionData
