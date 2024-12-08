@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, Mock, beforeEach } from 'vitest'
-import { submitFormAction } from '@/app/(public)/share/[formId]/submit-form.action'
-import { createSubmission, updateExistingSubmission } from '@/services/api'
 import { cookies } from 'next/headers'
 import { ErrorType, Result } from '@/lib/result'
+import { createSubmission, updateSubmission } from '@/services/api'
+import { submitFormAction } from '@/features/public-form/application/actions/submit-form.action'
 
+const COOKIE_NAME = 'FPSK';
 vi.mock('next/headers', () => ({
   cookies: vi.fn(() => ({
     get: vi.fn(),
@@ -14,7 +15,7 @@ vi.mock('next/headers', () => ({
 
 vi.mock('@/services/api', () => ({
   createSubmission: vi.fn(),
-  updateExistingSubmission: vi.fn()
+  updateSubmission: vi.fn()
 }))
 
 describe('submitFormAction', () => {
@@ -26,8 +27,10 @@ describe('submitFormAction', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NEXT_FORMS_COOKIE_NAME = COOKIE_NAME;
+    process.env.NEXT_FORMS_COOKIE_DURATION_DAYS = '7';
     (cookies as Mock).mockReturnValue(mockCookieStore);
-  })
+  });
 
   it('should create new submission and update cookie when no token exists', async () => {
     // Arrange
@@ -50,7 +53,7 @@ describe('submitFormAction', () => {
     // Assert
     expect(createSubmission).toHaveBeenCalledWith('form-1', mockSubmissionData)
     expect(mockCookieStore.set).toHaveBeenCalledWith(
-      'FPSK',
+      COOKIE_NAME,
       expect.stringContaining('new-token'),
       expect.any(Object)
     )
@@ -72,18 +75,18 @@ describe('submitFormAction', () => {
     const mockUpdateResponse = {
       isComplete: true
     };
-    (updateExistingSubmission as Mock).mockResolvedValue(mockUpdateResponse)
+    (updateSubmission as Mock).mockResolvedValue(mockUpdateResponse)
 
     // Act
     const result = await submitFormAction('form-1', mockSubmissionData)
 
     // Assert
-    expect(updateExistingSubmission).toHaveBeenCalledWith(
+    expect(updateSubmission).toHaveBeenCalledWith(
       'form-1',
       'existing-token',
       mockSubmissionData
     )
-    expect(mockCookieStore.delete).toHaveBeenCalledWith('FPSK')
+    expect(mockCookieStore.delete).toHaveBeenCalledWith(COOKIE_NAME)
     expect(Result.isSuccess(result)).toBe(true)
   })
 
@@ -102,4 +105,4 @@ describe('submitFormAction', () => {
     expect(Result.isError(result)).toBe(true)
     expect(result.kind).toBe(ErrorType.Error);
   })
-}) 
+})

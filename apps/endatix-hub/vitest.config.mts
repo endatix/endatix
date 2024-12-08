@@ -8,8 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     coverage: {
       include: [
+        'features/**/*.ts',
         'app/**/*.{ts,tsx}',
-        'actions/**/*.ts',
         'components/**/*.tsx',
         'lib/**/*.{ts,tsx}',
         'services/**/*.ts',
@@ -18,11 +18,13 @@ export default defineConfig({
       exclude: [
         'node_modules/',
         '**/*.d.ts',
+        '**/index.ts',
+        '**/*__tests__/**',
         'components/ui/**/*.tsx',
       ],
       enabled: true,
       provider: 'v8',
-      reporter: ['text','cobertura'],
+      reporter: ['text','cobertura', 'html'],
       reportsDirectory: '../../.coverage/endatix-hub',
     },
   },

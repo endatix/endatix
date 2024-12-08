@@ -1,23 +1,24 @@
 import { Result } from "@/lib/result";
-import { SubmissionData, submitFormAction } from "../submit-form.action";
+import { SubmissionData, submitFormAction } from "../actions/submit-form.action";
 
 interface QueueItem {
     formId: string;
     data: SubmissionData;
 }
 
-export class UpdateQueue {
+export class SubmissionQueue {
     private queue: QueueItem[] = [];
     private isProcessing = false;
 
-    private processQueue = async () => {
+    private async processQueue() {
         if (this.isProcessing || this.queue.length === 0) return;
+
         this.isProcessing = true;
         try {
             const itemToProcess = this.queue.shift();
             if (!itemToProcess) return;
 
-            var result = await submitFormAction(itemToProcess.formId, itemToProcess.data);
+            const result = await submitFormAction(itemToProcess.formId, itemToProcess.data);
 
             if (Result.isError(result)) {
                 console.debug('Failed to submit form', result.message);
@@ -33,14 +34,27 @@ export class UpdateQueue {
         }
     }
 
-    enqueue(item: QueueItem) {
+    public enqueue(item: QueueItem): void {
+        if (!item.formId || !item.data) {
+            console.debug('Invalid queue item:', item);
+            return;
+        }
+
         this.queue.push(item);
         this.processQueue();
     }
 
-    clear() {
+    public clear(): void {
         this.queue = [];
+    }
+
+    public get processing(): boolean {
+        return this.isProcessing;
+    }
+
+    public get queueLength(): number {
+        return this.queue.length;
     }
 }
 
-export const updateQueue = new UpdateQueue();
+export const submissionQueue = new SubmissionQueue();
