@@ -1,25 +1,27 @@
 ---
 name: Feature
 about: New Endatix feature
-title: '[FEATURE]'
+title: '[FEATURE] '
 labels: 'enhancement'
 assignees: ''
 ---
 
-## Overview
-Provide a brief overview of the feature. Include the main objectives and context.
+## **Description**
+Clearly describe the problem or need the feature addresses. Include relevant context and why this feature is important.
 
-## Details
-Outline specific details related to the feature. Include any necessary information for understanding and implementing the feature.
+## **Implementation Notes**
+Provide key technical details or approaches for implementing the feature. Focus on important considerations without going into full specifications.
 
-## Proposed Solution
-Describe the proposed solution or approach for implementing the feature. Provide enough detail to outline the steps or methods to be taken.
+## **Acceptance Criteria**
+List the specific criteria that must be met for the feature to be considered complete:
 
-## Challenges/Risks
-Identify any challenges or risks that might be encountered. This helps in understanding potential obstacles and planning for mitigation.
+- [ ] Criterion 1 (e.g., "Users can create a form with a title and description.")
+- [ ] Criterion 2
+- [ ] Criterion 3
 
-## Deliverables
-Specify what needs to be delivered upon completion of the feature. This could be code, documentation, or other outputs.
+## **Tasks**
+Break down the work into actionable tasks:
 
-## Resources
-List any resources, such as documents, links, or tools, needed to implement the feature.
+- [ ] Task 1 (e.g., "Create form creation endpoint.")
+- [ ] Task 2
+- [ ] Task 3
