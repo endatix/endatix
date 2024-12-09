@@ -1,20 +1,24 @@
 'use client'
 
-import { Model, SurveyModel } from 'survey-core'
+import { SurveyModel } from 'survey-core'
 import { Survey } from 'survey-react-ui'
-import { useMemo, startTransition, useTransition, useCallback } from "react"
-import { updateQueue } from '../lib/update-queue'
-import { SubmissionData, submitFormAction } from '../submit-form.action'
+import { startTransition, useTransition, useCallback } from "react"
+import { useSubmissionQueue } from '../application/submission-queue'
 import { Result } from '@/lib/result'
+import { Submission } from '@/types'
+import { useSurveyModel } from './hooks/use-survey-model'
+import { SubmissionData, submitFormAction } from '../application/actions/submit-form.action'
 
 interface SurveyComponentProps {
   definition: string;
   formId: string;
+  submission?: Submission;
 }
 
-export default function SurveyComponent({ definition, formId }: SurveyComponentProps) {
+export default function SurveyComponent({ definition, formId, submission }: SurveyComponentProps) {
   const [isSubmitting, startSubmitting] = useTransition();
-  const model = useMemo(() => new Model(definition), [definition]);
+  const model = useSurveyModel(definition, submission);
+  const { enqueueSubmission, clearQueue } = useSubmissionQueue(formId);
 
   const updatePartial = useCallback((sender: SurveyModel) => {
     if (isSubmitting) {
@@ -29,10 +33,7 @@ export default function SurveyComponent({ definition, formId }: SurveyComponentP
     }
 
     startTransition(() => {
-      updateQueue.enqueue({
-        formId,
-        data: submissionData,
-      });
+      enqueueSubmission(submissionData);
     });
   }, []);
 
@@ -40,7 +41,7 @@ export default function SurveyComponent({ definition, formId }: SurveyComponentP
     if (isSubmitting) {
       return;
     }
-    updateQueue.clear();
+    clearQueue();
     const formData = JSON.stringify(sender.data, null, 3);
 
     const submissionData: SubmissionData = {
