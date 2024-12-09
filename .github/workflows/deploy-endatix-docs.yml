@@ -57,7 +57,7 @@ jobs:
           server: ${{secrets.DOCS_FTP_URL}}
           username: ${{secrets.DOCS_SITE_FTP_USER}}
           password: ${{secrets.DOCS_FTP_PASS}}
-          local-dir: "./build/"
+          local-dir: "./docs/endatix-docs/build/"
           exclude: |
             markdown-page/**
 
