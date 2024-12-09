@@ -4,18 +4,24 @@ on:
   push:
     branches:
       - "**"
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "apps/**"
+      - ".github/workflows/**"
 
 jobs:
-  test:
+  dotnet-build:
+    name: "Endatix API: Build & Test"
     env:
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 🔍 Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: 📦 Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "9.x"
@@ -26,30 +32,81 @@ jobs:
       - name: Build
         run: dotnet build --no-restore
 
-      - name: Run .NET tests
+      - name: 🧪 Run .NET tests
         run: dotnet test --no-build --collect:"XPlat Code Coverage;Format=cobertura" --results-directory:".coverage"
 
       - name: Install DotNet Coverage
         run: dotnet tool update --global dotnet-coverage
 
-      - name: Merge Coverage Reports
+      - name: 📊 Merge Coverage Reports
         run: dotnet-coverage merge .coverage/endatix-hub/cobertura-coverage.xml .coverage/**/coverage.cobertura.xml -f cobertura -o .coverage/merged.cobertura.xml
 
-      - name: Install DotNet Report Generator
+      - name: 📊 Install DotNet Report Generator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      - name: Add Summary Report
+      - name: 📊Add Summary Report
         run: reportgenerator -reports:".coverage/merged.cobertura.xml" -targetdir:".coverage/report" -reporttypes:"MarkdownSummaryGithub"
 
-      - name: Upload to Coveralls
+      - name: 📊 Upload to Coveralls
         uses: coverallsapp/github-action@v2
         with:
           format: cobertura
           file: .coverage/merged.cobertura.xml
 
-      - name: Output Summary Report
+      - name: 📝 Output Summary Report
         run: |
           echo ">[!NOTE] " >> $GITHUB_STEP_SUMMARY
-          echo ">#### 🧪 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo ">#### 🧪 Endatix API: Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
           echo ">[![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=$BRANCH_NAME)](https://coveralls.io/github/endatix/endatix?branch=$BRANCH_NAME)" >> $GITHUB_STEP_SUMMARY
           cat .coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+  node-build:
+    name: "Endatix Hub: Build & Test"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/endatix-hub
+
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.2
+          run_install: false
+
+      - name: 📦 Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        name: 📦 Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: 🥡 Install Dependencies
+        run: pnpm install --frozen-lockfile
+  
+      - name: 🧪 Run tests
+        run: pnpm test:coverage
+
+      - name: 🏗️  Build Next.js app
+        run: pnpm build
+
+      - name: 📊 Endatix Hub Coverage
+        uses:  davelosert/vitest-coverage-report-action@v2
+        with:
+          name: 'Endatix Hub'
+          json-summary-path: '.coverage/endatix-hub/coverage-summary.json'
+          json-final-path: '.coverage/endatix-hub/coverage-final.json'
