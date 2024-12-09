@@ -39,7 +39,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ThemeProvider

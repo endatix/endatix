@@ -29,7 +29,7 @@ const LoginPage = async () => {
       </div>
       <div className="hidden bg-muted lg:block">
         <Image
-          src="/lines-and-stuff.svg"
+          src="/assets/lines-and-stuff.svg"
           alt="Lines and dots pattern"
           width="1920"
           height="1080"

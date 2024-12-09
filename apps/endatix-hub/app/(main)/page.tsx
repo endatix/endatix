@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import GitHubIcon from "@/public/icons/github.svg";
+import GitHubIcon from "@/public/assets/icons/github.svg";
 import { BookText, Globe } from "lucide-react";
 import { Metadata } from "next";
 
@@ -26,7 +26,7 @@ const Home = () => {
           <CardHeader className="pb-3">
             <CardTitle>
               <Image
-                src="/icons/endatix.svg"
+                src="/assets/icons/endatix.svg"
                 alt="Endatix logo"
                 width={180}
                 height={38}

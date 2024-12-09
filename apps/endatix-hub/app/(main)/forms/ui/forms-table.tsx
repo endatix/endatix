@@ -56,7 +56,7 @@ const FormsTable = ({ data }: FormDataProps) => (
               alt="Form image"
               className="aspect-square rounded-md object-cover"
               height="64"
-              src="/placeholder.svg"
+              src="/assets/placeholder.svg"
               width="64"
             />
           </TableCell>

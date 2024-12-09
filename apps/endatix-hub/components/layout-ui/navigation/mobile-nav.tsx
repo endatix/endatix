@@ -1,7 +1,7 @@
 import Image from "next/image";
 import NavLink from "./nav-link";
 import Link from "next/link";
-import EndatixLogoSvg from "@/public/icons/icon.svg";
+import EndatixLogoSvg from "@/public/assets/icons/icon.svg";
 import { SitemapService } from "@/services/sitemap-service";
 
 const MobileNav = () => {
