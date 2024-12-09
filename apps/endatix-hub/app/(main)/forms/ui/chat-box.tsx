@@ -29,7 +29,7 @@ interface ChatBoxProps extends React.HTMLAttributes<HTMLDivElement> {
     onStateChange?: () => void;
 }
 
-const ChatBox = ({ className, placeholder, requiresNewContext, onPendingChange, onStateChange, ...props }: ChatBoxProps) => {
+const ChatBox = ({ className, placeholder, ...props }: ChatBoxProps) => {
     const [input, setInput] = useState('')
 
     return (

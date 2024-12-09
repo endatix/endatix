@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useTransition } from "react"
+import { useState, useEffect, useRef, useTransition, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ICreatorOptions } from "survey-creator-core"
 import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react"
@@ -130,7 +130,6 @@ const defaultCreatorOptions: ICreatorOptions = {
   themeForPreview: "Default"
 };
 
-
 function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, options }: FormEditorProps) {
   const [creator, setCreator] = useState<SurveyCreator | null>(null);
   const [enabled, setEnabled] = useState(isEnabled);
@@ -141,6 +140,19 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [originalName, setOriginalName] = useState(formName);
   const [isPending, startTransition] = useTransition();
+
+  const handleNameSave = useCallback(async () => {
+    if (name !== originalName) {
+      startTransition(async () => {
+        await updateFormNameAction(formId, name);
+
+        setOriginalName(name);
+        setName(name);
+        toast("Form name updated");
+      });
+    }
+    setIsEditingName(false);
+  }, [formId, name, originalName, startTransition]);
 
   useEffect(() => {
     if (creator) {
@@ -157,9 +169,18 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
     };
     setCreator(newCreator);
 
-  }, [formJson, options]);
+  }, [formJson, options, creator]);
 
   useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (inputRef.current && !inputRef.current.contains(e.target as Node)) {
+        console.log("Clicked outside, waiting to save name...");
+        setTimeout(() => {
+          handleNameSave();
+        }, 0);
+      }
+    };
+
     if (isEditingName) {
       document.addEventListener('mousedown', handleClickOutside);
     } else {
@@ -168,7 +189,7 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
     return () => {
       document.removeEventListener('mousedown', handleClickOutside); // Clean up event listener
     };
-  }, [isEditingName]);
+  }, [isEditingName, handleNameSave]);
 
   const handleSaveAndGoBack = async () => {
     try {
@@ -189,19 +210,6 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
     }
   };
 
-  const handleNameSave = async () => {
-    if (name !== originalName) {
-      startTransition(async () => {
-        await updateFormNameAction(formId, name);
-
-        setOriginalName(name);
-        setName(name);
-        toast("Form name updated");
-      });
-    }
-    setIsEditingName(false);
-  };
-
   const saveForm = () => {
     startTransition(async () => {
       const updatedFormJson = creator?.JSON;
@@ -220,15 +228,6 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
     } else if (e.key === 'Escape') {
       setName(originalName);
       setIsEditingName(false);
-    }
-  };
-
-  const handleClickOutside = (e: MouseEvent) => {
-    if (inputRef.current && !inputRef.current.contains(e.target as Node)) {
-      console.log("Clicked outside, waiting to save name...");
-      setTimeout(() => {
-        handleNameSave();
-      }, 0);
     }
   };
 

@@ -3,10 +3,10 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Minus } from "lucide-react";
 import React from "react";
-import { Question } from "survey-core";
+import { ItemValue, QuestionMatrixModel } from "survey-core";
 
 interface MatrixAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
-  question: Question;
+  question: QuestionMatrixModel;
 }
 
 interface MatrixAnswer {
@@ -21,14 +21,14 @@ const MatrixAnswer = ({ question }: MatrixAnswerProps) => {
     }
 
     const answers: Array<MatrixAnswer> = [];
-    question.rows.forEach((row: any) => {
+    question.rows.forEach((row: { text: string; id: number; }) => {
       if (!question?.value) {
         return;
       }
       const rowText = row.text;
       const answer = question.value[row.id];
       const answerText = question.columns.find(
-        (c : any) => c.value === answer
+        (c : ItemValue) => c.value === answer
       )?.title ?? ""; 
 
       if (answerText && rowText) {
