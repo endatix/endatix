@@ -1,5 +1,6 @@
-"use server";
+'use server'
 
+import { ensureAuthenticated } from '@/lib/auth-service';
 import { getFormDefinition } from '@/services/api';
 
 export interface GetDefinitionRequest {
@@ -14,6 +15,8 @@ export interface SelectedDefinitionResult {
 }
 
 export async function getDefinition({ formId, definitionId }: GetDefinitionRequest): Promise<SelectedDefinitionResult> {
+    await ensureAuthenticated();
+    
     const resultState: SelectedDefinitionResult = {
         isSuccess: false
     }

@@ -18,14 +18,14 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   onClick }) => {
   const determineImageUrl = () => {
     if (!isLoggedIn) {
-      return "/images/avatars/placeholder-user.jpg";
+      return "/assets/images/avatars/placeholder-user.jpg";
     }
 
     if (isEndatixUser(userName)) {
-      return "/images/avatars/oggy_avatar.jpg";
+      return "/assets/images/avatars/oggy_avatar.jpg";
     }
 
-    return "/images/avatars/placeholder-user.jpg";
+    return "/assets/images/avatars/placeholder-user.jpg";
   };
 
   const imageUrl = determineImageUrl();
