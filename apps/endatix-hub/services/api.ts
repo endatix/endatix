@@ -6,7 +6,7 @@ import { Form, FormDefinition, Submission } from "../types";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-service";
 import { HeaderBuilder } from "./header-builder";
-import { SubmissionData } from "@/app/(public)/share/[formId]/submit-form.action";
+import { SubmissionData } from "@/features/public-form/application/actions/submit-form.action";
 
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
