@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { JWTInvalid } from "jose/errors";
 import { cache } from "react";
 import { Kind, Result } from "./result";
+import { redirect, RedirectType } from "next/navigation";
 
 export interface SessionData {
   username: string;
@@ -44,6 +45,21 @@ const ANONYMOUS_SESSION: SessionData = {
 };
 
 const SAFETY_MARGIN_IN_SECONDS = 10;
+
+// Cached session getter for reuse
+export const getSession = cache(async (): Promise<SessionData> => {
+  const authService = new AuthService();
+  const session = await authService.getSession();
+  return session;
+});
+
+// Authentication guard for protected routes
+export const ensureAuthenticated = async (): Promise<void> => {
+  const currentSession = await getSession();
+  if (!currentSession.isLoggedIn) {
+    redirect("/login", RedirectType.push);
+  }
+};
 
 export class AuthService {
   private readonly secretKey: Uint8Array;
@@ -146,9 +162,3 @@ export class AuthService {
     }
   }
 }
-
-export const getSession = cache(async (): Promise<SessionData> => {
-  const authService = new AuthService();
-  const session = await authService.getSession();
-  return session;
-});
