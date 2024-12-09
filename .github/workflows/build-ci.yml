@@ -13,7 +13,6 @@ on:
 jobs:
   dotnet-build:
     name: "Endatix API: Build & Test"
-    if: ${{ contains(github.event.head_commit.modified, 'src/') || contains(github.event.head_commit.modified, 'tests/') }}
     env:
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
     runs-on: ubuntu-latest
@@ -63,7 +62,6 @@ jobs:
 
   node-build:
     name: "Endatix Hub: Build & Test"
-    if: ${{ contains(github.event.head_commit.modified, 'apps/endatix-hub/') }}
     runs-on: ubuntu-latest
     defaults:
       run:
