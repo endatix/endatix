@@ -9,8 +9,11 @@ type Params = {
 
 async function ResponsesPage({ params }: Params) {
   const { formId } = await params;
-  const submissions = await getSubmissions(formId);
-  const form = await getForm(formId);
+
+  const [submissions, form] = await Promise.all([
+    await getSubmissions(formId),
+    await getForm(formId)
+  ]);
 
   return (
     <>
