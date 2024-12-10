@@ -20,6 +20,7 @@ export type FormDefinition = {
 
 export type Submission = {
   id: string;
+  formId: string;
   isComplete: boolean;
   jsonData: string;
   formDefinitionId: string;
