@@ -6,7 +6,7 @@ import React from "react";
 import { ItemValue, QuestionMatrixModel } from "survey-core";
 
 interface MatrixAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
-  question: QuestionMatrixModel;
+  question: Partial<QuestionMatrixModel>;
 }
 
 interface MatrixAnswer {
@@ -22,7 +22,7 @@ const MatrixAnswer = ({ question }: MatrixAnswerProps) => {
 
     const answers: Array<MatrixAnswer> = [];
     question.rows.forEach((row: { text: string; id: number; }) => {
-      if (!question?.value) {
+      if (!question?.value || !question?.columns) {
         return;
       }
       const rowText = row.text;
