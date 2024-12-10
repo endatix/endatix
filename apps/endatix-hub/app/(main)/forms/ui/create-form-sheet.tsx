@@ -34,7 +34,6 @@ const CreateFormCard: FC<FormCreateSheetProps> = ({
   title,
   description,
   icon: Icon,
-  action,
   onClick,
   isSelected,
 }) => {
