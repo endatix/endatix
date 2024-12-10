@@ -1,5 +1,4 @@
 import PageTitle from '@/components/headings/page-title';
-import { Separator } from '@/components/ui/separator';
 import { getForm, getSubmissions } from '@/services/api';
 import SubmissionsTable from './ui/submissions-table';
 
@@ -18,7 +17,6 @@ async function ResponsesPage({ params }: Params) {
   return (
     <>
       <PageTitle title={`Submissions for ${form.name}`} />
-      <Separator className="my-4" />
       <SubmissionsTable data={submissions} />
     </>
   );

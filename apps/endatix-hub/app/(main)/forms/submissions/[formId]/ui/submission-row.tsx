@@ -2,11 +2,11 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Submission } from "@/types";
-import { MoreHorizontal } from "lucide-react";
-import Link from "next/link";
+import { FileDown, FilePenLine, LinkIcon, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { redirect } from "next/navigation";
 import { useMemo } from "react";
 
 type SubmissionsRowProps = {
@@ -17,7 +17,7 @@ type SubmissionsRowProps = {
 
 const getStatusLabel = (isComplete: boolean) => isComplete ? "Yes" : "No";
 
-const getSeenLabel= (isComplete: boolean) => isComplete ? "Seen" : "New";
+const getSeenLabel = (isComplete: boolean) => isComplete ? "Seen" : "New";
 
 const getCompletionTime = (startedAt: Date, completedAt: Date): string => {
     if (!startedAt || !completedAt) return "-";
@@ -33,8 +33,8 @@ const getCompletionTime = (startedAt: Date, completedAt: Date): string => {
 
 const SubmissionRow = ({ item, onClick, isSelected }: SubmissionsRowProps) => {
     const rowClassName = useMemo(() => {
-        let className : string = "";
-        
+        let className: string = "";
+
         if (isSelected) {
             className += "bg-accent";
         }
@@ -54,32 +54,48 @@ const SubmissionRow = ({ item, onClick, isSelected }: SubmissionsRowProps) => {
                             <span className="sr-only">Toggle menu</span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem>Delete</DropdownMenuItem>
+                    <DropdownMenuContent className="text-gray-600" align="start">
                         <DropdownMenuItem>
-                            <Link href={`/submissions/${item.id}`}>View Response</Link>
+                            <FilePenLine className="w-4 h-4 mr-2" />
+                            <span>Edit</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                            <Sparkles className="w-4 h-4 mr-2" />
+                            <span>Mark as seen</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                            <FileDown className="w-4 h-4 mr-2" />
+                            <span>Export PDF</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {redirect(`/share/${item.formId}`)}}>
+                            <LinkIcon className="w-4 h-4 mr-2" />
+                            <span>Share Link</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            <span>Delete</span>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </TableCell>
-            <TableCell className="hidden">{item.id}</TableCell>
-            <TableCell className="hidden md:table-cell">
+            <TableCell className="hidden text-center">{item.id}</TableCell>
+            <TableCell className="hidden md:table-cell text-center">
                 {new Date(item.createdAt).toLocaleString("en-US")}
             </TableCell>
-            <TableCell>
+            <TableCell className="text-center">
                 <Badge variant="outline">
                     {getStatusLabel(item.isComplete)}
                 </Badge>
             </TableCell>
-            <TableCell>
+            <TableCell className="text-center">
                 {item.isComplete && new Date(item.completedAt).toLocaleString("en-US")}
             </TableCell>
-            <TableCell className="hidden md:table-cell">
+            <TableCell className="hidden md:table-cell text-center">
                 {getCompletionTime(item.createdAt, item.completedAt)}
             </TableCell>
-            <TableCell>
+            <TableCell className="text-center">
                 <Badge variant={item.isComplete ? "secondary" : "default"}>
                     {getSeenLabel(item.isComplete)}
                 </Badge>
