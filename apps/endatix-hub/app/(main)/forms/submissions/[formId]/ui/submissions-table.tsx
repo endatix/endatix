@@ -9,8 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Submission } from "@/types";
 import SubmissionRow from "./submission-row";
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect, useMemo, useState } from "react";
 import SubmissionSheet from "./submission-sheet";
 
 type SubmissionsTableProps = {
@@ -53,43 +52,31 @@ const SubmissionsTable = ({ data }: SubmissionsTableProps) => {
   );
 
   return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Is Complete</TableHead>
-            <TableHead>Completion Time</TableHead>
-            <TableHead>Created at</TableHead>
-            <TableHead className="hidden md:table-cell">Completed at</TableHead>
-            <TableHead>
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((item) => (
-            <Suspense key={item.id} fallback={<LoadingFallback />} >
-              <SubmissionRow isSelected={item.id === selectedSubmissionId} onClick={() => setSelectedSubmissionId(item.id)} item={item} />
-            </Suspense>
-          ))}
-        </TableBody>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>
+            <span className="sr-only">Actions</span>
+          </TableHead>
+          <TableHead className="hidden">ID</TableHead>
+          <TableHead className="hidden md:table-cell">Created at</TableHead>
+          <TableHead>Complete?</TableHead>
+          <TableHead>Completed at</TableHead>
+          <TableHead>Completion Time</TableHead>
+          <TableHead>Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {data.map((item: Submission) => (
+          <SubmissionRow key={item.id} isSelected={item.id === selectedSubmissionId} onClick={() => setSelectedSubmissionId(item.id)} item={item} />
+        ))}
+      </TableBody>
 
-        {selectedSubmission && (
-          <SubmissionSheet submission={selectedSubmission} />
-        )}
-      </Table>
-    </>
+      {selectedSubmission && (
+        <SubmissionSheet submission={selectedSubmission} />
+      )}
+    </Table>
   );
 }
-
-const LoadingFallback = () => (
-  <div className="flex flex-row">
-    <div className="space-y-2">
-      <Skeleton className="h-4 w-[250px]" />
-      <Skeleton className="h-4 w-[200px]" />
-      <Skeleton className="h-4 w-[200px]" />
-    </div>
-  </div>
-)
 
 export default SubmissionsTable;
