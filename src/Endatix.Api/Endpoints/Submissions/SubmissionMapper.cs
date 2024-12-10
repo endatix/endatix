@@ -9,6 +9,7 @@ public class SubmissionMapper
         Id = submission.Id.ToString(),
         IsComplete = submission.IsComplete,
         JsonData = submission.JsonData,
+        FormId=submission.FormId.ToString(),
         FormDefinitionId = submission.FormDefinitionId.ToString(),
         CurrentPage = submission.CurrentPage,
         Metadata = submission.Metadata,
@@ -17,7 +18,7 @@ public class SubmissionMapper
         CreatedAt = submission.CreatedAt,
         ModifiedAt = submission.ModifiedAt
     };
-    
+
     public static IEnumerable<T> Map<T>(IEnumerable<Submission> submissions) where T : SubmissionModel, new() =>
         submissions.Select(Map<T>).ToList();
 }
