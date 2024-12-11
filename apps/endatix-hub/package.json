@@ -34,7 +34,7 @@
     "clsx": "^2.1.1",
     "jose": "^5.9.6",
     "lucide-react": "^0.436.0",
-    "next": "15.0.4",
+    "next": "15.1.0",
     "next-themes": "^0.3.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -52,14 +52,14 @@
     "@testing-library/react": "^16.1.0",
     "@types/node": "^20.17.9",
     "@types/react": "19.0.1",
-    "@types/react-dom": "19.0.1",
+    "@types/react-dom": "19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "2.1.8",
     "@vitest/ui": "^2.1.8",
     "vitest": "^2.1.8",
     "cross-env": "^7.0.3",
     "eslint": "^8.57.1",
-    "eslint-config-next": "15.0.4",
+    "eslint-config-next": "15.1.0",
     "eslint-plugin-testing-library": "^6.5.0",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.49",
@@ -74,7 +74,7 @@
   "pnpm": {
     "overrides": {
       "@types/react": "19.0.1",
-      "@types/react-dom": "19.0.1"
+      "@types/react-dom": "19.0.2"
     }
   }
 }
