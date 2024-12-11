@@ -68,12 +68,8 @@
     "typescript": "^5.7.2",
     "vite-tsconfig-paths": "^5.1.4"
   },
-  "overrides": {
-    "@types/react": "npm:types-react@19.0.0-rc.1",
-    "@types/react-dom": "npm:types-react-dom@19.0.0-rc.1"
-  },
   "engines": {
-    "node": ">=18 <=20"
+    "node": "22.6"
   },
   "pnpm": {
     "overrides": {
