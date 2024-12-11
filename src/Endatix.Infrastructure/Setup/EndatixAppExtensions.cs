@@ -9,6 +9,7 @@ using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Infrastructure.Email;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Integrations.Slack;
 using Endatix.Infrastructure.Repositories;
 using Endatix.Infrastructure.Setup;
 using MediatR;
@@ -59,6 +60,8 @@ public static class EndatixAppExtensions
         services.AddScoped<IFormsRepository, FormsRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
+        services.AddSlackConfiguration<SlackSettings>();
+
         services.AddWebHookProcessing();
 
         endatixApp.AddDataOptions();
@@ -87,7 +90,8 @@ public static class EndatixAppExtensions
         var services = endatixApp.Services;
         var mediatRAssemblies = new[]
         {
-            Endatix.Core.AssemblyReference.Assembly
+            Endatix.Core.AssemblyReference.Assembly,
+            Endatix.Infrastructure.AssemblyReference.Assembly
         };
 
         if (meditROptions.AdditionalAssemblies.Length != 0)

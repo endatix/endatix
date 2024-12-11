@@ -1,6 +1,6 @@
 namespace Endatix.Core.Integrations.Slack;
 
-public interface SlackCLient {
+public interface ISlackClient {
     /// <summary>
     /// Posts a message to a Slack channel through the Endatix Bot Slack app
     /// </summary>

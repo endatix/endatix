@@ -23,6 +23,24 @@
       }
     },
     {
+      "name": "📎 Sample: CustomEventHandlers",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/samples/Endatix.Samples.CustomEventHandlers/bin/Debug/net9.0/Endatix.Samples.CustomEventHandlers.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/samples/Endatix.Samples.CustomEventHandlers",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
       "name": "📎 Sample: SelfHosted",
       "type": "coreclr",
       "request": "launch",
