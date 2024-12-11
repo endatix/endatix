@@ -7,7 +7,7 @@ public class ListByFormIdValidator : Validator<ListByFormIdRequest>
 {
     public ListByFormIdValidator()
     {
-        Include(new PageRequestValidator());
+        Include(new PagedRequestValidator());
 
         RuleFor(x => x.FormId)
             .GreaterThan(0);

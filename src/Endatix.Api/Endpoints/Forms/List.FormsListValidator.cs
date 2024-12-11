@@ -13,6 +13,6 @@ public class FormsListValidator : Validator<FormsListRequest>
     /// </summary>
     public FormsListValidator()
     {
-        Include(new PageRequestValidator());
+        Include(new PagedRequestValidator());
     }
 }

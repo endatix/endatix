@@ -14,7 +14,7 @@ public class FormDefinitionsListValidator : Validator<FormDefinitionsListRequest
     /// </summary>
     public FormDefinitionsListValidator()
     {
-        Include(new PageRequestValidator());
+        Include(new PagedRequestValidator());
 
         RuleFor(x => x.FormId)
             .GreaterThan(0);

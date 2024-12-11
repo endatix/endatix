@@ -6,7 +6,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Request object to get list of submissions for a given form
 /// </summary>
-public class ListByFormIdRequest : IPageRequest
+public class ListByFormIdRequest : IPagedRequest
 {
     /// <summary>
     /// The ID of the form.

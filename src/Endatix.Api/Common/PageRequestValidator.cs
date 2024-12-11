@@ -4,15 +4,15 @@ using Endatix.Api.Common;
 namespace Endatix.Api;
 
 /// <summary>
-/// Reusable Fluent validation for the IPageRequest implementations.
-/// To use in your Validators add this to the validation <c>Include(new PageRequestValidator());</c>
+/// Reusable Fluent validation for the IPagedRequest implementations.
+/// To use in your Validators add this to the validation <c>Include(new PagedRequestValidator());</c>
 /// </summary>
-public class PageRequestValidator : AbstractValidator<IPageRequest>
+public class PagedRequestValidator : AbstractValidator<IPagedRequest>
 {
     /// <summary>
     /// Default constructor
     /// </summary>
-    public PageRequestValidator()
+    public PagedRequestValidator()
     {
         RuleFor(x => x.Page)
                .GreaterThan(0)
