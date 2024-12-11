@@ -1,17 +1,17 @@
 using Ardalis.Specification;
 using Endatix.Core.Entities;
-using Endatix.Core.Filters;
+using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.UseCases.Forms;
 
 namespace Endatix.Core.Specifications;
 
 public sealed class FormsWithSubmissionsCountSpec : Specification<Form, FormDto>
 {
-    public FormsWithSubmissionsCountSpec(PagingFilter filter)
+    public FormsWithSubmissionsCountSpec(PagingParameters pagingParams)
     {
         Query
          .OrderByDescending(x => x.CreatedAt)
-         .Paginate(filter)
+         .Paginate(pagingParams)
          .AsNoTracking();
 
         Query.Select(form =>

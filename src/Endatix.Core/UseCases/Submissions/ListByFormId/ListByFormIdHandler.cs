@@ -1,9 +1,9 @@
 ﻿using Endatix.Core.Entities;
-using Endatix.Core.Filters;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.UseCases.Submissions.ListByFormId;
 
@@ -22,8 +22,8 @@ public class ListByFormIdHandler(
             return Result.NotFound("Form not found.");
         }
 
-        var pageFilter = new PagingFilter(request.Page, request.PageSize);
-        var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pageFilter);
+        var pagingParams = new PagingParameters(request.Page, request.PageSize);
+        var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pagingParams);
 
         IEnumerable<Submission> submissions = await submissionsRepository
                 .ListAsync(formByIdSpec, cancellationToken);

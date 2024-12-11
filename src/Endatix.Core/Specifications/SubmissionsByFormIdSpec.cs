@@ -1,6 +1,6 @@
 using Ardalis.Specification;
 using Endatix.Core.Entities;
-using Endatix.Core.Filters;
+using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.Specifications;
 
@@ -13,11 +13,11 @@ namespace Endatix.Core.Specifications;
 /// </summary>
 public class SubmissionsByFormIdSpec : Specification<Submission>
 {
-    public SubmissionsByFormIdSpec(long formId, PagingFilter filter)
+    public SubmissionsByFormIdSpec(long formId, PagingParameters pagingParams)
     {
-       Query.Where(s => s.FormDefinition.FormId == formId)
+        Query.Where(s => s.FormDefinition.FormId == formId)
             .OrderByDescending(s => s.CompletedAt)
-            .Paginate(filter)
+            .Paginate(pagingParams)
             .AsNoTracking();
     }
 }

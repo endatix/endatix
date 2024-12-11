@@ -1,16 +1,16 @@
 using Ardalis.Specification;
 using Endatix.Core.Entities;
-using Endatix.Core.Filters;
+using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.Specifications;
 
 public sealed class FormDefinitionsByFormIdSpec : Specification<FormDefinition>
 {
-    public FormDefinitionsByFormIdSpec(long formId, PagingFilter? filter = null)
+    public FormDefinitionsByFormIdSpec(long formId, PagingParameters? pagingParams = null)
     {
         Query
             .Where(fd => fd.FormId == formId)
-            .Paginate(filter!)
+            .Paginate(pagingParams!)
             .AsNoTracking();
     }
 }
