@@ -69,7 +69,7 @@
     "vite-tsconfig-paths": "^5.1.4"
   },
   "engines": {
-    "node": "22.6"
+    "node": ">=22"
   },
   "pnpm": {
     "overrides": {
