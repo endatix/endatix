@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
     matcher: [
         {
-            source: '/((?!api|.swa|assets|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login).*)',
+            source: '/((?!.swa|share|api|assets|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login).*)',
             missing: [{ type: 'header', key: 'next-action' }],
         }
     ]
