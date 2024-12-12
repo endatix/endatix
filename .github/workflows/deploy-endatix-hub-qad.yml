@@ -1,4 +1,4 @@
-name: Deploy Endatix Hub to QAD
+name: "🚀 Deploy Endatix Hub to QAD"
 
 on:
   workflow_dispatch:
@@ -59,8 +59,6 @@ jobs:
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         env:
-          ## PRE_BUILD_COMMAND: npm install -force
-          ## CUSTOM_BUILD_COMMAND: npm run build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
           ENDATIX_BASE_URL: ${{ secrets.ENDATIXHUB_API_BASE_URL }}
           SESSION_SECRET: ${{ secrets.ENDATIXHUB_NEXT_FORMS_COOKIE_DURATION_DAYS }}
           NEXT_FORMS_COOKIE_NAME: ${{ secrets.ENDATIXHUB_NEXT_FORMS_COOKIE_NAME }}
