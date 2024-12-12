@@ -57,6 +57,9 @@ importers:
       '@swc/helpers':
         specifier: ^0.5.15
         version: 0.5.15
+      '@tanstack/react-table':
+        specifier: ^8.20.5
+        version: 8.20.5(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@vercel/functions':
         specifier: ^1.5.1
         version: 1.5.1
@@ -112,7 +115,7 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.16)
       zod:
-        specifier: ^3.23.8
+        specifier: ^3.24.0
         version: 3.24.0
     devDependencies:
       '@testing-library/react':
@@ -1306,6 +1309,17 @@ packages:
 
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
+
+  '@tanstack/react-table@8.20.5':
+    resolution: {integrity: sha512-WEHopKw3znbUZ61s9i0+i9g8drmDo6asTWbrQh8Us63DAk/M0FkmIqERew6P71HI75ksZ2Pxyuf4vvKh9rAkiA==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
+  '@tanstack/table-core@8.20.5':
+    resolution: {integrity: sha512-P9dF7XbibHph2PFRz8gfBKEXEY/HJPOhym8CHmjF8y3q5mWpKx9xtZapXQUWCgkqvsK0R46Azuz+VaxD4Xl+Tg==}
+    engines: {node: '>=12'}
 
   '@testing-library/dom@10.4.0':
     resolution: {integrity: sha512-pemlzrSESWbdAloYml3bAJMEfNh1Z7EduzqPKprCH5S341frlpYnUEW0H72dLxa6IsYr+mPno20GiSm+h9dEdQ==}
@@ -4497,6 +4511,14 @@ snapshots:
   '@swc/helpers@0.5.15':
     dependencies:
       tslib: 2.8.1
+
+  '@tanstack/react-table@8.20.5(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+    dependencies:
+      '@tanstack/table-core': 8.20.5
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+
+  '@tanstack/table-core@8.20.5': {}
 
   '@testing-library/dom@10.4.0':
     dependencies:
