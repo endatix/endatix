@@ -13,9 +13,10 @@ namespace Endatix.Core.Specifications;
 /// </summary>
 public class SubmissionsByFormIdSpec : Specification<Submission>
 {
-    public SubmissionsByFormIdSpec(long formId, PagingParameters pagingParams)
+    public SubmissionsByFormIdSpec(long formId, PagingParameters pagingParams, FilterParameters filterParams)
     {
         Query.Where(s => s.FormDefinition.FormId == formId)
+            .Filter(filterParams)
             .OrderByDescending(s => s.CompletedAt)
             .Paginate(pagingParams)
             .AsNoTracking();
