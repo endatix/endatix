@@ -38,7 +38,7 @@ public static class MiddlewareExtensions
             fastEndpoints.Security.PermissionsClaimType = ClaimNames.Permission;
         });
 
-        if (endatixMiddleware.App.Environment.IsDevelopment() || endatixMiddleware.App.Environment.IsProduction())
+        if (endatixMiddleware.App.Environment.IsDevelopment())
         {
             var option = new RewriteOptions();
             option.AddRedirect("^$", "swagger");
