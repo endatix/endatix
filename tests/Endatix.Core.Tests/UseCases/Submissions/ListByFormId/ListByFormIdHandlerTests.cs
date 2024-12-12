@@ -48,7 +48,7 @@ public class ListByFormIdHandlerTests
             new("{ }", 1, 2) { Id = 3 },
             new("{ }", 1, 2) { Id = 4 }
         };
-        var request = new ListByFormIdQuery(1, 1, 10, new List<string>());
+        var request = new ListByFormIdQuery(1, 1, 10, []);
 
         _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
@@ -72,7 +72,7 @@ public class ListByFormIdHandlerTests
     {
         // Arrange
         var formDefinition = new FormDefinition() { Id = 1 };
-        var request = new ListByFormIdQuery(1, 2, 20, new List<string>());
+        var request = new ListByFormIdQuery(1, 2, 20, []);
 
         _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
