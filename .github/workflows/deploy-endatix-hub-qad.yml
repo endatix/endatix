@@ -1,4 +1,4 @@
-name: Deploy Endatix Hub to `endatix-hub-qad`
+name: Deploy Endatix Hub to QAD
 
 on:
   workflow_dispatch:
@@ -25,13 +25,42 @@ jobs:
           submodules: true
           lfs: false
 
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.9.0'
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.2
+          run_install: false
+
+      - name: 📦 Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        name: 📦 Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: 🥡 Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🏗️  Build Next.js app
+        run: pnpm build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
 
       - name: Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         env:
-          PRE_BUILD_COMMAND: npm install -force
-          CUSTOM_BUILD_COMMAND: npm run build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
+          ## PRE_BUILD_COMMAND: npm install -force
+          ## CUSTOM_BUILD_COMMAND: npm run build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
           ENDATIX_BASE_URL: ${{ secrets.ENDATIXHUB_API_BASE_URL }}
           SESSION_SECRET: ${{ secrets.ENDATIXHUB_NEXT_FORMS_COOKIE_DURATION_DAYS }}
           NEXT_FORMS_COOKIE_NAME: ${{ secrets.ENDATIXHUB_NEXT_FORMS_COOKIE_NAME }}
@@ -40,9 +69,10 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_PLANT_0DBFDE310 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
           app_location: "/apps/endatix-hub" # App source code path
+          skip_app_build: true
+          skip_api_build: true
           api_location: "" # Api source code path - optional
           output_location: "" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
