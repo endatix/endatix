@@ -8,55 +8,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table'
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable
+} from '@tanstack/react-table'
+import {
+  COLUMNS_DEFINITION,
+  TablePagination
+} from "@/features/submissions/ui/table";
 import { Submission } from "@/types";
 import SubmissionRow from "./submission-row";
 import { useEffect, useMemo, useState } from "react";
 import SubmissionSheet from "./submission-sheet";
-import { TablePagination } from "./table-pagination";
-import TableRowActions from "./table-row-actions";
+
 
 type SubmissionsTableProps = {
   data: Submission[];
   renderNewTable?: boolean;
 };
-
-const columns: ColumnDef<Submission>[] = [
-  {
-    id: "actions",
-    cell: ({ row }) => <TableRowActions row={row} />
-  },
-  {
-    header: "Created at",
-    accessorKey: "createdAt",
-    enableSorting: true,
-    enableHiding: true,
-  },
-  {
-    header: "Complete?",
-    accessorKey: "complete",
-    enableSorting: true,
-    enableHiding: true,
-  },
-  {
-    header: "Completed at",
-    accessorKey: "completedAt",
-    enableSorting: true,
-    enableHiding: true,
-  },
-  {
-    header: "Completion Time",
-    accessorKey: "completionTime",
-    enableSorting: true,
-    enableHiding: true,
-  },
-  {
-    header: "Status",
-    accessorKey: "status",
-    enableSorting: true,
-    enableHiding: true,
-  },
-]
 
 const SubmissionsTable = ({
   data,
@@ -100,7 +72,7 @@ const SubmissionsTable = ({
     return (
       <DataTable
         data={data}
-        columns={columns} />
+        columns={COLUMNS_DEFINITION} />
     )
   }
 
