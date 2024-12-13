@@ -28,6 +28,7 @@
     "@radix-ui/react-tabs": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.1.4",
     "@swc/helpers": "^0.5.15",
+    "@tanstack/react-table": "^8.20.5",
     "@vercel/functions": "^1.5.1",
     "babel-plugin-react-compiler": "0.0.0-experimental-6067d4e-20240919",
     "class-variance-authority": "^0.7.1",
@@ -46,7 +47,7 @@
     "survey-react-ui": "^1.12.13",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.23.8"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",
@@ -56,7 +57,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "2.1.8",
     "@vitest/ui": "^2.1.8",
-    "vitest": "^2.1.8",
     "cross-env": "^7.0.3",
     "eslint": "^8.57.1",
     "eslint-config-next": "15.0.4",
@@ -66,7 +66,8 @@
     "sass": "^1.82.0",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.7.2",
-    "vite-tsconfig-paths": "^5.1.4"
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^2.1.8"
   },
   "overrides": {
     "@types/react": "npm:types-react@19.0.0-rc.1",

@@ -185,9 +185,10 @@ export const getSubmissions = async (formId: string): Promise<Submission[]> => {
     redirect("/login");
   }
 
+  const CLIENT_PAGE_SIZE = 10_000;
   const headers = new HeaderBuilder().withAuth(session).build();
 
-  const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions`, {
+  const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions?pageSize=${CLIENT_PAGE_SIZE}`, {
     headers: headers,
   });
 
