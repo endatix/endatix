@@ -22,6 +22,7 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
     private readonly IRepository<Form> _formRepository;
     private readonly SlackSettings _slackSettings;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IHttpClientFactory _httpClientFactory;
     //TODO: The Slack message template should be configurable through the Hub's UI
     // {0} is the submissionURL, {1} is the form name
     private const string SLACK_MESSAGE_TEMPLATE = ":page_with_curl: <{0}|New submission> for {1}";
@@ -30,12 +31,14 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
     public SlackClient(ILogger<SlackClient> logger,
             IRepository<Form> formRepository,
             IOptions<SlackSettings> options,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            IHttpClientFactory httpClientFactory)
     {
         _formRepository = formRepository;
         _logger = logger;
         _slackSettings = options.Value;
         _serviceProvider = serviceProvider;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task Handle(SubmissionCompletedEvent notification, CancellationToken cancellationToken)
@@ -79,7 +82,8 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
         Guard.Against.NullOrEmpty(token, nameof(token), "Token must have a value  when posting to Slack.");
         Guard.Against.NullOrEmpty(message, nameof(message), "Message must have a value when posting to Slack.");
 
-        using var httpClient = new HttpClient();
+        var httpClient = _httpClientFactory.CreateClient();
+
         httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
 
         var payload = new
