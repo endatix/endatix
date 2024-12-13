@@ -8,7 +8,7 @@ type Params = {
   searchParams: Promise<{ 
     page: string, 
     pageSize: string,
-    renderNewTable: boolean
+    useLegacyTable: boolean
    }>
 }
 
@@ -46,14 +46,14 @@ async function ResponsesPage({ params, searchParams }: Params) {
     await getForm(formId)
   ]);
   await logSearchParams(searchParams);
-  const { renderNewTable } = await searchParams;
+  const { useLegacyTable } = await searchParams;
 
   return (
     <>
       <PageTitle title={`Submissions for ${form.name}`} />
       <SubmissionsTable
         data={submissions}
-        renderNewTable={renderNewTable?? false}
+        useLegacyTable={useLegacyTable?? false}
       />
     </>
   );

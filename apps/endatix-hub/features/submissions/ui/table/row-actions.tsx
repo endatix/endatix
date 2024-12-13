@@ -6,13 +6,13 @@ import { Row } from "@tanstack/react-table"
 import { FileDown, FilePenLine, LinkIcon, MoreHorizontal, Sparkles, Trash2 } from "lucide-react"
 import { redirect } from "next/navigation"
 
-interface TableRowActionsProps<TData> {
+interface RowActionsProps<TData> {
     row: Row<TData>
 }
 
-function TableRowActions<TData>({
+export function RowActions<TData>({
     row
-}: TableRowActionsProps<TData>) {
+}: RowActionsProps<TData>) {
     const item = row.original as Submission;
     return (
         <DropdownMenu>
@@ -49,5 +49,3 @@ function TableRowActions<TData>({
         </DropdownMenu>
     )
 }
-
-export default TableRowActions;
