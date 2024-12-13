@@ -31,5 +31,5 @@ public class SlackSettings
     /// A toggle for activating the integration
     /// </summary>
     [Required]
-    public bool Active { get; set; }
+    public bool? Active { get; set; }
 }

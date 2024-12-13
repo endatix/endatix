@@ -1,15 +1,17 @@
 ﻿using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using MediatR;
 
 namespace Endatix.Core.UseCases.Submissions;
 
 /// <summary>
 /// Handler for updating a form submission.
 /// </summary>
-public class UpdateSubmissionHandler(IRepository<Submission> repository) : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
+public class UpdateSubmissionHandler(IRepository<Submission> repository, IMediator mediator) : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
     private const int DEFAULT_CURRENT_PAGE = 1;
@@ -33,6 +35,10 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository) : IComm
         );
 
         await repository.SaveChangesAsync(cancellationToken);
+
+        if(!submission.IsComplete && (request.IsComplete ?? false)) {
+            await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
+        }
 
         return Result.Success(submission);
     }
