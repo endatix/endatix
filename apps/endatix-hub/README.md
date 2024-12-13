@@ -1,4 +1,10 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Endatix Hub
+This is the Endatix Hub, a Form Management system, built with Next.js. It uses the Endatix API to manage forms and submissions and offer data collection and reporting.
+
+## Prerequisites
+
+- **Node.js 20.9.0**
+- **pnpm >=9.0.0**
 
 ## Getting Started
 
@@ -6,12 +12,6 @@ First, run the development server. We recommend using pnpm dev:
 
 ```bash
 pnpm dev
-# or
-npm run dev
-# or
-yarn dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. If you want to run the site in https, run `pnpm run dev-https` command.
