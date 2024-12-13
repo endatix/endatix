@@ -5,7 +5,11 @@ import type { Metadata, ResolvingMetadata } from 'next'
 
 type Params = {
   params: Promise<{ formId: string }>
-  searchParams: Promise<{ page: string, pageSize: string }>
+  searchParams: Promise<{ 
+    page: string, 
+    pageSize: string,
+    renderNewTable: boolean
+   }>
 }
 
 export async function generateMetadata(
@@ -42,11 +46,15 @@ async function ResponsesPage({ params, searchParams }: Params) {
     await getForm(formId)
   ]);
   await logSearchParams(searchParams);
+  const { renderNewTable } = await searchParams;
 
   return (
     <>
       <PageTitle title={`Submissions for ${form.name}`} />
-      <SubmissionsTable data={submissions} />
+      <SubmissionsTable
+        data={submissions}
+        renderNewTable={renderNewTable?? false}
+      />
     </>
   );
 }
