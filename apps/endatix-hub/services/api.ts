@@ -2,6 +2,7 @@ import {
   AuthenticationRequest,
   AuthenticationResponse,
 } from "@/lib/auth-definitions";
+import { CreateFormRequest } from "@/lib/form-types";
 import { Form, FormDefinition, Submission } from "../types";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-service";
@@ -26,6 +27,29 @@ export const authenticate = async (
 
   if (!response.ok) {
     throw new Error("Failed to fetch data");
+  }
+
+  return response.json();
+};
+
+export const createForm = async (
+  formRequest: CreateFormRequest
+): Promise<Form> => {
+  let session = await getSession();
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .provideJson()
+    .build();
+
+  const response = await fetch(`${API_BASE_URL}/forms`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(formRequest),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create form");
   }
 
   return response.json();
