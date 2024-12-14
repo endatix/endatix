@@ -1,5 +1,6 @@
 using Ardalis.Specification;
 using Endatix.Core.Entities;
+using Endatix.Core.Specifications.Common;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.UseCases.Forms;
 

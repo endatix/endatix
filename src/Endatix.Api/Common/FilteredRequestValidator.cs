@@ -64,7 +64,7 @@ public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
             string.IsNullOrWhiteSpace(parts[0]) || 
             string.IsNullOrWhiteSpace(parts[1]))
         {
-            errorMessage = "Filter must be in format 'field{operator}value'";
+            errorMessage = "Filter must be in format 'field[operator]value'";
             return false;
         }
 

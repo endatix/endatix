@@ -5,7 +5,7 @@ namespace Endatix.Core.Specifications.Parameters;
 
 /// <summary>
 /// Represents a filter criterion that can be used to build query specifications.
-/// This class parses and stores field-based filter expressions in the format "field{operator}value".
+/// This class parses and stores field-based filter expressions in the format "field[operator]value".
 /// </summary>
 /// <remarks>
 /// Supported operators:
@@ -21,9 +21,9 @@ namespace Endatix.Core.Specifications.Parameters;
 /// </remarks>
 public class FilterCriterion
 {
-    public string Field { get; }
-    public ExpressionType Operator { get; }
-    public IReadOnlyList<string> Values { get; }
+    public string Field { get; private set; }
+    public ExpressionType Operator { get; private set; }
+    public IReadOnlyList<string> Values { get; private set; }
 
     private static readonly Dictionary<string, ExpressionType> _operatorMap = new()
     {
@@ -38,7 +38,7 @@ public class FilterCriterion
     /// <summary>
     /// Initializes a new instance of the FilterCriterion class by parsing a filter expression.
     /// </summary>
-    /// <param name="filterExpression">The filter expression in the format "field{operator}value".</param>
+    /// <param name="filterExpression">The filter expression in the format "field[operator]value".</param>
     /// <exception cref="ArgumentException">Thrown when the filter expression is invalid.</exception>
     /// <exception cref="ArgumentNullException">Thrown when the filter expression is null or empty.</exception>
     public FilterCriterion(string filterExpression)
@@ -64,20 +64,14 @@ public class FilterCriterion
             $"Invalid filter operator. Valid operators are: {string.Join(", ", _operatorMap.Keys)}");
 
         var parts = filterExpression.Split(@operator, 2);
-        Guard.Against.InvalidInput(
-            parts,
+        Field = Guard.Against.NullOrWhiteSpace(
+            parts[0].Trim(),
             nameof(filterExpression),
-            p => p.Length == 2,
-            "Invalid filter format. Expected format: field{operator}value where {operator} is one of ':', '!:', '>', '<', '>:', '<:'");
-
-        Field = Guard.Against.NullOrWhiteSpace(parts[0].Trim(), nameof(Field));
+            "Filter must have a field");
+        
         Operator = _operatorMap[@operator];
 
         var values = parts[1].Split(',').Select(v => v.Trim()).ToList();
-        Guard.Against.NullOrEmpty(
-            values,
-            nameof(filterExpression),
-            "Filter must have at least one value");
         Guard.Against.InvalidInput(
             values,
             nameof(filterExpression),
@@ -90,7 +84,7 @@ public class FilterCriterion
     /// <summary>
     /// Creates a new FilterCriterion by parsing the provided filter expression.
     /// </summary>
-    /// <param name="filterExpression">The filter expression in the format "field{operator}value".</param>
+    /// <param name="filterExpression">The filter expression in the format "field[operator]value".</param>
     /// <returns>A new instance of FilterCriterion.</returns>
     public static FilterCriterion Parse(string filterExpression) => new FilterCriterion(filterExpression);
 }

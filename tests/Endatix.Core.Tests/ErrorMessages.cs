@@ -11,6 +11,10 @@ public enum ErrorType
     AudienceEmpty,
     AccessTokenZeroOrNegative,
     RefreshTokenZeroOrNegative,
+    InvalidFilterOperator,
+    FilterNoField,
+    FilterEmptyValue,
+    PropertyNotExist,
 }
 
 public static class ErrorMessages
@@ -25,7 +29,11 @@ public static class ErrorMessages
         { ErrorType.IssuerEmpty, "Issuer cannot be empty. Please check your appSettings (Parameter '{0}')" },
         { ErrorType.AudienceEmpty, "You need at least one audience in your appSettings. (Parameter '{0}')" },
         { ErrorType.AccessTokenZeroOrNegative, "Access Token expiration must be positive number representing minutes for access token lifetime (Parameter '{0}')" },
-        { ErrorType.RefreshTokenZeroOrNegative, "Refresh Token expiration must be positive number representing days for refresh token lifetime (Parameter '{0}')" }
+        { ErrorType.RefreshTokenZeroOrNegative, "Refresh Token expiration must be positive number representing days for refresh token lifetime (Parameter '{0}')" },
+        { ErrorType.InvalidFilterOperator, "Invalid filter operator. Valid operators are: !:, >:, <:, :, >, < (Parameter '{0}')" },
+        { ErrorType.FilterNoField, "Filter must have a field (Parameter '{0}')" },
+        { ErrorType.FilterEmptyValue, "Filter values cannot be empty or whitespace (Parameter '{0}')" },
+        { ErrorType.PropertyNotExist, "Property '{0}' does not exist on type 'TestEntity' (Parameter '{1}')" },
     };
 
     public static string GetErrorMessage(string fieldName, ErrorType errorType)
@@ -33,6 +41,15 @@ public static class ErrorMessages
         if (errorMessageTemplates.TryGetValue(errorType, out var template))
         {
             return string.Format(template, fieldName);
+        }
+        throw new ArgumentException("Invalid error type.", nameof(errorType));
+    }
+
+    public static string GetErrorMessage(ErrorType errorType, params string[] args)
+    {
+        if (errorMessageTemplates.TryGetValue(errorType, out var template))
+        {
+            return string.Format(template, args);
         }
         throw new ArgumentException("Invalid error type.", nameof(errorType));
     }
