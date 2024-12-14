@@ -10,10 +10,9 @@ import {
 } from "@/components/ui/sheet";
 import { FC, useState, useTransition } from "react";
 import ChatBox from "./chat-box";
-import { Atom, BicepsFlexed, Code, Copy, Folder } from "lucide-react";
+import { BicepsFlexed, Code, Copy, Folder } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DotLoader from "@/components/loaders/dot-loader";
-import { showComingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
 import { CreateFormRequest } from "@/lib/form-types";
 import { createFormAction } from "../create-form.action";
 import { redirect } from "next/navigation";
