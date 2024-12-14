@@ -71,7 +71,7 @@ const FormsTable = ({ data }: FormDataProps) => (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link href={`/submissions/${form.id}`}>
+                  <Link href={`/forms/${form.id}/submissions`}>
                     {Math.round(Math.random() * 25)}
                   </Link>
                 </TooltipTrigger>
@@ -95,7 +95,7 @@ const FormsTable = ({ data }: FormDataProps) => (
                 <DropdownMenuItem>Edit</DropdownMenuItem>
                 <DropdownMenuItem>Delete</DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Link href={`/submissions/${form.id}`}>View Submissions</Link>
+                  <Link href={`/forms/${form.id}/submissions`}>View Submissions</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
