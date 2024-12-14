@@ -1,4 +1,5 @@
-﻿using FastEndpoints;
+﻿using Endatix.Api.Common;
+using FastEndpoints;
 using FluentValidation;
 
 namespace Endatix.Api.Endpoints.Forms;
@@ -13,6 +14,6 @@ public class FormsListValidator : Validator<FormsListRequest>
     /// </summary>
     public FormsListValidator()
     {
-        Include(new PageRequestValidator());
+        Include(new PagedRequestValidator());
     }
 }
