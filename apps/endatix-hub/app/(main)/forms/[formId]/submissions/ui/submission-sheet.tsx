@@ -11,18 +11,14 @@ import {
 } from "@/components/ui/sheet";
 import { Submission } from "@/types";
 import { startTransition, useEffect, useState } from "react";
-import {
-    getDefinition,
-    GetDefinitionRequest,
-    SelectedDefinitionResult,
-} from "../get-definition.action";
 import { Model, Question } from "survey-core";
 import { Download, Link as Link2, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { comingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import AnswerViewer from "./answer-viewer";
+import AnswerViewer from "@/features/submissions/ui/answers/answer-viewer";
+import { getDefinition, GetDefinitionRequest, SelectedDefinitionResult } from "../get-definition.action";
 
 type SubmissionSheetProps = {
     submission: Submission | null;

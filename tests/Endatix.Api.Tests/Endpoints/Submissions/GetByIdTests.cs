@@ -27,7 +27,7 @@ public class GetByIdTests
         var submissionId = 1L;
         var request = new GetByIdRequest { FormId = formId, SubmissionId = submissionId };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<GetByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -76,7 +76,7 @@ public class GetByIdTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var okResult = response.Result as Ok<SubmissionModel>;
+        var okResult = response.Result as Ok<SubmissionDetailsModel>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Id.Should().Be(submissionId.ToString());
@@ -92,7 +92,7 @@ public class GetByIdTests
             SubmissionId = 456
         };
         var result = Result.Success(new Submission("{ }", 1, 2));
-        
+
         _mediator.Send(Arg.Any<GetByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 

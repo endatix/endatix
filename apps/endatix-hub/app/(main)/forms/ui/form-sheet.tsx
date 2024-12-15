@@ -125,7 +125,7 @@ const FormSheet = ({ selectedForm }: FormSheetProps) => {
                         </div>
                         {hasSubmissions() === true && (
                             <div>
-                                <Link href={`/forms/submissions/${selectedForm.id}`}>
+                                <Link href={`/forms/${selectedForm.id}/submissions`}>
                                     <Button variant={"ghost"}>
                                         <ArrowRight className="mr-2 h-4 w-4" />
                                         View Submissions

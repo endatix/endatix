@@ -29,7 +29,7 @@ export function RowActions<TData>({
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                     <Sparkles className="w-4 h-4 mr-2" />
-                    <span>Mark as seen</span>
+                    <span>Mark as new</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>

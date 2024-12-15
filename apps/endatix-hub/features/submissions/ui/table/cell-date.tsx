@@ -1,3 +1,4 @@
+import { parseDate } from "@/lib/utils";
 import { useMemo } from "react";
 
 interface CellDateProps {
@@ -11,16 +12,7 @@ export function CellDate({
     visible = true
 }: CellDateProps) {
     const parsedDate = useMemo(() => {
-        try {
-            if (!date){
-                return null;
-            }
-            
-            const dateValue = date instanceof Date ? date : new Date(date);
-            return isNaN(dateValue.getTime()) ? null : dateValue;
-        } catch {
-            return null;
-        }
+        return parseDate(date);
     }, [date]);
 
     if (!parsedDate) {
