@@ -9,5 +9,5 @@ public interface ISlackClient {
     /// <param name="notification">The notification object passed by the event publisher</param>
     /// /// <param name="cancellationToken">The event's cancellation token</param>
     /// <returns>Task</returns>
-    public Task Handle(SubmissionCompletedEvent notification, CancellationToken cancellationToken);
+    Task Handle(SubmissionCompletedEvent notification, CancellationToken cancellationToken);
 }
