@@ -8,14 +8,14 @@ import { Model } from "survey-core";
 import { SectionTitle } from "@/components/headings/section-title";
 import { BackToSubmissionsButton } from "@/features/submissions/ui/details/back-to-submissions-button";
 
-interface SubmissionPageProps {
-    params: {
+type Params = {
+    params: Promise<{
         formId: string;
         submissionId: string;
-    };
+    }>
 }
 
-export default async function SubmissionPage({ params }: SubmissionPageProps) {
+export default async function SubmissionPage({ params }: Params) {
     const { formId, submissionId } = await params;
     const submissionResult = await getSubmissionDetailsUseCase({ formId, submissionId });
 
