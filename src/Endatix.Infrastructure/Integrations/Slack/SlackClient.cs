@@ -46,10 +46,10 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
 
     public async Task Handle(SubmissionCompletedEvent notification, CancellationToken cancellationToken)
     {
-        if (notification.Submission.IsComplete && (bool)_slackSettings.Active)
+        if (notification.Submission.IsComplete && (bool)_slackSettings.Active!)
         {
             var formNameOrId = notification.Submission.FormId.ToString();
-            var submissionUrl = string.Format(SLACK_SUBMISSIONS_URL_TEMPLATE, _slackSettings.EndatixHubBaseUrl.TrimEnd('\\', '/'), notification.Submission.FormId, notification.Submission.Id);
+            var submissionUrl = string.Format(SLACK_SUBMISSIONS_URL_TEMPLATE, _slackSettings.EndatixHubBaseUrl!.TrimEnd('\\', '/'), notification.Submission.FormId, notification.Submission.Id);
             Form? form;
 
             using (var scope = _serviceProvider.CreateScope())
@@ -64,10 +64,8 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
             else {
                 _logger.LogWarning($"Form with id {formNameOrId} cannot be loaded by the Slack client");
             }
-            
-            Guard.Against.Null(form, $"Unable to load submission {notification.Submission.Id}'s Form object.");
 
-            var message = string.Format(SLACK_MESSAGE_TEMPLATE, submissionUrl, form.Name);
+            var message = string.Format(SLACK_MESSAGE_TEMPLATE, submissionUrl, formNameOrId);
 
             await PostMessageAsync(message);
         }
