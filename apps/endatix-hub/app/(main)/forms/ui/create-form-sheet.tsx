@@ -8,15 +8,19 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { FC, useState } from "react";
+import { FC, useState, useTransition } from "react";
 import ChatBox from "./chat-box";
-import { Atom, BicepsFlexed, Code, Folder } from "lucide-react";
+import { BicepsFlexed, Code, Copy, Folder } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DotLoader from "@/components/loaders/dot-loader";
-import { showComingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
+import { CreateFormRequest } from "@/lib/form-types";
+import { createFormAction } from "../create-form.action";
+import { redirect } from "next/navigation";
+import { Result } from "@/lib/result";
 
 type CreateFormOption =
   | "from_scratch"
+  | "from_existing"
   | "from_template"
   | "from_json"
   | "via_assistant";
@@ -27,6 +31,7 @@ interface FormCreateSheetProps {
   icon: React.ElementType;
   action?: CreateFormOption;
   isSelected?: boolean;
+  disabled?: boolean;
   onClick?: (event: React.MouseEvent<HTMLElement>) => void;
 }
 
@@ -36,20 +41,23 @@ const CreateFormCard: FC<FormCreateSheetProps> = ({
   icon: Icon,
   onClick,
   isSelected,
+  disabled,
 }) => {
   return (
     <Card
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
       className={cn(
-        "hover:border-primary hover:bg-accent focus:outline focus:outline-2 focus:outline-primary-500",
-        isSelected && "border-primary bg-accent"
+        "hover:border-primary hover:bg-accent focus:outline focus:outline-2 focus:outline-primary-500 flex flex-col overflow-hidden",
+        !disabled && "cursor-pointer",
+        isSelected && "border-primary bg-accent",
+        disabled && "opacity-50 cursor-not-allowed hover:border-border hover:bg-background"
       )}
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
-        <CardTitle className="text-lg font-medium">{title}</CardTitle>
-        <Icon className="h-8 w-8 text-muted-foreground place-self-start" />
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 p-4 flex-grow">
+        <CardTitle className="text-lg font-medium leading-tight">{title}</CardTitle>
+        <Icon className="h-8 w-8 text-muted-foreground shrink-0 ml-4" />
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-4 bg-muted mt-auto border-t rounded-b-lg">
         <p className="text-xs text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
@@ -59,6 +67,28 @@ const CreateFormCard: FC<FormCreateSheetProps> = ({
 const CreateFormSheet = () => {
   const [pending, setPending] = useState(false);
   const [selectedOption, setSelectedOption] = useState<CreateFormOption>();
+  const [isPending, startTransition] = useTransition()
+  
+  const openNewFormInEditor = async () => {
+    if (isPending) {
+      return;
+    }
+    
+    startTransition(async () => {
+        const request: CreateFormRequest = {
+            name: "New Form",
+            isEnabled: true,
+            formDefinitionJsonData: JSON.stringify("{ }")
+        }
+        const formResult = await createFormAction(request);
+        if (Result.isSuccess(formResult) && formResult.value) {
+            const formId = formResult.value;
+            redirect(`/forms/${formId}`);
+        } else {
+            alert("Failed to create form");
+        }
+    });
+  }
 
   return (
     <SheetContent className="w-[600px] sm:w-[480px] sm:max-w-none flex flex-col h-screen justify-between">
@@ -76,7 +106,17 @@ const CreateFormSheet = () => {
             icon={BicepsFlexed}
             action="from_scratch"
             isSelected={selectedOption === "from_scratch"}
-            onClick={() => setSelectedOption("from_scratch")}
+            onClick={openNewFormInEditor}
+            disabled={isPending}
+          />
+          <CreateFormCard
+            title="Copy an Existing Form"
+            description="You have your JSON code ready? Paste it here."
+            icon={Copy}
+            action="from_existing"
+            isSelected={selectedOption === "from_existing"}
+            onClick={() => setSelectedOption("from_existing")}
+            disabled
           />
           <CreateFormCard
             title="Create from a Template"
@@ -85,16 +125,18 @@ const CreateFormSheet = () => {
             action="from_template"
             isSelected={selectedOption === "from_template"}
             onClick={() => setSelectedOption("from_template")}
+            disabled
           />
           <CreateFormCard
-            title="Paste your JSON Code"
+            title="Import a Form"
             description="You have your JSON code ready? Paste it here."
             icon={Code}
             action="from_json"
             isSelected={selectedOption === "from_json"}
             onClick={() => setSelectedOption("from_json")}
+            disabled
           />
-          <CreateFormCard
+          {/* <CreateFormCard
             title="Use our AI Form Assistant"
             description="The recommended way to create a form."
             icon={Atom}
@@ -104,7 +146,7 @@ const CreateFormSheet = () => {
               setSelectedOption("via_assistant");
               showComingSoonMessage(event);
             }}
-          />
+          /> */}
         </div>
       </div>
       {pending && <DotLoader className="flex-1 text-center m-auto" />}
