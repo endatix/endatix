@@ -7,36 +7,43 @@ using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
 
-public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formRepository, IRepository<Submission> submissionsRepository) : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
+public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepository, IRepository<Submission> submissionsRepository) : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
 {
     public async Task<Result<FormDefinition>> Handle(PartialUpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
     {
         var spec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
-        var formWithActiveDefinition = await formRepository.SingleOrDefaultAsync(spec, cancellationToken);
+        var formWithActiveDefinition = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
         var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
         if (formWithActiveDefinition == null || activeDefinition == null)
         {
             return Result.NotFound("Active form definition not found.");
         }
 
-        if(await FormDefinitionHasSubmissions(activeDefinition.Id) && activeDefinition.JsonData != request.JsonData) {
-            var newFormDefinition = new FormDefinition(jsonData: request.JsonData);
-            await formRepository.AddNewFormDefinitionAsync(formWithActiveDefinition, newFormDefinition, cancellationToken);
-            newFormDefinition.UpdateDraftStatus(request.IsDraft);
-            formWithActiveDefinition.SetActiveFormDefinition(newFormDefinition);
+        if(await ShouldCreateNewFormDefinitionAsync(activeDefinition, request)) {
+            var newFormDefinition = new FormDefinition(request.IsDraft??false, request.JsonData);
+            formWithActiveDefinition.AddFormDefinition(newFormDefinition);
+            
+            if (!newFormDefinition.IsDraft) {
+                formWithActiveDefinition.SetActiveFormDefinition(newFormDefinition);
+            }
+           
+            await formsRepository.UpdateAsync(formWithActiveDefinition, cancellationToken);
         }
         else {
             activeDefinition.UpdateSchema(request.JsonData);
             activeDefinition.UpdateDraftStatus(request.IsDraft);
         }
 
-        await formRepository.UpdateAsync(formWithActiveDefinition, cancellationToken);
+        await formsRepository.UpdateAsync(formWithActiveDefinition, cancellationToken);
         return Result.Success(activeDefinition);
     }
 
     private async Task<bool> FormDefinitionHasSubmissions(long definitionId) {
         var spec = new SubmissionsTotalCountByFormDefinitionIdSpec(definitionId);
-        var count = await submissionsRepository.CountAsync(spec);
-        return count > 0;
+        return await submissionsRepository.AnyAsync(spec);
+    }
+
+    private async Task<bool> ShouldCreateNewFormDefinitionAsync(FormDefinition formDefinition, PartialUpdateActiveFormDefinitionCommand request) {
+        return formDefinition.JsonData != request.JsonData && await FormDefinitionHasSubmissions(formDefinition.Id);
     }
 }
