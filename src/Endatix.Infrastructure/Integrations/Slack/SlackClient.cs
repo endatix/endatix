@@ -19,7 +19,6 @@ namespace Endatix.Infrastructure.Integrations.Slack;
 public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlackClient
 {
     private readonly ILogger<SlackClient> _logger;
-    private readonly IRepository<Form> _formRepository;
     private readonly SlackSettings _slackSettings;
     private readonly IServiceProvider _serviceProvider;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -28,29 +27,28 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
     private const string SLACK_MESSAGE_TEMPLATE = ":page_with_curl: <{0}|New submission> for {1}";
     // Submission URL parameters: {0} is the Hub's base URL, {1} is FormId
     private const string SLACK_SUBMISSIONS_URL_TEMPLATE = "{0}/forms/submissions/{1}";
+    private const string SLACK_API_POST_URL = "https://slack.com/api/chat.postMessage";
     public SlackClient(ILogger<SlackClient> logger,
-            IRepository<Form> formRepository,
             IOptions<SlackSettings> options,
             IServiceProvider serviceProvider,
             IHttpClientFactory httpClientFactory)
     {
-        _formRepository = formRepository;
         _logger = logger;
         _slackSettings = options.Value;
         _serviceProvider = serviceProvider;
         _httpClientFactory = httpClientFactory;
-    }
 
-    public async Task Handle(SubmissionCompletedEvent notification, CancellationToken cancellationToken)
-    {
         Guard.Against.Null(_slackSettings.Active, nameof(_slackSettings.Active), "Slack settings must specify whether the integration is active.");
         Guard.Against.NullOrEmpty(_slackSettings.EndatixHubBaseUrl, nameof(_slackSettings.EndatixHubBaseUrl), "EndatixHubBaseUrl must have a value within the Slack settings collection.");
         Guard.Against.NullOrEmpty(_slackSettings.Token, nameof(_slackSettings.Token), "Token must have a value within the Slack settings collection.");
         Guard.Against.NullOrEmpty(_slackSettings.ChannelId, nameof(_slackSettings.ChannelId), "ChannelId must have a value within the Slack settings collection.");
+    }
 
+    public async Task Handle(SubmissionCompletedEvent notification, CancellationToken cancellationToken)
+    {
         if (notification.Submission.IsComplete && (bool)_slackSettings.Active)
         {
-
+            var formNameOrId = notification.Submission.FormId.ToString();
             var submissionUrl = string.Format(SLACK_SUBMISSIONS_URL_TEMPLATE, _slackSettings.EndatixHubBaseUrl.TrimEnd('\\', '/'), notification.Submission.FormId);
             Form? form;
 
@@ -60,11 +58,18 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
                 form = await repository.GetByIdAsync(notification.Submission.FormId, cancellationToken);
             }
 
+            if(form != null && !string.IsNullOrEmpty(form.Name)) {
+                formNameOrId = form.Name;
+            }
+            else {
+                _logger.LogWarning($"Form with id {formNameOrId} cannot be loaded by the Slack client");
+            }
+            
             Guard.Against.Null(form, $"Unable to load submission {notification.Submission.Id}'s Form object.");
 
             var message = string.Format(SLACK_MESSAGE_TEMPLATE, submissionUrl, form.Name);
 
-            await PostMessageAsync(_slackSettings.Token, _slackSettings.ChannelId, message);
+            await PostMessageAsync(message);
         }
         else
         {
@@ -72,23 +77,20 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
             {
                 _logger.LogWarning($"SubmissionCompletedEvent raised on an incomplete submission with id {notification.Submission.Id}");
             }
-
         }
     }
 
-    public async Task PostMessageAsync(string token, string channelId, string message)
+    private async Task PostMessageAsync(string message)
     {
-        Guard.Against.NullOrEmpty(channelId, nameof(channelId), "EndatixHubBaseUrl must have a value when posting to Slack.");
-        Guard.Against.NullOrEmpty(token, nameof(token), "Token must have a value  when posting to Slack.");
-        Guard.Against.NullOrEmpty(message, nameof(message), "Message must have a value when posting to Slack.");
-
+        Guard.Against.NullOrEmpty(message, nameof(message), "ChannelId must have a value within the Slack settings collection.");
+        
         var httpClient = _httpClientFactory.CreateClient();
 
-        httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+        httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_slackSettings.Token}");
 
         var payload = new
         {
-            channel = channelId,
+            channel = _slackSettings.ChannelId,
             text = message
         };
 
@@ -100,9 +102,9 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
 
         try
         {
-            var response = await httpClient.PostAsync("https://slack.com/api/chat.postMessage", content);
+            var response = await httpClient.PostAsync(SLACK_API_POST_URL, content);
             response.EnsureSuccessStatusCode();
-            _logger.LogInformation($"Slack notification posted to channel {channelId}: {message}");
+            _logger.LogInformation($"Slack notification posted to channel {_slackSettings.ChannelId}: {message}");
         }
         catch (Exception ex)
         {

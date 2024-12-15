@@ -21,9 +21,15 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IMediat
     {
         var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
         var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
+        var mustPublishEvent = false;
+
         if (submission == null)
         {
             return Result.NotFound("Form submission not found.");
+        }
+
+        if(!submission.IsComplete && (request.IsComplete ?? false)) {
+            mustPublishEvent = true;
         }
 
         submission.Update(
@@ -36,7 +42,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IMediat
 
         await repository.SaveChangesAsync(cancellationToken);
 
-        if(!submission.IsComplete && (request.IsComplete ?? false)) {
+        if(mustPublishEvent) {
             await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
         }
 
