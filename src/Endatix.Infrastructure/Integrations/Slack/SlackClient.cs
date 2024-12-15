@@ -25,8 +25,8 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
     //TODO: The Slack message template should be configurable through the Hub's UI
     // {0} is the submissionURL, {1} is the form name
     private const string SLACK_MESSAGE_TEMPLATE = ":page_with_curl: <{0}|New submission> for {1}";
-    // Submission URL parameters: {0} is the Hub's base URL, {1} is FormId
-    private const string SLACK_SUBMISSIONS_URL_TEMPLATE = "{0}/forms/submissions/{1}";
+    // Submission URL parameters: {0} is the Hub's base URL, {1} is FormId, {2} is SubmissionId
+    private const string SLACK_SUBMISSIONS_URL_TEMPLATE = "{0}/forms/{1}/submissions/{2}";
     private const string SLACK_API_POST_URL = "https://slack.com/api/chat.postMessage";
     public SlackClient(ILogger<SlackClient> logger,
             IOptions<SlackSettings> options,
@@ -49,7 +49,7 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
         if (notification.Submission.IsComplete && (bool)_slackSettings.Active)
         {
             var formNameOrId = notification.Submission.FormId.ToString();
-            var submissionUrl = string.Format(SLACK_SUBMISSIONS_URL_TEMPLATE, _slackSettings.EndatixHubBaseUrl.TrimEnd('\\', '/'), notification.Submission.FormId);
+            var submissionUrl = string.Format(SLACK_SUBMISSIONS_URL_TEMPLATE, _slackSettings.EndatixHubBaseUrl.TrimEnd('\\', '/'), notification.Submission.FormId, notification.Submission.Id);
             Form? form;
 
             using (var scope = _serviceProvider.CreateScope())
