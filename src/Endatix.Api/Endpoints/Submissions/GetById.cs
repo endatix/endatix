@@ -10,7 +10,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Endpoint for getting a form submission by ID.
 /// </summary>
-public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<SubmissionModel>, BadRequest, NotFound>>
+public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<SubmissionDetailsModel>, BadRequest, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -30,13 +30,13 @@ public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<S
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<SubmissionModel>, BadRequest, NotFound>> ExecuteAsync(GetByIdRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<SubmissionDetailsModel>, BadRequest, NotFound>> ExecuteAsync(GetByIdRequest request, CancellationToken cancellationToken)
     {
         var getSubmissionByIdQuery = new GetByIdQuery(request.FormId, request.SubmissionId);
         var result = await mediator.Send(getSubmissionByIdQuery, cancellationToken);
 
         return TypedResultsBuilder
-                    .MapResult(result, SubmissionMapper.Map<SubmissionModel>)
+                    .MapResult(result, SubmissionMapper.MapToSubmissionDetails)
                     .SetTypedResults<Ok<SubmissionModel>, BadRequest, NotFound>();
 
     }
