@@ -6,9 +6,8 @@ import { ICreatorOptions } from "survey-creator-core"
 import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react"
 import { updateFormDefinitionJsonAction } from "../update-form-definition-json.action"
 import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action"
-import { updateFormStatusAction } from "@/app/(main)/forms/[formId]/update-form-status.action"
 import { ICreatorTheme } from "survey-creator-core/typings/creator-theme/creator-themes"
-import Save from "lucide-react"
+import { Save } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import './creator-styles.scss'
@@ -17,8 +16,6 @@ interface FormEditorProps {
   formId: string;
   formJson: object | null;
   formName: string;
-  formIdLabel: string;
-  isEnabled: boolean;
   options?: ICreatorOptions;
 }
 
@@ -126,9 +123,8 @@ const defaultCreatorOptions: ICreatorOptions = {
   themeForPreview: "Default"
 };
 
-function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, options }: FormEditorProps) {
+function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
   const [creator, setCreator] = useState<SurveyCreator | null>(null);
-  const [enabled, setEnabled] = useState(isEnabled);
   const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
   const [isEditingName, setIsEditingName] = useState(false);
@@ -226,20 +222,6 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
       setIsEditingName(false);
     }
   };
-
-  const toggleEnabled = async (enabled: boolean) => {
-    startTransition(async () => {
-      await updateFormStatusAction(formId, enabled);
-      setEnabled(enabled);
-      toast(`Form is now ${enabled ? "enabled" : "disabled"}`);
-    })
-  }
-
-  const copyToClipboard = (value: string) => {
-    navigator.clipboard.writeText(value);
-    toast("Copied to clipboard")
-  }
-
 
   return (
     <>
