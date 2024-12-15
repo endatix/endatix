@@ -45,7 +45,10 @@ public class CreateSubmissionHandler(
 
         await submissionRepository.AddAsync(submission, cancellationToken);
         await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
-        await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
+        
+        if(submission.IsComplete) {
+            await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
+        }
 
         return Result<Submission>.Created(submission);
     }
