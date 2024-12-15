@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
@@ -9,12 +10,14 @@ namespace Endatix.Core.Tests.UseCases.FormDefinitions.PartialUpdateActive;
 public class PartialUpdateActiveFormDefinitionHandlerTests
 {
     private readonly IFormsRepository _formRepository;
+    private readonly IRepository<Submission> _submissionsRepository;
     private readonly PartialUpdateActiveFormDefinitionHandler _handler;
 
     public PartialUpdateActiveFormDefinitionHandlerTests()
     {
         _formRepository = Substitute.For<IFormsRepository>();
-        _handler = new PartialUpdateActiveFormDefinitionHandler(_formRepository);
+        _submissionsRepository = Substitute.For<IRepository<Submission>>();
+        _handler = new PartialUpdateActiveFormDefinitionHandler(_formRepository, _submissionsRepository);
     }
 
     [Fact]

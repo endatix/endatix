@@ -17,6 +17,16 @@ namespace Endatix.Infrastructure.Repositories
             _unitOfWork = unitOfWork;
         }
 
+        public async Task<FormDefinition> AddNewFormDefinitionAsync(Form form, FormDefinition formDefinition, CancellationToken cancellationToken = default) {
+            form.AddFormDefinition(formDefinition);
+            
+            _dbContext.Set<FormDefinition>().Add(formDefinition);
+            
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            
+            return formDefinition;
+        }
+
         public async Task<Form> CreateFormWithDefinitionAsync(Form form, FormDefinition formDefinition, CancellationToken cancellationToken = default)
         {
             try

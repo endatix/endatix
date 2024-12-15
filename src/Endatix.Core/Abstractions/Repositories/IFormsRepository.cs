@@ -16,4 +16,5 @@ public interface IFormsRepository : IRepository<Form>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
     Task<Form> CreateFormWithDefinitionAsync(Form form, FormDefinition formDefinition, CancellationToken cancellationToken = default);
+    Task<FormDefinition> AddNewFormDefinitionAsync(Form form, FormDefinition formDefinition, CancellationToken cancellationToken = default);
 }
