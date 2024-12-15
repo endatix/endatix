@@ -125,7 +125,7 @@ const defaultCreatorOptions: ICreatorOptions = {
 
 function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
   const [creator, setCreator] = useState<SurveyCreator | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving] = useState(false);
   const router = useRouter();
   const [isEditingName, setIsEditingName] = useState(false);
   const [name, setName] = useState(formName);
