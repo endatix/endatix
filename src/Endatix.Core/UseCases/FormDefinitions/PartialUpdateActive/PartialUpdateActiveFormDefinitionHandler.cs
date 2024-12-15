@@ -19,7 +19,7 @@ public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formRepos
             return Result.NotFound("Active form definition not found.");
         }
 
-        if(await FormDefinitionHasSubmissions(activeDefinition.Id)) {
+        if(await FormDefinitionHasSubmissions(activeDefinition.Id) && activeDefinition.JsonData != request.JsonData) {
             var newFormDefinition = new FormDefinition(jsonData: request.JsonData);
             await formRepository.AddNewFormDefinitionAsync(formWithActiveDefinition, newFormDefinition, cancellationToken);
             newFormDefinition.UpdateDraftStatus(request.IsDraft);
