@@ -6,23 +6,16 @@ import { ICreatorOptions } from "survey-creator-core"
 import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react"
 import { updateFormDefinitionJsonAction } from "../update-form-definition-json.action"
 import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action"
-import { updateFormStatusAction } from "@/app/(main)/forms/[formId]/update-form-status.action"
 import { ICreatorTheme } from "survey-creator-core/typings/creator-theme/creator-themes"
-import { Badge } from "@/components/ui/badge"
-import { Copy, Link2, Save } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { Save } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import Link from "next/link"
 import './creator-styles.scss'
 
 interface FormEditorProps {
   formId: string;
   formJson: object | null;
   formName: string;
-  formIdLabel: string;
-  isEnabled: boolean;
   options?: ICreatorOptions;
 }
 
@@ -130,9 +123,8 @@ const defaultCreatorOptions: ICreatorOptions = {
   themeForPreview: "Default"
 };
 
-function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, options }: FormEditorProps) {
+function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
   const [creator, setCreator] = useState<SurveyCreator | null>(null);
-  const [enabled, setEnabled] = useState(isEnabled);
   const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
   const [isEditingName, setIsEditingName] = useState(false);
@@ -231,20 +223,6 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
     }
   };
 
-  const toggleEnabled = async (enabled: boolean) => {
-    startTransition(async () => {
-      await updateFormStatusAction(formId, enabled);
-      setEnabled(enabled);
-      toast(`Form is now ${enabled ? "enabled" : "disabled"}`);
-    })
-  }
-
-  const copyToClipboard = (value: string) => {
-    navigator.clipboard.writeText(value);
-    toast("Copied to clipboard")
-  }
-
-
   return (
     <>
       <div className="flex justify-between items-center mt-0 pt-4 pb-4 sticky top-0 z-50 w-full border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -276,19 +254,8 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
               {name}
             </span>
           )}
-          <Badge className="cursor-pointer py-1" onClick={() => copyToClipboard(formIdLabel)} variant="outline">ID: {formIdLabel}<Copy className="mx-2 w-4 h-4" /></Badge>
-          <div className="flex items-center space-x-2">
-            <Switch id="form-enabled-toggle" disabled={isPending} checked={enabled} onCheckedChange={toggleEnabled} />
-            <Label htmlFor="form-enabled-toggle">Enable</Label>
-          </div>
         </div>
         <div className="flex items-center gap-2" >
-          <Button asChild variant="outline" size="sm" className="h-8 border-dashed">
-            <Link href={`/share/${formId}`} target="_blank">
-              <Link2 className="mr-2 h-4 w-4" />
-              Share
-            </Link>
-          </Button>
           <Button
             disabled={isPending}
             onClick={saveForm}
