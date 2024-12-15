@@ -271,7 +271,7 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
         </div>
         <div className="flex items-center gap-2">
           {hasUnsavedChanges && (
-            <span className="text-yellow-600 text-xs border border-yellow-600 px-2 py-0.5 rounded-full whitespace-nowrap">
+            <span className="font-bold text-black text-xs border border-black px-2 py-0.5 rounded-full whitespace-nowrap">
               Unsaved changes
             </span>
           )}
