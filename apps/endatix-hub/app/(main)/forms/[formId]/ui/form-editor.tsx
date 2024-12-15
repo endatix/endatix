@@ -276,19 +276,8 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
               {name}
             </span>
           )}
-          <Badge className="cursor-pointer py-1" onClick={() => copyToClipboard(formIdLabel)} variant="outline">ID: {formIdLabel}<Copy className="mx-2 w-4 h-4" /></Badge>
-          <div className="flex items-center space-x-2">
-            <Switch id="form-enabled-toggle" disabled={isPending} checked={enabled} onCheckedChange={toggleEnabled} />
-            <Label htmlFor="form-enabled-toggle">Enable</Label>
-          </div>
         </div>
         <div className="flex items-center gap-2" >
-          <Button asChild variant="outline" size="sm" className="h-8 border-dashed">
-            <Link href={`/share/${formId}`} target="_blank">
-              <Link2 className="mr-2 h-4 w-4" />
-              Share
-            </Link>
-          </Button>
           <Button
             disabled={isPending}
             onClick={saveForm}
