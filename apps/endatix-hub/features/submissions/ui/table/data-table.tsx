@@ -20,6 +20,7 @@ import {
 import { TablePagination } from "./table-pagination";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { redirect } from "next/navigation";
 
 const ROW_CLASS_NAMES = {
     selected: 'bg-accent',
@@ -50,7 +51,9 @@ export function DataTable({
         table.setRowSelection({
             [row.id]: true
         })
-        setIsSheetOpen(true)
+        //setIsSheetOpen(true)
+        const submission = row.original as Submission;
+        redirect(`/forms/${submission.formId}/submissions/${submission.id}`);
     };
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
@@ -121,15 +124,14 @@ export function DataTable({
             <TablePagination table={table} />
             <Sheet modal={true} open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                 <SheetContent className="w-[600px] sm:w-[480px] sm:max-w-none flex flex-col h-screen justify-between">
-                    <pre>{JSON.stringify(rowSelection, null, 2)}</pre>
                     <SheetHeader>
-                        <SheetTitle>{rowSelection.id}</SheetTitle>
+                        <SheetTitle>Submission Details</SheetTitle>
                         <SheetDescription>
                             Here are the details of the selected item.
                         </SheetDescription>
                     </SheetHeader>
                     <ScrollArea className="h-[calc(100vh-8rem)] mt-4 p-4 rounded-md border">
-                        <p>{rowSelection.original}</p>
+                        <pre>{JSON.stringify(table.getSelectedRowModel().rows.map(row => row.original), null, 2)}</pre>
                     </ScrollArea>
                 </SheetContent>
             </Sheet>

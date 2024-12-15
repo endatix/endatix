@@ -161,7 +161,12 @@ export const updateFormDefinition = async (
   formId: string,
   jsonData: string
 ): Promise<void> => {
-  let session = await getSession();
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+
   const headers = new HeaderBuilder()
     .withAuth(session)
     .acceptJson()
@@ -262,7 +267,7 @@ export const updateSubmission = async (
   return response.json();
 };
 
-export const getSubmission = async (formId: string, token: string): Promise<Submission> => {
+export const getPartialSubmission = async (formId: string, token: string): Promise<Submission> => {
   if (!formId || !token) {
     throw new Error("FormId or token is required");
   }
@@ -273,6 +278,34 @@ export const getSubmission = async (formId: string, token: string): Promise<Subm
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions/by-token/${token}`,
+    { headers : headers }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch submission");
+  }
+
+  return response.json();
+}
+
+export const getSubmission = async (formId: string, submissionId: string): Promise<Submission> => {
+  if (!formId || !submissionId) {
+    throw new Error("FormId or submissionId is required");
+  }
+
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .build();
+
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/submissions/${submissionId}`,
     { headers : headers }
   );
 
