@@ -16,6 +16,7 @@ import DotLoader from "@/components/loaders/dot-loader";
 import { CreateFormRequest } from "@/lib/form-types";
 import { createFormAction } from "../create-form.action";
 import { redirect } from "next/navigation";
+import { Result } from "@/lib/result";
 
 type CreateFormOption =
   | "from_scratch"
@@ -80,10 +81,11 @@ const CreateFormSheet = () => {
             formDefinitionJsonData: JSON.stringify("{ }")
         }
         const formResult = await createFormAction(request);
-        if (formResult.isSuccess && formResult.formId) {
-            redirect(`/forms/${formResult.formId}`);
+        if (Result.isSuccess(formResult) && formResult.value) {
+            const formId = formResult.value;
+            redirect(`/forms/${formId}`);
         } else {
-            alert(formResult.error);
+            alert("Failed to create form");
         }
     });
   }
