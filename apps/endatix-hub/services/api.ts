@@ -209,7 +209,7 @@ export const updateFormDefinition = async (
 };
 
 export const getSubmissions = async (formId: string): Promise<Submission[]> => {
-  let session = await getSession();
+  const session = await getSession();
   if (!session.isLoggedIn) {
     redirect("/login");
   }
@@ -217,6 +217,7 @@ export const getSubmissions = async (formId: string): Promise<Submission[]> => {
   const CLIENT_PAGE_SIZE = 10_000;
   const headers = new HeaderBuilder().withAuth(session).build();
 
+  console.log(`${API_BASE_URL}/forms/${formId}/submissions?pageSize=${CLIENT_PAGE_SIZE}`);
   const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions?pageSize=${CLIENT_PAGE_SIZE}`, {
     headers: headers,
   });

@@ -3,6 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Minus } from "lucide-react";
 import React from "react";
 import { Question } from "survey-core";
+import { QuestionLabel } from "../details/question-label";
 
 interface CommentAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
     question: Question;
@@ -13,11 +14,7 @@ const CommentAnswer = ({
 }: CommentAnswerProps) => {
     return (
         <>
-            <Label
-                htmlFor={question.name}
-                className="text-left col-span-2">
-                {question.placeholder}
-            </Label>
+            <QuestionLabel forQuestion={question as Question} />
             {question.value ? (
                 <Textarea disabled className="col-span-3 bg-accent" value={question.value} />
             ) : (

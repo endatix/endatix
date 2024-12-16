@@ -3,7 +3,8 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Minus } from "lucide-react";
 import React from "react";
-import { ItemValue, QuestionMatrixModel } from "survey-core";
+import { ItemValue, Question, QuestionMatrixModel } from "survey-core";
+import { QuestionLabel } from "../details/question-label";
 
 interface MatrixAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
   question: Partial<QuestionMatrixModel>;
@@ -44,20 +45,12 @@ const MatrixAnswer = ({ question }: MatrixAnswerProps) => {
 
   return (
     <>
-      <Label
-        htmlFor={question.name}
-        className={cn(
-          "text-left ",
-          matrixAnswers.length > 0 ? "col-span-5" : "col-span-2"
-        )}
-      >
-        {question.title}
-      </Label>
+      <QuestionLabel forQuestion={question as Question} />
       {matrixAnswers.map((answer) => (
         <div key={answer.question} className="grid grid-cols-5 col-span-5 gap-4">
           <Label
             htmlFor={answer.question}
-            className="pl-8 text-left text-sm text-muted-foreground col-span-2"
+            className="pl-8 text-right col-span-2 text-sm text-muted-foreground col-span-2"
           >
             {answer.question}
           </Label>

@@ -6,9 +6,11 @@ import RatingAnswer from "./rating-answer";
 import RadioGroupAnswer from "./radiogroup-answer";
 import DropdownAnswer from "./dropdown-answer";
 import RankingAnswer from "./ranking-answer";
-import { Label } from "@/components/ui/label";
 import MatrixAnswer from "./matrix-answer";
 import CommentAnswer from "./comment-answer";
+import { FileAnswer } from "./file-answer";
+import { QuestionFileModelBase } from "survey-core/typings/packages/survey-core/src/question_file";
+import { QuestionLabel } from "../details/question-label";
 
 export interface ViewAnswerProps
     extends React.HtmlHTMLAttributes<HTMLInputElement> {
@@ -24,18 +26,16 @@ export enum QuestionType {
     Ranking = "ranking",
     Matrix = "matrix",
     Comment = "comment",
+    File = "file",
     Unsupported = "unsupported",
 }
 
-const AnswerViewer = ({ forQuestion }: ViewAnswerProps) : React.JSX.Element => {
+const AnswerViewer = ({ forQuestion }: ViewAnswerProps): React.JSX.Element => {
     const questionType = forQuestion.getType() ?? "unsupported";
 
     const renderTextAnswer = () => (
         <>
-            <Label htmlFor={forQuestion.name}
-                className="text-right col-span-2">
-                {forQuestion.title}
-            </Label>
+            <QuestionLabel forQuestion={forQuestion} />
             <Input
                 disabled
                 id={forQuestion.name}
@@ -47,11 +47,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) : React.JSX.Element => {
 
     const renderCheckboxAnswer = () => (
         <>
-            <Label
-                htmlFor={forQuestion.name}
-                className="text-right col-span-2">
-                {forQuestion.title}
-            </Label>
+            <QuestionLabel forQuestion={forQuestion} />
             <Checkbox
                 disabled
                 checked={forQuestion.value}
@@ -62,11 +58,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) : React.JSX.Element => {
 
     const renderRatingAnswer = () => (
         <>
-            <Label
-                htmlFor={forQuestion.name}
-                className="text-right col-span-2">
-                {forQuestion.title}
-            </Label>
+            <QuestionLabel forQuestion={forQuestion} />
             <RatingAnswer
                 question={forQuestion}
                 className="col-span-3 self-start"
@@ -76,11 +68,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) : React.JSX.Element => {
 
     const renderRadiogroupAnswer = () => (
         <>
-            <Label
-                htmlFor={forQuestion.name}
-                className="text-right col-span-2">
-                {forQuestion.title}
-            </Label>
+            <QuestionLabel forQuestion={forQuestion} />
             <RadioGroupAnswer
                 question={forQuestion}
                 className="col-span-3 self-start"
@@ -90,11 +78,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) : React.JSX.Element => {
 
     const renderDropdownAnswer = () => (
         <>
-            <Label
-                htmlFor={forQuestion.name}
-                className="text-right col-span-2">
-                {forQuestion.title}
-            </Label>
+            <QuestionLabel forQuestion={forQuestion} />
             <DropdownAnswer
                 question={forQuestion}
                 className="col-span-3 self-start"
@@ -104,11 +88,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) : React.JSX.Element => {
 
     const renderRankingAnswer = () => (
         <>
-            <Label
-                htmlFor={forQuestion.name}
-                className="text-right col-span-2">
-                {forQuestion.title}
-            </Label>
+            <QuestionLabel forQuestion={forQuestion} />
             <RankingAnswer question={forQuestion} className="col-span-3 self-start" />
         </>
     )
@@ -121,13 +101,19 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) : React.JSX.Element => {
         <CommentAnswer question={forQuestion} />
     );
 
+    const renderFileAnswer = () => (
+        <>
+            <QuestionLabel forQuestion={forQuestion} />
+            <FileAnswer
+                question={forQuestion as QuestionFileModelBase}
+                className="col-span-3" />
+        </>
+    );
+
     const renderUnknownAnswer = () => (
         <>
-            <Label
-                className="text-left col-span-2">
-                {forQuestion.title}
-            </Label>
-            <p className="col-span-3">{forQuestion.value}</p>;
+            <QuestionLabel forQuestion={forQuestion} />
+            <p className="col-span-3">{forQuestion.value ?? '-'}</p>
         </>
     )
 
@@ -148,6 +134,8 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps) : React.JSX.Element => {
             return renderMatrixAnswer();
         case QuestionType.Comment:
             return renderCommentAnswer();
+        case QuestionType.File:
+            return renderFileAnswer();
         default:
             return renderUnknownAnswer();
     }
