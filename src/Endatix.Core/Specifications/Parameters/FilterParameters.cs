@@ -28,11 +28,16 @@ public class FilterParameters
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="filterExpressions"/> is null.</exception>
     public FilterParameters(IEnumerable<string> filterExpressions)
     {
-        Guard.Against.Null(filterExpressions, nameof(filterExpressions));
-        
-        _criteria = filterExpressions
-            .Select(FilterCriterion.Parse)
-            .ToList();
+        if (filterExpressions != null && filterExpressions.Any())
+        {
+            _criteria = filterExpressions
+                .Select(FilterCriterion.Parse)
+                .ToList();
+        }
+        else
+        {
+            _criteria = [];
+        }
     }
 
     /// <summary>
