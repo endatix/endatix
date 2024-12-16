@@ -91,7 +91,8 @@ public class ListByFormIdTests
         {
             FormId = 123,
             Page = 2,
-            PageSize = 20
+            PageSize = 20,
+            Filter = ["expression1", "expression1"]
         };
         var result = Result.Success(Enumerable.Empty<Submission>());
         
@@ -106,7 +107,8 @@ public class ListByFormIdTests
             Arg.Is<ListByFormIdQuery>(query =>
                 query.FormId == request.FormId &&
                 query.Page == request.Page &&
-                query.PageSize == request.PageSize
+                query.PageSize == request.PageSize &&
+                query.FilterExpressions == request.Filter
             ),
             Arg.Any<CancellationToken>()
         );

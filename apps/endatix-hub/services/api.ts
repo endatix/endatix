@@ -2,6 +2,7 @@ import {
   AuthenticationRequest,
   AuthenticationResponse,
 } from "@/lib/auth-definitions";
+import { CreateFormRequest } from "@/lib/form-types";
 import { Form, FormDefinition, Submission } from "../types";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-service";
@@ -26,6 +27,29 @@ export const authenticate = async (
 
   if (!response.ok) {
     throw new Error("Failed to fetch data");
+  }
+
+  return response.json();
+};
+
+export const createForm = async (
+  formRequest: CreateFormRequest
+): Promise<Form> => {
+  let session = await getSession();
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .provideJson()
+    .build();
+
+  const response = await fetch(`${API_BASE_URL}/forms`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(formRequest),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create form");
   }
 
   return response.json();
@@ -161,7 +185,12 @@ export const updateFormDefinition = async (
   formId: string,
   jsonData: string
 ): Promise<void> => {
-  let session = await getSession();
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+
   const headers = new HeaderBuilder()
     .withAuth(session)
     .acceptJson()
@@ -180,14 +209,15 @@ export const updateFormDefinition = async (
 };
 
 export const getSubmissions = async (formId: string): Promise<Submission[]> => {
-  let session = await getSession();
+  const session = await getSession();
   if (!session.isLoggedIn) {
     redirect("/login");
   }
 
+  const CLIENT_PAGE_SIZE = 10_000;
   const headers = new HeaderBuilder().withAuth(session).build();
 
-  const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions`, {
+  const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions?pageSize=${CLIENT_PAGE_SIZE}`, {
     headers: headers,
   });
 
@@ -261,7 +291,7 @@ export const updateSubmission = async (
   return response.json();
 };
 
-export const getSubmission = async (formId: string, token: string): Promise<Submission> => {
+export const getPartialSubmission = async (formId: string, token: string): Promise<Submission> => {
   if (!formId || !token) {
     throw new Error("FormId or token is required");
   }
@@ -272,6 +302,34 @@ export const getSubmission = async (formId: string, token: string): Promise<Subm
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions/by-token/${token}`,
+    { headers : headers }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch submission");
+  }
+
+  return response.json();
+}
+
+export const getSubmission = async (formId: string, submissionId: string): Promise<Submission> => {
+  if (!formId || !submissionId) {
+    throw new Error("FormId or submissionId is required");
+  }
+
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .build();
+
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/submissions/${submissionId}`,
     { headers : headers }
   );
 

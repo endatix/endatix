@@ -6,23 +6,16 @@ import { ICreatorOptions } from "survey-creator-core"
 import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react"
 import { updateFormDefinitionJsonAction } from "../update-form-definition-json.action"
 import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action"
-import { updateFormStatusAction } from "@/app/(main)/forms/[formId]/update-form-status.action"
 import { ICreatorTheme } from "survey-creator-core/typings/creator-theme/creator-themes"
-import { Badge } from "@/components/ui/badge"
-import { Copy, Link2, Save } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { Save } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import Link from "next/link"
 import './creator-styles.scss'
 
 interface FormEditorProps {
   formId: string;
   formJson: object | null;
   formName: string;
-  formIdLabel: string;
-  isEnabled: boolean;
   options?: ICreatorOptions;
 }
 
@@ -130,16 +123,16 @@ const defaultCreatorOptions: ICreatorOptions = {
   themeForPreview: "Default"
 };
 
-function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, options }: FormEditorProps) {
+function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
   const [creator, setCreator] = useState<SurveyCreator | null>(null);
-  const [enabled, setEnabled] = useState(isEnabled);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving] = useState(false);
   const router = useRouter();
   const [isEditingName, setIsEditingName] = useState(false);
   const [name, setName] = useState(formName);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [originalName, setOriginalName] = useState(formName);
   const [isPending, startTransition] = useTransition();
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const handleNameSave = useCallback(async () => {
     if (name !== originalName) {
@@ -191,22 +184,34 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
     };
   }, [isEditingName, handleNameSave]);
 
-  const handleSaveAndGoBack = async () => {
-    try {
-      setIsSaving(true);
+  useEffect(() => {
+    if (creator) {
+      creator.onModified.add(() => {
+        setHasUnsavedChanges(true);
+      });
+    }
+  }, [creator]);
 
-      const updatedFormJson = creator?.JSON;
-
-      const result = await updateFormDefinitionJsonAction(formId, updatedFormJson);
-      if (!result.success) {
-        throw new Error(result.error);
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = ''; // Required for Chrome
       }
+    };
 
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const handleSaveAndGoBack = () => {
+    if (hasUnsavedChanges) {
+      const confirm = window.confirm('There are unsaved changes. Are you sure you want to leave?');
+      if (confirm) {
+        router.push('/forms');
+      }
+    } else {
       router.push('/forms');
-    } catch (error) {
-      console.error('Failed to save form', error);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -215,6 +220,7 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
       const updatedFormJson = creator?.JSON;
       const result = await updateFormDefinitionJsonAction(formId, updatedFormJson);
       if (result.success) {
+        setHasUnsavedChanges(false);
         toast("Form saved");
       } else {
         throw new Error(result.error);
@@ -230,20 +236,6 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
       setIsEditingName(false);
     }
   };
-
-  const toggleEnabled = async (enabled: boolean) => {
-    startTransition(async () => {
-      await updateFormStatusAction(formId, enabled);
-      setEnabled(enabled);
-      toast(`Form is now ${enabled ? "enabled" : "disabled"}`);
-    })
-  }
-
-  const copyToClipboard = (value: string) => {
-    navigator.clipboard.writeText(value);
-    toast("Copied to clipboard")
-  }
-
 
   return (
     <>
@@ -276,19 +268,13 @@ function FormEditor({ formJson, formId, formName, formIdLabel, isEnabled, option
               {name}
             </span>
           )}
-          <Badge className="cursor-pointer py-1" onClick={() => copyToClipboard(formIdLabel)} variant="outline">ID: {formIdLabel}<Copy className="mx-2 w-4 h-4" /></Badge>
-          <div className="flex items-center space-x-2">
-            <Switch id="form-enabled-toggle" disabled={isPending} checked={enabled} onCheckedChange={toggleEnabled} />
-            <Label htmlFor="form-enabled-toggle">Enable</Label>
-          </div>
         </div>
-        <div className="flex items-center gap-2" >
-          <Button asChild variant="outline" size="sm" className="h-8 border-dashed">
-            <Link href={`/share/${formId}`} target="_blank">
-              <Link2 className="mr-2 h-4 w-4" />
-              Share
-            </Link>
-          </Button>
+        <div className="flex items-center gap-2">
+          {hasUnsavedChanges && (
+            <span className="font-bold text-black text-xs border border-black px-2 py-0.5 rounded-full whitespace-nowrap">
+              Unsaved changes
+            </span>
+          )}
           <Button
             disabled={isPending}
             onClick={saveForm}

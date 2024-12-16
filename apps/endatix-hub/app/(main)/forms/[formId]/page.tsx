@@ -30,9 +30,7 @@ async function FormEditPage({ params }: Params) {
   const props: FormEditorProps = {
     formId: formId,
     formJson: formJson,
-    formName: form.name,
-    formIdLabel: form.id,
-    isEnabled: form.isEnabled
+    formName: form.name
   };
 
   return (

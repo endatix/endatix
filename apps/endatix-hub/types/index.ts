@@ -24,6 +24,7 @@ export type Submission = {
   isComplete: boolean;
   jsonData: string;
   formDefinitionId: string;
+  formDefinition?: FormDefinition;
   currentPage: number;
   metadata: string;
   token: string;

@@ -4,6 +4,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Submissions;
+using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.Update;
 
@@ -11,11 +12,13 @@ public class UpdateSubmissionHandlerTests
 {
     private readonly IRepository<Submission> _repository;
     private readonly UpdateSubmissionHandler _handler;
+    private readonly IMediator _mediator;
 
     public UpdateSubmissionHandlerTests()
     {
         _repository = Substitute.For<IRepository<Submission>>();
-        _handler = new UpdateSubmissionHandler(_repository);
+        _handler = new UpdateSubmissionHandler(_repository, _mediator);
+        _mediator = Substitute.For<IMediator>();
     }
 
     [Fact]

@@ -11,5 +11,6 @@ namespace Endatix.Core.UseCases.Submissions.ListByFormId;
 /// <param name="FormId"></param>
 /// <param name="Page"></param>
 /// <param name="PageSize"></param>
-public record ListByFormIdQuery(long FormId, int? Page, int? PageSize) : IQuery<Result<IEnumerable<Submission>>>
+/// <param name="FilterExpressions"></param>
+public record ListByFormIdQuery(long FormId, int? Page, int? PageSize, IEnumerable<string>? FilterExpressions = null) : IQuery<Result<IEnumerable<Submission>>>
 { }

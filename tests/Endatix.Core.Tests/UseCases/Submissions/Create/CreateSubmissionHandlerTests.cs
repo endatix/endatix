@@ -121,14 +121,14 @@ public class CreateSubmissionHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ValidRequest_PublishesSubmissionCreatedEvent()
+    public async Task Handle_ValidRequestAndSubmissionIsCompleted_PublishesSubmissionCreatedEvent()
     {
         // Arrange
         var form = new Form("Test Form") { Id = 1 };
         var formDefinition = new FormDefinition() { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, null);
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true);
         
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(), 

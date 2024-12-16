@@ -3,6 +3,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Submissions.PartialUpdate;
+using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.PartialUpdate;
 
@@ -10,11 +11,13 @@ public class PartialUpdateSubmissionHandlerTests
 {
     private readonly IRepository<Submission> _repository;
     private readonly PartialUpdateSubmissionHandler _handler;
+    private readonly IMediator _mediator;
 
     public PartialUpdateSubmissionHandlerTests()
     {
         _repository = Substitute.For<IRepository<Submission>>();
-        _handler = new PartialUpdateSubmissionHandler(_repository);
+        _mediator = Substitute.For<IMediator>();
+        _handler = new PartialUpdateSubmissionHandler(_repository, _mediator);
     }
 
     [Fact]
