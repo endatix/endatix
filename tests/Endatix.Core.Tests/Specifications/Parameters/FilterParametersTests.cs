@@ -5,18 +5,17 @@ namespace Endatix.Core.Tests.Specifications.Parameters;
 public class FilterParametersTests
 {
     [Fact]
-    public void Constructor_NullFilterExpressions_ThrowsArgumentNullException()
+    public void Constructor_NullFilterExpressions_CreatesEmptyFilterParameters()
     {
         // Arrange
         IEnumerable<string> filterExpressions = null!;
 
         // Act
-        var act = () => new FilterParameters(filterExpressions);
+        var parameters = new FilterParameters(filterExpressions);
 
         // Assert
-        var expectedMessage = ErrorMessages.GetErrorMessage(nameof(filterExpressions), ErrorType.Null);
-        act.Should().Throw<ArgumentNullException>()
-            .WithMessage(expectedMessage);
+        parameters.Should().NotBeNull();
+        parameters.Criteria.Should().BeEmpty();
     }
 
     [Fact]

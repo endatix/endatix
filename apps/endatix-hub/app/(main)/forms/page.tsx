@@ -3,7 +3,7 @@ import FormsList from "./ui/forms-list";
 import PageTitle from "@/components/headings/page-title";
 import { Button } from "@/components/ui/button";
 import { FilePlus2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import CreateFormSheet from "./ui/create-form-sheet";
 
@@ -15,12 +15,7 @@ const Forms = async () => {
       <PageTitle title="Forms" />
       <div className="flex-1 space-y-2">
         <Tabs defaultValue="all" className="space-y-0">
-          <div className="flex items-center justify-between space-y-0 mb-4">
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="public" disabled>Public </TabsTrigger>
-              <TabsTrigger value="private" disabled>Private</TabsTrigger>
-            </TabsList>
+          <div className="flex items-center justify-end space-y-0 mb-4">
             <div className="flex items-center space-x-2">
               <Sheet modal={false}>
                 <SheetTrigger asChild>

@@ -125,13 +125,14 @@ const defaultCreatorOptions: ICreatorOptions = {
 
 function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
   const [creator, setCreator] = useState<SurveyCreator | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving] = useState(false);
   const router = useRouter();
   const [isEditingName, setIsEditingName] = useState(false);
   const [name, setName] = useState(formName);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [originalName, setOriginalName] = useState(formName);
   const [isPending, startTransition] = useTransition();
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const handleNameSave = useCallback(async () => {
     if (name !== originalName) {
@@ -183,22 +184,34 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
     };
   }, [isEditingName, handleNameSave]);
 
-  const handleSaveAndGoBack = async () => {
-    try {
-      setIsSaving(true);
+  useEffect(() => {
+    if (creator) {
+      creator.onModified.add(() => {
+        setHasUnsavedChanges(true);
+      });
+    }
+  }, [creator]);
 
-      const updatedFormJson = creator?.JSON;
-
-      const result = await updateFormDefinitionJsonAction(formId, updatedFormJson);
-      if (!result.success) {
-        throw new Error(result.error);
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = ''; // Required for Chrome
       }
+    };
 
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const handleSaveAndGoBack = () => {
+    if (hasUnsavedChanges) {
+      const confirm = window.confirm('There are unsaved changes. Are you sure you want to leave?');
+      if (confirm) {
+        router.push('/forms');
+      }
+    } else {
       router.push('/forms');
-    } catch (error) {
-      console.error('Failed to save form', error);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -207,6 +220,7 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
       const updatedFormJson = creator?.JSON;
       const result = await updateFormDefinitionJsonAction(formId, updatedFormJson);
       if (result.success) {
+        setHasUnsavedChanges(false);
         toast("Form saved");
       } else {
         throw new Error(result.error);
@@ -255,7 +269,12 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2" >
+        <div className="flex items-center gap-2">
+          {hasUnsavedChanges && (
+            <span className="font-bold text-black text-xs border border-black px-2 py-0.5 rounded-full whitespace-nowrap">
+              Unsaved changes
+            </span>
+          )}
           <Button
             disabled={isPending}
             onClick={saveForm}
