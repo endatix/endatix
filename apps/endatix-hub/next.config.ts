@@ -9,11 +9,11 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "avatars.githubusercontent.com",
+        hostname: "images.unsplash.com",
       },
       {
         protocol: "https",
-        hostname: "images.unsplash.com",
+        hostname: "endatix.blob.core.windows.net",
       },
     ],
   },
