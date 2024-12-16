@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
     matcher: [
         {
-            source: '/((?!api|assets|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login).*)',
+            source: '/((?!api|slack|assets|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login).*)',
             missing: [{ type: 'header', key: 'next-action' }],
         }
     ]

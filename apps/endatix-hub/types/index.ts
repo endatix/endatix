@@ -32,3 +32,9 @@ export type Submission = {
   createdAt: Date;
   modifiedAt: Date;
 };
+
+export type SlackAuthResponse = {
+  ok: boolean;
+  error: string;
+  access_token: string;
+};
