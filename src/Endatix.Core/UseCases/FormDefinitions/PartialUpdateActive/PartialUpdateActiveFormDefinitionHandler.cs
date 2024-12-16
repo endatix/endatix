@@ -26,8 +26,6 @@ public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepo
             if (!newFormDefinition.IsDraft) {
                 formWithActiveDefinition.SetActiveFormDefinition(newFormDefinition);
             }
-           
-            await formsRepository.UpdateAsync(formWithActiveDefinition, cancellationToken);
         }
         else {
             activeDefinition.UpdateSchema(request.JsonData);
