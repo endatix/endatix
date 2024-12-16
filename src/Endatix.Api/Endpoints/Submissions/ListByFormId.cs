@@ -29,7 +29,7 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
     /// <inheritdoc/>
     public override async Task<Results<Ok<IEnumerable<SubmissionModel>>, BadRequest, NotFound>> ExecuteAsync(ListByFormIdRequest request, CancellationToken cancellationToken)
     {
-        var filterExpressions = request.Filter;
+        var filterExpressions = request.Filter ?? [];
         var getSubmissionsQuery = new ListByFormIdQuery(request.FormId, request.Page, request.PageSize, filterExpressions);
 
         var result = await mediator.Send(getSubmissionsQuery, cancellationToken);

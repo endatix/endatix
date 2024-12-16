@@ -22,9 +22,9 @@ public class ListByFormIdHandler(
             return Result.NotFound("Form not found.");
         }
 
-        var pageingParams = new PagingParameters(request.Page, request.PageSize);
+        var pagingParams = new PagingParameters(request.Page, request.PageSize);
         var filterParams = new FilterParameters(request.FilterExpressions!);
-        var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pageingParams, filterParams);
+        var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pagingParams, filterParams);
 
         IEnumerable<Submission> submissions = await submissionsRepository
                 .ListAsync(formByIdSpec, cancellationToken);

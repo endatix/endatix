@@ -47,7 +47,7 @@ export default async function SubmissionPage({ params }: Params) {
     }
 
     surveyModel.data = submissionData;
-    const questions = surveyModel.getAllQuestions(true, true, true);
+    const questions = surveyModel.getAllQuestions(false, false, true);
 
     return (
         <>

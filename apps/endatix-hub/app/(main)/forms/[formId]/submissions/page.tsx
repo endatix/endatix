@@ -13,7 +13,10 @@ type Params = {
 }
 
 export async function generateMetadata(
-  { params, searchParams }: Params,
+  { 
+    params, 
+    searchParams 
+  }: Params,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   const { formId } = await params;
@@ -39,7 +42,10 @@ const logSearchParams = async (searchParams: Promise<{ page: string, pageSize: s
   }
 }
 
-async function ResponsesPage({ params, searchParams }: Params) {
+async function ResponsesPage({ 
+  params, 
+  searchParams 
+}: Params) {
   const { formId } = await params;
   const [submissions, form] = await Promise.all([
     await getSubmissions(formId),

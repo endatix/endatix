@@ -209,7 +209,7 @@ export const updateFormDefinition = async (
 };
 
 export const getSubmissions = async (formId: string): Promise<Submission[]> => {
-  let session = await getSession();
+  const session = await getSession();
   if (!session.isLoggedIn) {
     redirect("/login");
   }
