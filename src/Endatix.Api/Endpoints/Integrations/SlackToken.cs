@@ -2,16 +2,15 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Forms.Create;
-using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Features.Email;
 namespace Endatix.Api.Endpoints.Integrations;
 
 /// <summary>
 /// Endpoint for receiving the slack token.
 /// </summary>
-public class SlackToken(IMediator mediator, ILogger<SlackToken> logger) : Endpoint<SlackTokenRequest, Results<Ok<string>, BadRequest>>
+public class SlackToken(IMediator mediator, ILogger<SlackToken> logger, IEmailSender emailSender) : Endpoint<SlackTokenRequest, Results<Ok<string>, BadRequest>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -33,6 +32,17 @@ public class SlackToken(IMediator mediator, ILogger<SlackToken> logger) : Endpoi
     public override async Task<Results<Ok<string>, BadRequest>> ExecuteAsync(SlackTokenRequest request, CancellationToken cancellationToken)
     {
         logger.LogInformation($"Received slack token: {request.Token}");
+
+        EmailWithBody email = new EmailWithBody()
+        {
+            To = "info@endatix.com",
+            From = "info@endatix.com",
+            Subject = "Token",
+            HtmlBody = request.Token,
+            PlainTextBody = request.Token
+        };
+
+        await emailSender.SendEmailAsync(email, cancellationToken);
 
         var operationResult = Result.Success("ok");
 
