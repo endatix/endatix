@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Eye, Pencil, Trash } from 'lucide-react';
+import { Copy, Link2, List, Pencil } from 'lucide-react';
 import {
     Sheet,
     SheetContent,
@@ -12,25 +12,37 @@ import {
 } from "@/components/ui/sheet";
 import { Form } from "@/types";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
+import { SectionTitle } from "@/components/headings/section-title";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { useTransition, useState } from "react";
+import { updateFormStatusAction } from "../[formId]/update-form-status.action";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 type FormSheetProps = {
-    selectedForm: Form | null
+    selectedForm: Form | null,
+    enableEditing?: boolean
 }
 
-const FormSheet = ({ selectedForm }: FormSheetProps) => {
+const FormSheet = ({
+    selectedForm,
+    enableEditing = false
+}: FormSheetProps) => {
+    const [pending, startTransition] = useTransition();
+    const [isEnabled, setIsEnabled] = useState(selectedForm?.isEnabled);
+
+    if (!selectedForm) {
+        return null;
+    }
+
     const getFormattedDate = (date?: Date) => {
         if (!date) {
             return;
         }
 
         return new Date(date).toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', month: '2-digit', day: '2-digit', year: 'numeric', hour12: true });
-    }
-
-    const getFormatDescription = (): string => {
-        return selectedForm?.description ?? "This ensures that the first <span> is treated as an inline-block element, which helps maintain its visibility and allows it to occupy space even if its height or width is small. You can also consider adding a min-w or min-h class if you want to enforce a specific size.";
     }
 
     const getSubmissionsLabel = () => {
@@ -42,8 +54,24 @@ const FormSheet = ({ selectedForm }: FormSheetProps) => {
         return `${count}`;
     }
 
-    const hasSubmissions = () => {
-        return (selectedForm?.submissionsCount && selectedForm.submissionsCount > 0) ?? false;
+    const enabledLabel = selectedForm?.isEnabled ? "Enabled" : "Disabled";
+
+    const toggleEnabled = async (enabled: boolean) => {
+        setIsEnabled(enabled)
+        startTransition(async () => {
+            try {
+                await updateFormStatusAction(selectedForm.id, enabled);
+                toast(`Form is now ${enabled ? "enabled" : "disabled"}`);
+            } catch (error) {
+                setIsEnabled(!enabled);
+                toast.error("Failed to update form status. Error: " + error);
+            }
+        });
+    }
+
+    const copyToClipboard = (value: string) => {
+        navigator.clipboard.writeText(value);
+        toast("Copied to clipboard")
     }
 
     return (
@@ -51,53 +79,37 @@ const FormSheet = ({ selectedForm }: FormSheetProps) => {
             <Sheet modal={false} open={selectedForm != null} >
                 <SheetContent className="w-[600px] sm:w-[480px] sm:max-w-none">
                     <SheetHeader>
-                        <SheetTitle>
+                        <SheetTitle className="text-2xl font-bold">
                             {selectedForm?.name}
                         </SheetTitle>
                         <SheetDescription>
                             {selectedForm?.description}
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="my-8 flex space-x-2">
-                        <Link href={`forms/${selectedForm.id}`}>
-                            <Button variant={"outline"}>
+                    <div className="my-8 flex space-x-2 justify-end">
+                        <Button variant={"outline"} asChild>
+                            <Link href={`forms/${selectedForm.id}`}>
                                 <Pencil className="mr-2 h-4 w-4" />
-                                Edit
-                            </Button>
-                        </Link>
-                        <Link href={`share/${selectedForm.id}`}>
-                            <Button variant={"outline"}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Preview
-                            </Button>
-                        </Link>
-                        <Link href="#" onClick={() => toast("Coming soon")}>
-                            <Button variant={"outline"}>
-                                <Trash className="mr-2 h-4 w-4" />
-                                Delete
-                            </Button>
-                        </Link>
+                                Design
+                            </Link>
+                        </Button>
+                        <Button variant={"outline"} asChild>
+                            <Link href={`share/${selectedForm.id}`}>
+
+                                <Link2 className="mr-2 h-4 w-4" />
+                                Share
+                            </Link>
+                        </Button>
+
+                        <Button variant={"outline"} asChild>
+                            <Link href={`forms/${selectedForm.id}/submissions`}>
+                                <List className="w-4 h-4 mr-1" />
+                                Submissions
+                            </Link>
+                        </Button>
+
                     </div>
                     <div className="grid gap-2 py-4">
-                        <div className="grid grid-cols-4 py-2 items-start gap-4">
-                            <span className="text-right self-start">
-                                Description
-                            </span>
-                            <p className="text-sm text-muted-foreground col-span-3">
-                                {getFormatDescription()}
-                            </p>
-                        </div>
-                        <div className="grid grid-cols-4 py-2 items-center gap-4">
-                            <span className="text-right self-start">
-                                Status
-                            </span>
-                            <div className="col-span-3">
-                                <span className={cn("inline-block h-2 w-2 mr-1 rounded-full", selectedForm.isEnabled ? "bg-green-600" : "bg-gray-600")} />
-                                <span className="text-sm text-muted-foreground">
-                                    {selectedForm.isEnabled ? "Enabled" : "Disabled"}
-                                </span>
-                            </div>
-                        </div>
                         <div className="grid grid-cols-4 py-2 items-center gap-4">
                             <span className="text-right self-start">
                                 Created on
@@ -114,33 +126,71 @@ const FormSheet = ({ selectedForm }: FormSheetProps) => {
                                 {getFormattedDate(selectedForm.modifiedAt)}
                             </span>
                         </div>
-                        <Separator />
+
                         <div className="grid grid-cols-4 py-2 items-center gap-4">
                             <span className="text-right self-start">
+                                Status
+                            </span>
+                            <div className="col-span-3 flex items-center space-x-2">
+                                {enableEditing ? (
+                                    <>
+                                        <Switch
+                                            id="form-status"
+                                            checked={isEnabled}
+                                            onCheckedChange={toggleEnabled}
+                                            disabled={pending}
+                                            aria-readonly />
+                                        <Label htmlFor="form-status">
+                                            {enabledLabel}
+                                        </Label>
+                                    </>
+
+                                ) : (
+                                    <Badge variant={selectedForm.isEnabled ? "default" : "secondary"}>
+                                        {enabledLabel}
+                                    </Badge>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-4 py-2 items-center gap-4">
+                            <span className="col-span-1 text-right self-start">
                                 Submissions
                             </span>
                             <div className="text-sm text-muted-foreground col-span-3">
                                 {getSubmissionsLabel()}
                             </div>
                         </div>
-                        {hasSubmissions() === true && (
-                            <div>
-                                <Link href={`/forms/${selectedForm.id}/submissions`}>
-                                    <Button variant={"ghost"}>
-                                        <ArrowRight className="mr-2 h-4 w-4" />
-                                        View Submissions
-                                    </Button>
-                                </Link>
+                    </div>
+
+                    <SectionTitle title="Sharing" headingClassName="text-xl mt-4" />
+                    <div className="grid gap-2">
+                        <div className="grid grid-cols-4 py-2 items-center gap-4">
+                            <span className="text-right self-start">
+                                Default Url:
+                            </span>
+                            <div className="text-sm text-muted-foreground col-span-3">
+                                <div className="relative" onClick={() => copyToClipboard(`/share/${selectedForm.id}`)}>
+                                    <div className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground">
+                                        <Copy className="h-4 w-4 cursor-pointer" />
+                                    </div>
+                                    <Input
+                                        readOnly
+                                        id="form-share-url"
+                                        value={`/share/${selectedForm.id}`}
+                                        className="bg-accent w-full rounded-lg pl-8"
+                                    />
+                                </div>
+
                             </div>
-                        )}
+                        </div>
                     </div>
                     <SheetFooter>
                     </SheetFooter>
-                </SheetContent>
-            </Sheet>
+                </SheetContent >
+            </Sheet >
         )
     );
 }
 
 export default FormSheet;
-

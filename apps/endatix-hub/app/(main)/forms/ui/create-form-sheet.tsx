@@ -14,9 +14,9 @@ import { BicepsFlexed, Code, Copy, Folder } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DotLoader from "@/components/loaders/dot-loader";
 import { CreateFormRequest } from "@/lib/form-types";
-import { createFormAction } from "../create-form.action";
 import { redirect } from "next/navigation";
 import { Result } from "@/lib/result";
+import { createFormAction } from "@/features/forms/application/actions/create-form.action";
 
 type CreateFormOption =
   | "from_scratch"
