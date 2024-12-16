@@ -23,7 +23,7 @@ function SlackTokenTransfer() {
         } else {
           setMessage(responseJson.error);
         }
-      } catch (error) {
+      } catch {
         setMessage("An unexpected error occurred");
       }
     };
