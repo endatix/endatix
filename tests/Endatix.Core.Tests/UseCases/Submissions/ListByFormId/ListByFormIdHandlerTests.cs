@@ -53,7 +53,7 @@ public class ListByFormIdHandlerTests
         _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
         _submissionsRepository.ListAsync(
-            Arg.Any<ISpecification<Submission>>(),
+            Arg.Any<ISpecification<Submission, Submission>>(),
             Arg.Any<CancellationToken>()
         ).Returns(submissions);
 
@@ -82,7 +82,7 @@ public class ListByFormIdHandlerTests
 
         // Assert
         await _submissionsRepository.Received(1).ListAsync(
-            Arg.Is<ISpecification<Submission>>(spec => 
+            Arg.Is<ISpecification<Submission, Submission>>(spec => 
                 spec.Skip == 20 && 
                 spec.Take == 20
             ),

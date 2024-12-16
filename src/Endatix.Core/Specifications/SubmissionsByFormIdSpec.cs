@@ -12,7 +12,7 @@ namespace Endatix.Core.Specifications;
 /// TODO: [check] We can add PagedSpecification&lt;T&gt; instead of Specification&lt;T&gt; as one direction to reuse and encapsulate logic, but we need to factor in other requirements like Basic filtering/sorting/ordering + specific filtering, e.g. only ActiveForms
 /// TODO: [check] Also handle Ability to return PagedResult, which has the current page number and total count of items instead of basic list of results
 /// </summary>
-public class SubmissionsByFormIdSpec : Specification<Submission>
+public class SubmissionsByFormIdSpec : Specification<Submission, Submission>
 {
     /// <summary>
     /// Initializes a new instance of the specification to retrieve submissions for a given form
@@ -22,7 +22,19 @@ public class SubmissionsByFormIdSpec : Specification<Submission>
     /// <param name="filterParams">Parameters for filtering the results</param>
     public SubmissionsByFormIdSpec(long formId, PagingParameters pagingParams, FilterParameters filterParams)
     {
-        Query.Where(s => s.FormDefinition.FormId == formId)
+        Query
+            .Select(s => new Submission(
+                s.Id,
+                string.Empty,
+                s.FormId,
+                s.FormDefinitionId,
+                s.IsComplete,
+                s.CurrentPage ?? 1,
+                s.Metadata,
+                s.CreatedAt,
+                s.CompletedAt
+            ))
+            .Where(s => s.FormDefinition.FormId == formId)
             .Filter(filterParams)
             .OrderByDescending(s => s.CompletedAt)
             .Paginate(pagingParams)
