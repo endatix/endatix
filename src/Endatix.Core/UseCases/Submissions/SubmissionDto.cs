@@ -10,17 +10,19 @@ namespace Endatix.Core.UseCases.Submissions;
 /// <param name="Id">The unique identifier of the submission.</param>
 /// <param name="IsComplete">Indicates if the submission is complete.</param>
 /// <param name="JsonData">A dictionary containing JSON data related to the submission.</param>
+/// <param name="FormId">The unique identifier of the form associated with the submission.</param>
 /// <param name="FormDefinitionId">The unique identifier of the form definition associated with the submission.</param>
 /// <param name="CurrentPage">The current page of the submission, if applicable.</param>
 /// <param name="CompletedAt">The date and time when the submission was completed, if applicable.</param>
 /// <param name="CreatedAt">The date and time when the submission was created.</param>
 /// <param name="Metadata">Additional metadata related to the submission.</param>
-public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object> JsonData, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt, string? Metadata)
+public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object> JsonData, long FormId, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt, string? Metadata)
 {
     public long Id { get; init; } = Id;
     public bool IsComplete { get; init; } = IsComplete;
     public Dictionary<string, object> JsonData { get; init; } = JsonData;
     public string? Metadata { get; init; } = Metadata;
+    public long FormId { get; init; } = FormId;
     public long FormDefinitionId { get; init; } = FormDefinitionId;
     public int? CurrentPage { get; init; } = CurrentPage;
     public DateTime? CompletedAt { get; init; } = CompletedAt;
@@ -38,6 +40,7 @@ public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object>
                 Id: submission.Id,
                 IsComplete: submission.IsComplete,
                 JsonData: jsonData,
+                FormId: submission.FormId,
                 FormDefinitionId: submission.FormDefinitionId,
                 CurrentPage: submission.CurrentPage,
                 CompletedAt: submission.CompletedAt,

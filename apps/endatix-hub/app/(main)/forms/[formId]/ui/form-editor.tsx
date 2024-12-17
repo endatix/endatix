@@ -127,7 +127,7 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
   const [creator, setCreator] = useState<SurveyCreator | null>(null);
   const [isSaving] = useState(false);
   const router = useRouter();
-  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(formName === "New Form");
   const [name, setName] = useState(formName);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [originalName, setOriginalName] = useState(formName);
@@ -217,8 +217,9 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
 
   const saveForm = () => {
     startTransition(async () => {
+      const isDraft = false;
       const updatedFormJson = creator?.JSON;
-      const result = await updateFormDefinitionJsonAction(formId, updatedFormJson);
+      const result = await updateFormDefinitionJsonAction(formId, isDraft, updatedFormJson);
       if (result.success) {
         setHasUnsavedChanges(false);
         toast("Form saved");

@@ -2,9 +2,9 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
+using Endatix.Core.UseCases.Submissions;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
@@ -63,10 +63,10 @@ public class ListByFormIdTests
         // Arrange
         var formId = 1L;
         var request = new ListByFormIdRequest { FormId = formId, Page = 1, PageSize = 10 };
-        var submissions = new List<Submission> 
+        var submissions = new List<SubmissionDto> 
         { 
-            new("{ }", 1, 2) { Id = 1 },
-            new("{ }", 1, 2) { Id = 2 }
+            new(3, false, [], 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }"),
+            new(4, false, [], 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }"),
         };
         var result = Result.Success(submissions.AsEnumerable());
 
@@ -77,7 +77,7 @@ public class ListByFormIdTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var okResult = response.Result as Ok<IEnumerable<SubmissionModel>>;
+        var okResult = response.Result as Ok<IEnumerable<SubmissionDto>>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Count().Should().Be(2);
@@ -94,7 +94,7 @@ public class ListByFormIdTests
             PageSize = 20,
             Filter = ["expression1", "expression1"]
         };
-        var result = Result.Success(Enumerable.Empty<Submission>());
+        var result = Result.Success(Enumerable.Empty<SubmissionDto>());
         
         _mediator.Send(Arg.Any<ListByFormIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);

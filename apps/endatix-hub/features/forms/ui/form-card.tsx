@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import { cn } from "@/lib/utils";
 import {
@@ -11,7 +11,11 @@ import {
 import { Form } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Link2, List, Pencil } from "lucide-react";
+import { 
+  Link2, 
+  List, 
+  Pencil 
+} from "lucide-react";
 import React from "react";
 
 type FormCardProps = React.ComponentProps<typeof Card> & {

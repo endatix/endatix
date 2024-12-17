@@ -10,9 +10,9 @@ namespace Endatix.Core.UseCases.Submissions.ListByFormId;
 public class ListByFormIdHandler(
     IRepository<Submission> submissionsRepository,
     IRepository<FormDefinition> formDefinitionsRepository
-    ) : IQueryHandler<ListByFormIdQuery, Result<IEnumerable<Submission>>>
+    ) : IQueryHandler<ListByFormIdQuery, Result<IEnumerable<SubmissionDto>>>
 {
-    public async Task<Result<IEnumerable<Submission>>> Handle(ListByFormIdQuery request, CancellationToken cancellationToken)
+    public async Task<Result<IEnumerable<SubmissionDto>>> Handle(ListByFormIdQuery request, CancellationToken cancellationToken)
     {
         var formDefinitionsSpec = new FormDefinitionsByFormIdSpec(request.FormId);
         var formDefinitionsExist = await formDefinitionsRepository.AnyAsync(formDefinitionsSpec, cancellationToken);
@@ -26,7 +26,7 @@ public class ListByFormIdHandler(
         var filterParams = new FilterParameters(request.FilterExpressions!);
         var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pagingParams, filterParams);
 
-        IEnumerable<Submission> submissions = await submissionsRepository
+        IEnumerable<SubmissionDto> submissions = await submissionsRepository
                 .ListAsync(formByIdSpec, cancellationToken);
 
         return Result.Success(submissions);

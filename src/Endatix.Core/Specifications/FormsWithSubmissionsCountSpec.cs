@@ -11,9 +11,10 @@ public sealed class FormsWithSubmissionsCountSpec : Specification<Form, FormDto>
     public FormsWithSubmissionsCountSpec(PagingParameters pagingParams)
     {
         Query
-         .OrderByDescending(x => x.CreatedAt)
-         .Paginate(pagingParams)
-         .AsNoTracking();
+            .Where(f => !f.ActiveDefinition.IsDraft)
+            .OrderByDescending(x => x.CreatedAt)
+            .Paginate(pagingParams)
+            .AsNoTracking();
 
         Query.Select(form =>
             new FormDto()
