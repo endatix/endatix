@@ -2,20 +2,22 @@ import PageTitle from '@/components/headings/page-title';
 import { getForm, getSubmissions } from '@/services/api';
 import SubmissionsTable from './ui/submissions-table';
 import type { Metadata, ResolvingMetadata } from 'next'
+import { Suspense } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type Params = {
   params: Promise<{ formId: string }>
-  searchParams: Promise<{ 
-    page: string, 
+  searchParams: Promise<{
+    page: string,
     pageSize: string,
     useLegacyTable: boolean
-   }>
+  }>
 }
 
 export async function generateMetadata(
-  { 
-    params, 
-    searchParams 
+  {
+    params,
+    searchParams
   }: Params,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
@@ -32,37 +34,69 @@ export async function generateMetadata(
   };
 }
 
-const logSearchParams = async (searchParams: Promise<{ page: string, pageSize: string }>) => {
-  const { page, pageSize } = await searchParams;
-  if (page) {
-    console.log("page", page);
-  }
-  if (pageSize) {
-    console.log("pageSize", pageSize);
-  }
-}
-
-async function ResponsesPage({ 
-  params, 
-  searchParams 
+export default async function ResponsesPage({
+  params,
+  searchParams
 }: Params) {
   const { formId } = await params;
-  const [submissions, form] = await Promise.all([
-    await getSubmissions(formId),
-    await getForm(formId)
-  ]);
-  await logSearchParams(searchParams);
-  const { useLegacyTable } = await searchParams;
+  const { useLegacyTable, pageSize } = await searchParams;
 
   return (
     <>
-      <PageTitle title={`Submissions for ${form.name}`} />
-      <SubmissionsTable
-        data={submissions}
-        useLegacyTable={useLegacyTable?? false}
-      />
+      <Suspense fallback={<PageTitle title='Submissions...' />}>
+        <PageTitleData formId={formId} />
+      </Suspense>
+      <Suspense fallback={<TableLoader pageSize={pageSize} />}>
+        <SubmissionsTableData
+          formId={formId}
+          useLegacyTable={useLegacyTable ?? false} />
+      </Suspense>
     </>
   );
 }
 
-export default ResponsesPage;
+async function PageTitleData({
+  formId
+}: {
+  formId: string
+}) {
+  const form = await getForm(formId);
+  return <PageTitle title={`Submissions for ${form.name}`} />
+}
+
+async function SubmissionsTableData({
+  formId,
+  useLegacyTable
+}: {
+  formId: string,
+  useLegacyTable: boolean
+}) {
+  const submissions = await getSubmissions(formId);
+  return (
+    <SubmissionsTable
+      data={submissions}
+      useLegacyTable={useLegacyTable ?? false}
+    />
+  )
+}
+
+function TableLoader({
+  pageSize
+}: {
+  pageSize: string
+}) {
+  const pageSizeNumber = parseInt(pageSize) || 10;
+  const rowHeight = 60;
+  const rows = Array.from({ length: pageSizeNumber }, (_, i) => i + 1);
+  return (
+    <div className="flex flex-col space-y-3 relative w-full overflow-auto">
+      <Skeleton className={`h-[${rowHeight}px] bg-gray-200 w-full p-4`} />
+      {rows.map((row) => (
+        <Skeleton
+          key={row}
+          className={`h-[${rowHeight}px] w-full p-4`} />
+      ))}
+      <Skeleton className={`h-[${rowHeight}px] bg-gray-200 w-full p-4`} />
+    </div>
+  )
+}
