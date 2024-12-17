@@ -102,7 +102,6 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
               options.value[i].content,
               options.value[i].type
             );
-            console.log(options.value[i].content);
         }
       }
     };
