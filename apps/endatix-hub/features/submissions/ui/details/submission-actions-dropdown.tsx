@@ -8,8 +8,6 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { Submission } from "@/types"
-import { DropdownMenuContentProps } from "@radix-ui/react-dropdown-menu"
 import {
     MoreHorizontal,
     FilePenLine,
@@ -18,11 +16,11 @@ import {
 } from "lucide-react"
 
 interface SubmissionActionsDropdownProps extends ButtonProps {
-    submission: Submission
+    submissionId: string
 }
 
 export function SubmissionActionsDropdown({ 
-    submission,
+    submissionId,
     ...props
  }: SubmissionActionsDropdownProps) {
     return (
