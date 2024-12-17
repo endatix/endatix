@@ -2,6 +2,7 @@ using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Specifications.Common;
 using Endatix.Core.Specifications.Parameters;
+using Endatix.Core.UseCases.Submissions;
 
 namespace Endatix.Core.Specifications;
 
@@ -12,7 +13,7 @@ namespace Endatix.Core.Specifications;
 /// TODO: [check] We can add PagedSpecification&lt;T&gt; instead of Specification&lt;T&gt; as one direction to reuse and encapsulate logic, but we need to factor in other requirements like Basic filtering/sorting/ordering + specific filtering, e.g. only ActiveForms
 /// TODO: [check] Also handle Ability to return PagedResult, which has the current page number and total count of items instead of basic list of results
 /// </summary>
-public class SubmissionsByFormIdSpec : Specification<Submission, Submission>
+public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
 {
     /// <summary>
     /// Initializes a new instance of the specification to retrieve submissions for a given form
@@ -23,16 +24,16 @@ public class SubmissionsByFormIdSpec : Specification<Submission, Submission>
     public SubmissionsByFormIdSpec(long formId, PagingParameters pagingParams, FilterParameters filterParams)
     {
         Query
-            .Select(s => new Submission(
+            .Select(s => new SubmissionDto(
                 s.Id,
-                string.Empty,
+                s.IsComplete,
+                new Dictionary<string, object>(),
                 s.FormId,
                 s.FormDefinitionId,
-                s.IsComplete,
-                s.CurrentPage ?? 1,
-                s.Metadata,
+                s.CurrentPage,
+                s.CompletedAt,
                 s.CreatedAt,
-                s.CompletedAt
+                s.Metadata
             ))
             .Where(s => s.FormDefinition.FormId == formId)
             .Filter(filterParams)

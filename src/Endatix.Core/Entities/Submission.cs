@@ -21,15 +21,6 @@ public partial class Submission : BaseEntity, IAggregateRoot
         SetCompletionStatus(isComplete);
     }
 
-    public Submission(long id, string jsonData, long formId, long formDefinitionId, bool isComplete, int currentPage, string? metadata, 
-        DateTime createdAt, DateTime? completedAt) 
-        : this(jsonData, formId, formDefinitionId, isComplete, currentPage, metadata)
-    {
-        Id = id;
-        CreatedAt = createdAt;
-        CompletedAt = completedAt;
-    }
-
     public bool IsComplete { get; private set; }
     public string JsonData { get; private set; }
     public FormDefinition FormDefinition { get; private set; }
