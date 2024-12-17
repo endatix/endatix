@@ -7,5 +7,6 @@ declare namespace NodeJS {
     SLACK_CLIENT_ID: string;
     SLACK_CLIENT_SECRET: string;
     SLACK_REDIRECT_URI: string;
+    NEXT_PUBLIC_MAX_IMAGE_SIZE: number;
   }
 } 
