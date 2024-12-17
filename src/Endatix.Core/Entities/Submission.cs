@@ -9,6 +9,7 @@ public partial class Submission : BaseEntity, IAggregateRoot
 
     public Submission(string jsonData, long formId, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {
+        Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
         Guard.Against.NegativeOrZero(formId, nameof(formId));
         Guard.Against.NegativeOrZero(formDefinitionId, nameof(formDefinitionId));
 

@@ -6,37 +6,37 @@ namespace Endatix.Core.Tests.Entities;
 
 public class SubmissionConstructorTests
 {
-    // [Fact]
-    // public void Constructor_NullJsonData_ThrowsArgumentNullException()
-    // {
-    //     // Arrange  
-    //     var formId = 123;
-    //     var formDefinitionId = 456;
-    //     string? nullJsonData = null;
+    [Fact]
+    public void Constructor_NullJsonData_ThrowsArgumentNullException()
+    {
+        // Arrange  
+        var formId = 123;
+        var formDefinitionId = 456;
+        string? nullJsonData = null;
 
-    //     // Act
-    //     var action = () => new Submission(nullJsonData!, formId, formDefinitionId);
+        // Act
+        var action = () => new Submission(nullJsonData!, formId, formDefinitionId);
 
-    //     // Assert
-    //     action.Should().Throw<ArgumentNullException>()
-    //         .WithMessage(GetErrorMessage(nameof(Submission.JsonData), Null));
-    // }
+        // Assert
+        action.Should().Throw<ArgumentNullException>()
+            .WithMessage(GetErrorMessage(nameof(Submission.JsonData), Null));
+    }
 
-    // [Fact]
-    // public void Constructor_EmptyJsonData_ThrowsArgumentException()
-    // {
-    //     // Arrange
-    //     var emptyJsonData = string.Empty;
-    //     var formId = 123;
-    //     var formDefinitionId = 456;
+    [Fact]
+    public void Constructor_EmptyJsonData_ThrowsArgumentException()
+    {
+        // Arrange
+        var emptyJsonData = string.Empty;
+        var formId = 123;
+        var formDefinitionId = 456;
 
-    //     // Act
-    //     var action = () => new Submission(emptyJsonData, formId, formDefinitionId);
+        // Act
+        var action = () => new Submission(emptyJsonData, formId, formDefinitionId);
 
-    //     // Assert
-    //     action.Should().Throw<ArgumentException>()
-    //         .WithMessage(GetErrorMessage(nameof(Submission.JsonData), Empty));
-    // }
+        // Assert
+        action.Should().Throw<ArgumentException>()
+            .WithMessage(GetErrorMessage(nameof(Submission.JsonData), Empty));
+    }
 
     [Fact]
     public void Constructor_NegativeFormDefinitionId_ThrowsArgumentException()
