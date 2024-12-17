@@ -89,9 +89,10 @@ async function SubmissionData({
     )
 }
 
-export function SubmissionDataSkeleton() {
+function SubmissionDataSkeleton() {
     const summaryQuestions = Array.from({ length: 5 }, (_, index) => index + 1);
     const answersQuestions = Array.from({ length: 16 }, (_, index) => index + 1);
+
     return (
         <div className="w-full overflow-auto">
             <div className="flex flex-col space-y-2 items-center">
