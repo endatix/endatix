@@ -1,4 +1,4 @@
-import { Form, FormDefinition } from "../../../../types";
+import { Form, FormDefinition } from "@/types";
 import { getForm, getActiveFormDefinition } from "@/services/api";
 import { FormEditorProps } from "./ui/form-editor";
 import FormEditorContainer from "./ui/form-editor-container";
@@ -7,8 +7,8 @@ type Params = {
   params: Promise<{ formId: string }>
 };
 
-async function FormEditPage({ params }: Params) {
-  const formId = (await params).formId;
+export default async function FormEditPage({ params }: Params) {
+  const { formId } = await params;
 
   let form: Form | null = null;
   let formJson: object | null = null;
@@ -39,5 +39,3 @@ async function FormEditPage({ params }: Params) {
     </div>
   );
 }
-
-export default FormEditPage;

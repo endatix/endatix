@@ -7,6 +7,8 @@ import { Result } from "@/lib/result";
 import { Model } from "survey-core";
 import { SectionTitle } from "@/components/headings/section-title";
 import { BackToSubmissionsButton } from "@/features/submissions/ui/details/back-to-submissions-button";
+import { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Params = {
     params: Promise<{
@@ -17,6 +19,24 @@ type Params = {
 
 export default async function SubmissionPage({ params }: Params) {
     const { formId, submissionId } = await params;
+
+    return (
+        <>
+            <SubmissionTopNav formId={formId} />
+            <SubmissionHeader submissionId={submissionId} />
+            <Suspense fallback={<SubmissionDataSkeleton />}>
+                <SubmissionData formId={formId} submissionId={submissionId} />
+            </Suspense>
+        </>
+    )
+}
+
+async function SubmissionData({
+    formId,
+    submissionId }: {
+        formId: string;
+        submissionId: string;
+    }) {
     const submissionResult = await getSubmissionDetailsUseCase({ formId, submissionId });
 
     if (Result.isError(submissionResult)) {
@@ -31,7 +51,6 @@ export default async function SubmissionPage({ params }: Params) {
             </div>
         )
     }
-
     const submission = submissionResult.value;
     if (!submission.formDefinition) {
         return <div>Form definition not found</div>;
@@ -51,8 +70,6 @@ export default async function SubmissionPage({ params }: Params) {
 
     return (
         <>
-            <SubmissionTopNav formId={formId} />
-            <SubmissionHeader submission={submission} />
             <SubmissionProperties submission={submission} />
             <SectionTitle
                 title="Submission Answers"
@@ -69,5 +86,29 @@ export default async function SubmissionPage({ params }: Params) {
                 })}
             </div>
         </>
+    )
+}
+
+function SubmissionDataSkeleton() {
+    const summaryQuestions = Array.from({ length: 5 }, (_, index) => index + 1);
+    const answersQuestions = Array.from({ length: 16 }, (_, index) => index + 1);
+
+    return (
+        <div className="w-full overflow-auto">
+            <div className="flex flex-col space-y-2 items-center">
+                {summaryQuestions.map((question) => (
+                    <Skeleton className="h-8 w-[300px] " key={question} />
+                ))}
+            </div>
+            <SectionTitle
+                title="Submission Answers"
+                headingClassName="py-2 my-0"
+            />
+            <div className="flex flex-col items-center space-y-2 items-center">
+                {answersQuestions.map((question) => (
+                    <Skeleton className="h-12 w-[600px]" key={question} />
+                ))}
+            </div>
+        </div>
     )
 }

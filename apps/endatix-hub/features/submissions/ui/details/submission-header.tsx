@@ -9,14 +9,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { SubmissionActionsDropdown } from "./submission-actions-dropdown";
-import { Submission } from "@/types";
 
 interface SubmissionHeaderProps {
-    submission: Submission;
+    submissionId: string;
 }
 
 export function SubmissionHeader({
-    submission
+    submissionId
 }: SubmissionHeaderProps) {
     return (
         <div className="my-2 flex flex-col gap-6 sm:gap-2 sm:flex-row justify-between">
@@ -54,7 +53,7 @@ export function SubmissionHeader({
                 </Link>
 
                 <SubmissionActionsDropdown
-                    submission={submission}
+                    submissionId={submissionId}
                     className="text-muted-foreground"
                 />
             </div>
