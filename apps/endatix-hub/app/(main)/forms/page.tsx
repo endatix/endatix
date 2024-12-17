@@ -1,11 +1,11 @@
 import { getForms } from "@/services/api";
-import FormsList from "./ui/forms-list";
 import PageTitle from "@/components/headings/page-title";
 import { Button } from "@/components/ui/button";
 import { FilePlus2 } from "lucide-react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
-import CreateFormSheet from "./ui/create-form-sheet";
+import CreateFormSheet from "@/features/forms/ui/create-form-sheet";
+import FormsList from "@/features/forms/ui/forms-list";
 
 const Forms = async () => {
   const forms = await getForms();
