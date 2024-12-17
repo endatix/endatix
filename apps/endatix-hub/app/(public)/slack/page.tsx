@@ -1,33 +1,49 @@
 "use client";
 
-import { useSearchParams } from "next/navigation"; 
+import { useSearchParams } from "next/navigation";
 import { getSlackBearerToken, sendSlackBearerToken } from "@/services/integrations";
+import { Suspense, useEffect, useState } from "react";
 
-export default async function Slack() {
-  const searchParams = useSearchParams(); 
+function SlackTokenTransfer() {
+  const searchParams = useSearchParams();
   const code = searchParams.get("code");
-  var message = "";
+  const [message, setMessage] = useState("");
 
-  var responseJson = await getSlackBearerToken(code ?? "");
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (!code) {
+          setMessage("No code provided");
+          return;
+        }
+        const responseJson = await getSlackBearerToken(code);
+        if (responseJson.ok) {
+          const result = await sendSlackBearerToken(responseJson.access_token);
+          setMessage(result ? "Successfully received token" : "Failed to receive token");
+        } else {
+          setMessage(responseJson.error);
+        }
+      } catch (error) {
+        setMessage("An unexpected error occurred");
+      }
+    };
 
-  if(responseJson.ok) {
-    var result = await sendSlackBearerToken(responseJson.access_token);
-
-    if(result) {
-      message = "Successfully received token";
-    }
-    else {
-      message = "Failed to received token";
-    }
-  }
-  else {
-    message = responseJson.error;
-  }
+    fetchData();
+  }, [code]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
       <h3>Slack authorization for Endatix Bot</h3>
-      {message}<br />
+      {message}
+      <br />
     </div>
+  );
+}
+
+export default function Slack() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SlackTokenTransfer />
+    </Suspense>
   );
 }

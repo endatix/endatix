@@ -1,3 +1,5 @@
+"use server";
+
 import { SlackAuthResponse } from "@/types";
 import { HeaderBuilder } from "./header-builder";
 
@@ -32,7 +34,7 @@ export const sendSlackBearerToken = async (
         .acceptJson()
         .provideJson()
         .build();
-  
+
     var endpointUrl = `${API_BASE_URL}/slacktoken`;
 
     const response = await fetch(endpointUrl, {
@@ -40,10 +42,10 @@ export const sendSlackBearerToken = async (
         headers: headers,
         body: "{ \"token\": \"" + token + "\"}"
       });
-  
+
     if (!response.ok) {
       return false;
     }
-  
+
     return true;
   };
