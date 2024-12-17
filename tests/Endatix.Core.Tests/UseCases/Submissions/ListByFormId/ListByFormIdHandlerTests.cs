@@ -1,9 +1,9 @@
 using Ardalis.Specification;
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.ListByFormId;
@@ -43,17 +43,17 @@ public class ListByFormIdHandlerTests
     {
         // Arrange
         var formDefinition = new FormDefinition() { Id = 1 };
-        var submissions = new List<Submission>
+        var submissions = new List<SubmissionDto>
         {
-            new("{ }", 1, 2) { Id = 3 },
-            new("{ }", 1, 2) { Id = 4 }
+            new(3, false, [], 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }"),
+            new(4, false, [], 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }"),
         };
         var request = new ListByFormIdQuery(1, 1, 10, []);
 
         _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
         _submissionsRepository.ListAsync(
-            Arg.Any<ISpecification<Submission>>(),
+            Arg.Any<ISpecification<Submission, SubmissionDto>>(),
             Arg.Any<CancellationToken>()
         ).Returns(submissions);
 
@@ -82,7 +82,7 @@ public class ListByFormIdHandlerTests
 
         // Assert
         await _submissionsRepository.Received(1).ListAsync(
-            Arg.Is<ISpecification<Submission>>(spec => 
+            Arg.Is<ISpecification<Submission, SubmissionDto>>(spec => 
                 spec.Skip == 20 && 
                 spec.Take == 20
             ),
