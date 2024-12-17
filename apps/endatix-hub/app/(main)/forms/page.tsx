@@ -55,7 +55,6 @@ export function FormsLoading() {
               <SkeletonCard key={card} />
           ))}
       </div>
-
   )
 }
 
