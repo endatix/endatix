@@ -20,10 +20,14 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Environment Variables
 
-These are managed by the Next.js powered Endatix hub and stored in the this "endatix-hub" folder.
+Check the .env.example file for all variables and their description
 
-- **ENDATIX_BASE_URL** - [REQUIRED] this sets the base Url for the Endatix API, e.g. `ENDATIX_BASE_URL=https://localhost:5001`
-- **SESSION_SECRET** - [REQUIRED] sets the key to encrypt the session cookies for the Endatix APP. Use strong password, e.g. `SESSION_SECRET=aMfPaLkxa7asa2MFdn6E4sLKOIas1FUzh8&geGm`
+## Running Production Build Locally
+
+This is useful for testing the production build locally (assumes you have run `pnpm install`)
+
+1. Run `pnpm build:standalone`;
+1. Run `pnpm start`;
 
 ## Learn More
 
