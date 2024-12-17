@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import { Button } from "@/components/ui/button"
 import { Copy, Link2, List, Pencil } from 'lucide-react';
@@ -16,19 +16,20 @@ import { SectionTitle } from "@/components/headings/section-title";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useTransition, useState } from "react";
-import { updateFormStatusAction } from "../[formId]/update-form-status.action";
+import { updateFormStatusAction } from "../../../app/(main)/forms/[formId]/update-form-status.action";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
-type FormSheetProps = {
+interface FormSheetProps extends React.ComponentPropsWithoutRef<typeof Sheet> {
     selectedForm: Form | null,
     enableEditing?: boolean
 }
 
 const FormSheet = ({
     selectedForm,
-    enableEditing = false
+    enableEditing = false,
+    ...props
 }: FormSheetProps) => {
     const [pending, startTransition] = useTransition();
     const [isEnabled, setIsEnabled] = useState(selectedForm?.isEnabled);
@@ -76,7 +77,7 @@ const FormSheet = ({
 
     return (
         selectedForm && (
-            <Sheet modal={false} open={selectedForm != null} >
+            <Sheet {...props}>
                 <SheetContent className="w-[600px] sm:w-[480px] sm:max-w-none">
                     <SheetHeader>
                         <SheetTitle className="text-2xl font-bold">
@@ -107,7 +108,6 @@ const FormSheet = ({
                                 Submissions
                             </Link>
                         </Button>
-
                     </div>
                     <div className="grid gap-2 py-4">
                         <div className="grid grid-cols-4 py-2 items-center gap-4">
@@ -164,24 +164,27 @@ const FormSheet = ({
                     </div>
 
                     <SectionTitle title="Sharing" headingClassName="text-xl mt-4" />
-                    <div className="grid gap-2">
-                        <div className="grid grid-cols-4 py-2 items-center gap-4">
-                            <span className="text-right self-start">
+                    <div className="grid grid-cols-4 py-2 gap-4">
+                        <div className="col-span-1 flex items-center justify-end">
+                            <Label htmlFor="form-share-url">
                                 Default Url:
-                            </span>
-                            <div className="text-sm text-muted-foreground col-span-3">
-                                <div className="relative" onClick={() => copyToClipboard(`/share/${selectedForm.id}`)}>
-                                    <div className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground">
-                                        <Copy className="h-4 w-4 cursor-pointer" />
-                                    </div>
-                                    <Input
-                                        readOnly
-                                        id="form-share-url"
-                                        value={`/share/${selectedForm.id}`}
-                                        className="bg-accent w-full rounded-lg pl-8"
-                                    />
+                            </Label>
+                        </div>
+                        <div className="col-span-3">
+                            <div className="relative cursor-pointer">
+                                <div className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground cursor-pointer z-10">
+                                    <Copy
+                                        onClick={() => copyToClipboard(`/share/${selectedForm.id}`)}
+                                        aria-label="Copy form url"
+                                        className="h-4 w-4" />
                                 </div>
-
+                                <Input
+                                    readOnly
+                                    disabled
+                                    id="form-share-url"
+                                    value={`/share/${selectedForm.id}`}
+                                    className="bg-accent w-full rounded-lg"
+                                />
                             </div>
                         </div>
                     </div>
@@ -192,5 +195,4 @@ const FormSheet = ({
         )
     );
 }
-
 export default FormSheet;

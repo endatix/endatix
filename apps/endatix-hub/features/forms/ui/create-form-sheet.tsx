@@ -1,6 +1,11 @@
-"use client";
+'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
 import {
   SheetContent,
   SheetDescription,
@@ -8,9 +13,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { FC, useState, useTransition } from "react";
+import { 
+    FC, 
+    useState, 
+    useTransition 
+} from "react";
 import ChatBox from "./chat-box";
-import { BicepsFlexed, Code, Copy, Folder } from "lucide-react";
+import { 
+    BicepsFlexed, 
+    Code, 
+    Copy, 
+    Folder 
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import DotLoader from "@/components/loaders/dot-loader";
 import { CreateFormRequest } from "@/lib/form-types";
