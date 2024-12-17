@@ -1,9 +1,16 @@
 import Image from "next/image";
-import LoginForm from "./ui/login-form";
+import LoginForm from "@/features/auth/ui/login-form";
 import type { Metadata } from 'next';
-import NewAccountLink from "./ui/new-account-link";
+import NewAccountLink from "@/features/auth/ui/new-account-link";
 import { getSession } from "@/lib/auth-service";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
