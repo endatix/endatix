@@ -94,7 +94,7 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
     
       for (let i = 0; i < options.question.value.length; i++) {
         let value = options.value[i];
-        if (value.type.includes('image')) {
+        if (value?.type?.includes('image')) {
           value.content = await resizeImage(
             value.content,
             value.type
@@ -103,7 +103,10 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
       }
     };
     
-    if(MAX_IMAGE_SIZE > 0 && options.question.getType() == "file") processImages();
+    if(MAX_IMAGE_SIZE > 0 && options.question.getType() == "file") {
+      processImages();
+    }
+       
   }, []);
 
   model.onComplete.add(submitForm);
