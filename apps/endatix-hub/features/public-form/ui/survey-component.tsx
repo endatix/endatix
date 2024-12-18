@@ -68,16 +68,12 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
           let width = img.width;
           let height = img.height;
     
-          if (width > height) {
-            if (width > MAX_IMAGE_SIZE) {
+          if (width > height && width > MAX_IMAGE_SIZE) {
               height = height * (MAX_IMAGE_SIZE / width);
               width = MAX_IMAGE_SIZE;
-            }
-          } else {
-            if (height > MAX_IMAGE_SIZE) {
+          } else if (height > MAX_IMAGE_SIZE) {
               width = width * (MAX_IMAGE_SIZE / height);
               height = MAX_IMAGE_SIZE;
-            }
           }
     
           let canvas = document.createElement("canvas");
@@ -97,16 +93,17 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
     const processImages = async () => {
     
       for (let i = 0; i < options.question.value.length; i++) {
-        if (options.value[i].type.includes('image')) {
-            options.value[i].content = await resizeImage(
-              options.value[i].content,
-              options.value[i].type
+        let value = options.value[i];
+        if (value.type.includes('image')) {
+          value.content = await resizeImage(
+            value.content,
+            value.type
             );
         }
       }
     };
     
-    if(MAX_IMAGE_SIZE > 0) processImages();
+    if(MAX_IMAGE_SIZE > 0 && options.question.getType() == "file") processImages();
   }, []);
 
   model.onComplete.add(submitForm);
