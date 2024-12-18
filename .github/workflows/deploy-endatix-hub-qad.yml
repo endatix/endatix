@@ -63,6 +63,10 @@ jobs:
           SESSION_SECRET: ${{ secrets.ENDATIXHUB_SESSION_SECRET }}
           NEXT_FORMS_COOKIE_NAME: ${{ secrets.ENDATIXHUB_NEXT_FORMS_COOKIE_NAME }}
           NEXT_FORMS_COOKIE_DURATION_DAYS: ${{ secrets.ENDATIXHUB_SESSION_SECRET }}
+          SLACK_CLIENT_ID: ${{ secrets.ENDATIXHUB_SLACK_CLIENT_ID }}
+          SLACK_CLIENT_SECRET: ${{ secrets.ENDATIXHUB_SLACK_CLIENT_SECRET }}
+          SLACK_REDIRECT_URI: ${{ secrets.ENDATIXHUB_SLACK_REDIRECT_URI }}
+          NEXT_PUBLIC_MAX_IMAGE_SIZE: ${{ secrets.NEXT_PUBLIC_MAX_IMAGE_SIZE }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_PLANT_0DBFDE310 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
