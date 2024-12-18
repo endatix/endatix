@@ -15,7 +15,8 @@ interface SurveyComponentProps {
   submission?: Submission;
 }
 
-const MAX_IMAGE_SIZE: number = Number(process.env.NEXT_PUBLIC_MAX_IMAGE_SIZE) || 0;
+const MAX_IMAGE_SIZE_FALLBACK = 1200;
+const MAX_IMAGE_SIZE: number = MAX_IMAGE_SIZE_FALLBACK;
 
 export default function SurveyComponent({ definition, formId, submission }: SurveyComponentProps) {
   const [isSubmitting, startSubmitting] = useTransition();

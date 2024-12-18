@@ -67,6 +67,7 @@ jobs:
           SLACK_CLIENT_SECRET: ${{ secrets.ENDATIXHUB_SLACK_CLIENT_SECRET }}
           SLACK_REDIRECT_URI: ${{ secrets.ENDATIXHUB_SLACK_REDIRECT_URI }}
           NEXT_PUBLIC_MAX_IMAGE_SIZE: ${{ secrets.NEXT_PUBLIC_MAX_IMAGE_SIZE }}
+          NEXT_PUBLIC_NAME: ${{ vars.NEXT_PUBLIC_NAME }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_MANGO_PLANT_0DBFDE310 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}

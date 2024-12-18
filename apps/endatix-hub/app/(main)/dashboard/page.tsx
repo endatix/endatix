@@ -19,11 +19,19 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getForms } from "@/services/api";
 import FormsTable from "./forms-table";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const Dashboard = async () => {
   const forms = await getForms();
-
+  const NEXT_PUBLIC_MAX_IMAGE_SIZE = process.env.NEXT_PUBLIC_MAX_IMAGE_SIZE;
+  const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID;
+  const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET;
+  const NEXT_PUBLIC_NAME = process.env.NEXT_PUBLIC_NAME;
   return (
     <Tabs defaultValue="all">
       <div className="flex items-center">
@@ -98,6 +106,16 @@ const Dashboard = async () => {
             </TooltipProvider>
           </CardFooter>
         </Card>
+      </TabsContent>
+      <TabsContent value="draft">
+        <div>
+          <ul>
+            <li>NEXT_PUBLIC_MAX_IMAGE_SIZE: {NEXT_PUBLIC_MAX_IMAGE_SIZE}</li>
+            <li>SLACK_CLIENT_ID: {SLACK_CLIENT_ID}</li>
+            <li>NEXT_PUBLIC_NAME: {NEXT_PUBLIC_NAME}</li>
+            <li>SLACK_CLIENT_SECRET_length: {SLACK_CLIENT_SECRET?.length?? 0}</li>
+          </ul>
+        </div>
       </TabsContent>
     </Tabs>
   );
