@@ -1,12 +1,21 @@
 import Image from "next/image";
-import LoginForm from "./ui/login-form";
+import LoginForm from "@/features/auth/ui/login-form";
 import type { Metadata } from 'next';
-import NewAccountLink from "./ui/new-account-link";
-import { getSession } from "@/lib/auth-service";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import NewAccountLink from "@/features/auth/ui/new-account-link";
+import { getSession, SessionData } from "@/lib/auth-service";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 export const metadata: Metadata = {
   title: 'Login | Endatix Hub',
@@ -15,6 +24,31 @@ export const metadata: Metadata = {
 
 const LoginPage = async () => {
   const user = await getSession();
+
+  const shouldRedirectUser = async (user: SessionData): Promise<boolean> => {
+    if (!user || !user.isLoggedIn) {
+      return false;
+    }
+
+    const headersList = await headers()
+    const referer = headersList.get('referer')
+    if (!referer) {
+      return false;
+    }
+
+    const refererUrl = new URL(referer);
+    const isOriginatingFromLoginPage = refererUrl.pathname === '/login';
+    if (!isOriginatingFromLoginPage) {
+      return false;
+    }
+
+    return true;
+  }
+
+  if (await shouldRedirectUser(user)) {
+    redirect("/forms");
+  }
+
   return (
     <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
       <div className="flex items-center justify-center py-12">

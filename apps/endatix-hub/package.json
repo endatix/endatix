@@ -6,6 +6,7 @@
     "dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next dev",
     "dev-https": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next dev --turbopack  --experimental-https",
     "build": "next build",
+    "build:standalone": "pnpm build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",

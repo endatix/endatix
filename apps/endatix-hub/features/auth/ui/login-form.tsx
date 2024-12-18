@@ -1,15 +1,16 @@
-"use client";
+'use client'
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useActionState } from "react";
-import { loginAction } from "../login.action";
+import { loginAction } from "../application/actions/login.action";
 import { showComingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
+import { Spinner } from "@/components/loaders/spinner";
 
 const LoginForm = () => {
-  const [state, formAction] = useActionState(loginAction, null);
+  const [state, formAction, isPending] = useActionState(loginAction, null);
 
   return (
     <form action={formAction}>
@@ -47,7 +48,10 @@ const LoginForm = () => {
         {state?.errors?.password && (
           <ErrorMessage message={`Password must ${state.errors.password}`} />
         )}
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={isPending}>
+          {isPending && (
+            <Spinner className="mr-2 h-4 w-4 animate-spin" />
+          )}
           Login
         </Button>
       </div>

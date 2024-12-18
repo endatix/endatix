@@ -183,6 +183,7 @@ export const getFormDefinition = async (formId: string, definitionId: string): P
 
 export const updateFormDefinition = async (
   formId: string,
+  isDraft: boolean,
   jsonData: string
 ): Promise<void> => {
   const session = await getSession();
@@ -200,7 +201,7 @@ export const updateFormDefinition = async (
   const response = await fetch(`${API_BASE_URL}/forms/${formId}/definition`, {
     method: "PATCH",
     headers: headers,
-    body: JSON.stringify({ jsonData }),
+    body: JSON.stringify({ isDraft, jsonData }),
   });
 
   if (!response.ok) {
