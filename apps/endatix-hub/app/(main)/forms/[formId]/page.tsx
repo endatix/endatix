@@ -30,7 +30,8 @@ export default async function FormEditPage({ params }: Params) {
   const props: FormEditorProps = {
     formId: formId,
     formJson: formJson,
-    formName: form.name
+    formName: form.name,
+    slkVal: process.env.NEXT_PUBLIC_SLK
   };
 
   return (
