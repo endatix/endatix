@@ -1,6 +1,6 @@
 'use client'
 
-import { Question, SurveyModel, ValueChangingEvent } from 'survey-core'
+import { SurveyModel, UploadFilesEvent, ValueChangingEvent } from 'survey-core'
 import { Survey } from 'survey-react-ui'
 import { startTransition, useTransition, useCallback } from "react"
 import { useSubmissionQueue } from '../application/submission-queue'
@@ -40,6 +40,7 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
   }, []);
 
   const submitForm = useCallback((sender: SurveyModel) => {
+    debugger;
     if (isSubmitting) {
       return;
     }
@@ -67,20 +68,20 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
         img.onload = () => {
           let width = img.width;
           let height = img.height;
-    
+
           if (width > height && width > MAX_IMAGE_SIZE) {
-              height = height * (MAX_IMAGE_SIZE / width);
-              width = MAX_IMAGE_SIZE;
+            height = height * (MAX_IMAGE_SIZE / width);
+            width = MAX_IMAGE_SIZE;
           } else if (height > MAX_IMAGE_SIZE) {
-              width = width * (MAX_IMAGE_SIZE / height);
-              height = MAX_IMAGE_SIZE;
+            width = width * (MAX_IMAGE_SIZE / height);
+            height = MAX_IMAGE_SIZE;
           }
-    
+
           let canvas = document.createElement("canvas");
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext("2d");
-    
+
           if (ctx) {
             ctx.drawImage(img, 0, 0, width, height);
             resolve(canvas.toDataURL(type));
@@ -89,32 +90,62 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
         img.src = imgSrc;
       });
     };
-    
+
     const processImages = async () => {
-    
+
       for (let i = 0; i < options.question.value.length; i++) {
         let value = options.value[i];
         if (value?.type?.includes('image')) {
           value.content = await resizeImage(
             value.content,
             value.type
-            );
+          );
         }
       }
     };
-    
-    if(MAX_IMAGE_SIZE > 0 && options.question.getType() == "file") {
+
+    if (MAX_IMAGE_SIZE > 0 && options.question.getType() == "file") {
       processImages();
     }
-       
+
+  }, []);
+
+  const uploadFiles = useCallback((sender: SurveyModel, options: UploadFilesEvent) => {
+    const formData = new FormData();
+    formData.append("formId", formId);
+    options.files.forEach((file) => {
+      formData.append(file.name, file);
+    });
+
+    fetch("/api/public/v0/storage/upload",
+      {
+        method: "POST",
+        body: formData
+      })
+      .then((response) => response.json())
+      .then((data) => {
+        options.callback(
+          options.files.map((file) => {
+            return {
+              file: file,
+              content: data.files.find((f: { name: string; url: string }) => f.name === file.name)?.url
+            };
+          })
+        );
+      })
+      .catch((error) => {
+        console.error("Error: ", error);
+        options.callback([], ['An error occurred during file upload.']);
+      });
   }, []);
 
   model.onComplete.add(submitForm);
-  model.onValueChanging.add(interceptImages);
+  model.onUploadFiles.add(uploadFiles);
 
   return (
     <Survey
       model={model}
+      onComplete={submitForm}
       onValueChanged={updatePartial}
       onCurrentPageChanged={updatePartial}
       onDynamicPanelItemValueChanged={updatePartial}
