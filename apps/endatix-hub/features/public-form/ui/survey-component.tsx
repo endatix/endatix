@@ -125,7 +125,7 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
           options.files.map((file) => {
             return {
               file: file,
-              content: "http://localhost:3000/assets/images/avatars/placeholder-user.jpg"
+              content: data.files.find((f: { name: string; url: string }) => f.name === file.name)?.url
             };
           })
         );
@@ -144,7 +144,7 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
   return (
     <Survey
       model={model}
-      onComplete={(sender : SurveyModel) => console.log(JSON.stringify(sender.data, null, 3))}
+      onComplete={submitForm}
       onValueChanged={updatePartial}
       onCurrentPageChanged={updatePartial}
       onDynamicPanelItemValueChanged={updatePartial}
