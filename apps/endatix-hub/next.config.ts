@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "endatix.blob.core.windows.net",
+        hostname: "endatixstorageqad.blob.core.windows.net",
       },
     ],
   },

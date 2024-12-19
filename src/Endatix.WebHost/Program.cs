@@ -8,8 +8,6 @@ builder.CreateEndatix()
     .AddDefaultSetup()
     .AddApiEndpoints();
 
-builder.Services.AddApplicationInsightsTelemetry();
-
 var app = builder.Build();
 
 app.UseEndatixMiddleware()
