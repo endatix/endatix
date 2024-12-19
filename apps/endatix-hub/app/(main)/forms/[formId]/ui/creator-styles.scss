@@ -1,6 +1,3 @@
-@import "survey-creator-core/survey-creator-core.fontless";
-@import "survey-core/defaultV2";
-
 $primary-color: rgb(0, 84, 209);
 $gray-color: rgba(144, 144, 144, 0.5);
 
@@ -17,45 +14,6 @@ body {
 
     .svc-flex-row {
         background: transparent !important;
-    }
-
-    .svc-creator__banner {
-        background-color: #ff9814;
-        color: #fff;
-        position:relative;
-        bottom: 10px;
-    }
-
-    // Starting Overrides
-    .svc-side-bar__container-actions {
-        background: #fff;
-        border-bottom: 1px solid $primary-color;
-    }
-
-    .svc-tabbed-menu-item--selected {
-        border-bottom: 2px solid $primary-color;
-        box-shadow: inset 0px -2px 0px $primary-color;
-    }
-
-    .spg-button-group__item--selected {
-        color: $primary-color;
-    }
-
-    .spg-button-group {
-        background-color: #fff;
-    }
-
-    .svc-tab-designer.sd-root-modern {
-        border-left: 1px solid $gray-color;
-        border-right: 1px solid $gray-color;
-    }
-
-    .spg-row.sd-page__row, .spg-button-group__item {
-        border-bottom: 1px solid $gray-color;
-    }
-
-    .sd-panel__header.sd-element__header, .sd-row.sd-clearfix.sd-page__row {
-        background-color: #fff;
     }
 }
 
