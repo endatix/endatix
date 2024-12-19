@@ -42,6 +42,7 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-resizable-panels": "^2.1.7",
+    "sharp": "^0.33.5",
     "sonner": "^1.7.1",
     "survey-core": "^1.12.14",
     "survey-creator-core": "^1.12.14",

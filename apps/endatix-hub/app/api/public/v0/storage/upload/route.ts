@@ -1,8 +1,7 @@
 import { BlobServiceClient } from '@azure/storage-blob';
+import { optimizeImage } from 'next/dist/server/image-optimizer';
 
 async function uploadFile(file: File): Promise<string> {
-
-  const start = performance.now();
   const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
   const containerClient = blobServiceClient.getContainerClient(process.env.AZURE_STORAGE_CONTAINER_NAME);
   await containerClient.createIfNotExists({
@@ -14,11 +13,27 @@ async function uploadFile(file: File): Promise<string> {
   const options = { blobHTTPHeaders: { blobContentType: file.type } };
 
   const fileBuffer = Buffer.from(await file.arrayBuffer());
-  await blobClient.uploadData(fileBuffer, options);
 
-  const end = performance.now();
+  const STEP_IMAGE_RESIZE_START = performance.now();
 
-  console.log(`Upload took ${end - start}ms`);
+  const optimizedImageBuffer = await optimizeImage({
+    buffer: fileBuffer,
+    contentType: file.type,
+    quality: 80,
+    width: 800,
+  });
+
+  const STEP_IMAGE_RESIZE_END = performance.now();
+
+  console.log(`⏱️ Image resize took ${STEP_IMAGE_RESIZE_END - STEP_IMAGE_RESIZE_START}ms`);
+
+  const STEP_UPLOAD_START = performance.now();
+
+  await blobClient.uploadData(optimizedImageBuffer, options);
+
+  const STEP_UPLOAD_END = performance.now();
+
+  console.log(`⏱️ Upload to blob took ${STEP_UPLOAD_END - STEP_UPLOAD_START}ms`);
 
   return blobClient.url;
 }
