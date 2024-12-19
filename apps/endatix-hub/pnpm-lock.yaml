@@ -120,6 +120,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.16)
+      uuid:
+        specifier: ^11.0.3
+        version: 11.0.3
       zod:
         specifier: ^3.24.1
         version: 3.24.1
@@ -3420,6 +3423,10 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  uuid@11.0.3:
+    resolution: {integrity: sha512-d0z310fCWv5dJwnX1Y/MncBAqGMKEzlBb1AOf7z9K8ALnd0utBX/msg/fA0+sbyN1ihbMsLhrBlnl1ak7Wa0rg==}
+    hasBin: true
 
   vite-node@2.1.8:
     resolution: {integrity: sha512-uPAwSr57kYjAUux+8E2j0q0Fxpn8M9VoyfGiRI8Kfktz9NcYMCenwY5RnZxnF1WTu3TGiYipirIzacLL3VVGFg==}
@@ -7044,6 +7051,8 @@ snapshots:
       '@types/react': 19.0.1
 
   util-deprecate@1.0.2: {}
+
+  uuid@11.0.3: {}
 
   vite-node@2.1.8(@types/node@20.17.10)(sass@1.83.0):
     dependencies:

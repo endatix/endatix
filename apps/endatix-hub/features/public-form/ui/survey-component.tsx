@@ -1,6 +1,6 @@
 'use client'
 
-import { Question, SurveyModel, UploadFilesEvent, ValueChangingEvent } from 'survey-core'
+import { SurveyModel, UploadFilesEvent, ValueChangingEvent } from 'survey-core'
 import { Survey } from 'survey-react-ui'
 import { startTransition, useTransition, useCallback } from "react"
 import { useSubmissionQueue } from '../application/submission-queue'
@@ -40,6 +40,7 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
   }, []);
 
   const submitForm = useCallback((sender: SurveyModel) => {
+    debugger;
     if (isSubmitting) {
       return;
     }
@@ -111,6 +112,7 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
 
   const uploadFiles = useCallback((sender: SurveyModel, options: UploadFilesEvent) => {
     const formData = new FormData();
+    formData.append("formId", formId);
     options.files.forEach((file) => {
       formData.append(file.name, file);
     });
@@ -119,7 +121,8 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
       {
         method: "POST",
         body: formData
-      }).then((response) => response.json())
+      })
+      .then((response) => response.json())
       .then((data) => {
         options.callback(
           options.files.map((file) => {
@@ -137,9 +140,7 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
   }, []);
 
   model.onComplete.add(submitForm);
-  model.storeDataAsText = true;
   model.onUploadFiles.add(uploadFiles);
-  //model.onValueChanging.add(interceptImages);
 
   return (
     <Survey

@@ -10,5 +10,7 @@ declare namespace NodeJS {
     NEXT_PUBLIC_MAX_IMAGE_SIZE: number;
     AZURE_STORAGE_CONNECTION_STRING: string;
     AZURE_STORAGE_CONTAINER_NAME: string;
+    RESIZE_IMAGES: boolean;
+    RESIZE_IMAGES_WIDTH: string;
   }
 } 
