@@ -51,6 +51,9 @@ jobs:
       - name: 🏗️ Build Project
         run: pnpm run build
 
+      - name: 🔗 Copy Url Rewrites to the build folder
+        run: cp rewriteRules.config ./build/
+
       - name: 🚡 Upload package to FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
