@@ -6,7 +6,7 @@ function checkNodeVersion() {
     const { engines: { node: engines } } = packageJson;
 
     if (!semver.satisfies(nodeRuntimeVersion, engines, { includePrerelease: true })) {
-        console.log(`⚠️ Warning: Node version check failed 
+        console.log(`⚠️ Warning: Node version check failed ❌ 
             📦 Current Node version (${nodeRuntimeVersion}) does not match the required version of Node (${engines}). 
             💡 Check Readme for how to setup the correct Node version. 
             🔗 More info at https://github.com/endatix/endatix/tree/main/apps/endatix-hub`);
