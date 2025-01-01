@@ -2,7 +2,7 @@ import checkNodeVersion from '../hosting/check-node-version';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PackageJson } from '../hosting/check-node-version';
 
-let mockPackageJson: PackageJson = vi.hoisted(() => {
+const mockPackageJson: PackageJson = vi.hoisted(() => {
     return {
         engines: {
             node: '>=20.0.0 <21.0.0'
