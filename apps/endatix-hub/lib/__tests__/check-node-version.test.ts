@@ -1,5 +1,5 @@
 import checkNodeVersion from '../hosting/check-node-version';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, MockInstance } from 'vitest';
 import { PackageJson } from '../hosting/check-node-version';
 
 const mockPackageJson: PackageJson = vi.hoisted(() => {
@@ -15,7 +15,7 @@ vi.mock('@/package.json', () => ({
 }));
 
 describe('checkNodeVersion', () => {
-    let consoleSpy: any;
+    let consoleSpy: MockInstance;
     const originalVersion = process.version;
     const DEFAULT_REQUIRED_NODE_VERSION = '>=20.0.0 <21.0.0';
 
