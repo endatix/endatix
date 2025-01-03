@@ -8,7 +8,7 @@ namespace Endatix.Api.Common;
 /// </summary>
 public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
 {
-    private static readonly string[] _validOperators = { "!:", ">:", "<:", ":", ">", "<" };
+    private static readonly string[] _validOperators = { "!:", ">:", "<:", "^:", ":", ">", "<" };
     private readonly Dictionary<string, Type>? _validFields;
 
     /// <summary>

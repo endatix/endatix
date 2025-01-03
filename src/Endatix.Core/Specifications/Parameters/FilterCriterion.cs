@@ -30,9 +30,10 @@ public class FilterCriterion
         ["!:"] = ExpressionType.NotEqual,
         [">:"] = ExpressionType.GreaterThanOrEqual,
         ["<:"] = ExpressionType.LessThanOrEqual,
-        [":" ] = ExpressionType.Equal,
-        [">" ] = ExpressionType.GreaterThan,
-        ["<" ] = ExpressionType.LessThan,
+        ["^:"] = ExpressionType.Call,
+        [":"] = ExpressionType.Equal,
+        [">"] = ExpressionType.GreaterThan,
+        ["<"] = ExpressionType.LessThan,
     };
 
     /// <summary>

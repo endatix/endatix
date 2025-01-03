@@ -46,6 +46,9 @@ public static class SpecificationHelper
             ExpressionType.LessThanOrEqual =>
                 BuildComparisonExpression(property, filter.Values[0], filter.Operator),
 
+            ExpressionType.Call =>
+                BuildStartsWithExpression(property, filter.Values[0]),
+
             _ => throw new NotSupportedException($"Operator {filter.Operator} is not supported.")
         };
 
@@ -77,6 +80,23 @@ public static class SpecificationHelper
             ExpressionType.LessThanOrEqual => Expression.LessThanOrEqual(property, constant),
             _ => throw new NotSupportedException($"Comparison operator {@operator} is not supported.")
         };
+    }
+
+    private static Expression BuildStartsWithExpression(MemberExpression property, string value)
+    {
+        if (property.Type != typeof(string))
+        {
+            throw new NotSupportedException("StartsWith operation is only supported for string properties.");
+        }
+
+        var startsWithMethod = typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string) });
+        Guard.Against.Null(startsWithMethod, nameof(startsWithMethod));
+
+        return Expression.Call(
+            property,
+            startsWithMethod,
+            Expression.Constant(value)
+        );
     }
 
     private static ConstantExpression CreateConstantExpression(string value, Type type)

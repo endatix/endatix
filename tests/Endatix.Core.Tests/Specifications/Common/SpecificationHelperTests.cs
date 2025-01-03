@@ -214,4 +214,51 @@ public class SpecificationHelperTests
         result.Compile()(testEntity2).Should().BeTrue();
         result.Compile()(testEntity3).Should().BeFalse();
     }
+
+    [Fact]
+    public void BuildFilterExpression_StartsWithOperator_ReturnsValidExpression()
+    {
+        // Arrange
+        var field = nameof(TestEntity.StringProperty);
+        var filter = new FilterCriterion($"{field}^:test");
+
+        // Act
+        var result = SpecificationHelper.BuildFilterExpression<TestEntity>(filter);
+
+        // Assert
+        result.Should().NotBeNull();
+        var testEntity = new TestEntity { StringProperty = "test123" };
+        result.Compile()(testEntity).Should().BeTrue();
+        testEntity = new TestEntity { StringProperty = "123test" };
+        result.Compile()(testEntity).Should().BeFalse();
+    }
+
+    [Fact]
+    public void BuildFilterExpression_StartsWithOperator_CaseInsensitive()
+    {
+        // Arrange
+        var field = nameof(TestEntity.StringProperty);
+        var filter = new FilterCriterion($"{field}^:test");
+
+        // Act
+        var result = SpecificationHelper.BuildFilterExpression<TestEntity>(filter);
+
+        // Assert
+        result.Should().NotBeNull();
+        var testEntity = new TestEntity { StringProperty = "TEST123" };
+        result.Compile()(testEntity).Should().BeTrue();
+    }
+
+    [Fact]
+    public void BuildFilterExpression_StartsWithOperator_NonStringProperty_ThrowsNotSupported()
+    {
+        // Arrange
+        var field = nameof(TestEntity.IntProperty);
+        var filter = new FilterCriterion($"{field}^:42");
+
+        // Act & Assert
+        var act = () => SpecificationHelper.BuildFilterExpression<TestEntity>(filter);
+        act.Should().Throw<NotSupportedException>()
+           .WithMessage("StartsWith operation is only supported for string properties.");
+    }
 }
