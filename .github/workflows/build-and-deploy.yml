@@ -1,0 +1,24 @@
+name: "🚀 Build and Deploy Endatix"
+
+on:
+  push:
+    branches:
+      - feature/35-prod-environment
+  workflow_dispatch:
+
+jobs:
+  build-artifacts:
+    name: "📦 Build Artifacts"
+    uses: ./.github/workflows/_build-definition.yml
+    secrets: inherit
+
+  deploy-prod:
+    name: "🚀 Deploy"
+    uses: ./.github/workflows/_deployment-definition.yml
+    needs: build-artifacts
+    with:
+      environment: Production
+      api_slot_name: Production
+    secrets: inherit
+    permissions: 
+      id-token: write

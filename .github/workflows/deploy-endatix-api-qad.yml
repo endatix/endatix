@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: "🚀 Deploy Endatix API to QAD"
+name: "🚀 Deploy Endatix API"
 
 on:
   push:
@@ -33,11 +33,11 @@ jobs:
           name: endatix-api
           path: ${{env.DOTNET_ROOT}}/endatix-api
 
-  deploy:
+  deploy-qad:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: 'Production'
+      name: 'QAD'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
       id-token: write #This is required for requesting the JWT
@@ -55,10 +55,10 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_4E06B34259B2479E92401EC9FC2CDAEF }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C346B518F5B0400C9D5E40BB1BA10CFD }}
 
-      - name: Deploy to Azure Web App
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: 'endatix-api-qad'
-          slot-name: 'Production'
-          package: .
+      # - name: Deploy to Azure Web App
+      #   id: deploy-to-webapp
+      #   uses: azure/webapps-deploy@v3
+      #   with:
+      #     app-name: 'endatix-api-qad'
+      #     slot-name: 'Production'
+      #     package: .

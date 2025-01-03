@@ -1,0 +1,107 @@
+name: Build Endatix
+
+on:
+  workflow_call:
+    inputs:
+      api_slot_name:
+        type: string
+        description: The name of the slot to deploy to
+        required: false
+        default: "Production"
+
+jobs:
+  endatix-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+
+      - name: Build with dotnet
+        run: dotnet build --configuration Release
+
+      - name: dotnet publish
+        run: dotnet publish src/Endatix.WebHost/Endatix.WebHost.csproj -c Release -o ${{env.DOTNET_ROOT}}/endatix-api
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: endatix-api
+          path: ${{env.DOTNET_ROOT}}/endatix-api
+
+  endatix-hub:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/endatix-hub
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.9.0'
+  
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.2
+          run_install: false
+  
+      - name: 📦 Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+  
+      - uses: actions/cache@v4
+        name: 📦 Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - uses: actions/cache@v4
+        timeout-minutes: 5
+        name: 📦 Setup Next.js build cache  
+        with:
+          path: |
+            ~/.npm
+            ${{ github.workspace }}/apps/endatix-hub/.next/cache
+          # Generate a new cache whenever packages or source files change.
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+          # If source files changed but packages didn't, rebuild from a prior cache.
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/pnpm-lock.yaml') }}-
+  
+      - name: 🥡 Install Dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: 📚 Set env file prior to build
+        run: |
+          touch .env
+          echo NEXT_PUBLIC_NAME=${{ vars.NEXT_PUBLIC_NAME }} >> .env
+  
+      - name: 🏗️  Build Next.js app
+        run: pnpm build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
+      
+      - name: ✂️  Copy build output
+        run: |
+          mkdir -p .output/.next
+          cp -r .next/standalone .output/.next/
+          cp staticwebapp.config.json .output/staticwebapp.config.json
+          cp next.config.ts .output/next.config.ts
+          cp package.json .output/package.json
+      
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: endatix-hub
+          path: "apps/endatix-hub/.output/"
+          include-hidden-files: true
