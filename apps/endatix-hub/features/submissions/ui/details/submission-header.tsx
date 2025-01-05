@@ -21,7 +21,7 @@ export function SubmissionHeader({
         <div className="my-2 flex flex-col gap-6 sm:gap-2 sm:flex-row justify-between">
             <PageTitle title="Submission Details" />
             <div className="flex space-x-2 justify-end text-muted-foreground">
-                <Link href="#">
+                <Link href={`${submissionId}/export-pdf`}>
                     <Button variant={"outline"}>
                         <Download className="mr-2 h-4 w-4" />
                         Export PDF
