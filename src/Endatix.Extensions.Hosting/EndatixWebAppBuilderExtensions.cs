@@ -75,7 +75,7 @@ public static class EndatixHostBuilderExtensions
             options.UsePipelineLogging();
         });
 
-        endatixApp.AddDataPersistence(configuration => configuration
+        endatixApp.AddPostgreSqlDataPersistence(configuration => configuration
             .WithSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
             .WithCustomTablePrefix()
             .WithSnowflakeIds(0)

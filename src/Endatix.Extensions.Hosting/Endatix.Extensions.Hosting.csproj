@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Endatix.Persistence.SqlServer\Endatix.Persistence.SqlServer.csproj" />
+    <ProjectReference Include="..\Endatix.Persistence.PostgreSql\Endatix.Persistence.PostgreSql.csproj" />
     <ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
     <ProjectReference Include="..\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
   </ItemGroup>
