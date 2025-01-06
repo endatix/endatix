@@ -52,43 +52,63 @@ public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
             return false;
         }
 
-        var @operator = _validOperators.FirstOrDefault(op => filter.Contains(op));
-        if (@operator == null)
-        {
-            errorMessage = $"Filter must contain one of these operators: {string.Join(", ", _validOperators)}";
-            return false;
-        }
-
-        var parts = filter.Split(@operator, 2);
-        if (parts.Length != 2 || 
-            string.IsNullOrWhiteSpace(parts[0]) || 
-            string.IsNullOrWhiteSpace(parts[1]))
-        {
-            errorMessage = "Filter must be in format 'field[operator]value'";
-            return false;
-        }
-
+        // If we have valid fields defined, check if the filter starts with any of them
         if (_validFields != null)
         {
-            if (!_validFields.ContainsKey(parts[0]))
+            var matchingField = _validFields.Keys
+                .FirstOrDefault(field => 
+                    filter.StartsWith(field, StringComparison.OrdinalIgnoreCase) && 
+                    filter.Length > field.Length && 
+                    !char.IsLetterOrDigit(filter[field.Length]));
+
+            if (matchingField == null)
             {
-                errorMessage = $"Invalid field name '{parts[0]}'. Allowed fields: {string.Join(", ", _validFields.Keys)}";
+                errorMessage = $"Filter must start with a valid field name. Allowed fields: {string.Join(", ", _validFields.Keys)}";
                 return false;
             }
 
-            // For : and !: operators, check each value in the comma-separated list
-            if (@operator is ":" or "!:")
+            // Extract the rest of the filter after the field name
+            var remainingFilter = filter[matchingField.Length..];
+
+            // Check if the remaining part starts with a valid operator
+            var matchingOperator = _validOperators.FirstOrDefault(op => remainingFilter.StartsWith(op));
+            if (matchingOperator == null)
             {
-                var values = parts[1].Split(',', StringSplitOptions.RemoveEmptyEntries);
-                if (!values.All(value => IsValidType(value.Trim(), _validFields[parts[0]])))
+                errorMessage = $"After field name '{matchingField}', filter must contain one of these operators: {string.Join(", ", _validOperators)}";
+                return false;
+            }
+
+            // Extract the value part
+            var value = remainingFilter[matchingOperator.Length..];
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                errorMessage = "Filter must include a value after the operator";
+                return false;
+            }
+
+            // Validate the value type
+            if (matchingOperator is ":" or "!:")
+            {
+                var values = value.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                if (!values.All(v => IsValidType(v.Trim(), _validFields[matchingField])))
                 {
-                    errorMessage = $"One or more values are not valid for type {_validFields[parts[0]].Name}";
+                    errorMessage = $"One or more values are not valid for type {_validFields[matchingField].Name}";
                     return false;
                 }
             }
-            else if (!IsValidType(parts[1], _validFields[parts[0]]))
+            else if (!IsValidType(value, _validFields[matchingField]))
             {
-                errorMessage = $"Value is not valid for type {_validFields[parts[0]].Name}";
+                errorMessage = $"Value is not valid for type {_validFields[matchingField].Name}";
+                return false;
+            }
+        }
+        else
+        {
+            // If no valid fields are defined, just check for operator presence
+            var hasValidOperator = _validOperators.Any(op => filter.Contains(op));
+            if (!hasValidOperator)
+            {
+                errorMessage = $"Filter must contain one of these operators: {string.Join(", ", _validOperators)}";
                 return false;
             }
         }
