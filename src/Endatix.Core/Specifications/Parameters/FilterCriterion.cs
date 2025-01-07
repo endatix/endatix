@@ -45,7 +45,6 @@ public class FilterCriterion
     {
         Guard.Against.NullOrWhiteSpace(filterExpression, nameof(filterExpression));
 
-        // Find the field name by taking all alphanumeric characters from the start
         var fieldEndIndex = 0;
         while (fieldEndIndex < filterExpression.Length && char.IsLetterOrDigit(filterExpression[fieldEndIndex]))
         {
@@ -55,20 +54,18 @@ public class FilterCriterion
         Field = Guard.Against.NullOrWhiteSpace(
             filterExpression[..fieldEndIndex],
             nameof(filterExpression),
-            "Filter must have a field");
+            "Filter must have a field name");
 
-        // Find the operator starting at the end of the field name
         var @operator = _operatorMap.Keys
             .FirstOrDefault(op => filterExpression.IndexOf(op, fieldEndIndex) == fieldEndIndex);
 
         Guard.Against.Null(
             @operator,
             nameof(filterExpression),
-            $"Invalid filter operator at position {fieldEndIndex}. Valid operators are: {string.Join(", ", _operatorMap.Keys)}");
+            $"Filter must have a valid operator after the field name. Valid operators are: {string.Join(", ", _operatorMap.Keys)}");
 
         Operator = _operatorMap[@operator];
 
-        // Extract the value part after the operator
         var valueStartIndex = fieldEndIndex + @operator.Length;
         var values = filterExpression[valueStartIndex..]
             .Split(',')
@@ -79,7 +76,7 @@ public class FilterCriterion
             values,
             nameof(filterExpression),
             v => !v.Any(string.IsNullOrWhiteSpace),
-            "Filter values cannot be empty or whitespace");
+            "Filter values cannot be empty");
 
         Values = values.AsReadOnly();
     }
