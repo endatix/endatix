@@ -1,6 +1,6 @@
 'use client'
 
-import { SurveyModel, UploadFilesEvent, ValueChangingEvent } from 'survey-core'
+import { SurveyModel, UploadFilesEvent } from 'survey-core'
 import { Survey } from 'survey-react-ui'
 import { startTransition, useTransition, useCallback } from "react"
 import { useSubmissionQueue } from '../application/submission-queue'
@@ -14,8 +14,6 @@ interface SurveyComponentProps {
   formId: string;
   submission?: Submission;
 }
-
-const MAX_IMAGE_SIZE: number = Number(process.env.NEXT_PUBLIC_MAX_IMAGE_SIZE) || 0;
 
 export default function SurveyComponent({ definition, formId, submission }: SurveyComponentProps) {
   const [isSubmitting, startSubmitting] = useTransition();
@@ -40,7 +38,6 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
   }, []);
 
   const submitForm = useCallback((sender: SurveyModel) => {
-    debugger;
     if (isSubmitting) {
       return;
     }
@@ -54,60 +51,11 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
     }
 
     startSubmitting(async () => {
-      var result = await submitFormAction(formId, submissionData);
+      const result = await submitFormAction(formId, submissionData);
       if (Result.isError(result)) {
         console.debug('Failed to submit form', result.message);
       }
     });
-  }, []);
-
-  const interceptImages = useCallback((sender: SurveyModel, options: ValueChangingEvent) => {
-    const resizeImage = (imgSrc: string, type: string): Promise<string> => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height && width > MAX_IMAGE_SIZE) {
-            height = height * (MAX_IMAGE_SIZE / width);
-            width = MAX_IMAGE_SIZE;
-          } else if (height > MAX_IMAGE_SIZE) {
-            width = width * (MAX_IMAGE_SIZE / height);
-            height = MAX_IMAGE_SIZE;
-          }
-
-          let canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL(type));
-          }
-        };
-        img.src = imgSrc;
-      });
-    };
-
-    const processImages = async () => {
-
-      for (let i = 0; i < options.question.value.length; i++) {
-        let value = options.value[i];
-        if (value?.type?.includes('image')) {
-          value.content = await resizeImage(
-            value.content,
-            value.type
-          );
-        }
-      }
-    };
-
-    if (MAX_IMAGE_SIZE > 0 && options.question.getType() == "file") {
-      processImages();
-    }
-
   }, []);
 
   const uploadFiles = useCallback((sender: SurveyModel, options: UploadFilesEvent) => {
