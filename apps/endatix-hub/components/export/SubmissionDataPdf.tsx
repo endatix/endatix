@@ -34,10 +34,7 @@ export const SubmissionDataPdf = ({ submission }: SubmissionDataPdfProps) => {
         <View style={styles.questions}>
         {questions?.map((question) => {
                     return (
-                        <div key={question.id}
-                            className="grid grid-cols-5 items-center gap-4">
-                            <PdfAnswerViewer key={question.id} forQuestion={question} />
-                        </div>
+                      <PdfAnswerViewer key={question.id} forQuestion={question} />
                     );
                 })}
         </View>

@@ -14,16 +14,18 @@ export function PdfFileAnswer({ question }: FileAnswerProps): React.ReactElement
     <View style={styles.container}>
       <Text style={styles.title}>Uploaded Files:</Text>
       {files && files.length > 0 ? (
-        files.map((file, index) => (
-          <PdfFileViewer
-            key={index}
-            file={file}
-            question={question}
-            width={150}
-            height={200}
-            aspectRatio="portrait"
-          />
-        ))
+        <View style={styles.filesContainer}>
+          {files.map((file, index) => (
+            <PdfFileViewer
+              key={index}
+              file={file}
+              question={question}
+              width={150}
+              height={200}
+              aspectRatio="portrait"
+            />
+          ))}
+        </View>
       ) : (
         <Text style={styles.noFiles}>No files uploaded</Text>
       )}
@@ -44,6 +46,12 @@ const styles = StyleSheet.create({
   noFiles: {
     fontSize: 12,
     color: "gray",
+  },
+  filesContainer: {
+    display: "flex", 
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10, 
   },
 });
 
