@@ -1,6 +1,10 @@
 import { getSession } from "@/lib/auth-service";
-import { StorageService } from "@/lib/storage-service";
 import { headers } from "next/headers";
+import {
+  UploadContentFileCommand,
+  uploadContentFileUseCase,
+} from "@/features/storage/use-cases/upload-content-file.use-case";
+import { Result } from "@/lib/result";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -9,34 +13,28 @@ export async function POST(request: Request) {
   }
 
   const requestHeaders = await headers();
-  const formId = requestHeaders.get('edx-form-id') as string;
+  const formId = requestHeaders.get("edx-form-id") as string;
 
   if (!formId) {
-    return Response.json({ error: 'Form ID is required' }, { status: 400 });
+    return Response.json({ error: "Form ID is required" }, { status: 400 });
   }
 
   const formData = await request.formData();
-  const file = formData.get('file');
+  const file = formData.get("file");
 
   if (!file || !(file instanceof File)) {
-    return Response.json(
-      { error: 'Invalid or missing file' },
-      { status: 400 }
-    );
+    return Response.json({ error: "Invalid or missing file" }, { status: 400 });
   }
 
-  try {
-    const storageService = new StorageService();
-    const fileUrl = await storageService.uploadFormContentFile(file, formId);
-    return Response.json({ 
-      success: true,
-      name: file.name,
-      url: fileUrl
-    });
-  } catch {
-    return Response.json(
-      { error: 'Upload to storage failed' },
-      { status: 400 }
-    );
+  const command: UploadContentFileCommand = {
+    formId,
+    file,
+  };
+  const uploadResult = await uploadContentFileUseCase(command);
+
+  if (Result.isError(uploadResult)) {
+    return Response.json({ error: uploadResult.message }, { status: 400 });
   }
+
+  return Response.json(uploadResult.value);
 }
