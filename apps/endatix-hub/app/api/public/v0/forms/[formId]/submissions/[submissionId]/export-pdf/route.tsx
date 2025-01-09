@@ -5,14 +5,14 @@ import { Result } from "@/lib/result";
 import { pdf } from "@react-pdf/renderer";
 
 type Params = {
-  params: {
+  params: Promise<{
     formId: string;
     submissionId: string;
-  };
-};
+  }>
+}
 
 export async function GET(req: Request, { params }: Params) {
-    const { formId, submissionId } = await params;
+  const { formId, submissionId } = await params;
 
   const submissionResult = await getSubmissionDetailsUseCase({ formId, submissionId });
   if (Result.isError(submissionResult)) {
