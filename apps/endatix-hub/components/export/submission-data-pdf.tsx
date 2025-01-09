@@ -97,6 +97,7 @@ export const SubmissionDataPdf = ({ submission }: SubmissionDataPdfProps) => {
                       } else {
                         pageBreak = false;
                       }
+                      
                       return (
                         <PdfAnswerViewer key={question.id} forQuestion={question} panelTitle={panelTitle} pageBreak={pageBreak}  />
                       );

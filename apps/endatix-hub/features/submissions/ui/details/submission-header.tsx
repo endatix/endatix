@@ -1,3 +1,5 @@
+'use client'
+
 import PageTitle from "@/components/headings/page-title";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,24 +11,51 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { SubmissionActionsDropdown } from "./submission-actions-dropdown";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Spinner } from "@/components/loaders/spinner";
 
 interface SubmissionHeaderProps {
     submissionId: string;
+    formId: string;
 }
 
 export function SubmissionHeader({
-    submissionId
+    submissionId,
+    formId
 }: SubmissionHeaderProps) {
+
+    const router = useRouter();
+    const [loading, setLoading] = useState(false);
+    
+    const exportPdf = async () => {
+        console.log("Setting loading to true");
+        setLoading(true);
+        try {
+            const url = `/api/public/v0/forms/${formId}/submissions/${submissionId}/export-pdf`;
+            await router.push(url);
+        } catch (error) {
+            console.error("Failed to export PDF:", error);
+        } finally {
+            console.log("Setting loading to false");
+            setLoading(false);
+        }
+    }
+
     return (
         <div className="my-2 flex flex-col gap-6 sm:gap-2 sm:flex-row justify-between">
             <PageTitle title="Submission Details" />
             <div className="flex space-x-2 justify-end text-muted-foreground">
-                <Link href={`${submissionId}/export-pdf`}>
-                    <Button variant={"outline"}>
+
+                <Button variant={"outline"} onClick={exportPdf} disabled={loading}>
+                    {loading ? (
+                        <Spinner className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
                         <Download className="mr-2 h-4 w-4" />
-                        Export PDF
-                    </Button>
-                </Link>
+                    )}
+                    {loading ? "Exporting..." : "Export PDF"}
+                </Button>
+
                 <Link href="#">
                     <Button variant={"outline"}>
                         <LinkIcon className="mr-2 h-4 w-4" />

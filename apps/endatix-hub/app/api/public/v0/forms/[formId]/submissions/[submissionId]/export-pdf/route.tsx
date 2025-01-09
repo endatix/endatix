@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { SubmissionDataPdf } from "@/components/export/SubmissionDataPdf";
+import { SubmissionDataPdf } from "@/components/export/submission-data-pdf";
 import { getSubmissionDetailsUseCase } from "@/features/submissions/use-cases/get-submission-details.use-case";
 import { Result } from "@/lib/result";
 import { pdf } from "@react-pdf/renderer";
