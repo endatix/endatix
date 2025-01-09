@@ -31,9 +31,8 @@ export async function POST(request: Request) {
   }
 
   const result = await uploadUserFilesUseCase({
-    formId,
-    submissionId: "asas",
-    files,
+    formId: formId,
+    files: files,
   });
 
   if (Result.isError(result)) {

@@ -27,9 +27,6 @@ export class StorageService {
     const STEP_IMAGE_RESIZE_START = performance.now();
 
     let width = DEFAULT_IMAGE_WIDTH;
-    const imageWidthValue = process.env.RESIZE_IMAGES_WIDTH;
-    console.log("imageWidthValue", imageWidthValue);
-
     if (process.env.RESIZE_IMAGES_WIDTH) {
       const parsedWidth = Number.parseInt(process.env.RESIZE_IMAGES_WIDTH);
       if (!isNaN(parsedWidth)) {

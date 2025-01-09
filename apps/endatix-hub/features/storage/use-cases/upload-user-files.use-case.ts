@@ -4,7 +4,7 @@ import { StorageService } from "../infrastructure/storage-service";
 
 export type UploadUserFilesCommand = {
   formId: string;
-  submissionId: string;
+  submissionId?: string;
   files: { name: string; file: File }[];
 };
 
@@ -26,15 +26,15 @@ export const uploadUserFilesUseCase = async ({
     return Result.validationError("Form ID is required");
   }
 
-  if (!submissionId) {
-    return Result.validationError("Submission ID is required");
-  }
-
   if (!files || files.length === 0) {
     return Result.validationError("Files are required");
   }
 
-  const folderPath = `usr-assets/${formId}`;
+  let folderPath = `usr-files/${formId}`;
+  if (submissionId) {
+    folderPath = `${folderPath}/${submissionId}`;
+  }
+
   const containerName =
     process.env.USER_FILES_STORAGE_CONTAINER_NAME ??
     DEFAULT_USER_FILES_CONTAINER_NAME;

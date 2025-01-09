@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { uploadContentFileUseCase } from "../upload-content-file.use-case";
-import { StorageService } from "../../infrastructure/storage-service";
+import { StorageService } from "@/features/storage/infrastructure/storage-service";
 import { Result } from "@/lib/result";
 
-vi.mock("../../infrastructure/storage-service");
+vi.mock("@/features/storage/infrastructure/storage-service");
 
 describe("uploadContentFileUseCase", () => {
   const mockFileContent = "test";
