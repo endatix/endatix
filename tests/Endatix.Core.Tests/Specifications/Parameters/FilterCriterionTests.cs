@@ -16,14 +16,30 @@ public class FilterCriterionTests
         // Assert
         act.Should()
            .Throw<ArgumentException>()
-           .WithMessage(ErrorMessages.GetErrorMessage("filterExpression", ErrorType.Empty));
+           .WithParameterName("filterExpression");
+    }
+
+    [Theory]
+    [InlineData(":value")]
+    [InlineData("^&")]
+    public void Constructor_EmptyField_ThrowsArgumentException(string filterExpression)
+    {
+        // Act
+        var act = () => new FilterCriterion(filterExpression);
+
+        // Assert
+        act.Should()
+           .Throw<ArgumentException>()
+           .WithMessage(ErrorMessages.GetErrorMessage("filterExpression", ErrorType.FilterNoField));
     }
 
     [Theory]
     [InlineData("field")]
     [InlineData("field=value")]
-    [InlineData("field^two:value")]
-    [InlineData("@field:value")]
+    [InlineData("field^value")]
+    [InlineData("field$:value")]
+    [InlineData("field@:value")]
+    [InlineData("field-name:value")]
     public void Constructor_InvalidOperator_ThrowsArgumentException(string filterExpression)
     {
         // Act
@@ -32,22 +48,8 @@ public class FilterCriterionTests
         // Assert
         act.Should()
            .Throw<ArgumentException>()
-           .WithMessage(ErrorMessages.GetErrorMessage("filterExpression", ErrorType.InvalidFilterOperator));
-    }
-
-    [Fact]
-    public void Constructor_EmptyField_ThrowsArgumentException()
-    {
-        // Arrange
-        var filterExpression = ":value";
-
-        // Act
-        var act = () => new FilterCriterion(filterExpression);
-
-        // Assert
-        act.Should()
-           .Throw<ArgumentException>()
-           .WithMessage(ErrorMessages.GetErrorMessage("filterExpression", ErrorType.FilterNoField));
+           .WithParameterName("filterExpression")
+           .WithMessage("*Filter must have a valid operator*");
     }
 
     [Theory]
@@ -68,8 +70,10 @@ public class FilterCriterionTests
     [Theory]
     [InlineData("age:18", ExpressionType.Equal, "age", new[] { "18" })]
     [InlineData("status!:active", ExpressionType.NotEqual, "status", new[] { "active" })]
-    [InlineData("price>:100", ExpressionType.GreaterThanOrEqual, "price", new[] { "100" })]
+    [InlineData("price>:100.35", ExpressionType.GreaterThanOrEqual, "price", new[] { "100.35" })]
     [InlineData("date<:2024-01-01", ExpressionType.LessThanOrEqual, "date", new[] { "2024-01-01" })]
+    [InlineData("date<2024-01-01T10:15:25", ExpressionType.LessThan, "date", new[] { "2024-01-01T10:15:25" })]
+    [InlineData("date<:2024-01-01T10:15:25", ExpressionType.LessThanOrEqual, "date", new[] { "2024-01-01T10:15:25" })]
     [InlineData("count>5", ExpressionType.GreaterThan, "count", new[] { "5" })]
     [InlineData("amount<10", ExpressionType.LessThan, "amount", new[] { "10" })]
     [InlineData("tags:draft,published", ExpressionType.Equal, "tags", new[] { "draft", "published" })]
