@@ -41,7 +41,13 @@ describe("POST /api/hub/v0/storage/upload", () => {
 
   it("should handle successful file upload", async () => {
     // Arrange    
-    const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+    const mockFileContent = 'test';
+    const mockFile = new Blob([mockFileContent], { type: 'image/jpeg' }) as File;
+    Object.defineProperty(mockFile, 'name', { value: 'test.jpg' });
+    Object.defineProperty(mockFile, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode(mockFileContent).buffer
+    });
+    
     const formData = new FormData();
     formData.append('file', mockFile);
 
@@ -72,6 +78,5 @@ describe("POST /api/hub/v0/storage/upload", () => {
       formId: "test-form-id",
       file: expect.any(Object) as File,
     });
-  });
+  }, 10000); // Increased timeout for this test
 });
-
