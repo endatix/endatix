@@ -107,7 +107,7 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
     newCreator.onUploadFile.add(handleUploadFile);
 
     setCreator(newCreator);
-  }, [formJson, options, creator]);
+  }, [formJson, options, creator, handleUploadFile]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

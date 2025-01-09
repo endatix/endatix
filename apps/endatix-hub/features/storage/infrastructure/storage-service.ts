@@ -17,8 +17,9 @@ export class StorageService {
       throw new Error("imageBuffer is not provided");
     }
 
-    const shouldResize =
-      process.env.RESIZE_IMAGES && contentType.startsWith("image/");
+    const resizeImagesRawValue =  process.env.RESIZE_IMAGES?.toLowerCase();
+    const resizeImagesParsedValue = resizeImagesRawValue === 'true' || resizeImagesRawValue === '1';
+    const shouldResize = resizeImagesParsedValue === true && contentType.startsWith("image/");
     if (!shouldResize) {
       return imageBuffer;
     }

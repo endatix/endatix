@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
   const files: { name: string; file: File }[] = [];
   for (const [filename, file] of formData.entries()) {
-    if (!file || !(file instanceof File)) {
+    if (!file || typeof file === "string") {
       return Response.json(
         { error: `Invalid file for ${filename}` },
         { status: 400 }
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
     files.push({
       name: filename,
-      file,
+      file: file as File,
     });
   }
 

@@ -1,6 +1,6 @@
 import { Result } from "@/lib/result";
 import { v4 as uuidv4 } from "uuid";
-import { StorageService } from "../storage-service";
+import { StorageService } from "../infrastructure/storage-service";
 
 export type UploadUserFilesCommand = {
   formId: string;

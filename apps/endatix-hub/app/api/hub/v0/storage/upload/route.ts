@@ -22,13 +22,13 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get("file");
 
-  if (!file || !(file instanceof File)) {
+  if (!file || typeof file === "string") {
     return Response.json({ error: "Invalid or missing file" }, { status: 400 });
   }
 
   const command: UploadContentFileCommand = {
-    formId,
-    file,
+    formId: formId,
+    file: file as File,
   };
   const uploadResult = await uploadContentFileUseCase(command);
 

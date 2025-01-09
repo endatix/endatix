@@ -10,7 +10,7 @@ declare namespace NodeJS {
     AZURE_STORAGE_CONNECTION_STRING: string;
     USER_FILES_STORAGE_CONTAINER_NAME: string;
     CONTENT_STORAGE_CONTAINER_NAME: string;
-    RESIZE_IMAGES: boolean;
+    RESIZE_IMAGES: string;
     RESIZE_IMAGES_WIDTH: string;
     NEXT_PUBLIC_SLK: string;
   }
