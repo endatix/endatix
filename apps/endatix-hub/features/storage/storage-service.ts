@@ -1,29 +1,9 @@
 import { BlobServiceClient } from "@azure/storage-blob";
 import { optimizeImage } from "next/dist/server/image-optimizer";
 
-const DEFAULT_USER_FILES_CONTAINER_NAME = "user-files";
 const DEFAULT_IMAGE_WIDTH = 800;
+
 export class StorageService {
-  async uploadUserFile(file: File, formId: string): Promise<string> {
-    if (!formId) {
-      throw new Error("formId is not provided");
-    }
-
-    const folderPath = `${formId}`;
-    const containerName =
-      process.env.USER_FILES_STORAGE_CONTAINER_NAME ??
-      DEFAULT_USER_FILES_CONTAINER_NAME;
-
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-
-    return await this.uploadToStorage(
-      fileBuffer,
-      folderPath,
-      file.name,
-      containerName
-    );
-  }
-
   async optimizeImageSize(
     imageBuffer: Buffer,
     contentType: string,

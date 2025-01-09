@@ -73,7 +73,7 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
         .then((response) => response.json())
         .then((data) => {
           options.callback(
-            data.success? "success" : "error",
+            "success",
             data.url
           );
         })

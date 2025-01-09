@@ -58,9 +58,8 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
     });
   }, []);
 
-  const uploadFiles = useCallback((sender: SurveyModel, options: UploadFilesEvent) => {
+  const uploadFiles = useCallback((_: SurveyModel, options: UploadFilesEvent) => {
     const formData = new FormData();
-    formData.append("formId", formId);
     options.files.forEach((file) => {
       formData.append(file.name, file);
     });
@@ -68,7 +67,10 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
     fetch("/api/public/v0/storage/upload",
       {
         method: "POST",
-        body: formData
+        body: formData,
+        headers: {
+          "edx-form-id": formId,
+        },
       })
       .then((response) => response.json())
       .then((data) => {
@@ -85,7 +87,7 @@ export default function SurveyComponent({ definition, formId, submission }: Surv
         console.error("Error: ", error);
         options.callback([], ['An error occurred during file upload.']);
       });
-  }, []);
+  }, [formId]);
 
   model.onComplete.add(submitForm);
   model.onUploadFiles.add(uploadFiles);
