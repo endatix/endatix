@@ -11,10 +11,9 @@ export function PdfFileAnswer({ question }: FileAnswerProps): React.ReactElement
   const files = question?.value as File[];
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Uploaded Files:</Text>
+    <View style={styles.container} wrap={false}>
       {files && files.length > 0 ? (
-        <View style={styles.filesContainer}>
+        <View style={styles.filesContainer} wrap={false}>
           {files.map((file, index) => (
             <PdfFileViewer
               key={index}
@@ -37,6 +36,7 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
     padding: 10,
+    break: true
   },
   title: {
     fontSize: 14,
@@ -52,6 +52,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10, 
+    wrap: false,
+    break: "avoid"
   },
 });
 

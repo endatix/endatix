@@ -18,8 +18,6 @@ interface FileViewerProps {
 
 export function PdfFileViewer({
   file,
-  width = 250,
-  height = 330,
   question,
   aspectRatio = "portrait",
 }: FileViewerProps): React.ReactElement | null {
@@ -30,7 +28,6 @@ export function PdfFileViewer({
       src={file.content}
       style={[
         styles.image,
-        { width: width, height: height },
         aspectRatio === "portrait" ? styles.portrait : styles.square,
       ]}
     />
@@ -40,12 +37,17 @@ export function PdfFileViewer({
 const styles = StyleSheet.create({
   image: {
     objectFit: "cover",
+    width: "100%",
+    height: "auto",
+    wrap: "false" 
   },
   portrait: {
-    aspectRatio: 3 / 4,
+    width: 150,
+    height: 200,
   },
   square: {
-    aspectRatio: 1,
+    width: 150,
+    height: 150,
   },
 });
 
