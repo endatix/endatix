@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { uploadContentFileUseCase } from "../upload-content-file.use-case";
+
 import { StorageService } from "@/features/storage/infrastructure/storage-service";
 import { Result } from "@/lib/result";
+import { uploadContentFileUseCase } from "@/features/storage/use-cases/upload-content-file.use-case";
 
 vi.mock("@/features/storage/infrastructure/storage-service");
 

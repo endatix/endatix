@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { StorageService } from '../storage-service';
+import { StorageService } from '../../infrastructure/storage-service';
 import { BlobServiceClient } from '@azure/storage-blob';
 import { optimizeImage } from 'next/dist/server/image-optimizer';
 

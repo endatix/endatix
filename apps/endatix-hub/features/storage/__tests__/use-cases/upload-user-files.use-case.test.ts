@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { uploadUserFilesUseCase } from '../upload-user-files.use-case';
+import { uploadUserFilesUseCase } from '@/features/storage/use-cases/upload-user-files.use-case';
 import { StorageService } from '@/features/storage/infrastructure/storage-service';
 import { Result } from "@/lib/result";
 
