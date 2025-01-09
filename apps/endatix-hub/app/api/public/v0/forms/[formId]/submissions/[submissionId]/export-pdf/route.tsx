@@ -4,8 +4,15 @@ import { getSubmissionDetailsUseCase } from "@/features/submissions/use-cases/ge
 import { Result } from "@/lib/result";
 import { pdf } from "@react-pdf/renderer";
 
-export async function GET(req: Request, { params }: { params: { formId: string; submissionId: string } }) {
-  const { formId, submissionId } = params;
+type Params = {
+  params: {
+    formId: string;
+    submissionId: string;
+  };
+};
+
+export async function GET(req: Request, { params }: Params) {
+    const { formId, submissionId } = await params;
 
   const submissionResult = await getSubmissionDetailsUseCase({ formId, submissionId });
   if (Result.isError(submissionResult)) {
