@@ -6,7 +6,7 @@ import type * as Redocusaurus from "redocusaurus";
 const config: Config = {
   title: "Endatix Documentation",
   tagline: "Official documentation for Endatix data platform",
-  favicon: "img/favicon.svg",
+  favicon: "img/endatix.svg",
 
   // Set the production url of your site here
   url: "https://docs.endatix.com",
