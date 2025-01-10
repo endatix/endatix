@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import './creator-styles.scss'
 import "survey-core/defaultV2.css";
 import "survey-creator-core/survey-creator-core.css";
-import * as themes from "survey-creator-core/themes"; // import themes
+import * as themes from "survey-creator-core/themes";
 
 const SLK: string = process.env.NEXT_PUBLIC_SLK;
 

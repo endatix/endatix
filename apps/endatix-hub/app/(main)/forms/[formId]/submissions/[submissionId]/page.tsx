@@ -23,7 +23,7 @@ export default async function SubmissionPage({ params }: Params) {
     return (
         <>
             <SubmissionTopNav formId={formId} />
-            <SubmissionHeader submissionId={submissionId} />
+            <SubmissionHeader submissionId={submissionId} formId={formId} />
             <Suspense fallback={<SubmissionDataSkeleton />}>
                 <SubmissionData formId={formId} submissionId={submissionId} />
             </Suspense>
