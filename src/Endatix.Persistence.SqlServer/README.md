@@ -1,6 +1,6 @@
 # Endatix.Persistence.SqlServer
 
-Adds support for using MS SQL Server database persistence with the Endatix Platform. This package is crucial for applications that require SQL Server as the primary database.
+Adds support for using Microsoft SQL Server database persistence with the Endatix Platform. This package is crucial for applications that require SQL Server as the primary database.
 
 >[!TIP]
 >**[Endatix Platform](https://github.com/endatix/endatix)** is an open-source data collection and management library for .NET. It is designed for building secure, scalable, and integrated form-centric applications that work with SurveyJS. Endatix empowers business users with advanced workflows, automation, and meaningful insights.

@@ -57,7 +57,7 @@ public static class EndatixAppExtensions
 
         endatixApp.Services.AddSingleton<EfCoreValueGeneratorFactory>();
 
-        endatixApp.LogSetupInformation("Persistence using PostgreSql configured");
+        endatixApp.LogSetupInformation("💿 PostgreSQL persistence configured");
 
         return endatixApp;
     }
