@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef, useTransition, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { ICreatorOptions } from "survey-creator-core"
-import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react"
+import { useState, useEffect, useRef, useTransition, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { ICreatorOptions, SurveyCreatorModel, UploadFileEvent } from "survey-creator-core";
+import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react";
 import { slk } from "survey-core";
-import { updateFormDefinitionJsonAction } from "../update-form-definition-json.action"
-import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action"
-import { Save } from "lucide-react"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import './creator-styles.scss'
+import { updateFormDefinitionJsonAction } from "../update-form-definition-json.action";
+import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action";
+import { Save } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import "./creator-styles.scss";
 import "survey-core/defaultV2.css";
 import "survey-creator-core/survey-creator-core.css";
 import * as themes from "survey-creator-core/themes";
@@ -30,7 +30,7 @@ const defaultCreatorOptions: ICreatorOptions = {
   showTranslationTab: true,
   showDesignerTab: true,
   showLogicTab: true,
-  themeForPreview: "Default"
+  themeForPreview: "Default",
 };
 
 function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
@@ -57,29 +57,57 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
     setIsEditingName(false);
   }, [formId, name, originalName, startTransition]);
 
+  const handleUploadFile = useCallback(async (_: SurveyCreatorModel, options: UploadFileEvent) => {
+      const formData = new FormData();
+      options.files.forEach(function (file: File) {
+        formData.append("file", file);
+      });
+
+      fetch("/api/hub/v0/storage/upload", {
+        method: "POST",
+        body: formData,
+        headers: {
+          "edx-form-id": formId,
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          options.callback(
+            "success",
+            data.url
+          );
+        })
+        .catch((error) => {
+          console.error("Error: ", error);
+          options.callback("error", undefined);
+        });
+    }, [formId]);
+
   useEffect(() => {
     if (creator) {
       creator.JSON = formJson;
       return;
     }
 
-    if(SLK) {
-      slk(
-        SLK
-      );
+    if (SLK) {
+      slk(SLK);
     }
-    
+
     const newCreator = new SurveyCreator(options || defaultCreatorOptions);
 
     newCreator.applyTheme(themes.DefaultLight);
     newCreator.JSON = formJson;
-    newCreator.saveSurveyFunc = (no: number, callback: (num: number, status: boolean) => void) => {
+    newCreator.saveSurveyFunc = (
+      no: number,
+      callback: (num: number, status: boolean) => void
+    ) => {
       console.log(JSON.stringify(newCreator?.JSON));
       callback(no, true);
     };
-    setCreator(newCreator);
+    newCreator.onUploadFile.add(handleUploadFile);
 
-  }, [formJson, options, creator]);
+    setCreator(newCreator);
+  }, [formJson, options, creator, handleUploadFile]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -92,12 +120,12 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
     };
 
     if (isEditingName) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     } else {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     }
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside); // Clean up event listener
+      document.removeEventListener("mousedown", handleClickOutside); // Clean up event listener
     };
   }, [isEditingName, handleNameSave]);
 
@@ -113,22 +141,24 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
-        e.returnValue = ''; // Required for Chrome
+        e.returnValue = ""; // Required for Chrome
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
   const handleSaveAndGoBack = () => {
     if (hasUnsavedChanges) {
-      const confirm = window.confirm('There are unsaved changes. Are you sure you want to leave?');
+      const confirm = window.confirm(
+        "There are unsaved changes. Are you sure you want to leave?"
+      );
       if (confirm) {
-        router.push('/forms');
+        router.push("/forms");
       }
     } else {
-      router.push('/forms');
+      router.push("/forms");
     }
   };
 
@@ -136,7 +166,11 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
     startTransition(async () => {
       const isDraft = false;
       const updatedFormJson = creator?.JSON;
-      const result = await updateFormDefinitionJsonAction(formId, isDraft, updatedFormJson);
+      const result = await updateFormDefinitionJsonAction(
+        formId,
+        isDraft,
+        updatedFormJson
+      );
       if (result.success) {
         setHasUnsavedChanges(false);
         toast("Form saved");
@@ -144,12 +178,12 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
         throw new Error(result.error);
       }
     });
-  }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleNameSave();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       setName(originalName);
       setIsEditingName(false);
     }
@@ -181,7 +215,7 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
             <span
               className="font-bold text-lg hover:border hover:border-gray-300 hover:rounded px-1"
               onClick={() => setIsEditingName(true)} // Click to enable editing
-              style={{ cursor: 'text' }} // Change cursor to I-beam (text editor cursor)
+              style={{ cursor: "text" }} // Change cursor to I-beam (text editor cursor)
             >
               {name}
             </span>
@@ -206,12 +240,14 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
         </div>
       </div>
       <div id="creator">
-        {creator ? <SurveyCreatorComponent creator={creator} /> : <div>Loading...</div>}
+        {creator ? (
+          <SurveyCreatorComponent creator={creator} />
+        ) : (
+          <div>Loading...</div>
+        )}
       </div>
     </>
   );
 }
-export default FormEditor
-export type {
-  FormEditorProps
-};
+export default FormEditor;
+export type { FormEditorProps };

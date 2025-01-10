@@ -8,10 +8,10 @@ declare namespace NodeJS {
     SLACK_CLIENT_SECRET: string;
     SLACK_REDIRECT_URI: string;
     AZURE_STORAGE_CONNECTION_STRING: string;
-    AZURE_STORAGE_CONTAINER_NAME: string;
-    RESIZE_IMAGES: boolean;
+    USER_FILES_STORAGE_CONTAINER_NAME: string;
+    CONTENT_STORAGE_CONTAINER_NAME: string;
+    RESIZE_IMAGES: string;
     RESIZE_IMAGES_WIDTH: string;
-    NEXT_PUBLIC_MAX_IMAGE_SIZE: number;
     NEXT_PUBLIC_SLK: string;
   }
 }

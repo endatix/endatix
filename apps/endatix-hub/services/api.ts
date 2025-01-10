@@ -35,7 +35,7 @@ export const authenticate = async (
 export const createForm = async (
   formRequest: CreateFormRequest
 ): Promise<Form> => {
-  let session = await getSession();
+  const session = await getSession();
   const headers = new HeaderBuilder()
     .withAuth(session)
     .acceptJson()
