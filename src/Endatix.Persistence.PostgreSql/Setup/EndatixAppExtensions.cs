@@ -21,7 +21,7 @@ public static class EndatixAppExtensions
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
     /// <param name="configuration">A delegate to configure the <see cref="IEndatixConfig"/> instance</param>
     /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
-    public static IEndatixApp AddSqlServerDataPersistence(this IEndatixApp endatixApp, Action<IEndatixConfig> configuration)
+    public static IEndatixApp AddPostgreSqlDataPersistence(this IEndatixApp endatixApp, Action<IEndatixConfig> configuration)
     {
         IEndatixConfig configurationInstance = EndatixConfig.Configuration;
         configuration(configurationInstance);
@@ -34,7 +34,7 @@ public static class EndatixAppExtensions
         endatixApp.Services.AddSingleton<DataSeeder>();
         endatixApp.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
         {
-            options.UseSqlServer(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
+            options.UseNpgsql(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
             options.UseAsyncSeeding(async (context, _, cancellationToken) =>
             {
                 if (EndatixConfig.Configuration.SeedSampleData)
@@ -47,7 +47,7 @@ public static class EndatixAppExtensions
 
         endatixApp.Services.AddDbContext<AppIdentityDbContext>(options =>
         {
-            options.UseSqlServer(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
+            options.UseNpgsql(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
         });
 
         if (EndatixConfig.Configuration.UseSnowflakeIds)
@@ -57,7 +57,7 @@ public static class EndatixAppExtensions
 
         endatixApp.Services.AddSingleton<EfCoreValueGeneratorFactory>();
 
-        endatixApp.LogSetupInformation("💿 SQL Server persistence configured");
+        endatixApp.LogSetupInformation("💿 PostgreSQL persistence configured");
 
         return endatixApp;
     }

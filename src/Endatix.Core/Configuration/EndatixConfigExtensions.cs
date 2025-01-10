@@ -13,7 +13,7 @@ namespace Endatix.Core.Configuration
             return config;
         }
 
-        public static IEndatixConfig WithSqlServer(this IEndatixConfig config, string connectionString, string? migrationsAssembly = null)
+        public static IEndatixConfig WithConnectionString(this IEndatixConfig config, string connectionString, string? migrationsAssembly = null)
         {
             Guard.Against.NullOrEmpty(connectionString, null, "Endatix connection string cannot be null or empty.");
 
