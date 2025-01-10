@@ -26,8 +26,6 @@ export function SubmissionHeader({
     formId
 }: SubmissionHeaderProps) {
 
-    const router = useRouter();
-    const [startTransition, isPending] = useTransition();
     const [loading, setLoading] = useState(false);
 
     const exportPdf = async () => {
@@ -44,7 +42,6 @@ export function SubmissionHeader({
                 saveToFileHandler(pdfFileName, blob);
                 setLoading(false);
             }
-            // await router.push(url);
         } catch (error) {
             console.error("Failed to export PDF:", error);
         } finally {
