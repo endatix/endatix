@@ -75,18 +75,30 @@ public static class EndatixHostBuilderExtensions
             options.UsePipelineLogging();
         });
 
-        endatixApp.AddDataPersistence(configuration => configuration
-            .WithSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+        var dbProvider = builder.Configuration.GetConnectionString("DefaultConnection_DbProvider")?.ToLowerInvariant() ?? "sqlserver";
+        Action<IEndatixConfig> dbConfig = configuration => configuration
+            .WithConnectionString(builder.Configuration.GetConnectionString("DefaultConnection"))
             .WithCustomTablePrefix()
             .WithSnowflakeIds(0)
-            .WithSampleData()
-            );
+            .WithSampleData();
+
+        switch (dbProvider)
+        {
+            case "postgresql":
+                endatixApp.AddPostgreSqlDataPersistence(dbConfig);
+                break;
+            case "sqlserver":
+                endatixApp.AddSqlServerDataPersistence(dbConfig);
+                break;
+            default:
+                throw new ArgumentException($"Unsupported database provider: {dbProvider}. Supported values are 'sqlserver' and 'postgresql'");
+        }
 
         endatixApp.AddInfrastructure(configuration => configuration
             .AddSecurityServices(options => options.AddApiAuthentication(builder.Configuration))
         );
 
-        var hostingOptions = endatixApp.WebHostBuilder.Configuration
+         var hostingOptions = endatixApp.WebHostBuilder.Configuration
             .GetSection(HostingOptions.SECTION_NAME)
             .Get<HostingOptions>();
 

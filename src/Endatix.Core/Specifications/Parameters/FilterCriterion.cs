@@ -45,38 +45,38 @@ public class FilterCriterion
     {
         Guard.Against.NullOrWhiteSpace(filterExpression, nameof(filterExpression));
 
-        var @operator = _operatorMap.Keys
-            .FirstOrDefault(op => 
-            {
-                var operatorIndex = filterExpression.IndexOf(op);
-                if (operatorIndex == -1)
-                {
-                    return false;
-                }
+        var fieldEndIndex = 0;
+        while (fieldEndIndex < filterExpression.Length && char.IsLetterOrDigit(filterExpression[fieldEndIndex]))
+        {
+            fieldEndIndex++;
+        }
 
-                // Check if all characters before the operator are letters or digits so they can be a valid field name
-                return operatorIndex == 0 || filterExpression[..operatorIndex].All(c => char.IsLetterOrDigit(c));
-            });
+        Field = Guard.Against.NullOrWhiteSpace(
+            filterExpression[..fieldEndIndex],
+            nameof(filterExpression),
+            "Filter must have a field name");
+
+        var @operator = _operatorMap.Keys
+            .FirstOrDefault(op => filterExpression.IndexOf(op, fieldEndIndex) == fieldEndIndex);
 
         Guard.Against.Null(
             @operator,
             nameof(filterExpression),
-            $"Invalid filter operator. Valid operators are: {string.Join(", ", _operatorMap.Keys)}");
+            $"Filter must have a valid operator after the field name. Valid operators are: {string.Join(", ", _operatorMap.Keys)}");
 
-        var parts = filterExpression.Split(@operator, 2);
-        Field = Guard.Against.NullOrWhiteSpace(
-            parts[0].Trim(),
-            nameof(filterExpression),
-            "Filter must have a field");
-        
         Operator = _operatorMap[@operator];
 
-        var values = parts[1].Split(',').Select(v => v.Trim()).ToList();
+        var valueStartIndex = fieldEndIndex + @operator.Length;
+        var values = filterExpression[valueStartIndex..]
+            .Split(',')
+            .Select(v => v.Trim())
+            .ToList();
+
         Guard.Against.InvalidInput(
             values,
             nameof(filterExpression),
             v => !v.Any(string.IsNullOrWhiteSpace),
-            "Filter values cannot be empty or whitespace");
+            "Filter values cannot be empty");
 
         Values = values.AsReadOnly();
     }

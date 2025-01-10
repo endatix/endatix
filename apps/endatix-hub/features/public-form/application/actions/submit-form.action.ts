@@ -29,7 +29,7 @@ export type SubmissionOperationResult = Result<SubmissionOperation>;
 export async function submitFormAction(formId: string, submissionData: SubmissionData): Promise<SubmissionOperationResult> {
     // Get cookie store and check for existing submission token
     const cookieStore = await cookies();
-    var tokenStore = new FormTokenCookieStore(cookieStore);
+    const tokenStore = new FormTokenCookieStore(cookieStore);
     const tokenResult = tokenStore.getToken(formId);
 
     // If we have a valid token, update the existing submission and update the cookie if the submission fails or is complete

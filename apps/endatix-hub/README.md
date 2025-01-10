@@ -1,22 +1,30 @@
 # Endatix Hub
 This is the Endatix Hub, a Form Management system, built with Next.js. It uses the Endatix API to manage forms and submissions and offer data collection and reporting.
 
+## System Requirements
+
+- **Node.js 20.x.x** (Node 20.9.0 is recommended)
+- Windows, Linux and MacOS are all supported
+
 ## Prerequisites
 
-- **Node.js 20.9.0**
-- **pnpm >=9.0.0**
+- **pnpm >=9.0.0** - we recommend using pnpm as the package manager for this project. You can install pnpm by running `npm install -g pnpm`
+- **nvm** - we recommend using nvm to manage node versions as this will help you install the correct version of node without having to manually change the node version in your system. Download nvm [here](https://github.com/nvm-sh/nvm)
+
+>[!TIP]
+>If you are using nvm, you can install the correct version of node by running `nvm install v20.9.0`
 
 ## Getting Started
 
-First, run the development server. We recommend using pnpm dev:
+1. Setup correct node version. Open the terminal and run `nvm use v20.9.0`
+2. Install the dependencies. Run `pnpm install`
+3. Run the development server. We recommend using pnpm dev:
 
 ```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. If you want to run the site in https, run `pnpm run dev-https` command.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. 
 
 ## Environment Variables
 
@@ -31,15 +39,6 @@ This is useful for testing the production build locally (assumes you have run `p
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+To learn more about Endatix, take a look at the following resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Endatix Documentation](https://docs.endatix.com/docs/category/getting-started) - learn about Endatix features and API.

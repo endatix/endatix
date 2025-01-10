@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ICreatorOptions } from "survey-creator-core";
+import { ICreatorOptions, SurveyCreatorModel, UploadFileEvent } from "survey-creator-core";
 import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react";
 import { slk } from "survey-core";
 import { updateFormDefinitionJsonAction } from "../update-form-definition-json.action";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import "./creator-styles.scss";
 import "survey-core/defaultV2.css";
 import "survey-creator-core/survey-creator-core.css";
-import * as themes from "survey-creator-core/themes"; // import themes
+import * as themes from "survey-creator-core/themes";
 import { Save } from "lucide-react";
 
 interface FormEditorProps {
@@ -62,6 +62,32 @@ function FormEditor({
     setIsEditingName(false);
   }, [formId, name, originalName, startTransition]);
 
+  const handleUploadFile = useCallback(async (_: SurveyCreatorModel, options: UploadFileEvent) => {
+      const formData = new FormData();
+      options.files.forEach(function (file: File) {
+        formData.append("file", file);
+      });
+
+      fetch("/api/hub/v0/storage/upload", {
+        method: "POST",
+        body: formData,
+        headers: {
+          "edx-form-id": formId,
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          options.callback(
+            "success",
+            data.url
+          );
+        })
+        .catch((error) => {
+          console.error("Error: ", error);
+          options.callback("error", undefined);
+        });
+    }, [formId]);
+
   useEffect(() => {
     if (creator) {
       creator.JSON = formJson;
@@ -83,8 +109,10 @@ function FormEditor({
       console.log(JSON.stringify(newCreator?.JSON));
       callback(no, true);
     };
+    newCreator.onUploadFile.add(handleUploadFile);
+
     setCreator(newCreator);
-  }, [formJson, options, creator, slkVal]);
+  }, [formJson, options, creator, slkVal, handleUploadFile]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

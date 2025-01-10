@@ -45,6 +45,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "solution_items", "solution_
 		Directory.Packages.props = Directory.Packages.props
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Persistence.PostgreSql", "src\Endatix.Persistence.PostgreSql\Endatix.Persistence.PostgreSql.csproj", "{12CB0EBB-F33B-4E91-AA71-D8DF960FD997}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -107,6 +109,10 @@ Global
 		{683DB65A-53A8-4607-9A09-32EA40FB84C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{683DB65A-53A8-4607-9A09-32EA40FB84C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{683DB65A-53A8-4607-9A09-32EA40FB84C5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12CB0EBB-F33B-4E91-AA71-D8DF960FD997}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12CB0EBB-F33B-4E91-AA71-D8DF960FD997}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12CB0EBB-F33B-4E91-AA71-D8DF960FD997}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12CB0EBB-F33B-4E91-AA71-D8DF960FD997}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -126,5 +132,6 @@ Global
 		{7C38EFD4-B5DB-4128-A180-849E54EB80F2} = {36B61C3D-9B27-4EC5-8E9D-9BAE97EBA631}
 		{69A89081-2600-4914-97F0-2042B9DCA13E} = {E3B33D6B-1675-484C-B459-D199D2B3A7CE}
 		{683DB65A-53A8-4607-9A09-32EA40FB84C5} = {E3B33D6B-1675-484C-B459-D199D2B3A7CE}
+		{12CB0EBB-F33B-4E91-AA71-D8DF960FD997} = {1578700B-C9E2-4469-BA9B-29E27B22EA25}
 	EndGlobalSection
 EndGlobal

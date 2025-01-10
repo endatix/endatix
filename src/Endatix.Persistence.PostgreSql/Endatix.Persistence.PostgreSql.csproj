@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Endatix.Persistence.PostgreSql</PackageId>
+    <Title>Endatix - PostgreSQL Persistence</Title>
+    <Description>
+			This package provides implementations of the application's dependencies and external resources. It includes infrastructure-level services like database access, messaging, and other integrations.
+
+		  $(EndatixPlatformDescription)
+    </Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RootNamespace>Endatix.Persistence.PostgreSQL</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+</Project>

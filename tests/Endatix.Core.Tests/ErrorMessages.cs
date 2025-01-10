@@ -31,8 +31,8 @@ public static class ErrorMessages
         { ErrorType.AccessTokenZeroOrNegative, "Access Token expiration must be positive number representing minutes for access token lifetime (Parameter '{0}')" },
         { ErrorType.RefreshTokenZeroOrNegative, "Refresh Token expiration must be positive number representing days for refresh token lifetime (Parameter '{0}')" },
         { ErrorType.InvalidFilterOperator, "Invalid filter operator. Valid operators are: !:, >:, <:, :, >, < (Parameter '{0}')" },
-        { ErrorType.FilterNoField, "Filter must have a field (Parameter '{0}')" },
-        { ErrorType.FilterEmptyValue, "Filter values cannot be empty or whitespace (Parameter '{0}')" },
+        { ErrorType.FilterNoField, "Filter must have a field name (Parameter '{0}')" },
+        { ErrorType.FilterEmptyValue, "Filter values cannot be empty (Parameter '{0}')" },
         { ErrorType.PropertyNotExist, "Property '{0}' does not exist on type 'TestEntity' (Parameter '{1}')" },
     };
 

@@ -39,14 +39,23 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
         _httpClientFactory = httpClientFactory;
 
         Guard.Against.Null(_slackSettings.Active, nameof(_slackSettings.Active), "Slack settings must specify whether the integration is active.");
-        Guard.Against.NullOrEmpty(_slackSettings.EndatixHubBaseUrl, nameof(_slackSettings.EndatixHubBaseUrl), "EndatixHubBaseUrl must have a value within the Slack settings collection.");
-        Guard.Against.NullOrEmpty(_slackSettings.Token, nameof(_slackSettings.Token), "Token must have a value within the Slack settings collection.");
-        Guard.Against.NullOrEmpty(_slackSettings.ChannelId, nameof(_slackSettings.ChannelId), "ChannelId must have a value within the Slack settings collection.");
+        if (_slackSettings.Active.Value)
+        {
+            Guard.Against.NullOrEmpty(_slackSettings.EndatixHubBaseUrl, nameof(_slackSettings.EndatixHubBaseUrl), "EndatixHubBaseUrl must have a value within the Slack settings collection.");
+            Guard.Against.NullOrEmpty(_slackSettings.Token, nameof(_slackSettings.Token), "Token must have a value within the Slack settings collection.");
+            Guard.Against.NullOrEmpty(_slackSettings.ChannelId, nameof(_slackSettings.ChannelId), "ChannelId must have a value within the Slack settings collection.");
+        }
     }
 
     public async Task Handle(SubmissionCompletedEvent notification, CancellationToken cancellationToken)
     {
-        if (notification.Submission.IsComplete && (bool)_slackSettings.Active!)
+        if (!_slackSettings.Active!.Value)
+        {
+            _logger.LogInformation($"Slack notifications are not active.");
+            return;
+        }
+
+        if (notification.Submission.IsComplete)
         {
             var formNameOrId = notification.Submission.FormId.ToString();
             var submissionUrl = string.Format(SLACK_SUBMISSIONS_URL_TEMPLATE, _slackSettings.EndatixHubBaseUrl!.TrimEnd('\\', '/'), notification.Submission.FormId, notification.Submission.Id);
@@ -71,10 +80,7 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
         }
         else
         {
-            if (!notification.Submission.IsComplete)
-            {
-                _logger.LogWarning($"SubmissionCompletedEvent raised on an incomplete submission with id {notification.Submission.Id}");
-            }
+            _logger.LogWarning($"SubmissionCompletedEvent raised on an incomplete submission with id {notification.Submission.Id}");
         }
     }
 

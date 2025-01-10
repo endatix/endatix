@@ -9,15 +9,7 @@ namespace Endatix.Api.Common;
 public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
 {
     private static readonly string[] _validOperators = { "!:", ">:", "<:", ":", ">", "<" };
-    private readonly Dictionary<string, Type>? _validFields;
-
-    /// <summary>
-    /// Default constructor
-    /// </summary>
-    public FilteredRequestValidator()
-    {
-        ConfigureRules();
-    }
+    private readonly Dictionary<string, Type> _validFields;
 
     /// <summary>
     /// Constructor that accepts a dictionary of valid field names and their corresponding types
@@ -52,45 +44,48 @@ public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
             return false;
         }
 
-        var @operator = _validOperators.FirstOrDefault(op => filter.Contains(op));
+        var field = _validFields.Keys
+            .FirstOrDefault(field => 
+                filter.StartsWith(field, StringComparison.OrdinalIgnoreCase) && 
+                filter.Length > field.Length && 
+                !char.IsLetterOrDigit(filter[field.Length]));
+
+        if (field == null)
+        {
+            errorMessage = $"Filter must start with a valid field name. Allowed fields: {string.Join(", ", _validFields.Keys)}";
+            return false;
+        }
+
+        var remainingFilter = filter[field.Length..];
+
+        var @operator = _validOperators.FirstOrDefault(remainingFilter.StartsWith);
         if (@operator == null)
         {
-            errorMessage = $"Filter must contain one of these operators: {string.Join(", ", _validOperators)}";
+            errorMessage = $"Filter must contain a valid operator after the field name. Allowed operators: {string.Join(", ", _validOperators)}";
             return false;
         }
 
-        var parts = filter.Split(@operator, 2);
-        if (parts.Length != 2 || 
-            string.IsNullOrWhiteSpace(parts[0]) || 
-            string.IsNullOrWhiteSpace(parts[1]))
+        var value = remainingFilter[@operator.Length..];
+        if (string.IsNullOrWhiteSpace(value))
         {
-            errorMessage = "Filter must be in format 'field[operator]value'";
+            errorMessage = "Filter must contain a value after the operator.";
             return false;
         }
 
-        if (_validFields != null)
+        // For : and !: operators, check each value in the comma-separated list
+        if (@operator is ":" or "!:")
         {
-            if (!_validFields.ContainsKey(parts[0]))
+            var values = value.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            if (!values.All(v => IsValidType(v.Trim(), _validFields[field])))
             {
-                errorMessage = $"Invalid field name '{parts[0]}'. Allowed fields: {string.Join(", ", _validFields.Keys)}";
+                errorMessage = $"One or more values are not valid for type {_validFields[field].Name}";
                 return false;
             }
-
-            // For : and !: operators, check each value in the comma-separated list
-            if (@operator is ":" or "!:")
-            {
-                var values = parts[1].Split(',', StringSplitOptions.RemoveEmptyEntries);
-                if (!values.All(value => IsValidType(value.Trim(), _validFields[parts[0]])))
-                {
-                    errorMessage = $"One or more values are not valid for type {_validFields[parts[0]].Name}";
-                    return false;
-                }
-            }
-            else if (!IsValidType(parts[1], _validFields[parts[0]]))
-            {
-                errorMessage = $"Value is not valid for type {_validFields[parts[0]].Name}";
-                return false;
-            }
+        }
+        else if (!IsValidType(value.Trim(), _validFields[field]))
+        {
+            errorMessage = $"Value is not valid for type {_validFields[field].Name}";
+            return false;
         }
 
         return true;

@@ -68,7 +68,7 @@
       "cwd": "${workspaceFolder}/apps/endatix-hub",
       "type": "node-terminal",
       "request": "launch",
-      "command": "pnpm dev"
+      "command": "nvm use v20.9.0 && pnpm dev"
     }
   ]
 }

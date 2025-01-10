@@ -3,7 +3,7 @@ name: "🚀 Build and Deploy Endatix"
 on:
   push:
     branches:
-      - feature/36-prod-logs
+      - release/qad
   workflow_dispatch:
 
 jobs:
