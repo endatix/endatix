@@ -7,13 +7,13 @@ import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react";
 import { slk } from "survey-core";
 import { updateFormDefinitionJsonAction } from "../update-form-definition-json.action";
 import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action";
-import { Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import "./creator-styles.scss";
 import "survey-core/defaultV2.css";
 import "survey-creator-core/survey-creator-core.css";
 import * as themes from "survey-creator-core/themes"; // import themes
+import { Save } from "lucide-react";
 
 interface FormEditorProps {
   formId: string;
@@ -74,7 +74,7 @@ function FormEditor({
 
     const newCreator = new SurveyCreator(options || defaultCreatorOptions);
 
-    newCreator.applyTheme(themes.DefaultLight);
+    newCreator.applyCreatorTheme(themes.DefaultLight);
     newCreator.JSON = formJson;
     newCreator.saveSurveyFunc = (
       no: number,

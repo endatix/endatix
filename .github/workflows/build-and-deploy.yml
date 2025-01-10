@@ -3,7 +3,7 @@ name: "🚀 Build and Deploy Endatix"
 on:
   push:
     branches:
-      - feature/35-prod-environment
+      - feature/36-prod-logs
   workflow_dispatch:
 
 jobs:

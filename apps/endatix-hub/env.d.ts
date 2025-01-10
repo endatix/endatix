@@ -14,5 +14,7 @@ declare namespace NodeJS {
     NEXT_PUBLIC_MAX_IMAGE_SIZE: number;
     NEXT_PUBLIC_SLK: string;
     NEXT_PUBLIC_NAME: string;
+    OTEL_LOG_LEVEL: boolean;
+    APPLICATIONINSIGHTS_CONNECTION_STRING: string;
   }
 }
