@@ -11,9 +11,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { SubmissionActionsDropdown } from "./submission-actions-dropdown";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/loaders/spinner";
+import { saveToFileHandler } from "survey-creator-core";
 
 interface SubmissionHeaderProps {
     submissionId: string;
@@ -26,14 +27,24 @@ export function SubmissionHeader({
 }: SubmissionHeaderProps) {
 
     const router = useRouter();
+    const [startTransition, isPending] = useTransition();
     const [loading, setLoading] = useState(false);
-    
+
     const exportPdf = async () => {
         console.log("Setting loading to true");
         setLoading(true);
         try {
             const url = `/api/public/v0/forms/${formId}/submissions/${submissionId}/export-pdf`;
-            await router.push(url);
+            const pdfFileName = `submission-${submissionId}.pdf`;
+            const fileResponse = await fetch(url);
+            if (fileResponse.ok) {
+                const blob = new Blob([await fileResponse.arrayBuffer()], {
+                    type: "text/plain;charset=utf-8",
+                });
+                saveToFileHandler(pdfFileName, blob);
+                setLoading(false);
+            }
+            // await router.push(url);
         } catch (error) {
             console.error("Failed to export PDF:", error);
         } finally {
@@ -46,8 +57,7 @@ export function SubmissionHeader({
         <div className="my-2 flex flex-col gap-6 sm:gap-2 sm:flex-row justify-between">
             <PageTitle title="Submission Details" />
             <div className="flex space-x-2 justify-end text-muted-foreground">
-
-                <Button variant={"outline"} onClick={exportPdf} disabled={loading}>
+                <Button variant={"outline"} onClick={() => exportPdf()} disabled={loading}>
                     {loading ? (
                         <Spinner className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
