@@ -2,6 +2,11 @@ $primary-color: rgb(0, 84, 209);
 $gray-color: rgba(144, 144, 144, 0.5);
 
 
+/* Primary color variable */
+global {
+    --primary-color: rgb(0, 84, 209);
+}
+
 body {
     overflow: hidden;
 }
@@ -40,9 +45,4 @@ button[aria-label="theme-toggle"] {
 /* Hide my account menu on create page */
 button[aria-label="my-account-dropdown"] {
     display: none;
-}
-
-/* Primary color variable */
-:global {
-    --primary-color: rgb(0, 84, 209);
 }

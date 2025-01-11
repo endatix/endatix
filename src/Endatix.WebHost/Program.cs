@@ -2,7 +2,7 @@ using Endatix.Setup;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHealthChecks();
+// builder.Services.AddHealthChecks();
 
 builder.CreateEndatix()
     .AddDefaultSetup()
@@ -16,6 +16,6 @@ app.UseEndatixMiddleware()
 await app.ApplyDbMigrationsAsync();
 await app.SeedInitialUserAsync();
 
-app.MapHealthChecks("/healthz");
+// app.MapHealthChecks("/healthz");
 
 app.Run();

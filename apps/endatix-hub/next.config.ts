@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
         hostname: "endatixstorageqad.blob.core.windows.net",
       },
     ],
-  },
+  }
 };
 
 export default nextConfig;
