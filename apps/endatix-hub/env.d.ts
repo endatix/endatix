@@ -13,5 +13,8 @@ declare namespace NodeJS {
     RESIZE_IMAGES: string;
     RESIZE_IMAGES_WIDTH: string;
     NEXT_PUBLIC_SLK: string;
+    NEXT_PUBLIC_NAME: string;
+    OTEL_LOG_LEVEL: boolean;
+    APPLICATIONINSIGHTS_CONNECTION_STRING: string;
   }
 }

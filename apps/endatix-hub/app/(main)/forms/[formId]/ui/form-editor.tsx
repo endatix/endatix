@@ -7,21 +7,20 @@ import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react";
 import { slk } from "survey-core";
 import { updateFormDefinitionJsonAction } from "../update-form-definition-json.action";
 import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action";
-import { Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import "./creator-styles.scss";
 import "survey-core/defaultV2.css";
 import "survey-creator-core/survey-creator-core.css";
 import * as themes from "survey-creator-core/themes";
-
-const SLK: string = process.env.NEXT_PUBLIC_SLK;
+import { Save } from "lucide-react";
 
 interface FormEditorProps {
   formId: string;
   formJson: object | null;
   formName: string;
   options?: ICreatorOptions;
+  slkVal?: string;
 }
 
 const defaultCreatorOptions: ICreatorOptions = {
@@ -33,7 +32,13 @@ const defaultCreatorOptions: ICreatorOptions = {
   themeForPreview: "Default",
 };
 
-function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
+function FormEditor({
+  formJson,
+  formId,
+  formName,
+  options,
+  slkVal,
+}: FormEditorProps) {
   const [creator, setCreator] = useState<SurveyCreator | null>(null);
   const [isSaving] = useState(false);
   const router = useRouter();
@@ -89,13 +94,13 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
       return;
     }
 
-    if (SLK) {
-      slk(SLK);
+    if (slkVal) {
+      slk(slkVal);
     }
 
     const newCreator = new SurveyCreator(options || defaultCreatorOptions);
 
-    newCreator.applyTheme(themes.DefaultLight);
+    newCreator.applyCreatorTheme(themes.DefaultLight);
     newCreator.JSON = formJson;
     newCreator.saveSurveyFunc = (
       no: number,
@@ -107,7 +112,7 @@ function FormEditor({ formJson, formId, formName, options }: FormEditorProps) {
     newCreator.onUploadFile.add(handleUploadFile);
 
     setCreator(newCreator);
-  }, [formJson, options, creator, handleUploadFile]);
+  }, [formJson, options, creator, slkVal, handleUploadFile]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

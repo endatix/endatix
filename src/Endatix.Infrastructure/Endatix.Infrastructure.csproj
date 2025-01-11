@@ -17,6 +17,7 @@
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
 		<PackageReference Include="Microsoft.Extensions.Http.Resilience" />
 		<PackageReference Include="Serilog.AspNetCore" />
+		<PackageReference Include="Serilog.Sinks.ApplicationInsights" />
 		<PackageReference Include="serilog.sinks.async" />
 		<PackageReference Include="Ardalis.EFCore.Extensions" />
 		<PackageReference Include="Ardalis.Specification" />

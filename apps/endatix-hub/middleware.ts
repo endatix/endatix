@@ -18,6 +18,7 @@ export async function middleware(request: NextRequest) {
 /*
 * Match all request paths except for the ones starting with:
 * - api (API routes)
+* - .swa (Azure static web apps)
 * - _next/static (static files)
 * - _next/image (image optimization files)
 * - favicon.ico, sitemap.xml, robots.txt (metadata files)
@@ -28,7 +29,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
     matcher: [
         {
-            source: '/((?!api|share|slack|assets|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login).*)',
+            source: '/((?!api|.swa|share|slack|assets|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|login).*)',
             missing: [{ type: 'header', key: 'next-action' }],
         }
     ]
