@@ -84,6 +84,13 @@ describe("StorageService", () => {
         "contentType is not provided"
       );
     });
+
+    it("should throw error when imageBuffer is missing", async () => {
+      // Act & Assert
+      await expect(service.optimizeImageSize(undefined as unknown as Buffer, "image/jpeg")).rejects.toThrow(
+        "imageBuffer is not provided"
+      );
+    });
   });
 
   describe("uploadToStorage", () => {
@@ -101,12 +108,11 @@ describe("StorageService", () => {
         getBlockBlobClient: vi.fn().mockReturnValue(mockBlobClient),
       } as unknown as ContainerClient;
 
-      vi.mocked(BlobServiceClient).mockImplementation(
-        () =>
-          ({
-            getContainerClient: vi.fn().mockReturnValue(mockContainerClient),
-          } as unknown as BlobServiceClient)
-      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (service as any).blobServiceClient = {
+        getContainerClient: vi.fn().mockReturnValue(mockContainerClient),
+      } as unknown as BlobServiceClient;
+
     });
 
     afterEach(() => {
@@ -114,18 +120,12 @@ describe("StorageService", () => {
     });
 
     it("should successfully upload file to blob storage", async () => {
-      // Arrange
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (service as any).blobServiceClient = {
-        getContainerClient: vi.fn().mockReturnValue(mockContainerClient),
-      } as unknown as BlobServiceClient;
-
       // Act
       const result = await service.uploadToStorage(
         mockBuffer,
-        mockFolderPath,
         mockFileName,
-        mockContainerName
+        mockContainerName,
+        mockFolderPath
       );
 
       // Assert
@@ -139,14 +139,33 @@ describe("StorageService", () => {
       expect(result).toBe(mockBlobClient.url);
     });
 
+    it("should upload file to blob storage root when folder path is not provided", async () => {
+      // Act
+      const result = await service.uploadToStorage(
+        mockBuffer,
+        mockFileName,
+        mockContainerName
+      );
+
+      // Assert
+      expect(mockContainerClient.createIfNotExists).toHaveBeenCalledWith({
+        access: "container",
+      });
+      expect(mockContainerClient.getBlockBlobClient).toHaveBeenCalledWith(
+        mockFileName
+      );
+      expect(mockBlobClient.uploadData).toHaveBeenCalledWith(mockBuffer);
+      expect(result).toBe(mockBlobClient.url);
+    });
+
     it("should throw error when file buffer is not provided", async () => {
       // Act & Assert
       await expect(
         service.uploadToStorage(
           undefined as unknown as Buffer,
-          mockFolderPath,
           mockFileName,
-          mockContainerName
+          mockContainerName,
+          mockFolderPath
         )
       ).rejects.toThrow("a file is not provided");
     });
@@ -156,9 +175,9 @@ describe("StorageService", () => {
       await expect(
         service.uploadToStorage(
           mockBuffer,
-          mockFolderPath,
           "",
-          mockContainerName
+          mockContainerName,
+          mockFolderPath
         )
       ).rejects.toThrow("fileName is not provided");
     });
@@ -166,8 +185,40 @@ describe("StorageService", () => {
     it("should throw error when containerName is not provided", async () => {
       // Act & Assert
       await expect(
-        service.uploadToStorage(mockBuffer, mockFolderPath, mockFileName, "")
+        service.uploadToStorage(mockBuffer, mockFileName, "", mockFolderPath)
       ).rejects.toThrow("container name is not provided");
+    });
+  });
+
+  describe("getAzureStorageConfig", () => {
+    it("should return enabled config when account name and key are set", () => {
+      // Arrange
+      process.env.AZURE_STORAGE_ACCOUNT_NAME = mockAccountName;
+      process.env.AZURE_STORAGE_ACCOUNT_KEY = mockAccountKey;
+
+      // Act
+      const config = StorageService.getAzureStorageConfig();
+
+      // Assert
+      expect(config.isEnabled).toBe(true);
+      expect(config.accountName).toBe(mockAccountName);
+      expect(config.accountKey).toBe(mockAccountKey);
+      expect(config.hostName).toBe(`${mockAccountName}.blob.core.windows.net`);
+    });
+
+    it("should return disabled config when account name or key is not set", () => {
+      // Arrange
+      process.env.AZURE_STORAGE_ACCOUNT_NAME = "";
+      process.env.AZURE_STORAGE_ACCOUNT_KEY = "";
+
+      // Act
+      const config = StorageService.getAzureStorageConfig();
+
+      // Assert
+      expect(config.isEnabled).toBe(false);
+      expect(config.accountName).toBe("");
+      expect(config.accountKey).toBe("");
+      expect(config.hostName).toBe("");
     });
   });
 });

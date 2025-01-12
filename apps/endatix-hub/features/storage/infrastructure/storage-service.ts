@@ -74,9 +74,9 @@ export class StorageService {
 
   async uploadToStorage(
     fileBuffer: Buffer,
-    folderPath: string,
     fileName: string,
-    containerName: string
+    containerName: string,
+    folderPath?: string,
   ): Promise<string> {
     if (!fileBuffer) {
       throw new Error("a file is not provided");
@@ -97,7 +97,7 @@ export class StorageService {
       access: "container",
     });
 
-    const blobName = `${folderPath}/${fileName}`;
+    const blobName = folderPath ? `${folderPath}/${fileName}` : fileName;
     const blobClient = containerClient.getBlockBlobClient(blobName);
     await blobClient.uploadData(fileBuffer);
 

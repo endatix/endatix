@@ -53,9 +53,9 @@ export const uploadContentFileUseCase = async ({
     const fileName = `${uuid}.${fileExtension}`;
     const fileUrl = await storageService.uploadToStorage(
       fileBuffer,
-      folderPath,
       fileName,
-      containerName
+      containerName,
+      folderPath
     );
 
     return Result.success({
