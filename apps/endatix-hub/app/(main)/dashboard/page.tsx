@@ -25,6 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { StorageService } from "@/features/storage/infrastructure/storage-service";
 
 const Dashboard = async () => {
   const forms = await getForms();
@@ -32,11 +33,10 @@ const Dashboard = async () => {
   const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID;
   const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET;
   const NEXT_PUBLIC_SLK = process.env.NEXT_PUBLIC_SLK;
-  const AZURE_STORAGE_CONTAINER_NAME = process.env.AZURE_STORAGE_CONTAINER_NAME;
-  const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
   const RESIZE_IMAGES = process.env.RESIZE_IMAGES;
   const RESIZE_IMAGES_WIDTH = process.env.RESIZE_IMAGES_WIDTH;
   const NEXT_PUBLIC_NAME = process.env.NEXT_PUBLIC_NAME;
+  const azureStorageConfig = StorageService.getAzureStorageConfig();
   return (
     <Tabs defaultValue="all">
       <div className="flex items-center">
@@ -120,8 +120,7 @@ const Dashboard = async () => {
             <li>NEXT_PUBLIC_NAME: {NEXT_PUBLIC_NAME}</li>
             <li>SLACK_CLIENT_SECRET_length: {SLACK_CLIENT_SECRET?.length?? 0}</li>
             <li>NEXT_PUBLIC_SLK: {NEXT_PUBLIC_SLK}</li>
-            <li>AZURE_STORAGE_CONTAINER_NAME_length: {AZURE_STORAGE_CONTAINER_NAME}</li>
-            <li>AZURE_STORAGE_CONNECTION_STRING: {AZURE_STORAGE_CONNECTION_STRING?.length?? 0}</li>
+            <li>Is Azure Enabled: {azureStorageConfig.isEnabled} on {azureStorageConfig.hostName}</li>
             <li>RESIZE_IMAGES: {RESIZE_IMAGES}</li>
             <li>RESIZE_IMAGES_WIDTH: {RESIZE_IMAGES_WIDTH}</li>
           </ul>
