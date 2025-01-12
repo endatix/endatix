@@ -1,9 +1,30 @@
-import { BlobServiceClient } from "@azure/storage-blob";
+import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
 import { optimizeImage } from "next/dist/server/image-optimizer";
 
 const DEFAULT_IMAGE_WIDTH = 800;
 
+type AzureStorageConfig = {
+  isEnabled: boolean;
+  accountName: string;
+  accountKey: string;
+  hostName: string;
+}
+
 export class StorageService {
+  private readonly blobServiceClient: BlobServiceClient;
+
+  constructor() {
+    const config = StorageService.getAzureStorageConfig();
+    if (!config.isEnabled) {
+      throw new Error("Azure storage is not enabled");
+    }
+
+    this.blobServiceClient = new BlobServiceClient(
+      `https://${config.hostName}`,
+      new StorageSharedKeyCredential(config.accountName, config.accountKey)
+    );
+  }
+
   async optimizeImageSize(
     imageBuffer: Buffer,
     contentType: string,
@@ -70,14 +91,8 @@ export class StorageService {
     }
 
     const STEP_UPLOAD_START = performance.now();
-    if (!process.env.AZURE_STORAGE_CONNECTION_STRING) {
-      throw new Error("BLOB storage connection string not set");
-    }
 
-    const blobServiceClient = BlobServiceClient.fromConnectionString(
-      process.env.AZURE_STORAGE_CONNECTION_STRING
-    );
-    const containerClient = blobServiceClient.getContainerClient(containerName);
+    const containerClient = this.blobServiceClient.getContainerClient(containerName);
     await containerClient.createIfNotExists({
       access: "container",
     });
@@ -92,5 +107,14 @@ export class StorageService {
     );
 
     return blobClient.url;
+  }
+
+  static getAzureStorageConfig() : AzureStorageConfig {
+    return {
+      isEnabled: process.env.AZURE_STORAGE_ACCOUNT_NAME !== undefined && process.env.AZURE_STORAGE_ACCOUNT_KEY !== undefined,
+      accountName: process.env.AZURE_STORAGE_ACCOUNT_NAME,
+      accountKey: process.env.AZURE_STORAGE_ACCOUNT_KEY,
+      hostName: `${process.env.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net`,
+    };
   }
 }

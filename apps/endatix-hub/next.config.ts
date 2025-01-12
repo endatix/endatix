@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { StorageService } from "@/features/storage/infrastructure/storage-service";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -6,8 +7,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: {
-      bodySizeLimit: '20mb',
-    }
+      bodySizeLimit: "20mb",
+    },
   },
   images: {
     remotePatterns: [
@@ -15,12 +16,16 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
-      {
-        protocol: "https",
-        hostname: "endatixstorageqad.blob.core.windows.net",
-      },
     ],
-  }
+  },
 };
+
+const storageConfig = StorageService.getAzureStorageConfig();
+if (storageConfig.isEnabled) {
+  nextConfig?.images?.remotePatterns?.push({
+    protocol: "https",
+    hostname: storageConfig.hostName,
+  });
+}
 
 export default nextConfig;
