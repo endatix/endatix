@@ -1,4 +1,4 @@
-import checkNodeVersion from '../hosting/check-node-version';
+import { checkNodeVersion } from '../hosting/check-node-version';
 import { describe, it, expect, vi, beforeEach, afterEach, MockInstance } from 'vitest';
 import { PackageJson } from '../hosting/check-node-version';
 

@@ -16,10 +16,10 @@ declare namespace NodeJS {
     SLACK_REDIRECT_URI: string;
 
     // Storage
-    AZURE_STORAGE_ACCOUNT_NAME: string;
-    AZURE_STORAGE_ACCOUNT_KEY: string;
-    USER_FILES_STORAGE_CONTAINER_NAME: string;
-    CONTENT_STORAGE_CONTAINER_NAME: string;
+    AZURE_STORAGE_ACCOUNT_NAME?: string;
+    AZURE_STORAGE_ACCOUNT_KEY?: string;
+    USER_FILES_STORAGE_CONTAINER_NAME?: string;
+    CONTENT_STORAGE_CONTAINER_NAME?: string;
     
     // Image Resize
     RESIZE_IMAGES: string;

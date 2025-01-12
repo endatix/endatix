@@ -109,12 +109,23 @@ export class StorageService {
     return blobClient.url;
   }
 
-  static getAzureStorageConfig() : AzureStorageConfig {
+  static getAzureStorageConfig(): AzureStorageConfig {
+    const { AZURE_STORAGE_ACCOUNT_NAME, AZURE_STORAGE_ACCOUNT_KEY } = process.env;
+    const isEnabled = !!AZURE_STORAGE_ACCOUNT_NAME && !!AZURE_STORAGE_ACCOUNT_KEY;
+    if (!isEnabled) {
+      return { 
+        isEnabled: false,
+        accountName: "",
+        accountKey: "",
+        hostName: "",
+      };
+    }
+
     return {
-      isEnabled: process.env.AZURE_STORAGE_ACCOUNT_NAME !== undefined && process.env.AZURE_STORAGE_ACCOUNT_KEY !== undefined,
-      accountName: process.env.AZURE_STORAGE_ACCOUNT_NAME,
-      accountKey: process.env.AZURE_STORAGE_ACCOUNT_KEY,
-      hostName: `${process.env.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net`,
+      isEnabled: true,
+      accountName: AZURE_STORAGE_ACCOUNT_NAME,
+      accountKey: AZURE_STORAGE_ACCOUNT_KEY,
+      hostName: `${AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net`,
     };
   }
 }
