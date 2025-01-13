@@ -1,9 +1,30 @@
-import { BlobServiceClient } from "@azure/storage-blob";
+import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
 import { optimizeImage } from "next/dist/server/image-optimizer";
 
 const DEFAULT_IMAGE_WIDTH = 800;
 
+type AzureStorageConfig = {
+  isEnabled: boolean;
+  accountName: string;
+  accountKey: string;
+  hostName: string;
+}
+
 export class StorageService {
+  private readonly blobServiceClient: BlobServiceClient;
+
+  constructor() {
+    const config = StorageService.getAzureStorageConfig();
+    if (!config.isEnabled) {
+      throw new Error("Azure storage is not enabled");
+    }
+
+    this.blobServiceClient = new BlobServiceClient(
+      `https://${config.hostName}`,
+      new StorageSharedKeyCredential(config.accountName, config.accountKey)
+    );
+  }
+
   async optimizeImageSize(
     imageBuffer: Buffer,
     contentType: string,
@@ -53,9 +74,9 @@ export class StorageService {
 
   async uploadToStorage(
     fileBuffer: Buffer,
-    folderPath: string,
     fileName: string,
-    containerName: string
+    containerName: string,
+    folderPath?: string,
   ): Promise<string> {
     if (!fileBuffer) {
       throw new Error("a file is not provided");
@@ -70,19 +91,13 @@ export class StorageService {
     }
 
     const STEP_UPLOAD_START = performance.now();
-    if (!process.env.AZURE_STORAGE_CONNECTION_STRING) {
-      throw new Error("BLOB storage connection string not set");
-    }
 
-    const blobServiceClient = BlobServiceClient.fromConnectionString(
-      process.env.AZURE_STORAGE_CONNECTION_STRING
-    );
-    const containerClient = blobServiceClient.getContainerClient(containerName);
+    const containerClient = this.blobServiceClient.getContainerClient(containerName);
     await containerClient.createIfNotExists({
       access: "container",
     });
 
-    const blobName = `${folderPath}/${fileName}`;
+    const blobName = folderPath ? `${folderPath}/${fileName}` : fileName;
     const blobClient = containerClient.getBlockBlobClient(blobName);
     await blobClient.uploadData(fileBuffer);
 
@@ -92,5 +107,25 @@ export class StorageService {
     );
 
     return blobClient.url;
+  }
+
+  static getAzureStorageConfig(): AzureStorageConfig {
+    const { AZURE_STORAGE_ACCOUNT_NAME, AZURE_STORAGE_ACCOUNT_KEY } = process.env;
+    const isEnabled = !!AZURE_STORAGE_ACCOUNT_NAME && !!AZURE_STORAGE_ACCOUNT_KEY;
+    if (!isEnabled) {
+      return { 
+        isEnabled: false,
+        accountName: "",
+        accountKey: "",
+        hostName: "",
+      };
+    }
+
+    return {
+      isEnabled: true,
+      accountName: AZURE_STORAGE_ACCOUNT_NAME,
+      accountKey: AZURE_STORAGE_ACCOUNT_KEY,
+      hostName: `${AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net`,
+    };
   }
 }

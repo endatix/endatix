@@ -1,5 +1,6 @@
 import packageJson from '@/package.json' assert { type: 'json' }
 import semver from 'semver'
+import { isEdgeRuntime } from './runtime';
 
 export interface PackageJson {
     engines?: {
@@ -7,7 +8,11 @@ export interface PackageJson {
     };
 }
 
-function checkNodeVersion() {
+export function checkNodeVersion() {
+    if (isEdgeRuntime()) {
+        return;
+    }
+
     const nodeRuntimeVersion = process.version;
     const { engines } = packageJson as PackageJson;
 
@@ -34,4 +39,4 @@ const getWarningMessage = (nodeRuntimeVersion: string, engines: string) => {
             🔗 More info at https://github.com/endatix/endatix/tree/main/apps/endatix-hub`;
 }
 
-export default checkNodeVersion;
+checkNodeVersion();

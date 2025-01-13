@@ -1,6 +1,6 @@
-import checkNodeVersion from '../hosting/check-node-version';
+import { checkNodeVersion } from '@/lib/hosting/check-node-version';
 import { describe, it, expect, vi, beforeEach, afterEach, MockInstance } from 'vitest';
-import { PackageJson } from '../hosting/check-node-version';
+import { PackageJson } from '@/lib/hosting/check-node-version';
 
 const mockPackageJson: PackageJson = vi.hoisted(() => {
     return {

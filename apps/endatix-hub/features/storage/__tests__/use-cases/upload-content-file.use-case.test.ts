@@ -8,11 +8,15 @@ vi.mock("@/features/storage/infrastructure/storage-service");
 
 describe("uploadContentFileUseCase", () => {
   const mockFileContent = "test";
-  const mockFile = new Blob([mockFileContent], { type: "image/jpeg" }) as File;
-  Object.defineProperty(mockFile, "name", { value: "test.jpg" });
-  Object.defineProperty(mockFile, "arrayBuffer", {
-    value: async () => new TextEncoder().encode(mockFileContent).buffer,
-  });
+  const createMockFile = (name: string) => {
+    const file = new Blob([mockFileContent], { type: "image/jpeg" }) as File;
+    Object.defineProperty(file, "name", { value: name });
+    Object.defineProperty(file, "arrayBuffer", {
+      value: async () => new TextEncoder().encode(mockFileContent).buffer,
+    });
+    return file;
+  };
+  const mockFile = createMockFile("test.jpg");
   const mockCommand = {
     formId: "form-123",
     file: mockFile,
@@ -20,6 +24,30 @@ describe("uploadContentFileUseCase", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("should return validation error when formId is empty", async () => {
+    // Act
+    const result = await uploadContentFileUseCase({
+      formId: "",
+      file: mockFile,
+    });
+
+    // Assert
+    expect(Result.isError(result)).toBe(true);
+    expect((result as unknown as Error).message).toBe("Form ID is required");
+  });
+
+  it("should return validation error when file is missing", async () => {
+    // Act
+    const result = await uploadContentFileUseCase({
+      formId: "form-123",
+      file: undefined as unknown as File,
+    });
+
+    // Assert
+    expect(Result.isError(result)).toBe(true);
+    expect((result as unknown as Error).message).toBe("File is required");
   });
 
   it("should successfully upload file and return url", async () => {
@@ -56,5 +84,21 @@ describe("uploadContentFileUseCase", () => {
 
     // Assert
     expect(optimizeSpy).toHaveBeenCalled();
+  });
+
+  it("should return error when fileExtension is not supported", async () => {
+    // Arrange
+    const mockFileWithoutExtension = createMockFile("noextension_name.");
+    const mockCommandWithoutExtension = {
+      formId: "form-123",
+      file: mockFileWithoutExtension,
+    };
+
+    // Act
+    const result = await uploadContentFileUseCase(mockCommandWithoutExtension);
+
+    // Assert
+    expect(Result.isError(result)).toBe(true);
+    expect((result as unknown as Error).message).toBe("File extension is required. Please provide a valid file.");
   });
 });
