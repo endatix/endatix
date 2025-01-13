@@ -1,4 +1,6 @@
-﻿namespace Endatix.Api.Endpoints.Auth;
+﻿using Endatix.Core.Infrastructure.Attributes;
+
+namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
 /// This Represents the request for the "/login" endpoint, handled by the <see cref="Login.HandleAsync"/> method.
@@ -13,5 +15,6 @@ public record LoginRequest(string Email, string Password)
     /// <summary>
     /// The Password of the account
     /// </summary>
+    [Sensitive]
     public string Password { get; init; } = Password;
 }
