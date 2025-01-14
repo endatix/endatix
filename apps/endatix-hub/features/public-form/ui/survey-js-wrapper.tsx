@@ -1,9 +1,8 @@
-"use client"
+'use client'
 
 import { Submission } from '@/types';
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react';
-import 'survey-core/defaultV2.css'
 
 const SurveyComponent = dynamic(() => import('./survey-component'), {
     ssr: false,

@@ -1,15 +1,12 @@
-'use client'
+"use client";
 
-import {
-  CompleteEvent,
-  SurveyModel,
-  UploadFilesEvent,
-} from "survey-core";
+import { CompleteEvent, SurveyModel, UploadFilesEvent } from "survey-core";
 import { Survey } from "survey-react-ui";
 import { useTransition, useCallback } from "react";
 import { useSubmissionQueue } from "../application/submission-queue";
 import { Result } from "@/lib/result";
 import { Submission } from "@/types";
+import "survey-core/defaultV2.css";
 import { useSurveyModel } from "./hooks/use-survey-model";
 import {
   SubmissionData,
@@ -30,23 +27,17 @@ export default function SurveyComponent({
   const [isSubmitting, startSubmitting] = useTransition();
   const model = useSurveyModel(definition, submission);
   const { enqueueSubmission, clearQueue } = useSubmissionQueue(formId);
-  const updatePartial = useCallback(
-    (sender: SurveyModel) => {
-      if (isSubmitting) {
-        return;
-      }
+  
+  const updatePartial = useCallback((sender: SurveyModel) => {
+    const formData = JSON.stringify(sender.data, null, 3);
+    const submissionData: SubmissionData = {
+      isComplete: false,
+      jsonData: formData,
+      currentPage: sender.currentPageNo ?? 0,
+    };
 
-      const formData = JSON.stringify(sender.data, null, 3);
-      const submissionData: SubmissionData = {
-        isComplete: false,
-        jsonData: formData,
-        currentPage: sender.currentPageNo ?? 0,
-      };
-
-      enqueueSubmission(submissionData);
-    },
-    []
-  );
+    enqueueSubmission(submissionData);
+  }, [enqueueSubmission]);
 
   const submitForm = useCallback(
     (sender: SurveyModel, event: CompleteEvent) => {
@@ -76,7 +67,7 @@ export default function SurveyComponent({
         }
       });
     },
-    []
+    [formId, isSubmitting, clearQueue, startSubmitting]
   );
 
   const uploadFiles = useCallback(
@@ -117,6 +108,7 @@ export default function SurveyComponent({
   model.onComplete.add(submitForm);
   model.onUploadFiles.add(uploadFiles);
   model.onValueChanged.add(updatePartial);
+  model.onCurrentPageChanged.add(updatePartial);
   model.onDynamicPanelItemValueChanged.add(updatePartial);
   model.onMatrixCellValueChanged.add(updatePartial);
 
