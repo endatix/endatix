@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using Ardalis.GuardClauses;
+using Endatix.Core.Infrastructure.Attributes;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -34,11 +31,19 @@ public class LoggingPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TR
             _logger.LogInformation("Handling {RequestName}", typeof(TRequest).Name);
 
             // Reflection! Could be a performance concern
-            Type myType = request.GetType();
+            var myType = request.GetType();
             IList<PropertyInfo> props = new List<PropertyInfo>(myType.GetProperties());
-            foreach (PropertyInfo prop in props)
+            foreach (var prop in props)
             {
-                object? propValue = prop?.GetValue(request, null);
+                object? propValue;
+                if (prop.GetCustomAttribute<SensitiveAttribute>() != null)
+                {
+                    propValue = new string('*', 10);
+                }
+                else
+                {
+                    propValue = prop?.GetValue(request, null);
+                }
                 _logger.LogInformation("Property {Property} : {@Value}", prop?.Name, propValue);
             }
         }

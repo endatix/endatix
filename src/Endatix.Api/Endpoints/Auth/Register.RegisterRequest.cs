@@ -1,3 +1,5 @@
+using Endatix.Core.Infrastructure.Attributes;
+
 namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
@@ -13,10 +15,12 @@ public record RegisterRequest(string Email, string Password, string ConfirmPassw
     /// <summary>
     /// The password chosen by the user.
     /// </summary>
+    [Sensitive]
     public string Password { get; init; } = Password;
 
     /// <summary>
     /// The confirmation of the password chosen by the user.
     /// </summary>
+    [Sensitive]
     public string ConfirmPassword { get; init; } = ConfirmPassword;
 }
