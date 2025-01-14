@@ -1,17 +1,17 @@
-"use server"
+'use server'
 
-import SurveyJsWrapper from '../../../../features/public-form/ui/survey-js-wrapper';
 import { cookies } from 'next/headers';
-import { FormTokenCookieStore } from '../../../../features/public-form/infrastructure/cookie-store';
+import SurveyJsWrapper from '@/features/public-form/ui/survey-js-wrapper';
+import { FormTokenCookieStore } from '@/features/public-form/infrastructure/cookie-store';
 import { Result } from '@/lib/result';
 import { getActiveDefinitionUseCase } from '@/features/public-form/use-cases/get-active-definition.use-case';
 import { getPartialSubmissionUseCase } from '@/features/public-form/use-cases/get-partial-submission.use-case';
 
-type ShareSurveyPageProps = {
+type ShareSurveyPage = {
   params: Promise<{ formId: string }>
 };
 
-async function ShareSurveyPage({ params }: ShareSurveyPageProps) {
+async function ShareSurveyPage({ params }: ShareSurveyPage) {
   const { formId } = await params;
   const cookieStore = await cookies();
   const tokenStore = new FormTokenCookieStore(cookieStore);
