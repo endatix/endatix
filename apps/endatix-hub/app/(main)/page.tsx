@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description: "Endatix Hub's homepage. The starting point of getting things done."
 }
 
-const Home = () => {
+function HomePage() {
   return (
     <div className="grid h-full grid-rows-[20px_1fr_20px] items-center justify-items-center p-8 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <div className="absolute top-0 right-0 left-0 bottom-0 bg-[url('/assets/lines-and-stuff.svg')] brightness-[0.6] opacity-[0.4] dark:grayscale"></div>
@@ -93,6 +93,6 @@ const Home = () => {
       </footer>
     </div>
   );
-}
+};
 
-export default Home;
+export default HomePage;
