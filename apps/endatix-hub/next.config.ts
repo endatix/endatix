@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { includesRemoteImageHostnames } from "./lib/hosting/next-config-helper";
 import { StorageService } from "@/features/storage/infrastructure/storage-service";
 
 const nextConfig: NextConfig = {
@@ -12,13 +13,11 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: process.env.IMAGE_HOSTNAME || "images.unsplash.com",
-      },
     ],
   },
 };
+
+includesRemoteImageHostnames(nextConfig.images?.remotePatterns);
 
 const storageConfig = StorageService.getAzureStorageConfig();
 if (storageConfig.isEnabled) {
