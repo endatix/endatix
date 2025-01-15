@@ -26,14 +26,15 @@ export const uploadUserFilesUseCase = async ({
     return Result.validationError("Form ID is required");
   }
 
+  if (!submissionId) {
+    return Result.validationError("Submission ID is required");
+  }
+
   if (!files || files.length === 0) {
     return Result.validationError("Files are required");
   }
 
-  let folderPath = `usr-files/${formId}`;
-  if (submissionId) {
-    folderPath = `${folderPath}/${submissionId}`;
-  }
+  const folderPath = `s/${formId}/${submissionId}`;
 
   const containerName =
     process.env.USER_FILES_STORAGE_CONTAINER_NAME ??
