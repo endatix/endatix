@@ -2,7 +2,7 @@
 
 import { CompleteEvent, SurveyModel, UploadFilesEvent } from "survey-core";
 import { Survey } from "survey-react-ui";
-import { useTransition, useCallback } from "react";
+import { useTransition, useCallback, useState, useEffect } from "react";
 import { useSubmissionQueue } from "../application/submission-queue";
 import { Result } from "@/lib/result";
 import { Submission } from "@/types";
@@ -24,20 +24,32 @@ export default function SurveyComponent({
   formId,
   submission,
 }: SurveyComponentProps) {
-  const [isSubmitting, startSubmitting] = useTransition();
   const model = useSurveyModel(definition, submission);
   const { enqueueSubmission, clearQueue } = useSubmissionQueue(formId);
-  
-  const updatePartial = useCallback((sender: SurveyModel) => {
-    const formData = JSON.stringify(sender.data, null, 3);
-    const submissionData: SubmissionData = {
-      isComplete: false,
-      jsonData: formData,
-      currentPage: sender.currentPageNo ?? 0,
-    };
+  const [isSubmitting, startSubmitting] = useTransition();
+  const [submissionId, setSubmissionId] = useState<string>(
+    submission?.id ?? ""
+  );
 
-    enqueueSubmission(submissionData);
-  }, [enqueueSubmission]);
+  useEffect(() => {
+    if (submission?.id) {
+      setSubmissionId(submission.id);
+    }
+  }, [submission?.id]);
+
+  const updatePartial = useCallback(
+    (sender: SurveyModel) => {
+      const formData = JSON.stringify(sender.data, null, 3);
+      const submissionData: SubmissionData = {
+        isComplete: false,
+        jsonData: formData,
+        currentPage: sender.currentPageNo,
+      };
+
+      enqueueSubmission(submissionData);
+    },
+    [enqueueSubmission]
+  );
 
   const submitForm = useCallback(
     (sender: SurveyModel, event: CompleteEvent) => {
@@ -71,38 +83,47 @@ export default function SurveyComponent({
   );
 
   const uploadFiles = useCallback(
-    (_: SurveyModel, options: UploadFilesEvent) => {
-      const formData = new FormData();
-      options.files.forEach((file) => {
-        formData.append(file.name, file);
-      });
-
-      fetch("/api/public/v0/storage/upload", {
-        method: "POST",
-        body: formData,
-        headers: {
-          "edx-form-id": formId,
-        },
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          options.callback(
-            options.files.map((file) => {
-              return {
-                file: file,
-                content: data.files.find(
-                  (f: { name: string; url: string }) => f.name === file.name
-                )?.url,
-              };
-            })
-          );
-        })
-        .catch((error) => {
-          console.error("Error: ", error);
-          options.callback([], ["An error occurred during file upload."]);
+    async (_: SurveyModel, options: UploadFilesEvent) => {
+      try {
+        const formData = new FormData();
+        options.files.forEach((file) => {
+          formData.append(file.name, file);
         });
+        const response = await fetch("/api/public/v0/storage/upload", {
+          method: "POST",
+          body: formData,
+          headers: {
+            "edx-form-id": formId,
+            "edx-submission-id": submissionId ?? "",
+          },
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error ?? "Failed to upload files. Please refresh your page and try again.");
+        }
+
+        if (data.submissionId && data.submissionId !== submissionId) {
+          setSubmissionId(data.submissionId);
+        }
+
+        const uploadedFiles = options.files.map((file) => {
+          const remoteFile = data.files?.find(
+            (uploadedFile: { name: string; url: string }) =>
+              uploadedFile.name === file.name
+          );
+          return {
+            file: file,
+            content: remoteFile?.url,
+          };
+        });
+        options.callback(uploadedFiles);
+      } catch (error) {
+        console.error("Error: ", error);
+        options.callback([], [error instanceof Error ? error.message : ""]);
+      }
     },
-    [formId]
+    [formId, submissionId]
   );
 
   model.onComplete.add(submitForm);

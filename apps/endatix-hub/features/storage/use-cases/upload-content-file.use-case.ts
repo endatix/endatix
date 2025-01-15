@@ -28,7 +28,7 @@ export const uploadContentFileUseCase = async ({
     return Result.validationError("File is required");
   }
 
-  const folderPath = `assets/${formId}`;
+  const folderPath = `f/${formId}`;
   const containerName =
     process.env.CONTENT_STORAGE_CONTAINER_NAME ??
     DEFAULT_FORM_CONTENT_FILES_CONTAINER_NAME;
