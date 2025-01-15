@@ -76,7 +76,7 @@ export const uploadUserFilesUseCase = async ({
     return Result.success(uploadedFiles);
   } catch (err) {
     return Result.error(
-      "Failed to upload file",
+      "Failed to upload file. Please refresh your page and try again.",
       err instanceof Error ? err.message : "Unknown error"
     );
   }
