@@ -1,19 +1,20 @@
 declare namespace NodeJS {
   interface ProcessEnv {
     // Environment
-    NODE_ENV: "development" | "production" | "test";
+    NODE_ENV: 'development' | 'production' | 'test';
+    REMOTE_IMAGE_HOSTNAMES?: string;
 
     // Session
     SESSION_SECRET: string;
     
     // Data Collection
     NEXT_FORMS_COOKIE_NAME: string;
-    NEXT_FORMS_COOKIE_DURATION_DAYS: string;
+    NEXT_FORMS_COOKIE_DURATION_DAYS?: string;
 
     // Slack
-    SLACK_CLIENT_ID: string;
-    SLACK_CLIENT_SECRET: string;
-    SLACK_REDIRECT_URI: string;
+    SLACK_CLIENT_ID?: string;
+    SLACK_CLIENT_SECRET?: string; 
+    SLACK_REDIRECT_URI?: string;
 
     // Storage
     AZURE_STORAGE_ACCOUNT_NAME?: string;
@@ -22,15 +23,15 @@ declare namespace NodeJS {
     CONTENT_STORAGE_CONTAINER_NAME?: string;
     
     // Image Resize
-    RESIZE_IMAGES: string;
-    RESIZE_IMAGES_WIDTH: string;
+    RESIZE_IMAGES?: string;
+    RESIZE_IMAGES_WIDTH?: string;
 
     // Public
-    NEXT_PUBLIC_SLK: string;
-    NEXT_PUBLIC_NAME: string;
+    NEXT_PUBLIC_SLK?: string;
+    NEXT_PUBLIC_NAME?: string;
 
     // Telemetry
-    OTEL_LOG_LEVEL: boolean;
-    APPLICATIONINSIGHTS_CONNECTION_STRING: string;
+    OTEL_LOG_LEVEL?: boolean;
+    APPLICATIONINSIGHTS_CONNECTION_STRING?: string;
   }
 }
