@@ -100,7 +100,10 @@ export default function SurveyComponent({
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data?.error ?? "Failed to upload files. Please refresh your page and try again.");
+          throw new Error(
+            data?.error ??
+              "Failed to upload files. Please refresh your page and try again."
+          );
         }
 
         if (data.submissionId && data.submissionId !== submissionId) {
@@ -126,12 +129,23 @@ export default function SurveyComponent({
     [formId, submissionId]
   );
 
-  model.onComplete.add(submitForm);
-  model.onUploadFiles.add(uploadFiles);
-  model.onValueChanged.add(updatePartial);
-  model.onCurrentPageChanged.add(updatePartial);
-  model.onDynamicPanelItemValueChanged.add(updatePartial);
-  model.onMatrixCellValueChanged.add(updatePartial);
+  useEffect(() => {
+    model.onComplete.add(submitForm);
+    model.onUploadFiles.add(uploadFiles);
+    model.onValueChanged.add(updatePartial);
+    model.onCurrentPageChanged.add(updatePartial);
+    model.onDynamicPanelItemValueChanged.add(updatePartial);
+    model.onMatrixCellValueChanged.add(updatePartial);
+
+    return () => {
+      model.onComplete.remove(submitForm);
+      model.onUploadFiles.remove(uploadFiles);
+      model.onValueChanged.remove(updatePartial);
+      model.onCurrentPageChanged.remove(updatePartial);
+      model.onDynamicPanelItemValueChanged.remove(updatePartial);
+      model.onMatrixCellValueChanged.remove(updatePartial);
+    };
+  }, [model, submitForm, uploadFiles, updatePartial]);
 
   return <Survey model={model} />;
 }
