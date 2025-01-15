@@ -13,7 +13,7 @@ export type SubmissionData = {
 }
 
 export type SubmissionOperation = {
-    isSuccess: boolean;
+    submissionId: string;
 }
 
 export type SubmissionOperationResult = Result<SubmissionOperation>;
@@ -52,7 +52,7 @@ async function updateExistingSubmissionViaToken(
         if (updatedSubmission.isComplete) {
             tokenStore.deleteToken(formId);
         }
-        return Result.success({ isSuccess: true });
+        return Result.success({ submissionId: updatedSubmission.id });
     } catch (err) {
         tokenStore.deleteToken(formId);
         return Result.error('Failed to update existing submission. Details: ' + err);
@@ -71,9 +71,8 @@ async function createNewSubmission(
         } else {
             tokenStore.setToken({ formId, token: createSubmissionResponse.token });
         }
-
-        return Result.success({ isSuccess: true });
-    } catch (err) {
+        return Result.success({ submissionId: createSubmissionResponse.id });
+    } catch {
         return Result.error('Failed to create new submission');
     }
 }

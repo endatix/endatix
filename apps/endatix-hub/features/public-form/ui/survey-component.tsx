@@ -2,7 +2,7 @@
 
 import { CompleteEvent, SurveyModel, UploadFilesEvent } from "survey-core";
 import { Survey } from "survey-react-ui";
-import { useTransition, useCallback } from "react";
+import { useTransition, useCallback, useState, useEffect } from "react";
 import { useSubmissionQueue } from "../application/submission-queue";
 import { Result } from "@/lib/result";
 import { Submission } from "@/types";
@@ -24,20 +24,32 @@ export default function SurveyComponent({
   formId,
   submission,
 }: SurveyComponentProps) {
-  const [isSubmitting, startSubmitting] = useTransition();
   const model = useSurveyModel(definition, submission);
   const { enqueueSubmission, clearQueue } = useSubmissionQueue(formId);
-  
-  const updatePartial = useCallback((sender: SurveyModel) => {
-    const formData = JSON.stringify(sender.data, null, 3);
-    const submissionData: SubmissionData = {
-      isComplete: false,
-      jsonData: formData,
-      currentPage: sender.currentPageNo ?? 0,
-    };
+  const [isSubmitting, startSubmitting] = useTransition();
+  const [submissionId, setSubmissionId] = useState<string>(
+    submission?.id ?? ""
+  );
 
-    enqueueSubmission(submissionData);
-  }, [enqueueSubmission]);
+  useEffect(() => {
+    if (submission?.id) {
+      setSubmissionId(submission.id);
+    }
+  }, [submission?.id]);
+
+  const updatePartial = useCallback(
+    (sender: SurveyModel) => {
+      const formData = JSON.stringify(sender.data, null, 3);
+      const submissionData: SubmissionData = {
+        isComplete: false,
+        jsonData: formData,
+        currentPage: sender.currentPageNo,
+      };
+
+      enqueueSubmission(submissionData);
+    },
+    [enqueueSubmission]
+  );
 
   const submitForm = useCallback(
     (sender: SurveyModel, event: CompleteEvent) => {
@@ -82,10 +94,14 @@ export default function SurveyComponent({
         body: formData,
         headers: {
           "edx-form-id": formId,
+          "edx-submission-id": submissionId ?? "",
         },
       })
         .then((response) => response.json())
         .then((data) => {
+          if (data.submissionId && data.submissionId !== submissionId) {
+            setSubmissionId(data.submissionId);
+          }
           options.callback(
             options.files.map((file) => {
               return {
@@ -102,7 +118,7 @@ export default function SurveyComponent({
           options.callback([], ["An error occurred during file upload."]);
         });
     },
-    [formId]
+    [formId, submissionId]
   );
 
   model.onComplete.add(submitForm);
