@@ -79,7 +79,7 @@ async function SubmissionData({
                 {questions?.map((question) => {
                     return (
                         <div key={question.id}
-                            className="grid grid-cols-5 items-center gap-4">
+                            className="grid grid-cols-5 items-center gap-4 mb-6">
                             <AnswerViewer key={question.id} forQuestion={question} />
                         </div>
                     );
