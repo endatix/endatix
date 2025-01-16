@@ -107,7 +107,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps): React.JSX.Element => {
   const renderUnknownAnswer = () => (
     <>
       <QuestionLabel forQuestion={forQuestion} />
-      <p className="col-span-3">{forQuestion.value ?? "-"}</p>
+      <p className="col-span-3">{forQuestion.value?.toString() ?? "-"}</p>
     </>
   );
 
