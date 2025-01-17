@@ -92,6 +92,14 @@ public static class SpecificationHelper
             return Enum.Parse(targetType, value, true);
         }
 
+        if (targetType == typeof(DateTime) || targetType == typeof(DateTime?))
+        {
+            var dateTime = DateTime.Parse(value);
+            return dateTime.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
+                : dateTime.ToUniversalTime();
+        }
+
         return TypeDescriptor.GetConverter(targetType).ConvertFromInvariantString(value)
             ?? throw new ArgumentException($"Cannot convert value '{value}' to type {targetType.Name}");
     }
