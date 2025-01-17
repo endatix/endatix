@@ -1,6 +1,7 @@
-import { parseBoolean } from '@/lib/utils/type-parsers';
 import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
 import { optimizeImage } from "next/dist/server/image-optimizer";
+import { parseBoolean } from "../../../lib/utils/type-parsers";
+
 
 const DEFAULT_IMAGE_WIDTH = 800;
 
