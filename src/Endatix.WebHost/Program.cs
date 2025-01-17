@@ -3,7 +3,6 @@ using Endatix.Setup;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHealthChecks();
-builder.Services.AddHttpContextAccessor();
 
 builder.CreateEndatix()
     .AddDefaultSetup()

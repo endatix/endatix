@@ -69,7 +69,7 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
 
             // TODO: Remove when per-account settings are implemented
             if(form != null && form.CreatedAt.CompareTo(new DateTime(2021,1,1)) < 0) {
-                _logger.LogWarning($"Functional test form - skip Slack notification.");
+                _logger.LogInformation($"Functional test form - skip Slack notification.");
                 return;
             }
 
