@@ -67,6 +67,12 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
                 form = await repository.GetByIdAsync(notification.Submission.FormId, cancellationToken);
             }
 
+            // TODO: Remove when per-account settings are implemented
+            if(form != null && form.CreatedAt.CompareTo(new DateTime(2021,1,1)) < 0) {
+                _logger.LogWarning($"Functional test form - skip Slack notification.");
+                return;
+            }
+
             if(form != null && !string.IsNullOrEmpty(form.Name)) {
                 formNameOrId = form.Name;
             }

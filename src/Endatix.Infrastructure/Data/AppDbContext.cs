@@ -3,6 +3,8 @@ using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
 using Ardalis.GuardClauses;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.AspNetCore.Http;
+using FastEndpoints.Security;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -12,11 +14,13 @@ namespace Endatix.Infrastructure.Data;
 public class AppDbContext : DbContext
 {
     private readonly IIdGenerator<long> _idGenerator;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     protected AppDbContext() { }
-    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator) : base(options)
+    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator, IHttpContextAccessor httpContextAccessor) : base(options)
     {
         _idGenerator = idGenerator;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public DbSet<Form> Forms { get; set; }
@@ -25,9 +29,24 @@ public class AppDbContext : DbContext
 
     public DbSet<Submission> Submissions { get; set; }
 
+    private bool IsInternalUser() {
+        var emailAddress = _httpContextAccessor.HttpContext?.User.ClaimValue("email");
+        if(emailAddress != null && emailAddress.ToLower().EndsWith("@endatix.com")) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        // TODO: Remove this query filter when multitenancy is implemented
+        var filterDate = DateTime.SpecifyKind(new DateTime(2021, 1, 1), DateTimeKind.Utc);
+
+        builder.Entity<Form>().HasQueryFilter(form =>
+            IsInternalUser() || (form.CreatedAt >= filterDate));
 
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         PrefixTableNames(builder);
