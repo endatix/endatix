@@ -29,11 +29,12 @@ const PdfAnswerViewer = ({
   pageBreak,
 }: ViewAnswerProps): React.ReactElement => {
   const questionType = forQuestion.getType() ?? 'unsupported';
+  const questionTitle = panelTitle ? `(${panelTitle}) ${forQuestion.title}` : forQuestion.title;
 
   const renderTextAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
       <Text style={styles.questionLabel}>
-        ({panelTitle}) {forQuestion.title}:
+        {questionTitle}:
       </Text>
       <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
     </View>
@@ -42,7 +43,7 @@ const PdfAnswerViewer = ({
   const renderCheckboxAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
       <Text style={styles.questionLabel}>
-        ({panelTitle}) {forQuestion.title}:
+        {questionTitle}:
       </Text>
       {forQuestion.value ? (
         <Text style={[styles.booleanAnswer, styles.booleanYes]}>YES</Text>
@@ -55,7 +56,7 @@ const PdfAnswerViewer = ({
   const renderRatingAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
       <Text style={styles.questionLabel}>
-        ({panelTitle}) {forQuestion.title}:
+        {questionTitle}:
       </Text>
       <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
     </View>
@@ -64,7 +65,7 @@ const PdfAnswerViewer = ({
   const renderRadiogroupAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
       <Text style={styles.questionLabel}>
-        ({panelTitle}) {forQuestion.title}:
+        {questionTitle}:
       </Text>
       <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
     </View>
@@ -73,7 +74,7 @@ const PdfAnswerViewer = ({
   const renderDropdownAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
       <Text style={styles.questionLabel}>
-        ({panelTitle}) {forQuestion.title}:
+        {questionTitle}:
       </Text>
       <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
     </View>
@@ -82,7 +83,7 @@ const PdfAnswerViewer = ({
   const renderRankingAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
       <Text style={styles.questionLabel}>
-        ({panelTitle}) {forQuestion.title}:
+        {questionTitle}:
       </Text>
       <Text style={styles.answerText}>
         {Array.isArray(forQuestion.value)
@@ -95,7 +96,7 @@ const PdfAnswerViewer = ({
   const renderMatrixAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
       <Text style={styles.questionLabel}>
-        ({panelTitle}) {forQuestion.title}:
+        {questionTitle}:
       </Text>
       <Text style={styles.answerText}>
         {JSON.stringify(forQuestion.value, null, 2) || 'No Answer'}
@@ -106,7 +107,7 @@ const PdfAnswerViewer = ({
   const renderCommentAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
       <Text style={styles.questionLabel}>
-        ({panelTitle}) {forQuestion.title}:
+        {questionTitle}:
       </Text>
       <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
     </View>
@@ -141,7 +142,7 @@ const PdfAnswerViewer = ({
   const renderFileAnswer = () => (
     <View style={styles.fileAnswerContainer} break={pageBreak} wrap={false}>
       <Text style={styles.questionLabel}>
-        ({panelTitle}) {forQuestion.title}:
+        {questionTitle}:
       </Text>
       <PdfFileAnswer question={forQuestion as QuestionFileModelBase} />
       {forQuestion?.supportComment() &&
@@ -165,7 +166,7 @@ const PdfAnswerViewer = ({
   const renderUnknownAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
       <Text style={styles.questionLabel}>
-        ({panelTitle}) {forQuestion.title}:
+        {questionTitle}
       </Text>
       <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
     </View>
