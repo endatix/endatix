@@ -1,5 +1,6 @@
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.Specifications.Common;
+using System.Linq.Expressions;
 
 namespace Endatix.Core.Tests.Specifications.Common;
 
@@ -12,6 +13,7 @@ public class SpecificationHelperTests
         public int IntProperty { get; set; }
         public string? StringProperty { get; set; }
         public TestEnum EnumProperty { get; set; }
+        public DateTime DateTimeProperty { get; set; }
     }
 
     [Fact]
@@ -213,5 +215,30 @@ public class SpecificationHelperTests
         result.Compile()(testEntity1).Should().BeTrue();
         result.Compile()(testEntity2).Should().BeTrue();
         result.Compile()(testEntity3).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("2024-03-20T10:00:00")]                   // Unspecified kind
+    [InlineData("2024-03-20T10:00:00Z")]                  // UTC kind
+    [InlineData("2024-03-20T10:00:00+00:00")]             // UTC with offset
+    [InlineData("2024-03-20T12:00:00+02:00")]             // Non-UTC timezone
+    public void BuildFilterExpression_DifferentDateTimeFormats_AlwaysConvertsToUtc(string inputDateStr)
+    {
+        // Arrange
+        var field = nameof(TestEntity.DateTimeProperty);
+        var filterStr = $"{field}:{inputDateStr}";
+        var filter = new FilterCriterion(filterStr);
+        var expectedUtcDate = new DateTime(2024, 3, 20, 10, 0, 0, DateTimeKind.Utc);
+
+        // Act
+        var expression = SpecificationHelper.BuildFilterExpression<TestEntity>(filter);
+
+        // Assert
+        var binaryExpression = (BinaryExpression)expression.Body;
+        var constantExpression = (ConstantExpression)binaryExpression.Right;
+        var dateTimeValue = (DateTime)constantExpression.Value!;
+
+        dateTimeValue.Kind.Should().Be(DateTimeKind.Utc);
+        dateTimeValue.Should().Be(expectedUtcDate);
     }
 }
