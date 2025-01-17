@@ -1,5 +1,7 @@
 import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
 import { optimizeImage } from "next/dist/server/image-optimizer";
+import { parseBoolean } from "../../../lib/utils/type-parsers";
+
 
 const DEFAULT_IMAGE_WIDTH = 800;
 
@@ -38,9 +40,8 @@ export class StorageService {
       throw new Error("imageBuffer is not provided");
     }
 
-    const resizeImagesRawValue =  process.env.RESIZE_IMAGES?.toLowerCase();
-    const resizeImagesParsedValue = resizeImagesRawValue === 'true' || resizeImagesRawValue === '1';
-    const shouldResize = resizeImagesParsedValue === true && contentType.startsWith("image/");
+    const resizeImages = parseBoolean(process.env.RESIZE_IMAGES);
+    const shouldResize = resizeImages && contentType.startsWith('image/');
     if (!shouldResize) {
       return imageBuffer;
     }
