@@ -106,8 +106,8 @@ function FormEditor({
     }
 
     const newCreator = new SurveyCreator(options || defaultCreatorOptions);
-    newCreator.toolbox.changeCategory('video', 'choice');
-    newCreator.toolbox.orderedQuestions = ['file', 'video'];
+
+    SpecializedVideo.customizeEditor(newCreator);
 
     newCreator.applyCreatorTheme(themes.DefaultLight);
     newCreator.JSON = formJson;
