@@ -10,24 +10,11 @@ import MatrixAnswer from './matrix-answer';
 import CommentAnswer from './comment-answer';
 import { FileAnswer } from './file-answer';
 import { QuestionLabel } from '../details/question-label';
+import { QuestionType } from '@/lib/questions';
 
 export interface ViewAnswerProps
   extends React.HtmlHTMLAttributes<HTMLInputElement> {
   forQuestion: Question;
-}
-
-export enum QuestionType {
-  Text = 'text',
-  Boolean = 'boolean',
-  Rating = 'rating',
-  Radiogroup = 'radiogroup',
-  Dropdown = 'dropdown',
-  Ranking = 'ranking',
-  Matrix = 'matrix',
-  Comment = 'comment',
-  File = 'file',
-  Video = 'video',
-  Unsupported = 'unsupported',
 }
 
 const AnswerViewer = ({ forQuestion }: ViewAnswerProps): React.JSX.Element => {

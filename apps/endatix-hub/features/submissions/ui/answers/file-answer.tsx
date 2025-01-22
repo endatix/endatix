@@ -1,7 +1,8 @@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { QuestionFileModel } from "survey-core";
-import { File, FileViewer } from "./file-viewer";
+import { File } from "@/lib/questions/file/file-type";
+import { FileViewer } from "./file-viewer";
 import { MessageSquareText } from "lucide-react";
 import {
   Tooltip,

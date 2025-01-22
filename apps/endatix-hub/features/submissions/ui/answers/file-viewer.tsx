@@ -1,6 +1,8 @@
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { File, FileType, getFileType } from '@/lib/questions/file/file-type';
+import { FileText, FileX2 } from 'lucide-react';
+import Link from 'next/link';
 
 interface FileViewerProps extends React.HTMLAttributes<HTMLDivElement> {
   file: File;
@@ -46,20 +48,20 @@ export function FileViewer({
         )}
         {fileType === FileType.Document && (
           <div className="flex h-[230px] w-[150px] items-center justify-center bg-muted">
-            <p>Document with name {file.name}</p>
+            <FileText className="h-10 w-10" />
+            <Link href={file.content}>Link to file</Link>
           </div>
         )}
         {fileType === FileType.Unknown && (
           <div className="flex h-[230px] w-[150px] items-center justify-center bg-muted">
-            Unknown file type with name {file.name}
+            <FileX2 className="h-10 w-10" />
+            <Link href={file.content}>Link to file</Link>
           </div>
         )}
       </div>
       <div className="space-y-1 text-sm">
         <h3 className="font-medium leading-none">{file.name}</h3>
-        {fileType !== FileType.Unknown && (
-          <p className="text-xs text-muted-foreground">{file.type}</p>
-        )}
+        {file.type && <p className="text-xs text-muted-foreground">{file.type}</p>}
       </div>
     </div>
   );
