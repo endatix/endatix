@@ -1,8 +1,7 @@
 import React from 'react';
 import { Text, View, StyleSheet, Path, Svg } from '@react-pdf/renderer';
-import { Question } from 'survey-core';
+import { Question, QuestionFileModel } from 'survey-core';
 import PdfFileAnswer from './pdf-file-answer';
-import { QuestionFileModelBase } from 'survey-core/typings/packages/survey-core/src/question_file';
 
 export interface ViewAnswerProps {
   forQuestion: Question;
@@ -20,6 +19,7 @@ export enum QuestionType {
   Matrix = 'matrix',
   Comment = 'comment',
   File = 'file',
+  Video = 'video',
   Unsupported = 'unsupported',
 }
 
@@ -144,7 +144,7 @@ const PdfAnswerViewer = ({
       <Text style={styles.questionLabel}>
         {questionTitle}:
       </Text>
-      <PdfFileAnswer question={forQuestion as QuestionFileModelBase} />
+      <PdfFileAnswer question={forQuestion as QuestionFileModel} />
       {forQuestion?.supportComment() &&
         forQuestion?.hasComment &&
         forQuestion?.comment && (
@@ -190,6 +190,7 @@ const PdfAnswerViewer = ({
     case QuestionType.Comment:
       return renderCommentAnswer();
     case QuestionType.File:
+    case QuestionType.Video:
       return renderFileAnswer();
     default:
       return renderUnknownAnswer();
