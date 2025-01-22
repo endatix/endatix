@@ -2,24 +2,15 @@
 
 import { getSubmissionDetailsUseCase } from '@/features/submissions/use-cases/get-submission-details.use-case';
 import { Result } from '@/lib/result';
-import { ComponentCollection, Model } from 'survey-core';
+import { Model } from 'survey-core';
 import { SubmissionProperties } from './submission-properties';
 import AnswerViewer from '../answers/answer-viewer';
 import { SectionTitle } from '@/components/headings/section-title';
 import { BackToSubmissionsButton } from './back-to-submissions-button';
+import { registerSpecializedQuestion } from '@/lib/questions';
+import { SpecializedVideo } from '@/lib/questions/video/specialized-video';
 
-ComponentCollection.Instance.add({
-  name: 'video',
-  title: 'Video',
-  defaultQuestionTitle: 'Video',
-  questionJSON: {
-    type: 'file',
-    title: 'Video Upload',
-    acceptedTypes: 'video/*'
-  },
-  inheritBaseProps: true,
-});
-
+registerSpecializedQuestion(SpecializedVideo);
 async function SubmissionDetails({
   formId,
   submissionId,
