@@ -7,10 +7,7 @@ import { SubmissionProperties } from './submission-properties';
 import AnswerViewer from '../answers/answer-viewer';
 import { SectionTitle } from '@/components/headings/section-title';
 import { BackToSubmissionsButton } from './back-to-submissions-button';
-import { registerSpecializedQuestion } from '@/lib/questions';
-import { SpecializedVideo } from '@/lib/questions/video/specialized-video.question';
 
-registerSpecializedQuestion(SpecializedVideo);
 async function SubmissionDetails({
   formId,
   submissionId,
