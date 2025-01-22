@@ -2,4 +2,4 @@
 export * from './infrastructure/specialized-survey-question';
 
 // export specific questions
-export * from './video/specialized-video';
+export * from './video/specialized-video.question';

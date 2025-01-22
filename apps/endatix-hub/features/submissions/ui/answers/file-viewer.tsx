@@ -1,46 +1,12 @@
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-
-export interface File {
-  content: string;
-  name?: string;
-  type?: string;
-}
+import { File, FileType, getFileType } from '@/lib/questions/file/file-type';
 
 interface FileViewerProps extends React.HTMLAttributes<HTMLDivElement> {
   file: File;
   width?: number;
   height?: number;
   aspectRatio?: 'portrait' | 'square';
-}
-
-export enum FileType {
-  Image = 'image',
-  Video = 'video',
-  Document = 'document',
-  Unknown = 'unknown',
-}
-
-export function getFileType(file: File): FileType {
-  if (!file || !file.content || !file.type) {
-    return FileType.Unknown;
-  }
-
-  const mimeType = file.type.toLowerCase();
-
-  if (mimeType.indexOf('image/') === 0) {
-    return FileType.Image;
-  }
-
-  if (mimeType.indexOf('video/') === 0) {
-    return FileType.Video;
-  }
-
-  if (mimeType.indexOf('application/pdf') === 0) {
-    return FileType.Document;
-  }
-
-  return FileType.Unknown;
 }
 
 export function FileViewer({

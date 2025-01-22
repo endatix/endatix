@@ -8,12 +8,7 @@ import {
   Text,
   View,
 } from '@react-pdf/renderer';
-
-export interface File {
-  content: string;
-  name?: string;
-  type?: string;
-}
+import { File, FileType, getFileType } from '@/lib/questions/file/file-type';
 
 interface FileViewerProps {
   file: File;
@@ -26,27 +21,56 @@ export function PdfFileViewer({
   file,
   aspectRatio = 'portrait',
 }: FileViewerProps): React.ReactElement | null {
-  const isImage = file.type?.includes('image');
-  return isImage ? (
-    <Image
-      src={file.content}
-      style={[
-        styles.image,
-        aspectRatio === 'portrait' ? styles.portrait : styles.square,
-      ]}
-    />
-  ) : (
-    <View style={[styles.portrait, styles.grayBackground]}>
-      <Text>{file?.name}</Text>
-      <Text style={[styles.smallText, styles.mutedText, styles.marginBottom]}>
-        {file.type}
-      </Text>
-      <View style={[styles.flexRow, styles.marginBottom]}>
-        <VideoFileIcon />
-        <Link src={file.content}>Link to file</Link>
-      </View>
-    </View>
-  );
+   const fileType = getFileType(file);
+
+  switch (fileType) {
+    case FileType.Image:
+      return (
+        <Image
+          src={file.content}
+          style={[
+            styles.image,
+            aspectRatio === 'portrait' ? styles.portrait : styles.square,
+          ]}
+        />
+      );
+    case FileType.Video:
+      return (
+        <View style={[styles.portrait, styles.grayBackground]}>
+        <Text>{file?.name}</Text>
+        <Text style={[styles.smallText, styles.mutedText, styles.marginBottom]}>
+          {file.type}
+        </Text>
+        <View style={[styles.flexRow, styles.marginBottom]}>
+          <VideoFileIcon />
+          <Link src={file.content}>Link to file</Link>
+          </View>
+        </View>
+      );
+    case FileType.Document:
+      return (
+        <View style={[styles.portrait, styles.grayBackground]}>
+        <Text>{file?.name}</Text>
+        <Text style={[styles.smallText, styles.mutedText, styles.marginBottom]}>
+          {file.type}
+        </Text>
+        <View style={[styles.flexRow, styles.marginBottom]}>
+          <Link src={file.content}>Link to file</Link>
+          </View>
+        </View>
+      );
+    case FileType.Unknown:
+    default:
+      return (
+        <View style={[styles.flexColumn, styles.grayBackground]}>
+          <Text>Unknown file type: {file.name}</Text>
+          <Text style={[styles.smallText, styles.mutedText, styles.marginBottom]}>
+          {file.type}
+        </Text>
+          <Link src={file.content}>Link to file</Link>
+        </View>
+      );
+  }
 }
 
 const VideoFileIcon = () => (
