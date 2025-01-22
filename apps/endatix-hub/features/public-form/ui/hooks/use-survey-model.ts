@@ -1,6 +1,27 @@
 import { useMemo, useEffect } from "react";
-import { Model } from "survey-core";
+import { ComponentCollection, Model } from "survey-core";
 import { Submission } from "@/types";
+
+ComponentCollection.Instance.add({
+  name: 'video',
+  title: 'Video',
+  iconName: 'icon-preview-24x24',
+  defaultQuestionTitle: 'Video',
+  questionJSON: {
+    type: 'file',
+    title: 'Video Upload',
+    description: 'Upload existing video ',
+    acceptedTypes: 'video/*',
+    storeDataAsText: false,
+    waitForUpload: true,
+    maxSize: 150000000,
+    needConfirmRemoveFile: true,
+    fileOrPhotoPlaceholder:
+      'Drag and drop or select a video file to upload. Up to 150 MB',
+    filePlaceholder: 'Drag and drop a video file or click "Select File"',
+  },
+  inheritBaseProps: true,
+});
 
 export function useSurveyModel(definition: string, submission?: Submission) {
   // Create survey model only when definition changes
