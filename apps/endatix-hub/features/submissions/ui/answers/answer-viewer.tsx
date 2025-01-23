@@ -1,37 +1,24 @@
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import React from "react";
-import { Question } from "survey-core";
-import RatingAnswer from "./rating-answer";
-import RadioGroupAnswer from "./radiogroup-answer";
-import DropdownAnswer from "./dropdown-answer";
-import RankingAnswer from "./ranking-answer";
-import MatrixAnswer from "./matrix-answer";
-import CommentAnswer from "./comment-answer";
-import { FileAnswer } from "./file-answer";
-import { QuestionFileModelBase } from "survey-core/typings/packages/survey-core/src/question_file";
-import { QuestionLabel } from "../details/question-label";
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import React from 'react';
+import { Question, QuestionFileModel } from 'survey-core';
+import RatingAnswer from './rating-answer';
+import RadioGroupAnswer from './radiogroup-answer';
+import DropdownAnswer from './dropdown-answer';
+import RankingAnswer from './ranking-answer';
+import MatrixAnswer from './matrix-answer';
+import CommentAnswer from './comment-answer';
+import { FileAnswer } from './file-answer';
+import { QuestionLabel } from '../details/question-label';
+import { QuestionType } from '@/lib/questions';
 
 export interface ViewAnswerProps
   extends React.HtmlHTMLAttributes<HTMLInputElement> {
   forQuestion: Question;
 }
 
-export enum QuestionType {
-  Text = "text",
-  Boolean = "boolean",
-  Rating = "rating",
-  Radiogroup = "radiogroup",
-  Dropdown = "dropdown",
-  Ranking = "ranking",
-  Matrix = "matrix",
-  Comment = "comment",
-  File = "file",
-  Unsupported = "unsupported",
-}
-
 const AnswerViewer = ({ forQuestion }: ViewAnswerProps): React.JSX.Element => {
-  const questionType = forQuestion.getType() ?? "unsupported";
+  const questionType = forQuestion.getType() ?? 'unsupported';
 
   const renderTextAnswer = () => (
     <>
@@ -98,7 +85,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps): React.JSX.Element => {
     <>
       <QuestionLabel forQuestion={forQuestion} />
       <FileAnswer
-        question={forQuestion as QuestionFileModelBase}
+        question={forQuestion as QuestionFileModel}
         className="col-span-3"
       />
     </>
@@ -107,7 +94,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps): React.JSX.Element => {
   const renderUnknownAnswer = () => (
     <>
       <QuestionLabel forQuestion={forQuestion} />
-      <p className="col-span-3">{forQuestion.value?.toString() ?? "-"}</p>
+      <p className="col-span-3">{forQuestion.value?.toString() ?? '-'}</p>
     </>
   );
 
@@ -129,6 +116,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps): React.JSX.Element => {
     case QuestionType.Comment:
       return renderCommentAnswer();
     case QuestionType.File:
+    case QuestionType.Video:
       return renderFileAnswer();
     default:
       return renderUnknownAnswer();
