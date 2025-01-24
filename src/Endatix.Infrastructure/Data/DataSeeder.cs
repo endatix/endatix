@@ -12,6 +12,18 @@ namespace Endatix.Infrastructure.Data;
 public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerator)
 {
     /// <summary>
+    /// Synchronous version of the seeder, existing because EF Core requires both sync and async seeding methods.
+    /// This implementation is safe in the migration/startup context where there's no synchronization context.
+    /// For general seeding, prefer using the async version <see cref="SeedSampleDataAsync"/>.
+    /// </summary>
+    /// <param name="dbContext">The DbContext instance to use for database operations.</param>
+    public void SeedSampleData(DbContext dbContext)
+    {
+        SeedSampleDataAsync(dbContext, CancellationToken.None)
+            .Wait();
+    }
+
+    /// <summary>
     /// This method seeds the database with sample data for demonstration purposes. It leverages the EF Core <see cref="DbContextOptionsBuilder.UseAsyncSeeding(Func{DbContext, CancellationToken, Task})"/> method for asynchronous seeding. For a comprehensive overview, refer to https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding#configuration-options-useseeding-and-useasyncseeding-methods
     /// </summary>
     /// <param name="dbContext">The DbContext instance to use for database operations.</param>

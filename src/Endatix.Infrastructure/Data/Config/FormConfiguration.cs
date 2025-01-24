@@ -9,6 +9,8 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
     {
         builder.ToTable("Forms");
 
+        builder.HasQueryFilter(f => !f.IsDeleted);
+
         builder.Property(f => f.Id)
             .IsRequired();
 

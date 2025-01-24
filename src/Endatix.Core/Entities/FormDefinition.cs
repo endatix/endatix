@@ -40,4 +40,19 @@ public partial class FormDefinition : BaseEntity, IAggregateRoot
     {
         IsDraft = isDraft ?? IsDraft;
     }
+
+    public override void Delete()
+    {
+        if (!IsDeleted)
+        {
+            // Delete all related submissions
+            foreach (var submission in _submissions)
+            {
+                submission.Delete();
+            }
+
+            // Delete the form definition itself
+            base.Delete();
+        }
+    }
 }
