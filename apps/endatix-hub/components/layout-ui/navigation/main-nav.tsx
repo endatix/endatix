@@ -3,12 +3,12 @@ import {
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from "@/components/ui/tooltip";
-import Image from "next/image";
-import NavLink from "./nav-link";
-import { sitemap } from "@/lib/constants";
-import { SitemapService } from "@/services/sitemap-service";
-import EndatixLogoSvg from "@/public/assets/icons/icon.svg";
+} from '@/components/ui/tooltip';
+import Image from 'next/image';
+import NavLink from './nav-link';
+import { sitemap } from '@/lib/constants';
+import { SitemapService } from '@/services/sitemap-service';
+import EndatixLogoSvg from '@/public/assets/icons/icon.svg';
 
 const MainNav = () => {
   const logo = SitemapService.getLogo();
@@ -42,14 +42,9 @@ const MainNav = () => {
         ))}
       </nav>
       <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-        <Tooltip>
-          <TooltipTrigger asChild={false}>
-            <NavLink path={settingsNavItem.path} text={settingsNavItem.text}>
-              <settingsNavItem.IconType className="h-6 w-6" />
-            </NavLink>
-          </TooltipTrigger>
-          <TooltipContent side="right">{settingsNavItem.text}</TooltipContent>
-        </Tooltip>
+        <NavLink path={settingsNavItem.path} text={settingsNavItem.text}>
+          <settingsNavItem.IconType className="h-6 w-6" />
+        </NavLink>
       </nav>
     </TooltipProvider>
   );
