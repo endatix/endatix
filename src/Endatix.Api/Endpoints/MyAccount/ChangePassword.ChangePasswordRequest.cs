@@ -1,4 +1,4 @@
-namespace Endatix.Api.Endpoints.Account;
+namespace Endatix.Api.Endpoints.MyAccount;
 
 /// <summary>
 /// Request model for changing a password

@@ -340,3 +340,36 @@ export const getSubmission = async (formId: string, submissionId: string): Promi
 
   return response.json();
 }
+
+export const changePassword = async (currentPassword: string, newPassword: string, confirmPassword: string): Promise<string> => {
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    throw new Error("Current password, new password or confirm password is required");
+  }
+
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .provideJson()
+    .build();
+
+  const response = await fetch(
+    `${API_BASE_URL}/my-account/change-password`,
+    {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to change password");
+  }
+
+  return response.json();
+}

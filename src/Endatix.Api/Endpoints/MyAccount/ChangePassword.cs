@@ -2,10 +2,10 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Identity.ChangePassword;
+using Endatix.Core.UseCases.MyAccount.ChangePassword;
 using Endatix.Infrastructure.Identity.Authorization;
 
-namespace Endatix.Api.Endpoints.Account;
+namespace Endatix.Api.Endpoints.MyAccount;
 
 /// <summary>
 /// Endpoint for changing a user's password
@@ -17,7 +17,7 @@ public class ChangePassword(IMediator mediator) : Endpoint<ChangePasswordRequest
     /// </summary>
     public override void Configure()
     {
-        Post("account/change-password");
+        Post("my-account/change-password");
         Permissions(Allow.AllowAll);
         Summary(s =>
         {

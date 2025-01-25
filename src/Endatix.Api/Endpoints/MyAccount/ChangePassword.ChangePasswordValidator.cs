@@ -2,7 +2,7 @@ using FastEndpoints;
 using FluentValidation;
 using Endatix.Api.Common.Security;
 
-namespace Endatix.Api.Endpoints.Account;
+namespace Endatix.Api.Endpoints.MyAccount;
 
 public class ChangePasswordValidator : Validator<ChangePasswordRequest>
 {

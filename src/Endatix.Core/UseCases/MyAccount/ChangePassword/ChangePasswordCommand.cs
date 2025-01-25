@@ -2,7 +2,7 @@ using System.Security.Claims;
 using MediatR;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Core.UseCases.Identity.ChangePassword;
+namespace Endatix.Core.UseCases.MyAccount.ChangePassword;
 
 /// <summary>
 /// Command to change a user's password

@@ -1,10 +1,8 @@
 using MediatR;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Identity.ChangePassword;
 using Endatix.Core.Abstractions;
-using Microsoft.Extensions.Logging;
 
-namespace Endatix.Core.UseCases.Account.ChangePassword;
+namespace Endatix.Core.UseCases.MyAccount.ChangePassword;
 
 /// <summary>
 /// Handles the change password command

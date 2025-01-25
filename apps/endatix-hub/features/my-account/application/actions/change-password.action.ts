@@ -1,5 +1,6 @@
 'use server';
 
+import { changePassword } from '@/services/api';
 import { z } from 'zod';
 
 export interface ChangePasswordState {
@@ -50,13 +51,17 @@ export const changePasswordAction = async (
 
   const { currentPassword, newPassword, confirmPassword } = validatedFields.data;
 
-  console.log(`currentPassword is ${currentPassword}`);
-  console.log(`newPassword is ${newPassword}`);
-  console.log(`confirmPassword is ${confirmPassword}`);
-
-  return {
-    success: true,
-    errors: {},
-    errorMessage: '',
-  };
+  try {
+    await changePassword(currentPassword, newPassword, confirmPassword);
+    return {
+      success: true,
+      errors: {},
+      errorMessage: '',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      errorMessage: 'Failed to change password. Error: ' + error,
+    };
+  }
 };

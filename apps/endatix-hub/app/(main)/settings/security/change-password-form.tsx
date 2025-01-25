@@ -10,6 +10,8 @@ import {
   ChangePasswordState,
 } from '@/features/my-account/application/actions';
 import { FormErrorMessage } from '@/components/forms/form-error-message';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { CheckIcon } from 'lucide-react';
 
 export function ChangePasswordForm() {
   const [state, formAction, isPending] = useActionState<
@@ -19,11 +21,25 @@ export function ChangePasswordForm() {
     success: false,
   });
 
+  if (state.success) {
+    return (
+      <Alert variant="default">
+        <AlertTitle className="flex items-center gap-2">
+          <CheckIcon className="h-4 w-4" />
+          Success
+        </AlertTitle>
+        <AlertDescription>
+          Your password has been changed successfully.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
-    <form action={formAction} className="space-y-8">
+    <form action={formAction} className="space-y-8 mt-8">
       <div className="grid gap-6">
         <div className="grid gap-2">
-          <Label htmlFor="current">Current Password</Label>
+          <Label htmlFor="currentPassword">Current Password</Label>
           <Input
             id="currentPassword"
             name="currentPassword"
@@ -41,7 +57,7 @@ export function ChangePasswordForm() {
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="new">New Password</Label>
+          <Label htmlFor="newPassword">New Password</Label>
           <Input
             id="newPassword"
             name="newPassword"
@@ -57,7 +73,7 @@ export function ChangePasswordForm() {
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="confirm">Confirm Password</Label>
+          <Label htmlFor="confirmPassword">Confirm Password</Label>
           <Input
             id="confirmPassword"
             name="confirmPassword"
