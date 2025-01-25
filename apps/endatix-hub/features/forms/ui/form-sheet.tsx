@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from "@/components/ui/button"
-import { Copy, Link2, List, Pencil } from 'lucide-react';
+import { Copy, Link2, List, Pencil, MoreHorizontal, Trash2, AlertTriangle } from 'lucide-react';
 import {
     Sheet,
     SheetContent,
@@ -20,11 +20,105 @@ import { updateFormStatusAction } from "../../../app/(main)/forms/[formId]/updat
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { deleteFormAction } from "../application/actions/delete-form.action";
+import { Result } from "@/lib/result";
+import { useRouter } from "next/navigation";
 
 interface FormSheetProps extends React.ComponentPropsWithoutRef<typeof Sheet> {
     selectedForm: Form | null,
     enableEditing?: boolean
 }
+
+interface DeleteFormDialogProps {
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    formName: string;
+    submissionsCount: number;
+    onDelete: () => Promise<void>;
+}
+
+const DeleteFormDialog = ({
+    isOpen,
+    onOpenChange,
+    formName,
+    submissionsCount,
+    onDelete,
+}: DeleteFormDialogProps) => {
+    const [formNameInput, setFormNameInput] = useState("");
+
+    const handleOpenChange = (open: boolean) => {
+        onOpenChange(open);
+        if (!open) {
+            setFormNameInput("");
+        }
+    };
+
+    const handleDeleteClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (formNameInput !== formName) {
+            toast.error("Form name doesn't match");
+            return;
+        }
+        onDelete();
+    };
+
+    return (
+        <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>
+                        Are you sure you want to delete form <strong>{formName}</strong>?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-4 mb-1">
+                        <span className="flex items-center gap-2 text-destructive font-medium">
+                            <AlertTriangle className="h-4 w-4" />
+                            This action will permanently delete the form, all its definitions and submissions, and cannot be undone.
+                        </span>
+                        <span className="block text-sm">
+                            <strong>{formName}</strong> has <strong>{submissionsCount}</strong> submissions.
+                        </span>
+                        <span className="block text-sm">
+                            To confirm, type the name of the form below:
+                        </span>
+                    </AlertDialogDescription>
+                    <Input
+                        type="text"
+                        placeholder={`Type "${formName}"`}
+                        value={formNameInput}
+                        onChange={(e) => setFormNameInput(e.target.value)}
+                        className="w-full mt-1"
+                    />
+                </AlertDialogHeader>
+                
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                        onClick={handleDeleteClick}
+                        className="bg-destructive hover:bg-destructive/90"
+                    >
+                        Delete Form
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+};
 
 const FormSheet = ({
     selectedForm,
@@ -33,6 +127,9 @@ const FormSheet = ({
 }: FormSheetProps) => {
     const [pending, startTransition] = useTransition();
     const [isEnabled, setIsEnabled] = useState(selectedForm?.isEnabled);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const router = useRouter();
 
     if (!selectedForm) {
         return null;
@@ -75,6 +172,36 @@ const FormSheet = ({
         toast("Copied to clipboard")
     }
 
+    const handleDialogOpenChange = (open: boolean) => {
+        setIsDialogOpen(open);
+    };
+
+    const handleDelete = async () => {
+        startTransition(async () => {
+            try {
+                const result = await deleteFormAction(selectedForm.id);
+                if (Result.isSuccess(result)) {
+                    toast.success(<>Form <strong>{selectedForm.name}</strong> deleted successfully</>);
+                    setIsDialogOpen(false);
+                    props.onOpenChange?.(false);
+                    setTimeout(() => {
+                        router.push('/forms');
+                        router.refresh();
+                    }, 1000);
+                } else {
+                    toast.error("Failed to delete form");
+                }
+            } catch (error) {
+                toast.error("Failed to delete form");
+            }
+        });
+    };
+
+    const handleOpenDeleteDialog = () => {
+        setIsDropdownOpen(false);
+        setIsDialogOpen(true);
+    };
+
     return (
         selectedForm && (
             <Sheet {...props}>
@@ -101,14 +228,39 @@ const FormSheet = ({
                                 Share
                             </Link>
                         </Button>
-
                         <Button variant={"outline"} asChild>
                             <Link href={`forms/${selectedForm.id}/submissions`}>
                                 <List className="w-4 h-4 mr-1" />
                                 Submissions
                             </Link>
                         </Button>
+                        <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">More options</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                    className="text-destructive cursor-pointer"
+                                    onClick={handleOpenDeleteDialog}
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
+
+                    <DeleteFormDialog
+                        isOpen={isDialogOpen}
+                        onOpenChange={handleDialogOpenChange}
+                        formName={selectedForm.name}
+                        submissionsCount={selectedForm.submissionsCount || 0}
+                        onDelete={handleDelete}
+                    />
+
                     <div className="grid gap-2 py-4">
                         <div className="grid grid-cols-4 py-2 items-center gap-4">
                             <span className="text-right self-start">
@@ -190,8 +342,8 @@ const FormSheet = ({
                     </div>
                     <SheetFooter>
                     </SheetFooter>
-                </SheetContent >
-            </Sheet >
+                </SheetContent>
+            </Sheet>
         )
     );
 }
