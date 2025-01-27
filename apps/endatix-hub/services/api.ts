@@ -56,7 +56,7 @@ export const createForm = async (
 };
 
 export const getForms = async (): Promise<Form[]> => {
-  let session = await getSession();
+  const session = await getSession();
   const headers = new HeaderBuilder().withAuth(session).build();
 
   const response = await fetch(`${API_BASE_URL}/forms?pageSize=100`, {
@@ -99,7 +99,7 @@ export const updateForm = async (
   formId: string,
   data: { name?: string; isEnabled?: boolean }
 ): Promise<void> => {
-  let session = await getSession();
+  const session = await getSession();
   const headers = new HeaderBuilder()
     .withAuth(session)
     .acceptJson()
@@ -336,6 +336,39 @@ export const getSubmission = async (formId: string, submissionId: string): Promi
 
   if (!response.ok) {
     throw new Error("Failed to fetch submission");
+  }
+
+  return response.json();
+}
+
+export const changePassword = async (currentPassword: string, newPassword: string, confirmPassword: string): Promise<string> => {
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    throw new Error("Current password, new password or confirm password is required");
+  }
+
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .provideJson()
+    .build();
+
+  const response = await fetch(
+    `${API_BASE_URL}/my-account/change-password`,
+    {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to change password");
   }
 
   return response.json();

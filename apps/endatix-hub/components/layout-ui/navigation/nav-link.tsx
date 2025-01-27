@@ -24,7 +24,7 @@ const NavLink = ({
 }: NavLinkProps) => {
   const currentPath = usePathname();
 
-  const ALLOWED_PAGES = ["/", "/forms"];
+  const ALLOWED_PAGES = ["/", "/forms", "/settings/security"];
 
   const isActive = useMemo(() => {
     if (!setIsActive || !path.startsWith("/")) {
