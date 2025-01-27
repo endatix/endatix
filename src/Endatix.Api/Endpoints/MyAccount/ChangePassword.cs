@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Errors = Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.MyAccount.ChangePassword;
@@ -10,7 +11,7 @@ namespace Endatix.Api.Endpoints.MyAccount;
 /// <summary>
 /// Endpoint for changing a user's password
 /// </summary>
-public class ChangePassword(IMediator mediator) : Endpoint<ChangePasswordRequest, Results<Ok<ChangePasswordResponse>, BadRequest>>
+public class ChangePassword(IMediator mediator) : Endpoint<ChangePasswordRequest, Results<Ok<ChangePasswordResponse>, BadRequest<Errors.ProblemDetails>>>
 {
     /// <summary>
     /// Configures the endpoint settings for the password change functionality.
@@ -33,7 +34,7 @@ public class ChangePassword(IMediator mediator) : Endpoint<ChangePasswordRequest
     /// </summary>
     /// <param name="request">The password change request containing the current and new password</param>
     /// <param name="cancellationToken">Cancellation token for the async operation</param>
-    public override async Task<Results<Ok<ChangePasswordResponse>, BadRequest>> ExecuteAsync(ChangePasswordRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<ChangePasswordResponse>, BadRequest<Errors.ProblemDetails>>> ExecuteAsync(ChangePasswordRequest request, CancellationToken cancellationToken)
     {
         var changePasswordCmd = new ChangePasswordCommand(
             User,
@@ -45,6 +46,6 @@ public class ChangePassword(IMediator mediator) : Endpoint<ChangePasswordRequest
 
         return TypedResultsBuilder
             .MapResult(result, message => new ChangePasswordResponse(message))
-            .SetTypedResults<Ok<ChangePasswordResponse>, BadRequest>();
+            .SetTypedResults<Ok<ChangePasswordResponse>, BadRequest<Errors.ProblemDetails>>();
     }
 }

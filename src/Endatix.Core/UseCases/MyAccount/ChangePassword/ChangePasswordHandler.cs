@@ -19,17 +19,18 @@ public class ChangePasswordHandler(IUserService userService) : IRequestHandler<C
     {
         var userResult = await userService.GetUserAsync(request.User, cancellationToken);
 
-        if (userResult.IsSuccess && userResult.Value is { } user)
+        if (!userResult.IsSuccess || userResult.Value is not { } user)
         {
-            // Leave this for testing purposes. It's for debugging purposes.
-            if (string.IsNullOrEmpty(request.CurrentPassword))
-            {
-                return await userService.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword, cancellationToken);
-            }
+            return Result.Invalid(new ValidationError("User not found"));
+        }
 
+        var changePasswordResult = await userService.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword, cancellationToken);
+
+        if (changePasswordResult.IsSuccess)
+        {
             return Result.Success("Password changed successfully");
         }
 
-        return Result.Error("User not found");
+        return Result.Invalid(new ValidationError(changePasswordResult.Errors?.First() ?? "Failed to change password"));
     }
 }

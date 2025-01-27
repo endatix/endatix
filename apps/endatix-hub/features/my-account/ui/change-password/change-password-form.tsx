@@ -44,6 +44,7 @@ function ChangePasswordForm() {
             id="currentPassword"
             name="currentPassword"
             type="password"
+            autoComplete="current-password"
             placeholder="Enter your current password"
           />
           <p className="text-sm text-muted-foreground">
@@ -62,6 +63,7 @@ function ChangePasswordForm() {
             id="newPassword"
             name="newPassword"
             type="password"
+            autoComplete="new-password"
             placeholder="Enter your new password"
           />
           <p className="text-sm text-muted-foreground">
@@ -78,6 +80,7 @@ function ChangePasswordForm() {
             id="confirmPassword"
             name="confirmPassword"
             type="password"
+            autoComplete="new-password"
             placeholder="Confirm your new password"
           />
           <p className="text-sm text-muted-foreground">

@@ -56,7 +56,7 @@ export const createForm = async (
 };
 
 export const getForms = async (): Promise<Form[]> => {
-  let session = await getSession();
+  const session = await getSession();
   const headers = new HeaderBuilder().withAuth(session).build();
 
   const response = await fetch(`${API_BASE_URL}/forms?pageSize=100`, {
@@ -99,7 +99,7 @@ export const updateForm = async (
   formId: string,
   data: { name?: string; isEnabled?: boolean }
 ): Promise<void> => {
-  let session = await getSession();
+  const session = await getSession();
   const headers = new HeaderBuilder()
     .withAuth(session)
     .acceptJson()
