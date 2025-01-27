@@ -8,7 +8,7 @@ import { useActionState } from "react";
 import { loginAction } from "../application/actions/login.action";
 import { showComingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
 import { Spinner } from "@/components/loaders/spinner";
-import { FormErrorMessage } from '@/components/forms/form-error-message';
+import { ErrorMessage } from '@/components/forms/error-message';
 
 const LoginForm = () => {
   const [state, formAction, isPending] = useActionState(loginAction, null);
@@ -32,7 +32,7 @@ const LoginForm = () => {
             required
           />
         </div>
-        {state?.errors?.email && <FormErrorMessage message={state.errors.email.toString()} />}
+        {state?.errors?.email && <ErrorMessage message={state.errors.email.toString()} />}
         <div className="grid gap-2">
           <div className="flex items-center">
             <Label htmlFor="password">Password</Label>
@@ -47,7 +47,7 @@ const LoginForm = () => {
           <Input id="password" type="password" name="password" required />
         </div>
         {state?.errors?.password && (
-          <FormErrorMessage message={`Password must ${state.errors.password}`} />
+          <ErrorMessage message={`Password must ${state.errors.password}`} />
         )}
         <Button type="submit" className="w-full" disabled={isPending}>
           {isPending && (
@@ -56,7 +56,7 @@ const LoginForm = () => {
           Login
         </Button>
       </div>
-      {state?.errorMessage && <FormErrorMessage message={state.errorMessage} />}
+      {state?.errorMessage && <ErrorMessage message={state.errorMessage} />}
     </form>
   );
 };

@@ -9,11 +9,11 @@ import {
   changePasswordAction,
   ChangePasswordState,
 } from '@/features/my-account/application/actions';
-import { FormErrorMessage } from '@/components/forms/form-error-message';
+import { ErrorMessage } from '@/components/forms/error-message';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckIcon } from 'lucide-react';
 
-export function ChangePasswordForm() {
+function ChangePasswordForm() {
   const [state, formAction, isPending] = useActionState<
     ChangePasswordState,
     FormData
@@ -50,7 +50,7 @@ export function ChangePasswordForm() {
             Enter your current password to verify it&apos;s you
           </p>
           {state?.errors?.currentPassword && (
-            <FormErrorMessage
+            <ErrorMessage
               message={state.errors.currentPassword.toString()}
             />
           )}
@@ -68,7 +68,7 @@ export function ChangePasswordForm() {
             Password must be at least 8 characters long
           </p>
           {state?.errors?.newPassword && (
-            <FormErrorMessage message={state.errors.newPassword.toString()} />
+            <ErrorMessage message={state.errors.newPassword.toString()} />
           )}
         </div>
 
@@ -84,7 +84,7 @@ export function ChangePasswordForm() {
             Re-enter your new password to confirm
           </p>
           {state?.errors?.confirmPassword && (
-            <FormErrorMessage
+            <ErrorMessage
               message={state.errors.confirmPassword.toString()}
             />
           )}
@@ -102,7 +102,9 @@ export function ChangePasswordForm() {
         )}
       </Button>
 
-      {state?.errorMessage && <FormErrorMessage message={state.errorMessage} />}
+      {state?.errorMessage && <ErrorMessage message={state.errorMessage} />}
     </form>
   );
 }
+
+export { ChangePasswordForm };

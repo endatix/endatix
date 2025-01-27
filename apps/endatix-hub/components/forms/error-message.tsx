@@ -1,11 +1,11 @@
 import { cn } from '@/lib/utils';
 import * as React from 'react';
 
-export interface ErrorMessageProps extends React.HTMLAttributes<HTMLParagraphElement> {
+interface ErrorMessageProps extends React.HTMLAttributes<HTMLParagraphElement> {
   message: string;
 }
 
-export const FormErrorMessage = React.forwardRef<HTMLParagraphElement, ErrorMessageProps>(
+const ErrorMessage = React.forwardRef<HTMLParagraphElement, ErrorMessageProps>(
   ({ className, message, ...props }, ref) => {
     if (!message) {
       return null;
@@ -23,4 +23,6 @@ export const FormErrorMessage = React.forwardRef<HTMLParagraphElement, ErrorMess
   }
 );
 
-FormErrorMessage.displayName = 'FormErrorMessage';
+ErrorMessage.displayName = 'FormErrorMessage';
+
+export { ErrorMessage, type ErrorMessageProps };

@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
 import React from 'react';
 
-export function ChangePassword() {
+function ChangePassword() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -61,3 +61,5 @@ const ChangePasswordButton = React.forwardRef<
 });
 
 ChangePasswordButton.displayName = 'ChangePasswordButton';
+
+export { ChangePassword };
