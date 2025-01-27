@@ -23,7 +23,7 @@ export function RowActions<TData>({
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="text-gray-600" align="start">
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { redirect(`/forms/${item.formId}/${item.id}/edit`) }}>
                     <FilePenLine className="w-4 h-4 mr-2" />
                     <span>Edit</span>
                 </DropdownMenuItem>

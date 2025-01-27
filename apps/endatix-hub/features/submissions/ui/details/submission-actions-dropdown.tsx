@@ -14,6 +14,7 @@ import {
     Sparkles,
     Trash2
 } from "lucide-react"
+import { redirect } from "next/navigation"
 
 interface SubmissionActionsDropdownProps extends ButtonProps {
     submissionId: string
