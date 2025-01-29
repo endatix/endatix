@@ -1,15 +1,15 @@
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
-import { QuestionFileModel } from "survey-core";
-import { File } from "@/lib/questions/file/file-type";
-import { FileViewer } from "./file-viewer";
-import { MessageSquareText } from "lucide-react";
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { QuestionFileModel } from 'survey-core';
+import { File } from '@/lib/questions/file/file-type';
+import { FileViewer } from './file-viewer';
+import { MessageSquareText } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/tooltip';
 interface FileAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
   question: QuestionFileModel;
 }
@@ -18,13 +18,13 @@ export function FileAnswer({ question, className, ...props }: FileAnswerProps) {
   const files = question?.value as File[];
 
   return (
-    <div className={cn("col-span-5", className)} {...props}>
+    <div className={cn('col-span-5', className)} {...props}>
       <ScrollArea>
         <div className="flex items-center justify-start text-sm space-x-4 pb-1">
           {files &&
-            files.map((file) => (
+            files.map((file, index) => (
               <FileViewer
-                key={file.name}
+                key={index}
                 file={file}
                 className="w-max-[250px]"
                 aspectRatio="portrait"
