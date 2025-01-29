@@ -1,26 +1,14 @@
 import React from 'react';
-import { Text, View, StyleSheet, Path, Svg } from '@react-pdf/renderer';
-import { Question } from 'survey-core';
+import { Text, View, StyleSheet } from '@react-pdf/renderer';
+import { Question, QuestionFileModel } from 'survey-core';
 import PdfFileAnswer from './pdf-file-answer';
-import { QuestionFileModelBase } from 'survey-core/typings/packages/survey-core/src/question_file';
+import { QuestionType } from '@/lib/questions';
+import { MessageSquareTextIcon } from '@/features/pdf-export/components/icons';
 
 export interface ViewAnswerProps {
   forQuestion: Question;
   panelTitle: string;
   pageBreak: boolean;
-}
-
-export enum QuestionType {
-  Text = 'text',
-  Boolean = 'boolean',
-  Rating = 'rating',
-  Radiogroup = 'radiogroup',
-  Dropdown = 'dropdown',
-  Ranking = 'ranking',
-  Matrix = 'matrix',
-  Comment = 'comment',
-  File = 'file',
-  Unsupported = 'unsupported',
 }
 
 const PdfAnswerViewer = ({
@@ -113,38 +101,12 @@ const PdfAnswerViewer = ({
     </View>
   );
 
-  const MessageSquareTextIcon = () => (
-    <Svg style={styles.icon}>
-      <Path
-        d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-        stroke="currentColor"
-        strokeWidth={2}
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-      <Path
-        d="M13 8H7"
-        stroke="currentColor"
-        strokeWidth={2}
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-      <Path
-        d="M17 12H7"
-        stroke="currentColor"
-        strokeWidth={2}
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </Svg>
-  );
-
   const renderFileAnswer = () => (
     <View style={styles.fileAnswerContainer} break={pageBreak} wrap={false}>
       <Text style={styles.questionLabel}>
         {questionTitle}:
       </Text>
-      <PdfFileAnswer question={forQuestion as QuestionFileModelBase} />
+      <PdfFileAnswer question={forQuestion as QuestionFileModel} />
       {forQuestion?.supportComment() &&
         forQuestion?.hasComment &&
         forQuestion?.comment && (
@@ -190,13 +152,14 @@ const PdfAnswerViewer = ({
     case QuestionType.Comment:
       return renderCommentAnswer();
     case QuestionType.File:
+    case QuestionType.Video:
       return renderFileAnswer();
     default:
       return renderUnknownAnswer();
   }
 };
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   fileAnswerContainer: {
     marginBottom: 8,
     padding: 8,

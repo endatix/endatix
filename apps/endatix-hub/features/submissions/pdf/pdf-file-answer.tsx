@@ -1,10 +1,10 @@
 import React from "react";
 import { View, Text, StyleSheet } from "@react-pdf/renderer";
-import { PdfFileViewer, File } from "./pdf-file-viewer";
-import { QuestionFileModelBase } from "survey-core/typings/packages/survey-core/src/question_file";
-
+import { PdfFileViewer } from "./pdf-file-viewer";
+import { QuestionFileModel } from "survey-core";
+import { File } from "@/lib/questions/file/file-type";
 interface FileAnswerProps {
-  question: QuestionFileModelBase;
+  question: QuestionFileModel;
 }
 
 export function PdfFileAnswer({ question }: FileAnswerProps): React.ReactElement {
@@ -18,7 +18,6 @@ export function PdfFileAnswer({ question }: FileAnswerProps): React.ReactElement
             <PdfFileViewer
               key={index}
               file={file}
-              question={question}
               width={150}
               height={200}
               aspectRatio="portrait"

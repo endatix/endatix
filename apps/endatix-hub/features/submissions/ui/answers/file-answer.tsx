@@ -1,7 +1,8 @@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { QuestionFileModelBase } from "survey-core/typings/packages/survey-core/src/question_file";
-import { File, FileViewer } from "./file-viewer";
+import { QuestionFileModel } from "survey-core";
+import { File } from "@/lib/questions/file/file-type";
+import { FileViewer } from "./file-viewer";
 import { MessageSquareText } from "lucide-react";
 import {
   Tooltip,
@@ -10,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 interface FileAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
-  question: QuestionFileModelBase;
+  question: QuestionFileModel;
 }
 
 export function FileAnswer({ question, className, ...props }: FileAnswerProps) {
@@ -25,7 +26,6 @@ export function FileAnswer({ question, className, ...props }: FileAnswerProps) {
               <FileViewer
                 key={file.name}
                 file={file}
-                question={question}
                 className="w-max-[250px]"
                 aspectRatio="portrait"
                 width={250}

@@ -4,6 +4,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { getSession } from "@/lib/auth-service"
 import LogoutButton from "./logout-button"
 import UserAvatar from "@/components/user/user-avatar"
+import Link from 'next/link'
 
 const MyAccountDropdown: React.FC = async () => {
     const sessionData = await getSession();
@@ -33,7 +34,9 @@ const LoggedInUserOptions = () => (
     <>
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>Settings</DropdownMenuItem>
+        <DropdownMenuItem>
+            <Link href="/settings/security">Settings</Link>
+        </DropdownMenuItem>
         <DropdownMenuItem>Support</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem>
