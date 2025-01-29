@@ -1,9 +1,9 @@
 'use server'
 
 import { cookies } from 'next/headers';
-import { createSubmission, updateSubmission } from '@/services/api';
+import { createSubmissionPublic, updateSubmissionPublic } from '@/services/api';
 import { Result } from '@/lib/result';
-import { FormTokenCookieStore } from '../../../../features/public-form/infrastructure/cookie-store';
+import { FormTokenCookieStore } from '@/features/public-form/infrastructure/cookie-store';
 
 export type SubmissionData = {
     isComplete?: boolean;
@@ -48,7 +48,7 @@ async function updateExistingSubmissionViaToken(
     tokenStore: FormTokenCookieStore
 ): Promise<Result<SubmissionOperation>> {
     try {
-        const updatedSubmission = await updateSubmission(formId, token, submissionData);
+        const updatedSubmission = await updateSubmissionPublic(formId, token, submissionData);
         if (updatedSubmission.isComplete) {
             tokenStore.deleteToken(formId);
         }
@@ -65,7 +65,7 @@ async function createNewSubmission(
     tokenStore: FormTokenCookieStore
 ): Promise<Result<SubmissionOperation>> {
     try {
-        const createSubmissionResponse = await createSubmission(formId, submissionData);
+        const createSubmissionResponse = await createSubmissionPublic(formId, submissionData);
         if (createSubmissionResponse.isComplete) {
             tokenStore.deleteToken(formId);
         } else {

@@ -1,6 +1,6 @@
 import { Submission } from "@/types";
 import { FormTokenCookieStore } from "../infrastructure/cookie-store";
-import { getPartialSubmission } from "@/services/api";
+import { getPartialSubmissionPublic } from "@/services/api";
 import { Result } from "@/lib/result";
 
 export type PartialSubmissionResult = Result<Submission>;
@@ -28,7 +28,7 @@ export const getPartialSubmissionUseCase = async (
     const token = tokenResult.value;
 
     try {
-        const submission = await getPartialSubmission(formId, token);
+        const submission = await getPartialSubmissionPublic(formId, token);
         return Result.success(submission);
     } catch (error) {
         const errorMessage = `Failed to load submission: ${error instanceof Error ? error.message : "Unknown error"}`;
