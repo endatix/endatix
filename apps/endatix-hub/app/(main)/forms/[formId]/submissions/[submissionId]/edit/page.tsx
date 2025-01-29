@@ -1,33 +1,49 @@
-import { SubmissionHeader } from '@/features/submissions/ui/details/submission-header';
-import { SubmissionTopNav } from '@/features/submissions/ui/details/submission-top-nav';
-import { getSubmissionDetailsUseCase } from '@/features/submissions/use-cases/get-submission-details.use-case';
-import { Result } from '@/lib/result';
 import { SectionTitle } from '@/components/headings/section-title';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import EditSubmissionDetails from '@/features/submissions/ui/details/edit-submission-details';
+import { getSubmissionDetailsUseCase } from '@/features/submissions/use-cases/get-submission-details.use-case';
+import { BackToSubmissionsButton } from '@/features/submissions/ui/details/back-to-submissions-button';
+import { Result } from '@/lib/result';
+import EditSubmission from './edit-submission';
 
 type Params = {
   params: Promise<{
     formId: string;
     submissionId: string;
   }>;
-  searchParams: Promise<{
-    format: string;
-  }>;
 };
 
-export default async function EditSubmissionPage({ params, searchParams }: Params) {
+export default async function EditSubmissionPage({ params }: Params) {
   const { formId, submissionId } = await params;
 
+  const submissionResult = await getSubmissionDetailsUseCase({
+    formId,
+    submissionId,
+  });
+
+  if (
+    Result.isError(submissionResult) ||
+    !submissionResult.value?.formDefinition
+  ) {
+    return (
+      <div>
+        <h1>Submission not found</h1>
+        <BackToSubmissionsButton
+          formId={formId}
+          text="All form submissions"
+          variant="default"
+        />
+      </div>
+    );
+  }
+  const submission = submissionResult.value;
+
   return (
-    <>
-      <SubmissionTopNav formId={formId} />
-      <SubmissionHeader submissionId={submissionId} formId={formId} />
-      <Suspense fallback={<SubmissionDataSkeleton />}>
-        <EditSubmissionDetails formId={formId} submissionId={submissionId} />
-      </Suspense>
-    </>
+    <Suspense fallback={<SubmissionDataSkeleton />}>
+      <EditSubmission 
+        submission={submission} 
+      />
+    </Suspense>
   );
 }
 
