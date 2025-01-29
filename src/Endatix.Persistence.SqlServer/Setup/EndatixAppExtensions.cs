@@ -35,6 +35,16 @@ public static class EndatixAppExtensions
         endatixApp.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
         {
             options.UseSqlServer(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
+
+            options.UseSeeding((context, cancellationToken) =>
+            {
+                if (EndatixConfig.Configuration.SeedSampleData)
+                {
+                    var dataSeeder = serviceProvider.GetRequiredService<DataSeeder>();
+                    dataSeeder.SeedSampleData(context);
+                }
+            });
+
             options.UseAsyncSeeding(async (context, _, cancellationToken) =>
             {
                 if (EndatixConfig.Configuration.SeedSampleData)
