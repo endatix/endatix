@@ -44,7 +44,7 @@ const sitemapArray: INavItem[] = [
   },
   {
     text: "Settings",
-    path: "/",
+    path: "/settings/security",
     IconType: Settings,
   },
 ];

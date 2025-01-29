@@ -33,8 +33,14 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean");
@@ -63,8 +69,14 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsDraft")
                         .HasColumnType("boolean");
@@ -97,6 +109,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<int?>("CurrentPage")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<long>("FormDefinitionId")
                         .HasColumnType("bigint");
 
@@ -104,6 +119,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsComplete")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
                     b.Property<string>("JsonData")

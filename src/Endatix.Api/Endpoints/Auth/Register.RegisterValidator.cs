@@ -1,4 +1,5 @@
 
+using Endatix.Api.Common.Security;
 using FastEndpoints;
 using FluentValidation;
 
@@ -21,7 +22,9 @@ public class RegisterValidator : Validator<RegisterRequest>
     public RegisterValidator()
     {
         RuleFor(x => x.Email).NotEmpty().EmailAddress();
-        RuleFor(x => x.Password).NotEmpty().MinimumLength(8);
+
+        RuleFor(x => x.Password).SetValidator(new PasswordValidator(nameof(RegisterRequest.Password)));
+        
         RuleFor(x => x.ConfirmPassword).NotEmpty().Equal(x => x.Password).WithMessage("Passwords do not match");
     }
 }

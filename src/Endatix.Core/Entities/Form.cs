@@ -48,4 +48,19 @@ public partial class Form : BaseEntity, IAggregateRoot
             SetActiveFormDefinition(formDefinition);
         }
     }
+
+    public override void Delete()
+    {
+        if (!IsDeleted)
+        {
+            // Delete all related form definitions
+            foreach (var definition in _formDefinitions)
+            {
+                definition.Delete();
+            }
+
+            // Delete the form itself
+            base.Delete();
+        }
+    }
 }

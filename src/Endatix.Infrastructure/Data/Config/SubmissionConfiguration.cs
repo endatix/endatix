@@ -11,6 +11,8 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
     {
         builder.ToTable("Submissions");
 
+        builder.HasQueryFilter(s => !s.IsDeleted);
+
         builder.Property(s => s.Id)
             .IsRequired();
 

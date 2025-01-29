@@ -8,6 +8,7 @@ import { useActionState } from "react";
 import { loginAction } from "../application/actions/login.action";
 import { showComingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
 import { Spinner } from "@/components/loaders/spinner";
+import { ErrorMessage } from '@/components/forms/error-message';
 
 const LoginForm = () => {
   const [state, formAction, isPending] = useActionState(loginAction, null);
@@ -59,15 +60,5 @@ const LoginForm = () => {
     </form>
   );
 };
-
-export interface ErrorMessageProps {
-  message: string
-}
-
-const ErrorMessage = ({ message }: ErrorMessageProps) => {
-  return (
-    <p className="mt-2 text-sm font-medium text-destructive">{message}</p>
-  )
-}
 
 export default LoginForm;

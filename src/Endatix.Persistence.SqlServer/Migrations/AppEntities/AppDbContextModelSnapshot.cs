@@ -33,8 +33,14 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("bit");
@@ -64,8 +70,14 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsDraft")
                         .HasColumnType("bit");
@@ -98,6 +110,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<int?>("CurrentPage")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<long>("FormDefinitionId")
                         .HasColumnType("bigint");
 
@@ -105,6 +120,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsComplete")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
                     b.Property<string>("JsonData")
