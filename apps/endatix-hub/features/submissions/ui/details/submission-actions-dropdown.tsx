@@ -1,5 +1,3 @@
-'use client'
-
 import { Button, ButtonProps } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -14,14 +12,16 @@ import {
     Sparkles,
     Trash2
 } from "lucide-react"
-import { redirect } from "next/navigation"
+import Link from 'next/link'
 
 interface SubmissionActionsDropdownProps extends ButtonProps {
     submissionId: string
+    formId: string
 }
 
 export function SubmissionActionsDropdown({ 
     submissionId,
+    formId,
     ...props
  }: SubmissionActionsDropdownProps) {
     return (
@@ -33,9 +33,11 @@ export function SubmissionActionsDropdown({
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="text-gray-600" align="end">
-                <DropdownMenuItem>
-                    <FilePenLine className="w-4 h-4 mr-2" />
-                    <span>Edit</span>
+                <DropdownMenuItem asChild>
+                    <Link href={`/forms/${formId}/submissions/${submissionId}/edit`}>
+                        <FilePenLine className="w-4 h-4 mr-2" />
+                        <span>Edit</span>
+                    </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                     <Sparkles className="w-4 h-4 mr-2" />
