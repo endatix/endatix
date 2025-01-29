@@ -10,6 +10,8 @@ namespace Endatix.Infrastructure.Data.Config
         {
             builder.ToTable("FormDefinitions");
 
+            builder.HasQueryFilter(fd => !fd.IsDeleted);
+
             builder.Property(fd => fd.Id)
                 .IsRequired();
 

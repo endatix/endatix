@@ -117,6 +117,29 @@ export const updateForm = async (
   }
 };
 
+export const deleteForm = async (formId: string): Promise<string> => {
+  const session = await getSession();
+  
+  if (!session.isLoggedIn) {
+    redirect("/login");
+  }
+
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .build();
+
+  const response = await fetch(`${API_BASE_URL}/forms/${formId}`, {
+    method: "DELETE",
+    headers: headers,
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete form");
+  }
+
+  return response.text();
+};
+
 export const getActiveFormDefinition = async (
   formId: string,
   allowAnonymous: boolean = false
