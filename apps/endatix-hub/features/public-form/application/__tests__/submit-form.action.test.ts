@@ -14,8 +14,8 @@ vi.mock('next/headers', () => ({
 }))
 
 vi.mock('@/services/api', () => ({
-  createSubmission: vi.fn(),
-  updateSubmission: vi.fn()
+  createSubmissionPublic: vi.fn(),
+  updateSubmissionPublic: vi.fn()
 }))
 
 describe('submitFormAction', () => {
