@@ -33,17 +33,17 @@ export function SubmissionActionsDropdown({
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="text-gray-600" align="end">
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem className='md:hidden cursor-pointer' asChild>
                     <Link href={`/forms/${formId}/submissions/${submissionId}/edit`}>
                         <FilePenLine className="w-4 h-4 mr-2" />
                         <span>Edit</span>
                     </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem className='cursor-pointer'>
                     <Sparkles className="w-4 h-4 mr-2" />
                     <span>Mark as new</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem className='cursor-pointer'>
                     <Trash2 className="w-4 h-4 mr-2" />
                     <span>Delete</span>
                 </DropdownMenuItem>

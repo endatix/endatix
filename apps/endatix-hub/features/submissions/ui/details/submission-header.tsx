@@ -27,7 +27,6 @@ export function SubmissionHeader({
   const [loading, setLoading] = useState(false);
 
   const exportPdf = async () => {
-    console.log('Setting loading to true');
     setLoading(true);
     try {
       const url = `/api/public/v0/forms/${formId}/submissions/${submissionId}/export-pdf`;
@@ -43,7 +42,6 @@ export function SubmissionHeader({
     } catch (error) {
       console.error('Failed to export PDF:', error);
     } finally {
-      console.log('Setting loading to false');
       setLoading(false);
     }
   };
@@ -72,27 +70,12 @@ export function SubmissionHeader({
           </Link>
         </Button>
 
-        <Button variant={'outline'} asChild>
+        <Button variant={'outline'} asChild className="hidden md:flex">
           <Link
             href={`/forms/${formId}/submissions/${submissionId}/edit`}
-            className="hidden"
           >
             <FilePenLine className="mr-2 h-4 w-4" />
             Edit
-          </Link>
-        </Button>
-
-        <Button variant={'outline'} asChild>
-          <Link href="#" className="hidden">
-            <Sparkles className="mr-2 h-4 w-4" />
-            Mark as new
-          </Link>
-        </Button>
-        
-        <Button variant={'outline'} asChild>
-          <Link href="#" className="hidden">
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
           </Link>
         </Button>
 
