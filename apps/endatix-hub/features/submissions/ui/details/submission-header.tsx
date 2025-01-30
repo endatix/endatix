@@ -6,8 +6,6 @@ import {
   Download,
   FilePenLine,
   LinkIcon,
-  Sparkles,
-  Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { SubmissionActionsDropdown } from './submission-actions-dropdown';
