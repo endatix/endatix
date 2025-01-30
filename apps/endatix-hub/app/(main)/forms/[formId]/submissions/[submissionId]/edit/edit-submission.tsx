@@ -3,12 +3,18 @@
 import { Submission } from '@/types';
 import 'survey-core/defaultV2.css';
 import dynamic from 'next/dynamic';
-import { Question, SurveyModel, ValueChangedEvent } from 'survey-core';
-import { useCallback, useMemo, useState, useTransition } from 'react';
+import {
+  DynamicPanelItemValueChangedEvent,
+  MatrixCellValueChangedEvent,
+  Question,
+  SurveyModel,
+  ValueChangedEvent,
+} from 'survey-core';
+import { useCallback, useMemo, useState, useTransition, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import {
-AlertDialog,
+  AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -33,7 +39,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Separator } from '@/components/ui/separator';
+import { useBlobStorage } from '@/features/storage/hooks/use-blob-storage';
 
 const SurveyJsWrapper = dynamic(() => import('./survey-js-wrapper'), {
   ssr: false,
@@ -52,25 +58,36 @@ export default function EditSubmission({ submission }: EditSubmissionProps) {
     }
   }, [submission.jsonData]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [changes, setChanges] = useState<Record<string, Question>>({});
   const [surveyModel, setSurveyModel] = useState<SurveyModel | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
+  useBlobStorage({
+    formId: submission.formId,
+    submissionId: submission.id,
+    surveyModel,
+  });
+
   const onSubmissionChange = useCallback(
-    (sender: SurveyModel, event: ValueChangedEvent) => {
-      const originalQuestionValue = submissionData[event.name];
+    (
+      sender: SurveyModel,
+      event:
+        | ValueChangedEvent
+        | DynamicPanelItemValueChangedEvent
+        | MatrixCellValueChangedEvent
+    ) => {
+      const originalQuestionValue = submissionData[event.question.name];
       const newQuestionValue = event.question?.value;
       if (originalQuestionValue !== newQuestionValue) {
         setChanges((prev) => ({
           ...prev,
-          [event.name]: event.question,
+          [event.question.name]: event.question,
         }));
       } else {
         setChanges((prev) => {
           const newChanges = { ...prev };
-          delete newChanges[event.name];
+          delete newChanges[event.question.name];
           return newChanges;
         });
       }

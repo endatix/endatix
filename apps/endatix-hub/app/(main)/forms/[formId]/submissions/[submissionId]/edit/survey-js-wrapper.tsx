@@ -1,11 +1,11 @@
 import { Submission } from '@/types';
 import { useEffect, useRef } from 'react';
-import { ValueChangedEvent } from 'survey-core';
+import { DynamicPanelItemValueChangedEvent, MatrixCellValueChangedEvent, ValueChangedEvent } from 'survey-core';
 import { Model, Survey, SurveyModel } from 'survey-react-ui';
 
 interface SurveyJsWrapperProps {
   submission: Submission;
-  onChange: (sender: SurveyModel, event: ValueChangedEvent) => void;
+  onChange: (sender: SurveyModel, event: ValueChangedEvent | DynamicPanelItemValueChangedEvent | MatrixCellValueChangedEvent) => void;
 }
 
 function useSurveyModel(submission: Submission) {
@@ -53,8 +53,12 @@ function SurveyJsWrapper({
     if (!model) return;
 
     model.onValueChanged.add(onChange);
+    model.onDynamicPanelItemValueChanged.add(onChange);
+    model.onMatrixCellValueChanged.add(onChange);
     return () => {
       model.onValueChanged.remove(onChange);
+      model.onDynamicPanelItemValueChanged.remove(onChange);
+      model.onMatrixCellValueChanged.remove(onChange);
     };
   }, [model, onChange]);
 
