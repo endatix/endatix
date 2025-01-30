@@ -1,8 +1,11 @@
 import { useBlobStorage } from '@/features/storage/hooks/use-blob-storage';
+import { registerSpecializedQuestion, SpecializedVideo } from '@/lib/questions';
 import { Submission } from '@/types';
 import { useEffect, useRef } from 'react';
 import { DynamicPanelItemValueChangedEvent, MatrixCellValueChangedEvent, ValueChangedEvent } from 'survey-core';
 import { Model, Survey, SurveyModel } from 'survey-react-ui';
+
+registerSpecializedQuestion(SpecializedVideo);
 
 interface EditSurveyWrapperProps {
   submission: Submission;
