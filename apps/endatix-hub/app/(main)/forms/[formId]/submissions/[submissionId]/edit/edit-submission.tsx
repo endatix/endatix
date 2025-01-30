@@ -10,7 +10,7 @@ import {
   SurveyModel,
   ValueChangedEvent,
 } from 'survey-core';
-import { useCallback, useMemo, useState, useTransition, useEffect } from 'react';
+import { useCallback, useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import {
@@ -39,7 +39,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useBlobStorage } from '@/features/storage/hooks/use-blob-storage';
 
 const SurveyJsWrapper = dynamic(() => import('./survey-js-wrapper'), {
   ssr: false,
@@ -62,12 +61,6 @@ export default function EditSubmission({ submission }: EditSubmissionProps) {
   const [surveyModel, setSurveyModel] = useState<SurveyModel | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
-
-  useBlobStorage({
-    formId: submission.formId,
-    submissionId: submission.id,
-    surveyModel,
-  });
 
   const onSubmissionChange = useCallback(
     (
@@ -109,6 +102,9 @@ export default function EditSubmission({ submission }: EditSubmissionProps) {
           });
           toast.success('Changes saved');
           setSaveDialogOpen(false);
+          router.push(
+            `/forms/${submission.formId}/submissions/${submission.id}`
+          );
         });
       } catch (error) {
         console.error(error);
