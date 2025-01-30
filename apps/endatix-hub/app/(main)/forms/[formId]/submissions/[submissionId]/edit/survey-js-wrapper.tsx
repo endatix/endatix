@@ -1,4 +1,3 @@
-import { useBlobStorage } from '@/features/storage/hooks/use-blob-storage';
 import { Submission } from '@/types';
 import { useEffect, useRef } from 'react';
 import { DynamicPanelItemValueChangedEvent, MatrixCellValueChangedEvent, ValueChangedEvent } from 'survey-core';
@@ -49,7 +48,7 @@ function SurveyJsWrapper({
   onChange,
 }: SurveyJsWrapperProps) {
   const model = useSurveyModel(submission);
-  
+
   useBlobStorage({
     formId: submission.formId,
     submissionId: submission.id,
