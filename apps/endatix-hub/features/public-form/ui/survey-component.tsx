@@ -1,13 +1,13 @@
 "use client";
 
-import { CompleteEvent, SurveyModel, UploadFilesEvent } from "survey-core";
+import { CompleteEvent, SurveyModel } from "survey-core";
 import { Survey } from "survey-react-ui";
 import { useTransition, useCallback, useState, useEffect } from "react";
 import { useSubmissionQueue } from "../application/submission-queue";
 import { Result } from "@/lib/result";
 import { Submission } from "@/types";
 import "survey-core/defaultV2.css";
-import { useSurveyModel } from "./hooks/use-survey-model";
+import { useSurveyModel } from "./use-survey-model.hook";
 import {
   SubmissionData,
   submitFormAction,

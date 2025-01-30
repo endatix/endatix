@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { DynamicPanelItemValueChangedEvent, MatrixCellValueChangedEvent, ValueChangedEvent } from 'survey-core';
 import { Model, Survey, SurveyModel } from 'survey-react-ui';
 
-interface SurveyJsWrapperProps {
+interface EditSurveyWrapperProps {
   submission: Submission;
   onChange: (sender: SurveyModel, event: ValueChangedEvent | DynamicPanelItemValueChangedEvent | MatrixCellValueChangedEvent) => void;
 }
@@ -44,10 +44,10 @@ function useSurveyModel(submission: Submission) {
   return modelRef.current;
 }
 
-function SurveyJsWrapper({ 
+function EditSurveyWrapper({ 
   submission, 
   onChange,
-}: SurveyJsWrapperProps) {
+}: EditSurveyWrapperProps) {
   const model = useSurveyModel(submission);
 
   useBlobStorage({
@@ -76,4 +76,4 @@ function SurveyJsWrapper({
   return <Survey model={model} />;
 }
 
-export default SurveyJsWrapper;
+export default EditSurveyWrapper;

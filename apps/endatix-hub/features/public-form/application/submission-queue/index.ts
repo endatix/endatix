@@ -1,1 +1,1 @@
-export { useSubmissionQueue } from './use-submission-queue';
+export { useSubmissionQueue } from './use-submission-queue.hook';
