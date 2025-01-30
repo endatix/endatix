@@ -12,6 +12,7 @@ import { SubmissionActionsDropdown } from './submission-actions-dropdown';
 import { useState } from 'react';
 import { Spinner } from '@/components/loaders/spinner';
 import { saveToFileHandler } from 'survey-creator-core';
+import { toast } from 'sonner';
 
 interface SubmissionHeaderProps {
   submissionId: string;
@@ -35,6 +36,7 @@ export function SubmissionHeader({
           type: 'text/plain;charset=utf-8',
         });
         saveToFileHandler(pdfFileName, blob);
+        toast.success('PDF exported successfully');
         setLoading(false);
       }
     } catch (error) {
