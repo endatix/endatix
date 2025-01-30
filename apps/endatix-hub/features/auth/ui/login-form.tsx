@@ -51,7 +51,7 @@ const LoginForm = () => {
         )}
         <Button type="submit" className="w-full" disabled={isPending}>
           {isPending && (
-            <Spinner className="mr-2 h-4 w-4 animate-spin" />
+            <Spinner className="mr-2 h-4 w-4" />
           )}
           Login
         </Button>

@@ -1,5 +1,5 @@
 import { Submission } from '@/types';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import { ValueChangedEvent } from 'survey-core';
 import { Model, Survey, SurveyModel } from 'survey-react-ui';
 
@@ -8,56 +8,61 @@ interface SurveyJsWrapperProps {
   onChange: (sender: SurveyModel, event: ValueChangedEvent) => void;
 }
 
-function SurveyJsWrapper({ submission, onChange }: SurveyJsWrapperProps) {
-  const surveyModel = useMemo(() => {
-    if (!submission.formDefinition) {
+function useSurveyModel(submission: Submission) {
+  const modelRef = useRef<Model | null>(null);
+
+  if (!modelRef.current) {
+    if (!submission.formDefinition?.jsonData) {
       return null;
     }
 
-    const json = JSON.parse(submission.formDefinition.jsonData);
-    const model = new Model(json);
-
-    model.showCompletedPage = false;
-    model.validationEnabled = false;
-    model.showPageTitles = false;
-    model.showPageNumbers = false;
-    model.showCompletedPage = false;
-    model.showTitle = false;
-    model.showProgressBar = 'off';
-    model.validationEnabled = false;
-
-    model.getAllPanels().forEach((panel) => {
-      panel.expand();
-    });
-
-    let submissionData = {};
     try {
-      submissionData = JSON.parse(submission?.jsonData);
-    } catch (ex) {
-      console.warn("Error while parsing submission's JSON data", ex);
+      const json = JSON.parse(submission.formDefinition.jsonData);
+      const submissionData = JSON.parse(submission.jsonData);
+      const model = new Model(json);
+
+      model.data = submissionData;
+      model.showCompletedPage = false;
+      model.validationEnabled = false;
+      model.showPageTitles = false;
+      model.showPageNumbers = false;
+      model.showNavigationButtons = false;
+      model.showTitle = false;
+      model.showProgressBar = 'off' as const;
+      model.getAllPanels().forEach((panel) => {
+        panel.expand();
+      });
+
+      modelRef.current = model;
+    } catch (error) {
+      console.error('Error initializing survey model:', error);
+      return null;
     }
+  }
 
-    model.data = submissionData;
+  return modelRef.current;
+}
 
-    return model;
-  }, [submission?.formDefinition, submission?.jsonData]);
+function SurveyJsWrapper({ 
+  submission, 
+  onChange,
+}: SurveyJsWrapperProps) {
+  const model = useSurveyModel(submission);
 
   useEffect(() => {
-    if (!surveyModel) {
-      return;
-    }
+    if (!model) return;
 
-    surveyModel.onValueChanged.add(onChange);
+    model.onValueChanged.add(onChange);
     return () => {
-      surveyModel.onValueChanged.remove(onChange);
+      model.onValueChanged.remove(onChange);
     };
-  }, [surveyModel, onChange]);
+  }, [model, onChange]);
 
-  if (!surveyModel) {
+  if (!model) {
     return <div>Submission not found</div>;
   }
 
-  return <Survey model={surveyModel} />;
+  return <Survey model={model} />;
 }
 
 export default SurveyJsWrapper;

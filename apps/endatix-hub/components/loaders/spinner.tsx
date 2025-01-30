@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils';
+
 interface SpinnerProps extends React.HTMLAttributes<SVGElement> {
     size?: number;
     className?: string;
@@ -19,7 +21,7 @@ export function Spinner({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className={className}
+            className={cn('animate-spin', className)}
             {...props}
         >
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />

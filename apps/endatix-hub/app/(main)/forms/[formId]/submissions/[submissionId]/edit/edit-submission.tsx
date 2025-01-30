@@ -3,12 +3,12 @@
 import { Submission } from '@/types';
 import 'survey-core/defaultV2.css';
 import dynamic from 'next/dynamic';
-import { SurveyModel, ValueChangedEvent } from 'survey-core';
-import { useCallback, useState, useTransition } from 'react';
+import { Question, SurveyModel, ValueChangedEvent } from 'survey-core';
+import { useCallback, useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import {
-  AlertDialog,
+AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -18,10 +18,22 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AlertDialogProps } from '@radix-ui/react-alert-dialog';
-import { Link2, PencilLine } from 'lucide-react';
+import {
+  FileIcon,
+  Info,
+  MessageSquareTextIcon,
+  PencilLine,
+} from 'lucide-react';
 import { Spinner } from '@/components/loaders/spinner';
 import { toast } from 'sonner';
 import { editSubmissionUseCase } from '@/features/submissions/use-cases/edit-submission.use-case';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 
 const SurveyJsWrapper = dynamic(() => import('./survey-js-wrapper'), {
   ssr: false,
@@ -32,47 +44,68 @@ interface EditSubmissionProps {
 }
 
 export default function EditSubmission({ submission }: EditSubmissionProps) {
+  const submissionData: Record<string, any> = useMemo(() => {
+    try {
+      return JSON.parse(submission.jsonData);
+    } catch (error) {
+      return {};
+    }
+  }, [submission.jsonData]);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [changes, setChanges] = useState<
-    Record<string, string | number | boolean | object>
-  >({});
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const [changes, setChanges] = useState<Record<string, Question>>({});
   const [surveyModel, setSurveyModel] = useState<SurveyModel | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   const onSubmissionChange = useCallback(
     (sender: SurveyModel, event: ValueChangedEvent) => {
-      setChanges((prev) => ({
-        ...prev,
-        [event.name]: event.value,
-      }));
+      const originalQuestionValue = submissionData[event.name];
+      const newQuestionValue = event.question?.value;
+      if (originalQuestionValue !== newQuestionValue) {
+        setChanges((prev) => ({
+          ...prev,
+          [event.name]: event.question,
+        }));
+      } else {
+        setChanges((prev) => {
+          const newChanges = { ...prev };
+          delete newChanges[event.name];
+          return newChanges;
+        });
+      }
+
       setSurveyModel(sender);
     },
     []
   );
 
-  const handleSave = useCallback(async () => {
-    if (!surveyModel?.data || Object.keys(changes).length === 0) return;
+  const handleSave = useCallback(
+    async (event: React.FormEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      if (!surveyModel?.data || Object.keys(changes).length === 0) return;
 
-    try {
-      startTransition(async () => {
-        await editSubmissionUseCase(submission.formId, submission.id, {
-          jsonData: JSON.stringify(surveyModel.data),
+      try {
+        startTransition(async () => {
+          await editSubmissionUseCase(submission.formId, submission.id, {
+            jsonData: JSON.stringify(surveyModel.data),
+          });
+          toast.success('Changes saved');
+          setSaveDialogOpen(false);
         });
-        setChanges({});
-        setSaveDialogOpen(false);
-        toast.success('Changes saved');
-        router.refresh();
-      });
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to save changes');
-    }
-  }, [changes]);
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to save changes');
+      }
+    },
+    [changes]
+  );
 
   const handleDiscard = useCallback(() => {
+    if (isPending) {
+      return;
+    }
     setSaveDialogOpen(false);
-    setChanges({});
     router.back();
   }, [router]);
 
@@ -86,12 +119,22 @@ export default function EditSubmission({ submission }: EditSubmissionProps) {
         isSaving={isPending}
       />
       <SurveyJsWrapper submission={submission} onChange={onSubmissionChange} />
+      <div className="h-8 text-muted-foreground flex flex-row justify-center items-center gap-2">
+        <Info className="h-4 w-4" />
+        End of submission
+      </div>
       <EditSubmissionAlertDialog
         submission={submission}
         changes={changes}
+        isSaving={isPending}
         open={saveDialogOpen}
-        onSave={handleSave}
-        onOpenChange={() => setSaveDialogOpen(!saveDialogOpen)}
+        onAction={handleSave}
+        onOpenChange={() => {
+          if (isPending) {
+            return;
+          }
+          setSaveDialogOpen(!saveDialogOpen);
+        }}
       />
     </div>
   );
@@ -147,14 +190,16 @@ function EditSubmissionHeader({
 
 interface EditSubmissionAlertDialogProps extends AlertDialogProps {
   submission: Submission;
-  changes: Record<string, unknown>;
-  onSave: () => Promise<void>;
+  changes: Record<string, Question>;
+  isSaving: boolean;
+  onAction: (event: React.FormEvent<HTMLButtonElement>) => Promise<void>;
 }
 
 function EditSubmissionAlertDialog({
   submission,
   changes,
-  onSave,
+  onAction,
+  isSaving,
   ...props
 }: EditSubmissionAlertDialogProps) {
   return (
@@ -170,15 +215,15 @@ function EditSubmissionAlertDialog({
             </span>
             <ul className="list-disclist-inside">
               {Object.keys(changes).map((key) => (
-                <li key={key} className="text-sm text-muted-foreground flex flex-row items-center gap-2">
-                  <Link2 className="h-4 w-4" />
-                  <strong>{key}</strong>: {changes[key]?.toString()}
+                <li className="mb-4" key={key}>
+                  <QuestionValueDisplay question={changes[key]} />
                 </li>
               ))}
             </ul>
           </div>
           <AlertDialogDescription>
-            Click "Save Changes" to confirm and save your changes or dismiss to continue editing.
+            Click "Save Changes" to confirm and save your changes or dismiss to
+            continue editing.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -186,11 +231,91 @@ function EditSubmissionAlertDialog({
             <PencilLine className="h-4 w-4" />
             Continue Editing
           </AlertDialogCancel>
-          <AlertDialogAction onClick={onSave}>
-            Yes, save changes
+          <AlertDialogAction onClick={onAction} disabled={isSaving}>
+            {isSaving && <Spinner className="h-4 w-4" />}
+            {isSaving ? 'Saving changes...' : 'Yes, save changes'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
+
+const QuestionComment = ({ comment }: { comment: string }) => {
+  return (
+    <div className="flex flex-row items-start gap-2">
+      <MessageSquareTextIcon className="h-4 w-4 text-muted-foreground" />
+      <span className="text-muted-foreground text-left">{comment}</span>
+    </div>
+  );
+};
+
+const QuestionValueDisplay = ({ question }: { question: Question }) => {
+  if (!question) return null;
+
+  const QuestionWrapper = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex flex-row items-start gap-2 text-sm">
+      <div className="flex flex-row items-center justify-end gap-2 w-1/2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-4 w-4 hidden md:block" />
+            </TooltipTrigger>
+            <TooltipContent>{question.title}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <span className="font-medium">{question.name} :</span>
+      </div>
+      <div className="flex flex-col items-start gap-0">
+        {children}
+        {question.hasComment && <QuestionComment comment={question.comment} />}
+      </div>
+    </div>
+  );
+
+  const renderValue = () => {
+    switch (question.getType()) {
+      case 'text':
+      case 'comment':
+      case 'dropdown':
+        return <div className="text-muted-foreground">{question.value}</div>;
+
+      case 'select':
+        return (
+          <div className="text-muted-foreground">
+            {Array.isArray(question.value)
+              ? question.value.join(', ')
+              : question.value}
+          </div>
+        );
+
+      case 'boolean':
+      case 'checkbox':
+        return (
+          <span className="text-muted-foreground">
+            {question.value ? 'Yes' : 'No'}
+          </span>
+        );
+
+      case 'file':
+        return (
+          <div className="flex flex-row items-start gap-2">
+            <FileIcon className="h-4 w-4" />
+            <span className="text-muted-foreground">
+              has {question.value.length}{' '}
+              {question.value.length === 1 ? 'file' : 'files'}
+            </span>
+          </div>
+        );
+
+      default:
+        return (
+          <span className="text-muted-foreground">
+            {String(question.value)}
+          </span>
+        );
+    }
+  };
+
+  return <QuestionWrapper>{renderValue()}</QuestionWrapper>;
+};
