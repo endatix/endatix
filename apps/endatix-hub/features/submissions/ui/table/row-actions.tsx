@@ -57,8 +57,8 @@ export function RowActions<TData>({ row }: RowActionsProps<TData>) {
             <FileDown className="w-4 h-4 mr-2" />
             <span>Export PDF</span>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild className="cursor-pointer">
-          <Link href={`/share/${item.formId}`} target="_blank">
+        <DropdownMenuItem asChild className="cursor-disabled">
+          <Link href="#">
             <LinkIcon className="w-4 h-4 mr-2" />
             <span>Share Links</span>
           </Link>
