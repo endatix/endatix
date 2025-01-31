@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.PartialUpdate;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -17,7 +18,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateSubmissio
     public override void Configure()
     {
         Patch("forms/{formId}/submissions/{submissionId}");
-        AllowAnonymous();
+        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Update a form submission";

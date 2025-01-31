@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, Mock, beforeEach } from 'vitest'
 import { cookies } from 'next/headers'
 import { ErrorType, Result } from '@/lib/result'
-import { createSubmission, updateSubmission } from '@/services/api'
+import { createSubmissionPublic, updateSubmissionPublic } from '@/services/api'
 import { submitFormAction } from '@/features/public-form/application/actions/submit-form.action'
 
 const COOKIE_NAME = 'FPSK';
@@ -14,8 +14,8 @@ vi.mock('next/headers', () => ({
 }))
 
 vi.mock('@/services/api', () => ({
-  createSubmission: vi.fn(),
-  updateSubmission: vi.fn()
+  createSubmissionPublic: vi.fn(),
+  updateSubmissionPublic: vi.fn()
 }))
 
 describe('submitFormAction', () => {
@@ -45,13 +45,13 @@ describe('submitFormAction', () => {
       token: 'new-token',
       isComplete: false
     };
-    (createSubmission as Mock).mockResolvedValue(mockCreateResponse)
+    (createSubmissionPublic as Mock).mockResolvedValue(mockCreateResponse)
 
     // Act
     const result = await submitFormAction('form-1', mockSubmissionData)
 
     // Assert
-    expect(createSubmission).toHaveBeenCalledWith('form-1', mockSubmissionData)
+    expect(createSubmissionPublic).toHaveBeenCalledWith('form-1', mockSubmissionData)
     expect(mockCookieStore.set).toHaveBeenCalledWith(
       COOKIE_NAME,
       expect.stringContaining('new-token'),
@@ -75,13 +75,13 @@ describe('submitFormAction', () => {
     const mockUpdateResponse = {
       isComplete: true
     };
-    (updateSubmission as Mock).mockResolvedValue(mockUpdateResponse)
+    (updateSubmissionPublic as Mock).mockResolvedValue(mockUpdateResponse)
 
     // Act
     const result = await submitFormAction('form-1', mockSubmissionData)
 
     // Assert
-    expect(updateSubmission).toHaveBeenCalledWith(
+    expect(updateSubmissionPublic).toHaveBeenCalledWith(
       'form-1',
       'existing-token',
       mockSubmissionData
@@ -93,7 +93,7 @@ describe('submitFormAction', () => {
   it('should return a Result.error when the submission API call fails', async () => {
     // Arrange
     mockCookieStore.get.mockReturnValue(undefined);
-    (createSubmission as Mock).mockRejectedValue(new Error('API Error'));
+    (createSubmissionPublic as Mock).mockRejectedValue(new Error('API Error'));
 
     // Act
     const result = await submitFormAction('form-1', {

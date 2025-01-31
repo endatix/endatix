@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { submissionQueue } from '../submission-queue/submission-queue';
-import { useSubmissionQueue } from '../submission-queue/use-submission-queue';
+import { useSubmissionQueue } from '../submission-queue/use-submission-queue.hook';
 
 // The mock path should match the import path exactly
 vi.mock('../submission-queue/submission-queue', () => ({

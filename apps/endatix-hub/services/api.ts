@@ -1,32 +1,29 @@
 import {
   AuthenticationRequest,
   AuthenticationResponse,
-} from "@/lib/auth-definitions";
-import { CreateFormRequest } from "@/lib/form-types";
-import { Form, FormDefinition, Submission } from "../types";
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-service";
-import { HeaderBuilder } from "./header-builder";
-import { SubmissionData } from "@/features/public-form/application/actions/submit-form.action";
+} from '@/lib/auth-definitions';
+import { CreateFormRequest } from '@/lib/form-types';
+import { Form, FormDefinition, Submission } from '../types';
+import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/auth-service';
+import { HeaderBuilder } from './header-builder';
+import { SubmissionData } from '@/features/public-form/application/actions/submit-form.action';
 
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
 export const authenticate = async (
   request: AuthenticationRequest
 ): Promise<AuthenticationResponse> => {
-  const headers = new HeaderBuilder()
-    .acceptJson()
-    .provideJson()
-    .build();
+  const headers = new HeaderBuilder().acceptJson().provideJson().build();
 
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: "POST",
+    method: 'POST',
     headers: headers,
     body: JSON.stringify(request),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch data");
+    throw new Error('Failed to fetch data');
   }
 
   return response.json();
@@ -43,13 +40,13 @@ export const createForm = async (
     .build();
 
   const response = await fetch(`${API_BASE_URL}/forms`, {
-    method: "POST",
+    method: 'POST',
     headers: headers,
     body: JSON.stringify(formRequest),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to create form");
+    throw new Error('Failed to create form');
   }
 
   return response.json();
@@ -64,7 +61,7 @@ export const getForms = async (): Promise<Form[]> => {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch data");
+    throw new Error('Failed to fetch data');
   }
 
   return response.json();
@@ -76,7 +73,7 @@ export const getForm = async (formId: string): Promise<Form> => {
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect("/login");
+    redirect('/login');
   }
 
   requestOptions.headers = {
@@ -89,7 +86,7 @@ export const getForm = async (formId: string): Promise<Form> => {
   );
 
   if (!response.ok) {
-    throw new Error("Failed to fetch form");
+    throw new Error('Failed to fetch form');
   }
 
   return response.json();
@@ -107,34 +104,32 @@ export const updateForm = async (
     .build();
 
   const response = await fetch(`${API_BASE_URL}/forms/${formId}`, {
-    method: "PATCH",
+    method: 'PATCH',
     headers: headers,
     body: JSON.stringify(data),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to update form");
+    throw new Error('Failed to update form');
   }
 };
 
 export const deleteForm = async (formId: string): Promise<string> => {
   const session = await getSession();
-  
+
   if (!session.isLoggedIn) {
-    redirect("/login");
+    redirect('/login');
   }
 
-  const headers = new HeaderBuilder()
-    .withAuth(session)
-    .build();
+  const headers = new HeaderBuilder().withAuth(session).build();
 
   const response = await fetch(`${API_BASE_URL}/forms/${formId}`, {
-    method: "DELETE",
+    method: 'DELETE',
     headers: headers,
   });
 
   if (!response.ok) {
-    throw new Error("Failed to delete form");
+    throw new Error('Failed to delete form');
   }
 
   return response.text();
@@ -151,7 +146,7 @@ export const getActiveFormDefinition = async (
     const session = await getSession();
 
     if (!session.isLoggedIn) {
-      redirect("/login");
+      redirect('/login');
     }
 
     headerBuilder.withAuth(session);
@@ -170,7 +165,10 @@ export const getActiveFormDefinition = async (
   return response.json();
 };
 
-export const getFormDefinition = async (formId: string, definitionId: string): Promise<FormDefinition> => {
+export const getFormDefinition = async (
+  formId: string,
+  definitionId: string
+): Promise<FormDefinition> => {
   if (!formId) {
     throw new Error(`FormId is required`);
   }
@@ -183,12 +181,10 @@ export const getFormDefinition = async (formId: string, definitionId: string): P
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect("/login");
+    redirect('/login');
   }
 
-  const headers = new HeaderBuilder()
-    .withAuth(session)
-    .build();
+  const headers = new HeaderBuilder().withAuth(session).build();
 
   requestOptions.headers = headers;
 
@@ -198,7 +194,7 @@ export const getFormDefinition = async (formId: string, definitionId: string): P
   );
 
   if (!response.ok) {
-    throw new Error("Failed to fetch form definition");
+    throw new Error('Failed to fetch form definition');
   }
 
   return response.json();
@@ -212,7 +208,7 @@ export const updateFormDefinition = async (
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect("/login");
+    redirect('/login');
   }
 
   const headers = new HeaderBuilder()
@@ -222,51 +218,51 @@ export const updateFormDefinition = async (
     .build();
 
   const response = await fetch(`${API_BASE_URL}/forms/${formId}/definition`, {
-    method: "PATCH",
+    method: 'PATCH',
     headers: headers,
     body: JSON.stringify({ isDraft, jsonData }),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to update form definition");
+    throw new Error('Failed to update form definition');
   }
 };
 
 export const getSubmissions = async (formId: string): Promise<Submission[]> => {
   const session = await getSession();
   if (!session.isLoggedIn) {
-    redirect("/login");
+    redirect('/login');
   }
 
   const CLIENT_PAGE_SIZE = 10_000;
   const headers = new HeaderBuilder().withAuth(session).build();
 
-  const response = await fetch(`${API_BASE_URL}/forms/${formId}/submissions?pageSize=${CLIENT_PAGE_SIZE}`, {
-    headers: headers,
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/submissions?pageSize=${CLIENT_PAGE_SIZE}`,
+    {
+      headers: headers,
+    }
+  );
 
   if (!response.ok) {
-    throw new Error("Failed to fetch data");
+    throw new Error('Failed to fetch data');
   }
 
   return response.json();
 };
 
-export const createSubmission = async (
+export const createSubmissionPublic = async (
   formId: string,
   submissionData: SubmissionData
 ): Promise<Submission> => {
   if (!formId) {
-    throw new Error("FormId is required");
+    throw new Error('FormId is required');
   }
 
-  const headers = new HeaderBuilder()
-    .acceptJson()
-    .provideJson()
-    .build();
+  const headers = new HeaderBuilder().acceptJson().provideJson().build();
 
   const requestOptions: RequestInit = {
-    method: "POST",
+    method: 'POST',
     headers: headers,
     body: JSON.stringify(submissionData),
   };
@@ -277,28 +273,25 @@ export const createSubmission = async (
   );
 
   if (!response.ok) {
-    throw new Error("Failed to submit response");
+    throw new Error('Failed to submit response');
   }
 
   return response.json();
 };
 
-export const updateSubmission = async (
+export const updateSubmissionPublic = async (
   formId: string,
   token: string,
   submissionData: SubmissionData
 ): Promise<Submission> => {
   if (!formId || !token) {
-    throw new Error("FormId or token is required");
+    throw new Error('FormId or token is required');
   }
 
-  const headers = new HeaderBuilder()
-    .acceptJson()
-    .provideJson()
-    .build();
+  const headers = new HeaderBuilder().acceptJson().provideJson().build();
 
   const requestOptions: RequestInit = {
-    method: "PATCH",
+    method: 'PATCH',
     headers: headers,
     body: JSON.stringify(submissionData),
   };
@@ -309,70 +302,104 @@ export const updateSubmission = async (
   );
 
   if (!response.ok) {
-    throw new Error("Failed to submit response");
+    throw new Error('Failed to submit response');
   }
 
   return response.json();
 };
 
-export const getPartialSubmission = async (formId: string, token: string): Promise<Submission> => {
-  if (!formId || !token) {
-    throw new Error("FormId or token is required");
-  }
-
-  const headers = new HeaderBuilder()
-    .acceptJson()
-    .build();
-
-  const response = await fetch(
-    `${API_BASE_URL}/forms/${formId}/submissions/by-token/${token}`,
-    { headers : headers }
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch submission");
-  }
-
-  return response.json();
-}
-
-export const getSubmission = async (formId: string, submissionId: string): Promise<Submission> => {
+export const updateSubmission = async (
+  formId: string,
+  submissionId: string,
+  submissionData: SubmissionData
+): Promise<Submission> => {
   if (!formId || !submissionId) {
-    throw new Error("FormId or submissionId is required");
+    throw new Error('FormId or submissionId is required');
   }
 
-  const session = await getSession();
-
-  if (!session.isLoggedIn) {
-    redirect("/login");
-  }
-
-  const headers = new HeaderBuilder()
-    .withAuth(session)
-    .acceptJson()
-    .build();
+  const headers = new HeaderBuilder().acceptJson().provideJson().build();
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions/${submissionId}`,
-    { headers : headers }
+    {
+      method: 'PATCH',
+      headers: headers,
+      body: JSON.stringify(submissionData),
+    }
   );
 
   if (!response.ok) {
-    throw new Error("Failed to fetch submission");
+    throw new Error('Failed to update submission');
   }
 
   return response.json();
-}
+};
 
-export const changePassword = async (currentPassword: string, newPassword: string, confirmPassword: string): Promise<string> => {
-  if (!currentPassword || !newPassword || !confirmPassword) {
-    throw new Error("Current password, new password or confirm password is required");
+export const getPartialSubmissionPublic = async (
+  formId: string,
+  token: string
+): Promise<Submission> => {
+  if (!formId || !token) {
+    throw new Error('FormId or token is required');
+  }
+
+  const headers = new HeaderBuilder().acceptJson().build();
+
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/submissions/by-token/${token}`,
+    { headers: headers }
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch submission');
+  }
+
+  return response.json();
+};
+
+export const getSubmission = async (
+  formId: string,
+  submissionId: string
+): Promise<Submission> => {
+  if (!formId || !submissionId) {
+    throw new Error('FormId or submissionId is required');
   }
 
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect("/login");
+    redirect('/login');
+  }
+
+  const headers = new HeaderBuilder().withAuth(session).acceptJson().build();
+
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/submissions/${submissionId}`,
+    { headers: headers }
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch submission');
+  }
+
+  return response.json();
+};
+
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string
+): Promise<string> => {
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    throw new Error(
+      'Current password, new password or confirm password is required'
+    );
+  }
+
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect('/login');
   }
 
   const headers = new HeaderBuilder()
@@ -381,18 +408,15 @@ export const changePassword = async (currentPassword: string, newPassword: strin
     .provideJson()
     .build();
 
-  const response = await fetch(
-    `${API_BASE_URL}/my-account/change-password`,
-    {
-      method: "POST",
-      headers: headers,
-      body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/my-account/change-password`, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+  });
 
   if (!response.ok) {
-    throw new Error("Failed to change password");
+    throw new Error('Failed to change password');
   }
 
   return response.json();
-}
+};

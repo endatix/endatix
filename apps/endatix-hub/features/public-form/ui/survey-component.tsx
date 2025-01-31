@@ -1,17 +1,18 @@
 "use client";
 
-import { CompleteEvent, SurveyModel, UploadFilesEvent } from "survey-core";
+import { CompleteEvent, SurveyModel } from "survey-core";
 import { Survey } from "survey-react-ui";
 import { useTransition, useCallback, useState, useEffect } from "react";
 import { useSubmissionQueue } from "../application/submission-queue";
 import { Result } from "@/lib/result";
 import { Submission } from "@/types";
 import "survey-core/defaultV2.css";
-import { useSurveyModel } from "./hooks/use-survey-model";
+import { useSurveyModel } from "./use-survey-model.hook";
 import {
   SubmissionData,
   submitFormAction,
-} from "@/features/public-form/application/actions/submit-form.action";
+  } from "@/features/public-form/application/actions/submit-form.action";
+  import { useBlobStorage } from "@/features/storage/hooks/use-blob-storage";
 
 interface SurveyComponentProps {
   definition: string;
@@ -30,6 +31,13 @@ export default function SurveyComponent({
   const [submissionId, setSubmissionId] = useState<string>(
     submission?.id ?? ""
   );
+
+  useBlobStorage({
+    formId,
+    submissionId,
+    surveyModel: model,
+    onSubmissionIdChange: setSubmissionId
+  });
 
   useEffect(() => {
     if (submission?.id) {
@@ -82,56 +90,8 @@ export default function SurveyComponent({
     [formId, isSubmitting, clearQueue, startSubmitting]
   );
 
-  const uploadFiles = useCallback(
-    async (_: SurveyModel, options: UploadFilesEvent) => {
-      try {
-        const formData = new FormData();
-        options.files.forEach((file) => {
-          formData.append(file.name, file);
-        });
-        const response = await fetch("/api/public/v0/storage/upload", {
-          method: "POST",
-          body: formData,
-          headers: {
-            "edx-form-id": formId,
-            "edx-submission-id": submissionId ?? "",
-          },
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data?.error ??
-              "Failed to upload files. Please refresh your page and try again."
-          );
-        }
-
-        if (data.submissionId && data.submissionId !== submissionId) {
-          setSubmissionId(data.submissionId);
-        }
-
-        const uploadedFiles = options.files.map((file) => {
-          const remoteFile = data.files?.find(
-            (uploadedFile: { name: string; url: string }) =>
-              uploadedFile.name === file.name
-          );
-          return {
-            file: file,
-            content: remoteFile?.url,
-          };
-        });
-        options.callback(uploadedFiles);
-      } catch (error) {
-        console.error("Error: ", error);
-        options.callback([], [error instanceof Error ? error.message : ""]);
-      }
-    },
-    [formId, submissionId]
-  );
-
   useEffect(() => {
     model.onComplete.add(submitForm);
-    model.onUploadFiles.add(uploadFiles);
     model.onValueChanged.add(updatePartial);
     model.onCurrentPageChanged.add(updatePartial);
     model.onDynamicPanelItemValueChanged.add(updatePartial);
@@ -139,13 +99,12 @@ export default function SurveyComponent({
 
     return () => {
       model.onComplete.remove(submitForm);
-      model.onUploadFiles.remove(uploadFiles);
       model.onValueChanged.remove(updatePartial);
       model.onCurrentPageChanged.remove(updatePartial);
       model.onDynamicPanelItemValueChanged.remove(updatePartial);
       model.onMatrixCellValueChanged.remove(updatePartial);
     };
-  }, [model, submitForm, uploadFiles, updatePartial]);
+  }, [model, submitForm, updatePartial]);
 
   return <Survey model={model} />;
 }
