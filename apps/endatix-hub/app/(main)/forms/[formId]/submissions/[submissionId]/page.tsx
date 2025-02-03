@@ -1,13 +1,10 @@
 import { SubmissionHeader } from '@/features/submissions/ui/details/submission-header';
 import { SubmissionTopNav } from '@/features/submissions/ui/details/submission-top-nav';
-import { getSubmissionDetailsUseCase } from '@/features/submissions/use-cases/get-submission-details.use-case';
-import { Result } from '@/lib/result';
 import { SectionTitle } from '@/components/headings/section-title';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { pdf } from '@react-pdf/renderer';
-import { SubmissionDataPdf } from '@/components/export/submission-data-pdf';
 import SubmissionDetails from '@/features/submissions/ui/details/submission-details';
+import { PdfEmbedView } from '@/features/pdf-export/components/pdf-embed-view';
 
 type Params = {
   params: Promise<{
@@ -24,36 +21,10 @@ export default async function SubmissionPage({ params, searchParams }: Params) {
   const { format } = await searchParams;
 
   if (format?.toLowerCase() === 'pdf') {
-    const submissionResult = await getSubmissionDetailsUseCase({
-      formId,
-      submissionId,
-    });
-
-    if (Result.isError(submissionResult)) {
-      return <div>Submission not found</div>;
-    }
-
-    const submission = submissionResult.value;
-    const pdfBlob = await pdf(
-      <SubmissionDataPdf submission={submission} />
-    ).toBlob();
-    const buffer = Buffer.from(await pdfBlob.arrayBuffer());
-
-    const pdfBase64Url = `data:application/pdf;base64,${buffer.toString(
-      'base64'
-    )}`;
-
     return (
-      <div className="flex justify-center items-center h-screen">
-        <embed
-          src={pdfBase64Url}
-          type="application/pdf"
-          width="100%"
-          height="100%"
-          style={{ border: 'none' }}
-          title="Submission PDF Viewer"
-        />
-      </div>
+      <Suspense fallback={<SubmissionDataSkeleton />}>
+        <PdfEmbedView formId={formId} submissionId={submissionId} />
+      </Suspense>
     );
   }
 

@@ -8,7 +8,7 @@ interface FileAnswerProps {
 }
 
 export function PdfFileAnswer({ question }: FileAnswerProps): React.ReactElement {
-  const files = question?.value as File[];
+  const files: File[] = Array.isArray(question?.value) ? question?.value : [];
 
   return (
     <View style={styles.container} wrap={false}>
