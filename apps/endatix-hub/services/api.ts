@@ -339,7 +339,6 @@ export const updateSubmission = async (
   );
 
   if (!response.ok) {
-    console.error(response);
     throw new Error('Failed to update submission');
   }
 
