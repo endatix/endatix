@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { QuestionFileModel } from 'survey-core';
 import { File } from '@/lib/questions/file/file-type';
 import { FileViewer } from './file-viewer';
-import { MessageSquareText } from 'lucide-react';
+import { ImageOff, MessageSquareText } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -15,7 +15,18 @@ interface FileAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
 }
 
 export function FileAnswer({ question, className, ...props }: FileAnswerProps) {
-  const files = question?.value as File[];
+  const files: File[] = Array.isArray(question?.value) ? question?.value : [];
+
+  if (files.length === 0) {
+    return (
+      <div className={cn('col-span-5', className)} {...props}>
+        <div className="flex items-center justify-start text-sm text-muted-foreground space-x-4 pb-1">
+          <ImageOff className="w-4 h-4 mr-2" />
+          No files uploaded
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('col-span-5', className)} {...props}>
