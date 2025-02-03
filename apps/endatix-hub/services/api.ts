@@ -313,11 +313,21 @@ export const updateSubmission = async (
   submissionId: string,
   submissionData: SubmissionData
 ): Promise<Submission> => {
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect('/login');
+  }
+
   if (!formId || !submissionId) {
     throw new Error('FormId or submissionId is required');
   }
 
-  const headers = new HeaderBuilder().acceptJson().provideJson().build();
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .provideJson()
+    .build();
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions/${submissionId}`,
@@ -329,6 +339,7 @@ export const updateSubmission = async (
   );
 
   if (!response.ok) {
+    console.error(response);
     throw new Error('Failed to update submission');
   }
 
