@@ -28,11 +28,13 @@ function useSurveyModel(submission: Submission) {
       model.data = submissionData;
       model.showCompletedPage = false;
       model.validationEnabled = false;
-      model.showPageTitles = false;
+      model.showPageTitles = true;
       model.showPageNumbers = false;
-      model.showNavigationButtons = false;
-      model.showTitle = false;
+      model.questionsOnPageMode = 'singlePage';
+      model.showCompleteButton = false;
+      model.navigationMode = 'singlePage' as const;
       model.showProgressBar = 'off' as const;
+      model.showTitle = false;
       model.getAllPanels().forEach((panel) => {
         panel.expand();
       });
