@@ -1,20 +1,24 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from '@/components/ui/badge';
 
-const getSeenLabel = (isNew: boolean) => isNew ? "New" : "Seen";
+const getSeenLabel = (code: string) => {
+  switch (code) {
+    case 'new':
+      return 'New';
+    case 'seen':
+      return 'Seen';
+    default:
+      return 'Unknown';
+  }
+};
 
 interface CellSeenStatusProps {
-    isNew: boolean;
-    visible?: boolean;
+  code: string;
 }
 
-export function CellSeenStatus({
-    isNew,
-    visible = true
-}: CellSeenStatusProps) {
-    return (
-        visible ?
-            <Badge variant={isNew ? "secondary" : "default"}>
-                {getSeenLabel(isNew)}
-            </Badge> : null
-    )
+export function CellSeenStatus({ code }: CellSeenStatusProps) {
+  return (
+    <Badge variant={code === 'new' ? 'default' : 'secondary'}>
+      {getSeenLabel(code)}
+    </Badge>
+  );
 }
