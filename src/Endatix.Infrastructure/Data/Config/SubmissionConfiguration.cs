@@ -36,7 +36,16 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
                tokenBuilder.HasIndex(t => t.Value);
            });
 
-        // Index for lookups
+        builder.OwnsOne(s => s.Status, statusBuilder =>
+           {
+               statusBuilder.Property(s => s.Code)
+                          .HasColumnName("StatusCode")
+                          .IsRequired();
+               // Name can be resolved at runtime from Code
+               statusBuilder.Ignore(s => s.Name);
+           });
+
+        // FormId index is needed for frequent lookups by form
         builder.HasIndex(s => s.FormId);
         builder.HasIndex(s => s.FormDefinitionId);
     }
