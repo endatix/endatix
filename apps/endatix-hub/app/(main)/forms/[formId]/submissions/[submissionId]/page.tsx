@@ -1,4 +1,3 @@
-import { SubmissionHeader } from '@/features/submissions/ui/details/submission-header';
 import { SubmissionTopNav } from '@/features/submissions/ui/details/submission-top-nav';
 import { SectionTitle } from '@/components/headings/section-title';
 import { Suspense } from 'react';
@@ -31,7 +30,6 @@ export default async function SubmissionPage({ params, searchParams }: Params) {
   return (
     <>
       <SubmissionTopNav formId={formId} />
-      <SubmissionHeader submissionId={submissionId} formId={formId} />
       <Suspense fallback={<SubmissionDataSkeleton />}>
         <SubmissionDetails formId={formId} submissionId={submissionId} />
       </Suspense>

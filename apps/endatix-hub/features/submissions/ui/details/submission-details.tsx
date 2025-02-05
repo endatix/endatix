@@ -7,6 +7,7 @@ import { SubmissionProperties } from './submission-properties';
 import AnswerViewer from '../answers/answer-viewer';
 import { SectionTitle } from '@/components/headings/section-title';
 import { BackToSubmissionsButton } from './back-to-submissions-button';
+import { SubmissionHeader } from './submission-header';
 
 async function SubmissionDetails({
   formId,
@@ -51,6 +52,11 @@ async function SubmissionDetails({
 
   return (
     <>
+      <SubmissionHeader
+        formId={formId}
+        submissionId={submissionId}
+        status={submission.status}
+      />
       <SubmissionProperties submission={submission} />
       <SectionTitle title="Submission Answers" headingClassName="py-2 my-0" />
       <div className="grid gap-4">
