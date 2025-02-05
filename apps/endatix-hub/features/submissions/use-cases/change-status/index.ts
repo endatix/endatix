@@ -10,6 +10,3 @@ export { changeStatusAction } from './change-status.action';
 // React components
 export { StatusDropdownMenuItem } from './ui/status-dropdown-menu-item';
 export { StatusButton } from './ui/status-button';
-
-// Hooks
-export { useSubmissionStatus } from './use-submission-status.hook';
