@@ -15,8 +15,9 @@ namespace Endatix.Core.UseCases.Submissions;
 /// <param name="CurrentPage">The current page of the submission, if applicable.</param>
 /// <param name="CompletedAt">The date and time when the submission was completed, if applicable.</param>
 /// <param name="CreatedAt">The date and time when the submission was created.</param>
-/// <param name="Metadata">Additional metadata related to the submission.</param>
-public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object> JsonData, long FormId, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt, string? Metadata)
+/// <param name="Metadata">Additional metadata related to the submission.
+/// <param name="Status">The status of the submission.</param>
+public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object> JsonData, long FormId, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt, string? Metadata, string Status)
 {
     public long Id { get; init; } = Id;
     public bool IsComplete { get; init; } = IsComplete;
@@ -27,6 +28,7 @@ public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object>
     public int? CurrentPage { get; init; } = CurrentPage;
     public DateTime? CompletedAt { get; init; } = CompletedAt;
     public DateTime CreatedAt { get; init; } = CreatedAt;
+    public string Status { get; init; } = Status;
 
     public static SubmissionDto FromSubmission(Submission submission)
     {
@@ -45,7 +47,8 @@ public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object>
                 CurrentPage: submission.CurrentPage,
                 CompletedAt: submission.CompletedAt,
                 CreatedAt: submission.CreatedAt,
-                Metadata: submission.Metadata
+                Metadata: submission.Metadata,
+                Status: submission.Status.Code
             );
         }
         catch (JsonException ex)

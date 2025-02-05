@@ -18,6 +18,7 @@ public partial class Submission : BaseEntity, IAggregateRoot
         JsonData = jsonData;
         CurrentPage = currentPage;
         Metadata = metadata;
+        Status = SubmissionStatus.New;
 
         SetCompletionStatus(isComplete);
     }
@@ -31,6 +32,7 @@ public partial class Submission : BaseEntity, IAggregateRoot
     public string? Metadata { get; private set; }
     public DateTime? CompletedAt { get; private set; }
     public Token? Token { get; private set; }
+    public SubmissionStatus Status { get; private set; }
 
     public void Update(string jsonData, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {
@@ -48,6 +50,19 @@ public partial class Submission : BaseEntity, IAggregateRoot
     public void UpdateToken(Token token)
     {
         Token = token;
+    }
+
+    public void UpdateStatus(SubmissionStatus newStatus)
+    {
+        Guard.Against.Null(newStatus, nameof(newStatus));
+        
+        // Add domain rules here, e.g.:
+        if (!IsComplete && newStatus == SubmissionStatus.Approved)
+        {
+            throw new InvalidOperationException("Cannot approve an incomplete submission");
+        }
+
+        Status = newStatus;
     }
 
     private void SetCompletionStatus(bool newIsCompleteValue)
