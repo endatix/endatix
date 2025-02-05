@@ -5,13 +5,18 @@ namespace Endatix.Core.Entities;
 public sealed record SubmissionStatus : IComparable<SubmissionStatus>
 {
     // Required by EF Core
-    private SubmissionStatus() 
+    private SubmissionStatus()
     {
         Name = string.Empty;
         Code = string.Empty;
     }
+
     public static readonly SubmissionStatus New = new("New", "new");
+
     public static readonly SubmissionStatus Approved = new("Approved", "approved");
+    public static readonly SubmissionStatus Seen = new("Seen", "seen");
+
+    public static readonly SubmissionStatus Declined = new("Declined", "declined");
 
     public string Name { get; }
     public string Code { get; }
@@ -33,6 +38,8 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
         {
             "new" => New,
             "approved" => Approved,
+            "seen" => Seen,
+            "declined" => Declined,
             _ => throw new ArgumentException($"Invalid status code: {code}", nameof(code))
         };
 

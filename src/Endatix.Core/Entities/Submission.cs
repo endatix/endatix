@@ -55,12 +55,6 @@ public partial class Submission : BaseEntity, IAggregateRoot
     public void UpdateStatus(SubmissionStatus newStatus)
     {
         Guard.Against.Null(newStatus, nameof(newStatus));
-        
-        // Add domain rules here, e.g.:
-        if (!IsComplete && newStatus == SubmissionStatus.Approved)
-        {
-            throw new InvalidOperationException("Cannot approve an incomplete submission");
-        }
 
         Status = newStatus;
     }
