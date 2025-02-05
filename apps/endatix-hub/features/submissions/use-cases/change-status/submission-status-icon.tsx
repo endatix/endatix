@@ -1,11 +1,11 @@
 import { Spinner } from '@/components/loaders/spinner';
-import { Eye, Sparkles, Variable } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SubmissionStatus, SubmissionStatusType } from '@/types';
 
 interface SubmissionStatusIconProps {
   className?: string;
   isPending: boolean;
-  nextStatus: string;
+  nextStatus: SubmissionStatusType;
 }
 
 const SubmissionStatusIcon = ({
@@ -17,14 +17,9 @@ const SubmissionStatusIcon = ({
     return <Spinner className={cn('h-4 w-4', className)} />;
   }
 
-  switch (nextStatus) {
-    case 'new':
-      return <Sparkles className={cn('h-4 w-4', className)} />;
-    case 'seen':
-      return <Eye className={cn('h-4 w-4', className)} />;
-    default:
-      return <Variable className={cn('h-4 w-4', className)} />;
-  }
+  const Icon = SubmissionStatus.getMetadata(nextStatus).icon;
+
+  return <Icon className={cn('h-4 w-4', className)} />;
 };
 
 export { SubmissionStatusIcon };

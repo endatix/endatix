@@ -10,11 +10,11 @@ import { Spinner } from '@/components/loaders/spinner';
 import { saveToFileHandler } from 'survey-creator-core';
 import { toast } from 'sonner';
 import { ChangeStatusButton } from '@/features/submissions/use-cases/change-status';
-
+import { SubmissionStatusType } from '@/types';
 interface SubmissionHeaderProps {
   submissionId: string;
   formId: string;
-  status: string;
+  status: SubmissionStatusType;
 }
 
 export function SubmissionHeader({

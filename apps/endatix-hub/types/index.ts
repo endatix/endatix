@@ -39,3 +39,5 @@ export type SlackAuthResponse = {
   error: string;
   access_token: string;
 };
+
+export * from './subission-status';
