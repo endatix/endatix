@@ -1,9 +1,15 @@
-export * from './change-status.action';
-export * from './change-status.use-case';
+// Public API
+export type { 
+    ChangeStatusCommand, 
+    ChangeStatusResult 
+} from './types';
 
-// React components 
-export * from './submission-status-button';
-export * from './submission-status-menu-item';
+// Actions
+export { changeStatusAction } from './change-status.action';
+
+// React components
+export { StatusDropdownMenuItem } from './ui/status-dropdown-menu-item';
+export { StatusButton } from './ui/status-button';
 
 // Hooks
-export * from './use-submission-status.hook';
+export { useSubmissionStatus } from './use-submission-status.hook';

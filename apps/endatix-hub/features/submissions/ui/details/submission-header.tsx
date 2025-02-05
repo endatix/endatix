@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { Spinner } from '@/components/loaders/spinner';
 import { saveToFileHandler } from 'survey-creator-core';
 import { toast } from 'sonner';
-import { ChangeStatusButton } from '@/features/submissions/use-cases/change-status';
+import { StatusButton } from '@/features/submissions/use-cases/change-status';
 import { SubmissionStatusType } from '@/types';
 interface SubmissionHeaderProps {
   submissionId: string;
@@ -23,7 +23,6 @@ export function SubmissionHeader({
   status,
 }: SubmissionHeaderProps) {
   const [loading, setLoading] = useState(false);
-
 
   const exportPdf = async () => {
     setLoading(true);
@@ -63,7 +62,7 @@ export function SubmissionHeader({
           {loading ? 'Exporting...' : 'Export PDF'}
         </Button>
 
-        <ChangeStatusButton
+        <StatusButton
           className="hidden md:flex"
           submissionId={submissionId}
           formId={formId}

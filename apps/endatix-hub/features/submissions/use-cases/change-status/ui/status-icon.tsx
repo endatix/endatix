@@ -2,17 +2,17 @@ import { Spinner } from '@/components/loaders/spinner';
 import { cn } from '@/lib/utils';
 import { SubmissionStatus, SubmissionStatusType } from '@/types';
 
-interface SubmissionStatusIconProps {
+interface StatusIconProps {
   className?: string;
   isPending: boolean;
   nextStatus: SubmissionStatusType;
 }
 
-const SubmissionStatusIcon = ({
+const StatusIcon = ({
   className,
   isPending,
   nextStatus,
-}: SubmissionStatusIconProps) => {
+}: StatusIconProps) => {
   if (isPending) {
     return <Spinner className={cn('h-4 w-4', className)} />;
   }
@@ -22,4 +22,4 @@ const SubmissionStatusIcon = ({
   return <Icon className={cn('h-4 w-4', className)} />;
 };
 
-export { SubmissionStatusIcon };
+export { StatusIcon as SubmissionStatusIcon };

@@ -2,20 +2,17 @@
 
 import { Button, ButtonProps } from '@/components/ui/button';
 import React from 'react';
-import { useSubmissionStatus } from './use-submission-status.hook';
-import { SubmissionStatusIcon } from './submission-status-icon';
+import { useSubmissionStatus } from '../use-submission-status.hook';
+import { SubmissionStatusIcon } from './status-icon';
 import { SubmissionStatus, SubmissionStatusType } from '@/types';
 
-interface SubmissionStatusButtonProps extends ButtonProps {
+interface StatusButtonProps extends ButtonProps {
   submissionId: string;
   formId: string;
   status: SubmissionStatusType;
 }
 
-const SubmissionStatusButton = React.forwardRef<
-  HTMLButtonElement,
-  SubmissionStatusButtonProps
->(
+const StatusButton = React.forwardRef<HTMLButtonElement, StatusButtonProps>(
   (
     { submissionId, formId, status, variant = 'outline', onClick, ...props },
     ref
@@ -46,9 +43,6 @@ const SubmissionStatusButton = React.forwardRef<
   }
 );
 
-SubmissionStatusButton.displayName = 'ChangeStatusButton';
+StatusButton.displayName = 'StatusButton';
 
-export {
-  SubmissionStatusButton as ChangeStatusButton,
-  type SubmissionStatusButtonProps as ChangeStatusButtonProps,
-};
+export { StatusButton };

@@ -6,18 +6,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DropdownMenu } from '@/components/ui/dropdown-menu';
-import { Submission } from '@/types';
+import { Submission, SubmissionStatus } from '@/types';
 import { Row } from '@tanstack/react-table';
 import {
   FileDown,
   FilePenLine,
   LinkIcon,
   MoreHorizontal,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { SubmissionStatusMenuItem } from '../../use-cases/change-status';
+import { StatusDropdownMenuItem } from '@/features/submissions/use-cases/change-status';
 
 interface RowActionsProps<TData> {
   row: Row<TData>;
@@ -49,10 +48,10 @@ export function RowActions<TData>({ row }: RowActionsProps<TData>) {
             <span>Edit</span>
           </Link>
         </DropdownMenuItem>
-        <SubmissionStatusMenuItem
+        <StatusDropdownMenuItem
           submissionId={item.id}
           formId={item.formId}
-          status={item.status}
+          status={SubmissionStatus.fromString(item.status)}
         />
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-not-allowed">   

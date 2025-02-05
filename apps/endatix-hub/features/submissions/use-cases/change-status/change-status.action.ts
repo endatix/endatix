@@ -2,31 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import { changeStatusUseCase } from './change-status.use-case';
+import { type ChangeStatusCommand, type ChangeStatusResult } from './types';
 
-interface ChangeSubmissionStatusActionParams {
-  submissionId: string;
-  formId: string;
-  status: string;
-}
-
-interface ChangeSubmissionStatusActionResult {
-  success: boolean;
-  error?: string;
-}
-
-export async function changeStatusAction({
-  submissionId,
-  formId,
-  status,
-}: ChangeSubmissionStatusActionParams): Promise<ChangeSubmissionStatusActionResult> {
-  const success = await changeStatusUseCase({
-    submissionId,
-    formId,
-    status,
-  });
-
+export async function changeStatusAction(
+  command: ChangeStatusCommand
+): Promise<ChangeStatusResult> {
+  const success = await changeStatusUseCase(command);
+  
   if (success) {
-    revalidatePath(`/forms/${formId}/submissions/${submissionId}`);
+    revalidatePath(`/forms/${command.formId}/submissions/${command.submissionId}`);
     return { success: true };
   }
 

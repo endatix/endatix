@@ -8,12 +8,13 @@ import {
 import { cn } from '@/lib/utils';
 import { MoreHorizontal, FilePenLine, Trash2, LinkIcon } from 'lucide-react';
 import Link from 'next/link';
-import { SubmissionStatusMenuItem } from '@/features/submissions/use-cases/change-status';
+import { StatusDropdownMenuItem } from '@/features/submissions/use-cases/change-status';
+import { SubmissionStatusType } from '@/types';
 
 interface SubmissionActionsDropdownProps extends ButtonProps {
   submissionId: string;
   formId: string;
-  status: string;
+  status: SubmissionStatusType;
 }
 
 export function SubmissionActionsDropdown({
@@ -50,7 +51,7 @@ export function SubmissionActionsDropdown({
           </Link>
         </DropdownMenuItem>
 
-        <SubmissionStatusMenuItem
+        <StatusDropdownMenuItem
           className="md:hidden cursor-pointer"
           submissionId={submissionId}
           formId={formId}
