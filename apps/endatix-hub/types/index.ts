@@ -31,6 +31,7 @@ export type Submission = {
   completedAt: Date;
   createdAt: Date;
   modifiedAt: Date;
+  status: string;
 };
 
 export type SlackAuthResponse = {
@@ -38,3 +39,5 @@ export type SlackAuthResponse = {
   error: string;
   access_token: string;
 };
+
+export * from './submission-status';

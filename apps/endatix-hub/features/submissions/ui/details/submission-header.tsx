@@ -2,26 +2,25 @@
 
 import PageTitle from '@/components/headings/page-title';
 import { Button } from '@/components/ui/button';
-import {
-  Download,
-  FilePenLine,
-  LinkIcon,
-} from 'lucide-react';
+import { Download, FilePenLine } from 'lucide-react';
 import Link from 'next/link';
 import { SubmissionActionsDropdown } from './submission-actions-dropdown';
 import { useState } from 'react';
 import { Spinner } from '@/components/loaders/spinner';
 import { saveToFileHandler } from 'survey-creator-core';
 import { toast } from 'sonner';
+import { StatusButton } from '@/features/submissions/use-cases/change-status';
 
 interface SubmissionHeaderProps {
   submissionId: string;
   formId: string;
+  status: string;
 }
 
 export function SubmissionHeader({
   submissionId,
   formId,
+  status,
 }: SubmissionHeaderProps) {
   const [loading, setLoading] = useState(false);
 
@@ -56,25 +55,23 @@ export function SubmissionHeader({
           disabled={loading}
         >
           {loading ? (
-            <Spinner className="mr-2 h-4 w-4" />
+            <Spinner className="h-4 w-4" />
           ) : (
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="h-4 w-4" />
           )}
           {loading ? 'Exporting...' : 'Export PDF'}
         </Button>
 
-        <Button variant={'outline'} asChild>
-          <Link href={`/share/${formId}`} target="_blank">
-            <LinkIcon className="mr-2 h-4 w-4" />
-            Share Link
-          </Link>
-        </Button>
+        <StatusButton
+          className="hidden md:flex"
+          submissionId={submissionId}
+          formId={formId}
+          status={status}
+        />
 
         <Button variant={'outline'} asChild className="hidden md:flex">
-          <Link
-            href={`/forms/${formId}/submissions/${submissionId}/edit`}
-          >
-            <FilePenLine className="mr-2 h-4 w-4" />
+          <Link href={`/forms/${formId}/submissions/${submissionId}/edit`}>
+            <FilePenLine className="h-4 w-4" />
             Edit
           </Link>
         </Button>
@@ -82,6 +79,7 @@ export function SubmissionHeader({
         <SubmissionActionsDropdown
           formId={formId}
           submissionId={submissionId}
+          status={status}
           className="text-muted-foreground"
         />
       </div>

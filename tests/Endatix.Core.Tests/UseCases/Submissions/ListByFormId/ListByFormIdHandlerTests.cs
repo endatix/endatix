@@ -45,8 +45,8 @@ public class ListByFormIdHandlerTests
         var formDefinition = new FormDefinition() { Id = 1 };
         var submissions = new List<SubmissionDto>
         {
-            new(3, false, [], 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }"),
-            new(4, false, [], 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }"),
+            new(3, false, [], 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new"),
+            new(4, false, [], 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new"),
         };
         var request = new ListByFormIdQuery(1, 1, 10, []);
 

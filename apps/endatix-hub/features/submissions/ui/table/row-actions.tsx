@@ -13,10 +13,10 @@ import {
   FilePenLine,
   LinkIcon,
   MoreHorizontal,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { StatusDropdownMenuItem } from '@/features/submissions/use-cases/change-status';
 
 interface RowActionsProps<TData> {
   row: Row<TData>;
@@ -48,10 +48,11 @@ export function RowActions<TData>({ row }: RowActionsProps<TData>) {
             <span>Edit</span>
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Sparkles className="w-4 h-4 mr-2" />
-          <span>Mark as new</span>
-        </DropdownMenuItem>
+        <StatusDropdownMenuItem
+          submissionId={item.id}
+          formId={item.formId}
+          status={item.status}
+        />
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-not-allowed">   
             <FileDown className="w-4 h-4 mr-2" />

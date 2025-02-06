@@ -345,6 +345,45 @@ export const updateSubmission = async (
   return response.json();
 };
 
+interface UpdateSubmissionStatusRequest {
+  status: string;
+  formId: string;
+  dateUpdated: Date;
+}
+
+export const updateSubmissionStatus = async (
+  formId: string,
+  submissionId: string,
+  status: string
+): Promise<UpdateSubmissionStatusRequest> => {
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect('/login');
+  }
+
+  const headers = new HeaderBuilder()
+    .withAuth(session)
+    .acceptJson()
+    .provideJson()
+    .build();
+
+  const response = await fetch(
+    `${API_BASE_URL}/forms/${formId}/submissions/${submissionId}/status`,
+    {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ status }),
+    }
+  );
+  console.log('Status', status);
+  if (!response.ok) {
+    throw new Error('Failed to change submission status');
+  }
+
+  return response.json();
+};
+
 export const getPartialSubmissionPublic = async (
   formId: string,
   token: string
