@@ -33,7 +33,8 @@ public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
                 s.CurrentPage,
                 s.CompletedAt,
                 s.CreatedAt,
-                s.Metadata
+                s.Metadata,
+                s.Status.Code
             ))
             .Where(s => s.FormDefinition.FormId == formId)
             .Filter(filterParams)

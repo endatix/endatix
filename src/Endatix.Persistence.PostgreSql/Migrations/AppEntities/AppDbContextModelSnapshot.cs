@@ -169,6 +169,25 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.OwnsOne("Endatix.Core.Entities.SubmissionStatus", "Status", b1 =>
+                        {
+                            b1.Property<long>("SubmissionId")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("Code")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("Status");
+
+                            b1.HasKey("SubmissionId");
+
+                            b1.ToTable("Submissions");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SubmissionId");
+                        });
+
                     b.OwnsOne("Endatix.Core.Entities.Token", "Token", b1 =>
                         {
                             b1.Property<long>("SubmissionId")
@@ -193,6 +212,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         });
 
                     b.Navigation("FormDefinition");
+
+                    b.Navigation("Status")
+                        .IsRequired();
 
                     b.Navigation("Token");
                 });
