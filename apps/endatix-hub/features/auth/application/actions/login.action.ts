@@ -21,7 +21,6 @@ interface FieldErrors {
 }
 
 export async function loginAction(prevState: unknown, formData: FormData): Promise<LoginActionState> {
-  console.log(`prevState is ${prevState}`);
   const email = formData.get("email");
   const password = formData.get("password");
 
@@ -49,7 +48,7 @@ export async function loginAction(prevState: unknown, formData: FormData): Promi
 
     const authService = new AuthService();
     await authService.login(accessToken, refreshToken, email);
-  } catch (error: unknown) {
+    } catch (error: unknown) {
     let errorMessage = "We cannot log you in at this time. Please check your credentials and try again";
     if (error instanceof Error && error?.cause && typeof error.cause === 'object' && 'code' in error.cause && error.cause.code == CONNECTION_REFUSED_CODE) {
       errorMessage = "Failed to connect to the Endatix API. Ensure your network connection and app settings are correct";
