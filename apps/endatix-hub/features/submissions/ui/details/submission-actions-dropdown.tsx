@@ -9,12 +9,11 @@ import { cn } from '@/lib/utils';
 import { MoreHorizontal, FilePenLine, Trash2, LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 import { StatusDropdownMenuItem } from '@/features/submissions/use-cases/change-status';
-import { SubmissionStatusType } from '@/types';
 
 interface SubmissionActionsDropdownProps extends ButtonProps {
   submissionId: string;
   formId: string;
-  status: SubmissionStatusType;
+  status: string;
 }
 
 export function SubmissionActionsDropdown({
