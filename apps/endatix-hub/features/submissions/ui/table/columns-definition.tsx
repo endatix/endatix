@@ -1,15 +1,15 @@
-import { ColumnDef } from '@tanstack/react-table';
-import { Submission } from '@/types';
-import { RowActions } from './row-actions';
-import { ColumnHeader } from './column-header';
-import { CellDate } from './cell-date';
-import { CellCompleteStatus } from './cell-complete-status';
-import { CellCompletionTime } from './cell-completion-time';
-import { CellReadStatus } from './cell-read-status';
+import { ColumnDef } from "@tanstack/react-table";
+import { Submission } from "@/types";
+import { RowActions } from "./row-actions";
+import { ColumnHeader } from "./column-header";
+import { CellDate } from "./cell-date";
+import { CellCompleteStatus } from "./cell-complete-status";
+import { CellCompletionTime } from "./cell-completion-time";
+import { CellReadStatus } from "./cell-read-status";
 
 export const COLUMNS_DEFINITION: ColumnDef<Submission>[] = [
   {
-    id: 'actions',
+    id: "actions",
     header: ({ column }) => (
       <ColumnHeader
         className="text-center hidden"
@@ -21,7 +21,7 @@ export const COLUMNS_DEFINITION: ColumnDef<Submission>[] = [
     cell: ({ row }) => <RowActions row={row} />,
   },
   {
-    id: 'createdAt',
+    id: "createdAt",
     header: ({ column }) => (
       <ColumnHeader
         className="hidden md:table-cell"
@@ -32,7 +32,7 @@ export const COLUMNS_DEFINITION: ColumnDef<Submission>[] = [
     cell: ({ row }) => <CellDate date={row.original.createdAt} />,
   },
   {
-    id: 'complete',
+    id: "complete",
     header: ({ column }) => (
       <ColumnHeader column={column} title="Is Complete" />
     ),
@@ -41,7 +41,7 @@ export const COLUMNS_DEFINITION: ColumnDef<Submission>[] = [
     ),
   },
   {
-    id: 'completedAt',
+    id: "completedAt",
     header: ({ column }) => (
       <ColumnHeader column={column} title="Completed at" />
     ),
@@ -53,7 +53,7 @@ export const COLUMNS_DEFINITION: ColumnDef<Submission>[] = [
     ),
   },
   {
-    id: 'completionTime',
+    id: "completionTime",
     header: ({ column }) => (
       <ColumnHeader column={column} title="Completion Time" />
     ),
@@ -65,7 +65,7 @@ export const COLUMNS_DEFINITION: ColumnDef<Submission>[] = [
     ),
   },
   {
-    id: 'status',
+    id: "status",
     header: ({ column }) => <ColumnHeader column={column} title="Status" />,
     cell: ({ row }) => <CellReadStatus code={row.original.status} />,
   },

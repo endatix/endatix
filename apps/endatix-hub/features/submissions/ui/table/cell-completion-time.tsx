@@ -1,13 +1,13 @@
 import { getElapsedTimeString } from "@/lib/utils";
 
-interface CellCompletionTimeProps { 
-    startedAt: Date;
-    completedAt: Date;
+interface CellCompletionTimeProps {
+  startedAt: Date;
+  completedAt: Date;
 }
 
 export function CellCompletionTime({
-    startedAt,
-    completedAt
+  startedAt,
+  completedAt,
 }: CellCompletionTimeProps) {
-    return <div>{getElapsedTimeString(startedAt, completedAt)}</div>;
+  return <div>{getElapsedTimeString(startedAt, completedAt)}</div>;
 }

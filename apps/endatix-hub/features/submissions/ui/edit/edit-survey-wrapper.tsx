@@ -1,15 +1,25 @@
-import { useBlobStorage } from '@/features/storage/hooks/use-blob-storage';
-import { registerSpecializedQuestion, SpecializedVideo } from '@/lib/questions';
-import { Submission } from '@/types';
-import { useEffect, useRef } from 'react';
-import { DynamicPanelItemValueChangedEvent, MatrixCellValueChangedEvent, ValueChangedEvent } from 'survey-core';
-import { Model, Survey, SurveyModel } from 'survey-react-ui';
+import { useBlobStorage } from "@/features/storage/hooks/use-blob-storage";
+import { registerSpecializedQuestion, SpecializedVideo } from "@/lib/questions";
+import { Submission } from "@/types";
+import { useEffect, useRef } from "react";
+import {
+  DynamicPanelItemValueChangedEvent,
+  MatrixCellValueChangedEvent,
+  ValueChangedEvent,
+} from "survey-core";
+import { Model, Survey, SurveyModel } from "survey-react-ui";
 
 registerSpecializedQuestion(SpecializedVideo);
 
 interface EditSurveyWrapperProps {
   submission: Submission;
-  onChange: (sender: SurveyModel, event: ValueChangedEvent | DynamicPanelItemValueChangedEvent | MatrixCellValueChangedEvent) => void;
+  onChange: (
+    sender: SurveyModel,
+    event:
+      | ValueChangedEvent
+      | DynamicPanelItemValueChangedEvent
+      | MatrixCellValueChangedEvent,
+  ) => void;
 }
 
 function useSurveyModel(submission: Submission) {
@@ -30,10 +40,10 @@ function useSurveyModel(submission: Submission) {
       model.validationEnabled = false;
       model.showPageTitles = true;
       model.showPageNumbers = false;
-      model.questionsOnPageMode = 'singlePage';
+      model.questionsOnPageMode = "singlePage";
       model.showCompleteButton = false;
-      model.navigationMode = 'singlePage' as const;
-      model.showProgressBar = 'off' as const;
+      model.navigationMode = "singlePage" as const;
+      model.showProgressBar = "off" as const;
       model.showTitle = false;
       model.getAllPanels().forEach((panel) => {
         panel.expand();
@@ -41,7 +51,7 @@ function useSurveyModel(submission: Submission) {
 
       modelRef.current = model;
     } catch (error) {
-      console.error('Error initializing survey model:', error);
+      console.error("Error initializing survey model:", error);
       return null;
     }
   }
@@ -49,10 +59,7 @@ function useSurveyModel(submission: Submission) {
   return modelRef.current;
 }
 
-function EditSurveyWrapper({ 
-  submission, 
-  onChange,
-}: EditSurveyWrapperProps) {
+function EditSurveyWrapper({ submission, onChange }: EditSurveyWrapperProps) {
   const model = useSurveyModel(submission);
 
   useBlobStorage({

@@ -1,10 +1,10 @@
-import { SectionTitle } from '@/components/headings/section-title';
-import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { getSubmissionDetailsUseCase } from '@/features/submissions/use-cases/get-submission-details.use-case';
-import { BackToSubmissionsButton } from '@/features/submissions/ui/details/back-to-submissions-button';
-import { Result } from '@/lib/result';
-import EditSubmission from '@/features/submissions/ui/edit/edit-submission';
+import { SectionTitle } from "@/components/headings/section-title";
+import { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getSubmissionDetailsUseCase } from "@/features/submissions/use-cases/get-submission-details.use-case";
+import { BackToSubmissionsButton } from "@/features/submissions/ui/details/back-to-submissions-button";
+import { Result } from "@/lib/result";
+import EditSubmission from "@/features/submissions/ui/edit/edit-submission";
 
 type Params = {
   params: Promise<{

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import LoginForm from "@/features/auth/ui/login-form";
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 import NewAccountLink from "@/features/auth/ui/new-account-link";
 import { getSession, SessionData } from "@/lib/auth-service";
 import {
@@ -9,7 +9,7 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle
+  CardTitle,
 } from "@/components/ui/card";
 import { Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,10 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
 export const metadata: Metadata = {
-  title: 'Login | Endatix Hub',
-  description: "Endatix sign in page. The first column has the login form with email and password. There's a Forgot your password link and a link to sign up if you do not have an account. The second column has a cover image."
-}
+  title: "Login | Endatix Hub",
+  description:
+    "Endatix sign in page. The first column has the login form with email and password. There's a Forgot your password link and a link to sign up if you do not have an account. The second column has a cover image.",
+};
 
 const LoginPage = async () => {
   const user = await getSession();
@@ -30,20 +31,20 @@ const LoginPage = async () => {
       return false;
     }
 
-    const headersList = await headers()
-    const referer = headersList.get('referer')
+    const headersList = await headers();
+    const referer = headersList.get("referer");
     if (!referer) {
       return false;
     }
 
     const refererUrl = new URL(referer);
-    const isOriginatingFromLoginPage = refererUrl.pathname === '/login';
+    const isOriginatingFromLoginPage = refererUrl.pathname === "/login";
     if (!isOriginatingFromLoginPage) {
       return false;
     }
 
     return true;
-  }
+  };
 
   if (await shouldRedirectUser(user)) {
     redirect("/forms");
@@ -53,12 +54,14 @@ const LoginPage = async () => {
     <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[400px] gap-6">
-          {user.isLoggedIn ?
+          {user.isLoggedIn ? (
             <LoggedInSuccessMessage
               username={user.username}
-              isLoggedIn={user.isLoggedIn} /> :
+              isLoggedIn={user.isLoggedIn}
+            />
+          ) : (
             <LoginFormWrapper />
-          }
+          )}
         </div>
       </div>
       <div className="hidden bg-muted lg:block">
@@ -72,43 +75,46 @@ const LoginPage = async () => {
       </div>
     </div>
   );
-}
-
+};
 
 interface LoggedInMessageProps {
-  username: string,
+  username: string;
   isLoggedIn: boolean;
 }
 
-const LoggedInSuccessMessage = ({ username, isLoggedIn }: LoggedInMessageProps) => {
-  if (isLoggedIn) return (
-    <Card className="bg-background">
-      <CardHeader className="pb-3">
-        <CardTitle>Welcome!
-        </CardTitle>
-        <CardDescription className="max-w-lg text-balance leading-relaxed">
-          You are now logged in as {username}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p>Click on the button below to continue</p>
-      </CardContent>
-      <CardFooter>
-        <Link href="/">
-          <Button className="mr-8">
-            <Rocket className="mr-2 h-4 w-4" />Continue
-          </Button>
-        </Link>
-      </CardFooter>
-    </Card>
-  );
-}
+const LoggedInSuccessMessage = ({
+  username,
+  isLoggedIn,
+}: LoggedInMessageProps) => {
+  if (isLoggedIn)
+    return (
+      <Card className="bg-background">
+        <CardHeader className="pb-3">
+          <CardTitle>Welcome!</CardTitle>
+          <CardDescription className="max-w-lg text-balance leading-relaxed">
+            You are now logged in as {username}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p>Click on the button below to continue</p>
+        </CardContent>
+        <CardFooter>
+          <Link href="/">
+            <Button className="mr-8">
+              <Rocket className="mr-2 h-4 w-4" />
+              Continue
+            </Button>
+          </Link>
+        </CardFooter>
+      </Card>
+    );
+};
 
 const LoginFormWrapper = () => (
   <>
     <LoginForm />
     <NewAccountLink />
   </>
-)
+);
 
 export default LoginPage;

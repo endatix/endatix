@@ -1,15 +1,15 @@
-'use client';
+"use client";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { ChangePasswordForm } from './change-password-form';
-import { Button, ButtonProps } from '@/components/ui/button';
-import { ChevronUp, Pencil } from 'lucide-react';
-import { useState } from 'react';
-import { Separator } from '@/components/ui/separator';
-import React from 'react';
+} from "@/components/ui/collapsible";
+import { ChangePasswordForm } from "./change-password-form";
+import { Button, ButtonProps } from "@/components/ui/button";
+import { ChevronUp, Pencil } from "lucide-react";
+import { useState } from "react";
+import { Separator } from "@/components/ui/separator";
+import React from "react";
 
 function ChangePassword() {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,7 +50,7 @@ const ChangePasswordButton = React.forwardRef<
   ) : (
     <Pencil className="w-4 h-4" />
   );
-  const text = isOpen ? 'Cancel' : 'Change Password';
+  const text = isOpen ? "Cancel" : "Change Password";
 
   return (
     <Button variant="ghost" {...props} ref={ref}>
@@ -60,6 +60,6 @@ const ChangePasswordButton = React.forwardRef<
   );
 });
 
-ChangePasswordButton.displayName = 'ChangePasswordButton';
+ChangePasswordButton.displayName = "ChangePasswordButton";
 
 export { ChangePassword };

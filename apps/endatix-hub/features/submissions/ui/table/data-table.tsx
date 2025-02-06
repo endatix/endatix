@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   TableHeader,
   TableRow,
@@ -6,8 +6,8 @@ import {
   TableBody,
   TableCell,
   Table,
-} from '@/components/ui/table';
-import { Submission } from '@/types';
+} from "@/components/ui/table";
+import { Submission } from "@/types";
 import {
   ColumnDef,
   flexRender,
@@ -16,25 +16,25 @@ import {
   useReactTable,
   Row,
   RowSelectionState,
-} from '@tanstack/react-table';
-import { TablePagination } from './table-pagination';
+} from "@tanstack/react-table";
+import { TablePagination } from "./table-pagination";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
-import { ScrollArea } from '@radix-ui/react-scroll-area';
-import { redirect } from 'next/navigation';
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { redirect } from "next/navigation";
 
 const ROW_CLASS_NAMES = {
-  selected: 'bg-accent',
-  complete: 'font-medium',
+  selected: "bg-accent",
+  complete: "font-medium",
 } as const;
 
 const getRowClassName = (row: Row<Submission>) => {
-  let className = '';
+  let className = "";
   if (row.getIsSelected()) {
     className += ROW_CLASS_NAMES.selected;
   }
@@ -89,7 +89,7 @@ export function DataTable({
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                   </TableHead>
                 );
@@ -104,7 +104,7 @@ export function DataTable({
                 key={row.id}
                 className={getRowClassName(row)}
                 onClick={() => handleRowSelectionChange(row)}
-                data-state={row.getIsSelected() && 'selected'}
+                data-state={row.getIsSelected() && "selected"}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
@@ -136,7 +136,7 @@ export function DataTable({
               {JSON.stringify(
                 table.getSelectedRowModel().rows.map((row) => row.original),
                 null,
-                2
+                2,
               )}
             </pre>
           </ScrollArea>

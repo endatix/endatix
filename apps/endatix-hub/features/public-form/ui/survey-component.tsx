@@ -11,8 +11,8 @@ import { useSurveyModel } from "./use-survey-model.hook";
 import {
   SubmissionData,
   submitFormAction,
-  } from "@/features/public-form/application/actions/submit-form.action";
-  import { useBlobStorage } from "@/features/storage/hooks/use-blob-storage";
+} from "@/features/public-form/application/actions/submit-form.action";
+import { useBlobStorage } from "@/features/storage/hooks/use-blob-storage";
 
 interface SurveyComponentProps {
   definition: string;
@@ -29,14 +29,14 @@ export default function SurveyComponent({
   const { enqueueSubmission, clearQueue } = useSubmissionQueue(formId);
   const [isSubmitting, startSubmitting] = useTransition();
   const [submissionId, setSubmissionId] = useState<string>(
-    submission?.id ?? ""
+    submission?.id ?? "",
   );
 
   useBlobStorage({
     formId,
     submissionId,
     surveyModel: model,
-    onSubmissionIdChange: setSubmissionId
+    onSubmissionIdChange: setSubmissionId,
   });
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export default function SurveyComponent({
 
       enqueueSubmission(submissionData);
     },
-    [enqueueSubmission]
+    [enqueueSubmission],
   );
 
   const submitForm = useCallback(
@@ -81,13 +81,13 @@ export default function SurveyComponent({
           event.showSaveSuccess("The results were saved successfully!");
         } else {
           event.showSaveError(
-            "Failed to submit form. Please try again and contact us if the problem persists."
+            "Failed to submit form. Please try again and contact us if the problem persists.",
           );
           console.debug("Failed to submit form", result.message);
         }
       });
     },
-    [formId, isSubmitting, clearQueue, startSubmitting]
+    [formId, isSubmitting, clearQueue, startSubmitting],
   );
 
   useEffect(() => {

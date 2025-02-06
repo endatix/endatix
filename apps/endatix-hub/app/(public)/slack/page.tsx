@@ -1,7 +1,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { getSlackBearerToken, sendSlackBearerToken } from "@/services/integrations";
+import {
+  getSlackBearerToken,
+  sendSlackBearerToken,
+} from "@/services/integrations";
 import { Suspense, useEffect, useState } from "react";
 
 function SlackTokenTransfer() {
@@ -19,7 +22,9 @@ function SlackTokenTransfer() {
         const responseJson = await getSlackBearerToken(code);
         if (responseJson.ok) {
           const result = await sendSlackBearerToken(responseJson.access_token);
-          setMessage(result ? "Successfully received token" : "Failed to receive token");
+          setMessage(
+            result ? "Successfully received token" : "Failed to receive token",
+          );
         } else {
           setMessage(responseJson.error);
         }

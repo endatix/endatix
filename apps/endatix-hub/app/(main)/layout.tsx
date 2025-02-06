@@ -1,18 +1,18 @@
-import type { Metadata } from "next"
-import "./globals.css"
-import localFont from "next/font/local"
-import { ThemeProvider } from "@/components/controls/theme/theme-provider"
-import { PanelLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import MainNav from "@/components/layout-ui/navigation/main-nav"
-import MobileNav from "@/components/layout-ui/navigation/mobile-nav"
-import BreadcrumbNav from "@/components/layout-ui/navigation/breadcrumb-nav"
-import { SitemapService } from "@/services/sitemap-service"
-import { Toaster } from "sonner"
-import MainSearchBar from "@/components/layout-ui/navigation/main-search-bar"
-import NotificationsBell from "@/components/controls/notifications/notifications-bell"
-import MyAccountDropdown from "@/components/layout-ui/my-account/my-account-dropdown"
+import type { Metadata } from "next";
+import "./globals.css";
+import localFont from "next/font/local";
+import { ThemeProvider } from "@/components/controls/theme/theme-provider";
+import { PanelLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import MainNav from "@/components/layout-ui/navigation/main-nav";
+import MobileNav from "@/components/layout-ui/navigation/mobile-nav";
+import BreadcrumbNav from "@/components/layout-ui/navigation/breadcrumb-nav";
+import { SitemapService } from "@/services/sitemap-service";
+import { Toaster } from "sonner";
+import MainSearchBar from "@/components/layout-ui/navigation/main-search-bar";
+import NotificationsBell from "@/components/controls/notifications/notifications-bell";
+import MyAccountDropdown from "@/components/layout-ui/my-account/my-account-dropdown";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -31,12 +31,10 @@ export const metadata: Metadata = {
 };
 
 interface RootLayoutProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
-export default function RootLayout({
-  children
-}: RootLayoutProps) {
+export default function RootLayout({ children }: RootLayoutProps) {
   const sitemap = SitemapService.getSitemap();
   return (
     <html lang="en" suppressHydrationWarning>

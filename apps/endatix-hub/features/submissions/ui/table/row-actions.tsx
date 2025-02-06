@@ -1,22 +1,22 @@
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { DropdownMenu } from '@/components/ui/dropdown-menu';
-import { Submission } from '@/types';
-import { Row } from '@tanstack/react-table';
+} from "@/components/ui/dropdown-menu";
+import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { Submission } from "@/types";
+import { Row } from "@tanstack/react-table";
 import {
   FileDown,
   FilePenLine,
   LinkIcon,
   MoreHorizontal,
   Trash2,
-} from 'lucide-react';
-import Link from 'next/link';
-import { StatusDropdownMenuItem } from '@/features/submissions/use-cases/change-status';
+} from "lucide-react";
+import Link from "next/link";
+import { StatusDropdownMenuItem } from "@/features/submissions/use-cases/change-status";
 
 interface RowActionsProps<TData> {
   row: Row<TData>;
@@ -54,9 +54,9 @@ export function RowActions<TData>({ row }: RowActionsProps<TData>) {
           status={item.status}
         />
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-not-allowed">   
-            <FileDown className="w-4 h-4 mr-2" />
-            <span>Export PDF</span>
+        <DropdownMenuItem className="cursor-not-allowed">
+          <FileDown className="w-4 h-4 mr-2" />
+          <span>Export PDF</span>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-disabled">
           <Link href="#">

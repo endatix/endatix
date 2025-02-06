@@ -4,7 +4,7 @@ import { FormEditorProps } from "./ui/form-editor";
 import FormEditorContainer from "./ui/form-editor-container";
 
 type Params = {
-  params: Promise<{ formId: string }>
+  params: Promise<{ formId: string }>;
 };
 
 export default async function FormEditPage({ params }: Params) {
@@ -31,7 +31,7 @@ export default async function FormEditPage({ params }: Params) {
     formId: formId,
     formJson: formJson,
     formName: form.name,
-    slkVal: process.env.NEXT_PUBLIC_SLK
+    slkVal: process.env.NEXT_PUBLIC_SLK,
   };
 
   return (

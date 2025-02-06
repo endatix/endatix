@@ -1,9 +1,9 @@
-import { SubmissionTopNav } from '@/features/submissions/ui/details/submission-top-nav';
-import { SectionTitle } from '@/components/headings/section-title';
-import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import SubmissionDetails from '@/features/submissions/ui/details/submission-details';
-import { PdfEmbedView } from '@/features/pdf-export/components/pdf-embed-view';
+import { SubmissionTopNav } from "@/features/submissions/ui/details/submission-top-nav";
+import { SectionTitle } from "@/components/headings/section-title";
+import { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import SubmissionDetails from "@/features/submissions/ui/details/submission-details";
+import { PdfEmbedView } from "@/features/pdf-export/components/pdf-embed-view";
 
 type Params = {
   params: Promise<{
@@ -19,7 +19,7 @@ export default async function SubmissionPage({ params, searchParams }: Params) {
   const { formId, submissionId } = await params;
   const { format } = await searchParams;
 
-  if (format?.toLowerCase() === 'pdf') {
+  if (format?.toLowerCase() === "pdf") {
     return (
       <Suspense fallback={<SubmissionDataSkeleton />}>
         <PdfEmbedView formId={formId} submissionId={submissionId} />

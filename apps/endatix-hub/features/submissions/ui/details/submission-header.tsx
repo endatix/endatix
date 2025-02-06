@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import PageTitle from '@/components/headings/page-title';
-import { Button } from '@/components/ui/button';
-import { Download, FilePenLine } from 'lucide-react';
-import Link from 'next/link';
-import { SubmissionActionsDropdown } from './submission-actions-dropdown';
-import { useState } from 'react';
-import { Spinner } from '@/components/loaders/spinner';
-import { saveToFileHandler } from 'survey-creator-core';
-import { toast } from 'sonner';
-import { StatusButton } from '@/features/submissions/use-cases/change-status';
+import PageTitle from "@/components/headings/page-title";
+import { Button } from "@/components/ui/button";
+import { Download, FilePenLine } from "lucide-react";
+import Link from "next/link";
+import { SubmissionActionsDropdown } from "./submission-actions-dropdown";
+import { useState } from "react";
+import { Spinner } from "@/components/loaders/spinner";
+import { saveToFileHandler } from "survey-creator-core";
+import { toast } from "sonner";
+import { StatusButton } from "@/features/submissions/use-cases/change-status";
 
 interface SubmissionHeaderProps {
   submissionId: string;
@@ -32,14 +32,14 @@ export function SubmissionHeader({
       const fileResponse = await fetch(url);
       if (fileResponse.ok) {
         const blob = new Blob([await fileResponse.arrayBuffer()], {
-          type: 'text/plain;charset=utf-8',
+          type: "text/plain;charset=utf-8",
         });
         saveToFileHandler(pdfFileName, blob);
-        toast.success('PDF exported successfully');
+        toast.success("PDF exported successfully");
         setLoading(false);
       }
     } catch (error) {
-      console.error('Failed to export PDF:', error);
+      console.error("Failed to export PDF:", error);
     } finally {
       setLoading(false);
     }
@@ -50,7 +50,7 @@ export function SubmissionHeader({
       <PageTitle title="Submission Details" />
       <div className="flex space-x-2 justify-end text-muted-foreground">
         <Button
-          variant={'outline'}
+          variant={"outline"}
           onClick={() => exportPdf()}
           disabled={loading}
         >
@@ -59,7 +59,7 @@ export function SubmissionHeader({
           ) : (
             <Download className="h-4 w-4" />
           )}
-          {loading ? 'Exporting...' : 'Export PDF'}
+          {loading ? "Exporting..." : "Export PDF"}
         </Button>
 
         <StatusButton
@@ -69,7 +69,7 @@ export function SubmissionHeader({
           status={status}
         />
 
-        <Button variant={'outline'} asChild className="hidden md:flex">
+        <Button variant={"outline"} asChild className="hidden md:flex">
           <Link href={`/forms/${formId}/submissions/${submissionId}/edit`}>
             <FilePenLine className="h-4 w-4" />
             Edit

@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 interface UserAvatarProps {
   isLoggedIn?: boolean;
@@ -12,7 +12,8 @@ interface UserAvatarProps {
 const UserAvatar: React.FC<UserAvatarProps> = ({
   isLoggedIn = false,
   className,
-  onClick }) => {
+  onClick,
+}) => {
   const determineImageUrl = () => {
     if (!isLoggedIn) {
       return "/assets/images/avatars/placeholder-user.jpg";

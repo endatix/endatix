@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { useSubmissionStatus } from '../use-submission-status.hook';
-import React from 'react';
-import { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
-import { SubmissionStatusIcon } from './status-icon';
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { useSubmissionStatus } from "../use-submission-status.hook";
+import React from "react";
+import { DropdownMenuItemProps } from "@radix-ui/react-dropdown-menu";
+import { SubmissionStatusIcon } from "./status-icon";
 
 interface StatusDropdownMenuItemProps extends DropdownMenuItemProps {
   submissionId: string;
@@ -36,15 +36,13 @@ const StatusDropdownMenuItem = React.forwardRef<
       <SubmissionStatusIcon
         isPending={isPending}
         nextStatus={nextStatus}
-        className='mr-2'
+        className="mr-2"
       />
-      {nextStatus.isNew()
-        ? 'Mark as New'
-        : 'Mark as Read'}
+      {nextStatus.isNew() ? "Mark as New" : "Mark as Read"}
     </DropdownMenuItem>
   );
 });
 
-StatusDropdownMenuItem.displayName = 'StatusDropdownMenuItem';
+StatusDropdownMenuItem.displayName = "StatusDropdownMenuItem";
 
 export { StatusDropdownMenuItem };

@@ -1,14 +1,14 @@
-'use server'
+"use server";
 
-import { cookies } from 'next/headers';
-import SurveyJsWrapper from '@/features/public-form/ui/survey-js-wrapper';
-import { FormTokenCookieStore } from '@/features/public-form/infrastructure/cookie-store';
-import { Result } from '@/lib/result';
-import { getActiveDefinitionUseCase } from '@/features/public-form/use-cases/get-active-definition.use-case';
-import { getPartialSubmissionUseCase } from '@/features/public-form/use-cases/get-partial-submission.use-case';
+import { cookies } from "next/headers";
+import SurveyJsWrapper from "@/features/public-form/ui/survey-js-wrapper";
+import { FormTokenCookieStore } from "@/features/public-form/infrastructure/cookie-store";
+import { Result } from "@/lib/result";
+import { getActiveDefinitionUseCase } from "@/features/public-form/use-cases/get-active-definition.use-case";
+import { getPartialSubmissionUseCase } from "@/features/public-form/use-cases/get-partial-submission.use-case";
 
 type ShareSurveyPage = {
-  params: Promise<{ formId: string }>
+  params: Promise<{ formId: string }>;
 };
 
 async function ShareSurveyPage({ params }: ShareSurveyPage) {
@@ -18,10 +18,12 @@ async function ShareSurveyPage({ params }: ShareSurveyPage) {
 
   const [submissionResult, activeDefinitionResult] = await Promise.all([
     getPartialSubmissionUseCase({ formId, tokenStore }),
-    getActiveDefinitionUseCase({ formId })
+    getActiveDefinitionUseCase({ formId }),
   ]);
 
-  const submission = Result.isSuccess(submissionResult) ? submissionResult.value : undefined;
+  const submission = Result.isSuccess(submissionResult)
+    ? submissionResult.value
+    : undefined;
 
   if (Result.isError(activeDefinitionResult)) {
     return <div>Form not found</div>;
