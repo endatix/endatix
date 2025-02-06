@@ -1,17 +1,17 @@
-import { Metadata } from 'next';
-import { Separator } from '@/components/ui/separator';
-import { SidebarNav } from '@/components/layout-ui/my-account/sidebar-nav';
-import PageTitle from '@/components/headings/page-title';
+import { Metadata } from "next";
+import { Separator } from "@/components/ui/separator";
+import { SidebarNav } from "@/components/layout-ui/my-account/sidebar-nav";
+import PageTitle from "@/components/headings/page-title";
 
 export const metadata: Metadata = {
-  title: 'Settings',
-  description: 'Manage your user account and profile settings.',
+  title: "Settings",
+  description: "Manage your user account and profile settings.",
 };
 
 const sidebarNavItems = [
   {
-    title: 'Security',
-    href: '/settings/security',
+    title: "Security",
+    href: "/settings/security",
   },
 ];
 

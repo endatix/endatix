@@ -1,14 +1,14 @@
-import { Button, ButtonProps } from '@/components/ui/button';
+import { Button, ButtonProps } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
-import { MoreHorizontal, FilePenLine, Trash2, LinkIcon } from 'lucide-react';
-import Link from 'next/link';
-import { StatusDropdownMenuItem } from '@/features/submissions/use-cases/change-status';
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { MoreHorizontal, FilePenLine, Trash2, LinkIcon } from "lucide-react";
+import Link from "next/link";
+import { StatusDropdownMenuItem } from "@/features/submissions/use-cases/change-status";
 
 interface SubmissionActionsDropdownProps extends ButtonProps {
   submissionId: string;
@@ -27,7 +27,7 @@ export function SubmissionActionsDropdown({
       <DropdownMenuTrigger asChild>
         <Button
           {...props}
-          className={cn('flex pl-2 pr-2 items-center', props.className)}
+          className={cn("flex pl-2 pr-2 items-center", props.className)}
           aria-haspopup="true"
           variant="outline"
         >

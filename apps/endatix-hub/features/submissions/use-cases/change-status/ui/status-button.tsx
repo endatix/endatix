@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { Button, ButtonProps } from '@/components/ui/button';
-import React from 'react';
-import { useSubmissionStatus } from '../use-submission-status.hook';
-import { SubmissionStatusIcon } from './status-icon';
+import { Button, ButtonProps } from "@/components/ui/button";
+import React from "react";
+import { useSubmissionStatus } from "../use-submission-status.hook";
+import { SubmissionStatusIcon } from "./status-icon";
 
 interface StatusButtonProps extends ButtonProps {
   submissionId: string;
@@ -13,8 +13,8 @@ interface StatusButtonProps extends ButtonProps {
 
 const StatusButton = React.forwardRef<HTMLButtonElement, StatusButtonProps>(
   (
-    { submissionId, formId, status, variant = 'outline', onClick, ...props },
-    ref
+    { submissionId, formId, status, variant = "outline", onClick, ...props },
+    ref,
   ) => {
     const { isPending, nextStatus, handleStatusChange } = useSubmissionStatus({
       submissionId,
@@ -34,14 +34,12 @@ const StatusButton = React.forwardRef<HTMLButtonElement, StatusButtonProps>(
         {...props}
       >
         <SubmissionStatusIcon isPending={isPending} nextStatus={nextStatus} />
-        {nextStatus.isNew()
-          ? 'Mark as New'
-          : 'Mark as Read'}
+        {nextStatus.isNew() ? "Mark as New" : "Mark as Read"}
       </Button>
     );
-  }
+  },
 );
 
-StatusButton.displayName = 'StatusButton';
+StatusButton.displayName = "StatusButton";
 
 export { StatusButton };

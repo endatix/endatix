@@ -1,16 +1,14 @@
-'use client'
+"use client";
 
-import { FormEditorProps } from "./form-editor"
-import dynamic from "next/dynamic"
+import { FormEditorProps } from "./form-editor";
+import dynamic from "next/dynamic";
 
-const FormEditor = dynamic(() => import('./form-editor'), {
-    ssr: false,
+const FormEditor = dynamic(() => import("./form-editor"), {
+  ssr: false,
 });
 
 const FormEditorContainer = (props: FormEditorProps) => {
-    return (
-        <FormEditor {...props} />
-    )
-}
+  return <FormEditor {...props} />;
+};
 
 export default FormEditorContainer;

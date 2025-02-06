@@ -1,7 +1,9 @@
-import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
+import {
+  BlobServiceClient,
+  StorageSharedKeyCredential,
+} from "@azure/storage-blob";
 import { optimizeImage } from "next/dist/server/image-optimizer";
 import { parseBoolean } from "../../../lib/utils/type-parsers";
-
 
 const DEFAULT_IMAGE_WIDTH = 800;
 
@@ -10,7 +12,7 @@ type AzureStorageConfig = {
   accountName: string;
   accountKey: string;
   hostName: string;
-}
+};
 
 export class StorageService {
   private readonly blobServiceClient: BlobServiceClient;
@@ -23,14 +25,14 @@ export class StorageService {
 
     this.blobServiceClient = new BlobServiceClient(
       `https://${config.hostName}`,
-      new StorageSharedKeyCredential(config.accountName, config.accountKey)
+      new StorageSharedKeyCredential(config.accountName, config.accountKey),
     );
   }
 
   async optimizeImageSize(
     imageBuffer: Buffer,
     contentType: string,
-    quality: number = 80
+    quality: number = 80,
   ): Promise<Buffer> {
     if (!contentType) {
       throw new Error("contentType is not provided");
@@ -41,7 +43,7 @@ export class StorageService {
     }
 
     const resizeImages = parseBoolean(process.env.RESIZE_IMAGES);
-    const shouldResize = resizeImages && contentType.startsWith('image/');
+    const shouldResize = resizeImages && contentType.startsWith("image/");
     if (!shouldResize) {
       return imageBuffer;
     }
@@ -65,9 +67,7 @@ export class StorageService {
 
     const STEP_IMAGE_RESIZE_END = performance.now();
     console.log(
-      `⏱️ Image resize took ${
-        STEP_IMAGE_RESIZE_END - STEP_IMAGE_RESIZE_START
-      }ms`
+      `⏱️ Image resize took ${STEP_IMAGE_RESIZE_END - STEP_IMAGE_RESIZE_START}ms`,
     );
 
     return optimizedImageBuffer;
@@ -93,7 +93,8 @@ export class StorageService {
 
     const STEP_UPLOAD_START = performance.now();
 
-    const containerClient = this.blobServiceClient.getContainerClient(containerName);
+    const containerClient =
+      this.blobServiceClient.getContainerClient(containerName);
     await containerClient.createIfNotExists({
       access: "container",
     });
@@ -104,17 +105,19 @@ export class StorageService {
 
     const STEP_UPLOAD_END = performance.now();
     console.log(
-      `⏱️ Upload to blob took ${STEP_UPLOAD_END - STEP_UPLOAD_START}ms`
+      `⏱️ Upload to blob took ${STEP_UPLOAD_END - STEP_UPLOAD_START}ms`,
     );
 
     return blobClient.url;
   }
 
   static getAzureStorageConfig(): AzureStorageConfig {
-    const { AZURE_STORAGE_ACCOUNT_NAME, AZURE_STORAGE_ACCOUNT_KEY } = process.env;
-    const isEnabled = !!AZURE_STORAGE_ACCOUNT_NAME && !!AZURE_STORAGE_ACCOUNT_KEY;
+    const { AZURE_STORAGE_ACCOUNT_NAME, AZURE_STORAGE_ACCOUNT_KEY } =
+      process.env;
+    const isEnabled =
+      !!AZURE_STORAGE_ACCOUNT_NAME && !!AZURE_STORAGE_ACCOUNT_KEY;
     if (!isEnabled) {
-      return { 
+      return {
         isEnabled: false,
         accountName: "",
         accountKey: "",

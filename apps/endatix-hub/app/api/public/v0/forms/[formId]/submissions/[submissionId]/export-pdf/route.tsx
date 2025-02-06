@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { SubmissionDataPdf } from '@/components/export/submission-data-pdf';
-import { getSubmissionDetailsUseCase } from '@/features/submissions/use-cases/get-submission-details.use-case';
-import { Result } from '@/lib/result';
-import { pdf } from '@react-pdf/renderer';
+import { NextRequest, NextResponse } from "next/server";
+import { SubmissionDataPdf } from "@/components/export/submission-data-pdf";
+import { getSubmissionDetailsUseCase } from "@/features/submissions/use-cases/get-submission-details.use-case";
+import { Result } from "@/lib/result";
+import { pdf } from "@react-pdf/renderer";
 
 type Params = {
   params: Promise<{
@@ -11,7 +11,7 @@ type Params = {
   }>;
 };
 
-const INLINE_QUERY_PARAM = 'inline';
+const INLINE_QUERY_PARAM = "inline";
 export async function GET(req: NextRequest, { params }: Params) {
   const { formId, submissionId } = await params;
 
@@ -24,23 +24,23 @@ export async function GET(req: NextRequest, { params }: Params) {
   });
   if (Result.isError(submissionResult)) {
     return NextResponse.json(
-      { error: 'Submission not found' },
-      { status: 404 }
+      { error: "Submission not found" },
+      { status: 404 },
     );
   }
   const submission = submissionResult.value;
 
   const pdfBlob = await pdf(
-    <SubmissionDataPdf submission={submission} />
+    <SubmissionDataPdf submission={submission} />,
   ).toBlob();
 
-  const contentDisposition = inline === 'true' ? 'inline' : 'attachment';
+  const contentDisposition = inline === "true" ? "inline" : "attachment";
 
   return new Response(pdfBlob, {
     status: 200,
     headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `${contentDisposition}; filename="submission-${submissionId}.pdf"`,
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `${contentDisposition}; filename="submission-${submissionId}.pdf"`,
     },
   });
 }

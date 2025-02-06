@@ -14,7 +14,7 @@ describe("Home Page", () => {
   it("displays the main description text", () => {
     render(<HomePage />);
     const description = screen.getByText(
-      "Endatix Hub is the new exciting way to manage your data collection and processing workflows."
+      "Endatix Hub is the new exciting way to manage your data collection and processing workflows.",
     );
     expect(description).toBeDefined();
   });
@@ -31,7 +31,7 @@ describe("Home Page", () => {
     const learnLink = screen.getByRole("link", { name: "Learn about Endatix" });
     expect(learnLink).toBeDefined();
     expect(learnLink.getAttribute("href")).toBe(
-      "https://endatix.com?utm_source=endatix-hub&utm_medium=product"
+      "https://endatix.com?utm_source=endatix-hub&utm_medium=product",
     );
   });
 
@@ -41,7 +41,7 @@ describe("Home Page", () => {
     const docsLink = screen.getByRole("link", { name: "Read our Docs" });
     expect(docsLink).toBeDefined();
     expect(docsLink.getAttribute("href")).toBe(
-      "https://docs.endatix.com/docs/category/getting-started?utm_source=endatix-hub&utm_medium=product"
+      "https://docs.endatix.com/docs/category/getting-started?utm_source=endatix-hub&utm_medium=product",
     );
   });
 

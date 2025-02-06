@@ -1,32 +1,27 @@
-'use client'
+"use client";
 
 import {
   Table,
   TableBody,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import {
-  COLUMNS_DEFINITION,
-  DataTable,
-} from "@/features/submissions/ui/table";
+import { COLUMNS_DEFINITION, DataTable } from "@/features/submissions/ui/table";
 import { Submission } from "@/types";
 import SubmissionRow from "./submission-row";
 import { useEffect, useMemo, useState } from "react";
 import SubmissionSheet from "./submission-sheet";
-
 
 type SubmissionsTableProps = {
   data: Submission[];
   useLegacyTable?: boolean;
 };
 
-const SubmissionsTable = ({
-  data,
-  useLegacyTable
-}: SubmissionsTableProps) => {
-  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
+const SubmissionsTable = ({ data, useLegacyTable }: SubmissionsTableProps) => {
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -39,12 +34,12 @@ const SubmissionsTable = ({
         return;
       }
 
-      const currentIndex = data.findIndex(s => s.id === selectedSubmissionId);
+      const currentIndex = data.findIndex((s) => s.id === selectedSubmissionId);
       if (e.key === "ArrowUp" || e.key === "ArrowRight") {
-        const prevIndex = (currentIndex > 0 ? currentIndex - 1 : data.length - 1);
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : data.length - 1;
         setSelectedSubmissionId(data[prevIndex].id);
       } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
-        const nextIndex = (currentIndex < data.length - 1 ? currentIndex + 1 : 0);
+        const nextIndex = currentIndex < data.length - 1 ? currentIndex + 1 : 0;
         setSelectedSubmissionId(data[nextIndex].id);
       }
     };
@@ -56,8 +51,8 @@ const SubmissionsTable = ({
   }, [selectedSubmissionId, data]);
 
   const selectedSubmission = useMemo(
-    () => data.find(s => s.id === selectedSubmissionId),
-    [selectedSubmissionId, data]
+    () => data.find((s) => s.id === selectedSubmissionId),
+    [selectedSubmissionId, data],
   );
 
   if (useLegacyTable) {
@@ -69,7 +64,9 @@ const SubmissionsTable = ({
               <span className="sr-only">Actions</span>
             </TableHead>
             <TableHead className="text-center hidden">ID</TableHead>
-            <TableHead className="text-center hidden md:table-cell">Created at</TableHead>
+            <TableHead className="text-center hidden md:table-cell">
+              Created at
+            </TableHead>
             <TableHead className="text-center">Complete?</TableHead>
             <TableHead className="text-center">Completed at</TableHead>
             <TableHead className="text-center">Completion Time</TableHead>
@@ -82,7 +79,8 @@ const SubmissionsTable = ({
               key={item.id}
               isSelected={item.id === selectedSubmissionId}
               onClick={() => setSelectedSubmissionId(item.id)}
-              item={item} />
+              item={item}
+            />
           ))}
         </TableBody>
 
@@ -93,11 +91,7 @@ const SubmissionsTable = ({
     );
   }
 
-  return (
-    <DataTable
-      data={data}
-      columns={COLUMNS_DEFINITION} />
-  )
-}
+  return <DataTable data={data} columns={COLUMNS_DEFINITION} />;
+};
 
 export default SubmissionsTable;

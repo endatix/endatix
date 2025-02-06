@@ -13,9 +13,10 @@ import { BookText, Globe } from "lucide-react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: 'Home | Endatix Hub',
-  description: "Endatix Hub's homepage. The starting point of getting things done."
-}
+  title: "Home | Endatix Hub",
+  description:
+    "Endatix Hub's homepage. The starting point of getting things done.",
+};
 
 function HomePage() {
   return (
@@ -93,6 +94,6 @@ function HomePage() {
       </footer>
     </div>
   );
-};
+}
 
 export default HomePage;

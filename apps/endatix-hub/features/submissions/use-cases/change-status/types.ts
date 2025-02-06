@@ -1,4 +1,4 @@
-import { SubmissionStatusKind } from '@/types';
+import { SubmissionStatusKind } from "@/types";
 
 export interface ChangeStatusCommand {
   submissionId: string;
@@ -9,4 +9,4 @@ export interface ChangeStatusCommand {
 export interface ChangeStatusResult {
   success: boolean;
   error?: string;
-} 
+}

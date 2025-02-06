@@ -40,7 +40,7 @@ const NavLink = ({
   return (
     <Link
       onClick={(event) => {
-        if (!ALLOWED_PAGES.some(allowedPath => allowedPath === path)) {
+        if (!ALLOWED_PAGES.some((allowedPath) => allowedPath === path)) {
           showComingSoonMessage(event);
         }
       }}

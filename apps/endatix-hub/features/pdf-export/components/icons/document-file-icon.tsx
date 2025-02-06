@@ -1,5 +1,5 @@
-import { Path, Svg } from '@react-pdf/renderer';
-import { PDF_STYLES } from '../pdf-styles';
+import { Path, Svg } from "@react-pdf/renderer";
+import { PDF_STYLES } from "../pdf-styles";
 
 const DocumentFileIcon = () => (
   <Svg style={PDF_STYLES.icon}>

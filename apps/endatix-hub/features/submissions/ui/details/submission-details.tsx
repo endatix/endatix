@@ -1,13 +1,13 @@
-'use server';
+"use server";
 
-import { getSubmissionDetailsUseCase } from '@/features/submissions/use-cases/get-submission-details.use-case';
-import { Result } from '@/lib/result';
-import { Model } from 'survey-core';
-import { SubmissionProperties } from './submission-properties';
-import AnswerViewer from '../answers/answer-viewer';
-import { SectionTitle } from '@/components/headings/section-title';
-import { BackToSubmissionsButton } from './back-to-submissions-button';
-import { SubmissionHeader } from './submission-header';
+import { getSubmissionDetailsUseCase } from "@/features/submissions/use-cases/get-submission-details.use-case";
+import { Result } from "@/lib/result";
+import { Model } from "survey-core";
+import { SubmissionProperties } from "./submission-properties";
+import AnswerViewer from "../answers/answer-viewer";
+import { SectionTitle } from "@/components/headings/section-title";
+import { BackToSubmissionsButton } from "./back-to-submissions-button";
+import { SubmissionHeader } from "./submission-header";
 
 async function SubmissionDetails({
   formId,

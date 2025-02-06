@@ -1,16 +1,16 @@
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import React from 'react';
-import { Question, QuestionFileModel } from 'survey-core';
-import RatingAnswer from './rating-answer';
-import RadioGroupAnswer from './radiogroup-answer';
-import DropdownAnswer from './dropdown-answer';
-import RankingAnswer from './ranking-answer';
-import MatrixAnswer from './matrix-answer';
-import CommentAnswer from './comment-answer';
-import { FileAnswer } from './file-answer';
-import { QuestionLabel } from '../details/question-label';
-import { QuestionType } from '@/lib/questions';
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import React from "react";
+import { Question, QuestionFileModel } from "survey-core";
+import RatingAnswer from "./rating-answer";
+import RadioGroupAnswer from "./radiogroup-answer";
+import DropdownAnswer from "./dropdown-answer";
+import RankingAnswer from "./ranking-answer";
+import MatrixAnswer from "./matrix-answer";
+import CommentAnswer from "./comment-answer";
+import { FileAnswer } from "./file-answer";
+import { QuestionLabel } from "../details/question-label";
+import { QuestionType } from "@/lib/questions";
 
 export interface ViewAnswerProps
   extends React.HtmlHTMLAttributes<HTMLInputElement> {
@@ -18,7 +18,7 @@ export interface ViewAnswerProps
 }
 
 const AnswerViewer = ({ forQuestion }: ViewAnswerProps): React.JSX.Element => {
-  const questionType = forQuestion.getType() ?? 'unsupported';
+  const questionType = forQuestion.getType() ?? "unsupported";
 
   const renderTextAnswer = () => (
     <>
@@ -94,7 +94,7 @@ const AnswerViewer = ({ forQuestion }: ViewAnswerProps): React.JSX.Element => {
   const renderUnknownAnswer = () => (
     <>
       <QuestionLabel forQuestion={forQuestion} />
-      <p className="col-span-3">{forQuestion.value?.toString() ?? '-'}</p>
+      <p className="col-span-3">{forQuestion.value?.toString() ?? "-"}</p>
     </>
   );
 

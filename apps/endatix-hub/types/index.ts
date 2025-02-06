@@ -5,7 +5,7 @@ export type Form = {
   isEnabled: boolean;
   createdAt: Date;
   modifiedAt?: Date;
-  submissionsCount?: number
+  submissionsCount?: number;
 };
 
 export type FormDefinition = {
@@ -40,4 +40,4 @@ export type SlackAuthResponse = {
   access_token: string;
 };
 
-export * from './submission-status';
+export * from "./submission-status";

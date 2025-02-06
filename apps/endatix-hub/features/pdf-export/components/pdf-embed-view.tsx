@@ -1,4 +1,4 @@
-'use server';
+"use server";
 
 interface PdfEmbedViewProps {
   formId: string;
@@ -18,7 +18,7 @@ export async function PdfEmbedView({
         type="application/pdf"
         width="100%"
         height="100%"
-        style={{ border: 'none' }}
+        style={{ border: "none" }}
         title="Submission PDF Viewer"
       />
     </div>

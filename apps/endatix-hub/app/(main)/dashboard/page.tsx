@@ -131,7 +131,7 @@ const Dashboard = async () => {
             <li>RESIZE_IMAGES: {RESIZE_IMAGES}</li>
             <li>RESIZE_IMAGES_WIDTH: {RESIZE_IMAGES_WIDTH}</li>
             <li>
-              Remote Image Hostnames: {" "}
+              Remote Image Hostnames:{" "}
               {nextConfig?.images?.remotePatterns
                 ?.map((p) => p.hostname)
                 .join(", ")}
