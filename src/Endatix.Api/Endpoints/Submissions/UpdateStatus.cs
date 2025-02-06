@@ -7,8 +7,14 @@ using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
-public class UpdateStatus(IMediator mediator) : Endpoint<UpdateSubmissionStatusRequest, Results<Ok<UpdateSubmissionStatusResponse>, BadRequest, NotFound>>
+/// <summary>
+/// Endpoint for updating the status of a form submission.
+/// </summary>
+public class UpdateStatus(IMediator mediator) : Endpoint<UpdateStatusRequest, Results<Ok<UpdateStatusResponse>, BadRequest, NotFound>>
 {
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Post("forms/{formId}/submissions/{submissionId}/status");
@@ -23,11 +29,12 @@ public class UpdateStatus(IMediator mediator) : Endpoint<UpdateSubmissionStatusR
         });
     }
 
-    public override async Task<Results<Ok<UpdateSubmissionStatusResponse>, BadRequest, NotFound>> ExecuteAsync(
-        UpdateSubmissionStatusRequest request,
+    /// <inheritdoc/>
+    public override async Task<Results<Ok<UpdateStatusResponse>, BadRequest, NotFound>> ExecuteAsync(
+        UpdateStatusRequest request,
         CancellationToken cancellationToken)
     {
-        var command = new UpdateSubmissionStatusCommand(
+        var command = new UpdateStatusCommand(
             request.SubmissionId,
             request.FormId,
             request.Status
@@ -36,14 +43,7 @@ public class UpdateStatus(IMediator mediator) : Endpoint<UpdateSubmissionStatusR
         var result = await mediator.Send(command, cancellationToken);
 
         return TypedResultsBuilder
-            .FromResult(result)
-            .SetTypedResults<Ok<UpdateSubmissionStatusResponse>, BadRequest, NotFound>();
+            .MapResult(result, result => new UpdateStatusResponse(result.Id, result.Status))
+            .SetTypedResults<Ok<UpdateStatusResponse>, BadRequest, NotFound>();
     }
 }
-
-public record UpdateSubmissionStatusRequest
-{
-    public long SubmissionId { get; init; }
-    public long FormId { get; init; }
-    public string Status { get; init; } = string.Empty;
-} 
