@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { changeStatusUseCase } from '../change-status.use-case';
 import { updateSubmissionStatus } from '@/services/api';
-import { SubmissionStatus } from '@/types/subission-status';
+import { SubmissionStatusKind } from '@/types';
 
 // Mock the API service
 vi.mock('@/services/api', () => ({
@@ -12,7 +12,7 @@ describe('changeStatusUseCase', () => {
   const mockParams = {
     formId: '1',
     submissionId: '2',
-    status: SubmissionStatus.values.approved,
+    status: SubmissionStatusKind.Approved
   };
 
   beforeEach(() => {

@@ -1,7 +1,7 @@
 import { getElapsedTimeString, parseDate } from '@/lib/utils';
 import { CellCompleteStatus } from '../table/cell-complete-status';
 import { PropertyDisplay } from './property-display';
-import { Submission } from '@/types';
+import { Submission, SubmissionStatus, SubmissionStatusKind } from '@/types';
 import { Badge } from '@/components/ui/badge';
 
 interface SubmissionPropertiesProps {
@@ -24,24 +24,11 @@ const getFormattedDate = (date: Date): string => {
   });
 };
 
-const getStatusLabel = (code: string) => {
-  switch (code) {
-    case 'new':
-      return 'New';
-      case 'seen':
-        return 'Seen';
-      case 'declined':
-        return 'Declined';
-      case 'approved':
-        return 'Approved';
-      default:
-        return 'Unknown';
-    }
-  };
-
 export function SubmissionProperties({
   submission,
 }: SubmissionPropertiesProps) {
+  const status = SubmissionStatus.fromCode(submission.status);
+
   return (
     <div className="px-4">
       <PropertyDisplay label="Created on">
@@ -63,8 +50,8 @@ export function SubmissionProperties({
         </PropertyDisplay>
       )}
       <PropertyDisplay label="Status">
-        <Badge variant={submission.status === 'new' ? 'default' : 'secondary'}>
-          {getStatusLabel(submission.status)}
+        <Badge variant={status.value === SubmissionStatusKind.New ? 'default' : 'secondary'}>
+          {status.label}
         </Badge>
       </PropertyDisplay>
       <PropertyDisplay label="Last modified on">

@@ -6,7 +6,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DropdownMenu } from '@/components/ui/dropdown-menu';
-import { Submission, SubmissionStatus } from '@/types';
+import { Submission } from '@/types';
 import { Row } from '@tanstack/react-table';
 import {
   FileDown,
@@ -51,7 +51,7 @@ export function RowActions<TData>({ row }: RowActionsProps<TData>) {
         <StatusDropdownMenuItem
           submissionId={item.id}
           formId={item.formId}
-          status={SubmissionStatus.fromString(item.status)}
+          status={item.status}
         />
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-not-allowed">   

@@ -5,12 +5,11 @@ import { useSubmissionStatus } from '../use-submission-status.hook';
 import React from 'react';
 import { DropdownMenuItemProps } from '@radix-ui/react-dropdown-menu';
 import { SubmissionStatusIcon } from './status-icon';
-import { SubmissionStatus, SubmissionStatusType } from '@/types';
 
 interface StatusDropdownMenuItemProps extends DropdownMenuItemProps {
   submissionId: string;
   formId: string;
-  status: SubmissionStatusType;
+  status: string;
 }
 
 const StatusDropdownMenuItem = React.forwardRef<
@@ -39,9 +38,9 @@ const StatusDropdownMenuItem = React.forwardRef<
         nextStatus={nextStatus}
         className='mr-2'
       />
-      {nextStatus === SubmissionStatus.values.new
+      {nextStatus.isNew()
         ? 'Mark as New'
-        : 'Mark as Seen'}
+        : 'Mark as Read'}
     </DropdownMenuItem>
   );
 });

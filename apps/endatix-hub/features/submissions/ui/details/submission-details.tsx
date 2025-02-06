@@ -8,7 +8,6 @@ import AnswerViewer from '../answers/answer-viewer';
 import { SectionTitle } from '@/components/headings/section-title';
 import { BackToSubmissionsButton } from './back-to-submissions-button';
 import { SubmissionHeader } from './submission-header';
-import { SubmissionStatus } from '@/types';
 
 async function SubmissionDetails({
   formId,
@@ -50,14 +49,13 @@ async function SubmissionDetails({
 
   surveyModel.data = submissionData;
   const questions = surveyModel.getAllQuestions(false, false, true);
-  const status = SubmissionStatus.fromString(submission.status);
 
   return (
     <>
       <SubmissionHeader
         formId={formId}
         submissionId={submissionId}
-        status={status}
+        status={submission.status}
       />
       <SubmissionProperties submission={submission} />
       <SectionTitle title="Submission Answers" headingClassName="py-2 my-0" />

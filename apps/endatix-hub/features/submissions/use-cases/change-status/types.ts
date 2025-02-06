@@ -1,9 +1,9 @@
-import { SubmissionStatusType } from '@/types';
+import { SubmissionStatusKind } from '@/types';
 
 export interface ChangeStatusCommand {
   submissionId: string;
   formId: string;
-  status: SubmissionStatusType;
+  status: SubmissionStatusKind;
 }
 
 export interface ChangeStatusResult {

@@ -3,12 +3,12 @@
 import { toast } from 'sonner';
 import { useTransition } from 'react';
 import { changeStatusAction } from './change-status.action';
-import { SubmissionStatus, SubmissionStatusType } from '@/types';
+import { SubmissionStatus, SubmissionStatusKind } from '@/types';
 
 interface UseSubmissionStatusProps {
   submissionId: string;
   formId: string;
-  status: SubmissionStatusType;
+  status: string;
 }
 
 export const useSubmissionStatus = ({
@@ -17,17 +17,18 @@ export const useSubmissionStatus = ({
   status,
 }: UseSubmissionStatusProps) => {
   const [isPending, startTransition] = useTransition();
+  const currentStatus = SubmissionStatus.fromCode(status);
   const nextStatus =
-    status === SubmissionStatus.values.new
-      ? SubmissionStatus.values.seen
-      : SubmissionStatus.values.new;
+    currentStatus.isNew()
+      ? SubmissionStatus.fromCode(SubmissionStatusKind.Read)
+      : SubmissionStatus.fromCode(SubmissionStatusKind.New);
 
   const handleStatusChange = async () => {
     startTransition(async () => {
       const statusResult = await changeStatusAction({
         submissionId,
         formId,
-        status: nextStatus,
+        status: nextStatus.value,
       });
 
       if (statusResult.success) {

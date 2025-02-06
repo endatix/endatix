@@ -5,7 +5,7 @@ import { ColumnHeader } from './column-header';
 import { CellDate } from './cell-date';
 import { CellCompleteStatus } from './cell-complete-status';
 import { CellCompletionTime } from './cell-completion-time';
-import { CellSeenStatus } from './cell-seen-status';
+import { CellReadStatus } from './cell-read-status';
 
 export const COLUMNS_DEFINITION: ColumnDef<Submission>[] = [
   {
@@ -67,6 +67,6 @@ export const COLUMNS_DEFINITION: ColumnDef<Submission>[] = [
   {
     id: 'status',
     header: ({ column }) => <ColumnHeader column={column} title="Status" />,
-    cell: ({ row }) => <CellSeenStatus code={row.original.status} />,
+    cell: ({ row }) => <CellReadStatus code={row.original.status} />,
   },
 ];

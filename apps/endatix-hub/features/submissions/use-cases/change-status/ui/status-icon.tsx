@@ -1,11 +1,11 @@
 import { Spinner } from '@/components/loaders/spinner';
 import { cn } from '@/lib/utils';
-import { SubmissionStatus, SubmissionStatusType } from '@/types';
+import { SubmissionStatus } from '@/types';
 
 interface StatusIconProps {
   className?: string;
   isPending: boolean;
-  nextStatus: SubmissionStatusType;
+  nextStatus: SubmissionStatus;
 }
 
 const StatusIcon = ({
@@ -17,7 +17,7 @@ const StatusIcon = ({
     return <Spinner className={cn('h-4 w-4', className)} />;
   }
 
-  const Icon = SubmissionStatus.getMetadata(nextStatus).icon;
+  const Icon = nextStatus.icon;
 
   return <Icon className={cn('h-4 w-4', className)} />;
 };

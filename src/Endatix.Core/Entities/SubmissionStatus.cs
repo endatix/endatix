@@ -14,7 +14,7 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
     public static readonly SubmissionStatus New = new("New", "new");
 
     public static readonly SubmissionStatus Approved = new("Approved", "approved");
-    public static readonly SubmissionStatus Seen = new("Seen", "seen");
+    public static readonly SubmissionStatus Read = new("Read", "read");
 
     public static readonly SubmissionStatus Declined = new("Declined", "declined");
 
@@ -38,7 +38,7 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
         {
             "new" => New,
             "approved" => Approved,
-            "seen" => Seen,
+            "read" => Read,
             "declined" => Declined,
             _ => throw new ArgumentException($"Invalid status code: {code}", nameof(code))
         };

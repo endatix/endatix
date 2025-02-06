@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useSubmissionStatus } from '../use-submission-status.hook';
 import { changeStatusAction } from '../change-status.action';
-import { SubmissionStatus, type SubmissionStatusType } from '@/types/subission-status';
+import { SubmissionStatusKind } from '@/types';
 import { toast } from 'sonner';
 
 // Mock dependencies
@@ -21,7 +21,7 @@ describe('useSubmissionStatus', () => {
   const mockProps = {
     submissionId: '1',
     formId: '2',
-    status: SubmissionStatus.values.new as SubmissionStatusType,
+    status: SubmissionStatusKind.New,
   };
 
   beforeEach(() => {
@@ -32,7 +32,7 @@ describe('useSubmissionStatus', () => {
     const { result } = renderHook(() => useSubmissionStatus(mockProps));
 
     expect(result.current.isPending).toBe(false);
-    expect(result.current.nextStatus).toBe(SubmissionStatus.values.seen);
+    expect(result.current.nextStatus.value).toBe(SubmissionStatusKind.Read);
   });
 
   it('should handle successful status change', async () => {
@@ -49,7 +49,7 @@ describe('useSubmissionStatus', () => {
     expect(changeStatusAction).toHaveBeenCalledWith({
       formId: mockProps.formId,
       submissionId: mockProps.submissionId,
-      status: SubmissionStatus.values.seen,
+      status: SubmissionStatusKind.Read,
     });
     expect(toast.success).toHaveBeenCalledWith('Status updated successfully');
   });
@@ -70,23 +70,23 @@ describe('useSubmissionStatus', () => {
     expect(toast.error).toHaveBeenCalledWith(error);
   });
 
-  it('should toggle between new and seen status', () => {
+  it('should toggle between new and read status', () => {
     // Test with new status
     const { result: newResult } = renderHook(() =>
       useSubmissionStatus({
         ...mockProps,
-        status: SubmissionStatus.values.new,
+        status: SubmissionStatusKind.New,
       })
     );
-    expect(newResult.current.nextStatus).toBe(SubmissionStatus.values.seen);
+    expect(newResult.current.nextStatus.value).toBe(SubmissionStatusKind.Read);
 
-    // Test with seen status
-    const { result: seenResult } = renderHook(() =>
+    // Test with read status
+    const { result: readResult } = renderHook(() =>
       useSubmissionStatus({
         ...mockProps,
-        status: SubmissionStatus.values.seen,
+        status: SubmissionStatusKind.Read,
       })
     );
-    expect(seenResult.current.nextStatus).toBe(SubmissionStatus.values.new);
+    expect(readResult.current.nextStatus.value).toBe(SubmissionStatusKind.New);
   });
 }); 

@@ -40,4 +40,4 @@ export type SlackAuthResponse = {
   access_token: string;
 };
 
-export * from './subission-status';
+export * from './submission-status';

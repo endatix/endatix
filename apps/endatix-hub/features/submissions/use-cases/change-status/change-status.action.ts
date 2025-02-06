@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { changeStatusUseCase } from './change-status.use-case';
-import { type ChangeStatusCommand, type ChangeStatusResult } from './types';
+import { ChangeStatusCommand, ChangeStatusResult } from './types';
 
 export async function changeStatusAction(
   command: ChangeStatusCommand

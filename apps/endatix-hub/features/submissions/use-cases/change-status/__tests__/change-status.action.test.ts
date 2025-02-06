@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { changeStatusAction } from '../change-status.action';
 import { changeStatusUseCase } from '../change-status.use-case';
-import {
-  SubmissionStatus,
-  type SubmissionStatusType,
-} from '@/types/subission-status';
+import { SubmissionStatusKind } from '@/types';
 import { revalidatePath } from 'next/cache';
 
 // Mock dependencies
@@ -20,7 +17,7 @@ describe('changeStatusAction', () => {
   const mockCommand = {
     submissionId: '1',
     formId: '2',
-    status: SubmissionStatus.values.seen as SubmissionStatusType,
+    status: SubmissionStatusKind.Read,
   };
 
   beforeEach(() => {

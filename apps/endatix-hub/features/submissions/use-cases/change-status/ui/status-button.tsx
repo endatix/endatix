@@ -4,12 +4,11 @@ import { Button, ButtonProps } from '@/components/ui/button';
 import React from 'react';
 import { useSubmissionStatus } from '../use-submission-status.hook';
 import { SubmissionStatusIcon } from './status-icon';
-import { SubmissionStatus, SubmissionStatusType } from '@/types';
 
 interface StatusButtonProps extends ButtonProps {
   submissionId: string;
   formId: string;
-  status: SubmissionStatusType;
+  status: string;
 }
 
 const StatusButton = React.forwardRef<HTMLButtonElement, StatusButtonProps>(
@@ -35,9 +34,9 @@ const StatusButton = React.forwardRef<HTMLButtonElement, StatusButtonProps>(
         {...props}
       >
         <SubmissionStatusIcon isPending={isPending} nextStatus={nextStatus} />
-        {nextStatus === SubmissionStatus.values.new
+        {nextStatus.isNew()
           ? 'Mark as New'
-          : 'Mark as Seen'}
+          : 'Mark as Read'}
       </Button>
     );
   }
