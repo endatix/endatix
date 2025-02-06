@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { toast } from 'sonner';
-import { useTransition } from 'react';
-import { changeStatusAction } from './change-status.action';
-import { SubmissionStatus, SubmissionStatusKind } from '@/types';
+import { toast } from "sonner";
+import { useTransition } from "react";
+import { changeStatusAction } from "./change-status.action";
+import { SubmissionStatus, SubmissionStatusKind } from "@/types";
 
 interface UseSubmissionStatusProps {
   submissionId: string;
@@ -18,10 +18,9 @@ export const useSubmissionStatus = ({
 }: UseSubmissionStatusProps) => {
   const [isPending, startTransition] = useTransition();
   const currentStatus = SubmissionStatus.fromCode(status);
-  const nextStatus =
-    currentStatus.isNew()
-      ? SubmissionStatus.fromCode(SubmissionStatusKind.Read)
-      : SubmissionStatus.fromCode(SubmissionStatusKind.New);
+  const nextStatus = currentStatus.isNew()
+    ? SubmissionStatus.fromCode(SubmissionStatusKind.Read)
+    : SubmissionStatus.fromCode(SubmissionStatusKind.New);
 
   const handleStatusChange = async () => {
     startTransition(async () => {
@@ -32,7 +31,7 @@ export const useSubmissionStatus = ({
       });
 
       if (statusResult.success) {
-        toast.success('Status updated successfully');
+        toast.success("Status updated successfully");
       } else {
         toast.error(statusResult.error);
       }

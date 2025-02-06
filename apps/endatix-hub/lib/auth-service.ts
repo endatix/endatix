@@ -65,7 +65,7 @@ export class AuthService {
   private readonly secretKey: Uint8Array;
 
   constructor(
-    private readonly cookieOptions: CookieOptions = HUB_COOKIE_OPTIONS
+    private readonly cookieOptions: CookieOptions = HUB_COOKIE_OPTIONS,
   ) {
     this.secretKey = new TextEncoder().encode(this.cookieOptions.encryptionKey);
   }
@@ -149,7 +149,7 @@ export class AuthService {
         this.secretKey,
         {
           algorithms: ["HS256"],
-        }
+        },
       );
 
       return Result.success<HubJwtPayload>(payload);

@@ -35,13 +35,13 @@ export async function POST(request: Request) {
     };
     const initialSubmissionResult = await submitFormAction(
       formId,
-      submissionData
+      submissionData,
     );
 
     if (Result.isError(initialSubmissionResult)) {
       return Response.json(
         { error: initialSubmissionResult.message },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     if (!file || typeof file === "string") {
       return Response.json(
         { error: `Invalid file for ${filename}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 

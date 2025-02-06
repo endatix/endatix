@@ -1,5 +1,8 @@
-import { ComponentCollection, ICustomQuestionTypeConfiguration } from 'survey-core';
-import { SurveyCreator } from 'survey-creator-react';
+import {
+  ComponentCollection,
+  ICustomQuestionTypeConfiguration,
+} from "survey-core";
+import { SurveyCreator } from "survey-creator-react";
 
 /**
  * Abstract base class for creating custom question types in SurveyJS.
@@ -19,9 +22,9 @@ export abstract class SpecializedSurveyQuestion {
    * @param creator - The SurveyCreator instance to customize
    */
   static customizeEditor(creator: SurveyCreator): void {
-    console.error('customizeEditor not implemented', creator);
+    console.error("customizeEditor not implemented", creator);
 
-    throw new Error('customizeEditor method not implemented.');
+    throw new Error("customizeEditor method not implemented.");
   }
 }
 
@@ -29,7 +32,10 @@ export abstract class SpecializedSurveyQuestion {
  * Registers a specialized question type with the SurveyJS ComponentCollection.
  * @param questionClass - The specialized question class to register
  */
-export function registerSpecializedQuestion(questionClass: typeof SpecializedSurveyQuestion) {
-  const instance = new (questionClass as unknown as new () => SpecializedSurveyQuestion)();
+export function registerSpecializedQuestion(
+  questionClass: typeof SpecializedSurveyQuestion,
+) {
+  const instance =
+    new (questionClass as unknown as new () => SpecializedSurveyQuestion)();
   ComponentCollection.Instance.add(instance.customQuestionConfig);
 }

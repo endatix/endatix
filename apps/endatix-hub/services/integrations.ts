@@ -9,13 +9,13 @@ const SLACK_CLIENT_SECRET = `${process.env.SLACK_CLIENT_SECRET}`;
 const SLACK_REDIRECT_URI = `${process.env.SLACK_REDIRECT_URI}`;
 
 export const getSlackBearerToken = async (
-  code: string
+  code: string,
 ): Promise<SlackAuthResponse> => {
   const requestOptions: RequestInit = {};
 
   const response = await fetch(
     `https://slack.com/api/oauth.v2.access?code=${code}&client_id=${SLACK_CLIENT_ID}&client_secret=${SLACK_CLIENT_SECRET}&redirect_uri=${SLACK_REDIRECT_URI}`,
-    requestOptions
+    requestOptions,
   );
 
   if (!response.ok) {
@@ -25,27 +25,22 @@ export const getSlackBearerToken = async (
   return response.json();
 };
 
-export const sendSlackBearerToken = async (
-    token: string
-  ): Promise<boolean> => {
-    const requestOptions: RequestInit = {};
+export const sendSlackBearerToken = async (token: string): Promise<boolean> => {
+  const requestOptions: RequestInit = {};
 
-    const headers = new HeaderBuilder()
-        .acceptJson()
-        .provideJson()
-        .build();
+  const headers = new HeaderBuilder().acceptJson().provideJson().build();
 
-    var endpointUrl = `${API_BASE_URL}/slacktoken`;
+  var endpointUrl = `${API_BASE_URL}/slacktoken`;
 
-    const response = await fetch(endpointUrl, {
-        method: "POST",
-        headers: headers,
-        body: "{ \"token\": \"" + token + "\"}"
-      });
+  const response = await fetch(endpointUrl, {
+    method: "POST",
+    headers: headers,
+    body: '{ "token": "' + token + '"}',
+  });
 
-    if (!response.ok) {
-      return false;
-    }
+  if (!response.ok) {
+    return false;
+  }
 
-    return true;
-  };
+  return true;
+};

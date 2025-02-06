@@ -1,4 +1,4 @@
-'use server'
+"use server";
 
 import { ensureAuthenticated } from "@/lib/auth-service";
 import { CreateFormRequest } from "@/lib/form-types";
@@ -7,7 +7,9 @@ import { createForm } from "@/services/api";
 
 export type CreateFormResult = Result<string>;
 
-export async function createFormAction(request: CreateFormRequest): Promise<CreateFormResult> {
+export async function createFormAction(
+  request: CreateFormRequest,
+): Promise<CreateFormResult> {
   await ensureAuthenticated();
 
   try {

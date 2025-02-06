@@ -5,13 +5,13 @@
  * @returns true if value is 'true' or '1' (case-insensitive), false otherwise
  */
 function parseBoolean(value: string | undefined): boolean {
-    const trimmedValue = value?.trim();
-    if (!trimmedValue) {
-        return false;
-    }
+  const trimmedValue = value?.trim();
+  if (!trimmedValue) {
+    return false;
+  }
 
-    const normalizedValue = trimmedValue.toLowerCase();
-    return normalizedValue === 'true' || normalizedValue === '1';
+  const normalizedValue = trimmedValue.toLowerCase();
+  return normalizedValue === "true" || normalizedValue === "1";
 }
 
 export { parseBoolean };

@@ -4,17 +4,21 @@ import { BrainCircuit } from "lucide-react";
 
 export class SitemapService {
   public static getSitemap(): ISitemapItem[] {
-    const sitemapArray : ISitemapItem[] =  Object.entries(sitemap).map(([key, value]) => {
-      const sitemapItem : ISitemapItem = {
-        text : value.text,
-        path : value.path
-      };
-      return sitemapItem
-    });
+    const sitemapArray: ISitemapItem[] = Object.entries(sitemap).map(
+      ([key, value]) => {
+        const sitemapItem: ISitemapItem = {
+          text: value.text,
+          path: value.path,
+        };
+        return sitemapItem;
+      },
+    );
     return sitemapArray;
   }
 
-  public static getTopLevelSitemap(excludeSettings: boolean = false) :  INavItem[] {
+  public static getTopLevelSitemap(
+    excludeSettings: boolean = false,
+  ): INavItem[] {
     const sitemapList: INavItem[] = [
       sitemap.Home,
       sitemap.Forms,
@@ -24,7 +28,7 @@ export class SitemapService {
       sitemap.Integrations,
     ];
 
-    if (!excludeSettings){
+    if (!excludeSettings) {
       sitemapList.push(sitemap.Settings);
     }
 

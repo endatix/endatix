@@ -1,36 +1,36 @@
 import {
   AuthenticationRequest,
   AuthenticationResponse,
-} from '@/lib/auth-definitions';
-import { CreateFormRequest } from '@/lib/form-types';
-import { Form, FormDefinition, Submission } from '../types';
-import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth-service';
-import { HeaderBuilder } from './header-builder';
-import { SubmissionData } from '@/features/public-form/application/actions/submit-form.action';
+} from "@/lib/auth-definitions";
+import { CreateFormRequest } from "@/lib/form-types";
+import { Form, FormDefinition, Submission } from "../types";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-service";
+import { HeaderBuilder } from "./header-builder";
+import { SubmissionData } from "@/features/public-form/application/actions/submit-form.action";
 
 const API_BASE_URL = `${process.env.ENDATIX_BASE_URL}/api`;
 
 export const authenticate = async (
-  request: AuthenticationRequest
+  request: AuthenticationRequest,
 ): Promise<AuthenticationResponse> => {
   const headers = new HeaderBuilder().acceptJson().provideJson().build();
 
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: 'POST',
+    method: "POST",
     headers: headers,
     body: JSON.stringify(request),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch data');
+    throw new Error("Failed to fetch data");
   }
 
   return response.json();
 };
 
 export const createForm = async (
-  formRequest: CreateFormRequest
+  formRequest: CreateFormRequest,
 ): Promise<Form> => {
   const session = await getSession();
   const headers = new HeaderBuilder()
@@ -40,13 +40,13 @@ export const createForm = async (
     .build();
 
   const response = await fetch(`${API_BASE_URL}/forms`, {
-    method: 'POST',
+    method: "POST",
     headers: headers,
     body: JSON.stringify(formRequest),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to create form');
+    throw new Error("Failed to create form");
   }
 
   return response.json();
@@ -61,7 +61,7 @@ export const getForms = async (): Promise<Form[]> => {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch data');
+    throw new Error("Failed to fetch data");
   }
 
   return response.json();
@@ -73,7 +73,7 @@ export const getForm = async (formId: string): Promise<Form> => {
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect('/login');
+    redirect("/login");
   }
 
   requestOptions.headers = {
@@ -82,11 +82,11 @@ export const getForm = async (formId: string): Promise<Form> => {
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}`,
-    requestOptions
+    requestOptions,
   );
 
   if (!response.ok) {
-    throw new Error('Failed to fetch form');
+    throw new Error("Failed to fetch form");
   }
 
   return response.json();
@@ -94,7 +94,7 @@ export const getForm = async (formId: string): Promise<Form> => {
 
 export const updateForm = async (
   formId: string,
-  data: { name?: string; isEnabled?: boolean }
+  data: { name?: string; isEnabled?: boolean },
 ): Promise<void> => {
   const session = await getSession();
   const headers = new HeaderBuilder()
@@ -104,13 +104,13 @@ export const updateForm = async (
     .build();
 
   const response = await fetch(`${API_BASE_URL}/forms/${formId}`, {
-    method: 'PATCH',
+    method: "PATCH",
     headers: headers,
     body: JSON.stringify(data),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to update form');
+    throw new Error("Failed to update form");
   }
 };
 
@@ -118,18 +118,18 @@ export const deleteForm = async (formId: string): Promise<string> => {
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect('/login');
+    redirect("/login");
   }
 
   const headers = new HeaderBuilder().withAuth(session).build();
 
   const response = await fetch(`${API_BASE_URL}/forms/${formId}`, {
-    method: 'DELETE',
+    method: "DELETE",
     headers: headers,
   });
 
   if (!response.ok) {
-    throw new Error('Failed to delete form');
+    throw new Error("Failed to delete form");
   }
 
   return response.text();
@@ -137,7 +137,7 @@ export const deleteForm = async (formId: string): Promise<string> => {
 
 export const getActiveFormDefinition = async (
   formId: string,
-  allowAnonymous: boolean = false
+  allowAnonymous: boolean = false,
 ): Promise<FormDefinition> => {
   const requestOptions: RequestInit = {};
   const headerBuilder = new HeaderBuilder();
@@ -146,7 +146,7 @@ export const getActiveFormDefinition = async (
     const session = await getSession();
 
     if (!session.isLoggedIn) {
-      redirect('/login');
+      redirect("/login");
     }
 
     headerBuilder.withAuth(session);
@@ -155,7 +155,7 @@ export const getActiveFormDefinition = async (
   requestOptions.headers = headerBuilder.build();
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/definition`,
-    requestOptions
+    requestOptions,
   );
 
   if (!response.ok) {
@@ -167,7 +167,7 @@ export const getActiveFormDefinition = async (
 
 export const getFormDefinition = async (
   formId: string,
-  definitionId: string
+  definitionId: string,
 ): Promise<FormDefinition> => {
   if (!formId) {
     throw new Error(`FormId is required`);
@@ -181,7 +181,7 @@ export const getFormDefinition = async (
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect('/login');
+    redirect("/login");
   }
 
   const headers = new HeaderBuilder().withAuth(session).build();
@@ -190,11 +190,11 @@ export const getFormDefinition = async (
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/definitions/${definitionId}`,
-    requestOptions
+    requestOptions,
   );
 
   if (!response.ok) {
-    throw new Error('Failed to fetch form definition');
+    throw new Error("Failed to fetch form definition");
   }
 
   return response.json();
@@ -203,12 +203,12 @@ export const getFormDefinition = async (
 export const updateFormDefinition = async (
   formId: string,
   isDraft: boolean,
-  jsonData: string
+  jsonData: string,
 ): Promise<void> => {
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect('/login');
+    redirect("/login");
   }
 
   const headers = new HeaderBuilder()
@@ -218,20 +218,20 @@ export const updateFormDefinition = async (
     .build();
 
   const response = await fetch(`${API_BASE_URL}/forms/${formId}/definition`, {
-    method: 'PATCH',
+    method: "PATCH",
     headers: headers,
     body: JSON.stringify({ isDraft, jsonData }),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to update form definition');
+    throw new Error("Failed to update form definition");
   }
 };
 
 export const getSubmissions = async (formId: string): Promise<Submission[]> => {
   const session = await getSession();
   if (!session.isLoggedIn) {
-    redirect('/login');
+    redirect("/login");
   }
 
   const CLIENT_PAGE_SIZE = 10_000;
@@ -241,11 +241,11 @@ export const getSubmissions = async (formId: string): Promise<Submission[]> => {
     `${API_BASE_URL}/forms/${formId}/submissions?pageSize=${CLIENT_PAGE_SIZE}`,
     {
       headers: headers,
-    }
+    },
   );
 
   if (!response.ok) {
-    throw new Error('Failed to fetch data');
+    throw new Error("Failed to fetch data");
   }
 
   return response.json();
@@ -253,27 +253,27 @@ export const getSubmissions = async (formId: string): Promise<Submission[]> => {
 
 export const createSubmissionPublic = async (
   formId: string,
-  submissionData: SubmissionData
+  submissionData: SubmissionData,
 ): Promise<Submission> => {
   if (!formId) {
-    throw new Error('FormId is required');
+    throw new Error("FormId is required");
   }
 
   const headers = new HeaderBuilder().acceptJson().provideJson().build();
 
   const requestOptions: RequestInit = {
-    method: 'POST',
+    method: "POST",
     headers: headers,
     body: JSON.stringify(submissionData),
   };
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions`,
-    requestOptions
+    requestOptions,
   );
 
   if (!response.ok) {
-    throw new Error('Failed to submit response');
+    throw new Error("Failed to submit response");
   }
 
   return response.json();
@@ -282,27 +282,27 @@ export const createSubmissionPublic = async (
 export const updateSubmissionPublic = async (
   formId: string,
   token: string,
-  submissionData: SubmissionData
+  submissionData: SubmissionData,
 ): Promise<Submission> => {
   if (!formId || !token) {
-    throw new Error('FormId or token is required');
+    throw new Error("FormId or token is required");
   }
 
   const headers = new HeaderBuilder().acceptJson().provideJson().build();
 
   const requestOptions: RequestInit = {
-    method: 'PATCH',
+    method: "PATCH",
     headers: headers,
     body: JSON.stringify(submissionData),
   };
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions/by-token/${token}`,
-    requestOptions
+    requestOptions,
   );
 
   if (!response.ok) {
-    throw new Error('Failed to submit response');
+    throw new Error("Failed to submit response");
   }
 
   return response.json();
@@ -311,16 +311,16 @@ export const updateSubmissionPublic = async (
 export const updateSubmission = async (
   formId: string,
   submissionId: string,
-  submissionData: SubmissionData
+  submissionData: SubmissionData,
 ): Promise<Submission> => {
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect('/login');
+    redirect("/login");
   }
 
   if (!formId || !submissionId) {
-    throw new Error('FormId or submissionId is required');
+    throw new Error("FormId or submissionId is required");
   }
 
   const headers = new HeaderBuilder()
@@ -332,14 +332,14 @@ export const updateSubmission = async (
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions/${submissionId}`,
     {
-      method: 'PATCH',
+      method: "PATCH",
       headers: headers,
       body: JSON.stringify(submissionData),
-    }
+    },
   );
 
   if (!response.ok) {
-    throw new Error('Failed to update submission');
+    throw new Error("Failed to update submission");
   }
 
   return response.json();
@@ -354,12 +354,12 @@ interface UpdateSubmissionStatusRequest {
 export const updateSubmissionStatus = async (
   formId: string,
   submissionId: string,
-  status: string
+  status: string,
 ): Promise<UpdateSubmissionStatusRequest> => {
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect('/login');
+    redirect("/login");
   }
 
   const headers = new HeaderBuilder()
@@ -371,14 +371,14 @@ export const updateSubmissionStatus = async (
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions/${submissionId}/status`,
     {
-      method: 'POST',
+      method: "POST",
       headers: headers,
       body: JSON.stringify({ status }),
-    }
+    },
   );
-  console.log('Status', status);
+  console.log("Status", status);
   if (!response.ok) {
-    throw new Error('Failed to change submission status');
+    throw new Error("Failed to change submission status");
   }
 
   return response.json();
@@ -386,21 +386,23 @@ export const updateSubmissionStatus = async (
 
 export const getPartialSubmissionPublic = async (
   formId: string,
-  token: string
+  token: string,
 ): Promise<Submission> => {
   if (!formId || !token) {
-    throw new Error('FormId or token is required');
+    throw new Error("FormId or token is required");
   }
 
   const headers = new HeaderBuilder().acceptJson().build();
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions/by-token/${token}`,
-    { headers: headers }
+    {
+      headers: headers,
+    },
   );
 
   if (!response.ok) {
-    throw new Error('Failed to fetch submission');
+    throw new Error("Failed to fetch submission");
   }
 
   return response.json();
@@ -408,27 +410,29 @@ export const getPartialSubmissionPublic = async (
 
 export const getSubmission = async (
   formId: string,
-  submissionId: string
+  submissionId: string,
 ): Promise<Submission> => {
   if (!formId || !submissionId) {
-    throw new Error('FormId or submissionId is required');
+    throw new Error("FormId or submissionId is required");
   }
 
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect('/login');
+    redirect("/login");
   }
 
   const headers = new HeaderBuilder().withAuth(session).acceptJson().build();
 
   const response = await fetch(
     `${API_BASE_URL}/forms/${formId}/submissions/${submissionId}`,
-    { headers: headers }
+    {
+      headers: headers,
+    },
   );
 
   if (!response.ok) {
-    throw new Error('Failed to fetch submission');
+    throw new Error("Failed to fetch submission");
   }
 
   return response.json();
@@ -437,18 +441,18 @@ export const getSubmission = async (
 export const changePassword = async (
   currentPassword: string,
   newPassword: string,
-  confirmPassword: string
+  confirmPassword: string,
 ): Promise<string> => {
   if (!currentPassword || !newPassword || !confirmPassword) {
     throw new Error(
-      'Current password, new password or confirm password is required'
+      "Current password, new password or confirm password is required",
     );
   }
 
   const session = await getSession();
 
   if (!session.isLoggedIn) {
-    redirect('/login');
+    redirect("/login");
   }
 
   const headers = new HeaderBuilder()
@@ -458,13 +462,13 @@ export const changePassword = async (
     .build();
 
   const response = await fetch(`${API_BASE_URL}/my-account/change-password`, {
-    method: 'POST',
+    method: "POST",
     headers: headers,
     body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to change password');
+    throw new Error("Failed to change password");
   }
 
   return response.json();
