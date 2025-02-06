@@ -1,3 +1,4 @@
+using Endatix.Core.Entities;
 using FastEndpoints;
 using FluentValidation;
 
@@ -17,6 +18,7 @@ public class UpdateStatusValidator : Validator<UpdateStatusRequest>
             .GreaterThan(0);
 
         RuleFor(x => x.Status)
-            .NotEmpty();
+            .NotEmpty()
+            .MaximumLength(SubmissionStatus.STATUS_CODE_MAX_LENGTH);
     }
 }

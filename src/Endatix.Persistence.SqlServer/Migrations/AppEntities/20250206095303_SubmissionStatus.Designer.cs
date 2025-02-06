@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250204115712_SubmissionStatus")]
+    [Migration("20250206095303_SubmissionStatus")]
     partial class SubmissionStatus
     {
         /// <inheritdoc />
@@ -180,8 +180,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                             b1.Property<string>("Code")
                                 .IsRequired()
-                                .HasColumnType("nvarchar(max)")
-                                .HasColumnName("StatusCode");
+                                .HasMaxLength(16)
+                                .HasColumnType("nvarchar(16)")
+                                .HasColumnName("Status");
 
                             b1.HasKey("SubmissionId");
 

@@ -11,23 +11,24 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "StatusCode",
+                name: "Status",
                 table: "Submissions",
-                type: "nvarchar(max)",
+                type: "nvarchar(16)",
+                maxLength: 16,
                 nullable: false,
                 defaultValue: "");
 
             migrationBuilder.Sql(@"
-            UPDATE Submissions
-            SET StatusCode = 'seen'
-            WHERE StatusCode IS NULL OR StatusCode = ''");
+                UPDATE Submissions
+                SET Status = 'read'
+                WHERE Status IS NULL OR Status = ''");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "StatusCode",
+                name: "Status",
                 table: "Submissions");
         }
     }

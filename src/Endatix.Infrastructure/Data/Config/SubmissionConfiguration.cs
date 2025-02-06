@@ -39,7 +39,8 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
         builder.OwnsOne(s => s.Status, statusBuilder =>
            {
                statusBuilder.Property(s => s.Code)
-                          .HasColumnName("StatusCode")
+                          .HasColumnName("Status")
+                          .HasMaxLength(SubmissionStatus.STATUS_CODE_MAX_LENGTH)
                           .IsRequired();
                // Name can be resolved at runtime from Code
                statusBuilder.Ignore(s => s.Name);

@@ -177,8 +177,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                             b1.Property<string>("Code")
                                 .IsRequired()
-                                .HasColumnType("nvarchar(max)")
-                                .HasColumnName("StatusCode");
+                                .HasMaxLength(16)
+                                .HasColumnType("nvarchar(16)")
+                                .HasColumnName("Status");
 
                             b1.HasKey("SubmissionId");
 
