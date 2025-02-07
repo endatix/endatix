@@ -1,4 +1,4 @@
-import MainHeader from './main-header';
+import MainHeader from "@/components/layout-ui/header/main-header";
 
 export default function HeaderSlot() {
   return <MainHeader />;
