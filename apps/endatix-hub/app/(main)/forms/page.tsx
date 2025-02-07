@@ -35,8 +35,7 @@ export default async function FormsPage() {
       </div>
     </>
   );
-};
-
+}
 
 async function FormsTabsContent() {
   const forms = await getForms();
@@ -44,7 +43,7 @@ async function FormsTabsContent() {
     <TabsContent value="all">
       <FormsList forms={forms} />
     </TabsContent>
-  )
+  );
 }
 
 function FormsSkeleton() {
@@ -61,5 +60,5 @@ function FormsSkeleton() {
         </div>
       ))}
     </div>
-  )
+  );
 }

@@ -3,12 +3,12 @@ import {
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from '@/components/ui/tooltip';
-import Image from 'next/image';
-import NavLink from './nav-link';
-import { sitemap } from '@/lib/constants';
-import { SitemapService } from '@/services/sitemap-service';
-import EndatixLogoSvg from '@/public/assets/icons/icon.svg';
+} from "@/components/ui/tooltip";
+import Image from "next/image";
+import NavLink from "./nav-link";
+import { sitemap } from "@/lib/constants";
+import { SitemapService } from "@/services/sitemap-service";
+import EndatixLogoSvg from "@/public/assets/icons/icon.svg";
 
 const MainNav = () => {
   const logo = SitemapService.getLogo();

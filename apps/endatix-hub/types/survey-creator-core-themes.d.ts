@@ -1,1 +1,1 @@
-declare module 'survey-creator-core/themes';
+declare module "survey-creator-core/themes";

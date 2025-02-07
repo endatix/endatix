@@ -30,14 +30,14 @@ describe("StorageService", () => {
     it("should throw error when account name is not set", () => {
       process.env.AZURE_STORAGE_ACCOUNT_NAME = "";
       expect(() => new StorageService()).toThrow(
-        "Azure storage is not enabled"
+        "Azure storage is not enabled",
       );
     });
 
     it("should throw error when account key is not set", () => {
       process.env.AZURE_STORAGE_ACCOUNT_KEY = "";
       expect(() => new StorageService()).toThrow(
-        "Azure storage is not enabled"
+        "Azure storage is not enabled",
       );
     });
   });
@@ -81,15 +81,15 @@ describe("StorageService", () => {
     it("should throw error when contentType is missing", async () => {
       // Act & Assert
       await expect(service.optimizeImageSize(mockBuffer, "")).rejects.toThrow(
-        "contentType is not provided"
+        "contentType is not provided",
       );
     });
 
     it("should throw error when imageBuffer is missing", async () => {
       // Act & Assert
-      await expect(service.optimizeImageSize(undefined as unknown as Buffer, "image/jpeg")).rejects.toThrow(
-        "imageBuffer is not provided"
-      );
+      await expect(
+        service.optimizeImageSize(undefined as unknown as Buffer, "image/jpeg"),
+      ).rejects.toThrow("imageBuffer is not provided");
     });
   });
 
@@ -112,7 +112,6 @@ describe("StorageService", () => {
       (service as any).blobServiceClient = {
         getContainerClient: vi.fn().mockReturnValue(mockContainerClient),
       } as unknown as BlobServiceClient;
-
     });
 
     afterEach(() => {
@@ -125,7 +124,7 @@ describe("StorageService", () => {
         mockBuffer,
         mockFileName,
         mockContainerName,
-        mockFolderPath
+        mockFolderPath,
       );
 
       // Assert
@@ -133,7 +132,7 @@ describe("StorageService", () => {
         access: "container",
       });
       expect(mockContainerClient.getBlockBlobClient).toHaveBeenCalledWith(
-        `${mockFolderPath}/${mockFileName}`
+        `${mockFolderPath}/${mockFileName}`,
       );
       expect(mockBlobClient.uploadData).toHaveBeenCalledWith(mockBuffer);
       expect(result).toBe(mockBlobClient.url);
@@ -144,7 +143,7 @@ describe("StorageService", () => {
       const result = await service.uploadToStorage(
         mockBuffer,
         mockFileName,
-        mockContainerName
+        mockContainerName,
       );
 
       // Assert
@@ -152,7 +151,7 @@ describe("StorageService", () => {
         access: "container",
       });
       expect(mockContainerClient.getBlockBlobClient).toHaveBeenCalledWith(
-        mockFileName
+        mockFileName,
       );
       expect(mockBlobClient.uploadData).toHaveBeenCalledWith(mockBuffer);
       expect(result).toBe(mockBlobClient.url);
@@ -165,8 +164,8 @@ describe("StorageService", () => {
           undefined as unknown as Buffer,
           mockFileName,
           mockContainerName,
-          mockFolderPath
-        )
+          mockFolderPath,
+        ),
       ).rejects.toThrow("a file is not provided");
     });
 
@@ -177,15 +176,15 @@ describe("StorageService", () => {
           mockBuffer,
           "",
           mockContainerName,
-          mockFolderPath
-        )
+          mockFolderPath,
+        ),
       ).rejects.toThrow("fileName is not provided");
     });
 
     it("should throw error when containerName is not provided", async () => {
       // Act & Assert
       await expect(
-        service.uploadToStorage(mockBuffer, mockFileName, "", mockFolderPath)
+        service.uploadToStorage(mockBuffer, mockFileName, "", mockFolderPath),
       ).rejects.toThrow("container name is not provided");
     });
   });

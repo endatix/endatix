@@ -1,11 +1,6 @@
-'use client'
+"use client";
 
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   SheetContent,
   SheetDescription,
@@ -13,18 +8,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { 
-    FC, 
-    useState, 
-    useTransition 
-} from "react";
+import { FC, useState, useTransition } from "react";
 import ChatBox from "./chat-box";
-import { 
-    BicepsFlexed, 
-    Code, 
-    Copy, 
-    Folder 
-} from "lucide-react";
+import { BicepsFlexed, Code, Copy, Folder } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DotLoader from "@/components/loaders/dot-loader";
 import { CreateFormRequest } from "@/lib/form-types";
@@ -64,11 +50,14 @@ const CreateFormCard: FC<FormCreateSheetProps> = ({
         "hover:border-primary hover:bg-accent focus:outline focus:outline-2 focus:outline-primary-500 flex flex-col overflow-hidden",
         !disabled && "cursor-pointer",
         isSelected && "border-primary bg-accent",
-        disabled && "opacity-50 cursor-not-allowed hover:border-border hover:bg-background"
+        disabled &&
+          "opacity-50 cursor-not-allowed hover:border-border hover:bg-background",
       )}
     >
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 p-4 flex-grow">
-        <CardTitle className="text-lg font-medium leading-tight">{title}</CardTitle>
+        <CardTitle className="text-lg font-medium leading-tight">
+          {title}
+        </CardTitle>
         <Icon className="h-8 w-8 text-muted-foreground shrink-0 ml-4" />
       </CardHeader>
       <CardContent className="p-4 bg-muted mt-auto border-t rounded-b-lg">
@@ -81,28 +70,28 @@ const CreateFormCard: FC<FormCreateSheetProps> = ({
 const CreateFormSheet = () => {
   const [pending, setPending] = useState(false);
   const [selectedOption, setSelectedOption] = useState<CreateFormOption>();
-  const [isPending, startTransition] = useTransition()
-  
+  const [isPending, startTransition] = useTransition();
+
   const openNewFormInEditor = async () => {
     if (isPending) {
       return;
     }
-    
+
     startTransition(async () => {
-        const request: CreateFormRequest = {
-            name: "New Form",
-            isEnabled: true,
-            formDefinitionJsonData: JSON.stringify("{ }")
-        }
-        const formResult = await createFormAction(request);
-        if (Result.isSuccess(formResult) && formResult.value) {
-            const formId = formResult.value;
-            redirect(`/forms/${formId}`);
-        } else {
-            alert("Failed to create form");
-        }
+      const request: CreateFormRequest = {
+        name: "New Form",
+        isEnabled: true,
+        formDefinitionJsonData: JSON.stringify("{ }"),
+      };
+      const formResult = await createFormAction(request);
+      if (Result.isSuccess(formResult) && formResult.value) {
+        const formId = formResult.value;
+        redirect(`/forms/${formId}`);
+      } else {
+        alert("Failed to create form");
+      }
     });
-  }
+  };
 
   return (
     <SheetContent className="w-[600px] sm:w-[480px] sm:max-w-none flex flex-col h-screen justify-between">

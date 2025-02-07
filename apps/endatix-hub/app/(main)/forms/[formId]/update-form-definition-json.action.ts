@@ -1,9 +1,13 @@
-'use server'
+"use server";
 
 import { ensureAuthenticated } from "@/lib/auth-service";
 import { updateFormDefinition } from "@/services/api";
 
-export async function updateFormDefinitionJsonAction(formId: string, isDraft: boolean, formJson: object | null) {
+export async function updateFormDefinitionJsonAction(
+  formId: string,
+  isDraft: boolean,
+  formJson: object | null,
+) {
   await ensureAuthenticated();
 
   try {

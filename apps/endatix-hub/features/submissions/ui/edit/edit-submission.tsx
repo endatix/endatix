@@ -1,24 +1,24 @@
-'use client';
+"use client";
 
-import { Submission } from '@/types';
-import 'survey-core/defaultV2.css';
-import dynamic from 'next/dynamic';
+import { Submission } from "@/types";
+import "survey-core/defaultV2.css";
+import dynamic from "next/dynamic";
 import {
   DynamicPanelItemValueChangedEvent,
   MatrixCellValueChangedEvent,
   Question,
   SurveyModel,
   ValueChangedEvent,
-} from 'survey-core';
-import { useCallback, useMemo, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { Info } from 'lucide-react';
-import { toast } from 'sonner';
-import { editSubmissionUseCase } from '@/features/submissions/use-cases/edit-submission.use-case';
-import EditSubmissionAlertDialog from './edit-submission-alert-dialog';
-import EditSubmissionHeader from './edit-submission-header';
+} from "survey-core";
+import { useCallback, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Info } from "lucide-react";
+import { toast } from "sonner";
+import { editSubmissionUseCase } from "@/features/submissions/use-cases/edit-submission.use-case";
+import EditSubmissionAlertDialog from "./edit-submission-alert-dialog";
+import EditSubmissionHeader from "./edit-submission-header";
 
-const EditSurveyWrapper = dynamic(() => import('./edit-survey-wrapper'), {
+const EditSurveyWrapper = dynamic(() => import("./edit-survey-wrapper"), {
   ssr: false,
 });
 
@@ -46,7 +46,7 @@ function EditSubmission({ submission }: EditSubmissionProps) {
       event:
         | ValueChangedEvent
         | DynamicPanelItemValueChangedEvent
-        | MatrixCellValueChangedEvent
+        | MatrixCellValueChangedEvent,
     ) => {
       const originalQuestionValue = submissionData[event.question.name];
       const newQuestionValue = event.question?.value;
@@ -65,7 +65,7 @@ function EditSubmission({ submission }: EditSubmissionProps) {
 
       setSurveyModel(sender);
     },
-    [submissionData]
+    [submissionData],
   );
 
   const handleSave = useCallback(
@@ -78,18 +78,18 @@ function EditSubmission({ submission }: EditSubmissionProps) {
           await editSubmissionUseCase(submission.formId, submission.id, {
             jsonData: JSON.stringify(surveyModel.data),
           });
-          toast.success('Changes saved');
+          toast.success("Changes saved");
           setSaveDialogOpen(false);
           router.push(
-            `/forms/${submission.formId}/submissions/${submission.id}`
+            `/forms/${submission.formId}/submissions/${submission.id}`,
           );
         });
       } catch (error) {
         console.error(error);
-        toast.error('Failed to save changes');
+        toast.error("Failed to save changes");
       }
     },
-    [changes]
+    [changes],
   );
 
   const handleDiscard = useCallback(() => {

@@ -1,6 +1,6 @@
-import { Spinner } from '@/components/loaders/spinner';
+import { Spinner } from "@/components/loaders/spinner";
 import {
-    AlertDialog,
+  AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -8,12 +8,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { AlertDialogProps } from '@radix-ui/react-alert-dialog';
-import { PencilLine } from 'lucide-react';
-import ChangedQuestion from './changed-question';
-import { Submission } from '@/types';
-import { Question } from 'survey-core';
+} from "@/components/ui/alert-dialog";
+import { AlertDialogProps } from "@radix-ui/react-alert-dialog";
+import { PencilLine } from "lucide-react";
+import ChangedQuestion from "./changed-question";
+import { Submission } from "@/types";
+import { Question } from "survey-core";
 
 interface EditSubmissionAlertDialogProps extends AlertDialogProps {
   submission: Submission;
@@ -59,7 +59,7 @@ function EditSubmissionAlertDialog({
           </AlertDialogCancel>
           <AlertDialogAction onClick={onAction} disabled={isSaving}>
             {isSaving && <Spinner className="h-4 w-4" />}
-            {isSaving ? 'Saving changes...' : 'Yes, save changes'}
+            {isSaving ? "Saving changes..." : "Yes, save changes"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

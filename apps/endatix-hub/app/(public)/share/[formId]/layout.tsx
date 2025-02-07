@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 };
 
 interface PublicLayoutProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 export default function PublicLayout({ children }: PublicLayoutProps) {

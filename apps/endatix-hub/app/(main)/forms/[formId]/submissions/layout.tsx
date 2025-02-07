@@ -1,15 +1,14 @@
 interface SubmissionsLayoutProps {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }
 
 export default function SubmissionsLayout({
-    children
+  children,
 }: SubmissionsLayoutProps) {
-    return (
-        <>
-            {children}
-            <div id="submission-details" >
-            </div>
-        </>
-    );
+  return (
+    <>
+      {children}
+      <div id="submission-details"></div>
+    </>
+  );
 }

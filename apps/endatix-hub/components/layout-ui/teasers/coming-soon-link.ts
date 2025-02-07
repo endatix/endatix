@@ -14,18 +14,18 @@ export const comingSoonMessage: string =
  */
 export const showComingSoonMessage = (
   event: React.MouseEvent<HTMLElement, MouseEvent>,
-  messageOverride?: string
+  messageOverride?: string,
 ) => {
   const messageToShow = messageOverride ?? comingSoonMessage;
   try {
     toast(messageToShow, {
       duration: 1500,
       dismissible: true,
-      closeButton: true
+      closeButton: true,
     });
   } catch {
     console.warn(
-      `Showing coming soon toast threw an error. Event was raised from ${event.target}`
+      `Showing coming soon toast threw an error. Event was raised from ${event.target}`,
     );
   }
 };

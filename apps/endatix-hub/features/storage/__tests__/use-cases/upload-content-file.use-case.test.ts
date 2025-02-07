@@ -54,10 +54,10 @@ describe("uploadContentFileUseCase", () => {
     // Arrange
     const mockUrl = "https://storage.test/test.jpg";
     vi.spyOn(StorageService.prototype, "uploadToStorage").mockResolvedValue(
-      mockUrl
+      mockUrl,
     );
     vi.spyOn(StorageService.prototype, "optimizeImageSize").mockResolvedValue(
-      Buffer.from("optimized")
+      Buffer.from("optimized"),
     );
 
     // Act
@@ -76,7 +76,7 @@ describe("uploadContentFileUseCase", () => {
       .spyOn(StorageService.prototype, "optimizeImageSize")
       .mockResolvedValue(Buffer.from("optimized"));
     vi.spyOn(StorageService.prototype, "uploadToStorage").mockResolvedValue(
-      "mock-url"
+      "mock-url",
     );
 
     // Act
@@ -99,6 +99,8 @@ describe("uploadContentFileUseCase", () => {
 
     // Assert
     expect(Result.isError(result)).toBe(true);
-    expect((result as unknown as Error).message).toBe("File extension is required. Please provide a valid file.");
+    expect((result as unknown as Error).message).toBe(
+      "File extension is required. Please provide a valid file.",
+    );
   });
 });

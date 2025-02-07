@@ -1,9 +1,9 @@
-import React from 'react';
-import { Text, View, StyleSheet } from '@react-pdf/renderer';
-import { Question, QuestionFileModel } from 'survey-core';
-import PdfFileAnswer from './pdf-file-answer';
-import { QuestionType } from '@/lib/questions';
-import { MessageSquareTextIcon } from '@/features/pdf-export/components/icons';
+import React from "react";
+import { Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Question, QuestionFileModel } from "survey-core";
+import PdfFileAnswer from "./pdf-file-answer";
+import { QuestionType } from "@/lib/questions";
+import { MessageSquareTextIcon } from "@/features/pdf-export/components/icons";
 
 export interface ViewAnswerProps {
   forQuestion: Question;
@@ -16,23 +16,21 @@ const PdfAnswerViewer = ({
   panelTitle,
   pageBreak,
 }: ViewAnswerProps): React.ReactElement => {
-  const questionType = forQuestion.getType() ?? 'unsupported';
-  const questionTitle = panelTitle ? `(${panelTitle}) ${forQuestion.title}` : forQuestion.title;
+  const questionType = forQuestion.getType() ?? "unsupported";
+  const questionTitle = panelTitle
+    ? `(${panelTitle}) ${forQuestion.title}`
+    : forQuestion.title;
 
   const renderTextAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
-      <Text style={styles.questionLabel}>
-        {questionTitle}:
-      </Text>
-      <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
+      <Text style={styles.questionLabel}>{questionTitle}:</Text>
+      <Text style={styles.answerText}>{forQuestion.value || "No Answer"}</Text>
     </View>
   );
 
   const renderCheckboxAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
-      <Text style={styles.questionLabel}>
-        {questionTitle}:
-      </Text>
+      <Text style={styles.questionLabel}>{questionTitle}:</Text>
       {forQuestion.value ? (
         <Text style={[styles.booleanAnswer, styles.booleanYes]}>YES</Text>
       ) : (
@@ -43,69 +41,55 @@ const PdfAnswerViewer = ({
 
   const renderRatingAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
-      <Text style={styles.questionLabel}>
-        {questionTitle}:
-      </Text>
-      <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
+      <Text style={styles.questionLabel}>{questionTitle}:</Text>
+      <Text style={styles.answerText}>{forQuestion.value || "No Answer"}</Text>
     </View>
   );
 
   const renderRadiogroupAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
-      <Text style={styles.questionLabel}>
-        {questionTitle}:
-      </Text>
-      <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
+      <Text style={styles.questionLabel}>{questionTitle}:</Text>
+      <Text style={styles.answerText}>{forQuestion.value || "No Answer"}</Text>
     </View>
   );
 
   const renderDropdownAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
-      <Text style={styles.questionLabel}>
-        {questionTitle}:
-      </Text>
-      <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
+      <Text style={styles.questionLabel}>{questionTitle}:</Text>
+      <Text style={styles.answerText}>{forQuestion.value || "No Answer"}</Text>
     </View>
   );
 
   const renderRankingAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
-      <Text style={styles.questionLabel}>
-        {questionTitle}:
-      </Text>
+      <Text style={styles.questionLabel}>{questionTitle}:</Text>
       <Text style={styles.answerText}>
         {Array.isArray(forQuestion.value)
-          ? forQuestion.value.join(', ')
-          : 'No Answer'}
+          ? forQuestion.value.join(", ")
+          : "No Answer"}
       </Text>
     </View>
   );
 
   const renderMatrixAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
-      <Text style={styles.questionLabel}>
-        {questionTitle}:
-      </Text>
+      <Text style={styles.questionLabel}>{questionTitle}:</Text>
       <Text style={styles.answerText}>
-        {JSON.stringify(forQuestion.value, null, 2) || 'No Answer'}
+        {JSON.stringify(forQuestion.value, null, 2) || "No Answer"}
       </Text>
     </View>
   );
 
   const renderCommentAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
-      <Text style={styles.questionLabel}>
-        {questionTitle}:
-      </Text>
-      <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
+      <Text style={styles.questionLabel}>{questionTitle}:</Text>
+      <Text style={styles.answerText}>{forQuestion.value || "No Answer"}</Text>
     </View>
   );
 
   const renderFileAnswer = () => (
     <View style={styles.fileAnswerContainer} break={pageBreak} wrap={false}>
-      <Text style={styles.questionLabel}>
-        {questionTitle}:
-      </Text>
+      <Text style={styles.questionLabel}>{questionTitle}:</Text>
       <PdfFileAnswer question={forQuestion as QuestionFileModel} />
       {forQuestion?.supportComment() &&
         forQuestion?.hasComment &&
@@ -127,10 +111,8 @@ const PdfAnswerViewer = ({
 
   const renderUnknownAnswer = () => (
     <View style={styles.nonFileAnswerContainer} break={pageBreak}>
-      <Text style={styles.questionLabel}>
-        {questionTitle}
-      </Text>
-      <Text style={styles.answerText}>{forQuestion.value || 'No Answer'}</Text>
+      <Text style={styles.questionLabel}>{questionTitle}</Text>
+      <Text style={styles.answerText}>{forQuestion.value || "No Answer"}</Text>
     </View>
   );
 
@@ -165,50 +147,50 @@ export const styles = StyleSheet.create({
     padding: 8,
   },
   booleanAnswer: {
-    fontFamily: 'Roboto-Bold',
+    fontFamily: "Roboto-Bold",
     fontSize: 10,
     padding: 3,
-    textAlign: 'center',
+    textAlign: "center",
   },
   booleanYes: {
-    color: '#006105',
+    color: "#006105",
   },
   booleanNo: {
-    color: '#FF0000',
+    color: "#FF0000",
   },
   questionLabel: {
-    fontFamily: 'Roboto-Bold',
+    fontFamily: "Roboto-Bold",
     fontSize: 12,
     marginBottom: 4,
-    width: '40%',
+    width: "40%",
   },
   answerText: {
-    fontFamily: 'Roboto',
+    fontFamily: "Roboto",
     fontSize: 12,
   },
   nonFileAnswerContainer: {
-    fontFamily: 'Roboto',
-    display: 'flex',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    fontFamily: "Roboto",
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    borderBottomStyle: 'solid',
+    borderBottomColor: "#f0f0f0",
+    borderBottomStyle: "solid",
     padding: 8,
     marginBottom: 16,
   },
   flexRow: {
-    display: 'flex',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   flexColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    flexWrap: 'wrap',
+    display: "flex",
+    flexDirection: "column",
+    flexWrap: "wrap",
   },
   icon: {
     width: 24,
@@ -218,7 +200,7 @@ export const styles = StyleSheet.create({
     fontSize: 10,
   },
   mutedText: {
-    color: 'gray',
+    color: "gray",
   },
 });
 

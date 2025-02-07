@@ -95,7 +95,9 @@ const FormsTable = ({ data }: FormDataProps) => (
                 <DropdownMenuItem>Edit</DropdownMenuItem>
                 <DropdownMenuItem>Delete</DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Link href={`/forms/${form.id}/submissions`}>View Submissions</Link>
+                  <Link href={`/forms/${form.id}/submissions`}>
+                    View Submissions
+                  </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

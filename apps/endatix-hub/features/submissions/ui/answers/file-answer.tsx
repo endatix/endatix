@@ -1,15 +1,15 @@
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
-import { QuestionFileModel } from 'survey-core';
-import { File } from '@/lib/questions/file/file-type';
-import { FileViewer } from './file-viewer';
-import { ImageOff, MessageSquareText } from 'lucide-react';
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+import { QuestionFileModel } from "survey-core";
+import { File } from "@/lib/questions/file/file-type";
+import { FileViewer } from "./file-viewer";
+import { ImageOff, MessageSquareText } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from "@/components/ui/tooltip";
 interface FileAnswerProps extends React.HtmlHTMLAttributes<HTMLDivElement> {
   question: QuestionFileModel;
 }
@@ -19,7 +19,7 @@ export function FileAnswer({ question, className, ...props }: FileAnswerProps) {
 
   if (files.length === 0) {
     return (
-      <div className={cn('col-span-5', className)} {...props}>
+      <div className={cn("col-span-5", className)} {...props}>
         <div className="flex items-center justify-start text-sm text-muted-foreground space-x-4 pb-1">
           <ImageOff className="w-4 h-4 mr-2" />
           No files uploaded
@@ -29,7 +29,7 @@ export function FileAnswer({ question, className, ...props }: FileAnswerProps) {
   }
 
   return (
-    <div className={cn('col-span-5', className)} {...props}>
+    <div className={cn("col-span-5", className)} {...props}>
       <ScrollArea>
         <div className="flex items-center justify-start text-sm space-x-4 pb-1">
           {files &&

@@ -1,24 +1,24 @@
-import './globals.css';
-import type { Metadata } from 'next';
-import localFont from 'next/font/local';
-import { ThemeProvider } from '@/components/controls/theme/theme-provider';
-import MainNav from '@/components/layout-ui/navigation/main-nav';
-import { Toaster } from 'sonner';
+import "./globals.css";
+import type { Metadata } from "next";
+import localFont from "next/font/local";
+import { ThemeProvider } from "@/components/controls/theme/theme-provider";
+import MainNav from "@/components/layout-ui/navigation/main-nav";
+import { Toaster } from "sonner";
 
 const geistSans = localFont({
-  src: './fonts/GeistVF.woff',
-  variable: '--font-geist-sans',
-  weight: '100 900',
+  src: "./fonts/GeistVF.woff",
+  variable: "--font-geist-sans",
+  weight: "100 900",
 });
 const geistMono = localFont({
-  src: './fonts/GeistMonoVF.woff',
-  variable: '--font-geist-mono',
-  weight: '100 900',
+  src: "./fonts/GeistMonoVF.woff",
+  variable: "--font-geist-mono",
+  weight: "100 900",
 });
 
 export const metadata: Metadata = {
-  title: 'Endatix Hub',
-  description: 'Your data on your terms',
+  title: "Endatix Hub",
+  description: "Your data on your terms",
 };
 
 interface RootLayoutProps {

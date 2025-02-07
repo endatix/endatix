@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { Spinner } from '@/components/loaders/spinner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useActionState } from 'react';
+import { Spinner } from "@/components/loaders/spinner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useActionState } from "react";
 import {
   changePasswordAction,
   ChangePasswordState,
-} from '@/features/my-account/application/actions';
-import { ErrorMessage } from '@/components/forms/error-message';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckIcon } from 'lucide-react';
+} from "@/features/my-account/application/actions";
+import { ErrorMessage } from "@/components/forms/error-message";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CheckIcon } from "lucide-react";
 
 function ChangePasswordForm() {
   const [state, formAction, isPending] = useActionState<
@@ -51,9 +51,7 @@ function ChangePasswordForm() {
             Enter your current password to verify it&apos;s you
           </p>
           {state?.errors?.currentPassword && (
-            <ErrorMessage
-              message={state.errors.currentPassword.toString()}
-            />
+            <ErrorMessage message={state.errors.currentPassword.toString()} />
           )}
         </div>
 
@@ -87,9 +85,7 @@ function ChangePasswordForm() {
             Re-enter your new password to confirm
           </p>
           {state?.errors?.confirmPassword && (
-            <ErrorMessage
-              message={state.errors.confirmPassword.toString()}
-            />
+            <ErrorMessage message={state.errors.confirmPassword.toString()} />
           )}
         </div>
       </div>
@@ -101,7 +97,7 @@ function ChangePasswordForm() {
             Changing...
           </>
         ) : (
-          'Change password'
+          "Change password"
         )}
       </Button>
 

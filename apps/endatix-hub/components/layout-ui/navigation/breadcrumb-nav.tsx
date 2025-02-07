@@ -49,7 +49,8 @@ const BreadcrumbNav = ({
               : listClasses;
           const parsedLink = link.replace("-", " ");
           const itemLink = capitalizeLinks
-            ? parsedLink[0].toUpperCase() + parsedLink.slice(1, parsedLink.length)
+            ? parsedLink[0].toUpperCase() +
+              parsedLink.slice(1, parsedLink.length)
             : parsedLink;
           return (
             <React.Fragment key={index}>

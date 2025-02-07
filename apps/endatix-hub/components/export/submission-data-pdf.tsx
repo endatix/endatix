@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Page,
   Text,
@@ -6,21 +6,21 @@ import {
   Document,
   StyleSheet,
   Font,
-} from '@react-pdf/renderer';
-import { Model, PanelModel, Question } from 'survey-core';
-import PdfAnswerViewer from '@/features/submissions/pdf/pdf-answer-viewer';
-import { Submission } from '@/types';
-import { getElapsedTimeString, parseDate } from '@/lib/utils';
-import { registerSpecializedQuestion, SpecializedVideo } from '@/lib/questions';
+} from "@react-pdf/renderer";
+import { Model, PanelModel, Question } from "survey-core";
+import PdfAnswerViewer from "@/features/submissions/pdf/pdf-answer-viewer";
+import { Submission } from "@/types";
+import { getElapsedTimeString, parseDate } from "@/lib/utils";
+import { registerSpecializedQuestion, SpecializedVideo } from "@/lib/questions";
 
 Font.register({
-  family: 'Roboto',
-  fonts: [{ src: './public/assets/fonts/Roboto-Regular.ttf' }],
+  family: "Roboto",
+  fonts: [{ src: "./public/assets/fonts/Roboto-Regular.ttf" }],
 });
 
 Font.register({
-  family: 'Roboto-Bold',
-  fonts: [{ src: './public/assets/fonts/Roboto-Bold.ttf' }],
+  family: "Roboto-Bold",
+  fonts: [{ src: "./public/assets/fonts/Roboto-Bold.ttf" }],
 });
 
 type SubmissionDataPdfProps = {
@@ -31,15 +31,15 @@ type SubmissionDataPdfProps = {
 const getFormattedDate = (date: Date): string => {
   const parsedDate = parseDate(date);
   if (!parsedDate) {
-    return '-';
+    return "-";
   }
 
-  return parsedDate.toLocaleString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
+  return parsedDate.toLocaleString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
     hour12: true,
   });
 };
@@ -69,7 +69,7 @@ export const SubmissionDataPdf = ({ submission }: SubmissionDataPdfProps) => {
     if (panel instanceof PanelModel) {
       return panel.title;
     }
-    return '';
+    return "";
   };
 
   let lastPanel: string | null = null;
@@ -80,15 +80,15 @@ export const SubmissionDataPdf = ({ submission }: SubmissionDataPdfProps) => {
         <View style={[styles.section, styles.sectionProperties]}>
           <Text style={styles.sectionTitle}>Submission Properties</Text>
           <Text>ID: {submission.id}</Text>
-          <Text>Completed: {submission.isComplete ? 'Yes' : 'No'}</Text>
+          <Text>Completed: {submission.isComplete ? "Yes" : "No"}</Text>
           <Text>Created on: {getFormattedDate(submission.createdAt)}</Text>
           <Text>Comleted on: {getFormattedDate(submission.completedAt)}</Text>
           <Text>
-            Completion time:{' '}
+            Completion time:{" "}
             {getElapsedTimeString(
               submission.createdAt,
               submission.completedAt,
-              'long'
+              "long",
             )}
           </Text>
           <Text>
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   page: {
     padding: 20,
     fontSize: 12,
-    fontFamily: 'Roboto',
+    fontFamily: "Roboto",
   },
   section: {
     marginBottom: 16,
@@ -141,20 +141,20 @@ const styles = StyleSheet.create({
   },
   sectionProperties: {
     fontSize: 8,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     borderRadius: 4,
     gap: 4,
   },
   sectionTitle: {
     fontSize: 14,
     marginBottom: 8,
-    fontFamily: 'Roboto-Bold',
+    fontFamily: "Roboto-Bold",
   },
   questions: {
     marginTop: 8,
   },
   question: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 4,
   },
 });

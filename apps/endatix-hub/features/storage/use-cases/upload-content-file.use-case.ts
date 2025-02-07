@@ -38,7 +38,10 @@ export const uploadContentFileUseCase = async ({
     let fileBuffer = Buffer.from(await file.arrayBuffer());
 
     if (file.type.startsWith("image/")) {
-      fileBuffer = await storageService.optimizeImageSize(fileBuffer, file.type);
+      fileBuffer = await storageService.optimizeImageSize(
+        fileBuffer,
+        file.type,
+      );
     }
 
     const uuid = uuidv4();
@@ -46,7 +49,7 @@ export const uploadContentFileUseCase = async ({
 
     if (!fileExtension) {
       return Result.validationError(
-        "File extension is required. Please provide a valid file."
+        "File extension is required. Please provide a valid file.",
       );
     }
 
@@ -55,7 +58,7 @@ export const uploadContentFileUseCase = async ({
       fileBuffer,
       fileName,
       containerName,
-      folderPath
+      folderPath,
     );
 
     return Result.success({
@@ -65,7 +68,7 @@ export const uploadContentFileUseCase = async ({
   } catch (err) {
     return Result.error(
       "Failed to upload file",
-      err instanceof Error ? err.message : "Unknown error"
+      err instanceof Error ? err.message : "Unknown error",
     );
   }
 };

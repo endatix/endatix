@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { SurveyModel, UploadFilesEvent } from 'survey-core';
+import { useEffect } from "react";
+import { SurveyModel, UploadFilesEvent } from "survey-core";
 
 interface UseBlobStorageProps {
   formId: string;
@@ -15,13 +15,13 @@ interface UploadedFile {
 
 export function useBlobStorage({
   formId,
-  submissionId = '',
+  submissionId = "",
   onSubmissionIdChange,
   surveyModel,
 }: UseBlobStorageProps) {
   const uploadFiles = async (
     sender: SurveyModel,
-    options: UploadFilesEvent
+    options: UploadFilesEvent,
   ) => {
     try {
       const formData = new FormData();
@@ -29,12 +29,12 @@ export function useBlobStorage({
         formData.append(file.name, file);
       });
 
-      const response = await fetch('/api/public/v0/storage/upload', {
-        method: 'POST',
+      const response = await fetch("/api/public/v0/storage/upload", {
+        method: "POST",
         body: formData,
         headers: {
-          'edx-form-id': formId,
-          'edx-submission-id': submissionId,
+          "edx-form-id": formId,
+          "edx-submission-id": submissionId,
         },
       });
 
@@ -43,7 +43,7 @@ export function useBlobStorage({
       if (!response.ok) {
         throw new Error(
           data?.error ??
-            'Failed to upload files. Please refresh your page and try again.'
+            "Failed to upload files. Please refresh your page and try again.",
         );
       }
 
@@ -53,7 +53,7 @@ export function useBlobStorage({
 
       const uploadedFiles = options.files.map((file) => {
         const remoteFile = data.files?.find(
-          (uploadedFile: UploadedFile) => uploadedFile.name === file.name
+          (uploadedFile: UploadedFile) => uploadedFile.name === file.name,
         );
         return {
           file: file,
@@ -63,11 +63,11 @@ export function useBlobStorage({
 
       options.callback(uploadedFiles);
     } catch (error) {
-      console.error('Error: ', error);
-      options.callback([], [error instanceof Error ? error.message : '']);
+      console.error("Error: ", error);
+      options.callback([], [error instanceof Error ? error.message : ""]);
     }
   };
-  
+
   useEffect(() => {
     if (surveyModel) {
       surveyModel.onUploadFiles.add(uploadFiles);

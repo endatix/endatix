@@ -2,7 +2,6 @@
     "cSpell.words": [
         "Endatix"
     ],
-    "prettier.singleQuote": true,
     "files.exclude": {
         "**/node_modules/": true,
         "**/bin/": true,

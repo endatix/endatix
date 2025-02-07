@@ -1,28 +1,26 @@
-"use client"
+"use client";
 
 import { logoutAction } from "@/features/auth/application/actions/logout.action";
 import { useTransition } from "react";
 
 const LogoutButton = () => {
-    const [isPending, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
-    const handleLogout = async () => {
-        startTransition(async () => {
-            await logoutAction();
-        })
-    }
+  const handleLogout = async () => {
+    startTransition(async () => {
+      await logoutAction();
+    });
+  };
 
-    if (isPending) {
-        return <div>Logging out...</div>;
-    }
+  if (isPending) {
+    return <div>Logging out...</div>;
+  }
 
-    return (
-        <div
-            className="cursor-pointer"
-            onClick={handleLogout}>
-            Logout
-        </div>
-    );
-}
+  return (
+    <div className="cursor-pointer" onClick={handleLogout}>
+      Logout
+    </div>
+  );
+};
 
 export default LogoutButton;

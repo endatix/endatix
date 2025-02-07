@@ -17,9 +17,11 @@ import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-node";
 const appInsightsConnectionString =
   process.env.APPLICATIONINSIGHTS_CONNECTION_STRING;
 if (appInsightsConnectionString) {
-  const traceExporter: SpanExporter | undefined = new AzureMonitorTraceExporter({
-    connectionString: appInsightsConnectionString,
-  });
+  const traceExporter: SpanExporter | undefined = new AzureMonitorTraceExporter(
+    {
+      connectionString: appInsightsConnectionString,
+    },
+  );
   const logExporter = new AzureMonitorLogExporter({
     connectionString: appInsightsConnectionString,
   });

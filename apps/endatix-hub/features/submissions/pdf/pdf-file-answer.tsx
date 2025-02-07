@@ -7,7 +7,9 @@ interface FileAnswerProps {
   question: QuestionFileModel;
 }
 
-export function PdfFileAnswer({ question }: FileAnswerProps): React.ReactElement {
+export function PdfFileAnswer({
+  question,
+}: FileAnswerProps): React.ReactElement {
   const files: File[] = Array.isArray(question?.value) ? question?.value : [];
 
   return (
@@ -35,7 +37,7 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
     padding: 10,
-    break: true
+    break: true,
   },
   title: {
     fontSize: 14,
@@ -47,12 +49,12 @@ const styles = StyleSheet.create({
     color: "gray",
   },
   filesContainer: {
-    display: "flex", 
+    display: "flex",
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10, 
+    gap: 10,
     wrap: false,
-    break: "avoid"
+    break: "avoid",
   },
 });
 
