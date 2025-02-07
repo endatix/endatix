@@ -13,7 +13,6 @@ import { updateFormDefinitionJsonAction } from "../update-form-definition-json.a
 import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import "./creator-styles.scss";
 import "survey-core/defaultV2.css";
 import "survey-creator-core/survey-creator-core.css";
 import * as themes from "survey-creator-core/themes";
@@ -202,6 +201,13 @@ function FormEditor({
       setIsEditingName(false);
     }
   };
+
+  useEffect(() => {
+    document.body.classList.add("overflow-hidden");
+    return () => {
+      document.body.classList.remove("overflow-hidden");
+    };
+  }, []);
 
   return (
     <>

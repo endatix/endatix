@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEditorProps } from "./form-editor";
 import dynamic from "next/dynamic";
+import { FormEditorProps } from "./form-editor";
+import "./creator-styles.scss";
 
 const FormEditor = dynamic(() => import("./form-editor"), {
   ssr: false,

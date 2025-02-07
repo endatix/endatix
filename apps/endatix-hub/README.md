@@ -35,7 +35,15 @@ Check the .env.example file for all variables and their description
 This is useful for testing the production build locally (assumes you have run `pnpm install`)
 
 1. Run `pnpm build:standalone`;
-1. Run `pnpm start`;
+1. Run the site
+
+```bash
+# For localhost **without SSL certificate**
+NODE_TLS_REJECT_UNAUTHORIZED=0 node .next/standalone/server.js
+
+# For localhost **with SSL certificate**
+node .next/standalone/server.js
+```
 
 ## Learn More
 

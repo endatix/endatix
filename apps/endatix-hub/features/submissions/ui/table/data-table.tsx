@@ -25,8 +25,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ROW_CLASS_NAMES = {
   selected: "bg-accent",
@@ -53,13 +53,16 @@ export function DataTable({
   columns: ColumnDef<Submission>[];
 }) {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const router = useRouter();
   const handleRowSelectionChange = (row: Row<Submission>) => {
     table.setRowSelection({
       [row.id]: true,
     });
     //setIsSheetOpen(true)
     const submission = row.original as Submission;
-    redirect(`/forms/${submission.formId}/submissions/${submission.id}`);
+    router.push(`/forms/${submission.formId}/submissions/${submission.id}`, {
+      scroll: false,
+    });
   };
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 

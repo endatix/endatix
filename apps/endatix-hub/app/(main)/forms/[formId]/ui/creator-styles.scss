@@ -7,9 +7,6 @@ global {
     --primary-color: rgb(0, 84, 209);
 }
 
-body {
-    overflow: hidden;
-}
 
 #creator {
     width: 100%;
@@ -20,29 +17,4 @@ body {
     .svc-flex-row {
         background: transparent !important;
     }
-}
-
-/* Hide breadcrumb on create page */
-nav[aria-label="breadcrumb"] {
-    display: none;
-}
-
-/* Hide search bar on create page */
-div[aria-label="main-search-bar"] {
-    display: none;
-}
-
-/* Hide notifications bell on create page */
-div[aria-label="notifications-bell"] {
-    display: none;
-}
-
-/* Hide theme toggle on create page */
-button[aria-label="theme-toggle"] {
-    display: none;
-}
-
-/* Hide my account menu on create page */
-button[aria-label="my-account-dropdown"] {
-    display: none;
 }

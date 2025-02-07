@@ -21,10 +21,9 @@ interface FieldErrors {
 }
 
 export async function loginAction(
-  prevState: unknown,
+  _: unknown,
   formData: FormData,
 ): Promise<LoginActionState> {
-  console.log(`prevState is ${prevState}`);
   const email = formData.get("email");
   const password = formData.get("password");
 
