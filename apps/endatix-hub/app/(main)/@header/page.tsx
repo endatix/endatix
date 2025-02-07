@@ -1,5 +1,5 @@
 import MainHeader from "@/components/layout-ui/header/main-header";
 
-export default function DefaultHeaderSlot() {
+export default function HeaderSlot() {
   return <MainHeader />;
 }
