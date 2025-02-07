@@ -1,5 +1,8 @@
 import { RemotePattern } from "next/dist/shared/lib/image-config";
-import { includesRemoteImageHostnames } from "@/lib/hosting/next-config-helper";
+import {
+  getRewriteRuleFor,
+  includesRemoteImageHostnames,
+} from "@/lib/hosting/next-config-helper";
 import { describe, expect, it } from "vitest";
 
 const wildcardRemotePattern: RemotePattern = {
@@ -84,5 +87,33 @@ describe("includesRemoteImageHostnames", () => {
         hostname: "images.pexels.com",
       },
     ]);
+  });
+});
+
+describe("getRewriteRuleFor", () => {
+  it("should throw an error if the route name is empty", () => {
+    expect(() => getRewriteRuleFor("")).toThrow("Invalid route name value");
+  });
+
+  it("should throw an error if the route name is whitespace", () => {
+    const whitespaceRouteName: string = "   ";
+    expect(() => getRewriteRuleFor(whitespaceRouteName)).toThrow(
+      "Invalid route name value",
+    );
+  });
+
+  it("should throw an error if the route name starts with @", () => {
+    expect(() => getRewriteRuleFor("@test")).toThrow(
+      "Invalid route name value",
+    );
+  });
+
+  it("should return the correct rewrite rule for a valid route name", () => {
+    const validRouteName: string = "breadcrumbs";
+    const rewriteRule = getRewriteRuleFor(validRouteName);
+    expect(rewriteRule).toEqual({
+      source: `/_next/static/chunks/app/:folder*/@breadcrumbs/:path*`,
+      destination: `/_next/static/chunks/app/:folder*/%40breadcrumbs/:path*`,
+    });
   });
 });
