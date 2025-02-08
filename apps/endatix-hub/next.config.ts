@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
-import { includesRemoteImageHostnames } from "./lib/hosting/next-config-helper";
+import {
+  getRewriteRuleFor,
+  includesRemoteImageHostnames,
+} from "./lib/hosting/next-config-helper";
 import { StorageService } from "@/features/storage/infrastructure/storage-service";
+import { Rewrite } from "next/dist/lib/load-custom-routes";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -13,6 +17,18 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [],
+  },
+  rewrites: async () => {
+    const rules = {
+      beforeFiles: new Array<Rewrite>(),
+      afterFiles: new Array<Rewrite>(),
+      fallback: new Array<Rewrite>(),
+    };
+
+    const headerRouteFix = getRewriteRuleFor("header");
+    rules.beforeFiles.push(headerRouteFix);
+
+    return rules;
   },
 };
 
