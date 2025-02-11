@@ -17,24 +17,30 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { StatusDropdownMenuItem } from "@/features/submissions/use-cases/change-status";
+import { useState } from 'react';
 
 interface RowActionsProps<TData> {
   row: Row<TData>;
 }
 
 export function RowActions<TData>({ row }: RowActionsProps<TData>) {
+  const [open, setOpen] = useState(false);
   const item = row.original as Submission;
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
+          className="hover:bg-primary/20"
           onClick={(event) => event.stopPropagation()}
-          aria-haspopup="true"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label="Submission actions"
           size="icon"
           variant="ghost"
         >
           <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Toggle menu</span>
+          <span className="sr-only">Open Submission Actions Menu</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
