@@ -95,7 +95,7 @@ function FormEditor({
     [formId],
   );
 
-  const expandPanels = useCallback((_: SurveyCreatorModel, options: PanelAddedEvent) => {
+  const expandPanel = useCallback((_: SurveyCreatorModel, options: PanelAddedEvent) => {
     const panel = options.panel;
     if (panel && !panel.isExpanded) {
       panel.expand();
@@ -117,7 +117,7 @@ function FormEditor({
 
     newCreator.applyCreatorTheme(themes.DefaultLight);
     newCreator.JSON = formJson;
-    newCreator.onPanelAdded.add(expandPanels);
+    newCreator.onPanelAdded.add(expandPanel);
     newCreator.saveSurveyFunc = (
       no: number,
       callback: (num: number, status: boolean) => void,
@@ -128,7 +128,7 @@ function FormEditor({
     newCreator.onUploadFile.add(handleUploadFile);
 
     setCreator(newCreator);
-  }, [formJson, options, creator, slkVal, handleUploadFile, expandPanels]);
+  }, [formJson, options, creator, slkVal, handleUploadFile, expandPanel]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
