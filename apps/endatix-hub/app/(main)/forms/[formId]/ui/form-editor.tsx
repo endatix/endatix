@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ICreatorOptions,
+  PanelAddedEvent,
   SurveyCreatorModel,
   UploadFileEvent,
 } from "survey-creator-core";
@@ -94,6 +95,13 @@ function FormEditor({
     [formId],
   );
 
+  const expandPanel = useCallback((_: SurveyCreatorModel, options: PanelAddedEvent) => {
+    const panel = options.panel;
+    if (panel && !panel.isExpanded) {
+      panel.expand();
+    }
+  }, []);
+
   useEffect(() => {
     if (creator) {
       creator.JSON = formJson;
@@ -105,11 +113,11 @@ function FormEditor({
     }
 
     const newCreator = new SurveyCreator(options || defaultCreatorOptions);
-
     SpecializedVideo.customizeEditor(newCreator);
 
     newCreator.applyCreatorTheme(themes.DefaultLight);
     newCreator.JSON = formJson;
+    newCreator.onPanelAdded.add(expandPanel);
     newCreator.saveSurveyFunc = (
       no: number,
       callback: (num: number, status: boolean) => void,
@@ -120,7 +128,7 @@ function FormEditor({
     newCreator.onUploadFile.add(handleUploadFile);
 
     setCreator(newCreator);
-  }, [formJson, options, creator, slkVal, handleUploadFile]);
+  }, [formJson, options, creator, slkVal, handleUploadFile, expandPanel]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
