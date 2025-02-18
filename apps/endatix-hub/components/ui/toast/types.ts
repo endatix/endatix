@@ -1,13 +1,15 @@
 type ToastVariant = "success" | "info" | "warning" | "error";
 
+type ProgressVariant = "none" | "left-to-right" | "right-to-left";
+
 interface ToastProps {
   id: string | number;
+  variant: ToastVariant;
   title: string;
+  progressBar?: ProgressVariant;
   description?: string;
   duration?: number;
   index?: number;
-  progressBar?: "none" | "normal" | "reverse";
-  variant: ToastVariant;
   action?: {
     label: string;
     onClick: () => void;
@@ -22,4 +24,4 @@ interface ToastIconProps extends React.SVGProps<SVGSVGElement> {
   SvgIcon?: React.FC<React.SVGProps<SVGSVGElement>>;
 }
 
-export type { ToastVariant, ToastProps, ToastIconProps };
+export type { ToastVariant, ToastProps, ToastIconProps, ProgressVariant };

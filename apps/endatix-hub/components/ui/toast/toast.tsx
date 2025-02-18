@@ -1,23 +1,23 @@
-import React, { useCallback } from "react";
-import { toast as sonnerToast } from "sonner";
-import { ToastProps } from "./types";
-import { Button } from "../button";
-import { ToastProgress } from "./toast-progress";
-import { ToastIcon } from "./toast-icon";
+import React, { useCallback } from 'react';
+import { toast as sonnerToast } from 'sonner';
+import { ToastProps } from './types';
+import { Button } from '../button';
+import { ToastProgress } from './toast-progress';
+import { ToastIcon } from './toast-icon';
 
 const DEFAULT_DURATION = 5000;
 
-const DEFAULT_TOAST_PROPS: Omit<ToastProps, "id" | "title"> = {
-  variant: "info",
+const DEFAULT_TOAST_PROPS: Omit<ToastProps, 'id' | 'title'> = {
+  variant: 'info',
   duration: DEFAULT_DURATION,
-  progressBar: "reverse",
+  progressBar: "right-to-left",
   description: undefined,
   includeIcon: true,
   action: undefined,
   SvgIcon: undefined,
 };
 
-function toast(toast: Omit<ToastProps, "id">) {
+function createToast(toast: Omit<ToastProps, 'id'>) {
   const mergedProps = {
     ...DEFAULT_TOAST_PROPS,
     ...toast,
@@ -26,13 +26,24 @@ function toast(toast: Omit<ToastProps, "id">) {
   return sonnerToast.custom((id) => <Toast {...mergedProps} id={id} />);
 }
 
+const toast = Object.assign(createToast, {
+  success: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ ...props, variant: 'success' }),
+  error: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ ...props, variant: 'error' }),
+  warning: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ ...props, variant: 'warning' }),
+  info: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ ...props, variant: 'info' }),
+});
+
 function Toast({
+  id,
   title,
   description,
   duration,
   action,
-  progressBar = "reverse",
-  id,
+  progressBar,
   variant,
   SvgIcon,
   includeIcon,
@@ -90,11 +101,11 @@ function Toast({
           </div>
         )}
       </div>
-      {progressBar !== "none" && (
+      {progressBar !== 'none' && (
         <ToastProgress
           duration={duration ?? DEFAULT_DURATION}
           variant={variant}
-          direction={"reverse"}
+          direction={progressBar ?? 'left-to-right'}
           onComplete={handleDismiss}
           remainingTimeRef={remainingTimeRef}
         />
@@ -103,4 +114,4 @@ function Toast({
   );
 }
 
-export { toast, Toast };
+export { toast };
