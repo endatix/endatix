@@ -9,9 +9,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getSession } from "@/lib/auth-service";
-import LogoutButton from "./logout-button";
 import UserAvatar from "@/components/user/user-avatar";
 import Link from "next/link";
+import LogoutButton from "@/features/auth/use-cases/logout/ui/logout-button";
 
 const MyAccountDropdown: React.FC = async () => {
   const sessionData = await getSession();

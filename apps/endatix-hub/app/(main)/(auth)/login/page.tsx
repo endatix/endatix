@@ -1,7 +1,7 @@
 import Image from "next/image";
-import LoginForm from "@/features/auth/ui/login-form";
+import LoginForm from "@/features/auth/use-cases/login/ui/login-form";
 import type { Metadata } from "next";
-import NewAccountLink from "@/features/auth/ui/new-account-link";
+import NewAccountLink from "@/features/auth/use-cases/login/ui/new-account-link";
 import { getSession, SessionData } from "@/lib/auth-service";
 import {
   Card,
