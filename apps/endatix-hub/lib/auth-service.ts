@@ -31,7 +31,7 @@ interface HubJwtPayload extends JWTPayload {
 }
 
 const HUB_COOKIE_OPTIONS: CookieOptions = {
-  name: "endatix-hub.session",
+  name: "session",
   encryptionKey: `${process.env.SESSION_SECRET}`,
   secure: process.env.NODE_ENV === "production",
   httpOnly: true,
@@ -96,6 +96,7 @@ export class AuthService {
       value: hubSessionToken,
       httpOnly: true,
       secure: this.cookieOptions.secure,
+      sameSite: "lax",
       expires: expires,
       path: "/",
     });
@@ -129,8 +130,17 @@ export class AuthService {
 
   async logout() {
     const cookieStore = await cookies();
+
     if (cookieStore.has(this.cookieOptions.name)) {
-      cookieStore.delete(this.cookieOptions.name);
+      cookieStore.set({
+        name: this.cookieOptions.name,
+        value: "",
+        httpOnly: true,
+        secure: this.cookieOptions.secure,
+        sameSite: "lax",
+        maxAge: 0,
+        path: "/",
+      });
     }
   }
 

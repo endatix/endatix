@@ -37,6 +37,7 @@ const Dashboard = async () => {
   const RESIZE_IMAGES = process.env.RESIZE_IMAGES;
   const RESIZE_IMAGES_WIDTH = process.env.RESIZE_IMAGES_WIDTH;
   const NEXT_PUBLIC_NAME = process.env.NEXT_PUBLIC_NAME;
+  const NODE_ENV = process.env.NODE_ENV;
   const azureStorageConfig = StorageService.getAzureStorageConfig();
 
   return (
@@ -117,6 +118,7 @@ const Dashboard = async () => {
       <TabsContent value="draft">
         <div>
           <ul>
+            <li>NODE_ENV: {NODE_ENV}</li>
             <li>NEXT_PUBLIC_MAX_IMAGE_SIZE: {NEXT_PUBLIC_MAX_IMAGE_SIZE}</li>
             <li>SLACK_CLIENT_ID: {SLACK_CLIENT_ID}</li>
             <li>NEXT_PUBLIC_NAME: {NEXT_PUBLIC_NAME}</li>
