@@ -13,8 +13,7 @@ import { Submission } from "@/types";
 import { startTransition, useEffect, useState } from "react";
 import { Model, Question } from "survey-core";
 import { Download, Link as Link2, Trash } from "lucide-react";
-import { toast } from "sonner";
-import { comingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
+import { showComingSoonMessage } from "@/components/layout-ui/teasers/coming-soon-link";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import AnswerViewer from "@/features/submissions/ui/answers/answer-viewer";
@@ -95,19 +94,19 @@ const SubmissionSheet = ({ submission }: SubmissionSheetProps) => {
             </SheetTitle>
           </SheetHeader>
           <div className="my-8 flex space-x-2">
-            <Link href="#" onClick={() => toast(comingSoonMessage)}>
+            <Link href="#" onClick={() => showComingSoonMessage()}>
               <Button variant={"outline"}>
                 <Download className="mr-2 h-4 w-4" />
                 Export PDF
               </Button>
             </Link>
-            <Link href="#" onClick={() => toast(comingSoonMessage)}>
+            <Link href="#" onClick={() => showComingSoonMessage()}>
               <Button variant={"outline"}>
                 <Trash className="mr-2 h-4 w-4" />
                 Delete
               </Button>
             </Link>
-            <Link href="#" onClick={() => toast(comingSoonMessage)}>
+            <Link href="#" onClick={() => showComingSoonMessage()}>
               <Button variant={"outline"}>Mark as spam</Button>
             </Link>
           </div>

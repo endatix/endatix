@@ -2,8 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { comingSoonMessage } from "../teasers/coming-soon-link";
-import { toast } from "sonner";
+import { showComingSoonMessage } from '../teasers/coming-soon-link';
 
 const MainSearchBar = () => {
   return (
@@ -24,7 +23,7 @@ const ComingSoonInput = () => {
       placeholder="Search..."
       className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
       onKeyDown={() => {
-        toast(comingSoonMessage);
+        showComingSoonMessage();
       }}
     />
   );

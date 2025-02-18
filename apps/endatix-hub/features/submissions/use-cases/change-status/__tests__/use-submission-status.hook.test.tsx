@@ -3,14 +3,14 @@ import { renderHook, act } from "@testing-library/react";
 import { useSubmissionStatus } from "../use-submission-status.hook";
 import { changeStatusAction } from "../change-status.action";
 import { SubmissionStatusKind } from "@/types";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 
 // Mock dependencies
 vi.mock("../change-status.action", () => ({
   changeStatusAction: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({
+vi.mock("@/components/ui/toast", () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),

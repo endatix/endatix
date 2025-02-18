@@ -39,9 +39,9 @@ const NavLink = ({
 
   return (
     <Link
-      onClick={(event) => {
+      onClick={() => {
         if (!ALLOWED_PAGES.some((allowedPath) => allowedPath === path)) {
-          showComingSoonMessage(event);
+          showComingSoonMessage();
         }
       }}
       href={path}

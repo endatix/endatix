@@ -1,31 +1,31 @@
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 
 /**
- * The default message to be displayed when a feature is not yet available.
+ * The default title to be displayed when a feature is not yet available.
  */
-export const comingSoonMessage: string =
-  "We are working hard to provide great features to you. Stay tuned. Great stuff is on the way!";
+export const comingSoonTitle: string =
+  "We are working hard to provide great features to you"
+
+  /**
+ * The default description to be displayed when a feature is not yet available.
+ */
+export const comingSoonDescription: string =
+  "Stay tuned. Great stuff is on the way!";
 
 /**
  * Displays a toast message indicating that a feature is coming soon.
  *
- * @param event The event that triggered the call to this function.
- * @param messageOverride An optional message to override the default coming soon message.
+ * @param titleOverride An optional title to override the default coming soon title.
+ * @param descriptionOverride An optional description to override the default coming soon description.
  */
 export const showComingSoonMessage = (
-  event: React.MouseEvent<HTMLElement, MouseEvent>,
-  messageOverride?: string,
+  titleOverride?: string,
+  descriptionOverride?: string,
 ) => {
-  const messageToShow = messageOverride ?? comingSoonMessage;
-  try {
-    toast(messageToShow, {
-      duration: 1500,
-      dismissible: true,
-      closeButton: true,
-    });
-  } catch {
-    console.warn(
-      `Showing coming soon toast threw an error. Event was raised from ${event.target}`,
-    );
-  }
+  const title = titleOverride ?? comingSoonTitle;
+  const description = descriptionOverride ?? comingSoonDescription;
+  toast.info({
+    title,
+    description,
+  });
 };
