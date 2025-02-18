@@ -1,19 +1,25 @@
-import { ToastT } from 'sonner';
+type ToastVariant = "success" | "info" | "warning" | "error";
 
 interface ToastProps {
   id: string | number;
   title: string;
   description?: string;
-  toast?: ToastT;
-  toasts?: ToastT[];
   duration?: number;
   index?: number;
   progressBar?: "none" | "normal" | "reverse";
-  variant: "success" | "info" | "warning" | "error";
-  button: {
+  variant: ToastVariant;
+  action?: {
     label: string;
     onClick: () => void;
   };
+  includeIcon?: boolean;
+  SvgIcon?: React.FC<React.SVGProps<SVGSVGElement>>;
 }
 
-export type { ToastProps };
+interface ToastIconProps extends React.SVGProps<SVGSVGElement> {
+  variant: ToastVariant;
+  includeIcon?: boolean;
+  SvgIcon?: React.FC<React.SVGProps<SVGSVGElement>>;
+}
+
+export type { ToastVariant, ToastProps, ToastIconProps };

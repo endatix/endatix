@@ -54,9 +54,9 @@ function ToastProgress({
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <div className={`absolute bottom-0 left-0 right-0 h-full ${baseColor}/20`} />
+      <div className={`absolute bottom-0 left-0 right-0 h-full w-full ${baseColor} opacity-10`} />
       <div
-        className={`absolute bottom-0 left-0 h-full ${baseColor} transition-transform duration-300 ease-linear`}
+        className={`absolute bottom-0 left-0 h-full w-full ${baseColor} transition-transform duration-300 ease-linear`}
         style={{ 
           transform: `translateX(${progressPercentage - 100}%)`,
           width: '100%'
