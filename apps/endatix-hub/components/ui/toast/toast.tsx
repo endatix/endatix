@@ -1,14 +1,14 @@
-import React, { useCallback } from 'react';
-import { toast as sonnerToast } from 'sonner';
-import { ToastProps } from './types';
-import { Button } from '../button';
-import { ToastProgress } from './toast-progress';
-import { ToastIcon } from './toast-icon';
+import React, { useCallback } from "react";
+import { toast as sonnerToast } from "sonner";
+import { ToastProps } from "./types";
+import { Button } from "../button";
+import { ToastProgress } from "./toast-progress";
+import { ToastIcon } from "./toast-icon";
 
 const DEFAULT_DURATION = 5000;
 
-const DEFAULT_TOAST_PROPS: Omit<ToastProps, 'id' | 'title'> = {
-  variant: 'info',
+const DEFAULT_TOAST_PROPS: Omit<ToastProps, "id" | "title"> = {
+  variant: "info",
   duration: DEFAULT_DURATION,
   progressBar: "right-to-left",
   description: undefined,
@@ -17,7 +17,7 @@ const DEFAULT_TOAST_PROPS: Omit<ToastProps, 'id' | 'title'> = {
   SvgIcon: undefined,
 };
 
-function createToast(toast: Omit<ToastProps, 'id'>) {
+function createToast(toast: Omit<ToastProps, "id">) {
   const mergedProps = {
     ...DEFAULT_TOAST_PROPS,
     ...toast,
@@ -27,14 +27,14 @@ function createToast(toast: Omit<ToastProps, 'id'>) {
 }
 
 const toast = Object.assign(createToast, {
-  success: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
-    createToast({ ...props, variant: 'success' }),
-  error: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
-    createToast({ ...props, variant: 'error' }),
-  warning: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
-    createToast({ ...props, variant: 'warning' }),
-  info: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
-    createToast({ ...props, variant: 'info' }),
+  success: (props: Omit<Omit<ToastProps, "id">, "variant">) =>
+    createToast({ ...props, variant: "success" }),
+  error: (props: Omit<Omit<ToastProps, "id">, "variant">) =>
+    createToast({ ...props, variant: "error" }),
+  warning: (props: Omit<Omit<ToastProps, "id">, "variant">) =>
+    createToast({ ...props, variant: "warning" }),
+  info: (props: Omit<Omit<ToastProps, "id">, "variant">) =>
+    createToast({ ...props, variant: "info" }),
 });
 
 function Toast({
@@ -51,7 +51,7 @@ function Toast({
   const [isPaused] = React.useState(false);
   const remainingTimeRef = React.useRef(duration ?? DEFAULT_DURATION);
   const UPDATE_TIME_INTERVAL = 50;
-
+  const buttonProps = action ? { ...action } : {};
   const handleDismiss = useCallback(() => {
     setTimeout(() => {
       sonnerToast.dismiss(id);
@@ -90,7 +90,7 @@ function Toast({
         {action && (
           <div className="flex ml-5 items-center text-sm">
             <Button
-              variant="secondary"
+              {...buttonProps}
               onClick={() => {
                 action.onClick();
                 handleDismiss();
@@ -101,11 +101,11 @@ function Toast({
           </div>
         )}
       </div>
-      {progressBar !== 'none' && (
+      {progressBar !== "none" && (
         <ToastProgress
           duration={duration ?? DEFAULT_DURATION}
           variant={variant}
-          direction={progressBar ?? 'left-to-right'}
+          direction={progressBar ?? "left-to-right"}
           onComplete={handleDismiss}
           remainingTimeRef={remainingTimeRef}
         />

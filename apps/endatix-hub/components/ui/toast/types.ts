@@ -1,3 +1,5 @@
+import { ButtonProps } from '../button';
+
 type ToastVariant = "success" | "info" | "warning" | "error";
 
 type ProgressVariant = "none" | "left-to-right" | "right-to-left";
@@ -10,7 +12,7 @@ interface ToastProps {
   description?: string;
   duration?: number;
   index?: number;
-  action?: {
+  action?: Omit<ButtonProps, "onClick" | "label"> & {
     label: string;
     onClick: () => void;
   };
