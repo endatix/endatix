@@ -1,23 +1,23 @@
-import React, { useCallback } from "react";
-import { toast as sonnerToast } from "sonner";
-import { ToastProps } from "./types";
-import { Button } from "../button";
-import { ToastProgress } from "./toast-progress";
-import { ToastIcon } from "./toast-icon";
+import React, { useCallback } from 'react';
+import { toast as sonnerToast } from 'sonner';
+import { ToastProps } from './types';
+import { Button } from '../button';
+import { ToastProgress } from './toast-progress';
+import { ToastIcon } from './toast-icon';
 
 const DEFAULT_DURATION = 5000;
 
-const DEFAULT_TOAST_PROPS: Omit<ToastProps, "id" | "title"> = {
-  variant: "info",
+const DEFAULT_TOAST_PROPS: Omit<ToastProps, 'id' | 'title'> = {
+  variant: 'info',
   duration: DEFAULT_DURATION,
-  progressBar: "right-to-left",
+  progressBar: 'right-to-left',
   description: undefined,
   includeIcon: true,
   action: undefined,
   SvgIcon: undefined,
 };
 
-function createToast(toast: Omit<ToastProps, "id">) {
+function createToast(toast: Omit<ToastProps, 'id'>) {
   const mergedProps = {
     ...DEFAULT_TOAST_PROPS,
     ...toast,
@@ -27,14 +27,14 @@ function createToast(toast: Omit<ToastProps, "id">) {
 }
 
 const toast = Object.assign(createToast, {
-  success: (props: Omit<Omit<ToastProps, "id">, "variant">) =>
-    createToast({ ...props, variant: "success" }),
-  error: (props: Omit<Omit<ToastProps, "id">, "variant">) =>
-    createToast({ ...props, variant: "error" }),
-  warning: (props: Omit<Omit<ToastProps, "id">, "variant">) =>
-    createToast({ ...props, variant: "warning" }),
-  info: (props: Omit<Omit<ToastProps, "id">, "variant">) =>
-    createToast({ ...props, variant: "info" }),
+  success: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ ...props, variant: 'success' }),
+  error: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ ...props, variant: 'error' }),
+  warning: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ ...props, variant: 'warning' }),
+  info: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ ...props, variant: 'info' }),
 });
 
 function Toast({
@@ -48,24 +48,40 @@ function Toast({
   SvgIcon,
   includeIcon,
 }: ToastProps) {
-  const [isPaused] = React.useState(false);
+  const [isPaused, setIsPaused] = React.useState(false);
+  const lastUpdatedRef = React.useRef(Date.now());
   const remainingTimeRef = React.useRef(duration ?? DEFAULT_DURATION);
   const UPDATE_TIME_INTERVAL = 50;
   const buttonProps = action ? { ...action } : {};
+
   const handleDismiss = useCallback(() => {
     setTimeout(() => {
       sonnerToast.dismiss(id);
     }, UPDATE_TIME_INTERVAL);
   }, [id]);
 
+  const handlePause = useCallback(() => {
+    lastUpdatedRef.current = Date.now();
+    setIsPaused(true);
+  }, []);
+
+  const handleResume = useCallback(() => {
+    lastUpdatedRef.current = Date.now();
+    setIsPaused(false);
+  }, []);
+
   React.useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
     if (!isPaused) {
       timeoutId = setInterval(() => {
+        const now = Date.now();
+        const timePassed = now - lastUpdatedRef.current;
+        lastUpdatedRef.current = now;
+        
         remainingTimeRef.current = Math.max(
           0,
-          remainingTimeRef.current - UPDATE_TIME_INTERVAL,
+          remainingTimeRef.current - timePassed
         );
       }, UPDATE_TIME_INTERVAL);
     }
@@ -74,7 +90,11 @@ function Toast({
   }, [isPaused]);
 
   return (
-    <div className="flex flex-col w-full min-w-[356px] md:max-w-[364px] gap-0 justify-between items-center rounded-lg bg-white shadow-lg ring-1 ring-black/5 relative overflow-hidden">
+    <div 
+      className="flex flex-col w-full min-w-[356px] md:max-w-[364px] gap-0 justify-between items-center rounded-lg bg-white shadow-lg ring-1 ring-black/5 relative overflow-hidden"
+      onMouseEnter={handlePause}
+      onMouseLeave={handleResume}
+    >
       <div className="flex flex-row justify-between w-full p-4 gap-2">
         {includeIcon && (
           <ToastIcon
@@ -90,6 +110,8 @@ function Toast({
         {action && (
           <div className="flex ml-5 items-center text-sm">
             <Button
+              size="sm"
+              variant="outline"
               {...buttonProps}
               onClick={() => {
                 action.onClick();
@@ -101,13 +123,14 @@ function Toast({
           </div>
         )}
       </div>
-      {progressBar !== "none" && (
+      {progressBar !== 'none' && (
         <ToastProgress
           duration={duration ?? DEFAULT_DURATION}
           variant={variant}
-          direction={progressBar ?? "left-to-right"}
+          direction={progressBar ?? 'left-to-right'}
           onComplete={handleDismiss}
           remainingTimeRef={remainingTimeRef}
+          isPaused={isPaused}
         />
       )}
     </div>

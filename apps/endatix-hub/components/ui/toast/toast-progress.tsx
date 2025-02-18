@@ -6,6 +6,7 @@ interface ToastProgressProps {
   variant: ToastProps["variant"];
   direction: "left-to-right" | "right-to-left";
   onComplete: () => void;
+  isPaused: boolean;
   remainingTimeRef: RefObject<number>;
 }
 
@@ -15,8 +16,8 @@ function ToastProgress({
   direction,
   onComplete,
   remainingTimeRef,
+  isPaused,
 }: ToastProgressProps) {
-  const [isPaused] = useState(false);
   const [displayTime, setDisplayTime] = useState(duration);
   const UI_UPDATE_INTERVAL = 25;
 
