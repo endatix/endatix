@@ -51,7 +51,7 @@ export default function RootLayout({ children, header }: RootLayoutProps) {
             </div>
           </div>
           <Toaster
-            expand={true}
+            expand={false}
             duration={Infinity}
             visibleToasts={5}
           />
