@@ -25,7 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useTransition, useState } from "react";
 import { updateFormStatusAction } from "../../../app/(main)/forms/[formId]/update-form-status.action";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -176,7 +176,7 @@ const FormSheet = ({
     startTransition(async () => {
       try {
         await updateFormStatusAction(selectedForm.id, enabled);
-        toast(`Form is now ${enabled ? "enabled" : "disabled"}`);
+        toast.success(`Form is now ${enabled ? "enabled" : "disabled"}`);
       } catch (error) {
         setIsEnabled(!enabled);
         toast.error("Failed to update form status. Error: " + error);
@@ -186,7 +186,7 @@ const FormSheet = ({
 
   const copyToClipboard = (value: string) => {
     navigator.clipboard.writeText(value);
-    toast("Copied to clipboard");
+    toast.success("Copied to clipboard");
   };
 
   const handleDialogOpenChange = (open: boolean) => {
@@ -199,9 +199,7 @@ const FormSheet = ({
         const result = await deleteFormAction(selectedForm.id);
         if (Result.isSuccess(result)) {
           toast.success(
-            <>
-              Form <strong>{selectedForm.name}</strong> deleted successfully
-            </>,
+            `Form <strong>${selectedForm.name}</strong> deleted successfully`,
           );
           setIsDialogOpen(false);
           props.onOpenChange?.(false);
@@ -212,7 +210,7 @@ const FormSheet = ({
         } else {
           toast.error("Failed to delete form");
         }
-      } catch (error) {
+      } catch {
         toast.error("Failed to delete form");
       }
     });

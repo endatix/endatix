@@ -8,7 +8,7 @@ import { SubmissionActionsDropdown } from "./submission-actions-dropdown";
 import { useState } from "react";
 import { Spinner } from "@/components/loaders/spinner";
 import { saveToFileHandler } from "survey-creator-core";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import { StatusButton } from "@/features/submissions/use-cases/change-status";
 
 interface SubmissionHeaderProps {

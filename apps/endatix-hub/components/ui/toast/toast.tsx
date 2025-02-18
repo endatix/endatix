@@ -27,14 +27,26 @@ function createToast(toast: Omit<ToastProps, 'id'>) {
 }
 
 const toast = Object.assign(createToast, {
-  success: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
-    createToast({ ...props, variant: 'success' }),
-  error: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
-    createToast({ ...props, variant: 'error' }),
-  warning: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
-    createToast({ ...props, variant: 'warning' }),
-  info: (props: Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
-    createToast({ ...props, variant: 'info' }),
+  success: (props: string | Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ 
+      ...(typeof props === 'string' ? { title: props } : props), 
+      variant: 'success' 
+    }),
+  error: (props: string | Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ 
+      ...(typeof props === 'string' ? { title: props } : props), 
+      variant: 'error' 
+    }),
+  warning: (props: string | Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ 
+      ...(typeof props === 'string' ? { title: props } : props), 
+      variant: 'warning' 
+    }),
+  info: (props: string | Omit<Omit<ToastProps, 'id'>, 'variant'>) =>
+    createToast({ 
+      ...(typeof props === 'string' ? { title: props } : props), 
+      variant: 'info' 
+    }),
 });
 
 function Toast({

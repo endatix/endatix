@@ -1,6 +1,6 @@
 "use client";
 
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import { useTransition } from "react";
 import { changeStatusAction } from "./change-status.action";
 import { SubmissionStatus, SubmissionStatusKind } from "@/types";
@@ -33,7 +33,7 @@ export const useSubmissionStatus = ({
       if (statusResult.success) {
         toast.success("Status updated successfully");
       } else {
-        toast.error(statusResult.error);
+        toast.error(statusResult.error ?? "Failed to update status");
       }
     });
   };

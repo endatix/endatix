@@ -11,7 +11,7 @@ import { SurveyCreatorComponent, SurveyCreator } from "survey-creator-react";
 import { slk } from "survey-core";
 import { updateFormDefinitionJsonAction } from "../update-form-definition-json.action";
 import { updateFormNameAction } from "@/app/(main)/forms/[formId]/update-form-name.action";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import "survey-core/defaultV2.css";
 import "survey-creator-core/survey-creator-core.css";
@@ -62,7 +62,7 @@ function FormEditor({
 
         setOriginalName(name);
         setName(name);
-        toast("Form name updated");
+        toast.success("Form name updated");
       });
     }
     setIsEditingName(false);
@@ -186,7 +186,7 @@ function FormEditor({
       );
       if (result.success) {
         setHasUnsavedChanges(false);
-        toast("Form saved");
+        toast.success("Form saved");
       } else {
         throw new Error(result.error);
       }

@@ -13,7 +13,7 @@ import {
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Info } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import { editSubmissionUseCase } from "@/features/submissions/use-cases/edit-submission.use-case";
 import EditSubmissionAlertDialog from "./edit-submission-alert-dialog";
 import EditSubmissionHeader from "./edit-submission-header";
