@@ -1,11 +1,11 @@
 import {
+  getSession,
   AuthenticationRequest,
   AuthenticationResponse,
-} from "@/lib/auth-definitions";
+} from "@/features/auth";
 import { CreateFormRequest } from "@/lib/form-types";
 import { Form, FormDefinition, Submission } from "../types";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-service";
 import { HeaderBuilder } from "./header-builder";
 import { SubmissionData } from "@/features/public-form/application/actions/submit-form.action";
 
