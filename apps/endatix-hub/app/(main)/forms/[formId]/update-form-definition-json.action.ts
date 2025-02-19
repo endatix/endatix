@@ -1,6 +1,6 @@
 "use server";
 
-import { ensureAuthenticated } from "@/lib/auth-service";
+import { ensureAuthenticated } from "@/features/auth";
 import { updateFormDefinition } from "@/services/api";
 
 export async function updateFormDefinitionJsonAction(

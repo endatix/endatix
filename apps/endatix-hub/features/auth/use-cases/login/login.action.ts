@@ -1,6 +1,6 @@
 "use server";
 
-import { AuthService } from "@/lib/auth-service";
+import { AuthService } from "@/features/auth";
 import { authenticate } from "@/services/api";
 import { AuthenticationRequestSchema } from "../../shared/auth.schemas";
 import { AuthenticationRequest } from "../../shared/auth.types";

@@ -1,6 +1,6 @@
 "use server";
 
-import { AuthService } from "@/lib/auth-service";
+import { AuthService } from "@/features/auth";
 import { redirect } from "next/navigation";
 
 export async function logoutAction() {

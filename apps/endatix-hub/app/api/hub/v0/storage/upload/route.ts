@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth-service";
+import { getSession } from "@/features/auth";
 import { headers } from "next/headers";
 import {
   UploadContentFileCommand,

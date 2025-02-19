@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getSession } from "@/lib/auth-service";
+import { getSession } from "@/features/auth";
 import UserAvatar from "@/components/user/user-avatar";
 import Link from "next/link";
 import LogoutButton from "@/features/auth/use-cases/logout/ui/logout-button";
