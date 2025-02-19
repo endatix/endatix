@@ -1,11 +1,9 @@
 "use server";
 
-import { AuthService } from "@/lib/auth-service";
-import {
-  AuthenticationRequest,
-  AuthenticationRequestSchema,
-} from "@/lib/auth-definitions";
+import { AuthService } from "@/features/auth";
 import { authenticate } from "@/services/api";
+import { AuthenticationRequestSchema } from "../../shared/auth.schemas";
+import { AuthenticationRequest } from "../../shared/auth.types";
 
 const CONNECTION_REFUSED_CODE = "ECONNREFUSED";
 

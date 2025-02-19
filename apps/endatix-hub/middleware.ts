@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getSession } from "@/lib/auth-service";
+import { getSession } from "@/features/auth";
 
 const LOGIN_PATH = "/login";
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { ensureAuthenticated } from "@/lib/auth-service";
+import { ensureAuthenticated } from "@/features/auth";
 import { CreateFormRequest } from "@/lib/form-types";
 import { Result } from "@/lib/result";
 import { createForm } from "@/services/api";

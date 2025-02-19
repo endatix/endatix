@@ -1,4 +1,4 @@
-import { SessionData } from "@/lib/auth-service";
+import { SessionData } from "@/features/auth";
 
 export class HeaderBuilder {
   private headers: Record<string, string> = {};

@@ -1,34 +1,10 @@
-import { JWTPayload, SignJWT, jwtVerify, decodeJwt } from "jose";
 import { cookies } from "next/headers";
-import { JWTInvalid } from "jose/errors";
 import { cache } from "react";
-import { Kind, Result } from "./result";
+import { Kind } from "@/lib/result";
 import { redirect, RedirectType } from "next/navigation";
-
-export interface SessionData {
-  username: string;
-  accessToken: string;
-  refreshToken: string;
-  isLoggedIn: boolean;
-}
-
-interface CookieOptions {
-  name: string;
-  encryptionKey: string;
-  secure: boolean;
-  httpOnly: boolean;
-}
-
-interface EndatixJwtPayload extends JWTPayload {
-  permission?: string[];
-  role?: string[];
-}
-
-interface HubJwtPayload extends JWTPayload {
-  accessToken: string;
-  refreshToken: string;
-  sub: string;
-}
+import { CookieOptions, SessionData } from "./auth.types";
+import { HubJwtPayload } from "../infrastructure/jwt.types";
+import { JwtService } from "../infrastructure/jwt.service";
 
 const HUB_COOKIE_OPTIONS: CookieOptions = {
   name: "session",
@@ -62,12 +38,15 @@ export const ensureAuthenticated = async (): Promise<void> => {
 };
 
 export class AuthService {
-  private readonly secretKey: Uint8Array;
+  private readonly jwtService: JwtService;
 
   constructor(
     private readonly cookieOptions: CookieOptions = HUB_COOKIE_OPTIONS,
   ) {
-    this.secretKey = new TextEncoder().encode(this.cookieOptions.encryptionKey);
+    const secretKey = new TextEncoder().encode(
+      this.cookieOptions.encryptionKey,
+    );
+    this.jwtService = new JwtService(secretKey);
   }
 
   async login(accessToken: string, refreshToken: string, username: string) {
@@ -75,7 +54,7 @@ export class AuthService {
       return;
     }
 
-    const jwtToken = decodeJwt<EndatixJwtPayload>(accessToken);
+    const jwtToken = this.jwtService.decodeAccessToken(accessToken);
     if (!jwtToken?.exp) {
       return;
     }
@@ -88,7 +67,11 @@ export class AuthService {
       accessToken: accessToken,
       refreshToken: refreshToken,
     };
-    const hubSessionToken = await this.encryptToken(hubJwtPayload, expires);
+
+    const hubSessionToken = await this.jwtService.encryptToken(
+      hubJwtPayload,
+      expires,
+    );
 
     const cookieStore = await cookies();
     cookieStore.set({
@@ -110,7 +93,9 @@ export class AuthService {
       return ANONYMOUS_SESSION;
     }
 
-    const jwtTokenResult = await this.decryptToken(sessionCookie.value);
+    const jwtTokenResult = await this.jwtService.decryptToken(
+      sessionCookie.value,
+    );
     if (jwtTokenResult.kind == Kind.Success) {
       const sessionData: SessionData = {
         isLoggedIn: true,
@@ -141,34 +126,6 @@ export class AuthService {
         maxAge: 0,
         path: "/",
       });
-    }
-  }
-
-  private async encryptToken(payload: JWTPayload, expiration: Date) {
-    return await new SignJWT(payload)
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime(expiration)
-      .sign(this.secretKey);
-  }
-
-  private async decryptToken(token: string): Promise<Result<HubJwtPayload>> {
-    try {
-      const { payload } = await jwtVerify<HubJwtPayload>(
-        token,
-        this.secretKey,
-        {
-          algorithms: ["HS256"],
-        },
-      );
-
-      return Result.success<HubJwtPayload>(payload);
-    } catch (error: unknown) {
-      if (error instanceof JWTInvalid) {
-        return Result.validationError(error?.code, error.message);
-      }
-
-      return Result.error("Error during token validaiton occured");
     }
   }
 }

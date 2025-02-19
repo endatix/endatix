@@ -6,7 +6,7 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 // Mock getSession
-vi.mock("@/lib/auth-service", () => ({
+vi.mock("@/features/auth", () => ({
   getSession: vi.fn().mockResolvedValue({
     accessToken: "mock-access-token",
     refreshToken: "mock-refresh-token",

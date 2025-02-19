@@ -1,6 +1,6 @@
 "use server";
 
-import { ensureAuthenticated } from "@/lib/auth-service";
+import { ensureAuthenticated } from "@/features/auth";
 import { Result } from "@/lib/result";
 import { deleteForm } from "@/services/api";
 
