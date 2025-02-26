@@ -13,6 +13,7 @@ import {
   BatchLogRecordProcessor,
 } from "@opentelemetry/sdk-logs";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-node";
+import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 
 const appInsightsConnectionString =
   process.env.APPLICATIONINSIGHTS_CONNECTION_STRING;
@@ -22,14 +23,14 @@ if (appInsightsConnectionString) {
       connectionString: appInsightsConnectionString,
     },
   );
-  const logExporter = new AzureMonitorLogExporter({
-    connectionString: appInsightsConnectionString,
-  });
+  // const logExporter = new AzureMonitorLogExporter({
+  //   connectionString: appInsightsConnectionString,
+  // });
 
-  const logRecordProcessor = new BatchLogRecordProcessor(logExporter);
-  const loggerProvider = new LoggerProvider();
-  loggerProvider.addLogRecordProcessor(logRecordProcessor);
-  logs.setGlobalLoggerProvider(loggerProvider);
+  // const logRecordProcessor = new BatchLogRecordProcessor(logExporter);
+  // const loggerProvider = new LoggerProvider();
+  // loggerProvider.addLogRecordProcessor(logRecordProcessor);
+  // logs.setGlobalLoggerProvider(loggerProvider);
 
   const sdk = new NodeSDK({
     resource: new Resource({
@@ -37,8 +38,7 @@ if (appInsightsConnectionString) {
     }),
     traceExporter: traceExporter,
     spanProcessor: new BatchSpanProcessor(traceExporter),
-    logRecordProcessor: logRecordProcessor,
-    instrumentations: [getNodeAutoInstrumentations()],
+    instrumentations: [getNodeAutoInstrumentations(), new HttpInstrumentation()],
   });
 
   sdk.start();
