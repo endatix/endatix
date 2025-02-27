@@ -1,6 +1,5 @@
 import { File, ListFilter, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 import {
   Card,
   CardContent,
@@ -28,7 +27,7 @@ import {
 } from "@/components/ui/tooltip";
 import { StorageService } from "@/features/storage/infrastructure/storage-service";
 import nextConfig from "@/next.config";
-import { trace } from "@opentelemetry/api";
+import { TelemetryLogger, TelemetryTracer } from "@/features/telemetry";
 
 const Dashboard = async () => {
   const forms = await fetchEndatixForms();
@@ -148,25 +147,26 @@ const Dashboard = async () => {
 };
 
 async function fetchEndatixForms() {
-  const logger = logs.getLogger("default");
-
-  // emit a log record
-  logger.emit({
-    severityNumber: SeverityNumber.INFO,
-    severityText: "INFO",
-    body: "testing the logging",
-    attributes: { "log.type": "LogRecord" },
+  TelemetryLogger.info('Fetching Endatix forms', {
+    'operation': 'get-forms',
+    'component': 'dashboard'
   });
 
-  return await trace
-    .getTracer("forms-operations")
-    .startActiveSpan("get-forms", async (span) => {
-      try {
-        return await getForms();
-      } finally {
-        span.end();
-      }
-    });
+  return await TelemetryTracer.traceAsync('forms-operations', 'get-forms', async (span) => {
+    try {
+      span.setAttribute('component', 'dashboard');
+      const forms = await getForms();
+      span.setAttribute('forms.count', forms.length);
+      return forms;
+    } catch (error) {
+      // Log any errors that occur
+      TelemetryLogger.error('Failed to fetch forms', error as Error, {
+        'component': 'dashboard',
+        'operation': 'get-forms'
+      });
+      throw error;
+    }
+  });
 }
 
 export default Dashboard;
