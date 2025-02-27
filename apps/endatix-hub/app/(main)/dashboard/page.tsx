@@ -1,5 +1,6 @@
 import { File, ListFilter, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 import {
   Card,
   CardContent,
@@ -27,9 +28,10 @@ import {
 } from "@/components/ui/tooltip";
 import { StorageService } from "@/features/storage/infrastructure/storage-service";
 import nextConfig from "@/next.config";
+import { trace } from "@opentelemetry/api";
 
 const Dashboard = async () => {
-  const forms = await getForms();
+  const forms = await fetchEndatixForms();
   const NEXT_PUBLIC_MAX_IMAGE_SIZE = process.env.NEXT_PUBLIC_MAX_IMAGE_SIZE;
   const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID;
   const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET;
@@ -144,5 +146,27 @@ const Dashboard = async () => {
     </Tabs>
   );
 };
+
+async function fetchEndatixForms() {
+  const logger = logs.getLogger("default");
+
+  // emit a log record
+  logger.emit({
+    severityNumber: SeverityNumber.INFO,
+    severityText: "INFO",
+    body: "testing the logging",
+    attributes: { "log.type": "LogRecord" },
+  });
+
+  return await trace
+    .getTracer("forms-operations")
+    .startActiveSpan("get-forms", async (span) => {
+      try {
+        return await getForms();
+      } finally {
+        span.end();
+      }
+    });
+}
 
 export default Dashboard;
