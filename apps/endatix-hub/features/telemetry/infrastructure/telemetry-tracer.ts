@@ -1,4 +1,4 @@
-import { trace, Span } from '@opentelemetry/api';
+import { trace, Span } from "@opentelemetry/api";
 
 /**
  * Provides utilities for tracing operations with OpenTelemetry
@@ -22,19 +22,22 @@ export class TelemetryTracer {
   static async traceAsync<T>(
     tracerName: string,
     spanName: string,
-    fn: (span: Span) => Promise<T>
+    fn: (span: Span) => Promise<T>,
   ): Promise<T> {
-    return this.getTracer(tracerName).startActiveSpan(spanName, async (span) => {
-      try {
-        return await fn(span);
-      } catch (error) {
-        span.recordException(error as Error);
-        span.setStatus({ code: 2 }); // Error
-        throw error;
-      } finally {
-        span.end();
-      }
-    });
+    return this.getTracer(tracerName).startActiveSpan(
+      spanName,
+      async (span) => {
+        try {
+          return await fn(span);
+        } catch (error) {
+          span.recordException(error as Error);
+          span.setStatus({ code: 2 }); // Error
+          throw error;
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   /**
@@ -47,7 +50,7 @@ export class TelemetryTracer {
   static trace<T>(
     tracerName: string,
     spanName: string,
-    fn: (span: Span) => T
+    fn: (span: Span) => T,
   ): T {
     return this.getTracer(tracerName).startActiveSpan(spanName, (span) => {
       try {
@@ -61,4 +64,4 @@ export class TelemetryTracer {
       }
     });
   }
-} 
+}
