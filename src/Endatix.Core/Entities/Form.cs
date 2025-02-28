@@ -7,7 +7,7 @@ public partial class Form : BaseEntity, IAggregateRoot
 {
     private readonly List<FormDefinition> _formDefinitions = [];
 
-    private Form() { } // For EF Core
+    protected Form() { }
 
     public Form(string name, string? description = null, bool isEnabled = false)
     {

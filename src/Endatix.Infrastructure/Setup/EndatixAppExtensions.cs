@@ -49,7 +49,8 @@ public static class EndatixAppExtensions
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
     /// <param name="configuration">The configured <see cref="IEndatixApp"/> instance.</param>
     /// <returns></returns>
-    public static IEndatixApp AddInfrastructure(this IEndatixApp endatixApp, Action<ConfigurationOptions> configuration)
+    public static IEndatixApp AddInfrastructure<TAppIdentityDbContext>(this IEndatixApp endatixApp, Action<ConfigurationOptions> configuration)
+        where TAppIdentityDbContext : AppIdentityDbContext
     {
         var setupSettings = new ConfigurationOptions();
         configuration.Invoke(setupSettings);
@@ -62,6 +63,7 @@ public static class EndatixAppExtensions
         services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
         services.AddSlackConfiguration<SlackSettings>();
         services.AddHttpContextAccessor();
+        services.AddScoped<IEntityFactory, DefaultEntityFactory>();
 
         services.AddWebHookProcessing();
 
@@ -70,7 +72,7 @@ public static class EndatixAppExtensions
         endatixApp.AddSubmissionOptions();
         services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
 
-        endatixApp.SetupIdentity(setupSettings);
+        endatixApp.SetupIdentity<TAppIdentityDbContext>(setupSettings);
 
         return endatixApp;
     }

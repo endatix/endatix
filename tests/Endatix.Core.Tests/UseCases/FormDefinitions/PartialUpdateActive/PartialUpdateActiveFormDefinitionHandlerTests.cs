@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -11,13 +12,15 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
 {
     private readonly IFormsRepository _formRepository;
     private readonly IRepository<Submission> _submissionsRepository;
+    private readonly IEntityFactory _entityFactory;
     private readonly PartialUpdateActiveFormDefinitionHandler _handler;
 
     public PartialUpdateActiveFormDefinitionHandlerTests()
     {
         _formRepository = Substitute.For<IFormsRepository>();
         _submissionsRepository = Substitute.For<IRepository<Submission>>();
-        _handler = new PartialUpdateActiveFormDefinitionHandler(_formRepository, _submissionsRepository);
+        _entityFactory = Substitute.For<IEntityFactory>();
+        _handler = new PartialUpdateActiveFormDefinitionHandler(_formRepository, _submissionsRepository, _entityFactory);
     }
 
     [Fact]

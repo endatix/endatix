@@ -1,4 +1,5 @@
-﻿using Endatix.Core.Abstractions.Repositories;
+﻿using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -7,7 +8,7 @@ using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
 
-public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepository, IRepository<Submission> submissionsRepository) : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
+public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepository, IRepository<Submission> submissionsRepository, IEntityFactory entityFactory) : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
 {
     public async Task<Result<FormDefinition>> Handle(PartialUpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
     {
@@ -20,7 +21,7 @@ public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepo
         }
 
         if(await ShouldCreateNewFormDefinitionAsync(activeDefinition, request)) {
-            var newFormDefinition = new FormDefinition(request.IsDraft??false, request.JsonData);
+            var newFormDefinition = entityFactory.CreateFormDefinition(request.IsDraft??false, request.JsonData);
             formWithActiveDefinition.AddFormDefinition(newFormDefinition);
             
             if (!newFormDefinition.IsDraft) {

@@ -5,7 +5,7 @@ namespace Endatix.Core.Entities;
 
 public partial class Submission : BaseEntity, IAggregateRoot
 {
-    private Submission() { }
+    protected Submission() { }
 
     public Submission(string jsonData, long formId, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {

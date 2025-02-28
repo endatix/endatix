@@ -9,7 +9,7 @@ namespace Endatix.Core.Entities.Identity;
 /// It encapsulates the core attributes and behaviors of a user within the application.
 /// Persistence implementation is done via the <see cref="AppUser"/>
 /// </summary>
-public sealed class User : BaseEntity, IAggregateRoot
+public class User : BaseEntity, IAggregateRoot
 {
     public User(
         long id,

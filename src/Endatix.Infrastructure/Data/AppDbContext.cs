@@ -11,13 +11,23 @@ namespace Endatix.Infrastructure.Data;
 /// <summary>
 /// Represents the application database context for persisting the Endatix Domain entities
 /// </summary>
-public class AppDbContext : DbContext
+public class AppDbContext : AppDbContext<AppDbContext>
+{
+    public AppDbContext(DbContextOptions options, IIdGenerator<long> idGenerator, IHttpContextAccessor httpContextAccessor)
+        : base(options, idGenerator, httpContextAccessor)
+    {
+    }
+}
+
+public class AppDbContext<TContext> : DbContext where TContext : DbContext
 {
     private readonly IIdGenerator<long> _idGenerator;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     protected AppDbContext() { }
-    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator, IHttpContextAccessor httpContextAccessor) : base(options)
+    
+    public AppDbContext(DbContextOptions options, IIdGenerator<long> idGenerator, IHttpContextAccessor httpContextAccessor) 
+        : base(options)
     {
         _idGenerator = idGenerator;
         _httpContextAccessor = httpContextAccessor;
@@ -48,7 +58,7 @@ public class AppDbContext : DbContext
         builder.Entity<Form>().HasQueryFilter(form =>
             IsInternalUser() || (form.CreatedAt >= filterDate));
 
-        builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        builder.ApplyConfigurationsFromAssembly(typeof(TContext).Assembly);
         PrefixTableNames(builder);
     }
 

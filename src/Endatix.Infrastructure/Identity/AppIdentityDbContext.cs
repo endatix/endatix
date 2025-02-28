@@ -11,7 +11,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 {
     private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
 
-    public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options, EfCoreValueGeneratorFactory valueGeneratorFactory) : base(options)
+    public AppIdentityDbContext(DbContextOptions options, EfCoreValueGeneratorFactory valueGeneratorFactory) : base(options)
     {
         _valueGeneratorFactory = valueGeneratorFactory;
     }

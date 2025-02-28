@@ -21,18 +21,24 @@ public static class EndatixAppExtensions
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
     /// <param name="configuration">A delegate to configure the <see cref="IEndatixConfig"/> instance</param>
     /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
-    public static IEndatixApp AddPostgreSqlDataPersistence(this IEndatixApp endatixApp, Action<IEndatixConfig> configuration)
+    public static IEndatixApp AddPostgreSqlDataPersistence<TAppDbContext, TAppIdentityDbContext>(
+        this IEndatixApp endatixApp, 
+        Action<IEndatixConfig> configuration)
+        where TAppDbContext : AppDbContext
+        where TAppIdentityDbContext : AppIdentityDbContext
     {
         IEndatixConfig configurationInstance = EndatixConfig.Configuration;
         configuration(configurationInstance);
 
-        Guard.Against.NullOrEmpty(EndatixConfig.Configuration.ConnectionString, null, "Endatix database connection not provided. Make sure to call WithSqlServer method and pass the connection string");
+        Guard.Against.NullOrEmpty(EndatixConfig.Configuration.ConnectionString, null, 
+            "Endatix database connection not provided. Make sure to call WithSqlServer method and pass the connection string");
 
         var connectionString = EndatixConfig.Configuration.ConnectionString;
-        var migrationsAssembly = EndatixConfig.Configuration.MigrationsAssembly ?? Assembly.GetExecutingAssembly().GetName().Name;
+        // var migrationsAssembly = EndatixConfig.Configuration.MigrationsAssembly ?? Assembly.GetExecutingAssembly().GetName().Name;
+        var migrationsAssembly = "Endatix.Pro.Persistence.PostgreSql";
 
         endatixApp.Services.AddSingleton<DataSeeder>();
-        endatixApp.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
+        endatixApp.Services.AddDbContext<TAppDbContext>((serviceProvider, options) =>
         {
             options.UseNpgsql(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
 
@@ -55,7 +61,7 @@ public static class EndatixAppExtensions
             });
         });
 
-        endatixApp.Services.AddDbContext<AppIdentityDbContext>(options =>
+        endatixApp.Services.AddDbContext<TAppIdentityDbContext>(options =>
         {
             options.UseNpgsql(connectionString, db => db.MigrationsAssembly(migrationsAssembly));
         });

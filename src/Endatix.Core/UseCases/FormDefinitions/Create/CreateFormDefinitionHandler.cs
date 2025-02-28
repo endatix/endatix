@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -8,7 +9,7 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.FormDefinitions.Create;
 
-public class CreateFormDefinitionHandler(IFormsRepository formsRepository) : ICommandHandler<CreateFormDefinitionCommand, Result<FormDefinition>>
+public class CreateFormDefinitionHandler(IFormsRepository formsRepository, IEntityFactory entityFactory) : ICommandHandler<CreateFormDefinitionCommand, Result<FormDefinition>>
 {
     public async Task<Result<FormDefinition>> Handle(CreateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
@@ -18,7 +19,7 @@ public class CreateFormDefinitionHandler(IFormsRepository formsRepository) : ICo
             return Result.NotFound("Form not found.");
         }
 
-        var newFormDefinition = new FormDefinition(request.IsDraft, request.JsonData);
+        var newFormDefinition = entityFactory.CreateFormDefinition(request.IsDraft, request.JsonData);
         form.AddFormDefinition(newFormDefinition);
         if (!newFormDefinition.IsDraft)
         {

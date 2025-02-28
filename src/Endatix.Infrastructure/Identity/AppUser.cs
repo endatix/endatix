@@ -1,6 +1,8 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Entities.Identity;
 using Microsoft.AspNetCore.Identity;
+using Endatix.Core.Abstractions;
+using Endatix.Infrastructure.Data;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -10,6 +12,13 @@ namespace Endatix.Infrastructure.Identity;
 /// </summary>
 public class AppUser : IdentityUser<long>
 {
+    private static IIdentityEntityFactory _factory = new DefaultIdentityEntityFactory();
+
+    public static void ConfigureFactory(IIdentityEntityFactory factory)
+    {
+        _factory = factory;
+    }
+
     /// <summary>
     /// The user's refresh token.
     /// </summary>
@@ -24,12 +33,12 @@ public class AppUser : IdentityUser<long>
     {
         Guard.Against.NullOrEmpty(UserName);
         Guard.Against.NullOrEmpty(Email);
-
-        var user = new User(
-            id: Id,
-            userName: UserName,
-            email: Email,
-            isVerified: EmailConfirmed
+        
+        var user = _factory.CreateUser(
+            Id,
+            UserName!,
+            Email!,
+            EmailConfirmed
         );
 
         return user;

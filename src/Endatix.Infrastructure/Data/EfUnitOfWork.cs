@@ -6,16 +6,17 @@ namespace Endatix.Infrastructure.Data
     /// <summary>
     /// Implements the Unit of Work pattern using Entity Framework Core.
     /// </summary>
-    public class EfUnitOfWork : IUnitOfWork
+    public class EfUnitOfWork<TAppDbContext> : IUnitOfWork 
+        where TAppDbContext : AppDbContext
     {
-        private readonly AppDbContext _context;
+        private readonly TAppDbContext _context;
         private IDbContextTransaction? _transaction;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="EfUnitOfWork"/> class.
+        /// Initializes a new instance of the <see cref="EfUnitOfWork{TAppDbContext}"/> class.
         /// </summary>
         /// <param name="context">The Entity Framework Core DbContext.</param>
-        public EfUnitOfWork(AppDbContext context)
+        public EfUnitOfWork(TAppDbContext context)
         {
             _context = context;
         }
@@ -39,11 +40,11 @@ namespace Endatix.Infrastructure.Data
 
             try
             {
-                await _transaction.CommitAsync(cancellationToken);
+                await _transaction!.CommitAsync(cancellationToken);
             }
             finally
             {
-                await _transaction.DisposeAsync();
+                await _transaction!.DisposeAsync();
             }
         }
 
@@ -54,11 +55,11 @@ namespace Endatix.Infrastructure.Data
 
             try
             {
-                await _transaction.RollbackAsync(cancellationToken);
+                await _transaction!.RollbackAsync(cancellationToken);
             }
             finally
             {
-                await _transaction.DisposeAsync();
+                await _transaction!.DisposeAsync();
             }
         }
 
@@ -72,6 +73,16 @@ namespace Endatix.Infrastructure.Data
             {
                 throw new InvalidOperationException($"Transaction is not started. Please call {nameof(BeginTransactionAsync)} method first.");
             }
+        }
+    }
+
+    /// <summary>
+    /// Default implementation of Unit of Work pattern using the base AppDbContext.
+    /// </summary>
+    public class EfUnitOfWork : EfUnitOfWork<AppDbContext>
+    {
+        public EfUnitOfWork(AppDbContext context) : base(context)
+        {
         }
     }
 }
