@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
@@ -8,12 +9,14 @@ namespace Endatix.Core.Tests.UseCases.Forms.Create;
 public class CreateFormHandlerTests
 {
     private readonly IFormsRepository _repository;
+    private readonly IEntityFactory _entityFactory;
     private readonly CreateFormHandler _handler;
 
     public CreateFormHandlerTests()
     {
         _repository = Substitute.For<IFormsRepository>();
-        _handler = new CreateFormHandler(_repository);
+        _entityFactory = Substitute.For<IEntityFactory>();
+        _handler = new CreateFormHandler(_repository, _entityFactory);
     }
 
     [Fact]

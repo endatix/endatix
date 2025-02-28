@@ -5,12 +5,13 @@ using Endatix.Infrastructure.Data.Abstractions;
 
 namespace Endatix.Infrastructure.Repositories
 {
-    public class FormsRepository : EfRepository<Form>, IFormsRepository
+    public class FormsRepository<TAppDbContext> : EfRepository<Form, TAppDbContext>, IFormsRepository
+        where TAppDbContext : AppDbContext
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly AppDbContext _dbContext;
+        private readonly TAppDbContext _dbContext;
 
-        public FormsRepository(AppDbContext dbContext, IUnitOfWork unitOfWork)
+        public FormsRepository(TAppDbContext dbContext, IUnitOfWork unitOfWork)
             : base(dbContext)
         {
             _dbContext = dbContext;
@@ -41,6 +42,14 @@ namespace Endatix.Infrastructure.Repositories
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 throw;
             }
+        }
+    }
+
+    public class FormsRepository : FormsRepository<AppDbContext>
+    {
+        public FormsRepository(AppDbContext dbContext, IUnitOfWork unitOfWork)
+            : base(dbContext, unitOfWork)
+        {
         }
     }
 }

@@ -16,6 +16,7 @@ public class CreateSubmissionHandlerTests
     private readonly IFormsRepository _formsRepository;
     private readonly ISubmissionTokenService _submissionTokenService;
     private readonly IMediator _mediator;
+    private readonly IEntityFactory _entityFactory;
     private readonly CreateSubmissionHandler _handler;
 
     public CreateSubmissionHandlerTests()
@@ -24,11 +25,13 @@ public class CreateSubmissionHandlerTests
         _formsRepository = Substitute.For<IFormsRepository>();
         _submissionTokenService = Substitute.For<ISubmissionTokenService>();
         _mediator = Substitute.For<IMediator>();
+        _entityFactory = Substitute.For<IEntityFactory>();
         _handler = new CreateSubmissionHandler(
             _submissionsRepository, 
             _formsRepository,
             _submissionTokenService,
-            _mediator);
+            _mediator,
+            _entityFactory);
     }
 
     [Fact]

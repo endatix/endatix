@@ -53,10 +53,12 @@ public static class AppBuilderExtensions
     }
 
     /// <summary>
-    /// Applies database migrations for the AppIdentityDbContext if configured to do so.
+    /// Applies database migrations for the specified DbContext types if configured to do so.
     /// </summary>
     /// <param name="app">The IApplicationBuilder instance.</param>
-    public static async Task ApplyDbMigrationsAsync(this IApplicationBuilder app)
+    public static async Task ApplyDbMigrationsAsync<TAppDbContext, TAppIdentityDbContext>(this IApplicationBuilder app)
+        where TAppDbContext : AppDbContext
+        where TAppIdentityDbContext : AppIdentityDbContext
     {
         var webApp = app as WebApplication;
         Guard.Against.Null(webApp, "The provided IApplicationBuilder is not a WebApplication");
@@ -69,13 +71,16 @@ public static class AppBuilderExtensions
         {
             using var scope = webApp.Services.CreateScope();
 
-            using var appDbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            using var appDbContext = scope.ServiceProvider.GetRequiredService<TAppDbContext>();
             await ApplyMigrationForContextAsync(appDbContext, webApp);
 
-            using var identityDbContext = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+            using var identityDbContext = scope.ServiceProvider.GetRequiredService<TAppIdentityDbContext>();
             await ApplyMigrationForContextAsync(identityDbContext, webApp);
         }
     }
+
+    public static Task ApplyDbMigrationsAsync(this IApplicationBuilder app)
+        => ApplyDbMigrationsAsync<AppDbContext, AppIdentityDbContext>(app);
 
     private static async Task ApplyMigrationForContextAsync<T>(T dbContext, WebApplication webApp) where T : DbContext
     {

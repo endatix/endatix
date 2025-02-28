@@ -14,7 +14,8 @@ public class CreateSubmissionHandler(
     IRepository<Submission> submissionRepository,
     IFormsRepository formRepository,
     ISubmissionTokenService tokenService,
-    IMediator mediator
+    IMediator mediator,
+    IEntityFactory entityFactory
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
@@ -34,7 +35,7 @@ public class CreateSubmissionHandler(
             return Result.NotFound("Form not found. Cannot create a submission");
         }
 
-        var submission = new Submission(
+        var submission = entityFactory.CreateSubmission(
             jsonData: request.JsonData,
             formId: request.FormId,
             formDefinitionId: activeDefinition!.Id,

@@ -9,6 +9,8 @@ using Endatix.Framework.Hosting;
 using Endatix.Extensions.Hosting;
 using Endatix.Core.Configuration;
 using Endatix.Framework.Setup;
+using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Identity;
 
 namespace Endatix.Setup;
 
@@ -55,12 +57,11 @@ public static class EndatixHostBuilderExtensions
     }
 
     /// <summary>
-    /// Adds the default setup configuration to the specified <see cref="IEndatixApp"/> instance.This includes adding logging, domain services, application messaging, infrastructure, and data persistence components to the application.
+    /// Adds the default setup configuration with custom DbContext implementations.
     /// </summary>
-    /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
-    /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if the <paramref name="endatixApp"/> is null.</exception>
-    public static IEndatixApp AddDefaultSetup(this IEndatixApp endatixApp)
+    public static IEndatixApp AddDefaultSetup<TAppDbContext, TAppIdentityDbContext>(this IEndatixApp endatixApp)
+        where TAppDbContext : AppDbContext
+        where TAppIdentityDbContext : AppIdentityDbContext
     {
         Guard.Against.Null(endatixApp);
 
@@ -85,7 +86,7 @@ public static class EndatixHostBuilderExtensions
         switch (dbProvider)
         {
             case "postgresql":
-                endatixApp.AddPostgreSqlDataPersistence(dbConfig);
+                endatixApp.AddPostgreSqlDataPersistence<TAppDbContext, TAppIdentityDbContext>(dbConfig);
                 break;
             case "sqlserver":
                 endatixApp.AddSqlServerDataPersistence(dbConfig);
@@ -94,11 +95,11 @@ public static class EndatixHostBuilderExtensions
                 throw new ArgumentException($"Unsupported database provider: {dbProvider}. Supported values are 'sqlserver' and 'postgresql'");
         }
 
-        endatixApp.AddInfrastructure(configuration => configuration
+        endatixApp.AddInfrastructure<TAppIdentityDbContext>(configuration => configuration
             .AddSecurityServices(options => options.AddApiAuthentication(builder.Configuration))
         );
 
-         var hostingOptions = endatixApp.WebHostBuilder.Configuration
+        var hostingOptions = endatixApp.WebHostBuilder.Configuration
             .GetSection(HostingOptions.SECTION_NAME)
             .Get<HostingOptions>();
 
@@ -109,4 +110,10 @@ public static class EndatixHostBuilderExtensions
 
         return endatixApp;
     }
+
+    /// <summary>
+    /// Adds the default setup configuration using the base OSS DbContext implementations.
+    /// </summary>
+    public static IEndatixApp AddDefaultSetup(this IEndatixApp endatixApp)
+        => endatixApp.AddDefaultSetup<AppDbContext, AppIdentityDbContext>();
 }

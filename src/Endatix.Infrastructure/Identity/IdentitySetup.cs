@@ -10,7 +10,8 @@ namespace Endatix.Infrastructure.Identity;
 
 public static class IdentitySetup
 {
-    public static IEndatixApp SetupIdentity(this IEndatixApp endatixApp, ConfigurationOptions configurationOptions)
+    public static IEndatixApp SetupIdentity<TAppIdentityDbContext>(this IEndatixApp endatixApp, ConfigurationOptions configurationOptions)
+        where TAppIdentityDbContext : AppIdentityDbContext
     {
         endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Started");
 
@@ -25,8 +26,9 @@ public static class IdentitySetup
                     options.ClaimsIdentity.UserIdClaimType = JwtRegisteredClaimNames.Sub;
                 })
                 .AddRoles<AppRole>()
-                .AddEntityFrameworkStores<AppIdentityDbContext>()
+                .AddEntityFrameworkStores<TAppIdentityDbContext>()
                 .AddDefaultTokenProviders();
+                
         endatixApp.Services.AddScoped<IUserTokenService, JwtTokenService>();
         endatixApp.Services.AddScoped<IAuthService, AuthService>();
         endatixApp.Services.AddScoped<IUserService, AppUserService>();
@@ -36,4 +38,8 @@ public static class IdentitySetup
 
         return endatixApp;
     }
+
+    // // Keep the non-generic version for backward compatibility
+    // public static IEndatixApp SetupIdentity(this IEndatixApp endatixApp, ConfigurationOptions configurationOptions)
+    //     => SetupIdentity<AppIdentityDbContext>(endatixApp, configurationOptions);
 }
