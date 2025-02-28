@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next dev --turbo",
+    "dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next dev --turbopack",
     "dev:inspect": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_OPTIONS='--inspect' next dev --turbo",
     "dev-https": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next dev --turbo --experimental-https",
     "build": "next build",
@@ -19,12 +19,14 @@
     "@azure/storage-blob": "^12.26.0",
     "@hookform/resolvers": "^3.10.0",
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/auto-instrumentations-node": "^0.55.0",
+    "@opentelemetry/api-logs": "^0.57.2",
+    "@opentelemetry/instrumentation": "^0.57.2",
     "@opentelemetry/resources": "^1.30.0",
+    "@opentelemetry/sdk-logs": "^0.57.2",
     "@opentelemetry/sdk-node": "^0.57.0",
+    "@opentelemetry/sdk-trace-base": "^1.30.1",
     "@opentelemetry/sdk-trace-node": "^1.30.0",
     "@opentelemetry/semantic-conventions": "^1.28.0",
-    "@opentelemetry/tracing": "^0.24.0",
     "@radix-ui/react-alert-dialog": "^1.1.5",
     "@radix-ui/react-avatar": "^1.1.2",
     "@radix-ui/react-checkbox": "^1.1.3",
@@ -45,13 +47,13 @@
     "@swc/helpers": "^0.5.15",
     "@tanstack/react-table": "^8.20.5",
     "@vercel/functions": "^1.5.1",
-    "@vercel/otel": "^1.10.0",
+    "@vercel/otel": "^1.10.1",
     "babel-plugin-react-compiler": "0.0.0-experimental-6067d4e-20240919",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jose": "^5.9.6",
     "lucide-react": "^0.436.0",
-    "next": "15.1.0",
+    "next": "15.2.0",
     "next-themes": "^0.3.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -72,15 +74,15 @@
   "devDependencies": {
     "@testing-library/react": "^16.1.0",
     "@types/node": "^20.17.10",
-    "@types/react": "19.0.1",
-    "@types/react-dom": "19.0.2",
+    "@types/react": "19.0.10",
+    "@types/react-dom": "19.0.4",
     "@types/semver": "^7.5.8",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "2.1.8",
     "@vitest/ui": "^2.1.8",
     "cross-env": "^7.0.3",
     "eslint": "^8.57.1",
-    "eslint-config-next": "15.1.0",
+    "eslint-config-next": "15.2.0",
     "eslint-plugin-testing-library": "^6.5.0",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.49",
@@ -96,8 +98,8 @@
   },
   "pnpm": {
     "overrides": {
-      "@types/react": "19.0.1",
-      "@types/react-dom": "19.0.2"
+      "@types/react": "19.0.10",
+      "@types/react-dom": "19.0.4"
     }
   }
 }

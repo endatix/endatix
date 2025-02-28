@@ -27,9 +27,10 @@ import {
 } from "@/components/ui/tooltip";
 import { StorageService } from "@/features/storage/infrastructure/storage-service";
 import nextConfig from "@/next.config";
+import { TelemetryLogger, TelemetryTracer } from "@/features/telemetry";
 
 const Dashboard = async () => {
-  const forms = await getForms();
+  const forms = await fetchEndatixForms();
   const NEXT_PUBLIC_MAX_IMAGE_SIZE = process.env.NEXT_PUBLIC_MAX_IMAGE_SIZE;
   const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID;
   const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET;
@@ -144,5 +145,28 @@ const Dashboard = async () => {
     </Tabs>
   );
 };
+
+async function fetchEndatixForms() {
+  TelemetryLogger.info('Fetching Endatix forms', {
+    'operation': 'get-forms',
+    'component': 'dashboard'
+  });
+
+  return await TelemetryTracer.traceAsync('forms-operations', 'get-forms', async (span) => {
+    try {
+      span.setAttribute('component', 'dashboard');
+      const forms = await getForms();
+      span.setAttribute('forms.count', forms.length);
+      return forms;
+    } catch (error) {
+      // Log any errors that occur
+      TelemetryLogger.error('Failed to fetch forms', error as Error, {
+        'component': 'dashboard',
+        'operation': 'get-forms'
+      });
+      throw error;
+    }
+  });
+}
 
 export default Dashboard;
