@@ -5,6 +5,7 @@ using Ardalis.GuardClauses;
 using Endatix.Hosting.Builders;
 using Endatix.Hosting.Core;
 using Endatix.Hosting.Internal;
+using Endatix.Hosting.Options;
 
 namespace Endatix.Hosting;
 
@@ -30,8 +31,10 @@ public static class EndatixServiceCollectionExtensions
         services.AddEndatixFrameworkServices();
 
         // Register options from configuration
-        services.Configure<Options.EndatixOptions>(
+        services.Configure<EndatixOptions>(
             configuration.GetSection("Endatix"));
+        services.Configure<HostingOptions>(
+            configuration.GetSection(HostingOptions.SectionName));
 
         // Create and return the builder
         return new EndatixBuilder(services, configuration);

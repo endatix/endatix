@@ -2,6 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Extensions.Logging;
+using Microsoft.ApplicationInsights.DataContracts;
+using Microsoft.Extensions.Configuration;
+using Microsoft.ApplicationInsights.AspNetCore.Extensions;
+using Endatix.Hosting.Options;
+using Microsoft.ApplicationInsights.Extensibility;
 
 namespace Endatix.Hosting.Builders;
 
@@ -44,6 +49,75 @@ public class EndatixLoggingBuilder
             ));
 
         ApplyLoggingConfiguration();
+        ConfigureApplicationInsights();
+        return this;
+    }
+
+    /// <summary>
+    /// Configures Azure Application Insights if enabled in options.
+    /// </summary>
+    private void ConfigureApplicationInsights()
+    {
+        var hostingOptions = new HostingOptions();
+        _parentBuilder.Configuration.GetSection(HostingOptions.SectionName).Bind(hostingOptions);
+
+        if (hostingOptions.IsAzure || hostingOptions.EnableApplicationInsights)
+        {
+            this.LogSetupInfo("Configuring Azure Application Insights telemetry");
+
+            var appInsightsOptions = new ApplicationInsightsServiceOptions
+            {
+                EnableAdaptiveSampling = true,
+                EnableQuickPulseMetricStream = true,
+                EnablePerformanceCounterCollectionModule = true
+            };
+
+            if (!string.IsNullOrEmpty(hostingOptions.ApplicationInsightsConnectionString))
+            {
+                appInsightsOptions.ConnectionString = hostingOptions.ApplicationInsightsConnectionString;
+            }
+
+            _parentBuilder.Services.AddApplicationInsightsTelemetry(appInsightsOptions);
+
+            // Optionally enrich Serilog with Application Insights if using default logger
+            if (_useDefaultLogger && _serilogConfiguration != null)
+            {
+                _serilogConfiguration.WriteTo.ApplicationInsights(
+                    _parentBuilder.Services.BuildServiceProvider()
+                        .GetRequiredService<TelemetryConfiguration>(),
+                    TelemetryConverter.Traces);
+
+                // Reapply logging configuration since we modified it
+                ApplyLoggingConfiguration();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Configures Application Insights with custom settings.
+    /// </summary>
+    /// <param name="configure">Action to configure Application Insights options.</param>
+    /// <returns>The logging builder for chaining.</returns>
+    public EndatixLoggingBuilder UseApplicationInsights(Action<ApplicationInsightsServiceOptions>? configure = null)
+    {
+        this.LogSetupInfo("Configuring custom Azure Application Insights telemetry");
+
+        var options = new ApplicationInsightsServiceOptions();
+        configure?.Invoke(options);
+
+        _parentBuilder.Services.AddApplicationInsightsTelemetry(options);
+
+        // Enrich Serilog with Application Insights if using default logger
+        if (_useDefaultLogger && _serilogConfiguration != null)
+        {
+            _serilogConfiguration.WriteTo.ApplicationInsights(
+                _parentBuilder.Services.BuildServiceProvider()
+                    .GetRequiredService<TelemetryConfiguration>(),
+                TelemetryConverter.Traces);
+
+            ApplyLoggingConfiguration();
+        }
+
         return this;
     }
 
@@ -70,12 +144,12 @@ public class EndatixLoggingBuilder
     {
         _useDefaultLogger = false;
         _serilogConfiguration = null;
-        
+
         _parentBuilder.Services.AddLogging(builder =>
         {
             configure(builder);
         });
-        
+
         return this;
     }
 
@@ -118,7 +192,7 @@ public class EndatixLoggingBuilder
         {
             UseDefaults(); // Ensure we have a logger factory
         }
-        
+
         return LoggerFactory!.CreateLogger<T>();
     }
 }

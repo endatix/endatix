@@ -113,16 +113,6 @@ public class EndatixBuilder
         Messaging.UseDefaults();
         SetupLogger.Information("Messaging configuration completed");
 
-        // Configure telemetry if needed
-        var options = new EndatixOptions();
-        Configuration.GetSection("Endatix").Bind(options);
-
-        if (options.IsAzure)
-        {
-            SetupLogger.Information("Configuring Azure Application Insights telemetry");
-            Services.AddApplicationInsightsTelemetry();
-        }
-
         SetupLogger.Information("Endatix configuration completed successfully");
         return this;
     }
