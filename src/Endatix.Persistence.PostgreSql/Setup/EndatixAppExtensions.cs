@@ -7,6 +7,10 @@ using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Endatix.Persistence.PostgreSql.Builders;
+using Endatix.Persistence.PostgreSql.Options;
+using Endatix.Persistence.PostgreSql.Setup;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Setup;
 

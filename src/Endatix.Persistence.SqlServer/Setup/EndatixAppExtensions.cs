@@ -7,6 +7,10 @@ using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Endatix.Persistence.SqlServer.Builders;
+using Endatix.Persistence.SqlServer.Options;
+using Endatix.Persistence.SqlServer.Setup;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Setup;
 
@@ -71,4 +75,5 @@ public static class EndatixAppExtensions
 
         return endatixApp;
     }
+
 }

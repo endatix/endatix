@@ -1,20 +1,10 @@
-using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Infrastructure.Domain;
-using Endatix.Core.Infrastructure.Logging;
-using Endatix.Core.Infrastructure.Messaging;
+using Serilog;
 using Endatix.Framework.Hosting;
-using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Data.Abstractions;
-using Endatix.Infrastructure.Email;
+using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Integrations.Slack;
-using Endatix.Infrastructure.Repositories;
-using Endatix.Infrastructure.Setup;
-using MediatR;
+using Endatix.Infrastructure.Messaging;
 using Microsoft.Extensions.DependencyInjection;
-using Serilog;
 
 namespace Endatix.Setup;
 
@@ -33,13 +23,6 @@ public static class EndatixAppExtensions
         endatixApp.WebHostBuilder.Host.UseSerilog((context, loggerConfig) =>
                 loggerConfig.ReadFrom.Configuration(context.Configuration));
 
-        endatixApp.LogSetupInformation("Serilog logging configured");
-
-        return endatixApp;
-    }
-
-    public static IEndatixApp AddDomainServices(this IEndatixApp endatixApp)
-    {
         return endatixApp;
     }
 
@@ -47,87 +30,44 @@ public static class EndatixAppExtensions
     /// Adds domain services to the specified <see cref="IEndatixApp"/> instance.
     /// </summary>
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
-    /// <param name="configuration">The configured <see cref="IEndatixApp"/> instance.</param>
-    /// <returns></returns>
-    public static IEndatixApp AddInfrastructure(this IEndatixApp endatixApp, Action<ConfigurationOptions> configuration)
+    /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
+    public static IEndatixApp AddDomainServices(this IEndatixApp endatixApp)
     {
-        var setupSettings = new ConfigurationOptions();
-        configuration.Invoke(setupSettings);
-
-        var services = endatixApp.Services;
-
-        services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
-        services.AddScoped<IFormsRepository, FormsRepository>();
-        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
-        services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
-        services.AddSlackConfiguration<SlackSettings>();
-        services.AddHttpContextAccessor();
-
-        services.AddWebHookProcessing();
-
-        endatixApp.AddDataOptions();
-
-        endatixApp.AddSubmissionOptions();
-        services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
-
-        endatixApp.SetupIdentity(setupSettings);
-
         return endatixApp;
     }
 
     /// <summary>
-    /// Adds infrastructure services to the specified <see cref="IEndatixApp"/> instance, including security and email services, based of specified configuration options.
+    /// Adds application messaging to the specified <see cref="IEndatixApp"/> instance.
     /// </summary>
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
-    /// <param name="options">A delegate to configure the infrastructure options.</param>
+    /// <param name="options">The optional configuration action.</param>
     /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
     public static IEndatixApp AddApplicationMessaging(this IEndatixApp endatixApp, Action<MediatRConfigOptions>? options = null)
     {
-        endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Started");
-
-        var meditROptions = new MediatRConfigOptions();
-        options?.Invoke(meditROptions);
-
         var services = endatixApp.Services;
-        var mediatRAssemblies = new[]
-        {
-            Endatix.Core.AssemblyReference.Assembly,
-            Endatix.Infrastructure.AssemblyReference.Assembly
-        };
+        var infrastructureBuilder = new InfrastructureBuilder(services, endatixApp.WebHostBuilder.Configuration);
 
-        if (meditROptions.AdditionalAssemblies.Length != 0)
+        if (options != null)
         {
-            mediatRAssemblies = [.. mediatRAssemblies, .. meditROptions.AdditionalAssemblies];
+            infrastructureBuilder.Messaging.Configure(options);
         }
-
-        services.AddMediatR(config =>
+        else
         {
-            config.RegisterServicesFromAssemblies(mediatRAssemblies!);
-            config.NotificationPublisher = new TaskToThreadPoolPublisher();
-            config.NotificationPublisherType = typeof(TaskToThreadPoolPublisher);
-
-        });
-        services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
-
-        if (meditROptions.IncludeLoggingPipeline)
-        {
-            services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingPipelineBehavior<,>));
-            endatixApp.LogSetupInformation("     >> Registering logging pipeline using the {ClassName} class", typeof(LoggingPipelineBehavior<,>).Name);
+            infrastructureBuilder.Messaging.UseDefaults();
         }
-
-        endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "MediatR", "Finished");
 
         return endatixApp;
     }
 
     /// <summary>
-    /// Adds data options to the specified <see cref="IEndatixApp"/> instance, based on the configuration options.
+    /// Adds data options to the specified <see cref="IEndatixApp"/> instance.
     /// </summary>
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
     /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
     private static IEndatixApp AddDataOptions(this IEndatixApp endatixApp)
     {
-        endatixApp.Services.AddOptions<DataOptions>()
+        endatixApp.Services
+            .AddOptions<DataOptions>()
             .BindConfiguration(DataOptions.SECTION_NAME)
             .ValidateDataAnnotations()
             .ValidateOnStart();
@@ -136,13 +76,14 @@ public static class EndatixAppExtensions
     }
 
     /// <summary>
-    /// Adds submission options to the specified <see cref="IEndatixApp"/> instance, based on the configuration options.
+    /// Adds submission options to the specified <see cref="IEndatixApp"/> instance.
     /// </summary>
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
     /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
     private static IEndatixApp AddSubmissionOptions(this IEndatixApp endatixApp)
     {
-        endatixApp.Services.AddOptions<SubmissionOptions>()
+        endatixApp.Services
+            .AddOptions<SubmissionOptions>()
             .BindConfiguration(SubmissionOptions.SECTION_NAME)
             .ValidateDataAnnotations()
             .ValidateOnStart();

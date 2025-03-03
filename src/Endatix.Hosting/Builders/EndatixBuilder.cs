@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Endatix.Hosting.Options;
 using Endatix.Hosting.Logging;
+using Endatix.Infrastructure.Builders;
 
 namespace Endatix.Hosting.Builders;
 
@@ -56,19 +57,24 @@ public class EndatixBuilder
     /// <summary>
     /// Gets the setup logger for logging during configuration.
     /// </summary>
-    internal EndatixSetupLogger SetupLogger 
+    internal EndatixSetupLogger SetupLogger
     {
         get
         {
             if (_setupLogger == null)
             {
-                var logger = LoggerFactory?.CreateLogger("Endatix.Setup") ?? 
+                var logger = LoggerFactory?.CreateLogger("Endatix.Setup") ??
                     throw new InvalidOperationException("Logger factory not initialized. Ensure logging is configured before using setup logging.");
                 _setupLogger = new EndatixSetupLogger(logger);
             }
             return _setupLogger;
         }
     }
+
+    /// <summary>
+    /// Gets the infrastructure builder.
+    /// </summary>
+    public InfrastructureBuilder Infrastructure { get; }
 
     /// <summary>
     /// Initializes a new instance of the EndatixBuilder class.
@@ -79,6 +85,9 @@ public class EndatixBuilder
     {
         Services = services;
         Configuration = configuration;
+
+        // Initialize infrastructure builder first
+        Infrastructure = new InfrastructureBuilder(services, configuration);
 
         // Initialize feature builders
         Logging = new EndatixLoggingBuilder(this);
@@ -100,18 +109,19 @@ public class EndatixBuilder
         // Log the start of configuration
         SetupLogger.Information("Starting Endatix configuration with default settings");
 
+        Persistence.UseDefaults();
+        SetupLogger.Information("Persistence configuration completed");
+
+        // Configure infrastructure
+        Infrastructure.UseDefaults();
+        SetupLogger.Information("Infrastructure configuration completed");
+
         // Configure other features
         Api.UseDefaults();
         SetupLogger.Information("API configuration completed");
 
-        Persistence.UseDefaults();
-        SetupLogger.Information("Persistence configuration completed");
-
         Security.UseDefaults();
         SetupLogger.Information("Security configuration completed");
-
-        Messaging.UseDefaults();
-        SetupLogger.Information("Messaging configuration completed");
 
         SetupLogger.Information("Endatix configuration completed successfully");
         return this;
