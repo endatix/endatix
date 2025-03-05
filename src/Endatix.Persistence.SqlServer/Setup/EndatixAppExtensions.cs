@@ -25,6 +25,7 @@ public static class EndatixAppExtensions
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
     /// <param name="configuration">A delegate to configure the <see cref="IEndatixConfig"/> instance</param>
     /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
+    [Obsolete("This method is obsolete. Use .WithPersistence().UseSqlServer<AppDbContext>() or services.AddSqlServerPersistence<AppDbContext>() instead.")]
     public static IEndatixApp AddSqlServerDataPersistence(this IEndatixApp endatixApp, Action<IEndatixConfig> configuration)
     {
         IEndatixConfig configurationInstance = EndatixConfig.Configuration;

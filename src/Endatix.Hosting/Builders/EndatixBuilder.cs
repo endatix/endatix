@@ -4,6 +4,9 @@ using Microsoft.Extensions.Logging;
 using Endatix.Hosting.Options;
 using Endatix.Hosting.Logging;
 using Endatix.Infrastructure.Builders;
+using Microsoft.EntityFrameworkCore;
+using System.Reflection;
+using Endatix.Infrastructure.Identity;
 
 namespace Endatix.Hosting.Builders;
 
@@ -109,8 +112,11 @@ public class EndatixBuilder
         // Log the start of configuration
         SetupLogger.Information("Starting Endatix configuration with default settings");
 
-        Persistence.UseDefaults();
-        SetupLogger.Information("Persistence configuration completed");
+        // Auto-configure persistence if it hasn't been set
+        // Try to determine database provider from configuration or use SQL Server as default
+        var databaseProvider = GetConfiguredDatabaseProvider();
+        Persistence.UseDefaults(databaseProvider);
+        SetupLogger.Information($"Persistence configuration completed using {databaseProvider}");
 
         // Configure infrastructure
         Infrastructure.UseDefaults();
@@ -128,13 +134,33 @@ public class EndatixBuilder
     }
 
     /// <summary>
+    /// Attempts to get the configured database provider from configuration.
+    /// Defaults to SQL Server if not specified.
+    /// </summary>
+    private DatabaseProvider GetConfiguredDatabaseProvider()
+    {
+        var providerName = Configuration.GetValue<string>("Endatix:Persistence:Provider");
+        
+        if (!string.IsNullOrEmpty(providerName) && 
+            Enum.TryParse<DatabaseProvider>(providerName, true, out var provider))
+        {
+            return provider;
+        }
+        
+        // Default to SQL Server for backward compatibility
+        return DatabaseProvider.SqlServer;
+    }
+
+    /// <summary>
     /// Configures Endatix with minimal settings.
     /// </summary>
     /// <returns>The builder for chaining.</returns>
     public EndatixBuilder UseMinimalSetup()
     {
         // Configure only essential services
-        Persistence.UseDefaults();
+        var databaseProvider = GetConfiguredDatabaseProvider();
+        Persistence.UseDefaults(databaseProvider);
+        SetupLogger.Information($"Minimal setup completed with {databaseProvider} persistence");
 
         return this;
     }
@@ -149,4 +175,89 @@ public class EndatixBuilder
         Services.Configure(configure);
         return this;
     }
+
+    #region Persistence Convenience Methods
+
+    /// <summary>
+    /// Configures SQL Server persistence with default settings.
+    /// </summary>
+    /// <typeparam name="TContext">The database context type.</typeparam>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixBuilder UseSqlServer<TContext>() where TContext : DbContext
+    {
+        Persistence.UseSqlServer<TContext>();
+        
+        // Also register the identity context if not already registered
+        if (typeof(TContext) != typeof(AppIdentityDbContext))
+        {
+            Persistence.UseSqlServer<AppIdentityDbContext>();
+        }
+        
+        return this;
+    }
+
+    /// <summary>
+    /// Configures SQL Server persistence with custom options.
+    /// </summary>
+    /// <typeparam name="TContext">The database context type.</typeparam>
+    /// <param name="configAction">Action to configure SQL Server options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixBuilder UseSqlServer<TContext>(Action<object> configAction) where TContext : DbContext
+    {
+        Persistence.UseSqlServer<TContext>(configAction);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures PostgreSQL persistence with default settings.
+    /// </summary>
+    /// <typeparam name="TContext">The database context type.</typeparam>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixBuilder UsePostgreSql<TContext>() where TContext : DbContext
+    {
+        Persistence.UsePostgreSql<TContext>();
+        
+        // Also register the identity context if not already registered
+        if (typeof(TContext) != typeof(AppIdentityDbContext))
+        {
+            Persistence.UsePostgreSql<AppIdentityDbContext>();
+        }
+        
+        return this;
+    }
+
+    /// <summary>
+    /// Configures PostgreSQL persistence with custom options.
+    /// </summary>
+    /// <typeparam name="TContext">The database context type.</typeparam>
+    /// <param name="configAction">Action to configure PostgreSQL options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixBuilder UsePostgreSql<TContext>(Action<object> configAction) where TContext : DbContext
+    {
+        Persistence.UsePostgreSql<TContext>(configAction);
+        return this;
+    }
+
+    /// <summary>
+    /// Enables auto migrations for the database.
+    /// </summary>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixBuilder EnableAutoMigrations()
+    {
+        Persistence.EnableAutoMigrations();
+        return this;
+    }
+
+    /// <summary>
+    /// Scans the specified assemblies for entity configurations.
+    /// </summary>
+    /// <param name="assemblies">The assemblies to scan.</param>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixBuilder ScanAssembliesForEntities(params Assembly[] assemblies)
+    {
+        Persistence.ScanAssembliesForEntities(assemblies);
+        return this;
+    }
+
+    #endregion
 }

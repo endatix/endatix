@@ -35,7 +35,6 @@ public class InfrastructureMessagingBuilder
         {
             options.IncludeLoggingPipeline = true;
         });
-        _parentBuilder.Services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
 
         LogSetupInfo("Messaging configuration completed");
         return this;

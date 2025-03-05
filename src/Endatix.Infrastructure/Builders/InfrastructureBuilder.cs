@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
@@ -58,10 +59,12 @@ public class InfrastructureBuilder
         _services.AddHttpContextAccessor();
         _services.AddWebHookProcessing();
 
-        // Configure default repositories
-        _services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
-        _services.AddScoped<IFormsRepository, FormsRepository>();
-        _services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        this.Messaging.UseDefaults();
+        this.Identity.UseDefaults();
+        this.Data.UseDefaults();
+        this.Integrations.UseDefaults();
+
+        _services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
 
         // Configure default options
         ConfigureDefaultOptions();

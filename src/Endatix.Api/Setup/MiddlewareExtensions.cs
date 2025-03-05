@@ -15,13 +15,14 @@ namespace Endatix.Setup;
 /// </summary>
 public static class MiddlewareExtensions
 {
+   
     /// <summary>
     /// Configures the Endatix API middleware. This includes setting up CORS with the specified policy or a default policy that allows any origin, header, and method. The default CORS policy is too permissive and NOT recommended for Production. Consider adding a custom policy whitelisting a limited set of allowed origins
     /// </summary>
     /// <param name="endatixMiddleware">The <see cref="IEndatixMiddleware"/> instance to configure.</param>
     /// <returns>The <see cref="IEndatixMiddleware"/> instance after the middleware is configured.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the <paramref name="endatixMiddleware"/> is null.</exception>
-    public static IEndatixMiddleware UseEndatixApi(this IEndatixMiddleware endatixMiddleware)
+    public static IEndatixMiddleware UseEndatixApiObsolete(this IEndatixMiddleware endatixMiddleware)
     {
         Guard.Against.Null(endatixMiddleware);
 

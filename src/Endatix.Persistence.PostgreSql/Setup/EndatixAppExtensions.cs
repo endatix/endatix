@@ -25,6 +25,7 @@ public static class EndatixAppExtensions
     /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
     /// <param name="configuration">A delegate to configure the <see cref="IEndatixConfig"/> instance</param>
     /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
+    [Obsolete("This method is obsolete. Use .WithPersistence().UsePostgreSql<AppDbContext>() or services.AddPostgreSqlPersistence<AppDbContext>() instead.")]
     public static IEndatixApp AddPostgreSqlDataPersistence(this IEndatixApp endatixApp, Action<IEndatixConfig> configuration)
     {
         IEndatixConfig configurationInstance = EndatixConfig.Configuration;

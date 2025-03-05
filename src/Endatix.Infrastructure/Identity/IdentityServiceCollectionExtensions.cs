@@ -46,18 +46,8 @@ public static class IdentityServiceCollectionExtensions
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
 
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IUserService, AppUserService>();
-        services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
-
-        if (options.UseJwtAuthentication)
-        {
-            services.AddOptions<JwtOptions>()
-                    .BindConfiguration(JwtOptions.SECTION_NAME)
-                    .ValidateDataAnnotations()
-                    .ValidateOnStart();
-            services.AddScoped<IUserTokenService, JwtTokenService>();
-        }
+        // Register essential identity services
+        services.AddEndatixIdentityEssentialServices(options.UseJwtAuthentication);
 
         if (options.InitialUserSettings != null)
         {
@@ -68,6 +58,32 @@ public static class IdentityServiceCollectionExtensions
             });
         }
 
+        return services;
+    }
+
+    /// <summary>
+    /// Adds essential Endatix identity services that are required regardless of how the application is configured.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="useJwtAuthentication">Whether to use JWT authentication. Defaults to true for backward compatibility.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddEndatixIdentityEssentialServices(this IServiceCollection services, bool useJwtAuthentication = true)
+    {
+        // Register essential identity services
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IUserService, AppUserService>();
+        services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
+        
+        if (useJwtAuthentication)
+        {
+            // Register JWT options
+            services.AddOptions<JwtOptions>()
+                    .BindConfiguration(JwtOptions.SECTION_NAME)
+                    .ValidateDataAnnotations()
+                    .ValidateOnStart();
+            services.AddScoped<IUserTokenService, JwtTokenService>();
+        }
+        
         return services;
     }
 }
