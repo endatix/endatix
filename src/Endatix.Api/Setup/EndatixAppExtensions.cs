@@ -16,6 +16,7 @@ using NJsonSchema;
 using System.Reflection;
 using Endatix.Api.Builders;
 using Microsoft.Extensions.Logging;
+using System;
 
 namespace Endatix.Setup;
 

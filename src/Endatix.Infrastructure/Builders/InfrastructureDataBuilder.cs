@@ -25,15 +25,21 @@ public class InfrastructureDataBuilder
         _parentBuilder = parentBuilder;
     }
 
+    internal IServiceCollection Services => _parentBuilder.Services;
+
     /// <summary>
     /// Configures data infrastructure with default settings.
     /// </summary>
     /// <returns>The builder for chaining.</returns>
     public InfrastructureDataBuilder UseDefaults()
     {
-        _parentBuilder.Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
-        _parentBuilder.Services.AddScoped<IFormsRepository, FormsRepository>();
-        _parentBuilder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
+        Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        Services.AddSingleton<EfCoreValueGeneratorFactory>();
+        Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
+        Services.AddScoped<IFormsRepository, FormsRepository>();
+        Services.AddSingleton<DataSeeder>();
+
         return this;
     }
 
@@ -53,4 +59,4 @@ public class InfrastructureDataBuilder
     /// </summary>
     /// <returns>The parent infrastructure builder.</returns>
     public InfrastructureBuilder Parent() => _parentBuilder;
-} 
+}

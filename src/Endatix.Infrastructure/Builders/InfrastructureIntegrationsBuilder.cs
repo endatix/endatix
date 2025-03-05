@@ -32,13 +32,10 @@ public class InfrastructureIntegrationsBuilder
     public InfrastructureIntegrationsBuilder UseDefaults()
     {
         LogSetupInfo("Configuring integrations with default settings");
-        
-        // Configure default email provider
+
         _parentBuilder.Services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
-        
-        // Configure default Slack integration
         _parentBuilder.Services.AddSlackConfiguration<SlackSettings>();
-        
+
         LogSetupInfo("Integrations configuration completed");
         return this;
     }
@@ -63,7 +60,7 @@ public class InfrastructureIntegrationsBuilder
     /// </summary>
     /// <typeparam name="TSettings">Type of settings.</typeparam>
     /// <returns>The builder for chaining.</returns>
-    public InfrastructureIntegrationsBuilder AddSlack<TSettings>() 
+    public InfrastructureIntegrationsBuilder AddSlack<TSettings>()
         where TSettings : class, new()
     {
         LogSetupInfo($"Adding Slack integration with settings: {typeof(TSettings).Name}");
@@ -81,4 +78,4 @@ public class InfrastructureIntegrationsBuilder
     {
         _logger?.LogInformation("[Integrations Setup] {Message}", message);
     }
-} 
+}

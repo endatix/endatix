@@ -29,10 +29,10 @@ public class InfrastructureIdentityBuilder
     public InfrastructureIdentityBuilder UseDefaults()
     {
         LogSetupInfo("Configuring identity with default settings");
-        
+
         // Configure identity services with default settings
         _parentBuilder.Services.AddIdentityConfiguration();
-        
+
         LogSetupInfo("Identity configuration completed");
         return this;
     }
@@ -45,10 +45,10 @@ public class InfrastructureIdentityBuilder
     public InfrastructureIdentityBuilder Configure(Identity.ConfigurationOptions options)
     {
         LogSetupInfo("Configuring identity with custom settings");
-        
+
         // Add identity services with custom options
         _parentBuilder.Services.AddIdentityConfiguration(options);
-        
+
         LogSetupInfo("Identity configuration completed");
         return this;
     }
@@ -63,4 +63,4 @@ public class InfrastructureIdentityBuilder
     {
         _logger?.LogInformation("[Identity Setup] {Message}", message);
     }
-} 
+}

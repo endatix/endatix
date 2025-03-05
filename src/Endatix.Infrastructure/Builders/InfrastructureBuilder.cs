@@ -59,14 +59,14 @@ public class InfrastructureBuilder
         _services.AddHttpContextAccessor();
         _services.AddWebHookProcessing();
 
+        this.Data.UseDefaults();
         this.Messaging.UseDefaults();
         this.Identity.UseDefaults();
-        this.Data.UseDefaults();
         this.Integrations.UseDefaults();
 
         _services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
 
-        // Configure default options
+        // Add default config options
         ConfigureDefaultOptions();
 
         return this;

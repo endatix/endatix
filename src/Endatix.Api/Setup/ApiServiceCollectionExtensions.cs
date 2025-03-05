@@ -6,6 +6,8 @@ using Endatix.Api.Builders;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Reflection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace Endatix.Api.Setup;
 
@@ -44,7 +46,26 @@ public static class ApiServiceCollectionExtensions
         builder.UseDefaults();
         return services;
     }
-    
+
+    /// <summary>
+    /// Adds API endpoints with default settings.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    /// <param name="environment">The hosting environment.</param>
+    /// <param name="loggerFactory">Optional logger factory.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddApiEndpoints(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        ILoggerFactory? loggerFactory = null)
+    {
+        var builder = new ApiConfigurationBuilder(services, configuration, environment, loggerFactory);
+        builder.UseDefaults();
+        return services;
+    }
+
     /// <summary>
     /// Adds API endpoints with Swagger documentation.
     /// </summary>
@@ -58,9 +79,29 @@ public static class ApiServiceCollectionExtensions
                .AddSwagger();
         return services;
     }
-    
+
     /// <summary>
-    /// Adds API endpoints with versioning.
+    /// Adds API endpoints with Swagger documentation.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    /// <param name="environment">The hosting environment.</param>
+    /// <param name="loggerFactory">Optional logger factory.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddApiEndpointsWithSwagger(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        ILoggerFactory? loggerFactory = null)
+    {
+        var builder = new ApiConfigurationBuilder(services, configuration, environment, loggerFactory);
+        builder.UseDefaults()
+               .AddSwagger();
+        return services;
+    }
+
+    /// <summary>
+    /// Adds API endpoints with versioning support.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="loggerFactory">Optional logger factory.</param>
@@ -72,9 +113,29 @@ public static class ApiServiceCollectionExtensions
                .AddVersioning();
         return services;
     }
-    
+
     /// <summary>
-    /// Adds API endpoints with Swagger documentation and versioning.
+    /// Adds API endpoints with versioning support.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    /// <param name="environment">The hosting environment.</param>
+    /// <param name="loggerFactory">Optional logger factory.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddApiEndpointsWithVersioning(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        ILoggerFactory? loggerFactory = null)
+    {
+        var builder = new ApiConfigurationBuilder(services, configuration, environment, loggerFactory);
+        builder.UseDefaults()
+               .AddVersioning();
+        return services;
+    }
+
+    /// <summary>
+    /// Adds API endpoints with Swagger documentation and versioning support.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="loggerFactory">Optional logger factory.</param>
@@ -87,7 +148,28 @@ public static class ApiServiceCollectionExtensions
                .AddVersioning();
         return services;
     }
-    
+
+    /// <summary>
+    /// Adds API endpoints with Swagger documentation and versioning support.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    /// <param name="environment">The hosting environment.</param>
+    /// <param name="loggerFactory">Optional logger factory.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddApiEndpointsWithSwaggerAndVersioning(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        ILoggerFactory? loggerFactory = null)
+    {
+        var builder = new ApiConfigurationBuilder(services, configuration, environment, loggerFactory);
+        builder.UseDefaults()
+               .AddSwagger()
+               .AddVersioning();
+        return services;
+    }
+
     /// <summary>
     /// Gets an API configuration builder for further configuration.
     /// </summary>
@@ -97,5 +179,22 @@ public static class ApiServiceCollectionExtensions
     public static ApiConfigurationBuilder GetApiBuilder(this IServiceCollection services, ILoggerFactory? loggerFactory = null)
     {
         return new ApiConfigurationBuilder(services, loggerFactory);
+    }
+
+    /// <summary>
+    /// Gets an API configuration builder for further configuration with configuration and environment.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    /// <param name="environment">The hosting environment.</param>
+    /// <param name="loggerFactory">Optional logger factory.</param>
+    /// <returns>An API configuration builder.</returns>
+    public static ApiConfigurationBuilder GetApiBuilder(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        ILoggerFactory? loggerFactory = null)
+    {
+        return new ApiConfigurationBuilder(services, configuration, environment, loggerFactory);
     }
 }

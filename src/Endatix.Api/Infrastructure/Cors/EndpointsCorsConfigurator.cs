@@ -5,19 +5,47 @@ using Microsoft.Extensions.Options;
 
 namespace Endatix.Api.Infrastructure.Cors;
 
-public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILogger<EndpointsCorsConfigurator> logger, IAppEnvironment appEnvironment, IWildcardSearcher wildcardSearcher) : IConfigureOptions<CorsOptions>
+/// <summary>
+/// Configures CORS policies for endpoints.
+/// </summary>
+public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
 {
     public const string ALLOW_ALL_POLICY_NAME = "AllowAll";
-
     public const string DISALLOW_ALL_POLICY_NAME = "DisallowAll";
+    public const string DEFAULT_POLICY = "DefaultPolicy";
+    public const string OPEN_POLICY = "OpenPolicy";
 
-    private readonly string[] _noInputParams = [];
+    private static readonly string[] _emptyStrings = Array.Empty<string>();
+
+    private readonly IOptions<CorsSettings> _options;
+    private readonly ILogger<EndpointsCorsConfigurator> _logger;
+    private readonly IAppEnvironment _environment;
+    private readonly IWildcardSearcher _wildcardSearcher;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EndpointsCorsConfigurator"/> class.
+    /// </summary>
+    /// <param name="options">The CORS settings options.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="environment">The application environment.</param>
+    /// <param name="wildcardSearcher">The wildcard searcher.</param>
+    public EndpointsCorsConfigurator(
+        IOptions<CorsSettings> options,
+        ILogger<EndpointsCorsConfigurator> logger,
+        IAppEnvironment environment,
+        IWildcardSearcher wildcardSearcher)
+    {
+        _options = options;
+        _logger = logger;
+        _environment = environment;
+        _wildcardSearcher = wildcardSearcher;
+    }
 
     public void Configure(CorsOptions options)
     {
         AddPredefinedPolicies(options);
 
-        var settingsValue = corsSettings?.Value;
+        var settingsValue = _options?.Value;
         var isDefaultPolicySet = false;
 
         if (settingsValue?.CorsPolicies is { Count: > 0 } corsPolicies)
@@ -39,12 +67,12 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
 
         if (!isDefaultPolicySet)
         {
-            var isDevelopment = appEnvironment.IsDevelopment();
-            options.DefaultPolicyName = isDevelopment ? ALLOW_ALL_POLICY_NAME : DISALLOW_ALL_POLICY_NAME;
+            var isDevelopment = IsDevelopment();
+            options.DefaultPolicyName = isDevelopment ? DEFAULT_POLICY : OPEN_POLICY;
             isDefaultPolicySet = true;
         }
 
-        logger.LogDebug("Default Cors Policy is: {@policy}", options.GetPolicy(options.DefaultPolicyName));
+        _logger.LogDebug("Default Cors Policy is: {@policy}", options.GetPolicy(options.DefaultPolicyName));
     }
 
     private CorsPolicyBuilder BuildFrom(CorsPolicyBuilder builder, CorsPolicySettings policySetting)
@@ -56,7 +84,7 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
         var includeAnyOrigin = wildcardSearchResult == CorsWildcardResult.MatchAll;
         if (includeAnyOrigin && policySetting.AllowCredentials)
         {
-            logger.LogWarning("Ignoring {setting} and disallowing credentials. Details: {details}", "AllowCredentials", "The CORS protocol does not allow specifying a wildcard (any) origin and credentials at the same time. Configure the CORS policy by listing individual origins if credentials needs to be supported.");
+            _logger.LogWarning("Ignoring {setting} and disallowing credentials. Details: {details}", "AllowCredentials", "The CORS protocol does not allow specifying a wildcard (any) origin and credentials at the same time. Configure the CORS policy by listing individual origins if credentials needs to be supported.");
             _ = builder.DisallowCredentials();
             return builder;
         }
@@ -112,20 +140,19 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
     {
         if (values is null or [])
         {
-            _ = withSpecificValues(builder, _noInputParams);
+            _ = withSpecificValues(builder, _emptyStrings);
             return CorsWildcardResult.None;
         }
 
-        var wildcardSearchResult = wildcardSearcher.SearchForWildcard(values);
+        var wildcardSearchResult = _wildcardSearcher.SearchForWildcard(values);
         _ = wildcardSearchResult switch
         {
             CorsWildcardResult.MatchAll => allowAny(builder),
-            CorsWildcardResult.IgnoreAll => withSpecificValues(builder, _noInputParams),
+            CorsWildcardResult.IgnoreAll => withSpecificValues(builder, _emptyStrings),
             _ => withSpecificValues(builder, [.. values])
         };
 
         return wildcardSearchResult;
-        ;
     }
 
     /// <summary>
@@ -134,18 +161,24 @@ public class EndpointsCorsConfigurator(IOptions<CorsSettings> corsSettings, ILog
     /// <param name="options">The <see cref="CorsOptions"/> passed by the DI via the <see cref="IConfigureOptions"/> interface</param>
     private void AddPredefinedPolicies(CorsOptions options)
     {
-        options.AddPolicy(ALLOW_ALL_POLICY_NAME, policy =>
+        options.AddPolicy(DEFAULT_POLICY, policy =>
         {
             _ = policy.AllowAnyOrigin()
                   .AllowAnyMethod()
                   .AllowAnyHeader();
         });
 
-        options.AddPolicy(DISALLOW_ALL_POLICY_NAME, policy =>
+        options.AddPolicy(OPEN_POLICY, policy =>
         {
-            _ = policy.WithOrigins(_noInputParams)
-                  .WithMethods(_noInputParams)
-                  .WithHeaders(_noInputParams);
+            _ = policy.WithOrigins(_emptyStrings)
+                  .WithMethods(_emptyStrings)
+                  .WithHeaders(_emptyStrings);
         });
     }
+
+    /// <summary>
+    /// Determines if the environment is development.
+    /// </summary>
+    /// <returns>True if the environment is development; otherwise, false.</returns>
+    private bool IsDevelopment() => _environment.IsDevelopment();
 }

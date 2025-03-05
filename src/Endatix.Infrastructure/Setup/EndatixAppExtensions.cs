@@ -58,36 +58,4 @@ public static class EndatixAppExtensions
 
         return endatixApp;
     }
-
-    /// <summary>
-    /// Adds data options to the specified <see cref="IEndatixApp"/> instance.
-    /// </summary>
-    /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
-    /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
-    private static IEndatixApp AddDataOptions(this IEndatixApp endatixApp)
-    {
-        endatixApp.Services
-            .AddOptions<DataOptions>()
-            .BindConfiguration(DataOptions.SECTION_NAME)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
-        return endatixApp;
-    }
-
-    /// <summary>
-    /// Adds submission options to the specified <see cref="IEndatixApp"/> instance.
-    /// </summary>
-    /// <param name="endatixApp">The <see cref="IEndatixApp"/> instance to configure.</param>
-    /// <returns>The configured <see cref="IEndatixApp"/> instance.</returns>
-    private static IEndatixApp AddSubmissionOptions(this IEndatixApp endatixApp)
-    {
-        endatixApp.Services
-            .AddOptions<SubmissionOptions>()
-            .BindConfiguration(SubmissionOptions.SECTION_NAME)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
-        return endatixApp;
-    }
 }

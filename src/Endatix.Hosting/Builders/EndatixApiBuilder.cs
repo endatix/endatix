@@ -27,7 +27,7 @@ public class EndatixApiBuilder
         _parentBuilder = parentBuilder;
         _logger = parentBuilder.LoggerFactory?.CreateLogger("Endatix.Setup");
         _middlewareOptions = new EndatixApiMiddlewareOptions();
-        
+
         // Create the API configuration builder
         _apiConfigurationBuilder = parentBuilder.Services.GetApiBuilder(parentBuilder.LoggerFactory);
     }
@@ -39,10 +39,10 @@ public class EndatixApiBuilder
     public EndatixApiBuilder UseDefaults()
     {
         LogSetupInfo("Configuring API with default settings");
-        
+
         // Use the API configuration builder with defaults
         _apiConfigurationBuilder.UseDefaults();
-        
+
         LogSetupInfo("API configuration completed");
         return this;
     }
@@ -54,14 +54,14 @@ public class EndatixApiBuilder
     public EndatixApiBuilder AddSwagger()
     {
         LogSetupInfo("Adding Swagger documentation");
-        
+
         _apiConfigurationBuilder.AddSwagger();
         _middlewareOptions.UseSwagger = true;
-        
+
         LogSetupInfo("Swagger documentation added");
         return this;
     }
-    
+
     /// <summary>
     /// Disables Swagger documentation.
     /// </summary>
@@ -69,9 +69,9 @@ public class EndatixApiBuilder
     public EndatixApiBuilder DisableSwagger()
     {
         LogSetupInfo("Disabling Swagger documentation");
-        
+
         _middlewareOptions.UseSwagger = false;
-        
+
         LogSetupInfo("Swagger documentation disabled");
         return this;
     }
@@ -83,13 +83,13 @@ public class EndatixApiBuilder
     public EndatixApiBuilder AddVersioning()
     {
         LogSetupInfo("Adding API versioning");
-        
+
         _apiConfigurationBuilder.AddVersioning();
-        
+
         LogSetupInfo("API versioning added");
         return this;
     }
-    
+
     /// <summary>
     /// Sets the API versioning prefix.
     /// </summary>
@@ -98,13 +98,13 @@ public class EndatixApiBuilder
     public EndatixApiBuilder SetVersioningPrefix(string prefix)
     {
         LogSetupInfo($"Setting API versioning prefix to '{prefix}'");
-        
+
         _middlewareOptions.VersioningPrefix = prefix;
-        
+
         LogSetupInfo($"API versioning prefix set to '{prefix}'");
         return this;
     }
-    
+
     /// <summary>
     /// Sets the API route prefix.
     /// </summary>
@@ -113,9 +113,9 @@ public class EndatixApiBuilder
     public EndatixApiBuilder SetRoutePrefix(string prefix)
     {
         LogSetupInfo($"Setting API route prefix to '{prefix}'");
-        
+
         _middlewareOptions.RoutePrefix = prefix;
-        
+
         LogSetupInfo($"API route prefix set to '{prefix}'");
         return this;
     }
@@ -129,18 +129,18 @@ public class EndatixApiBuilder
     public EndatixApiBuilder EnableCors(string policyName, Action<CorsPolicyBuilder> configurePolicy)
     {
         LogSetupInfo($"Enabling CORS with policy '{policyName}'");
-        
+
         _parentBuilder.Services.AddCors(options =>
         {
             options.AddPolicy(policyName, configurePolicy);
         });
-        
+
         _middlewareOptions.UseCors = true;
-        
+
         LogSetupInfo("CORS enabled");
         return this;
     }
-    
+
     /// <summary>
     /// Disables CORS.
     /// </summary>
@@ -148,13 +148,13 @@ public class EndatixApiBuilder
     public EndatixApiBuilder DisableCors()
     {
         LogSetupInfo("Disabling CORS");
-        
+
         _middlewareOptions.UseCors = false;
-        
+
         LogSetupInfo("CORS disabled");
         return this;
     }
-    
+
     /// <summary>
     /// Scans assemblies for API endpoints.
     /// </summary>
@@ -163,13 +163,13 @@ public class EndatixApiBuilder
     public EndatixApiBuilder ScanAssemblies(params Assembly[] assemblies)
     {
         LogSetupInfo($"Scanning {assemblies.Length} assemblies for API endpoints");
-        
+
         _apiConfigurationBuilder.ScanAssemblies(assemblies);
-        
+
         LogSetupInfo("Assembly scanning completed");
         return this;
     }
-    
+
     /// <summary>
     /// Configures FastEndpoints using the specified action.
     /// </summary>
@@ -178,13 +178,13 @@ public class EndatixApiBuilder
     public EndatixApiBuilder ConfigureFastEndpoints(Action<FastEndpoints.Config> configure)
     {
         LogSetupInfo("Configuring FastEndpoints");
-        
+
         _middlewareOptions.ConfigureFastEndpoints = configure;
-        
+
         LogSetupInfo("FastEndpoints configuration added");
         return this;
     }
-    
+
     /// <summary>
     /// Configures the application middleware for the API.
     /// </summary>
@@ -193,7 +193,7 @@ public class EndatixApiBuilder
     public IApplicationBuilder ConfigureApplication(IApplicationBuilder app)
     {
         LogSetupInfo("Configuring API application middleware");
-        
+
         // Use the Endatix API middleware with our custom options
         app.UseEndatixApi(options =>
         {
@@ -204,7 +204,7 @@ public class EndatixApiBuilder
             options.RoutePrefix = _middlewareOptions.RoutePrefix;
             options.ConfigureFastEndpoints = _middlewareOptions.ConfigureFastEndpoints;
         });
-        
+
         LogSetupInfo("API application middleware configured");
         return app;
     }
@@ -214,9 +214,9 @@ public class EndatixApiBuilder
     /// </summary>
     /// <returns>The parent builder for chaining.</returns>
     public EndatixBuilder Parent() => _parentBuilder;
-    
+
     private void LogSetupInfo(string message)
     {
         _logger?.LogInformation("[API Setup] {Message}", message);
     }
-} 
+}

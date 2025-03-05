@@ -30,24 +30,24 @@ public static class IdentityServiceCollectionExtensions
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddIdentityConfiguration(this IServiceCollection services, ConfigurationOptions options)
     {
+        // Register essential identity services
+        // services.AddEndatixIdentityEssentialServices(options.UseJwtAuthentication);
+
         services.AddIdentityCore<AppUser>(identityOptions =>
                 {
                     identityOptions.ClaimsIdentity.UserIdClaimType = JwtRegisteredClaimNames.Sub;
-                    identityOptions.Password.RequireDigit = true;
-                    identityOptions.Password.RequireLowercase = true;
-                    identityOptions.Password.RequireUppercase = true;
-                    identityOptions.Password.RequireNonAlphanumeric = true;
-                    identityOptions.Password.RequiredLength = 8;
+                    // identityOptions.Password.RequireDigit = true;
+                    // identityOptions.Password.RequireLowercase = true;
+                    // identityOptions.Password.RequireUppercase = true;
+                    // identityOptions.Password.RequireNonAlphanumeric = true;
+                    // identityOptions.Password.RequiredLength = 8;
 
-                    identityOptions.SignIn.RequireConfirmedEmail = true;
-                    identityOptions.User.RequireUniqueEmail = true;
+                    // identityOptions.SignIn.RequireConfirmedEmail = true;
+                    // identityOptions.User.RequireUniqueEmail = true;
                 })
                 .AddRoles<AppRole>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
-
-        // Register essential identity services
-        services.AddEndatixIdentityEssentialServices(options.UseJwtAuthentication);
 
         if (options.InitialUserSettings != null)
         {
@@ -73,7 +73,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, AppUserService>();
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
-        
+
         if (useJwtAuthentication)
         {
             // Register JWT options
@@ -83,7 +83,7 @@ public static class IdentityServiceCollectionExtensions
                     .ValidateOnStart();
             services.AddScoped<IUserTokenService, JwtTokenService>();
         }
-        
+
         return services;
     }
 }
