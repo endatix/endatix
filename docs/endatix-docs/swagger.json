@@ -1,0 +1,2813 @@
+{
+  "x-generator": "NSwag v14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))",
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Endatix Platform REST API",
+    "description": "The Endatix Platform is an open-source .NET library for data collection and management. This product is actively developed, and some API design characteristics may evolve. For more information, visit <a href=\"https://docs.endatix.com\">Endatix Documentation</a>.",
+    "version": "0.1.1"
+  },
+  "servers": [
+    {
+      "url": "https://localhost:5001"
+    }
+  ],
+  "paths": {
+    "/api/forms/{formId}/submissions": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Create a new submission",
+        "description": "Creates a new form submission",
+        "operationId": "EndatixApiEndpointsSubmissionsCreate",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form for which the submission is made.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "CreateSubmissionRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSubmissionRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSubmissionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Form not found. Cannot create a submission"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Get a list of Submissions for a given form",
+        "description": "Returns all submissions for a form given formId. Includes all Form Definitions as well as complete and non-complete responses",
+        "operationId": "EndatixApiEndpointsSubmissionsListByFormId",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The number of the page",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "The number of items to take.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "description": "The filter expressions",
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of form Submissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubmissionDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form not found. Pass correct formId"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/forms/{formId}/submissions/{submissionId}": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Get a single submission",
+        "description": "Gets a single submission based of its Id and its respective formId",
+        "operationId": "EndatixApiEndpointsSubmissionsGetById",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "submissionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form submission.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The Submission was retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionDetailsModel"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form submission not found"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Update a form submission",
+        "description": "Updates a form submission for a given form.",
+        "operationId": "EndatixApiEndpointsSubmissionsPartialUpdate",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form for which the submission is made.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "submissionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID the submission that will be updated",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "PartialUpdateSubmissionRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialUpdateSubmissionRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "The form submission was updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartialUpdateSubmissionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form submission not found"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Update a form submission",
+        "description": "Updates a form submission for a given form.",
+        "operationId": "EndatixApiEndpointsSubmissionsUpdate",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form for which the submission is made.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "submissionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID the submission that will be updated",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "UpdateSubmissionRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubmissionRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "The form submission was updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateSubmissionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form submission not found"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/forms/{formId}/submissions/by-token/{submissionToken}": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Get a single submission by token",
+        "description": "Gets a single submission based on its token and its respective formId",
+        "operationId": "EndatixApiEndpointsSubmissionsGetByToken",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "submissionToken",
+            "in": "path",
+            "required": true,
+            "description": "The token of the form submission.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The Submission was retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionModel"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Form submission not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Update a form submission by token",
+        "description": "Updates a form submission for a given form by token.",
+        "operationId": "EndatixApiEndpointsSubmissionsPartialUpdateByToken",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form for which the submission is made.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "submissionToken",
+            "in": "path",
+            "required": true,
+            "description": "The token of the submission that will be updated",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "PartialUpdateSubmissionByTokenRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialUpdateSubmissionByTokenRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "The form submission was updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartialUpdateSubmissionByTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Form submission not found or invalid token"
+          }
+        }
+      }
+    },
+    "/api/forms/{formId}/submissions/{submissionId}/status": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Update submission status",
+        "description": "Updates the status of a form submission.",
+        "operationId": "EndatixApiEndpointsSubmissionsUpdateStatus",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "submissionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the submission to update.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "UpdateStatusRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStatusRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "The submission status was updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status or business rule violation",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Submission not found"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/my-account/change-password": {
+      "post": {
+        "tags": [
+          "My-Account"
+        ],
+        "summary": "Changes a user's password",
+        "description": "Allows an authenticated user to change their password.",
+        "operationId": "EndatixApiEndpointsMyAccountChangePassword",
+        "requestBody": {
+          "x-name": "ChangePasswordRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangePasswordResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or current password.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/slacktoken": {
+      "post": {
+        "tags": [
+          "Slacktoken"
+        ],
+        "summary": "Receives a Slack token",
+        "description": "Receives a Slack token",
+        "operationId": "EndatixApiEndpointsIntegrationsSlackToken",
+        "requestBody": {
+          "x-name": "SlackTokenRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlackTokenRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data."
+          }
+        }
+      }
+    },
+    "/api/forms": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Create a new form",
+        "description": "Creates a new form and an active form definition for it.",
+        "operationId": "EndatixApiEndpointsFormsCreate",
+        "requestBody": {
+          "x-name": "CreateFormRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFormRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "201": {
+            "description": "Form created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateFormResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "List forms",
+        "description": "Lists all forms with optional pagination.",
+        "operationId": "EndatixApiEndpointsFormsList",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The number of the page",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "The number of items to take.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Forms retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FormModel"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/forms/{formId}": {
+      "delete": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Delete a form",
+        "description": "Deletes a form and all its definitions and submissions.",
+        "operationId": "EndatixApiEndpointsFormsDelete",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form to delete.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Get a form by ID",
+        "description": "Gets a form by its ID.",
+        "operationId": "EndatixApiEndpointsFormsGetById",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Form retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormModel"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Partially update a form",
+        "description": "Partially updates a form.",
+        "operationId": "EndatixApiEndpointsFormsPartialUpdate",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "PartialUpdateFormRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialUpdateFormRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Form updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartialUpdateFormResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Update a form",
+        "description": "Updates a form.",
+        "operationId": "EndatixApiEndpointsFormsUpdate",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "UpdateFormRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFormRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Form updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateFormResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/forms/{formId}/definitions": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Create a new form definition",
+        "description": "Creates a new form definition for a given form.",
+        "operationId": "EndatixApiEndpointsFormDefinitionsCreate",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "CreateFormDefinitionRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFormDefinitionRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "201": {
+            "description": "Form definition created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateFormDefinitionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "List form definitions",
+        "description": "Lists all form definitions for a given form with optional pagination.",
+        "operationId": "EndatixApiEndpointsFormDefinitionsList",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The number of the page",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "The number of items to take.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Form definitions retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FormDefinitionModel"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/forms/{formId}/definition": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Get the active form definition",
+        "description": "Gets the active form definition for a given form.",
+        "operationId": "EndatixApiEndpointsFormDefinitionsGetActive",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active form definition retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormDefinitionModel"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Form not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Partially update the active form definition",
+        "description": "Partially updates the active form definition for a given form.",
+        "operationId": "EndatixApiEndpointsFormDefinitionsPartialUpdateActive",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "PartialUpdateActiveFormDefinitionRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialUpdateActiveFormDefinitionRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Active form definition updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartialUpdateActiveFormDefinitionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Update the active form definition",
+        "description": "Updates the active form definition for a given form.",
+        "operationId": "EndatixApiEndpointsFormDefinitionsUpdateActive",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "UpdateActiveFormDefinitionRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateActiveFormDefinitionRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Active form definition updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateActiveFormDefinitionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/forms/{formId}/definitions/{definitionId}": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Get a form definition by ID",
+        "description": "Gets a form definition by its ID for a given form.",
+        "operationId": "EndatixApiEndpointsFormDefinitionsGetById",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "definitionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form definition.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Form definition retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormDefinitionModel"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form definition or form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Partially update a form definition",
+        "description": "Partially updates a form definition for a given form.",
+        "operationId": "EndatixApiEndpointsFormDefinitionsPartialUpdate",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "definitionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form definition.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "PartialUpdateFormDefinitionRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialUpdateFormDefinitionRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Form definition updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartialUpdateFormDefinitionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form definition or form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Update a form definition",
+        "description": "Updates a form definition for a given form.",
+        "operationId": "EndatixApiEndpointsFormDefinitionsUpdate",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "definitionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form definition.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "UpdateFormDefinitionRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFormDefinitionRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Form definition updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateFormDefinitionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form definition or form not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Log in",
+        "description": "Authenticates a user based on valid credentials and returns JWT token and refresh token",
+        "operationId": "EndatixApiEndpointsAuthLogin",
+        "requestBody": {
+          "x-name": "LoginRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "User has been successfully authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The supplied credentials are invalid!",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Logs out the authenticated user",
+        "description": "Initiates the logout process for the authenticated user.",
+        "operationId": "EndatixApiEndpointsAuthLogout",
+        "responses": {
+          "200": {
+            "description": "User logged out successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or authentication state."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/refresh-token": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Refresh the access token",
+        "description": "Generates a new access token using a valid refresh token.",
+        "operationId": "EndatixApiEndpointsAuthRefreshToken",
+        "requestBody": {
+          "x-name": "RefreshTokenRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Access token successfully refreshed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired refresh token.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register a new user",
+        "description": "Creates a new user account in the Endatix application using the provided email and password.",
+        "operationId": "EndatixApiEndpointsAuthRegister",
+        "requestBody": {
+          "x-name": "RegisterRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "User has been successfully registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Registration failed. Please check your input and try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateSubmissionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SubmissionModel"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "SubmissionModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "isComplete": {
+            "type": "boolean"
+          },
+          "jsonData": {
+            "type": "string"
+          },
+          "formId": {
+            "type": "string"
+          },
+          "formDefinitionId": {
+            "type": "string"
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "string",
+            "nullable": true
+          },
+          "token": {
+            "type": "string",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateSubmissionRequest": {
+        "type": "object",
+        "description": "Request payload to be used with Create endpoint",
+        "additionalProperties": false,
+        "required": [
+          "jsonData"
+        ],
+        "properties": {
+          "isComplete": {
+            "type": "boolean",
+            "description": "Boolean flag to indicate if a submission is complete. Optional",
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "description": "Current page if the form has multiple pages. Optional",
+            "format": "int32",
+            "nullable": true
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "Stringified form submission data",
+            "minLength": 2,
+            "nullable": false
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Stringified metadata related to the form submission",
+            "nullable": true
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "format": "int32",
+            "default": 400
+          },
+          "message": {
+            "type": "string",
+            "default": "One or more errors occurred!"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SubmissionDetailsModel": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SubmissionModel"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "formDefinition": {
+                "nullable": true,
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/FormDefinitionModel"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "FormDefinitionModel": {
+        "type": "object",
+        "description": "Model of a form definition.",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the form definition.",
+            "nullable": true
+          },
+          "isDraft": {
+            "type": "boolean",
+            "description": "Indicates if the form definition is a draft."
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data of the form definition.",
+            "nullable": true
+          },
+          "formId": {
+            "type": "string",
+            "description": "The ID of the associated form.",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "The date and time when the form definition was created.",
+            "format": "date-time"
+          },
+          "modifiedAt": {
+            "type": "string",
+            "description": "The date and time when the form definition was last modified.",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "GetByIdRequest": {
+        "type": "object",
+        "description": "Request model for getting a form submission by ID.",
+        "additionalProperties": false
+      },
+      "GetByTokenRequest": {
+        "type": "object",
+        "description": "Request model for getting a form submission by token.",
+        "additionalProperties": false
+      },
+      "SubmissionDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "isComplete": {
+            "type": "boolean"
+          },
+          "jsonData": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "metadata": {
+            "type": "string",
+            "nullable": true
+          },
+          "formId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "formDefinitionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ListByFormIdRequest": {
+        "type": "object",
+        "description": "Request object to get list of submissions for a given form",
+        "additionalProperties": false
+      },
+      "PartialUpdateSubmissionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SubmissionModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for partially updating a form submission.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PartialUpdateSubmissionRequest": {
+        "type": "object",
+        "description": "Request model for partial update of a form submission.",
+        "additionalProperties": false,
+        "properties": {
+          "jsonData": {
+            "type": "string",
+            "description": "Stringified form submission data",
+            "minLength": 2,
+            "nullable": true
+          },
+          "isComplete": {
+            "type": "boolean",
+            "description": "Boolean flag to mark the form completion status",
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "description": "The current page of the form",
+            "format": "int32",
+            "minimum": 0.0,
+            "nullable": true,
+            "exclusiveMinimum": true
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Stringified metadata related to the form submission",
+            "nullable": true
+          }
+        }
+      },
+      "PartialUpdateSubmissionByTokenResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SubmissionModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for partially updating a form submission by token.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PartialUpdateSubmissionByTokenRequest": {
+        "type": "object",
+        "description": "Request model for partial update of a form submission by token.",
+        "additionalProperties": false,
+        "properties": {
+          "jsonData": {
+            "type": "string",
+            "description": "Stringified form submission data",
+            "minLength": 2,
+            "nullable": true
+          },
+          "isComplete": {
+            "type": "boolean",
+            "description": "Boolean flag to mark the form completion status",
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "description": "The current page of the form",
+            "format": "int32",
+            "minimum": 0.0,
+            "nullable": true
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Stringified metadata related to the form submission",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateSubmissionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SubmissionModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for updating a form submission.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "UpdateSubmissionRequest": {
+        "type": "object",
+        "description": "Request model for updating a form submission.",
+        "additionalProperties": false,
+        "required": [
+          "jsonData"
+        ],
+        "properties": {
+          "jsonData": {
+            "type": "string",
+            "description": "Stringified form submission data",
+            "minLength": 2,
+            "nullable": false
+          },
+          "isComplete": {
+            "type": "boolean",
+            "description": "Boolean flag to mark the form completion status",
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "description": "The current page of the form",
+            "format": "int32",
+            "minimum": 0.0,
+            "nullable": true,
+            "exclusiveMinimum": true
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Stringified metadata related to the form submission",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateStatusResponse": {
+        "type": "object",
+        "description": "Response model for updating a form submission status.",
+        "additionalProperties": false,
+        "properties": {
+          "submissionId": {
+            "type": "integer",
+            "description": "The ID of the submission.",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "description": "The status of the submission."
+          }
+        }
+      },
+      "UpdateStatusRequest": {
+        "type": "object",
+        "description": "Request model for updating a form submission status.",
+        "additionalProperties": false,
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "The status of the submission.",
+            "maxLength": 16,
+            "minLength": 0,
+            "nullable": false
+          }
+        }
+      },
+      "ChangePasswordResponse": {
+        "type": "object",
+        "description": "Response model for the password change operation",
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Gets the message included in the change password response"
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "additionalProperties": {
+          "nullable": true
+        },
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "description": "Request model for changing a password",
+        "additionalProperties": false,
+        "required": [
+          "currentPassword",
+          "newPassword",
+          "confirmPassword"
+        ],
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "description": "The user's current password",
+            "minLength": 1,
+            "nullable": false
+          },
+          "newPassword": {
+            "type": "string",
+            "description": "The new password to set",
+            "minLength": 1,
+            "nullable": false
+          },
+          "confirmPassword": {
+            "type": "string",
+            "description": "The new password to set",
+            "minLength": 1,
+            "nullable": false
+          }
+        }
+      },
+      "SlackTokenRequest": {
+        "type": "object",
+        "description": "Request model for creating a form with an active form definition.",
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The name of the form.",
+            "nullable": true
+          }
+        }
+      },
+      "CreateFormResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for creating a form.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "FormModel": {
+        "type": "object",
+        "description": "Model of a form.",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the form.",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the form.",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the form.",
+            "nullable": true
+          },
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Indicates if the form is enabled."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "The date and time when the form was created.",
+            "format": "date-time"
+          },
+          "modifiedAt": {
+            "type": "string",
+            "description": "The date and time when the form was last modified.",
+            "format": "date-time",
+            "nullable": true
+          },
+          "submissionsCount": {
+            "type": "integer",
+            "description": "The total number of submissions for the form",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
+      "CreateFormRequest": {
+        "type": "object",
+        "description": "Request model for creating a form with an active form definition.",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "isEnabled",
+          "formDefinitionJsonData"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the form.",
+            "maxLength": 100,
+            "minLength": 2,
+            "nullable": false
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the form.",
+            "nullable": true
+          },
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Indicates if the form is enabled.",
+            "minLength": 1,
+            "nullable": false
+          },
+          "formDefinitionJsonData": {
+            "type": "string",
+            "description": "The JSON data of the active form definition.",
+            "minLength": 2,
+            "nullable": false
+          }
+        }
+      },
+      "DeleteFormRequest": {
+        "type": "object",
+        "description": "Request model for deleting a form.",
+        "additionalProperties": false
+      },
+      "GetFormByIdRequest": {
+        "type": "object",
+        "description": "Request model for getting a form by ID.",
+        "additionalProperties": false
+      },
+      "FormsListRequest": {
+        "type": "object",
+        "description": "Request model for listing forms.",
+        "additionalProperties": false
+      },
+      "PartialUpdateFormResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for partially updating a form.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PartialUpdateFormRequest": {
+        "type": "object",
+        "description": "Request model for partially updating a form.",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the form.",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the form.",
+            "nullable": true
+          },
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Indicates if the form is enabled.",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateFormResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for updating a form.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "UpdateFormRequest": {
+        "type": "object",
+        "description": "Request model for updating a form.",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "isEnabled"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the form.",
+            "maxLength": 100,
+            "minLength": 2,
+            "nullable": false
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the form.",
+            "nullable": true
+          },
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Indicates if the form is enabled.",
+            "minLength": 1,
+            "nullable": false
+          }
+        }
+      },
+      "CreateFormDefinitionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormDefinitionModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for creating a form definition.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "CreateFormDefinitionRequest": {
+        "type": "object",
+        "description": "Request model for creating a form definition.",
+        "additionalProperties": false,
+        "required": [
+          "isDraft",
+          "jsonData"
+        ],
+        "properties": {
+          "isDraft": {
+            "type": "boolean",
+            "description": "Indicates if the form definition is a draft.",
+            "minLength": 1,
+            "nullable": false
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data of the form definition.",
+            "minLength": 2,
+            "nullable": false
+          }
+        }
+      },
+      "GetActiveFormDefinitionRequest": {
+        "type": "object",
+        "description": "Request model for getting a form definition by ID.",
+        "additionalProperties": false
+      },
+      "GetFormDefinitionByIdRequest": {
+        "type": "object",
+        "description": "Request model for getting a form definition by ID.",
+        "additionalProperties": false
+      },
+      "FormDefinitionsListRequest": {
+        "type": "object",
+        "description": "Request model for listing form definitions.",
+        "additionalProperties": false
+      },
+      "PartialUpdateFormDefinitionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormDefinitionModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for partially updating a form definition.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PartialUpdateFormDefinitionRequest": {
+        "type": "object",
+        "description": "Request model for partially updating a form definition.",
+        "additionalProperties": false,
+        "properties": {
+          "isDraft": {
+            "type": "boolean",
+            "description": "Indicates if the form definition is a draft.",
+            "nullable": true
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data of the form definition.",
+            "nullable": true
+          }
+        }
+      },
+      "PartialUpdateActiveFormDefinitionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormDefinitionModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for partially updating the active form definition.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PartialUpdateActiveFormDefinitionRequest": {
+        "type": "object",
+        "description": "Request model for partially updating the active form definition.",
+        "additionalProperties": false,
+        "properties": {
+          "isDraft": {
+            "type": "boolean",
+            "description": "Indicates if the form definition is a draft.",
+            "nullable": true
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data of the form definition.",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateFormDefinitionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormDefinitionModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for updating a form definition.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "UpdateFormDefinitionRequest": {
+        "type": "object",
+        "description": "Request model for updating a form definition.",
+        "additionalProperties": false,
+        "required": [
+          "isDraft",
+          "jsonData"
+        ],
+        "properties": {
+          "isDraft": {
+            "type": "boolean",
+            "description": "Indicates if the form definition is a draft.",
+            "minLength": 1,
+            "nullable": false
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data of the form definition.",
+            "minLength": 1,
+            "nullable": false
+          }
+        }
+      },
+      "UpdateActiveFormDefinitionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormDefinitionModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for updating the active form definition.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "UpdateActiveFormDefinitionRequest": {
+        "type": "object",
+        "description": "Request model for updating the active form definition.",
+        "additionalProperties": false,
+        "required": [
+          "isDraft",
+          "jsonData"
+        ],
+        "properties": {
+          "isDraft": {
+            "type": "boolean",
+            "description": "Indicates if the form definition is a draft.",
+            "minLength": 1,
+            "nullable": false
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data of the form definition.",
+            "minLength": 1,
+            "nullable": false
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "description": "A response record used in the Login result",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email for the user initiating the successful login request"
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "Access token returned upon success"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Refresh token returned upon success"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "description": "This Represents the request for the \"/login\" endpoint, handled by the HandleAsync method.",
+        "example": {
+          "email": "user@example.com",
+          "password": "Password123!"
+        },
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The Email of the user. Must be a valid email address",
+            "format": "email",
+            "minLength": 1,
+            "pattern": "^[^@]+@[^@]+$",
+            "nullable": false
+          },
+          "password": {
+            "type": "string",
+            "description": "The Password of the account",
+            "minLength": 8,
+            "nullable": false
+          }
+        }
+      },
+      "LogoutResponse": {
+        "type": "object",
+        "description": "Represents the response model for the logout operation.",
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Gets the message included in the Logout response."
+          }
+        }
+      },
+      "RefreshTokenResponse": {
+        "type": "object",
+        "description": "Represents the response for the \"/refresh-token\" endpoint",
+        "additionalProperties": false,
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Access token returned upon success"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Refresh token returned upon success"
+          }
+        }
+      },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "description": "Represents the request for the \"/refresh-token\" endpoint",
+        "example": {
+          "refreshToken": "example-refresh-token"
+        },
+        "additionalProperties": false,
+        "required": [
+          "refreshToken"
+        ],
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "The refresh token used to obtain a new access token.",
+            "minLength": 1,
+            "nullable": false
+          }
+        }
+      },
+      "RegisterResponse": {
+        "type": "object",
+        "description": "The response type for the \"/register\" endpoint returned by the HandleAsync method.",
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Indicates whether the registration was successful."
+          },
+          "message": {
+            "type": "string",
+            "description": "A message describing the outcome of the registration attempt."
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "description": "Represents the request for the \"/register\" endpoint, handled by the HandleAsync method.",
+        "example": {
+          "email": "user@example.com",
+          "password": "Password123!",
+          "confirmPassword": "Password123!"
+        },
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "confirmPassword"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The email address of the user.",
+            "format": "email",
+            "minLength": 1,
+            "pattern": "^[^@]+@[^@]+$",
+            "nullable": false
+          },
+          "password": {
+            "type": "string",
+            "description": "The password chosen by the user."
+          },
+          "confirmPassword": {
+            "type": "string",
+            "description": "The confirmation of the password chosen by the user.",
+            "minLength": 1,
+            "nullable": false
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "JWTBearerAuth": {
+        "type": "http",
+        "description": "Enter a JWT token to authorize the requests...",
+        "scheme": "Bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
