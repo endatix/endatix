@@ -62,7 +62,7 @@ public class InfrastructureDataBuilder
     }
 
     /// <summary>
-    /// Returns to the parent infrastructure builder.
+    /// Builds and returns the parent infrastructure builder.
     /// </summary>
     /// <returns>The parent infrastructure builder.</returns>
     public InfrastructureBuilder Build() => _parentBuilder;

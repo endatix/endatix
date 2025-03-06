@@ -5,10 +5,10 @@ using Microsoft.Extensions.Logging;
 namespace Endatix.Framework.Hosting;
 
 /// <summary>
-/// Defines properties that must be exposed by parent builders to their child builders.
+/// Defines properties that must be exposed by root builders to their child builders.
 /// This interface allows for type-safe dependencies between builders without circular references.
 /// </summary>
-public interface IBuilderParent
+public interface IBuilderRoot
 {
     /// <summary>
     /// Gets the service collection.
@@ -26,7 +26,7 @@ public interface IBuilderParent
     IAppEnvironment? AppEnvironment { get; }
     
     /// <summary>
-    /// Gets the logger factory. All builder parents must provide a logger factory
+    /// Gets the logger factory. All builder roots must provide a logger factory
     /// to ensure proper diagnostic capabilities during application setup.
     /// </summary>
     ILoggerFactory LoggerFactory { get; }

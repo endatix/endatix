@@ -16,7 +16,7 @@ namespace Endatix.Hosting.Builders;
 /// <summary>
 /// Main builder for configuring Endatix services.
 /// </summary>
-public class EndatixBuilder : IBuilderParent
+public class EndatixBuilder : IBuilderRoot
 {
     /// <summary>
     /// Gets the service collection.
@@ -122,7 +122,7 @@ public class EndatixBuilder : IBuilderParent
         Logging = new EndatixLoggingBuilder(this);
         Logging.UseDefaults();
 
-        // Initialize infrastructure builder with parent builder
+        // Initialize infrastructure builder with root builder
         Infrastructure = new InfrastructureBuilder(this);
 
         // Initialize remaining feature builders

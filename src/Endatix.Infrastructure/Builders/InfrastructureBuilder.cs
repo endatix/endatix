@@ -14,7 +14,7 @@ namespace Endatix.Infrastructure.Builders;
 public class InfrastructureBuilder
 {
     private readonly ILogger _logger;
-    private readonly IBuilderParent _parentBuilder;
+    private readonly IBuilderRoot _parentBuilder;
 
     /// <summary>
     /// Gets the service collection.
@@ -59,8 +59,8 @@ public class InfrastructureBuilder
     /// <summary>
     /// Initializes a new instance of the InfrastructureBuilder.
     /// </summary>
-    /// <param name="parentBuilder">The parent builder.</param>
-    public InfrastructureBuilder(IBuilderParent parentBuilder)
+    /// <param name="parentBuilder">The root builder.</param>
+    public InfrastructureBuilder(IBuilderRoot parentBuilder)
     {
         _parentBuilder = parentBuilder;
 
@@ -117,8 +117,8 @@ public class InfrastructureBuilder
     }
 
     /// <summary>
-    /// Returns to the parent builder.
+    /// Builds and returns the root builder.
     /// </summary>
-    /// <returns>The parent builder.</returns>
-    public IBuilderParent Build() => _parentBuilder;
+    /// <returns>The root builder.</returns>
+    public IBuilderRoot Build() => _parentBuilder;
 }

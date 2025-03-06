@@ -11,7 +11,7 @@ internal static class EndatixBuilderExtensions
     public static T LogSetupInfo<T>(this T builder, string message, params object?[] args) 
         where T : class
     {
-        var parentBuilder = GetParentBuilder(builder);
+        var parentBuilder = GetRootBuilder(builder);
         parentBuilder.SetupLogger.Information(message, args);
         return builder;
     }
@@ -22,7 +22,7 @@ internal static class EndatixBuilderExtensions
     public static T LogSetupWarning<T>(this T builder, string message, params object?[] args) 
         where T : class
     {
-        var parentBuilder = GetParentBuilder(builder);
+        var parentBuilder = GetRootBuilder(builder);
         parentBuilder.SetupLogger.Warning(message, args);
         return builder;
     }
@@ -33,14 +33,14 @@ internal static class EndatixBuilderExtensions
     public static T LogSetupError<T>(this T builder, string message, params object?[] args) 
         where T : class
     {
-        var parentBuilder = GetParentBuilder(builder);
+        var parentBuilder = GetRootBuilder(builder);
         parentBuilder.SetupLogger.Error(message, args);
         return builder;
     }
 
-    private static EndatixBuilder GetParentBuilder<T>(T builder) where T : class
+    private static EndatixBuilder GetRootBuilder<T>(T builder) where T : class
     {
-        // Use pattern matching to get the parent builder
+        // Use pattern matching to get the root builder
         return builder switch
         {
             EndatixApiBuilder api => api.Build(),

@@ -57,9 +57,9 @@ public class EndatixMessagingBuilder
     }
     
     /// <summary>
-    /// Returns to the parent builder.
+    /// Builds and returns the parent builder.
     /// </summary>
-    /// <returns>The parent builder for chaining.</returns>
+    /// <returns>The parent builder.</returns>
     public EndatixBuilder Build() => _parentBuilder;
     
     private void LogSetupInfo(string message)
