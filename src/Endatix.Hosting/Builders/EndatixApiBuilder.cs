@@ -24,7 +24,7 @@ public class EndatixApiBuilder
     internal EndatixApiBuilder(EndatixBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        _logger = parentBuilder.LoggerFactory?.CreateLogger("Endatix.Setup");
+        _logger = parentBuilder.LoggerFactory?.CreateLogger<EndatixApiBuilder>();
         _middlewareOptions = new EndatixApiMiddlewareOptions();
 
         // Create the API configuration builder with all available parameters

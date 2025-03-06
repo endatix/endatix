@@ -30,7 +30,7 @@ public class EndatixSecurityBuilder
     internal EndatixSecurityBuilder(EndatixBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        _logger = parentBuilder.LoggerFactory?.CreateLogger("Endatix.Security");
+        _logger = parentBuilder.LoggerFactory?.CreateLogger<EndatixSecurityBuilder>();
     }
 
     /// <summary>

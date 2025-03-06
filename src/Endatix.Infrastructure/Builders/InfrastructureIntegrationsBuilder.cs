@@ -22,7 +22,11 @@ public class InfrastructureIntegrationsBuilder
     internal InfrastructureIntegrationsBuilder(InfrastructureBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        _logger = parentBuilder.Services.BuildServiceProvider().GetService<ILoggerFactory>()?.CreateLogger("Endatix.Setup");
+        
+        if (parentBuilder.LoggerFactory != null)
+        {
+            _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureIntegrationsBuilder>();
+        }
     }
 
     /// <summary>

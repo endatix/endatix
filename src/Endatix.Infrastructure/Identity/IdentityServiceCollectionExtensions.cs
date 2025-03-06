@@ -32,7 +32,7 @@ public static class IdentityServiceCollectionExtensions
     public static IServiceCollection AddIdentityConfiguration(this IServiceCollection services, ConfigurationOptions options)
     {
         // Register essential identity services
-        // services.AddEndatixIdentityEssentialServices(options.UseJwtAuthentication);
+        services.AddEndatixIdentityEssentialServices();
 
         services.AddIdentityCore<AppUser>(identityOptions =>
                 {

@@ -19,7 +19,11 @@ public class InfrastructureIdentityBuilder
     internal InfrastructureIdentityBuilder(InfrastructureBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        _logger = parentBuilder.Services.BuildServiceProvider().GetService<ILoggerFactory>()?.CreateLogger("Endatix.Setup");
+        
+        if (parentBuilder.LoggerFactory != null)
+        {
+            _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureIdentityBuilder>();
+        }
     }
 
     /// <summary>

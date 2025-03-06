@@ -27,7 +27,7 @@ public class EndatixPersistenceBuilder
     internal EndatixPersistenceBuilder(EndatixBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        _logger = parentBuilder.LoggerFactory?.CreateLogger("Endatix.Setup");
+        _logger = parentBuilder.LoggerFactory?.CreateLogger<EndatixPersistenceBuilder>();
     }
 
     /// <summary>

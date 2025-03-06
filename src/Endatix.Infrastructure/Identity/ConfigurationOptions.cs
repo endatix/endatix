@@ -6,11 +6,6 @@ namespace Endatix.Infrastructure.Identity;
 public class ConfigurationOptions
 {
     /// <summary>
-    /// Gets or sets a value indicating whether to use JWT authentication.
-    /// </summary>
-    public bool UseJwtAuthentication { get; set; } = false;
-    
-    /// <summary>
     /// Gets or sets the JWT settings.
     /// </summary>
     public JwtSettings? JwtSettings { get; set; }

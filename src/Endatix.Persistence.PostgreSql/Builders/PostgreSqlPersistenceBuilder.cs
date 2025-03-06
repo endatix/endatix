@@ -109,6 +109,6 @@ public class PostgreSqlPersistenceBuilder
     
     private void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[PostgreSQL Setup] {Message}", message);
+        _logger?.LogInformation("[💿 PostgreSQL Setup] {Message}", message);
     }
 } 

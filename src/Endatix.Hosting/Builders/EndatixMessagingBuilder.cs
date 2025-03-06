@@ -20,7 +20,7 @@ public class EndatixMessagingBuilder
     internal EndatixMessagingBuilder(EndatixBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        _logger = parentBuilder.LoggerFactory?.CreateLogger("Endatix.Setup");
+        _logger = parentBuilder.LoggerFactory?.CreateLogger<EndatixMessagingBuilder>();
         
         // Get or create the infrastructure builder
         var infrastructureBuilder = parentBuilder.Infrastructure;

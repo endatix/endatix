@@ -2,6 +2,7 @@ using System.Reflection;
 using Endatix.Api.Infrastructure;
 using Endatix.Api.Infrastructure.Cors;
 using Endatix.Framework.Hosting;
+using Endatix.Framework.Setup;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
@@ -70,8 +71,6 @@ public class ApiConfigurationBuilder
         // Add default JSON options
         AddDefaultJsonOptions();
 
-        // NOTE: JWT authentication is now handled exclusively by EndatixSecurityBuilder
-
         // Register FastEndpoints
         _services.AddFastEndpoints();
 
@@ -93,24 +92,11 @@ public class ApiConfigurationBuilder
         // Ensure IAppEnvironment is available 
         if (_services.All(sd => sd.ServiceType != typeof(IAppEnvironment)))
         {
-            LogSetupInfo("No IAppEnvironment found. Attempting to create an adapter...");
-
-            // Try to get IHostEnvironment
-            var serviceProvider = _services.BuildServiceProvider();
-            var hostEnvironment = serviceProvider.GetService<IHostEnvironment>();
-
-            if (hostEnvironment != null)
-            {
-                // Register an adapter that converts IHostEnvironment to IAppEnvironment
-                _services.AddSingleton<IAppEnvironment>(new AppEnvironmentAdapter(hostEnvironment));
-                LogSetupInfo("Created and registered an IAppEnvironment adapter from IHostEnvironment.");
-            }
-            else
-            {
-                // Register a default development environment
-                _services.AddSingleton<IAppEnvironment>(new DefaultAppEnvironment());
-                LogSetupInfo("No host environment found. Registered a default development IAppEnvironment.");
-            }
+            LogSetupInfo("No IAppEnvironment found. Adding framework services...");
+            
+            // Use the framework's method to register IAppEnvironment and related services
+            _services.AddEndatixFrameworkServices();
+            LogSetupInfo("Registered IAppEnvironment via framework services.");
         }
 
         // Add CORS configuration services
@@ -281,27 +267,5 @@ public class ApiConfigurationBuilder
     protected virtual void LogSetupInfo(string message)
     {
         _logger?.LogInformation("[API Setup] {Message}", message);
-    }
-
-    // Helper adapter classes
-    private class AppEnvironmentAdapter : IAppEnvironment
-    {
-        private readonly IHostEnvironment _environment;
-
-        public AppEnvironmentAdapter(IHostEnvironment environment)
-        {
-            _environment = environment;
-        }
-
-        public string EnvironmentName => _environment.EnvironmentName;
-
-        public bool IsDevelopment() => _environment.EnvironmentName == "Development";
-    }
-
-    private class DefaultAppEnvironment : IAppEnvironment
-    {
-        public string EnvironmentName => "Development";
-
-        public bool IsDevelopment() => true;
     }
 }

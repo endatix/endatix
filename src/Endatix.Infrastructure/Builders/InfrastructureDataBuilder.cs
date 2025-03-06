@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Builders;
 
@@ -15,6 +16,7 @@ namespace Endatix.Infrastructure.Builders;
 public class InfrastructureDataBuilder
 {
     private readonly InfrastructureBuilder _parentBuilder;
+    private readonly ILogger? _logger;
 
     /// <summary>
     /// Initializes a new instance of the InfrastructureDataBuilder class.
@@ -23,6 +25,11 @@ public class InfrastructureDataBuilder
     internal InfrastructureDataBuilder(InfrastructureBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
+
+        if (parentBuilder.LoggerFactory != null)
+        {
+            _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureDataBuilder>();
+        }
     }
 
     internal IServiceCollection Services => _parentBuilder.Services;
@@ -33,6 +40,8 @@ public class InfrastructureDataBuilder
     /// <returns>The builder for chaining.</returns>
     public InfrastructureDataBuilder UseDefaults()
     {
+        LogSetupInfo("Configuring data infrastructure with default settings");
+
         Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         Services.AddSingleton<EfCoreValueGeneratorFactory>();
@@ -40,6 +49,7 @@ public class InfrastructureDataBuilder
         Services.AddScoped<IFormsRepository, FormsRepository>();
         Services.AddSingleton<DataSeeder>();
 
+        LogSetupInfo("Data infrastructure configured successfully");
         return this;
     }
 
@@ -50,6 +60,7 @@ public class InfrastructureDataBuilder
     /// <returns>The builder for chaining.</returns>
     public InfrastructureDataBuilder Configure(Action<DataOptions> configure)
     {
+        LogSetupInfo("Configuring data options");
         _parentBuilder.Services.Configure(configure);
         return this;
     }
@@ -59,4 +70,13 @@ public class InfrastructureDataBuilder
     /// </summary>
     /// <returns>The parent infrastructure builder.</returns>
     public InfrastructureBuilder Parent() => _parentBuilder;
+
+    /// <summary>
+    /// Logs setup information with a consistent prefix.
+    /// </summary>
+    /// <param name="message">The message to log.</param>
+    private void LogSetupInfo(string message)
+    {
+        _logger?.LogInformation("[Data Setup] {Message}", message);
+    }
 }

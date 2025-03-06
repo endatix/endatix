@@ -59,20 +59,16 @@ public static class EndatixServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Adds Endatix services with default settings including SQL Server persistence.
+    /// Adds Endatix services with default settings including automatic database provider selection.
+    /// This is the simplest way to configure Endatix with sensible defaults.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The application configuration.</param>
     /// <returns>The service collection with Endatix configured.</returns>
     public static IServiceCollection AddEndatixWithDefaults(
         this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        // Use automatic database provider selection based on configuration
-        var builder = services.AddEndatix(configuration);
-        builder.UseDefaults();
-        return services;
-    }
+        IConfiguration configuration) => 
+        services.AddEndatix(configuration).UseDefaults().Services;
 
     /// <summary>
     /// Adds Endatix services with SQL Server as the default database for the specified context.
@@ -88,14 +84,6 @@ public static class EndatixServiceCollectionExtensions
     {
         var builder = services.AddEndatix(configuration);
         builder.Persistence.UseSqlServer<TContext>();
-
-        // Register AppIdentityDbContext if it's not already registered 
-        // and if TContext is not already AppIdentityDbContext
-        if (!typeof(TContext).Name.Equals(nameof(AppIdentityDbContext)))
-        {
-            builder.Persistence.UseSqlServer<AppIdentityDbContext>();
-        }
-
         return builder;
     }
 
@@ -113,14 +101,6 @@ public static class EndatixServiceCollectionExtensions
     {
         var builder = services.AddEndatix(configuration);
         builder.Persistence.UsePostgreSql<TContext>();
-
-        // Register AppIdentityDbContext if it's not already registered 
-        // and if TContext is not already AppIdentityDbContext
-        if (!typeof(TContext).Name.Equals(nameof(AppIdentityDbContext)))
-        {
-            builder.Persistence.UsePostgreSql<AppIdentityDbContext>();
-        }
-
         return builder;
     }
 }

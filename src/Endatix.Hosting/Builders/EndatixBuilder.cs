@@ -16,22 +16,22 @@ namespace Endatix.Hosting.Builders;
 /// <summary>
 /// Main builder for configuring Endatix services.
 /// </summary>
-public class EndatixBuilder
+public class EndatixBuilder : IBuilderParent
 {
     /// <summary>
     /// Gets the service collection.
     /// </summary>
-    internal IServiceCollection Services { get; }
+    public IServiceCollection Services { get; }
 
     /// <summary>
     /// Gets the configuration.
     /// </summary>
-    internal IConfiguration Configuration { get; }
+    public IConfiguration Configuration { get; }
 
     /// <summary>
     /// Gets the application environment.
     /// </summary>
-    internal IAppEnvironment? AppEnvironment { get; }
+    public IAppEnvironment? AppEnvironment { get; }
 
     /// <summary>
     /// Gets the API builder.
@@ -103,11 +103,13 @@ public class EndatixBuilder
         var serviceProvider = services.BuildServiceProvider();
         AppEnvironment = serviceProvider.GetService<IAppEnvironment>();
 
-        // Initialize infrastructure builder first
-        Infrastructure = new InfrastructureBuilder(services, configuration);
-
-        // Initialize feature builders
+        // Initialize logging builder first to ensure logger factory is available
         Logging = new EndatixLoggingBuilder(this);
+
+        // Initialize infrastructure builder with parent builder
+        Infrastructure = new InfrastructureBuilder(this);
+
+        // Initialize remaining feature builders
         Api = new EndatixApiBuilder(this);
         Persistence = new EndatixPersistenceBuilder(this);
         Security = new EndatixSecurityBuilder(this);

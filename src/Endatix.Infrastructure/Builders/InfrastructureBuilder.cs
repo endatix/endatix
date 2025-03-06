@@ -1,8 +1,10 @@
 using Endatix.Core.Abstractions;
+using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Builders;
 
@@ -11,6 +13,29 @@ namespace Endatix.Infrastructure.Builders;
 /// </summary>
 public class InfrastructureBuilder
 {
+    private readonly ILogger? _logger;
+    private readonly IBuilderParent _parentBuilder;
+
+    /// <summary>
+    /// Gets the service collection.
+    /// </summary>
+    internal IServiceCollection Services { get; }
+
+    /// <summary>
+    /// Gets the configuration.
+    /// </summary>
+    internal IConfiguration Configuration { get; }
+
+    /// <summary>
+    /// Gets the logger factory.
+    /// </summary>
+    internal ILoggerFactory? LoggerFactory { get; }
+
+    /// <summary>
+    /// Gets the application environment.
+    /// </summary>
+    internal IAppEnvironment? AppEnvironment { get; }
+
     /// <summary>
     /// Gets the data builder for configuring data access.
     /// </summary>
@@ -31,10 +56,24 @@ public class InfrastructureBuilder
     /// </summary>
     public InfrastructureIntegrationsBuilder Integrations { get; }
 
-    public InfrastructureBuilder(IServiceCollection services, IConfiguration configuration)
+    /// <summary>
+    /// Initializes a new instance of the InfrastructureBuilder.
+    /// </summary>
+    /// <param name="parentBuilder">The parent builder.</param>
+    public InfrastructureBuilder(IBuilderParent parentBuilder)
     {
-        Services = services;
-        Configuration = configuration;
+        _parentBuilder = parentBuilder;
+        
+        // Get properties from the parent builder via the interface
+        Services = parentBuilder.Services;
+        Configuration = parentBuilder.Configuration;
+        AppEnvironment = parentBuilder.AppEnvironment;
+        LoggerFactory = parentBuilder.LoggerFactory;
+        
+        if (LoggerFactory != null)
+        {
+            _logger = LoggerFactory.CreateLogger<InfrastructureBuilder>();
+        }
 
         Data = new InfrastructureDataBuilder(this);
         Identity = new InfrastructureIdentityBuilder(this);
@@ -45,8 +84,11 @@ public class InfrastructureBuilder
     /// <summary>
     /// Configures infrastructure with default settings.
     /// </summary>
+    /// <returns>The builder for chaining.</returns>
     public InfrastructureBuilder UseDefaults()
     {
+        LogSetupInfo("Configuring infrastructure with default settings");
+
         // Configure core infrastructure services
         Services.AddHttpContextAccessor();
         Services.AddWebHookProcessing();
@@ -61,6 +103,7 @@ public class InfrastructureBuilder
         // Add default config options
         ConfigureDefaultOptions();
 
+        LogSetupInfo("Infrastructure configured successfully");
         return this;
     }
 
@@ -70,13 +113,20 @@ public class InfrastructureBuilder
             .BindConfiguration(DataOptions.SECTION_NAME)
             .ValidateDataAnnotations()
             .ValidateOnStart();
-
-        Services.AddOptions<SubmissionOptions>()
-            .BindConfiguration(SubmissionOptions.SECTION_NAME)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
     }
 
-    internal IServiceCollection Services { get; }
-    internal IConfiguration Configuration { get; }
+    /// <summary>
+    /// Logs setup information with a consistent prefix.
+    /// </summary>
+    /// <param name="message">The message to log.</param>
+    internal void LogSetupInfo(string message)
+    {
+        _logger?.LogInformation("[Infrastructure Setup] {Message}", message);
+    }
+    
+    /// <summary>
+    /// Returns to the parent builder.
+    /// </summary>
+    /// <returns>The parent builder.</returns>
+    public IBuilderParent Parent() => _parentBuilder;
 }
