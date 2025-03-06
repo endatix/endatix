@@ -8,8 +8,21 @@ using System.Reflection;
 namespace Endatix.Hosting.Builders;
 
 /// <summary>
-/// Builder for configuring Endatix API.
+/// Builder for configuring Endatix API features including versioning, Swagger, CORS, and endpoint routing.
 /// </summary>
+/// <remarks>
+/// The EndatixApiBuilder provides a fluent API for configuring all API-related services and middleware.
+/// This includes:
+/// <list type="bullet">
+/// <item><description>API documentation with Swagger</description></item>
+/// <item><description>API versioning</description></item>
+/// <item><description>CORS policies</description></item>
+/// <item><description>Route prefixes</description></item>
+/// <item><description>FastEndpoints configuration</description></item>
+/// </list>
+/// 
+/// You typically obtain an instance of this builder through the <see cref="EndatixBuilder.Api"/> property.
+/// </remarks>
 public class EndatixApiBuilder
 {
     private readonly EndatixBuilder _parentBuilder;
@@ -44,6 +57,26 @@ public class EndatixApiBuilder
     /// <summary>
     /// Configures API with default settings.
     /// </summary>
+    /// <remarks>
+    /// This method:
+    /// <list type="bullet">
+    /// <item><description>Enables Swagger documentation</description></item>
+    /// <item><description>Enables API versioning</description></item>
+    /// <item><description>Configures default CORS policies</description></item>
+    /// <item><description>Configures FastEndpoints with recommended settings</description></item>
+    /// </list>
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Configure API with defaults
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .Api.UseDefaults();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <returns>The API builder for chaining.</returns>
     public EndatixApiBuilder UseDefaults()
     {
@@ -59,6 +92,25 @@ public class EndatixApiBuilder
     /// <summary>
     /// Adds Swagger documentation.
     /// </summary>
+    /// <remarks>
+    /// This method enables Swagger documentation for your API, which provides:
+    /// <list type="bullet">
+    /// <item><description>Interactive API documentation</description></item>
+    /// <item><description>Request/response models and examples</description></item>
+    /// <item><description>Built-in client for testing API endpoints</description></item>
+    /// </list>
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Add Endatix with Swagger
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .Api.AddSwagger();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <returns>The API builder for chaining.</returns>
     public EndatixApiBuilder AddSwagger()
     {
@@ -74,6 +126,29 @@ public class EndatixApiBuilder
     /// <summary>
     /// Disables Swagger documentation.
     /// </summary>
+    /// <remarks>
+    /// Use this method to disable Swagger in production environments or when you don't want 
+    /// to expose API documentation.
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Add Endatix with conditional Swagger
+    /// var endatixBuilder = builder.Services.AddEndatix(builder.Configuration);
+    /// 
+    /// if (builder.Environment.IsDevelopment())
+    /// {
+    ///     endatixBuilder.Api.AddSwagger();
+    /// }
+    /// else
+    /// {
+    ///     endatixBuilder.Api.DisableSwagger();
+    /// }
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <returns>The API builder for chaining.</returns>
     public EndatixApiBuilder DisableSwagger()
     {
@@ -88,6 +163,22 @@ public class EndatixApiBuilder
     /// <summary>
     /// Adds API versioning.
     /// </summary>
+    /// <remarks>
+    /// This method enables API versioning, which allows you to maintain multiple versions 
+    /// of your API endpoints simultaneously. Versioning is implemented using URL path segments.
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Add Endatix with API versioning
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .Api.AddVersioning()
+    ///     .SetVersioningPrefix("v"); // Results in URLs like /api/v1/resource
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <returns>The API builder for chaining.</returns>
     public EndatixApiBuilder AddVersioning()
     {
@@ -102,6 +193,22 @@ public class EndatixApiBuilder
     /// <summary>
     /// Sets the API versioning prefix.
     /// </summary>
+    /// <remarks>
+    /// This method allows you to customize how version numbers appear in URLs.
+    /// The default prefix is "v", resulting in URLs like /api/v1/resource.
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Add Endatix with custom version prefix
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .Api.AddVersioning()
+    ///     .SetVersioningPrefix("version"); // Results in URLs like /api/version1/resource
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <param name="prefix">The versioning prefix.</param>
     /// <returns>The API builder for chaining.</returns>
     public EndatixApiBuilder SetVersioningPrefix(string prefix)
@@ -117,6 +224,21 @@ public class EndatixApiBuilder
     /// <summary>
     /// Sets the API route prefix.
     /// </summary>
+    /// <remarks>
+    /// This method allows you to customize the base path for all API endpoints.
+    /// The default prefix is "api", resulting in URLs like /api/v1/resource.
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Add Endatix with custom route prefix
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .Api.SetRoutePrefix("services"); // Results in URLs like /services/v1/resource
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <param name="prefix">The route prefix.</param>
     /// <returns>The API builder for chaining.</returns>
     public EndatixApiBuilder SetRoutePrefix(string prefix)

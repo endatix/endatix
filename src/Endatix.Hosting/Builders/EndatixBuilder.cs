@@ -14,8 +14,23 @@ using Microsoft.Extensions.Logging;
 namespace Endatix.Hosting.Builders;
 
 /// <summary>
-/// Main builder for configuring Endatix services.
+/// Main builder for configuring Endatix services. This is the central hub that provides
+/// access to all specialized builders for different aspects of the application.
 /// </summary>
+/// <remarks>
+/// The EndatixBuilder provides a fluent API for configuring various aspects of your Endatix application:
+/// <list type="bullet">
+/// <item><description>API configuration through <see cref="Api"/></description></item>
+/// <item><description>Persistence configuration through <see cref="Persistence"/></description></item>
+/// <item><description>Security configuration through <see cref="Security"/></description></item>
+/// <item><description>Messaging configuration through <see cref="Messaging"/></description></item>
+/// <item><description>Logging configuration through <see cref="Logging"/></description></item>
+/// <item><description>Infrastructure configuration through <see cref="Infrastructure"/></description></item>
+/// </list>
+/// 
+/// Typically, you obtain an instance of this builder by calling one of the extension methods
+/// in <see cref="EndatixServiceCollectionExtensions"/>, such as <c>AddEndatix</c>.
+/// </remarks>
 public class EndatixBuilder : IBuilderRoot
 {
     /// <summary>
@@ -34,17 +49,20 @@ public class EndatixBuilder : IBuilderRoot
     public IAppEnvironment? AppEnvironment { get; }
 
     /// <summary>
-    /// Gets the API builder.
+    /// Gets the API builder for configuring API-related services such as routing, 
+    /// versioning, Swagger, and CORS policies.
     /// </summary>
     public EndatixApiBuilder Api { get; }
 
     /// <summary>
-    /// Gets the persistence builder.
+    /// Gets the persistence builder for configuring database contexts, 
+    /// migrations, and other data storage related services.
     /// </summary>
     public EndatixPersistenceBuilder Persistence { get; }
 
     /// <summary>
-    /// Gets the security builder.
+    /// Gets the security builder for configuring authentication, 
+    /// authorization, and other security-related services.
     /// </summary>
     public EndatixSecurityBuilder Security { get; }
 
@@ -135,6 +153,32 @@ public class EndatixBuilder : IBuilderRoot
     /// <summary>
     /// Configures Endatix with default settings.
     /// </summary>
+    /// <remarks>
+    /// This method:
+    /// <list type="number">
+    /// <item><description>Configures logging with default settings</description></item>
+    /// <item><description>Sets up persistence based on the detected database provider</description></item>
+    /// <item><description>Configures infrastructure with default settings</description></item>
+    /// <item><description>Sets up API with default settings</description></item>
+    /// <item><description>Configures security with default settings</description></item>
+    /// </list>
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Add Endatix services with defaults
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .UseDefaults();
+    ///     
+    /// var app = builder.Build();
+    /// 
+    /// app.UseEndatix();
+    /// app.Run();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <returns>The builder for chaining.</returns>
     public EndatixBuilder UseDefaults()
     {
@@ -206,6 +250,23 @@ public class EndatixBuilder : IBuilderRoot
     /// <summary>
     /// Configures SQL Server persistence with default settings.
     /// </summary>
+    /// <remarks>
+    /// This is a convenience method that configures both your specified database context and the 
+    /// identity context to use SQL Server. It automatically resolves the connection string from 
+    /// configuration using the "DefaultConnection" key.
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Register Endatix with SQL Server
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .UseSqlServer&lt;AppDbContext&gt;()
+    ///     .EnableAutoMigrations();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <typeparam name="TContext">The database context type.</typeparam>
     /// <returns>The builder for chaining.</returns>
     public EndatixBuilder UseSqlServer<TContext>() where TContext : DbContext
@@ -224,6 +285,25 @@ public class EndatixBuilder : IBuilderRoot
     /// <summary>
     /// Configures SQL Server persistence with custom options.
     /// </summary>
+    /// <remarks>
+    /// This method allows you to provide custom configuration for SQL Server through the configAction parameter.
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Register Endatix with custom SQL Server options
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .UseSqlServer&lt;AppDbContext&gt;(options => 
+    ///     {
+    ///         options.WithConnectionString("Server=myServer;Database=myDb;Trusted_Connection=True;");
+    ///         options.WithSnowflakeIds(1);
+    ///     })
+    ///     .EnableAutoMigrations();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <typeparam name="TContext">The database context type.</typeparam>
     /// <param name="configAction">Action to configure SQL Server options.</param>
     /// <returns>The builder for chaining.</returns>
@@ -236,6 +316,23 @@ public class EndatixBuilder : IBuilderRoot
     /// <summary>
     /// Configures PostgreSQL persistence with default settings.
     /// </summary>
+    /// <remarks>
+    /// This is a convenience method that configures both your specified database context and the 
+    /// identity context to use PostgreSQL. It automatically resolves the connection string from 
+    /// configuration using the "DefaultConnection" key.
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Register Endatix with PostgreSQL
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .UsePostgreSql&lt;AppDbContext&gt;()
+    ///     .EnableAutoMigrations();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <typeparam name="TContext">The database context type.</typeparam>
     /// <returns>The builder for chaining.</returns>
     public EndatixBuilder UsePostgreSql<TContext>() where TContext : DbContext
@@ -254,6 +351,25 @@ public class EndatixBuilder : IBuilderRoot
     /// <summary>
     /// Configures PostgreSQL persistence with custom options.
     /// </summary>
+    /// <remarks>
+    /// This method allows you to provide custom configuration for PostgreSQL through the configAction parameter.
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Register Endatix with custom PostgreSQL options
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .UsePostgreSql&lt;AppDbContext&gt;(options => 
+    ///     {
+    ///         options.WithConnectionString("Host=localhost;Database=mydb;Username=postgres;Password=password");
+    ///         options.WithCustomTablePrefix("app_");
+    ///     })
+    ///     .EnableAutoMigrations();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <typeparam name="TContext">The database context type.</typeparam>
     /// <param name="configAction">Action to configure PostgreSQL options.</param>
     /// <returns>The builder for chaining.</returns>
@@ -266,6 +382,22 @@ public class EndatixBuilder : IBuilderRoot
     /// <summary>
     /// Enables auto migrations for the database.
     /// </summary>
+    /// <remarks>
+    /// When enabled, database migrations will be automatically applied at application startup.
+    /// This is useful for development environments, but should be used with caution in production.
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Register Endatix with auto migrations
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .UseSqlServer&lt;AppDbContext&gt;()
+    ///     .EnableAutoMigrations();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <returns>The builder for chaining.</returns>
     public EndatixBuilder EnableAutoMigrations()
     {
@@ -276,6 +408,22 @@ public class EndatixBuilder : IBuilderRoot
     /// <summary>
     /// Scans the specified assemblies for entity configurations.
     /// </summary>
+    /// <remarks>
+    /// This method scans the specified assemblies for Entity Framework entity type configurations that 
+    /// implement IEntityTypeConfiguration&lt;T&gt;.
+    /// 
+    /// <example>
+    /// <code>
+    /// // In Program.cs
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Register Endatix and scan for entity configurations
+    /// builder.Services.AddEndatix(builder.Configuration)
+    ///     .UseSqlServer&lt;AppDbContext&gt;()
+    ///     .ScanAssembliesForEntities(typeof(Program).Assembly);
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <param name="assemblies">The assemblies to scan.</param>
     /// <returns>The builder for chaining.</returns>
     public EndatixBuilder ScanAssembliesForEntities(params Assembly[] assemblies)

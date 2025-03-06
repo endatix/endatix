@@ -31,6 +31,32 @@ public static class EndatixServiceCollectionExtensions
     /// Use this method for the most flexibility. For convenience, you can use 
     /// AddEndatixWithDefaults, AddEndatixWithSqlServer, or AddEndatixWithPostgreSql
     /// for common scenarios.
+    /// 
+    /// <example>
+    /// <code>
+    /// // Add Endatix with custom configuration
+    /// var builder = services.AddEndatix(configuration);
+    /// 
+    /// // Configure API features
+    /// builder.Api
+    ///     .AddSwagger()
+    ///     .AddVersioning()
+    ///     .EnableCors("AllowedOrigins", cors => 
+    ///         cors.WithOrigins("https://example.com")
+    ///             .AllowAnyMethod()
+    ///             .AllowAnyHeader());
+    ///             
+    /// // Configure security features
+    /// builder.Security
+    ///     .UseJwtAuthentication()
+    ///     .AddDefaultAuthorization();
+    ///     
+    /// // Configure persistence features
+    /// builder.Persistence
+    ///     .UseSqlServer&lt;AppDbContext&gt;()
+    ///     .EnableAutoMigrations();
+    /// </code>
+    /// </example>
     /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The application configuration.</param>
@@ -62,6 +88,22 @@ public static class EndatixServiceCollectionExtensions
     /// Adds Endatix services with default settings including automatic database provider selection.
     /// This is the simplest way to configure Endatix with sensible defaults.
     /// </summary>
+    /// <remarks>
+    /// <example>
+    /// <code>
+    /// // In Program.cs:
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Add Endatix with default configuration
+    /// builder.Services.AddEndatixWithDefaults(builder.Configuration);
+    /// 
+    /// var app = builder.Build();
+    /// 
+    /// app.UseEndatix();
+    /// app.Run();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The application configuration.</param>
     /// <returns>The service collection with Endatix configured.</returns>
@@ -74,6 +116,25 @@ public static class EndatixServiceCollectionExtensions
     /// <summary>
     /// Adds Endatix services with SQL Server as the default database for the specified context.
     /// </summary>
+    /// <remarks>
+    /// <example>
+    /// <code>
+    /// // In Program.cs:
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Add Endatix with SQL Server
+    /// var endatixBuilder = builder.Services.AddEndatixWithSqlServer&lt;AppDbContext&gt;(builder.Configuration);
+    /// 
+    /// // Additional configuration as needed
+    /// endatixBuilder.Api.AddSwagger();
+    /// 
+    /// var app = builder.Build();
+    /// 
+    /// app.UseEndatix();
+    /// app.Run();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <typeparam name="TContext">The database context type.</typeparam>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The application configuration.</param>
@@ -91,6 +152,25 @@ public static class EndatixServiceCollectionExtensions
     /// <summary>
     /// Adds Endatix services with PostgreSQL as the default database for the specified context.
     /// </summary>
+    /// <remarks>
+    /// <example>
+    /// <code>
+    /// // In Program.cs:
+    /// var builder = WebApplication.CreateBuilder(args);
+    /// 
+    /// // Add Endatix with PostgreSQL
+    /// var endatixBuilder = builder.Services.AddEndatixWithPostgreSql&lt;AppDbContext&gt;(builder.Configuration);
+    /// 
+    /// // Additional configuration as needed
+    /// endatixBuilder.Security.UseJwtAuthentication();
+    /// 
+    /// var app = builder.Build();
+    /// 
+    /// app.UseEndatix();
+    /// app.Run();
+    /// </code>
+    /// </example>
+    /// </remarks>
     /// <typeparam name="TContext">The database context type.</typeparam>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The application configuration.</param>
