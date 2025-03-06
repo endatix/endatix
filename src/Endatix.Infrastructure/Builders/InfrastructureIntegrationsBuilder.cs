@@ -13,7 +13,7 @@ namespace Endatix.Infrastructure.Builders;
 public class InfrastructureIntegrationsBuilder
 {
     private readonly InfrastructureBuilder _parentBuilder;
-    private readonly ILogger? _logger;
+    private readonly ILogger _logger;
 
     /// <summary>
     /// Initializes a new instance of the InfrastructureIntegrationsBuilder class.
@@ -22,11 +22,7 @@ public class InfrastructureIntegrationsBuilder
     internal InfrastructureIntegrationsBuilder(InfrastructureBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        
-        if (parentBuilder.LoggerFactory != null)
-        {
-            _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureIntegrationsBuilder>();
-        }
+        _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureIntegrationsBuilder>();
     }
 
     /// <summary>
@@ -80,6 +76,6 @@ public class InfrastructureIntegrationsBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[Integrations Setup] {Message}", message);
+        _logger.LogInformation("[Integrations Setup] {Message}", message);
     }
 }

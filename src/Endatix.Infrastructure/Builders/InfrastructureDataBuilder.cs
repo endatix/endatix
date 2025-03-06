@@ -16,7 +16,7 @@ namespace Endatix.Infrastructure.Builders;
 public class InfrastructureDataBuilder
 {
     private readonly InfrastructureBuilder _parentBuilder;
-    private readonly ILogger? _logger;
+    private readonly ILogger _logger;
 
     /// <summary>
     /// Initializes a new instance of the InfrastructureDataBuilder class.
@@ -25,11 +25,7 @@ public class InfrastructureDataBuilder
     internal InfrastructureDataBuilder(InfrastructureBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-
-        if (parentBuilder.LoggerFactory != null)
-        {
-            _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureDataBuilder>();
-        }
+        _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureDataBuilder>();
     }
 
     internal IServiceCollection Services => _parentBuilder.Services;
@@ -77,6 +73,6 @@ public class InfrastructureDataBuilder
     /// <param name="message">The message to log.</param>
     private void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[Data Setup] {Message}", message);
+        _logger.LogInformation("[Data Setup] {Message}", message);
     }
 }

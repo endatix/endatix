@@ -61,7 +61,17 @@ public class EndatixBuilder : IBuilderParent
     /// <summary>
     /// Gets a logger factory that can create loggers for specific categories.
     /// </summary>
-    public ILoggerFactory? LoggerFactory => Logging.LoggerFactory;
+    public ILoggerFactory LoggerFactory
+    {
+        get
+        {
+            if (Logging.LoggerFactory == null)
+            {
+                throw new InvalidOperationException("Logger factory not initialized. Ensure logging is configured before using it.");
+            }
+            return Logging.LoggerFactory;
+        }
+    }
 
     private EndatixSetupLogger? _setupLogger;
 
@@ -74,8 +84,7 @@ public class EndatixBuilder : IBuilderParent
         {
             if (_setupLogger == null)
             {
-                var logger = LoggerFactory?.CreateLogger("Endatix.Setup") ??
-                    throw new InvalidOperationException("Logger factory not initialized. Ensure logging is configured before using setup logging.");
+                var logger = LoggerFactory.CreateLogger("Endatix.Setup");
                 _setupLogger = new EndatixSetupLogger(logger);
             }
             return _setupLogger;

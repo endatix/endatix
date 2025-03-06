@@ -10,7 +10,7 @@ namespace Endatix.Infrastructure.Builders;
 public class InfrastructureIdentityBuilder
 {
     private readonly InfrastructureBuilder _parentBuilder;
-    private readonly ILogger? _logger;
+    private readonly ILogger _logger;
 
     /// <summary>
     /// Initializes a new instance of the InfrastructureIdentityBuilder class.
@@ -19,11 +19,7 @@ public class InfrastructureIdentityBuilder
     internal InfrastructureIdentityBuilder(InfrastructureBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        
-        if (parentBuilder.LoggerFactory != null)
-        {
-            _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureIdentityBuilder>();
-        }
+        _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureIdentityBuilder>();
     }
 
     /// <summary>
@@ -65,6 +61,6 @@ public class InfrastructureIdentityBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[Identity Setup] {Message}", message);
+        _logger.LogInformation("[Identity Setup] {Message}", message);
     }
 }

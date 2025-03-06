@@ -11,7 +11,7 @@ namespace Endatix.Infrastructure.Builders;
 public class InfrastructureMessagingBuilder
 {
     private readonly InfrastructureBuilder _parentBuilder;
-    private readonly ILogger? _logger;
+    private readonly ILogger _logger;
 
     /// <summary>
     /// Initializes a new instance of the InfrastructureMessagingBuilder class.
@@ -20,11 +20,7 @@ public class InfrastructureMessagingBuilder
     internal InfrastructureMessagingBuilder(InfrastructureBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        
-        if (parentBuilder.LoggerFactory != null)
-        {
-            _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureMessagingBuilder>();
-        }
+        _logger = parentBuilder.LoggerFactory.CreateLogger<InfrastructureMessagingBuilder>();
     }
 
     /// <summary>
@@ -67,6 +63,6 @@ public class InfrastructureMessagingBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[Messaging Setup] {Message}", message);
+        _logger.LogInformation("[Messaging Setup] {Message}", message);
     }
 }

@@ -26,7 +26,8 @@ public interface IBuilderParent
     IAppEnvironment? AppEnvironment { get; }
     
     /// <summary>
-    /// Gets the logger factory.
+    /// Gets the logger factory. All builder parents must provide a logger factory
+    /// to ensure proper diagnostic capabilities during application setup.
     /// </summary>
-    ILoggerFactory? LoggerFactory { get; }
+    ILoggerFactory LoggerFactory { get; }
 } 

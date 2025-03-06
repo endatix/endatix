@@ -13,28 +13,28 @@ namespace Endatix.Infrastructure.Builders;
 /// </summary>
 public class InfrastructureBuilder
 {
-    private readonly ILogger? _logger;
+    private readonly ILogger _logger;
     private readonly IBuilderParent _parentBuilder;
 
     /// <summary>
     /// Gets the service collection.
     /// </summary>
-    internal IServiceCollection Services { get; }
+    internal IServiceCollection Services => _parentBuilder.Services;
 
     /// <summary>
     /// Gets the configuration.
     /// </summary>
-    internal IConfiguration Configuration { get; }
+    internal IConfiguration Configuration => _parentBuilder.Configuration;
 
     /// <summary>
     /// Gets the logger factory.
     /// </summary>
-    internal ILoggerFactory? LoggerFactory { get; }
+    internal ILoggerFactory LoggerFactory => _parentBuilder.LoggerFactory;
 
     /// <summary>
     /// Gets the application environment.
     /// </summary>
-    internal IAppEnvironment? AppEnvironment { get; }
+    internal IAppEnvironment? AppEnvironment => _parentBuilder.AppEnvironment;
 
     /// <summary>
     /// Gets the data builder for configuring data access.
@@ -63,17 +63,9 @@ public class InfrastructureBuilder
     public InfrastructureBuilder(IBuilderParent parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        
-        // Get properties from the parent builder via the interface
-        Services = parentBuilder.Services;
-        Configuration = parentBuilder.Configuration;
-        AppEnvironment = parentBuilder.AppEnvironment;
-        LoggerFactory = parentBuilder.LoggerFactory;
-        
-        if (LoggerFactory != null)
-        {
-            _logger = LoggerFactory.CreateLogger<InfrastructureBuilder>();
-        }
+
+        // Create logger with the non-null LoggerFactory
+        _logger = LoggerFactory.CreateLogger<InfrastructureBuilder>();
 
         Data = new InfrastructureDataBuilder(this);
         Identity = new InfrastructureIdentityBuilder(this);
@@ -121,9 +113,9 @@ public class InfrastructureBuilder
     /// <param name="message">The message to log.</param>
     internal void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[Infrastructure Setup] {Message}", message);
+        _logger.LogInformation("[Infrastructure Setup] {Message}", message);
     }
-    
+
     /// <summary>
     /// Returns to the parent builder.
     /// </summary>
