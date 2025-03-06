@@ -6,12 +6,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configure Endatix with fluent API
 builder.Services
-    .AddEndatix(builder.Configuration)
-    .UseDefaults();
+    .AddEndatixWithDefaults(builder.Configuration);
 
 var app = builder.Build();
 
-// Configure middleware
 app.UseEndatix();
 
 // Map health checks

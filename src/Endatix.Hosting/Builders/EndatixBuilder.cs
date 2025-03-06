@@ -1,15 +1,15 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Endatix.Hosting.Options;
-using Endatix.Hosting.Logging;
-using Endatix.Infrastructure.Builders;
-using Microsoft.EntityFrameworkCore;
 using System.Reflection;
-using Endatix.Infrastructure.Identity;
-using Microsoft.Extensions.Hosting;
 using Endatix.Framework.Hosting;
 using Endatix.Framework.Setup;
+using Endatix.Hosting.Logging;
+using Endatix.Hosting.Options;
+using Endatix.Infrastructure.Builders;
+using Endatix.Infrastructure.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Hosting.Builders;
 
@@ -67,8 +67,14 @@ public class EndatixBuilder : IBuilderParent
         {
             if (Logging.LoggerFactory == null)
             {
-                throw new InvalidOperationException("Logger factory not initialized. Ensure logging is configured before using it.");
+                Logging.UseDefaults();
             }
+
+            if (Logging.LoggerFactory == null)
+            {
+                throw new InvalidOperationException("Logger factory could not be initialized. Please check your logging configuration.");
+            }
+
             return Logging.LoggerFactory;
         }
     }
@@ -112,8 +118,9 @@ public class EndatixBuilder : IBuilderParent
         var serviceProvider = services.BuildServiceProvider();
         AppEnvironment = serviceProvider.GetService<IAppEnvironment>();
 
-        // Initialize logging builder first to ensure logger factory is available
+        // Initialize and configure logging builder first to ensure logger factory is available
         Logging = new EndatixLoggingBuilder(this);
+        Logging.UseDefaults();
 
         // Initialize infrastructure builder with parent builder
         Infrastructure = new InfrastructureBuilder(this);

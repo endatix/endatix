@@ -1,15 +1,15 @@
+using Ardalis.GuardClauses;
+using Endatix.Framework.Hosting;
+using Endatix.Framework.Setup;
+using Endatix.Hosting.Builders;
+using Endatix.Hosting.Core;
+using Endatix.Hosting.Options;
+using Endatix.Infrastructure.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Ardalis.GuardClauses;
-using Endatix.Hosting.Builders;
-using Endatix.Hosting.Core;
-using Endatix.Hosting.Options;
-using Microsoft.EntityFrameworkCore;
-using Endatix.Infrastructure.Identity;
-using Endatix.Framework.Hosting;
-using Endatix.Framework.Setup;
 
 namespace Endatix.Hosting;
 
@@ -67,8 +67,9 @@ public static class EndatixServiceCollectionExtensions
     /// <returns>The service collection with Endatix configured.</returns>
     public static IServiceCollection AddEndatixWithDefaults(
         this IServiceCollection services,
-        IConfiguration configuration) => 
-        services.AddEndatix(configuration).UseDefaults().Services;
+        IConfiguration configuration) =>
+        services.AddEndatix(configuration)
+            .UseDefaults().Services;
 
     /// <summary>
     /// Adds Endatix services with SQL Server as the default database for the specified context.

@@ -193,6 +193,13 @@ public class EndatixLoggingBuilder
             UseDefaults(); // Ensure we have a logger factory
         }
 
-        return LoggerFactory!.CreateLogger<T>();
+        // Now LoggerFactory should never be null, but let's be extra safe
+        if (LoggerFactory == null)
+        {
+            // Create a minimal logger factory as a last resort
+            LoggerFactory = new LoggerFactory();
+        }
+
+        return LoggerFactory.CreateLogger<T>();
     }
 }
