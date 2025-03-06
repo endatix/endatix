@@ -43,11 +43,11 @@ internal static class EndatixBuilderExtensions
         // Use pattern matching to get the parent builder
         return builder switch
         {
-            EndatixApiBuilder api => api.Parent(),
-            EndatixPersistenceBuilder persistence => persistence.Parent(),
-            EndatixSecurityBuilder security => security.Parent(),
-            EndatixMessagingBuilder messaging => messaging.Parent(),
-            EndatixLoggingBuilder logging => logging.Parent(),
+            EndatixApiBuilder api => api.Build(),
+            EndatixPersistenceBuilder persistence => persistence.Build(),
+            EndatixSecurityBuilder security => security.Build(),
+            EndatixMessagingBuilder messaging => messaging.Build(),
+            EndatixLoggingBuilder logging => logging.Build(),
             EndatixBuilder main => main,
             _ => throw new ArgumentException($"Unsupported builder type: {typeof(T).Name}")
         };

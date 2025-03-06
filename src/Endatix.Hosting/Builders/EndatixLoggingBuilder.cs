@@ -154,10 +154,10 @@ public class EndatixLoggingBuilder
     }
 
     /// <summary>
-    /// Gets the parent builder.
+    /// Returns to the parent builder.
     /// </summary>
-    /// <returns>The parent builder.</returns>
-    public EndatixBuilder Parent() => _parentBuilder;
+    /// <returns>The parent builder for chaining.</returns>
+    public EndatixBuilder Build() => _parentBuilder;
 
     private void ApplyLoggingConfiguration()
     {

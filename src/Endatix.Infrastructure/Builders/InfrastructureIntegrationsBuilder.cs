@@ -72,7 +72,7 @@ public class InfrastructureIntegrationsBuilder
     /// Returns to the parent infrastructure builder.
     /// </summary>
     /// <returns>The parent infrastructure builder.</returns>
-    public InfrastructureBuilder Parent() => _parentBuilder;
+    public InfrastructureBuilder Build() => _parentBuilder;
 
     private void LogSetupInfo(string message)
     {

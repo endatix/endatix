@@ -152,10 +152,10 @@ public class EndatixSecurityBuilder
     }
 
     /// <summary>
-    /// Returns the parent builder.
+    /// Returns to the parent builder.
     /// </summary>
-    /// <returns>The parent EndatixBuilder.</returns>
-    public EndatixBuilder Parent() => _parentBuilder;
+    /// <returns>The parent builder for chaining.</returns>
+    public EndatixBuilder Build() => _parentBuilder;
 
     private void LogSetupInfo(string message)
     {

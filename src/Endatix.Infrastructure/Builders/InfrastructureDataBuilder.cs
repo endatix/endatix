@@ -65,7 +65,7 @@ public class InfrastructureDataBuilder
     /// Returns to the parent infrastructure builder.
     /// </summary>
     /// <returns>The parent infrastructure builder.</returns>
-    public InfrastructureBuilder Parent() => _parentBuilder;
+    public InfrastructureBuilder Build() => _parentBuilder;
 
     /// <summary>
     /// Logs setup information with a consistent prefix.

@@ -222,7 +222,7 @@ public class EndatixApiBuilder
     /// Returns to the parent builder.
     /// </summary>
     /// <returns>The parent builder for chaining.</returns>
-    public EndatixBuilder Parent() => _parentBuilder;
+    public EndatixBuilder Build() => _parentBuilder;
 
     private void LogSetupInfo(string message)
     {

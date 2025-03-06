@@ -120,5 +120,5 @@ public class InfrastructureBuilder
     /// Returns to the parent builder.
     /// </summary>
     /// <returns>The parent builder.</returns>
-    public IBuilderParent Parent() => _parentBuilder;
+    public IBuilderParent Build() => _parentBuilder;
 }
