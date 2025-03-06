@@ -18,8 +18,9 @@ using Endatix.Api.Infrastructure;
 using Endatix.Api.Infrastructure.Cors;
 using Endatix.Infrastructure.Identity;
 using Ardalis.GuardClauses;
-using Microsoft.Extensions.FileProviders;
 using Endatix.Framework.Setup;
+using System.Text.Json;
+using Endatix.Framework.Hosting;
 
 namespace Endatix.Api.Builders;
 
@@ -31,7 +32,7 @@ public class ApiConfigurationBuilder
     private readonly IServiceCollection _services;
     private readonly ILogger? _logger;
     private readonly IConfiguration? _configuration;
-    private readonly IHostEnvironment? _environment;
+    private readonly IAppEnvironment? _environment;
 
     private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
 
@@ -44,30 +45,23 @@ public class ApiConfigurationBuilder
     /// Initializes a new instance of the ApiConfigurationBuilder class.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="loggerFactory">Optional logger factory.</param>
-    public ApiConfigurationBuilder(IServiceCollection services, ILoggerFactory? loggerFactory = null)
-    {
-        _services = services;
-        _logger = loggerFactory?.CreateLogger("Endatix.Setup");
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the ApiConfigurationBuilder class with configuration and environment.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The configuration.</param>
-    /// <param name="environment">The hosting environment.</param>
-    /// <param name="loggerFactory">Optional logger factory.</param>
+    /// <param name="configuration">The configuration (optional).</param>
+    /// <param name="environment">The application environment (optional).</param>
+    /// <param name="loggerFactory">The logger factory (optional).</param>
     public ApiConfigurationBuilder(
         IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment environment,
+        IConfiguration? configuration = null,
+        IAppEnvironment? environment = null,
         ILoggerFactory? loggerFactory = null)
     {
         _services = services;
         _configuration = configuration;
         _environment = environment;
-        _logger = loggerFactory?.CreateLogger("Endatix.Setup");
+
+        if (loggerFactory != null)
+        {
+            _logger = loggerFactory.CreateLogger<ApiConfigurationBuilder>();
+        }
     }
 
     /// <summary>
@@ -84,11 +78,7 @@ public class ApiConfigurationBuilder
         // Add default JSON options
         AddDefaultJsonOptions();
 
-        // Add JWT authentication if configuration is available
-        if (_configuration != null && _environment != null)
-        {
-            AddJwtAuthentication();
-        }
+        // NOTE: JWT authentication is now handled exclusively by EndatixSecurityBuilder
 
         // Register FastEndpoints
         _services.AddFastEndpoints();
@@ -101,51 +91,35 @@ public class ApiConfigurationBuilder
     }
 
     /// <summary>
-    /// Adds JWT authentication with default settings.
-    /// </summary>
-    /// <returns>The builder for chaining.</returns>
-    public virtual ApiConfigurationBuilder AddJwtAuthentication()
-    {
-        Guard.Against.Null(_configuration, nameof(_configuration), "Configuration is required for JWT authentication");
-        Guard.Against.Null(_environment, nameof(_environment), "Environment is required for JWT authentication");
-
-        LogSetupInfo("Configuring JWT authentication");
-
-        var jwtSettings = _configuration.GetRequiredSection(JwtOptions.SECTION_NAME).Get<JwtOptions>();
-        Guard.Against.Null(jwtSettings, nameof(jwtSettings), "JWT settings are required for authentication");
-
-        var isDevelopment = _environment.IsDevelopment();
-        _services.AddAuthenticationJwtBearer(
-            signingOptions => signingOptions.SigningKey = jwtSettings.SigningKey,
-            bearerOptions =>
-            {
-                bearerOptions.RequireHttpsMetadata = !isDevelopment;
-                bearerOptions.TokenValidationParameters = new TokenValidationParameters
-                {
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
-                    ValidIssuer = jwtSettings.Issuer,
-                    ValidAudiences = jwtSettings.Audiences,
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW_IN_SECONDS)
-                };
-            });
-
-        _services.AddAuthorization();
-
-        LogSetupInfo("JWT authentication configured successfully");
-        return this;
-    }
-
-    /// <summary>
-    /// Adds CORS services with default settings.
+    /// Adds CORS services to the service collection.
     /// </summary>
     /// <returns>The builder for chaining.</returns>
     public virtual ApiConfigurationBuilder AddCorsServices()
     {
         LogSetupInfo("Configuring CORS services");
+
+        // Ensure IAppEnvironment is available 
+        if (_services.All(sd => sd.ServiceType != typeof(IAppEnvironment)))
+        {
+            LogSetupInfo("No IAppEnvironment found. Attempting to create an adapter...");
+
+            // Try to get IHostEnvironment
+            var serviceProvider = _services.BuildServiceProvider();
+            var hostEnvironment = serviceProvider.GetService<IHostEnvironment>();
+
+            if (hostEnvironment != null)
+            {
+                // Register an adapter that converts IHostEnvironment to IAppEnvironment
+                _services.AddSingleton<IAppEnvironment>(new AppEnvironmentAdapter(hostEnvironment));
+                LogSetupInfo("Created and registered an IAppEnvironment adapter from IHostEnvironment.");
+            }
+            else
+            {
+                // Register a default development environment
+                _services.AddSingleton<IAppEnvironment>(new DefaultAppEnvironment());
+                LogSetupInfo("No host environment found. Registered a default development IAppEnvironment.");
+            }
+        }
 
         // Add CORS configuration services
         _services.AddTransient<EndpointsCorsConfigurator>();
@@ -275,51 +249,9 @@ public class ApiConfigurationBuilder
     }
 
     /// <summary>
-    /// Customizes the JWT authentication settings.
+    /// Configures CORS services with custom options.
     /// </summary>
-    /// <param name="configureJwt">The action to customize JWT authentication settings.</param>
-    /// <returns>The builder for chaining.</returns>
-    public virtual ApiConfigurationBuilder WithJwtAuthentication(Action<TokenValidationParameters> configureJwt)
-    {
-        Guard.Against.Null(_configuration, nameof(_configuration), "Configuration is required for JWT authentication");
-
-        LogSetupInfo("Customizing JWT authentication");
-
-        var jwtSettings = _configuration.GetRequiredSection(JwtOptions.SECTION_NAME).Get<JwtOptions>();
-        Guard.Against.Null(jwtSettings, nameof(jwtSettings), "JWT settings are required for authentication");
-
-        _services.AddAuthenticationJwtBearer(
-            signingOptions => signingOptions.SigningKey = jwtSettings.SigningKey,
-            bearerOptions =>
-            {
-                var tokenValidationParameters = new TokenValidationParameters
-                {
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
-                    ValidIssuer = jwtSettings.Issuer,
-                    ValidAudiences = jwtSettings.Audiences,
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW_IN_SECONDS)
-                };
-
-                // Apply custom configuration
-                configureJwt(tokenValidationParameters);
-
-                bearerOptions.TokenValidationParameters = tokenValidationParameters;
-            });
-
-        _services.AddAuthorization();
-
-        LogSetupInfo("JWT authentication customized successfully");
-        return this;
-    }
-
-    /// <summary>
-    /// Customizes the CORS settings.
-    /// </summary>
-    /// <param name="configureCors">The action to customize CORS settings.</param>
+    /// <param name="configureCors">The action to configure CORS options.</param>
     /// <returns>The builder for chaining.</returns>
     public virtual ApiConfigurationBuilder WithCorsServices(Action<CorsOptions> configureCors)
     {
@@ -357,5 +289,27 @@ public class ApiConfigurationBuilder
     protected virtual void LogSetupInfo(string message)
     {
         _logger?.LogInformation("[API Setup] {Message}", message);
+    }
+
+    // Helper adapter classes
+    private class AppEnvironmentAdapter : IAppEnvironment
+    {
+        private readonly IHostEnvironment _environment;
+
+        public AppEnvironmentAdapter(IHostEnvironment environment)
+        {
+            _environment = environment;
+        }
+
+        public string EnvironmentName => _environment.EnvironmentName;
+
+        public bool IsDevelopment() => _environment.EnvironmentName == "Development";
+    }
+
+    private class DefaultAppEnvironment : IAppEnvironment
+    {
+        public string EnvironmentName => "Development";
+
+        public bool IsDevelopment() => true;
     }
 }

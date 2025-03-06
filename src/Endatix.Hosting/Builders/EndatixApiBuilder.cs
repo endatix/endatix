@@ -1,5 +1,4 @@
 using Endatix.Api.Builders;
-using Endatix.Api.Setup;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,8 +27,18 @@ public class EndatixApiBuilder
         _logger = parentBuilder.LoggerFactory?.CreateLogger("Endatix.Setup");
         _middlewareOptions = new EndatixApiMiddlewareOptions();
 
-        // Create the API configuration builder
-        _apiConfigurationBuilder = parentBuilder.Services.GetApiBuilder(parentBuilder.LoggerFactory);
+        // Create the API configuration builder with all available parameters
+        _apiConfigurationBuilder = new ApiConfigurationBuilder(
+            parentBuilder.Services,
+            parentBuilder.Configuration,
+            parentBuilder.AppEnvironment,
+            parentBuilder.LoggerFactory);
+
+        // Log a warning if environment is missing
+        if (parentBuilder.AppEnvironment is null)
+        {
+            _logger?.LogWarning("No application environment was provided to EndatixBuilder. Some features may not be fully available.");
+        }
     }
 
     /// <summary>

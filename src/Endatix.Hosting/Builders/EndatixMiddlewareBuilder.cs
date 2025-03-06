@@ -20,12 +20,12 @@ public class EndatixMiddlewareBuilder
 {
     private readonly IApplicationBuilder _app;
     private readonly ILogger? _logger;
-    
+
     /// <summary>
     /// Gets the application builder.
     /// </summary>
     public IApplicationBuilder App => _app;
-    
+
     /// <summary>
     /// Initializes a new instance of the EndatixMiddlewareBuilder class.
     /// </summary>
@@ -35,7 +35,7 @@ public class EndatixMiddlewareBuilder
         _app = app;
         _logger = app.ApplicationServices.GetService<ILoggerFactory>()?.CreateLogger("Endatix.Middleware");
     }
-    
+
     /// <summary>
     /// Configures the middleware with default settings.
     /// </summary>
@@ -43,17 +43,17 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseDefaults()
     {
         LogSetupInfo("Configuring middleware with default settings");
-        
+
         UseExceptionHandler()
             .UseSecurity()
             .UseHsts()
             .UseHttpsRedirection()
             .UseRequestLogging();
-        
+
         LogSetupInfo("Middleware configured with default settings");
         return this;
     }
-    
+
     /// <summary>
     /// Adds exception handling middleware.
     /// </summary>
@@ -65,7 +65,7 @@ public class EndatixMiddlewareBuilder
         _app.UseExceptionHandler(path);
         return this;
     }
-    
+
     /// <summary>
     /// Adds security middleware (authentication and authorization).
     /// </summary>
@@ -77,7 +77,7 @@ public class EndatixMiddlewareBuilder
         _app.UseAuthorization();
         return this;
     }
-    
+
     /// <summary>
     /// Adds HSTS middleware.
     /// </summary>
@@ -88,7 +88,7 @@ public class EndatixMiddlewareBuilder
         _app.UseHsts();
         return this;
     }
-    
+
     /// <summary>
     /// Adds HTTPS redirection middleware.
     /// </summary>
@@ -99,7 +99,7 @@ public class EndatixMiddlewareBuilder
         _app.UseHttpsRedirection();
         return this;
     }
-    
+
     /// <summary>
     /// Adds request logging middleware.
     /// </summary>
@@ -111,7 +111,7 @@ public class EndatixMiddlewareBuilder
         // For specific logging implementation like Serilog, this should be configured in the application
         return this;
     }
-    
+
     /// <summary>
     /// Adds API middleware.
     /// </summary>
@@ -119,6 +119,70 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseApi()
     {
         LogSetupInfo("Adding API middleware");
+
+        // Apply FastEndpoints directly
+        UseFastEndpoints();
+
+        var env = _app.ApplicationServices.GetService<IWebHostEnvironment>();
+        if (env != null && (env.IsDevelopment() || env.IsProduction()))
+        {
+            UseSwagger();
+        }
+
+        _app.UseCors();
+        return this;
+    }
+
+    /// <summary>
+    /// Adds API middleware with custom configuration.
+    /// </summary>
+    /// <param name="configureApi">The configuration action.</param>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixMiddlewareBuilder UseApi(Action<EndatixApiMiddlewareOptions> configureApi)
+    {
+        LogSetupInfo("Adding API middleware with custom configuration");
+
+        // Create options with defaults
+        var options = new EndatixApiMiddlewareOptions();
+        configureApi(options);
+
+        // Apply FastEndpoints configuration
+        UseFastEndpoints(config =>
+        {
+            // Apply versioning configuration
+            config.Versioning.Prefix = options.VersioningPrefix;
+            config.Endpoints.RoutePrefix = options.RoutePrefix;
+
+            // Apply any custom configuration
+            options.ConfigureFastEndpoints?.Invoke(config);
+        });
+
+        // Apply Swagger if enabled
+        if (options.UseSwagger)
+        {
+            var env = _app.ApplicationServices.GetService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            if (env != null && (env.IsDevelopment() || options.EnableSwaggerInProduction))
+            {
+                UseSwagger();
+            }
+        }
+
+        // Apply CORS if enabled
+        if (options.UseCors)
+        {
+            UseCors();
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// Adds FastEndpoints middleware with default configuration.
+    /// </summary>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixMiddlewareBuilder UseFastEndpoints()
+    {
+        LogSetupInfo("Adding FastEndpoints middleware with default configuration");
 
         _app.UseDefaultExceptionHandler(_logger, true, true);
         _app.UseFastEndpoints(fastEndpoints =>
@@ -130,83 +194,9 @@ public class EndatixMiddlewareBuilder
             fastEndpoints.Security.PermissionsClaimType = ClaimNames.Permission;
         });
 
-        var env = _app.ApplicationServices.GetService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
-        if (env != null && (env.IsDevelopment() || env.IsProduction()))
-        {
-            _app.UseSwaggerGen(null, c => c.Path = "");
-        }
+        return this;
+    }
 
-        //_app.UseCors();
-        
-        return this;
-
-        // Apply FastEndpoints directly
-        UseFastEndpoints();
-        
-        // Use Swagger in development
-        //var env = _app.ApplicationServices.GetService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
-        if (env != null && env.IsDevelopment())
-        {
-            UseSwagger();
-        }
-        
-        return this;
-    }
-    
-    /// <summary>
-    /// Adds API middleware with custom configuration.
-    /// </summary>
-    /// <param name="configureApi">The configuration action.</param>
-    /// <returns>The builder for chaining.</returns>
-    public EndatixMiddlewareBuilder UseApi(Action<EndatixApiMiddlewareOptions> configureApi)
-    {
-        LogSetupInfo("Adding API middleware with custom configuration");
-        
-        // Create options with defaults
-        var options = new EndatixApiMiddlewareOptions();
-        configureApi(options);
-        
-        // Apply FastEndpoints configuration
-        UseFastEndpoints(config => 
-        {
-            // Apply versioning configuration
-            config.Versioning.Prefix = options.VersioningPrefix;
-            config.Endpoints.RoutePrefix = options.RoutePrefix;
-            
-            // Apply any custom configuration
-            options.ConfigureFastEndpoints?.Invoke(config);
-        });
-        
-        // Apply Swagger if enabled
-        if (options.UseSwagger)
-        {
-            var env = _app.ApplicationServices.GetService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
-            if (env != null && (env.IsDevelopment() || options.EnableSwaggerInProduction))
-            {
-                UseSwagger();
-            }
-        }
-        
-        // Apply CORS if enabled
-        if (options.UseCors)
-        {
-            UseCors();
-        }
-        
-        return this;
-    }
-    
-    /// <summary>
-    /// Adds FastEndpoints middleware with default configuration.
-    /// </summary>
-    /// <returns>The builder for chaining.</returns>
-    public EndatixMiddlewareBuilder UseFastEndpoints()
-    {
-        LogSetupInfo("Adding FastEndpoints middleware with default configuration");
-        _app.UseFastEndpoints();
-        return this;
-    }
-    
     /// <summary>
     /// Adds FastEndpoints middleware with custom configuration.
     /// </summary>
@@ -218,7 +208,7 @@ public class EndatixMiddlewareBuilder
         _app.UseFastEndpoints(configure);
         return this;
     }
-    
+
     /// <summary>
     /// Adds Swagger middleware.
     /// </summary>
@@ -226,10 +216,10 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseSwagger()
     {
         LogSetupInfo("Adding Swagger middleware");
-        _app.UseSwaggerGen();
+        _app.UseSwaggerGen(null, c => c.Path = "");
         return this;
     }
-    
+
     /// <summary>
     /// Adds Swagger middleware with custom configuration.
     /// </summary>
@@ -241,7 +231,7 @@ public class EndatixMiddlewareBuilder
         _app.UseSwaggerGen(swaggerOptions);
         return this;
     }
-    
+
     /// <summary>
     /// Adds CORS middleware.
     /// </summary>
@@ -252,7 +242,7 @@ public class EndatixMiddlewareBuilder
         _app.UseCors();
         return this;
     }
-    
+
     /// <summary>
     /// Adds CORS middleware with custom policy.
     /// </summary>
@@ -264,7 +254,7 @@ public class EndatixMiddlewareBuilder
         _app.UseCors(policyName);
         return this;
     }
-    
+
     /// <summary>
     /// Adds legacy Endatix API middleware for backward compatibility.
     /// </summary>
@@ -272,18 +262,19 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseLegacyEndatixApi()
     {
         LogSetupInfo("Adding legacy Endatix API middleware");
-        
+
         // Configure exception handling
         UseExceptionHandler();
-        
+
         // Configure FastEndpoints
         UseFastEndpoints(fastEndpoints =>
         {
             fastEndpoints.Versioning.Prefix = "v";
             fastEndpoints.Endpoints.RoutePrefix = "api";
-            
+
             // Add LongToStringConverter if available
-            try {
+            try
+            {
                 var converterType = Type.GetType("Endatix.Api.Infrastructure.LongToStringConverter, Endatix.Api");
                 if (converterType != null)
                 {
@@ -292,14 +283,16 @@ public class EndatixMiddlewareBuilder
                     // and let the specific implementation handle it
                 }
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 _logger?.LogWarning(ex, "Could not add LongToStringConverter");
             }
-            
+
             // Set security claims
             fastEndpoints.Security.RoleClaimType = ClaimTypes.Role;
-            
-            try {
+
+            try
+            {
                 var claimNamesType = Type.GetType("Endatix.Infrastructure.Identity.ClaimNames, Endatix.Infrastructure");
                 if (claimNamesType != null)
                 {
@@ -314,24 +307,25 @@ public class EndatixMiddlewareBuilder
                     }
                 }
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 _logger?.LogWarning(ex, "Could not set PermissionsClaimType");
             }
         });
-        
+
         // Configure Swagger
         var env = _app.ApplicationServices.GetService<IWebHostEnvironment>();
         if (env != null && (env.IsDevelopment() || env.IsProduction()))
         {
             UseSwagger(c => { });
         }
-        
+
         // Configure CORS
         UseCors();
-        
+
         return this;
     }
-    
+
     /// <summary>
     /// Applies custom middleware configuration.
     /// </summary>
@@ -343,9 +337,9 @@ public class EndatixMiddlewareBuilder
         configure(_app);
         return this;
     }
-    
+
     private void LogSetupInfo(string message)
     {
         _logger?.LogInformation("[Middleware Setup] {Message}", message);
     }
-} 
+}

@@ -7,6 +7,9 @@ using Endatix.Infrastructure.Builders;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 using Endatix.Infrastructure.Identity;
+using Microsoft.Extensions.Hosting;
+using Endatix.Framework.Hosting;
+using Endatix.Framework.Setup;
 
 namespace Endatix.Hosting.Builders;
 
@@ -24,6 +27,11 @@ public class EndatixBuilder
     /// Gets the configuration.
     /// </summary>
     internal IConfiguration Configuration { get; }
+
+    /// <summary>
+    /// Gets the application environment.
+    /// </summary>
+    internal IAppEnvironment? AppEnvironment { get; }
 
     /// <summary>
     /// Gets the API builder.
@@ -84,10 +92,16 @@ public class EndatixBuilder
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The configuration.</param>
-    internal EndatixBuilder(IServiceCollection services, IConfiguration configuration)
+    internal EndatixBuilder(
+        IServiceCollection services,
+        IConfiguration configuration)
     {
         Services = services;
         Configuration = configuration;
+
+        // Try to get IAppEnvironment from DI
+        var serviceProvider = services.BuildServiceProvider();
+        AppEnvironment = serviceProvider.GetService<IAppEnvironment>();
 
         // Initialize infrastructure builder first
         Infrastructure = new InfrastructureBuilder(services, configuration);
@@ -140,13 +154,13 @@ public class EndatixBuilder
     private DatabaseProvider GetConfiguredDatabaseProvider()
     {
         var providerName = Configuration.GetValue<string>("Endatix:Persistence:Provider");
-        
-        if (!string.IsNullOrEmpty(providerName) && 
+
+        if (!string.IsNullOrEmpty(providerName) &&
             Enum.TryParse<DatabaseProvider>(providerName, true, out var provider))
         {
             return provider;
         }
-        
+
         // Default to SQL Server for backward compatibility
         return DatabaseProvider.SqlServer;
     }
@@ -186,13 +200,13 @@ public class EndatixBuilder
     public EndatixBuilder UseSqlServer<TContext>() where TContext : DbContext
     {
         Persistence.UseSqlServer<TContext>();
-        
+
         // Also register the identity context if not already registered
         if (typeof(TContext) != typeof(AppIdentityDbContext))
         {
             Persistence.UseSqlServer<AppIdentityDbContext>();
         }
-        
+
         return this;
     }
 
@@ -216,13 +230,13 @@ public class EndatixBuilder
     public EndatixBuilder UsePostgreSql<TContext>() where TContext : DbContext
     {
         Persistence.UsePostgreSql<TContext>();
-        
+
         // Also register the identity context if not already registered
         if (typeof(TContext) != typeof(AppIdentityDbContext))
         {
             Persistence.UsePostgreSql<AppIdentityDbContext>();
         }
-        
+
         return this;
     }
 

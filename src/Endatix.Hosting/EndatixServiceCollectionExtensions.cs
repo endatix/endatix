@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Ardalis.GuardClauses;
 using Endatix.Hosting.Builders;
 using Endatix.Hosting.Core;
@@ -18,7 +20,18 @@ public static class EndatixServiceCollectionExtensions
 {
     /// <summary>
     /// Adds Endatix services to the service collection.
+    /// This is the main entry point for configuring Endatix in your application.
     /// </summary>
+    /// <remarks>
+    /// This method:
+    /// 1. Registers core Endatix framework services
+    /// 2. Registers core identity services
+    /// 3. Provides a fluent builder API for further configuration
+    /// 
+    /// Use this method for the most flexibility. For convenience, you can use 
+    /// AddEndatixWithDefaults, AddEndatixWithSqlServer, or AddEndatixWithPostgreSql
+    /// for common scenarios.
+    /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The application configuration.</param>
     /// <returns>An EndatixBuilder for further configuration.</returns>
@@ -35,34 +48,34 @@ public static class EndatixServiceCollectionExtensions
         services.Configure<HostingOptions>(
             configuration.GetSection(HostingOptions.SectionName));
 
-        // Register core framework services (including IAppEnvironment)
+        // Register core framework services (this handles IAppEnvironment registration)
         services.AddEndatixFrameworkServices();
 
-        // Register core identity services that are needed regardless of configuration method
+        // Register core identity services
         services.AddEndatixIdentityEssentialServices();
 
-        // Create and return the builder
+        // Create the builder
         return new EndatixBuilder(services, configuration);
     }
 
     /// <summary>
-    /// Adds Endatix services with default configuration.
+    /// Adds Endatix services with default settings including SQL Server persistence.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The application configuration.</param>
-    /// <returns>The service collection for chaining.</returns>
+    /// <returns>The service collection with Endatix configured.</returns>
     public static IServiceCollection AddEndatixWithDefaults(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddEndatix(configuration)
-            .UseDefaults();
-
+        // Use automatic database provider selection based on configuration
+        var builder = services.AddEndatix(configuration);
+        builder.UseDefaults();
         return services;
     }
 
     /// <summary>
-    /// Adds Endatix services with SQL Server persistence.
+    /// Adds Endatix services with SQL Server as the default database for the specified context.
     /// </summary>
     /// <typeparam name="TContext">The database context type.</typeparam>
     /// <param name="services">The service collection.</param>
@@ -76,8 +89,9 @@ public static class EndatixServiceCollectionExtensions
         var builder = services.AddEndatix(configuration);
         builder.Persistence.UseSqlServer<TContext>();
 
-        // Also register the identity context if not already registered
-        if (typeof(TContext) != typeof(AppIdentityDbContext))
+        // Register AppIdentityDbContext if it's not already registered 
+        // and if TContext is not already AppIdentityDbContext
+        if (!typeof(TContext).Name.Equals(nameof(AppIdentityDbContext)))
         {
             builder.Persistence.UseSqlServer<AppIdentityDbContext>();
         }
@@ -86,7 +100,7 @@ public static class EndatixServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Adds Endatix services with PostgreSQL persistence.
+    /// Adds Endatix services with PostgreSQL as the default database for the specified context.
     /// </summary>
     /// <typeparam name="TContext">The database context type.</typeparam>
     /// <param name="services">The service collection.</param>
@@ -100,8 +114,9 @@ public static class EndatixServiceCollectionExtensions
         var builder = services.AddEndatix(configuration);
         builder.Persistence.UsePostgreSql<TContext>();
 
-        // Also register the identity context if not already registered
-        if (typeof(TContext) != typeof(AppIdentityDbContext))
+        // Register AppIdentityDbContext if it's not already registered 
+        // and if TContext is not already AppIdentityDbContext
+        if (!typeof(TContext).Name.Equals(nameof(AppIdentityDbContext)))
         {
             builder.Persistence.UsePostgreSql<AppIdentityDbContext>();
         }
