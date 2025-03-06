@@ -1,11 +1,6 @@
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Infrastructure.Domain;
-using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,9 +11,6 @@ namespace Endatix.Infrastructure.Builders;
 /// </summary>
 public class InfrastructureBuilder
 {
-    private readonly IServiceCollection _services;
-    private readonly IConfiguration _configuration;
-
     /// <summary>
     /// Gets the data builder for configuring data access.
     /// </summary>
@@ -41,8 +33,8 @@ public class InfrastructureBuilder
 
     public InfrastructureBuilder(IServiceCollection services, IConfiguration configuration)
     {
-        _services = services;
-        _configuration = configuration;
+        Services = services;
+        Configuration = configuration;
 
         Data = new InfrastructureDataBuilder(this);
         Identity = new InfrastructureIdentityBuilder(this);
@@ -56,15 +48,15 @@ public class InfrastructureBuilder
     public InfrastructureBuilder UseDefaults()
     {
         // Configure core infrastructure services
-        _services.AddHttpContextAccessor();
-        _services.AddWebHookProcessing();
+        Services.AddHttpContextAccessor();
+        Services.AddWebHookProcessing();
 
-        this.Data.UseDefaults();
-        this.Messaging.UseDefaults();
-        this.Identity.UseDefaults();
-        this.Integrations.UseDefaults();
+        Data.UseDefaults();
+        Messaging.UseDefaults();
+        Identity.UseDefaults();
+        Integrations.UseDefaults();
 
-        _services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
+        Services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
 
         // Add default config options
         ConfigureDefaultOptions();
@@ -74,17 +66,17 @@ public class InfrastructureBuilder
 
     private void ConfigureDefaultOptions()
     {
-        _services.AddOptions<DataOptions>()
+        Services.AddOptions<DataOptions>()
             .BindConfiguration(DataOptions.SECTION_NAME)
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        _services.AddOptions<SubmissionOptions>()
+        Services.AddOptions<SubmissionOptions>()
             .BindConfiguration(SubmissionOptions.SECTION_NAME)
             .ValidateDataAnnotations()
             .ValidateOnStart();
     }
 
-    internal IServiceCollection Services => _services;
-    internal IConfiguration Configuration => _configuration;
+    internal IServiceCollection Services { get; }
+    internal IConfiguration Configuration { get; }
 }

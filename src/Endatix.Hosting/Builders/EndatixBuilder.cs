@@ -120,23 +120,17 @@ public class EndatixBuilder
     /// <returns>The builder for chaining.</returns>
     public EndatixBuilder UseDefaults()
     {
-        // Configure logging first
         Logging.UseDefaults();
 
-        // Log the start of configuration
         SetupLogger.Information("Starting Endatix configuration with default settings");
 
-        // Auto-configure persistence if it hasn't been set
-        // Try to determine database provider from configuration or use SQL Server as default
         var databaseProvider = GetConfiguredDatabaseProvider();
         Persistence.UseDefaults(databaseProvider);
         SetupLogger.Information($"Persistence configuration completed using {databaseProvider}");
 
-        // Configure infrastructure
         Infrastructure.UseDefaults();
         SetupLogger.Information("Infrastructure configuration completed");
 
-        // Configure other features
         Api.UseDefaults();
         SetupLogger.Information("API configuration completed");
 
@@ -153,7 +147,7 @@ public class EndatixBuilder
     /// </summary>
     private DatabaseProvider GetConfiguredDatabaseProvider()
     {
-        var providerName = Configuration.GetValue<string>("Endatix:Persistence:Provider");
+        var providerName = Configuration.GetConnectionString("DefaultConnection_DbProvider")?.ToLowerInvariant();
 
         if (!string.IsNullOrEmpty(providerName) &&
             Enum.TryParse<DatabaseProvider>(providerName, true, out var provider))
@@ -161,7 +155,6 @@ public class EndatixBuilder
             return provider;
         }
 
-        // Default to SQL Server for backward compatibility
         return DatabaseProvider.SqlServer;
     }
 
