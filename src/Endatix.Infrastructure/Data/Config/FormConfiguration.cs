@@ -3,13 +3,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Entities;
 
 namespace Endatix.Infrastructure.Data.Config;
+
 public class FormConfiguration : IEntityTypeConfiguration<Form>
 {
     public void Configure(EntityTypeBuilder<Form> builder)
     {
         builder.ToTable("Forms");
-
-        builder.HasQueryFilter(f => !f.IsDeleted);
 
         builder.Property(f => f.Id)
             .IsRequired();

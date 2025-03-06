@@ -11,6 +11,11 @@ namespace Endatix.Infrastructure.Identity;
 public class AppUser : IdentityUser<long>
 {
     /// <summary>
+    /// The ID of the tenant this user belongs to.
+    /// </summary>
+    public long TenantId { get; set; }
+    
+    /// <summary>
     /// The user's refresh token.
     /// </summary>
     public string? RefreshTokenHash { get; set; }
@@ -27,6 +32,7 @@ public class AppUser : IdentityUser<long>
 
         var user = new User(
             id: Id,
+            tenantId: TenantId,
             userName: UserName,
             email: Email,
             isVerified: EmailConfirmed

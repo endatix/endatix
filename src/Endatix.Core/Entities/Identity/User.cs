@@ -9,14 +9,16 @@ namespace Endatix.Core.Entities.Identity;
 /// It encapsulates the core attributes and behaviors of a user within the application.
 /// Persistence implementation is done via the <see cref="AppUser"/>
 /// </summary>
-public sealed class User : BaseEntity, IAggregateRoot
+public sealed class User : TenantEntity, IAggregateRoot
 {
     public User(
         long id,
+        long tenantId,
         string userName,
         string email,
         bool isVerified
         )
+        : base(tenantId)
     {
         Guard.Against.NegativeOrZero(id);
         Guard.Against.NullOrWhiteSpace(userName);
@@ -26,6 +28,17 @@ public sealed class User : BaseEntity, IAggregateRoot
         UserName = userName;
         Email = email;
         IsVerified = isVerified;
+    }
+
+    // TEMP until the tests are fixed
+    public User(
+        long id,
+        string userName,
+        string email,
+        bool isVerified
+        )
+        : this(id, 1, userName, email, isVerified)
+    {
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Events;
@@ -15,7 +16,8 @@ namespace Endatix.Core.UseCases.Register;
 /// </remarks>
 public class RegisterHandler(
     IUserRegistrationService userRegistrationService,
-    IMediator mediator
+    IMediator mediator,
+    ITenantContext tenantContext
     ) : ICommandHandler<RegisterCommand, Result<User>>
 {
     /// <summary>
@@ -26,7 +28,10 @@ public class RegisterHandler(
     /// <returns>A Result containing the newly registered User if successful, or an error if registration fails.</returns>
     public async Task<Result<User>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        var registerResult = await userRegistrationService.RegisterUserAsync(request.Email, request.Password, cancellationToken);
+        Guard.Against.Null(tenantContext.TenantId);
+        
+        var tenantId = tenantContext.TenantId!.Value;
+        var registerResult = await userRegistrationService.RegisterUserAsync(tenantId, request.Email, request.Password, cancellationToken);
 
         if (registerResult.IsSuccess && registerResult.Value is { } user)
         {

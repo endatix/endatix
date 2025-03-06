@@ -20,7 +20,7 @@ public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepo
         }
 
         if(await ShouldCreateNewFormDefinitionAsync(activeDefinition, request)) {
-            var newFormDefinition = new FormDefinition(request.IsDraft??false, request.JsonData);
+            var newFormDefinition = new FormDefinition(formWithActiveDefinition.TenantId, request.IsDraft??false, request.JsonData);
             formWithActiveDefinition.AddFormDefinition(newFormDefinition);
             
             if (!newFormDefinition.IsDraft) {

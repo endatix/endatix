@@ -3,17 +3,24 @@ using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-public partial class FormDefinition : BaseEntity, IAggregateRoot
+public partial class FormDefinition : TenantEntity, IAggregateRoot
 {
     private readonly List<Submission> _submissions = [];
 
-    private FormDefinition() { }
+    private FormDefinition() { } // For EF Core
 
-    public FormDefinition(bool isDraft = false, string? jsonData = null)
+    public FormDefinition(long tenantId,bool isDraft = false, string? jsonData = null)
+        : base(tenantId)
     {
         jsonData ??= EndatixConfig.Configuration.DefaultFormDefinitionJson;
         IsDraft = isDraft;
         JsonData = jsonData;
+    }
+
+    // TEMP until the tests are fixed
+    public FormDefinition(bool isDraft = false, string? jsonData = null)
+        : this(1, isDraft, jsonData)
+    {
     }
 
     public IReadOnlyList<Submission> Submissions => _submissions.AsReadOnly();

@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
@@ -15,12 +17,14 @@ public class AppDbContext : DbContext
 {
     private readonly IIdGenerator<long> _idGenerator;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ITenantContext _tenantContext;
 
     protected AppDbContext() { }
-    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator, IHttpContextAccessor httpContextAccessor) : base(options)
+    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator, IHttpContextAccessor httpContextAccessor, ITenantContext tenantContext) : base(options)
     {
         _idGenerator = idGenerator;
         _httpContextAccessor = httpContextAccessor;
+        _tenantContext = tenantContext;
     }
 
     public DbSet<Form> Forms { get; set; }
@@ -42,15 +46,47 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(builder);
 
-        // TODO: Remove this query filter when multitenancy is implemented
-        var filterDate = DateTime.SpecifyKind(new DateTime(2021, 1, 1), DateTimeKind.Utc);
+        var tenantIdHasValueMethod = typeof(AppDbContext).GetMethod(nameof(TenantIdHasValue), BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var tenantIdHasValueExpression = Expression.Call(Expression.Constant(this), tenantIdHasValueMethod);
+        var getTenantIdMethod = typeof(AppDbContext).GetMethod(nameof(GetTenantId), BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var tenantIdExpression = Expression.Call(Expression.Constant(this), getTenantIdMethod);
+        foreach (var entityType in builder.Model.GetEntityTypes())
+        {
+            var parameter = Expression.Parameter(entityType.ClrType, "e");
+            var filters = new List<Expression>();
 
-        builder.Entity<Form>().HasQueryFilter(form =>
-            IsInternalUser() || (form.CreatedAt >= filterDate));
+            // Add deletion filter for BaseEntity descendants
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                var isDeletedProperty = Expression.Property(parameter, "IsDeleted");
+                var isDeletedFilter = Expression.Equal(isDeletedProperty, Expression.Constant(false));
+                filters.Add(isDeletedFilter);
+            }
+
+            // Add tenant filter for TenantEntity descendants
+            if (typeof(TenantEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                var tenantProperty = Expression.Property(parameter, "TenantId");
+                var tenantIdEqualsExpression = Expression.Equal(tenantProperty, Expression.Convert(tenantIdExpression, typeof(long)));
+                var tenantFilter = Expression.OrElse(Expression.Not(tenantIdHasValueExpression), tenantIdEqualsExpression);
+                filters.Add(tenantFilter);
+            }
+
+            if (filters.Any())
+            {
+                var combinedFilter = filters.Aggregate(Expression.AndAlso);
+                var lambda = Expression.Lambda(combinedFilter, parameter);
+                builder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+            }
+        }
 
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         PrefixTableNames(builder);
     }
+
+    private bool TenantIdHasValue() => _tenantContext?.TenantId.HasValue ?? false;
+
+    private long GetTenantId() =>_tenantContext?.TenantId ?? 0;
 
     public override int SaveChanges()
     {

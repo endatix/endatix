@@ -3,11 +3,12 @@ using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-public partial class Submission : BaseEntity, IAggregateRoot
+public partial class Submission : TenantEntity, IAggregateRoot
 {
-    private Submission() { }
+    private Submission() { } // For EF Core
 
-    public Submission(string jsonData, long formId, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
+    public Submission(long tenantId, string jsonData, long formId, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
+        : base(tenantId)
     {
         Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
         Guard.Against.NegativeOrZero(formId, nameof(formId));
@@ -21,6 +22,12 @@ public partial class Submission : BaseEntity, IAggregateRoot
         Status = SubmissionStatus.New;
 
         SetCompletionStatus(isComplete);
+    }
+
+    // TEMP until the tests are fixed
+    public Submission(string jsonData, long formId, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
+        : this(1, jsonData, formId, formDefinitionId, isComplete, currentPage, metadata)
+    {
     }
 
     public bool IsComplete { get; private set; }
