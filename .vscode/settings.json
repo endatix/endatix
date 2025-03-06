@@ -1,18 +1,26 @@
 {
-    "cSpell.words": [
-        "Endatix"
-    ],
-    "files.exclude": {
-        "**/node_modules/": true,
-        "**/bin/": true,
-        "**/obj/": true
+  "cSpell.words": ["Endatix"],
+  "files.exclude": {
+    "**/node_modules/": true,
+    "**/bin/": true,
+    "**/obj/": true
+  },
+  "editor.formatOnSave": false,
+  "eslint.lintTask.enable": true,
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.cs": "${capture}.*.cs",
+    "I*.cs": "$(capture).cs",
+    ".env": "*.env, .env.*, .envrc, env.d.ts"
+  },
+  "dotnet.formatting.organizeImportsOnFormat": true,
+  "csharp.preview.improvedLaunchExperience": true,
+  "csharp.suppressDotnetRestoreNotification": true,
+  "dotnet.automaticallySyncWithActiveItem": true,
+  "[csharp]": {
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "always"
     },
-    "explorer.fileNesting.enabled": true,
-    "explorer.fileNesting.patterns": {
-        "*.cs": "${capture}.*.cs",
-        "I*.cs": "$(capture).cs",
-        ".env": "*.env, .env.*, .envrc, env.d.ts"
-    },
-    "csharp.preview.improvedLaunchExperience": true,
-    "dotnet.automaticallySyncWithActiveItem": true
+    "editor.formatOnSave": false
+  }
 }
