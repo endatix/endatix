@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Ardalis.GuardClauses;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.Extensions.Logging;
 using Endatix.Framework.Hosting;
 
@@ -46,7 +47,8 @@ public class EndatixSecurityBuilder
     }
 
     /// <summary>
-    /// Configures JWT authentication.
+    /// Configures JWT authentication with default settings.
+    /// This is the primary method for configuring JWT authentication in the application.
     /// </summary>
     /// <param name="configure">Optional action to configure JWT options.</param>
     /// <returns>The security builder for chaining.</returns>
@@ -66,6 +68,9 @@ public class EndatixSecurityBuilder
             LogSetupInfo("JWT authentication is already configured");
             return this;
         }
+
+        // Register JWT-specific services from Endatix.Infrastructure
+        services.AddEndatixJwtServices(configuration);
 
         var jwtSettings = configuration.GetRequiredSection(JwtOptions.SECTION_NAME).Get<JwtOptions>();
         Guard.Against.Null(jwtSettings, nameof(jwtSettings), "JWT settings are required for authentication");

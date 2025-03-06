@@ -1,26 +1,18 @@
+using System.Reflection;
+using Endatix.Api.Infrastructure;
+using Endatix.Api.Infrastructure.Cors;
+using Endatix.Framework.Hosting;
 using FastEndpoints;
-using FastEndpoints.Security;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors.Infrastructure;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using NJsonSchema;
-using System.Reflection;
-using System.Text;
-using Endatix.Api.Infrastructure;
-using Endatix.Api.Infrastructure.Cors;
-using Endatix.Infrastructure.Identity;
-using Ardalis.GuardClauses;
-using Endatix.Framework.Setup;
-using System.Text.Json;
-using Endatix.Framework.Hosting;
 
 namespace Endatix.Api.Builders;
 

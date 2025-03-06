@@ -18,13 +18,10 @@ public static class FrameworkServiceCollectionExtensions
     /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddEndatixFrameworkServices(this IServiceCollection services)
     {
-        // Ensure we have an IHostEnvironment
-        EnsureHostEnvironment(services);
-
         // Register IAppEnvironment
         services.AddSingleton<IAppEnvironment>(provider =>
         {
-            // Try to resolve IWebHostEnvironment first
+            // Try to resolve IWebHostEnvironment first (available in ASP.NET Core applications)
             var webEnv = provider.GetService<IWebHostEnvironment>();
             if (webEnv != null)
             {
@@ -32,6 +29,7 @@ public static class FrameworkServiceCollectionExtensions
             }
 
             // Fall back to IHostEnvironment if IWebHostEnvironment is not available
+            // This handles console applications, worker services, and test environments
             var hostEnv = provider.GetService<IHostEnvironment>();
             if (hostEnv != null)
             {
@@ -41,28 +39,11 @@ public static class FrameworkServiceCollectionExtensions
             }
 
             // Last resort - create a development environment
-            var devEnv = new DevelopmentEnvironment();
-            var devAdapter = new HostingEnvironmentAdapter(devEnv);
-            return new AppEnvironment(devAdapter);
+            // This ensures IAppEnvironment is always available
+            return new AppEnvironment(new HostingEnvironmentAdapter(new DevelopmentEnvironment()));
         });
 
         return services;
-    }
-
-    /// <summary>
-    /// Ensures that an IHostEnvironment is registered in the service collection.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    private static void EnsureHostEnvironment(IServiceCollection services)
-    {
-        // If IHostEnvironment is already registered, there's nothing to do
-        if (services.Any(sd => sd.ServiceType == typeof(IHostEnvironment)))
-        {
-            return;
-        }
-
-        // Register a default implementation that assumes development environment
-        services.AddSingleton<IHostEnvironment>(new DevelopmentEnvironment());
     }
 
     // Helper classes for environment adaptation

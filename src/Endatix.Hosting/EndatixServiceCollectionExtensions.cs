@@ -51,7 +51,7 @@ public static class EndatixServiceCollectionExtensions
         // Register core framework services (this handles IAppEnvironment registration)
         services.AddEndatixFrameworkServices();
 
-        // Register core identity services
+        // Register core identity services (JWT authentication is now handled exclusively by EndatixSecurityBuilder)
         services.AddEndatixIdentityEssentialServices();
 
         // Create the builder
