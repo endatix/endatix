@@ -1,205 +1,299 @@
+using Endatix.Framework.Hosting;
+using Endatix.Infrastructure.Logging;
+using Microsoft.ApplicationInsights.AspNetCore.Extensions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 using Serilog.Extensions.Logging;
-using Microsoft.ApplicationInsights.DataContracts;
-using Microsoft.Extensions.Configuration;
-using Microsoft.ApplicationInsights.AspNetCore.Extensions;
-using Endatix.Hosting.Options;
-using Microsoft.ApplicationInsights.Extensibility;
 
 namespace Endatix.Hosting.Builders;
 
 /// <summary>
-/// Builder for configuring Endatix logging.
+/// Builder for configuring logging in the Endatix application.
 /// </summary>
 public class EndatixLoggingBuilder
 {
-    private readonly EndatixBuilder _parentBuilder;
-    private LoggerConfiguration? _serilogConfiguration;
-    private bool _useDefaultLogger;
+    private const string LOGGER_OUTPUT_TEMPLATE = "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}";
+    private readonly EndatixBuilder? _parentBuilder;
+    private readonly IAppEnvironment? _appEnvironment;
+    private bool _configuredLoggerRegistered;
+    private LoggerConfiguration? _bootstrapLoggerConfiguration;
+    private Action<LoggerConfiguration>? _configureCallback;
+    private ILoggerFactory? _loggerFactory;
+    private readonly ILogger<EndatixLoggingBuilder>? _logger;
+
+    /// <summary>
+    /// Gets the service collection.
+    /// </summary>
+    public IServiceCollection Services { get; }
+
+    /// <summary>
+    /// Gets the configuration.
+    /// </summary>
+    public IConfiguration Configuration { get; }
 
     /// <summary>
     /// Gets the configured logger factory.
     /// </summary>
-    internal ILoggerFactory? LoggerFactory { get; private set; }
+    internal ILoggerFactory LoggerFactory => _loggerFactory ??
+        (_parentBuilder != null ? _parentBuilder.LoggerFactory :
+            throw new InvalidOperationException("Logger factory not initialized. It should have been created in the constructor."));
 
     /// <summary>
-    /// Initializes a new instance of the EndatixLoggingBuilder class.
+    /// Initializes a new instance of the EndatixLoggingBuilder class with a parent builder.
     /// </summary>
     /// <param name="parentBuilder">The parent builder.</param>
     internal EndatixLoggingBuilder(EndatixBuilder parentBuilder)
     {
         _parentBuilder = parentBuilder;
-        _useDefaultLogger = true; // Default to using Serilog
+        Services = parentBuilder.Services;
+        Configuration = parentBuilder.Configuration;
+        _appEnvironment = parentBuilder.AppEnvironment;
+
+        // Get the existing logger factory from the parent
+        _loggerFactory = parentBuilder.LoggerFactory;
+        _configuredLoggerRegistered = false;
+
+        // Create a logger for this builder
+        _logger = _loggerFactory.CreateLogger<EndatixLoggingBuilder>();
+
+        // If parent already has a logger factory, we don't need to create a bootstrap logger
+        _logger.LogInformation("EndatixLoggingBuilder initialized with existing logger factory");
     }
 
     /// <summary>
-    /// Configures logging with default settings using Serilog.
+    /// Initializes a new instance of the EndatixLoggingBuilder class with services and configuration.
+    /// Automatically creates a bootstrap logger if one doesn't exist.
     /// </summary>
-    /// <returns>The logging builder for chaining.</returns>
-    public EndatixLoggingBuilder UseDefaults()
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The configuration.</param>
+    public EndatixLoggingBuilder(IServiceCollection services, IConfiguration configuration)
     {
-        _useDefaultLogger = true;
-        _serilogConfiguration = new LoggerConfiguration()
-            .Enrich.FromLogContext()
-            .WriteTo.Async(wt => wt.Console(
-                theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Sixteen,
-                applyThemeToRedirectedOutput: true
-            ));
+        _parentBuilder = null;
+        Services = services;
+        Configuration = configuration;
+        _configuredLoggerRegistered = false;
 
-        ApplyLoggingConfiguration();
-        ConfigureApplicationInsights();
+        // Try to get environment info from services
+        // Note: This will only work if environment has been registered before this constructor is called
+        var serviceProvider = services.BuildServiceProvider();
+        _appEnvironment = serviceProvider.GetService<IAppEnvironment>();
+
+        // Create bootstrap logger immediately
+        InitializeBootstrapLogger();
+
+        _logger = _loggerFactory!.CreateLogger<EndatixLoggingBuilder>();
+    }
+
+    /// <summary>
+    /// Initializes the bootstrap logger and creates a logger factory.
+    /// This is called automatically by the constructor.
+    /// </summary>
+    private void InitializeBootstrapLogger()
+    {
+        if (_loggerFactory != null)
+        {
+            return;
+        }
+
+        if (Log.Logger == Logger.None)
+        {
+            _bootstrapLoggerConfiguration = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                .WriteTo.Console(
+                    applyThemeToRedirectedOutput: true,
+                    outputTemplate: LOGGER_OUTPUT_TEMPLATE,
+                    theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Sixteen);
+
+            // Apply environment-specific configuration
+            if (_appEnvironment?.IsDevelopment() == true)
+            {
+                _bootstrapLoggerConfiguration
+                    .MinimumLevel.Debug()
+                    .MinimumLevel.Override("Microsoft", LogEventLevel.Debug);
+
+                Log.Debug("Configuring bootstrap logger for development environment");
+            }
+            else if (_appEnvironment != null)
+            {
+                Log.Debug("Configuring bootstrap logger for {Environment} environment",
+                    _appEnvironment.EnvironmentName);
+            }
+
+            Log.Logger = _bootstrapLoggerConfiguration.CreateBootstrapLogger();
+        }
+
+        _loggerFactory = new SerilogLoggerFactory(Log.Logger, dispose: false);
+
+        Log.Information("Logger factory created for bootstrap logger");
+    }
+
+    /// <summary>
+    /// Registers the logger provider to be configured when the host is built.
+    /// This will replace the bootstrap logger with a fully configured one.
+    /// </summary>
+    /// <param name="useSerilog">Whether to use Serilog as the logger provider. Default is true.</param>
+    /// <returns>The logging builder for chaining.</returns>
+    public EndatixLoggingBuilder RegisterConfiguredLogger(bool useSerilog = true)
+    {
+        if (_configuredLoggerRegistered)
+        {
+            return this;
+        }
+
+        if (useSerilog)
+        {
+            // Use the implementation from Infrastructure
+            SerilogConfigurator.ConfigureSerilog(Services, Configuration, _configureCallback);
+            _logger?.LogInformation("Serilog configured and registered as the logging provider");
+        }
+        else
+        {
+            // Original generic approach
+            Services.AddLogging(builder =>
+            {
+                builder.ClearProviders();
+
+                _logger?.LogInformation("Logging configuration registered - host will configure the full logger");
+            });
+        }
+
+        _configuredLoggerRegistered = true;
         return this;
     }
 
     /// <summary>
-    /// Configures Azure Application Insights if enabled in options.
+    /// Gets the logger factory created by this builder.
     /// </summary>
-    private void ConfigureApplicationInsights()
+    /// <returns>The logger factory.</returns>
+    public ILoggerFactory GetLoggerFactory()
     {
-        var hostingOptions = new HostingOptions();
-        _parentBuilder.Configuration.GetSection(HostingOptions.SectionName).Bind(hostingOptions);
+        return _loggerFactory!;
+    }
 
-        if (hostingOptions.IsAzure || hostingOptions.EnableApplicationInsights)
+    /// <summary>
+    /// Gets the components created by this builder when used in standalone mode.
+    /// </summary>
+    /// <returns>A tuple containing the logger factory.</returns>
+    internal ILoggerFactory GetComponents()
+    {
+        return _loggerFactory!;
+    }
+
+    /// <summary>
+    /// Configures logging with default settings.
+    /// This registers Serilog with default configuration.
+    /// </summary>
+    /// <returns>The logging builder for chaining.</returns>
+    public EndatixLoggingBuilder UseDefaults()
+    {
+        // Register the fully configured logger
+        RegisterConfiguredLogger();
+
+        return this;
+    }
+
+    /// <summary>
+    /// Configures Application Insights for logging.
+    /// </summary>
+    /// <returns>The logging builder for chaining.</returns>
+    public EndatixLoggingBuilder UseApplicationInsights()
+    {
+        _logger?.LogInformation("Configuring Application Insights...");
+
+        // Configure Application Insights with default settings
+        Services.AddApplicationInsightsTelemetry(options =>
         {
-            this.LogSetupInfo("Configuring Azure Application Insights telemetry");
+            options.EnableAdaptiveSampling = true;
+            options.EnableQuickPulseMetricStream = true;
+        });
 
-            var appInsightsOptions = new ApplicationInsightsServiceOptions
-            {
-                EnableAdaptiveSampling = true,
-                EnableQuickPulseMetricStream = true,
-                EnablePerformanceCounterCollectionModule = true
-            };
-
-            if (!string.IsNullOrEmpty(hostingOptions.ApplicationInsightsConnectionString))
-            {
-                appInsightsOptions.ConnectionString = hostingOptions.ApplicationInsightsConnectionString;
-            }
-
-            _parentBuilder.Services.AddApplicationInsightsTelemetry(appInsightsOptions);
-
-            // Optionally enrich Serilog with Application Insights if using default logger
-            if (_useDefaultLogger && _serilogConfiguration != null)
-            {
-                _serilogConfiguration.WriteTo.ApplicationInsights(
-                    _parentBuilder.Services.BuildServiceProvider()
-                        .GetRequiredService<TelemetryConfiguration>(),
-                    TelemetryConverter.Traces);
-
-                // Reapply logging configuration since we modified it
-                ApplyLoggingConfiguration();
-            }
-        }
+        _logger?.LogInformation("Application Insights configured successfully");
+        return this;
     }
 
     /// <summary>
     /// Configures Application Insights with custom settings.
     /// </summary>
-    /// <param name="configure">Action to configure Application Insights options.</param>
+    /// <param name="configure">Action to configure Application Insights.</param>
     /// <returns>The logging builder for chaining.</returns>
-    public EndatixLoggingBuilder UseApplicationInsights(Action<ApplicationInsightsServiceOptions>? configure = null)
+    public EndatixLoggingBuilder UseApplicationInsights(Action<ApplicationInsightsServiceOptions> configure)
     {
-        this.LogSetupInfo("Configuring custom Azure Application Insights telemetry");
+        _logger?.LogInformation("Configuring Application Insights with custom settings...");
 
-        var options = new ApplicationInsightsServiceOptions();
-        configure?.Invoke(options);
+        // Configure Application Insights with custom settings
+        Services.AddApplicationInsightsTelemetry(configure);
 
-        _parentBuilder.Services.AddApplicationInsightsTelemetry(options);
-
-        // Enrich Serilog with Application Insights if using default logger
-        if (_useDefaultLogger && _serilogConfiguration != null)
-        {
-            _serilogConfiguration.WriteTo.ApplicationInsights(
-                _parentBuilder.Services.BuildServiceProvider()
-                    .GetRequiredService<TelemetryConfiguration>(),
-                TelemetryConverter.Traces);
-
-            ApplyLoggingConfiguration();
-        }
-
+        _logger?.LogInformation("Application Insights configured successfully with custom settings");
         return this;
     }
 
     /// <summary>
-    /// Configures Serilog with custom configuration while keeping the default provider.
+    /// Configures the bootstrap logger with custom settings before the host is built.
+    /// This must be called before the host is built and before a bootstrap logger is created.
     /// </summary>
-    /// <param name="configure">Action to configure Serilog.</param>
+    /// <param name="configure">Action to configure the bootstrap logger.</param>
+    /// <returns>The logging builder for chaining.</returns>
+    public EndatixLoggingBuilder ConfigureBootstrapLogger(Action<LoggerConfiguration> configure)
+    {
+        if (Log.Logger != Logger.None)
+        {
+            _logger?.LogWarning("Bootstrap logger already exists - cannot configure it after creation");
+            return this;
+        }
+
+        _bootstrapLoggerConfiguration ??= new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information);
+
+        configure(_bootstrapLoggerConfiguration);
+        return this;
+    }
+
+    /// <summary>
+    /// Customizes Serilog configuration beyond what's automatically configured.
+    /// This configuration will be applied when the host is built.
+    /// </summary>
+    /// <param name="configure">Action to customize Serilog configuration.</param>
     /// <returns>The logging builder for chaining.</returns>
     public EndatixLoggingBuilder ConfigureSerilog(Action<LoggerConfiguration> configure)
     {
-        _useDefaultLogger = true;
-        _serilogConfiguration ??= new LoggerConfiguration();
-        configure(_serilogConfiguration);
-        ApplyLoggingConfiguration();
-        return this;
-    }
+        _logger?.LogInformation("Custom Serilog configuration will be applied when the host is built");
 
-    /// <summary>
-    /// Configures custom logging without using Serilog.
-    /// </summary>
-    /// <param name="configure">Action to configure logging.</param>
-    /// <returns>The logging builder for chaining.</returns>
-    public EndatixLoggingBuilder UseCustomLogging(Action<ILoggingBuilder> configure)
-    {
-        _useDefaultLogger = false;
-        _serilogConfiguration = null;
+        _configureCallback = configure;
 
-        _parentBuilder.Services.AddLogging(builder =>
-        {
-            configure(builder);
-        });
+        // Ensure the configured logger is registered
+        RegisterConfiguredLogger();
 
         return this;
     }
 
     /// <summary>
-    /// Builds and returns the parent builder.
+    /// Gets the parent builder.
     /// </summary>
     /// <returns>The parent builder.</returns>
-    public EndatixBuilder Build() => _parentBuilder;
-
-    private void ApplyLoggingConfiguration()
+    public EndatixBuilder Build()
     {
-        if (_useDefaultLogger && _serilogConfiguration != null)
+        if (_parentBuilder == null)
         {
-            // Create Serilog logger
-            var serilogLogger = _serilogConfiguration.CreateLogger();
-
-            // Configure logging services
-            _parentBuilder.Services.AddLogging(builder =>
-            {
-                builder.SetMinimumLevel(LogLevel.Information);
-                builder.ClearProviders();
-                builder.AddSerilog(serilogLogger, dispose: true);
-            });
-
-            // Register Serilog specific services
-            _parentBuilder.Services.AddSingleton(serilogLogger);
-            LoggerFactory = new SerilogLoggerFactory(serilogLogger);
-            _parentBuilder.Services.AddSingleton(LoggerFactory);
+            throw new InvalidOperationException("This builder was not created with a parent builder. Use GetComponents() instead.");
         }
+
+        return _parentBuilder;
     }
 
     /// <summary>
-    /// Gets a logger for the specified category.
+    /// Creates a logger for the specified category.
     /// </summary>
-    /// <typeparam name="T">The category type.</typeparam>
+    /// <typeparam name="T">The category class.</typeparam>
     /// <returns>A logger instance.</returns>
     internal ILogger<T> CreateLogger<T>()
     {
-        if (LoggerFactory == null)
-        {
-            UseDefaults(); // Ensure we have a logger factory
-        }
-
-        // Now LoggerFactory should never be null, but let's be extra safe
-        if (LoggerFactory == null)
-        {
-            // Create a minimal logger factory as a last resort
-            LoggerFactory = new LoggerFactory();
-        }
-
-        return LoggerFactory.CreateLogger<T>();
+        return _loggerFactory!.CreateLogger<T>();
     }
 }

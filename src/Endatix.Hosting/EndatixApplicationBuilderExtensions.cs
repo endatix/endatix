@@ -1,10 +1,5 @@
 using Microsoft.AspNetCore.Builder;
-using System.Threading.Tasks;
-using System;
 using Endatix.Hosting.Builders;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
 using Endatix.Api.Setup;
 
 namespace Endatix.Hosting;
@@ -21,16 +16,12 @@ public static class EndatixApplicationBuilderExtensions
     /// <returns>The application builder for chaining.</returns>
     public static IApplicationBuilder UseEndatix(this IApplicationBuilder app)
     {
-        var logger = app.ApplicationServices.GetService<ILogger<string>>();
-        logger?.LogInformation("Configuring Endatix middleware");
-
         // Create middleware builder and apply default configuration
         var builder = new EndatixMiddlewareBuilder(app);
         builder
             .UseDefaults()
             .UseApi();
 
-        logger?.LogInformation("Endatix middleware configured successfully");
         return app;
     }
 
@@ -42,14 +33,10 @@ public static class EndatixApplicationBuilderExtensions
     /// <returns>The application builder for chaining.</returns>
     public static IApplicationBuilder UseEndatix(this IApplicationBuilder app, Action<EndatixMiddlewareBuilder> configure)
     {
-        var logger = app.ApplicationServices.GetService<ILogger<string>>();
-        logger?.LogInformation("Configuring Endatix middleware with builder");
-
         // Create middleware builder and apply custom configuration
         var builder = new EndatixMiddlewareBuilder(app);
         configure(builder);
 
-        logger?.LogInformation("Endatix middleware configured successfully with builder");
         return app;
     }
 
@@ -61,9 +48,6 @@ public static class EndatixApplicationBuilderExtensions
     /// <returns>The application builder for chaining.</returns>
     public static IApplicationBuilder UseEndatix(this IApplicationBuilder app, Action<EndatixMiddlewareOptions> configure)
     {
-        var logger = app.ApplicationServices.GetService<ILogger<string>>();
-        logger?.LogInformation("Configuring Endatix middleware with options");
-
         // Create options with defaults
         var options = new EndatixMiddlewareOptions();
 
@@ -108,7 +92,6 @@ public static class EndatixApplicationBuilderExtensions
         // Apply any additional middleware
         options.ConfigureAdditionalMiddleware?.Invoke(app);
 
-        logger?.LogInformation("Endatix middleware configured successfully with options");
         return app;
     }
 
@@ -119,33 +102,12 @@ public static class EndatixApplicationBuilderExtensions
     /// <returns>The application builder for chaining.</returns>
     public static IApplicationBuilder UseEndatixApi(this IApplicationBuilder app)
     {
-        var logger = app.ApplicationServices.GetService<ILogger<string>>();
-        logger?.LogInformation("Configuring Endatix API");
-
         // Use the ApiApplicationBuilderExtensions implementation
         app.UseApiEndpoints();
 
-        logger?.LogInformation("Endatix API configured successfully");
         return app;
     }
 
-    /// <summary>
-    /// Configures the application to use legacy Endatix API middleware for backward compatibility.
-    /// </summary>
-    /// <param name="app">The application builder.</param>
-    /// <returns>The application builder for chaining.</returns>
-    public static IApplicationBuilder UseLegacyEndatixApi(this IApplicationBuilder app)
-    {
-        var logger = app.ApplicationServices.GetService<ILogger<string>>();
-        logger?.LogInformation("Configuring legacy Endatix API");
-
-        // Create middleware builder and use legacy API setup
-        var builder = new EndatixMiddlewareBuilder(app);
-        builder.UseLegacyEndatixApi();
-
-        logger?.LogInformation("Legacy Endatix API configured successfully");
-        return app;
-    }
 
     /// <summary>
     /// Configures the application to use Endatix API middleware with custom options.
@@ -155,9 +117,6 @@ public static class EndatixApplicationBuilderExtensions
     /// <returns>The application builder for chaining.</returns>
     public static IApplicationBuilder UseEndatixApi(this IApplicationBuilder app, Action<EndatixApiMiddlewareOptions> configure)
     {
-        var logger = app.ApplicationServices.GetService<ILogger<string>>();
-        logger?.LogInformation("Configuring Endatix API with custom options");
-
         // Use the ApiApplicationBuilderExtensions implementation
         app.UseApiEndpoints(builder =>
         {
@@ -178,7 +137,6 @@ public static class EndatixApplicationBuilderExtensions
             }
         });
 
-        logger?.LogInformation("Endatix API configured successfully with custom options");
         return app;
     }
 

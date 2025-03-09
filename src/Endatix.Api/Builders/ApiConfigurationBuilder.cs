@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NJsonSchema;
@@ -22,7 +21,6 @@ namespace Endatix.Api.Builders;
 /// </summary>
 public class ApiConfigurationBuilder
 {
-    private readonly IServiceCollection _services;
     private readonly ILogger? _logger;
     private readonly IConfiguration? _configuration;
     private readonly IAppEnvironment? _environment;
@@ -32,7 +30,7 @@ public class ApiConfigurationBuilder
     /// <summary>
     /// Gets the service collection.
     /// </summary>
-    public IServiceCollection Services => _services;
+    public IServiceCollection Services { get; }
 
     /// <summary>
     /// Initializes a new instance of the ApiConfigurationBuilder class.
@@ -47,7 +45,7 @@ public class ApiConfigurationBuilder
         IAppEnvironment? environment = null,
         ILoggerFactory? loggerFactory = null)
     {
-        _services = services;
+        Services = services;
         _configuration = configuration;
         _environment = environment;
 
@@ -72,7 +70,7 @@ public class ApiConfigurationBuilder
         AddDefaultJsonOptions();
 
         // Register FastEndpoints
-        _services.AddFastEndpoints();
+        Services.AddFastEndpoints();
 
         // Add Swagger documentation
         AddSwagger();
@@ -90,22 +88,22 @@ public class ApiConfigurationBuilder
         LogSetupInfo("Configuring CORS services");
 
         // Ensure IAppEnvironment is available 
-        if (_services.All(sd => sd.ServiceType != typeof(IAppEnvironment)))
+        if (Services.All(sd => sd.ServiceType != typeof(IAppEnvironment)))
         {
             LogSetupInfo("No IAppEnvironment found. Adding framework services...");
-            
+
             // Use the framework's method to register IAppEnvironment and related services
-            _services.AddEndatixFrameworkServices();
+            Services.AddEndatixFrameworkServices();
             LogSetupInfo("Registered IAppEnvironment via framework services.");
         }
 
         // Add CORS configuration services
-        _services.AddTransient<EndpointsCorsConfigurator>();
-        _services.AddTransient<IConfigureOptions<CorsOptions>, EndpointsCorsConfigurator>();
-        _services.AddTransient<IWildcardSearcher, CorsWildcardSearcher>();
+        Services.AddTransient<EndpointsCorsConfigurator>();
+        Services.AddTransient<IConfigureOptions<CorsOptions>, EndpointsCorsConfigurator>();
+        Services.AddTransient<IWildcardSearcher, CorsWildcardSearcher>();
 
-        _services.AddCors();
-        _services.AddOptions<CorsSettings>()
+        Services.AddCors();
+        Services.AddOptions<CorsSettings>()
                .BindConfiguration(CorsSettings.SECTION_NAME)
                .ValidateDataAnnotations();
 
@@ -121,7 +119,7 @@ public class ApiConfigurationBuilder
     {
         LogSetupInfo("Configuring default JSON options");
 
-        _services.Configure<JsonOptions>(options =>
+        Services.Configure<JsonOptions>(options =>
             options.SerializerOptions.Converters.Add(new LongToStringConverter()));
 
         LogSetupInfo("Default JSON options configured successfully");
@@ -136,7 +134,7 @@ public class ApiConfigurationBuilder
     {
         LogSetupInfo("Configuring Swagger documentation");
 
-        _services.SwaggerDocument(options =>
+        Services.SwaggerDocument(options =>
         {
             options.ShortSchemaNames = true;
             options.DocumentSettings = settings =>
@@ -195,7 +193,7 @@ public class ApiConfigurationBuilder
     {
         LogSetupInfo($"Scanning {assemblies.Length} assemblies for endpoints");
 
-        _services.AddFastEndpoints(options =>
+        Services.AddFastEndpoints(options =>
         {
             options.Assemblies = assemblies;
         });
@@ -217,7 +215,7 @@ public class ApiConfigurationBuilder
         app.UseFastEndpoints();
 
         // Check if Swagger is registered by looking for Swagger services
-        if (_services.Any(sd => sd.ServiceType.Name.Contains("Swagger")))
+        if (Services.Any(sd => sd.ServiceType.Name.Contains("Swagger")))
         {
             app.UseSwaggerGen();
         }
@@ -235,8 +233,8 @@ public class ApiConfigurationBuilder
     {
         LogSetupInfo("Customizing CORS services");
 
-        _services.AddCors(configureCors);
-        _services.AddTransient<IWildcardSearcher, CorsWildcardSearcher>();
+        Services.AddCors(configureCors);
+        Services.AddTransient<IWildcardSearcher, CorsWildcardSearcher>();
 
         LogSetupInfo("CORS services customized successfully");
         return this;
@@ -251,7 +249,7 @@ public class ApiConfigurationBuilder
     {
         LogSetupInfo("Customizing JSON options");
 
-        _services.Configure<JsonOptions>(options =>
+        Services.Configure<JsonOptions>(options =>
         {
             // Add default LongToStringConverter
             options.SerializerOptions.Converters.Add(new LongToStringConverter());
@@ -266,6 +264,6 @@ public class ApiConfigurationBuilder
 
     protected virtual void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[API Setup] {Message}", message);
+        _logger?.LogInformation(message);
     }
 }

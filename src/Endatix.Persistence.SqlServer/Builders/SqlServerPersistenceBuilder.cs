@@ -38,8 +38,6 @@ public class SqlServerPersistenceBuilder
     public SqlServerPersistenceBuilder UseDefault<TContext>()
         where TContext : DbContext
     {
-        LogSetupInfo($"Configuring SQL Server persistence for {typeof(TContext).Name} with default settings");
-
         Services.AddDbContext<TContext>((serviceProvider, options) =>
         {
             var configuration = serviceProvider.GetService<IConfiguration>();
@@ -57,7 +55,7 @@ public class SqlServerPersistenceBuilder
             });
         });
 
-        LogSetupInfo($"SQL Server persistence for {typeof(TContext).Name} configured successfully");
+        LogSetupInfo($"Persistence for {typeof(TContext).Name} configured successfully");
         return this;
     }
 
@@ -70,8 +68,6 @@ public class SqlServerPersistenceBuilder
     public SqlServerPersistenceBuilder Configure<TContext>(Action<SqlServerOptions> options)
         where TContext : DbContext
     {
-        LogSetupInfo($"Configuring SQL Server persistence for {typeof(TContext).Name} with custom settings");
-
         var sqlServerOptions = new SqlServerOptions();
         options(sqlServerOptions);
 
@@ -103,12 +99,12 @@ public class SqlServerPersistenceBuilder
             }
         });
 
-        LogSetupInfo($"SQL Server persistence for {typeof(TContext).Name} configured successfully");
+        LogSetupInfo($"Persistence for {typeof(TContext).Name} configured successfully");
         return this;
     }
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[💿 SQL Server Setup] {Message}", message);
+        _logger?.LogDebug($" ❯ {{Category}}: {message} ✔️", "💿 Database Setup");
     }
 }

@@ -1,15 +1,13 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Endatix.Api.Setup;
-using System;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Hosting;
+using Endatix.Api.Infrastructure;
+using Endatix.Infrastructure.Identity;
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Endatix.Infrastructure.Identity;
-using Endatix.Api.Infrastructure;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Hosting.Builders;
 
@@ -18,13 +16,12 @@ namespace Endatix.Hosting.Builders;
 /// </summary>
 public class EndatixMiddlewareBuilder
 {
-    private readonly IApplicationBuilder _app;
     private readonly ILogger? _logger;
 
     /// <summary>
     /// Gets the application builder.
     /// </summary>
-    public IApplicationBuilder App => _app;
+    public IApplicationBuilder App { get; }
 
     /// <summary>
     /// Initializes a new instance of the EndatixMiddlewareBuilder class.
@@ -32,7 +29,7 @@ public class EndatixMiddlewareBuilder
     /// <param name="app">The application builder.</param>
     public EndatixMiddlewareBuilder(IApplicationBuilder app)
     {
-        _app = app;
+        App = app;
         _logger = app.ApplicationServices.GetService<ILoggerFactory>()?.CreateLogger("Endatix.Middleware");
     }
 
@@ -62,7 +59,7 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseExceptionHandler(string path = "/error")
     {
         LogSetupInfo($"Adding exception handler middleware with path: {path}");
-        _app.UseExceptionHandler(path);
+        App.UseExceptionHandler(path);
         return this;
     }
 
@@ -73,8 +70,8 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseSecurity()
     {
         LogSetupInfo("Adding security middleware");
-        _app.UseAuthentication();
-        _app.UseAuthorization();
+        App.UseAuthentication();
+        App.UseAuthorization();
         return this;
     }
 
@@ -85,7 +82,7 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseHsts()
     {
         LogSetupInfo("Adding HSTS middleware");
-        _app.UseHsts();
+        App.UseHsts();
         return this;
     }
 
@@ -96,7 +93,7 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseHttpsRedirection()
     {
         LogSetupInfo("Adding HTTPS redirection middleware");
-        _app.UseHttpsRedirection();
+        App.UseHttpsRedirection();
         return this;
     }
 
@@ -123,13 +120,13 @@ public class EndatixMiddlewareBuilder
         // Apply FastEndpoints directly
         UseFastEndpoints();
 
-        var env = _app.ApplicationServices.GetService<IWebHostEnvironment>();
+        var env = App.ApplicationServices.GetService<IWebHostEnvironment>();
         if (env != null && (env.IsDevelopment() || env.IsProduction()))
         {
             UseSwagger();
         }
 
-        _app.UseCors();
+        App.UseCors();
         return this;
     }
 
@@ -160,7 +157,7 @@ public class EndatixMiddlewareBuilder
         // Apply Swagger if enabled
         if (options.UseSwagger)
         {
-            var env = _app.ApplicationServices.GetService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+            var env = App.ApplicationServices.GetService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
             if (env != null && (env.IsDevelopment() || options.EnableSwaggerInProduction))
             {
                 UseSwagger();
@@ -184,8 +181,8 @@ public class EndatixMiddlewareBuilder
     {
         LogSetupInfo("Adding FastEndpoints middleware with default configuration");
 
-        _app.UseDefaultExceptionHandler(_logger, true, true);
-        _app.UseFastEndpoints(fastEndpoints =>
+        App.UseDefaultExceptionHandler(_logger, true, true);
+        App.UseFastEndpoints(fastEndpoints =>
         {
             fastEndpoints.Versioning.Prefix = "v";
             fastEndpoints.Endpoints.RoutePrefix = "api";
@@ -205,7 +202,7 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseFastEndpoints(Action<FastEndpoints.Config> configure)
     {
         LogSetupInfo("Adding FastEndpoints middleware with custom configuration");
-        _app.UseFastEndpoints(configure);
+        App.UseFastEndpoints(configure);
         return this;
     }
 
@@ -216,7 +213,7 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseSwagger()
     {
         LogSetupInfo("Adding Swagger middleware");
-        _app.UseSwaggerGen(null, c => c.Path = "");
+        App.UseSwaggerGen(null, c => c.Path = "");
         return this;
     }
 
@@ -228,7 +225,7 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseSwagger(Action<object> swaggerOptions)
     {
         LogSetupInfo("Adding Swagger middleware with custom configuration");
-        _app.UseSwaggerGen(swaggerOptions);
+        App.UseSwaggerGen(swaggerOptions);
         return this;
     }
 
@@ -239,7 +236,7 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseCors()
     {
         LogSetupInfo("Adding CORS middleware");
-        _app.UseCors();
+        App.UseCors();
         return this;
     }
 
@@ -251,7 +248,7 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseCors(string policyName)
     {
         LogSetupInfo($"Adding CORS middleware with policy: {policyName}");
-        _app.UseCors(policyName);
+        App.UseCors(policyName);
         return this;
     }
 
@@ -314,7 +311,7 @@ public class EndatixMiddlewareBuilder
         });
 
         // Configure Swagger
-        var env = _app.ApplicationServices.GetService<IWebHostEnvironment>();
+        var env = App.ApplicationServices.GetService<IWebHostEnvironment>();
         if (env != null && (env.IsDevelopment() || env.IsProduction()))
         {
             UseSwagger(c => { });
@@ -334,12 +331,12 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseCustomMiddleware(Action<IApplicationBuilder> configure)
     {
         LogSetupInfo("Adding custom middleware");
-        configure(_app);
+        configure(App);
         return this;
     }
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[Middleware Setup] {Message}", message);
+        _logger?.LogInformation(message);
     }
 }

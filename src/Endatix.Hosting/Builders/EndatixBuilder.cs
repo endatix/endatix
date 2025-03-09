@@ -1,7 +1,7 @@
+using System;
 using System.Reflection;
 using Endatix.Framework.Hosting;
 using Endatix.Framework.Setup;
-using Endatix.Hosting.Logging;
 using Endatix.Hosting.Options;
 using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Identity;
@@ -33,6 +33,9 @@ namespace Endatix.Hosting.Builders;
 /// </remarks>
 public class EndatixBuilder : IBuilderRoot
 {
+    private EndatixLoggingBuilder? _loggingBuilder;
+    private readonly ILogger<EndatixBuilder> _logger;
+
     /// <summary>
     /// Gets the service collection.
     /// </summary>
@@ -74,46 +77,12 @@ public class EndatixBuilder : IBuilderRoot
     /// <summary>
     /// Gets the logging builder.
     /// </summary>
-    public EndatixLoggingBuilder Logging { get; }
+    public EndatixLoggingBuilder Logging => _loggingBuilder!;
 
     /// <summary>
     /// Gets a logger factory that can create loggers for specific categories.
     /// </summary>
-    public ILoggerFactory LoggerFactory
-    {
-        get
-        {
-            if (Logging.LoggerFactory == null)
-            {
-                Logging.UseDefaults();
-            }
-
-            if (Logging.LoggerFactory == null)
-            {
-                throw new InvalidOperationException("Logger factory could not be initialized. Please check your logging configuration.");
-            }
-
-            return Logging.LoggerFactory;
-        }
-    }
-
-    private EndatixSetupLogger? _setupLogger;
-
-    /// <summary>
-    /// Gets the setup logger for logging during configuration.
-    /// </summary>
-    internal EndatixSetupLogger SetupLogger
-    {
-        get
-        {
-            if (_setupLogger == null)
-            {
-                var logger = LoggerFactory.CreateLogger("Endatix.Setup");
-                _setupLogger = new EndatixSetupLogger(logger);
-            }
-            return _setupLogger;
-        }
-    }
+    public ILoggerFactory LoggerFactory { get; private set; }
 
     /// <summary>
     /// Gets the infrastructure builder.
@@ -125,81 +94,61 @@ public class EndatixBuilder : IBuilderRoot
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The configuration.</param>
-    internal EndatixBuilder(
+    public EndatixBuilder(
         IServiceCollection services,
         IConfiguration configuration)
     {
         Services = services;
         Configuration = configuration;
+        
+        // Create and initialize the logging builder
+        _loggingBuilder = new EndatixLoggingBuilder(services, configuration);
+        LoggerFactory = _loggingBuilder.GetComponents();
+        
+        // Create a logger for this builder
+        _logger = LoggerFactory.CreateLogger<EndatixBuilder>();
+        
+        _logger.LogInformation("Initializing EndatixBuilder");
 
         // Try to get IAppEnvironment from DI
         var serviceProvider = services.BuildServiceProvider();
         AppEnvironment = serviceProvider.GetService<IAppEnvironment>();
 
-        // Initialize and configure logging builder first to ensure logger factory is available
-        Logging = new EndatixLoggingBuilder(this);
-        Logging.UseDefaults();
-
-        // Initialize infrastructure builder with root builder
+        // Initialize builders
         Infrastructure = new InfrastructureBuilder(this);
-
-        // Initialize remaining feature builders
         Api = new EndatixApiBuilder(this);
         Persistence = new EndatixPersistenceBuilder(this);
         Security = new EndatixSecurityBuilder(this);
         Messaging = new EndatixMessagingBuilder(this);
+        
+        _logger.LogInformation("EndatixBuilder initialized successfully");
     }
 
     /// <summary>
-    /// Configures Endatix with default settings.
+    /// Configures Endatix with defaults. This is the recommended way to use Endatix for most applications.
     /// </summary>
-    /// <remarks>
-    /// This method:
-    /// <list type="number">
-    /// <item><description>Configures logging with default settings</description></item>
-    /// <item><description>Sets up persistence based on the detected database provider</description></item>
-    /// <item><description>Configures infrastructure with default settings</description></item>
-    /// <item><description>Sets up API with default settings</description></item>
-    /// <item><description>Configures security with default settings</description></item>
-    /// </list>
-    /// 
-    /// <example>
-    /// <code>
-    /// // In Program.cs
-    /// var builder = WebApplication.CreateBuilder(args);
-    /// 
-    /// // Add Endatix services with defaults
-    /// builder.Services.AddEndatix(builder.Configuration)
-    ///     .UseDefaults();
-    ///     
-    /// var app = builder.Build();
-    /// 
-    /// app.UseEndatix();
-    /// app.Run();
-    /// </code>
-    /// </example>
-    /// </remarks>
     /// <returns>The builder for chaining.</returns>
     public EndatixBuilder UseDefaults()
     {
+        // Set up logging with defaults first
         Logging.UseDefaults();
 
-        SetupLogger.Information("Starting Endatix configuration with default settings");
+        _logger.LogInformation("Starting Endatix configuration with default settings");
 
         var databaseProvider = GetConfiguredDatabaseProvider();
         Persistence.UseDefaults(databaseProvider);
-        SetupLogger.Information($"Persistence configuration completed using {databaseProvider}");
+        _logger.LogInformation("Persistence configuration completed using {DatabaseProvider}", databaseProvider);
 
         Infrastructure.UseDefaults();
-        SetupLogger.Information("Infrastructure configuration completed");
+        _logger.LogInformation("Infrastructure configuration completed");
 
         Api.UseDefaults();
-        SetupLogger.Information("API configuration completed");
+        _logger.LogInformation("API configuration completed");
 
         Security.UseDefaults();
-        SetupLogger.Information("Security configuration completed");
+        _logger.LogInformation("Security configuration completed");
 
-        SetupLogger.Information("Endatix configuration completed successfully");
+        _logger.LogInformation("Endatix configuration completed successfully");
         return this;
     }
 
@@ -229,7 +178,7 @@ public class EndatixBuilder : IBuilderRoot
         // Configure only essential services
         var databaseProvider = GetConfiguredDatabaseProvider();
         Persistence.UseDefaults(databaseProvider);
-        SetupLogger.Information($"Minimal setup completed with {databaseProvider} persistence");
+        _logger.LogInformation("Minimal setup completed with {DatabaseProvider} persistence", databaseProvider);
 
         return this;
     }

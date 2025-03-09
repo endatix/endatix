@@ -12,7 +12,7 @@ internal static class EndatixBuilderExtensions
         where T : class
     {
         var parentBuilder = GetRootBuilder(builder);
-        parentBuilder.SetupLogger.Information(message, args);
+        parentBuilder.LogSetupInfo(message, args);
         return builder;
     }
 
@@ -23,7 +23,7 @@ internal static class EndatixBuilderExtensions
         where T : class
     {
         var parentBuilder = GetRootBuilder(builder);
-        parentBuilder.SetupLogger.Warning(message, args);
+        parentBuilder.LogSetupWarning(message, args);
         return builder;
     }
 
@@ -34,7 +34,7 @@ internal static class EndatixBuilderExtensions
         where T : class
     {
         var parentBuilder = GetRootBuilder(builder);
-        parentBuilder.SetupLogger.Error(message, args);
+        parentBuilder.LogSetupInfo(message, args);
         return builder;
     }
 

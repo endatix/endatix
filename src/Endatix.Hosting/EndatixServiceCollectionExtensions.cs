@@ -1,15 +1,12 @@
 using Ardalis.GuardClauses;
-using Endatix.Framework.Hosting;
 using Endatix.Framework.Setup;
 using Endatix.Hosting.Builders;
-using Endatix.Hosting.Core;
 using Endatix.Hosting.Options;
 using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Hosting;
 
@@ -19,48 +16,11 @@ namespace Endatix.Hosting;
 public static class EndatixServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds Endatix services to the service collection.
-    /// This is the main entry point for configuring Endatix in your application.
+    /// Adds Endatix services to the service collection. This is the entry point for configuring Endatix.
     /// </summary>
-    /// <remarks>
-    /// This method:
-    /// 1. Registers core Endatix framework services
-    /// 2. Registers core identity services
-    /// 3. Provides a fluent builder API for further configuration
-    /// 
-    /// Use this method for the most flexibility. For convenience, you can use 
-    /// AddEndatixWithDefaults, AddEndatixWithSqlServer, or AddEndatixWithPostgreSql
-    /// for common scenarios.
-    /// 
-    /// <example>
-    /// <code>
-    /// // Add Endatix with custom configuration
-    /// var builder = services.AddEndatix(configuration);
-    /// 
-    /// // Configure API features
-    /// builder.Api
-    ///     .AddSwagger()
-    ///     .AddVersioning()
-    ///     .EnableCors("AllowedOrigins", cors => 
-    ///         cors.WithOrigins("https://example.com")
-    ///             .AllowAnyMethod()
-    ///             .AllowAnyHeader());
-    ///             
-    /// // Configure security features
-    /// builder.Security
-    ///     .UseJwtAuthentication()
-    ///     .AddDefaultAuthorization();
-    ///     
-    /// // Configure persistence features
-    /// builder.Persistence
-    ///     .UseSqlServer&lt;AppDbContext&gt;()
-    ///     .EnableAutoMigrations();
-    /// </code>
-    /// </example>
-    /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The application configuration.</param>
-    /// <returns>An EndatixBuilder for further configuration.</returns>
+    /// <returns>A builder for further configuration.</returns>
     public static EndatixBuilder AddEndatix(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -68,20 +28,13 @@ public static class EndatixServiceCollectionExtensions
         Guard.Against.Null(services);
         Guard.Against.Null(configuration);
 
-        // Register options from configuration
-        services.Configure<EndatixOptions>(
-            configuration.GetSection("Endatix"));
-        services.Configure<HostingOptions>(
-            configuration.GetSection(HostingOptions.SectionName));
+        // Register core framework services FIRST to ensure IAppEnvironment is available
+        RegisterCoreFrameworkServices(services, configuration);
 
-        // Register core framework services (this handles IAppEnvironment registration)
-        services.AddEndatixFrameworkServices();
+        // Create the main builder with logging already configured
+        var builder = new EndatixBuilder(services, configuration);
 
-        // Register core identity services (JWT authentication is now handled exclusively by EndatixSecurityBuilder)
-        services.AddEndatixIdentityEssentialServices();
-
-        // Create the builder
-        return new EndatixBuilder(services, configuration);
+        return builder;
     }
 
     /// <summary>
@@ -109,9 +62,18 @@ public static class EndatixServiceCollectionExtensions
     /// <returns>The service collection with Endatix configured.</returns>
     public static IServiceCollection AddEndatixWithDefaults(
         this IServiceCollection services,
-        IConfiguration configuration) =>
-        services.AddEndatix(configuration)
-            .UseDefaults().Services;
+        IConfiguration configuration)
+    {
+        // Get the Endatix builder with core services already set up
+        var builder = services.AddEndatix(configuration);
+        var logger = builder.LoggerFactory.CreateLogger(typeof(EndatixServiceCollectionExtensions));
+
+        // Apply default configuration to all components
+        builder.UseDefaults();
+
+        logger.LogInformation("Endatix configured with default settings");
+        return builder.Services;
+    }
 
     /// <summary>
     /// Adds Endatix services with SQL Server as the default database for the specified context.
@@ -144,8 +106,17 @@ public static class EndatixServiceCollectionExtensions
         IConfiguration configuration)
         where TContext : DbContext
     {
+        // Create core services
         var builder = services.AddEndatix(configuration);
-        builder.Persistence.UseSqlServer<TContext>();
+        builder.LogSetupInfo("Configuring Endatix with SQL Server...");
+
+        // Register the configured logger
+        builder.Logging.RegisterConfiguredLogger();
+
+        // Configure with SQL Server
+        builder.UseSqlServer<TContext>();
+
+        builder.LogSetupInfo("Endatix configured with SQL Server");
         return builder;
     }
 
@@ -180,8 +151,23 @@ public static class EndatixServiceCollectionExtensions
         IConfiguration configuration)
         where TContext : DbContext
     {
+        // Create core services
         var builder = services.AddEndatix(configuration);
-        builder.Persistence.UsePostgreSql<TContext>();
+        builder.LogSetupInfo("Configuring Endatix with PostgreSQL...");
+
+        // Configure with PostgreSQL
+        builder.UsePostgreSql<TContext>();
+
+        builder.LogSetupInfo("Endatix configured with PostgreSQL");
         return builder;
+    }
+
+    private static void RegisterCoreFrameworkServices(IServiceCollection services, IConfiguration configuration)
+    {
+        // Use the existing framework service registration that includes IAppEnvironment
+        services.AddEndatixFrameworkServices();
+
+        services.Configure<EndatixOptions>(configuration.GetSection("Endatix"));
+        services.AddHealthChecks();
     }
 }
