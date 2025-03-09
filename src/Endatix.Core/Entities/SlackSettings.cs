@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Endatix.Infrastructure.Integrations.Slack;
+namespace Endatix.Core.Entities;
 
 /// <summary>
 /// POCO Class for per environment settings for Slack.
