@@ -30,17 +30,6 @@ public sealed class User : TenantEntity, IAggregateRoot
         IsVerified = isVerified;
     }
 
-    // TEMP until the tests are fixed
-    public User(
-        long id,
-        string userName,
-        string email,
-        bool isVerified
-        )
-        : this(id, 1, userName, email, isVerified)
-    {
-    }
-
     /// <summary>
     /// The user's chosen username for the application.
     /// </summary>

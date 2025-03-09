@@ -42,7 +42,7 @@ public class UpdateStatusHandlerTests
         var requestFormId = 999;
         var actualFormId = 1;
         var command = new UpdateStatusCommand(1, requestFormId, "new");
-        var submission = new Submission("data", 1, actualFormId);
+        var submission = new Submission(SampleData.TENANT_ID, "data", 1, actualFormId);
 
         _submissionRepository.GetByIdAsync(command.SubmissionId, Arg.Any<CancellationToken>())
             .Returns(submission);
@@ -63,7 +63,7 @@ public class UpdateStatusHandlerTests
     {
         // Arrange
         var command = new UpdateStatusCommand(1, 1, "invalid_status");
-        var submission = new Submission("data", 1, 1);
+        var submission = new Submission(SampleData.TENANT_ID, "data", 1, 1);
 
         _submissionRepository.GetByIdAsync(command.SubmissionId, Arg.Any<CancellationToken>())
             .Returns(submission);
@@ -84,7 +84,7 @@ public class UpdateStatusHandlerTests
     {
         // Arrange
         var command = new UpdateStatusCommand(1, 1, "approved");
-        var submission = new Submission("{}", 1, 1, isComplete: true);
+        var submission = new Submission(SampleData.TENANT_ID, "{}", 1, 1, isComplete: true);
 
         _submissionRepository.GetByIdAsync(command.SubmissionId, Arg.Any<CancellationToken>())
             .Returns(submission);
@@ -110,7 +110,7 @@ public class UpdateStatusHandlerTests
     {
         // Arrange
         var command = new UpdateStatusCommand(1, 1, statusCode);
-        var submission = new Submission("{}", 1, 1, isComplete: true);
+        var submission = new Submission(SampleData.TENANT_ID, "{}", 1, 1, isComplete: true);
 
         _submissionRepository.GetByIdAsync(command.SubmissionId, Arg.Any<CancellationToken>())
             .Returns(submission);

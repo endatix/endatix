@@ -2,6 +2,7 @@ namespace Endatix.Core.Tests;
 
 public static class SampleData
 {
+    public const long TENANT_ID = 1;
     public const string FORM_NAME_1 = "Product Form";
     public const string FORM_NAME_2 = "Insurance Form";
     public const string FORM_DESCRIPTION_1 = "Product Form Description";

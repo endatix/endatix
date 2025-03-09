@@ -59,7 +59,7 @@ public class LoginHandlerTests
     {
         // Arrange
         var command = new LoginCommand("test@example.com", "password");
-        var user = new User(1, "testuser", "test@example.com", true);
+        var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", true);
         var accessToken = new TokenDto("access_token", DateTime.UtcNow.AddMinutes(15));
         var refreshToken = new TokenDto("refresh_token", DateTime.UtcNow.AddDays(7));
 

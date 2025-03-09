@@ -24,17 +24,19 @@ public class CreateFormHandlerTests
     {
         // Arrange
         var request = new CreateFormCommand("Form Name", "Description", true, SampleData.FORM_DEFINITION_JSON_DATA_1);
-        var createdForm = new Form("Form Name", request.Description, request.IsEnabled)
+        
+        var createdForm = new Form(SampleData.TENANT_ID, "Form Name", request.Description, request.IsEnabled)
         {
             Id = 123
         };
-        var createdFormDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1){
+        var createdFormDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1){
             Id = 456
         };
         createdForm.AddFormDefinition(createdFormDefinition);
 
         _repository.CreateFormWithDefinitionAsync(Arg.Do<Form>(form => createdForm = form), Arg.Do<FormDefinition>(fd => createdFormDefinition = fd), Arg.Any<CancellationToken>())
                    .Returns(createdForm);
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -45,6 +47,7 @@ public class CreateFormHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.Name.Should().Be(request.Name);
         result.Value.Id.Should().Be(123);
+        result.Value.TenantId.Should().Be(SampleData.TENANT_ID);
         result.Value.Description.Should().Be(request.Description);
         result.Value.IsEnabled.Should().Be(request.IsEnabled);
 

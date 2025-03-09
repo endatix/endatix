@@ -17,12 +17,6 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
         JsonData = jsonData;
     }
 
-    // TEMP until the tests are fixed
-    public FormDefinition(bool isDraft = false, string? jsonData = null)
-        : this(1, isDraft, jsonData)
-    {
-    }
-
     public IReadOnlyList<Submission> Submissions => _submissions.AsReadOnly();
 
     public bool IsDraft { get; private set; }

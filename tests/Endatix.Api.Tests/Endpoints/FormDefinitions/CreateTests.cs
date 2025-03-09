@@ -37,7 +37,7 @@ public class CreateTests
             request.JsonData!
         );
 
-        var createdFormDefinition = new FormDefinition(command.IsDraft, command.JsonData)
+        var createdFormDefinition = new FormDefinition(SampleData.TENANT_ID, command.IsDraft, command.JsonData)
         {
             Id = 2
         };

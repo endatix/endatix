@@ -141,11 +141,13 @@ public class AuthServiceTests
     {
         // Arrange
         var userId = 1;
+        var tenantId = 1;
         var email = "email@example.com";
         var password = "password";
         var user = new AppUser
         {
             Id = userId,
+            TenantId = tenantId,
             UserName = email,
             Email = email,
             EmailConfirmed = true
@@ -160,6 +162,7 @@ public class AuthServiceTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value.Id.Should().Be(userId);
+        result.Value.TenantId.Should().Be(tenantId);
         result.Value.UserName.Should().Be(email);
         result.Value.Email.Should().Be(email);
         result.Value.IsVerified.Should().BeTrue();
@@ -272,6 +275,7 @@ public class AuthServiceTests
     {
         // Arrange
         var userId = 1;
+        var tenantId = 1;
         var email = "email@example.com";
         var token = "token";
         var hash = "hash";
@@ -280,6 +284,7 @@ public class AuthServiceTests
         var user = new AppUser
         {
             Id = userId,
+            TenantId = tenantId,
             UserName = email,
             Email = email,
             RefreshTokenHash = hash,
@@ -296,6 +301,7 @@ public class AuthServiceTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value.Id.Should().Be(userId);
+        result.Value.TenantId.Should().Be(tenantId);
         result.Value.UserName.Should().Be(email);
         result.Value.Email.Should().Be(email);
     }

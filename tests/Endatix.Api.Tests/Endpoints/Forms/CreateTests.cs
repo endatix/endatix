@@ -55,7 +55,7 @@ public class CreateTests
             FormDefinitionJsonData = """{ "type": "object" }"""
         };
         
-        var form = new Form(request.Name) { Id = 1 };
+        var form = new Form(SampleData.TENANT_ID, request.Name) { Id = 1 };
         var result = Result<Form>.Created(form);
 
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
@@ -83,7 +83,7 @@ public class CreateTests
             IsEnabled = true,
             FormDefinitionJsonData = """{ "type": "object" }"""
         };
-        var result = Result<Form>.Created(new Form("Test Form"));
+        var result = Result<Form>.Created(new Form(SampleData.TENANT_ID, "Test Form"));
         
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

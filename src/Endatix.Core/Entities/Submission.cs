@@ -24,12 +24,6 @@ public partial class Submission : TenantEntity, IAggregateRoot
         SetCompletionStatus(isComplete);
     }
 
-    // TEMP until the tests are fixed
-    public Submission(string jsonData, long formId, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
-        : this(1, jsonData, formId, formDefinitionId, isComplete, currentPage, metadata)
-    {
-    }
-
     public bool IsComplete { get; private set; }
     public string JsonData { get; private set; }
     public FormDefinition FormDefinition { get; private set; }

@@ -53,7 +53,7 @@ public class CreateTests
             Metadata = "test metadata"
         };
         
-        var submission = new Submission(jsonData, formId, 2) { Id = 1 };
+        var submission = new Submission(SampleData.TENANT_ID, jsonData, formId, 2) { Id = 1 };
         submission.UpdateToken(new Token(1));
         var result = Result<Submission>.Created(submission);
 
@@ -84,7 +84,7 @@ public class CreateTests
             JsonData = """{ "field": "value" }""",
             Metadata = """{ "key", "value" }"""
         };
-        var result = Result<Submission>.Created(new Submission("""{ "field": "value" }""", 123, 456));
+        var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
         
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

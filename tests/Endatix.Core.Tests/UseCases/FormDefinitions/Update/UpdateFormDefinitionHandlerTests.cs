@@ -45,8 +45,8 @@ public class UpdateFormDefinitionHandlerTests
         var notFoundFormDefinitionId = 2;
         var request = new UpdateFormDefinitionCommand(notFoundFormId, notFoundFormDefinitionId, true, SampleData.FORM_DEFINITION_JSON_DATA_1);
 
-        var form = new Form(SampleData.FORM_NAME_1) { Id = 123 };
-        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 123 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 456
         };
@@ -70,7 +70,7 @@ public class UpdateFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var form = new Form(SampleData.FORM_NAME_1) { Id = 1 };
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
         var formDefinition = FormDefinitionFactory.CreateForTesting(
             jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
             formId: 1,

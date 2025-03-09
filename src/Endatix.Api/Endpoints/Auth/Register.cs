@@ -2,7 +2,7 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Errors = Microsoft.AspNetCore.Mvc;
-using Endatix.Core.UseCases.Register;
+using Endatix.Core.UseCases.Identity.Register;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Api.Infrastructure;
 

@@ -18,12 +18,6 @@ public partial class Form : TenantEntity, IAggregateRoot
         IsEnabled = isEnabled;
     }
 
-    // TEMP until the tests are fixed
-    public Form(string name, string? description = null, bool isEnabled = false)
-        : this(1, name, description, isEnabled)
-    {
-    }
-
     public string Name { get; set; }
     public string? Description { get; set; }
     public bool IsEnabled { get; set; }

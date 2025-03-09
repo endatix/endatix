@@ -6,7 +6,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using MediatR;
 
-namespace Endatix.Core.UseCases.Register;
+namespace Endatix.Core.UseCases.Identity.Register;
 
 /// <summary>
 /// Handles the registration of a new user.

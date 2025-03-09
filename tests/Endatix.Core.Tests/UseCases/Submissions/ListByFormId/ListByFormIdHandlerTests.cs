@@ -42,7 +42,7 @@ public class ListByFormIdHandlerTests
     public async Task Handle_ValidRequest_ReturnsSubmissions()
     {
         // Arrange
-        var formDefinition = new FormDefinition() { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 1 };
         var submissions = new List<SubmissionDto>
         {
             new(3, false, [], 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new"),
@@ -71,7 +71,7 @@ public class ListByFormIdHandlerTests
     public async Task Handle_ValidRequest_AppliesPagination()
     {
         // Arrange
-        var formDefinition = new FormDefinition() { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 1 };
         var request = new ListByFormIdQuery(1, 2, 20, []);
 
         _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())

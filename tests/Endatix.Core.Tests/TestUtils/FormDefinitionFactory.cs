@@ -10,7 +10,7 @@ public static class FormDefinitionFactory
 {
     public static FormDefinition CreateForTesting(bool isDraft = false, string? jsonData = null, long? formId = default, long? formDefinitionId = default)
     {
-        var formDefinition = new FormDefinition(isDraft, jsonData);
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, isDraft, jsonData);
         if (formId.HasValue)
         {
             typeof(FormDefinition)

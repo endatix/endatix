@@ -54,7 +54,7 @@ public class GetByTokenHandlerTests
         var submissionId = 123L;
         var request = new GetByTokenQuery(formId, token);
         var tokenResult = Result.Success(submissionId);
-        var submission = new Submission("{}", formId, formDefinitionId);
+        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
         var submissionResult = Result.Success(submission);
 
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())

@@ -38,7 +38,7 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_ValidRequest_UpdatesForm()
     {
         // Arrange
-        var form = new Form("Test Form")
+        var form = new Form(SampleData.TENANT_ID, "Test Form")
         {
             Id = 1,
             Name = SampleData.FORM_NAME_1,
@@ -66,7 +66,7 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_PartialUpdate_UpdatesOnlySpecifiedFields()
     {
         // Arrange
-        var form = new Form("Test Form") { Id = 1, Name = SampleData.FORM_NAME_1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1, Name = SampleData.FORM_NAME_1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
         var request = new PartialUpdateFormCommand(1, null, SampleData.FORM_DESCRIPTION_2, null);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);

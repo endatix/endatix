@@ -16,14 +16,12 @@ namespace Endatix.Infrastructure.Data;
 public class AppDbContext : DbContext
 {
     private readonly IIdGenerator<long> _idGenerator;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ITenantContext _tenantContext;
 
     protected AppDbContext() { }
-    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator, IHttpContextAccessor httpContextAccessor, ITenantContext tenantContext) : base(options)
+    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator, ITenantContext tenantContext) : base(options)
     {
         _idGenerator = idGenerator;
-        _httpContextAccessor = httpContextAccessor;
         _tenantContext = tenantContext;
     }
 
@@ -33,15 +31,6 @@ public class AppDbContext : DbContext
 
     public DbSet<Submission> Submissions { get; set; }
 
-    private bool IsInternalUser() {
-        var emailAddress = _httpContextAccessor.HttpContext?.User.ClaimValue("email");
-        if(emailAddress != null && emailAddress.ToLower().EndsWith("@endatix.com")) {
-            return true;
-        }
-        else {
-            return false;
-        }
-    }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

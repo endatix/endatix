@@ -53,8 +53,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_ValidRequest_CreatesSubmission()
     {
         // Arrange
-        var form = new Form("Test Form") { Id = 1 };
-        var formDefinition = new FormDefinition() { Id = 2 };
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
         var request = new CreateSubmissionCommand(
@@ -95,8 +95,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_ValidRequest_GeneratesAndSetsToken()
     {
         // Arrange
-        var form = new Form("Test Form") { Id = 1 };
-        var formDefinition = new FormDefinition() { Id = 2 };
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
         var request = new CreateSubmissionCommand(1, "{ }", null, null, null);
@@ -124,8 +124,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_ValidRequestAndSubmissionIsCompleted_PublishesSubmissionCreatedEvent()
     {
         // Arrange
-        var form = new Form("Test Form") { Id = 1 };
-        var formDefinition = new FormDefinition() { Id = 2 };
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
         var request = new CreateSubmissionCommand(1, "{ }", null, null, true);
