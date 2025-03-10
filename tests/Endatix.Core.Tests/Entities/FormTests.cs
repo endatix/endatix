@@ -8,8 +8,8 @@ public class FormTests
     public void AddFormDefinition_WhenFirstDefinition_SetsItAsActive()
     {
         // Arrange & Act
-        var form = new Form(SampleData.FORM_NAME_1);
-        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
 
         // Assert
@@ -22,9 +22,9 @@ public class FormTests
     public void SetActiveFormDefinition_WhenChangingActive_UpdatesActiveDefinitionCorrectly()
     {
         // Arrange
-        var form = new Form(SampleData.FORM_NAME_1);
-        var formDefinition1 = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
-        var formDefinition2 = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_2);
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
+        var formDefinition1 = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var formDefinition2 = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_2);
         form.AddFormDefinition(formDefinition1);
         form.AddFormDefinition(formDefinition2);
 
@@ -39,9 +39,9 @@ public class FormTests
     public void SetActiveFormDefinition_WithNonExistingDefinition_ThrowsException()
     {
         // Arrange
-        var form = new Form(SampleData.FORM_NAME_1);
-        var externalForm = new Form(SampleData.FORM_NAME_2);
-        var externalDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
+        var externalForm = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_2);
+        var externalDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         externalForm.AddFormDefinition(externalDefinition);
 
         // Act & Assert

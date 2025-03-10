@@ -11,7 +11,7 @@ namespace Endatix.Infrastructure.Identity.Users;
 public class AppUserRegistrationService(UserManager<AppUser> userManager, IUserStore<AppUser> userStore) : IUserRegistrationService
 {
     /// <inheritdoc />
-    public async Task<Result<User>> RegisterUserAsync(string email, string password, CancellationToken cancellationToken)
+    public async Task<Result<User>> RegisterUserAsync(long tenantId, string email, string password, CancellationToken cancellationToken)
     {
         if (!userManager.SupportsUserEmail)
         {
@@ -20,6 +20,7 @@ public class AppUserRegistrationService(UserManager<AppUser> userManager, IUserS
 
         var newUser = new AppUser
         {
+            TenantId = tenantId,
             EmailConfirmed = true
         };
 

@@ -8,7 +8,6 @@ public sealed class ActiveFormDefinitionByFormIdSpec : Specification<Form>, ISin
     public ActiveFormDefinitionByFormIdSpec(long formId)
     {
         Query.Where(f => f.Id == formId)
-            .IgnoreQueryFilters()
             .Include(f => f.ActiveDefinition);
     }
 }

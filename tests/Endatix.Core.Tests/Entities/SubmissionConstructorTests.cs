@@ -15,7 +15,7 @@ public class SubmissionConstructorTests
         string? nullJsonData = null;
 
         // Act
-        var action = () => new Submission(nullJsonData!, formId, formDefinitionId);
+        var action = () => new Submission(SampleData.TENANT_ID, nullJsonData!, formId, formDefinitionId);
 
         // Assert
         action.Should().Throw<ArgumentNullException>()
@@ -31,7 +31,7 @@ public class SubmissionConstructorTests
         var formDefinitionId = 456;
 
         // Act
-        var action = () => new Submission(emptyJsonData, formId, formDefinitionId);
+        var action = () => new Submission(SampleData.TENANT_ID, emptyJsonData, formId, formDefinitionId);
 
         // Assert
         action.Should().Throw<ArgumentException>()
@@ -43,13 +43,13 @@ public class SubmissionConstructorTests
     {
         // Arrange
         const long invalidFormDefinitionId = -1;
-        var form = new Form(SampleData.FORM_NAME_1){
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1){
             Id = 123 
         };
         const string jsonData = SampleData.SUBMISSION_JSON_DATA_1;
 
         // Act
-        var action = () => new Submission(jsonData, form.Id, invalidFormDefinitionId);
+        var action = () => new Submission(SampleData.TENANT_ID, jsonData, form.Id, invalidFormDefinitionId);
 
         // Assert
         action.Should().Throw<ArgumentException>()
@@ -60,18 +60,18 @@ public class SubmissionConstructorTests
     public void Constructor_ValidInput_SetsPropertiesCorrectly()
     {
         // Arrange
-        var form = new Form(SampleData.FORM_NAME_1){
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1){
             Id = 123
         };
         var jsonData = SampleData.SUBMISSION_JSON_DATA_1;
-        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 123
         };
         form.AddFormDefinition(formDefinition);
 
         // Act
-        var submission = new Submission(jsonData, form.Id, formDefinition.Id, isComplete: false, currentPage: 2, metadata: "Test");
+        var submission = new Submission(SampleData.TENANT_ID, jsonData, form.Id, formDefinition.Id, isComplete: false, currentPage: 2, metadata: "Test");
 
         // Assert
         submission.Should().NotBeNull();
@@ -86,17 +86,17 @@ public class SubmissionConstructorTests
     public void Constructor_CompleteSubmission_SetsCompletedAt()
     {
         // Arrange
-        var form = new Form(SampleData.FORM_NAME_1){
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1){
             Id = 123    
         };
-        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1){
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1){
             Id = 456
         };
         form.AddFormDefinition(formDefinition);
         const string jsonData = SampleData.SUBMISSION_JSON_DATA_1;
 
         // Act
-        var submission = new Submission(jsonData, form.Id, formDefinition.Id, isComplete: true);
+        var submission = new Submission(SampleData.TENANT_ID, jsonData, form.Id, formDefinition.Id, isComplete: true);
 
         // Assert
         submission.Should().NotBeNull();

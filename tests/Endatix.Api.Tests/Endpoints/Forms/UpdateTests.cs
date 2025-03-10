@@ -82,7 +82,7 @@ public class UpdateTests
             IsEnabled = true
         };
         
-        var form = new Form(request.Name) { Id = formId };
+        var form = new Form(SampleData.TENANT_ID, request.Name) { Id = formId };
         var result = Result.Success(form);
 
         _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
@@ -110,7 +110,7 @@ public class UpdateTests
             Description = "Updated Description",
             IsEnabled = true
         };
-        var result = Result.Success(new Form("Updated Form"));
+        var result = Result.Success(new Form(SampleData.TENANT_ID, "Updated Form"));
         
         _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

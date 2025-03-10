@@ -6,6 +6,7 @@ using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Seed;
+using Endatix.Infrastructure.Multitenancy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,7 @@ public static class AppBuilderExtensions
         app.UseHttpsRedirection();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseMiddleware<TenantMiddleware>();
 
         app.UseSerilogRequestLogging(options =>
         {

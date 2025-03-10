@@ -43,7 +43,7 @@ public class GetSubmissionByIdHandlerTests
         var formId = 1L;
         var formDefinitionId = 1L;
         var submissionId = 1L;
-        var submission = new Submission("{ }", formId, formDefinitionId) { Id = submissionId };
+        var submission = new Submission(SampleData.TENANT_ID, "{ }", formId, formDefinitionId) { Id = submissionId };
         var request = new GetByIdQuery(formId, submissionId);
         
         _submissionsRepository.SingleOrDefaultAsync(

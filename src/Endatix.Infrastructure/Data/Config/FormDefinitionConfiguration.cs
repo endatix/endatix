@@ -2,26 +2,23 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Entities;
 
-namespace Endatix.Infrastructure.Data.Config
+namespace Endatix.Infrastructure.Data.Config;
+
+public class FormDefinitionConfiguration : IEntityTypeConfiguration<FormDefinition>
 {
-    public class FormDefinitionConfiguration : IEntityTypeConfiguration<FormDefinition>
+    public void Configure(EntityTypeBuilder<FormDefinition> builder)
     {
-        public void Configure(EntityTypeBuilder<FormDefinition> builder)
-        {
-            builder.ToTable("FormDefinitions");
+        builder.ToTable("FormDefinitions");
 
-            builder.HasQueryFilter(fd => !fd.IsDeleted);
+        builder.Property(fd => fd.Id)
+            .IsRequired();
 
-            builder.Property(fd => fd.Id)
-                .IsRequired();
+        builder.Property(fd => fd.JsonData)
+            .IsRequired();
 
-            builder.Property(fd => fd.JsonData)
-                .IsRequired();
-
-            builder.HasOne<Form>()
-                .WithMany(f => f.FormDefinitions)
-                .IsRequired(false)
-                .HasForeignKey(fd => fd.FormId);
-        }
+        builder.HasOne<Form>()
+            .WithMany(f => f.FormDefinitions)
+            .IsRequired(false)
+            .HasForeignKey(fd => fd.FormId);
     }
 }

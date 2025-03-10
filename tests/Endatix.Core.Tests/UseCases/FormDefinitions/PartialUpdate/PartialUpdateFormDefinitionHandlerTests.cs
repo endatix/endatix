@@ -42,8 +42,8 @@ public class PartialUpdateFormDefinitionHandlerTests
     {
         // Arrange
         var nonExistingFormId = 2;
-        var form = new Form(SampleData.FORM_NAME_1) { Id = 1 };
-        var formDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
         var request = new PartialUpdateFormDefinitionCommand(nonExistingFormId, 1, null, null);
         _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
@@ -62,7 +62,7 @@ public class PartialUpdateFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var testForm = new Form("Test Form") { Id = 1 };
+        var testForm = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
         var formDefinition = FormDefinitionFactory.CreateForTesting(
             jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
             formId: 1,
@@ -95,7 +95,7 @@ public class PartialUpdateFormDefinitionHandlerTests
     public async Task Handle_PartialUpdate_UpdatesOnlySpecifiedFields()
     {
         // Arrange
-        var form = new Form("Test Form")
+        var form = new Form(SampleData.TENANT_ID, "Test Form")
         {
             Id = 1
         };

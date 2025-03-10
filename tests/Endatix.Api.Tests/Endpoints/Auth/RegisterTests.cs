@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Errors = Microsoft.AspNetCore.Mvc;
 using Endatix.Api.Endpoints.Auth;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Register;
+using Endatix.Core.UseCases.Identity.Register;
 using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Api.Tests.Endpoints.Auth;

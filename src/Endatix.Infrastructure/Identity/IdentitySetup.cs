@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
+using Endatix.Infrastructure.Multitenancy;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -31,6 +32,7 @@ public static class IdentitySetup
         endatixApp.Services.AddScoped<IAuthService, AuthService>();
         endatixApp.Services.AddScoped<IUserService, AppUserService>();
         endatixApp.Services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
+        endatixApp.Services.AddScoped<ITenantContext, TenantContext>();
 
         endatixApp.LogSetupInformation("{Component} infrastructure configuration | {Status}", "Security Config", "Finished");
 

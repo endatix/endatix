@@ -5,7 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.FormDefinitions;
 using Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
-using Endatix.Infrastructure.Tests.TestUtils;
+using Endatix.Api.Tests.TestUtils;
 
 namespace Endatix.Api.Tests.Endpoints.FormDefinitions;
 
@@ -99,7 +99,7 @@ public class PartialUpdateActiveTests
             IsDraft = false,
             JsonData = "{ }"
         };
-        var result = Result.Success(new FormDefinition(false, "{ }"));
+        var result = Result.Success(new FormDefinition(SampleData.TENANT_ID, false, "{ }"));
 
         _mediator.Send(Arg.Any<PartialUpdateActiveFormDefinitionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

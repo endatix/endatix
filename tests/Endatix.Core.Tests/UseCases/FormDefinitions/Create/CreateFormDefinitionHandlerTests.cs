@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
@@ -9,12 +10,14 @@ namespace Endatix.Core.Tests.UseCases.FormDefinitions.Create;
 public class CreateFormDefinitionHandlerTests
 {
     private readonly IFormsRepository _formsRepository;
+    private readonly ITenantContext _tenantContext;
     private readonly CreateFormDefinitionHandler _handler;
 
     public CreateFormDefinitionHandlerTests()
     {
         _formsRepository = Substitute.For<IFormsRepository>();
-        _handler = new CreateFormDefinitionHandler(_formsRepository);
+        _tenantContext = Substitute.For<ITenantContext>();
+        _handler = new CreateFormDefinitionHandler(_formsRepository, _tenantContext);
     }
 
     [Fact]
@@ -22,11 +25,12 @@ public class CreateFormDefinitionHandlerTests
     {
         // Arrange
         Form? notFoundForm = null;
-        var request = new CreateFormDefinitionCommand(1, true, SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var request = new CreateFormDefinitionCommand(SampleData.TENANT_ID, true, SampleData.FORM_DEFINITION_JSON_DATA_1);
         _formsRepository.GetByIdAsync(
             request.FormId,
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(notFoundForm);
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -41,8 +45,8 @@ public class CreateFormDefinitionHandlerTests
     public async Task Handle_NonDraft_ValidRequest_CreatesNew_Active_FormDefinition()
     {
         // Arrange
-        var request = new CreateFormDefinitionCommand(1, isDraft: false, SampleData.FORM_DEFINITION_JSON_DATA_1);
-        var form = new Form(SampleData.FORM_NAME_1)
+        var request = new CreateFormDefinitionCommand(SampleData.TENANT_ID, isDraft: false, SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
         {
             Id = request.FormId
         };
@@ -57,6 +61,7 @@ public class CreateFormDefinitionHandlerTests
             request.FormId,
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(form);
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -79,8 +84,8 @@ public class CreateFormDefinitionHandlerTests
     public async Task Handle_Draft_ValidRequest_CreatesNewFormDefinition()
     {
         // Arrange
-        var request = new CreateFormDefinitionCommand(1, isDraft: true, SampleData.FORM_DEFINITION_JSON_DATA_1);
-        var form = new Form(SampleData.FORM_NAME_1)
+        var request = new CreateFormDefinitionCommand(SampleData.TENANT_ID, isDraft: true, SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
         {
             Id = request.FormId
         };
@@ -95,6 +100,7 @@ public class CreateFormDefinitionHandlerTests
             request.FormId,
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(form);
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -107,6 +113,7 @@ public class CreateFormDefinitionHandlerTests
 
         form.ActiveDefinition!.Id.Should().Be(2);
         form.FormDefinitions.Count.Should().Be(2);
+        createdFormDefinition.TenantId.Should().Be(SampleData.TENANT_ID);
         createdFormDefinition.IsDraft.Should().Be(request.IsDraft);
         createdFormDefinition.JsonData.Should().Be(request.JsonData);
 

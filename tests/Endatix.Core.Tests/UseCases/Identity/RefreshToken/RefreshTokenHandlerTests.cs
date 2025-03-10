@@ -100,7 +100,7 @@ public class RefreshTokenHandlerTests
         // Arrange
         var command = new RefreshTokenCommand("access_token", "refresh_token");
         var userId = 1;
-        var user = new User(userId, "testuser", "test@example.com", true);
+        var user = new User(userId, SampleData.TENANT_ID, "testuser", "test@example.com", true);
         var newAccessToken = new TokenDto("new_access_token", DateTime.UtcNow.AddMinutes(15));
         var newRefreshToken = new TokenDto("new_refresh_token", DateTime.UtcNow.AddDays(7));
 

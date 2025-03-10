@@ -144,7 +144,7 @@ public class JwtTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
         optionsWrapper.Value.Returns(_validJwtOptions);
         var tokenService = new JwtTokenService(optionsWrapper);
-        var user = new User(1, "testuser", "test@example.com", false);
+        var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", false);
 
         // Act
         var result = tokenService.IssueAccessToken(user);
@@ -162,6 +162,7 @@ public class JwtTokenServiceTests
         jsonToken.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.NameId && c.Value == "testuser");
         jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.Role && c.Value == RoleNames.ADMIN);
         jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.Permission && c.Value == Allow.AllowAll);
+        jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.TenantId && c.Value == SampleData.TENANT_ID.ToString());
     }
 
     [Fact]
@@ -171,7 +172,7 @@ public class JwtTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
         optionsWrapper.Value.Returns(_validJwtOptions);
         var tokenService = new JwtTokenService(optionsWrapper);
-        var user = new User(1, "testuser", "test@example.com", false);
+        var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", false);
         var token = tokenService.IssueAccessToken(user);
 
         // Act
@@ -240,7 +241,7 @@ public class JwtTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
         optionsWrapper.Value.Returns(_validJwtOptions);
         var tokenService = new JwtTokenService(optionsWrapper);
-        var user = new User(1, "testuser", "test@example.com", false);
+        var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", false);
 
         // Act
         var result = await tokenService.RevokeTokensAsync(user);

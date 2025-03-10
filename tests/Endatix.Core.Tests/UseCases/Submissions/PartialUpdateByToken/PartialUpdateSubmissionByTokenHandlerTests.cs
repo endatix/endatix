@@ -59,7 +59,7 @@ public class PartialUpdateSubmissionByTokenHandlerTests
             token, formId, isComplete, currentPage, jsonData, metadata);
 
         var tokenResult = Result.Success(submissionId);
-        var submission = new Submission(jsonData, formId, formDefinitionId) { Id = submissionId };
+        var submission = new Submission(SampleData.TENANT_ID, jsonData, formId, formDefinitionId) { Id = submissionId };
         var updateResult = Result.Success(submission);
 
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())

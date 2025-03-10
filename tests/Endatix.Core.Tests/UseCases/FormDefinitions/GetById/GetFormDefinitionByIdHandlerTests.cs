@@ -42,7 +42,7 @@ public class GetFormDefinitionByIdHandlerTests
     {
         // Arrange
         var formDefinitionIdToReturn = 123;
-        var form = new Form(SampleData.FORM_NAME_1) { Id = 1 };
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
         var formDefinition = FormDefinitionFactory.CreateForTesting(
             isDraft: false,
             jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
@@ -70,7 +70,7 @@ public class GetFormDefinitionByIdHandlerTests
     public async Task Handle_ValidRequest_ReturnsFormDefinition()
     {
         // Arrange
-        var form = new Form("Test Form") { Id = 1 };
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
         var formDefinition = FormDefinitionFactory.CreateForTesting(
             isDraft: false,
             jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,

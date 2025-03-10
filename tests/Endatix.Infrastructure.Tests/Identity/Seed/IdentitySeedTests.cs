@@ -68,7 +68,7 @@ public class IdentitySeedTests
 
         // Assert
         await _userRegistrationService.DidNotReceive()
-            .RegisterUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .RegisterUserAsync(Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -79,6 +79,7 @@ public class IdentitySeedTests
         _userManager.Users.Returns(users);
         DataOptions? nullOptions = null;
 
+        var expectedTenantId = 1;
         var expectedEmail = "admin@endatix.com";
         var expectedPassword = "P@ssw0rd";
 
@@ -87,7 +88,7 @@ public class IdentitySeedTests
 
         // Assert
         await _userRegistrationService.Received(1)
-            .RegisterUserAsync(expectedEmail, expectedPassword, Arg.Any<CancellationToken>());
+            .RegisterUserAsync(expectedTenantId, expectedEmail, expectedPassword, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -97,6 +98,7 @@ public class IdentitySeedTests
         var users = Enumerable.Empty<AppUser>().AsQueryable();
         _userManager.Users.Returns(users);
 
+        var expectedTenantId = 1;
         var expectedEmail = "custom@example.com";
         var expectedPassword = "CustomPass123";
 
@@ -111,6 +113,6 @@ public class IdentitySeedTests
 
         // Assert
         await _userRegistrationService.Received(1)
-            .RegisterUserAsync(expectedEmail, expectedPassword, Arg.Any<CancellationToken>());
+            .RegisterUserAsync(expectedTenantId, expectedEmail, expectedPassword, Arg.Any<CancellationToken>());
     }
 }

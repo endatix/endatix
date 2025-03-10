@@ -53,10 +53,15 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ActiveDefinitionId")
                         .IsUnique();
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Forms", (string)null);
                 });
@@ -88,9 +93,14 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FormId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("FormDefinitions", (string)null);
                 });
@@ -134,13 +144,48 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FormDefinitionId");
 
                     b.HasIndex("FormId");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("Submissions", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Tenant", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Tenants", (string)null);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Form", b =>
@@ -150,7 +195,15 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasForeignKey("Endatix.Core.Entities.Form", "ActiveDefinitionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
+                        .WithMany("Forms")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("ActiveDefinition");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormDefinition", b =>
@@ -159,6 +212,14 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .WithMany("FormDefinitions")
                         .HasForeignKey("FormId")
                         .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
+                        .WithMany("FormDefinitions")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Submission", b =>
@@ -167,6 +228,12 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .WithMany("Submissions")
                         .HasForeignKey("FormDefinitionId")
                         .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
+                        .WithMany("Submissions")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.OwnsOne("Endatix.Core.Entities.SubmissionStatus", "Status", b1 =>
@@ -216,6 +283,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Navigation("Status")
                         .IsRequired();
 
+                    b.Navigation("Tenant");
+
                     b.Navigation("Token");
                 });
 
@@ -226,6 +295,15 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
             modelBuilder.Entity("Endatix.Core.Entities.FormDefinition", b =>
                 {
+                    b.Navigation("Submissions");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Tenant", b =>
+                {
+                    b.Navigation("FormDefinitions");
+
+                    b.Navigation("Forms");
+
                     b.Navigation("Submissions");
                 });
 #pragma warning restore 612, 618
