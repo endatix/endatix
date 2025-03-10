@@ -1,14 +1,10 @@
-using System;
 using System.Reflection;
 using Endatix.Framework.Hosting;
-using Endatix.Framework.Setup;
-using Endatix.Hosting.Options;
 using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Hosting.Builders;
@@ -100,14 +96,14 @@ public class EndatixBuilder : IBuilderRoot
     {
         Services = services;
         Configuration = configuration;
-        
+
         // Create and initialize the logging builder
         _loggingBuilder = new EndatixLoggingBuilder(services, configuration);
         LoggerFactory = _loggingBuilder.GetComponents();
-        
+
         // Create a logger for this builder
         _logger = LoggerFactory.CreateLogger<EndatixBuilder>();
-        
+
         _logger.LogInformation("Initializing EndatixBuilder");
 
         // Try to get IAppEnvironment from DI
@@ -120,7 +116,7 @@ public class EndatixBuilder : IBuilderRoot
         Persistence = new EndatixPersistenceBuilder(this);
         Security = new EndatixSecurityBuilder(this);
         Messaging = new EndatixMessagingBuilder(this);
-        
+
         _logger.LogInformation("EndatixBuilder initialized successfully");
     }
 
@@ -180,17 +176,6 @@ public class EndatixBuilder : IBuilderRoot
         Persistence.UseDefaults(databaseProvider);
         _logger.LogInformation("Minimal setup completed with {DatabaseProvider} persistence", databaseProvider);
 
-        return this;
-    }
-
-    /// <summary>
-    /// Configures Endatix options.
-    /// </summary>
-    /// <param name="configure">Action to configure options.</param>
-    /// <returns>The builder for chaining.</returns>
-    public EndatixBuilder ConfigureOptions(Action<EndatixOptions> configure)
-    {
-        Services.Configure(configure);
         return this;
     }
 

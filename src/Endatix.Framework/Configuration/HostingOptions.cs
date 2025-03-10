@@ -1,20 +1,17 @@
-using Microsoft.Extensions.Configuration;
-
-namespace Endatix.Hosting.Options;
+namespace Endatix.Framework.Configuration;
 
 /// <summary>
-/// Configuration options for hosting-related settings
+/// Options specific to the hosting environment.
 /// </summary>
-public class HostingOptions
+public class HostingOptions : EndatixOptionsBase
 {
     /// <summary>
-    /// The configuration section name where these options are stored.
+    /// Gets the section path for these options.
     /// </summary>
-    public const string SectionName = "Hosting";
+    public override string SectionPath => "Hosting";
 
     /// <summary>
     /// Indicates whether the application is running in Azure environment.
-    /// Default value: false
     /// </summary>
     public bool IsAzure { get; set; } = false;
 
@@ -26,5 +23,5 @@ public class HostingOptions
     /// <summary>
     /// Gets or sets whether Application Insights is enabled.
     /// </summary>
-    public bool EnableApplicationInsights { get; set; }
+    public bool EnableApplicationInsights { get; set; } = false;
 } 

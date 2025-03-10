@@ -1,7 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Framework.Hosting;
+using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Submissions;
-using Endatix.Infrastructure.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -102,7 +102,7 @@ public class InfrastructureBuilder
     private void ConfigureDefaultOptions()
     {
         Services.AddOptions<DataOptions>()
-            .BindConfiguration(DataOptions.SECTION_NAME)
+            .BindConfiguration(DataOptions.GetSectionName<DataOptions>())
             .ValidateDataAnnotations()
             .ValidateOnStart();
     }

@@ -1,8 +1,7 @@
 using Ardalis.GuardClauses;
+using Endatix.Framework.Configuration;
 using Endatix.Framework.Setup;
 using Endatix.Hosting.Builders;
-using Endatix.Hosting.Options;
-using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,11 +27,23 @@ public static class EndatixServiceCollectionExtensions
         Guard.Against.Null(services);
         Guard.Against.Null(configuration);
 
-        // Register core framework services FIRST to ensure IAppEnvironment is available
+        // Register core framework services FIRST to ensure IAppEnvironment is available∏∏
         RegisterCoreFrameworkServices(services, configuration);
+
+        // Register standard Endatix options
+        services.AddStandardEndatixOptions(configuration);
+
+        // Now create the logging builder which will get environment from services
+        var loggingBuilder = new EndatixLoggingBuilder(services, configuration);
+        var loggerFactory = loggingBuilder.GetComponents();
 
         // Create the main builder with logging already configured
         var builder = new EndatixBuilder(services, configuration);
+        var logger = builder.LoggerFactory.CreateLogger(typeof(EndatixServiceCollectionExtensions));
+
+        // Register remaining services
+        logger.LogInformation("Registering identity services");
+        RegisterIdentityServices(services, configuration);
 
         return builder;
     }
@@ -167,7 +178,13 @@ public static class EndatixServiceCollectionExtensions
         // Use the existing framework service registration that includes IAppEnvironment
         services.AddEndatixFrameworkServices();
 
-        services.Configure<EndatixOptions>(configuration.GetSection("Endatix"));
+        // Add additional core services as needed
+        services.AddOptions();
         services.AddHealthChecks();
+    }
+
+    private static void RegisterIdentityServices(IServiceCollection services, IConfiguration configuration)
+    {
+        // Register identity services
     }
 }

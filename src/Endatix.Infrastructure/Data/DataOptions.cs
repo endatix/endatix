@@ -1,25 +1,25 @@
-﻿namespace Endatix.Infrastructure.Identity;
+﻿using Endatix.Framework.Configuration;
+using Endatix.Infrastructure.Identity;
+
+namespace Endatix.Infrastructure.Data;
 
 /// <summary>
-/// Configuration options for controlling data-related settings in the Endatix application.
+/// Configuration options for data access.
 /// </summary>
-public class DataOptions
+public class DataOptions : EndatixOptionsBase
 {
     /// <summary>
-    /// The configuration section name where these options are stored.
+    /// Gets the section path for these options.
     /// </summary>
-    public static readonly string SECTION_NAME = "Endatix:Data";
+    public override string SectionPath => "Data";
 
     /// <summary>
-    /// Determines whether to apply database migrations.
-    /// Set to true to enable database migrations.
-    /// Omit or set to false will prevent migrations from running unless explicitly set to true
+    /// Gets or sets whether migrations should be applied automatically.
     /// </summary>
     public bool ApplyMigrations { get; set; } = false;
 
     /// <summary>
-    /// Initial user configuration to be created during setup.
+    /// Gets or sets options for the initial user.
     /// </summary>
     public InitialUserOptions? InitialUser { get; set; }
-
 }
