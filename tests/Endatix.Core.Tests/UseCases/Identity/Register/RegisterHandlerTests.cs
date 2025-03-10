@@ -25,18 +25,18 @@ public class RegisterHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NullTenantId_ThrowsArgumentNullException()
+    public async Task Handle_TenantIdIsZero_ThrowsArgumentNullException()
     {
         // Arrange
         var request = new RegisterCommand("test@example.com", "password");
-        _tenantContext.TenantId.Returns((long?)null);
+        _tenantContext.TenantId.Returns(0);
 
         // Act
         var act = () => _handler.Handle(request, CancellationToken.None);
 
         // Assert
-        var expectedMessage = GetErrorMessage("tenantContext.TenantId", Null);
-        await act.Should().ThrowAsync<ArgumentNullException>()
+        var expectedMessage = GetErrorMessage("tenantContext.TenantId", ZeroOrNegative);
+        await act.Should().ThrowAsync<ArgumentException>()
             .WithMessage(expectedMessage);
     }
 
