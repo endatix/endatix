@@ -10,13 +10,13 @@ public class TenantContext : ITenantContext
     /// <summary>
     /// Gets the current tenant ID
     /// </summary>
-    public long? TenantId { get; private set; }
+    public long TenantId { get; private set; }
 
     /// <summary>
     /// Sets the current tenant ID
     /// </summary>
     /// <param name="tenantId">The tenant ID to set</param>
-    internal void SetTenant(long? tenantId)
+    internal void SetTenant(long tenantId)
     {
         TenantId = tenantId;
     }

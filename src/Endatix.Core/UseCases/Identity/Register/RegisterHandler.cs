@@ -28,10 +28,9 @@ public class RegisterHandler(
     /// <returns>A Result containing the newly registered User if successful, or an error if registration fails.</returns>
     public async Task<Result<User>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        Guard.Against.Null(tenantContext.TenantId);
+        Guard.Against.NegativeOrZero(tenantContext.TenantId);
         
-        var tenantId = tenantContext.TenantId!.Value;
-        var registerResult = await userRegistrationService.RegisterUserAsync(tenantId, request.Email, request.Password, cancellationToken);
+        var registerResult = await userRegistrationService.RegisterUserAsync(tenantContext.TenantId, request.Email, request.Password, cancellationToken);
 
         if (registerResult.IsSuccess && registerResult.Value is { } user)
         {

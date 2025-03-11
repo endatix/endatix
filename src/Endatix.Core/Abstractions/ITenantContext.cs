@@ -8,5 +8,5 @@ public interface ITenantContext
     /// <summary>
     /// Gets the current tenant ID
     /// </summary>
-    long? TenantId { get; }
+    long TenantId { get; }
 }

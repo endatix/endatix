@@ -35,10 +35,8 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(builder);
 
-        var tenantIdHasValueMethod = typeof(AppDbContext).GetMethod(nameof(TenantIdHasValue), BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var tenantIdHasValueExpression = Expression.Call(Expression.Constant(this), tenantIdHasValueMethod);
         var getTenantIdMethod = typeof(AppDbContext).GetMethod(nameof(GetTenantId), BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var tenantIdExpression = Expression.Call(Expression.Constant(this), getTenantIdMethod);
+        var currentTenantId = Expression.Call(Expression.Constant(this), getTenantIdMethod);
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             var parameter = Expression.Parameter(entityType.ClrType, "e");
@@ -55,9 +53,10 @@ public class AppDbContext : DbContext
             // Add tenant filter for TenantEntity descendants
             if (typeof(TenantEntity).IsAssignableFrom(entityType.ClrType))
             {
-                var tenantProperty = Expression.Property(parameter, "TenantId");
-                var tenantIdEqualsExpression = Expression.Equal(tenantProperty, Expression.Convert(tenantIdExpression, typeof(long)));
-                var tenantFilter = Expression.OrElse(Expression.Not(tenantIdHasValueExpression), tenantIdEqualsExpression);
+                var currentTenantIdIsZero = Expression.Equal(Expression.Convert(currentTenantId, typeof(long)), Expression.Constant(0L));
+                var tenantIdProperty = Expression.Property(parameter, "TenantId");
+                var tenantIdEquals = Expression.Equal(tenantIdProperty, Expression.Convert(currentTenantId, typeof(long)));
+                var tenantFilter = Expression.OrElse(currentTenantIdIsZero, tenantIdEquals);
                 filters.Add(tenantFilter);
             }
 
@@ -73,9 +72,10 @@ public class AppDbContext : DbContext
         PrefixTableNames(builder);
     }
 
-    private bool TenantIdHasValue() => _tenantContext?.TenantId.HasValue ?? false;
-
-    private long GetTenantId() =>_tenantContext?.TenantId ?? 0;
+    private long GetTenantId()
+    {
+        return _tenantContext?.TenantId ?? 0;
+    }
 
     public override int SaveChanges()
     {

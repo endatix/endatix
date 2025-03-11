@@ -11,11 +11,10 @@ public class CreateFormHandler(IFormsRepository formsRepository, ITenantContext 
 {
     public async Task<Result<Form>> Handle(CreateFormCommand request, CancellationToken cancellationToken)
     {
-        Guard.Against.Null(tenantContext.TenantId);
+        Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
-        var tenantId = tenantContext.TenantId!.Value;
-        var newForm = new Form(tenantId, request.Name, request.Description, request.IsEnabled);
-        var newFormDefinition = new FormDefinition(tenantId, isDraft: true, jsonData: request.FormDefinitionJsonData);
+        var newForm = new Form(tenantContext.TenantId, request.Name, request.Description, request.IsEnabled);
+        var newFormDefinition = new FormDefinition(tenantContext.TenantId, isDraft: true, jsonData: request.FormDefinitionJsonData);
 
         var form = await formsRepository.CreateFormWithDefinitionAsync(newForm, newFormDefinition, cancellationToken);
 
