@@ -14,7 +14,7 @@ To configure the data settings, add the following snippet to your appSettings.js
 ```json
 "Endatix": {
     "Data": {
-        "ApplyMigrations": true
+        "EnableAutoMigrations": true
     },
 }
 
@@ -24,7 +24,7 @@ To configure the data settings, add the following snippet to your appSettings.js
 
 The settings are defined within the `"Data": {...}` section:
 
-- **ApplyMigrations**: Determines whether to apply or not the database migrations.
+- **EnableAutoMigrations**: Determines whether to apply or not the database migrations.
     - Set to `true` to enable migrations.
     - Omit or set to `false` will prevent migrations from running unless explicitly set to true
 

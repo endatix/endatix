@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Endatix.Hosting.Builders;
 using Endatix.Api.Setup;
+using Endatix.Infrastructure.Data;
 
 namespace Endatix.Hosting;
 
@@ -182,16 +183,14 @@ public static class EndatixApplicationBuilderExtensions
     }
 
     /// <summary>
-    /// Seeds the initial user.
+    /// Seeds initial user data.
     /// </summary>
-    /// <param name="app">The web application.</param>
+    /// <param name="app">The application builder.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     public static Task SeedInitialUserAsync(this WebApplication app)
     {
-        // Seed initial user
-        // Implementation depends on identity provider
-
-        return Task.CompletedTask;
+        // Delegate to the implementation in Infrastructure
+        return DataSeedingExtensions.SeedInitialUserAsync(app);
     }
 }
 

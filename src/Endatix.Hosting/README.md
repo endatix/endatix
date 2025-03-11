@@ -190,3 +190,75 @@ For detailed documentation and examples, see:
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Database Migrations and Data Seeding
+
+Endatix provides flexible options for handling database migrations and data seeding:
+
+### Default Behavior
+
+When using the default configuration with `AddEndatixWithDefaults` or calling `UseDefaults()` on the persistence builder, Endatix will:
+
+1. Configure database persistence based on your settings
+2. Enable automatic database migrations at startup
+3. Enable sample data seeding at startup
+
+```csharp
+// Default configuration that includes auto migrations and data seeding
+builder.Services.AddEndatixWithDefaults(builder.Configuration);
+```
+
+### Custom Configuration
+
+If you want more control, you can enable or disable these features individually:
+
+```csharp
+// Manual configuration
+builder.Services.AddEndatix(builder.Configuration)
+    .Persistence
+        // Enable automatic database migrations (enabled by default with UseDefaults)
+        .EnableAutoMigrations(true)
+        // Enable sample data seeding (enabled by default with UseDefaults)
+        .EnableSampleDataSeeding(true)
+    .Build();
+```
+
+### Manual Migration and Seeding
+
+For even more control, you can apply migrations and seed data explicitly:
+
+```csharp
+// In Program.cs
+var app = builder.Build();
+
+// Configure middleware
+app.UseEndatix();
+
+// Apply migrations and seed data explicitly in development
+if (app.Environment.IsDevelopment())
+{
+    await app.ApplyDbMigrationsAsync();
+    await app.SeedInitialUserAsync();
+}
+```
+
+### Configuration Settings
+
+You can also control migrations and data seeding through configuration:
+
+```json
+{
+  "Endatix": {
+    "Data": {
+      "EnableAutoMigrations": true,
+      "SeedSampleData": true,
+      "InitialUser": {
+        "Email": "admin@example.com",
+        "Password": "SecurePassword123!",
+        "FirstName": "Admin",
+        "LastName": "User"
+      }
+    }
+  }
+}
+```

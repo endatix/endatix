@@ -2,7 +2,6 @@ using System.Diagnostics;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Configuration;
-using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Seed;
@@ -12,8 +11,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Serilog;
-using Serilog.Events;
 
 namespace Endatix.Setup;
 
@@ -22,36 +19,6 @@ namespace Endatix.Setup;
 /// </summary>
 public static class AppBuilderExtensions
 {
-    /// <summary>
-    /// Adds Endatix-specific middleware to the application's request processing pipeline.
-    /// </summary>
-    /// <param name="app">The <see cref="WebApplication"/> instance to configure.</param>
-    /// <returns>An <see cref="IEndatixMiddleware"/> instance representing the configured middleware.</returns>
-    public static IEndatixMiddleware UseEndatixMiddleware(this WebApplication app)
-    {
-        app.UseHsts();
-        app.UseHttpsRedirection();
-        app.UseAuthentication();
-        app.UseAuthorization();
-
-        app.UseSerilogRequestLogging(options =>
-        {
-            options.GetLevel = (httpContext, elapsed, ex) =>
-            {
-                if (httpContext.Request.Path.StartsWithSegments("/healthz"))
-                {
-                    return LogEventLevel.Verbose;
-                }
-
-                return LogEventLevel.Information;
-            };
-        });
-
-        var middleware = new EndatixMiddleware(app);
-
-        return middleware;
-    }
-
     /// <summary>
     /// Applies database migrations for the AppIdentityDbContext if configured to do so.
     /// </summary>
@@ -65,7 +32,7 @@ public static class AppBuilderExtensions
             .GetRequiredService<IOptions<DataOptions>>()
             .Value;
 
-        if (dataOptions.ApplyMigrations)
+        if (dataOptions.EnableAutoMigrations)
         {
             using var scope = webApp.Services.CreateScope();
 

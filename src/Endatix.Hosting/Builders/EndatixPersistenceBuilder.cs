@@ -9,6 +9,7 @@ using Endatix.Persistence.SqlServer.Setup;
 using Endatix.Persistence.PostgreSql.Setup;
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Identity;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Hosting.Builders;
 
@@ -37,7 +38,13 @@ public class EndatixPersistenceBuilder
     public EndatixPersistenceBuilder UseDefaults()
     {
         // For backward compatibility, default to SQL Server
-        return UseDefaults(DatabaseProvider.SqlServer);
+        UseDefaults(DatabaseProvider.SqlServer);
+        
+        // Enable auto migrations and data seeding by default
+        EnableAutoMigrations();
+        EnableSampleDataSeeding();
+        
+        return this;
     }
 
     /// <summary>
@@ -62,8 +69,12 @@ public class EndatixPersistenceBuilder
             default:
                 throw new ArgumentOutOfRangeException(nameof(databaseProvider), databaseProvider, "Unsupported database provider");
         }
-
+        
         // Note: ID generator is now registered centrally in EndatixServiceCollectionExtensions.AddEndatixCorePersistenceServices
+        
+        // Enable auto migrations and data seeding by default
+        EnableAutoMigrations();
+        EnableSampleDataSeeding();
         
         return this;
     }
@@ -209,13 +220,26 @@ public class EndatixPersistenceBuilder
     }
 
     /// <summary>
-    /// Enables automatic database migrations.
+    /// Enables automatic database migrations at application startup.
     /// </summary>
-    /// <returns>The persistence builder for chaining.</returns>
-    public EndatixPersistenceBuilder EnableAutoMigrations()
+    /// <param name="applyOnStartup">Whether to apply migrations at startup. Default is true.</param>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixPersistenceBuilder EnableAutoMigrations(bool applyOnStartup = true)
     {
-        // Configure automatic migrations
-
+        _logger?.LogInformation("Auto migrations enabled with applyOnStartup={ApplyOnStartup}", applyOnStartup);
+        
+        // Update the DataOptions to enable migrations
+        _parentBuilder.Services.Configure<DataOptions>(opts => 
+        {
+            opts.EnableAutoMigrations = applyOnStartup;
+        });
+        
+        if (applyOnStartup)
+        {
+            // Register a hosted service to run migrations automatically
+            _parentBuilder.Services.AddHostedService<DatabaseMigrationService>();
+        }
+        
         return this;
     }
 
@@ -228,6 +252,30 @@ public class EndatixPersistenceBuilder
     {
         // Register assemblies for entity scanning
 
+        return this;
+    }
+
+    /// <summary>
+    /// Enables seeding of sample data, including initial user.
+    /// </summary>
+    /// <param name="seedOnStartup">Whether to seed data at startup. Default is true.</param>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixPersistenceBuilder EnableSampleDataSeeding(bool seedOnStartup = true)
+    {
+        _logger?.LogInformation("Sample data seeding enabled with seedOnStartup={SeedOnStartup}", seedOnStartup);
+        
+        // Update the DataOptions to enable seeding
+        _parentBuilder.Services.Configure<DataOptions>(opts => 
+        {
+            opts.SeedSampleData = seedOnStartup;
+        });
+        
+        if (seedOnStartup)
+        {
+            // Register a hosted service to seed data automatically
+            _parentBuilder.Services.AddHostedService<DataSeedingService>();
+        }
+        
         return this;
     }
 

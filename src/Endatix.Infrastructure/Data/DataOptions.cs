@@ -14,9 +14,14 @@ public class DataOptions : EndatixOptionsBase
     public override string SectionPath => "Data";
 
     /// <summary>
-    /// Gets or sets whether migrations should be applied automatically.
+    /// Gets or sets whether database migrations should be automatically applied at application startup.
     /// </summary>
-    public bool ApplyMigrations { get; set; } = false;
+    public bool EnableAutoMigrations { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether sample data (including initial user) should be seeded automatically.
+    /// </summary>
+    public bool SeedSampleData { get; set; } = false;
 
     /// <summary>
     /// Gets or sets options for the initial user.
