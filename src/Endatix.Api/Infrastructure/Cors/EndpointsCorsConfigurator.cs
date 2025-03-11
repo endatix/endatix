@@ -12,8 +12,6 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
 {
     public const string ALLOW_ALL_POLICY_NAME = "AllowAll";
     public const string DISALLOW_ALL_POLICY_NAME = "DisallowAll";
-    public const string DEFAULT_POLICY = "DefaultPolicy";
-    public const string OPEN_POLICY = "OpenPolicy";
 
     private static readonly string[] _emptyStrings = Array.Empty<string>();
 
@@ -68,7 +66,7 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
         if (!isDefaultPolicySet)
         {
             var isDevelopment = IsDevelopment();
-            options.DefaultPolicyName = isDevelopment ? DEFAULT_POLICY : OPEN_POLICY;
+            options.DefaultPolicyName = isDevelopment ? ALLOW_ALL_POLICY_NAME : DISALLOW_ALL_POLICY_NAME;
             isDefaultPolicySet = true;
         }
 
@@ -161,14 +159,14 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
     /// <param name="options">The <see cref="CorsOptions"/> passed by the DI via the <see cref="IConfigureOptions"/> interface</param>
     private void AddPredefinedPolicies(CorsOptions options)
     {
-        options.AddPolicy(DEFAULT_POLICY, policy =>
+        options.AddPolicy(ALLOW_ALL_POLICY_NAME, policy =>
         {
             _ = policy.AllowAnyOrigin()
                   .AllowAnyMethod()
                   .AllowAnyHeader();
         });
 
-        options.AddPolicy(OPEN_POLICY, policy =>
+        options.AddPolicy(DISALLOW_ALL_POLICY_NAME, policy =>
         {
             _ = policy.WithOrigins(_emptyStrings)
                   .WithMethods(_emptyStrings)
