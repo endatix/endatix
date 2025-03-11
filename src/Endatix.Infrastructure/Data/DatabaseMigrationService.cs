@@ -1,10 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -46,11 +42,9 @@ public class DatabaseMigrationService : IHostedService
             return;
         }
 
-        _logger.LogInformation("Applying database migrations at startup");
         try
         {
             await _serviceProvider.ApplyDbMigrationsAsync();
-            _logger.LogInformation("Database migrations applied successfully");
         }
         catch (Exception ex)
         {
