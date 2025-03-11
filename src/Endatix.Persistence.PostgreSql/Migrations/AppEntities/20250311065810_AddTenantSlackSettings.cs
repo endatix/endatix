@@ -15,6 +15,18 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                 table: "Tenants",
                 type: "text",
                 nullable: true);
+        
+            migrationBuilder.Sql(@"
+                UPDATE ""Tenants""
+                    SET ""SlackSettingsJson"" =
+'{
+    ""Active"": false,
+    ""EndatixHubBaseUrl"": ""http://localhost:3000"",
+    ""Token"": """",
+    ""ChannelId"": ""C083KENJ932""
+}'
+                    WHERE ""Id"" = 1
+            ");
         }
 
         /// <inheritdoc />
