@@ -60,7 +60,6 @@ public static class EndatixAppExtensions
         services.AddScoped<IFormsRepository, FormsRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
-        services.AddSlackConfiguration<SlackSettings>();
         services.AddHttpContextAccessor();
 
         services.AddWebHookProcessing();
