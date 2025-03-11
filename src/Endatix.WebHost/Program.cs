@@ -15,8 +15,4 @@ app.UseEndatix();
 // Map health checks
 // app.MapHealthChecks("/healthz");
 
-// Apply migrations and seed data
-await app.Services.ApplyDbMigrationsAsync();
-await app.SeedInitialUserAsync();
-
 app.Run();

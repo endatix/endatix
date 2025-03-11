@@ -244,7 +244,7 @@ if (app.Environment.IsDevelopment())
 
 ### Configuration Settings
 
-You can also control migrations and data seeding through configuration:
+You can control migrations and data seeding through configuration:
 
 ```json
 {
@@ -262,3 +262,5 @@ You can also control migrations and data seeding through configuration:
   }
 }
 ```
+
+> **Note**: Configuration values in `appsettings.json` take precedence over code defaults. If you explicitly set `EnableAutoMigrations` or `SeedSampleData` in your configuration file, those values will be used regardless of what you specify in code.

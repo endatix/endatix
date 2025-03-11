@@ -1,15 +1,12 @@
-using System;
 using System.Reflection;
-using Microsoft.Extensions.Configuration;
+using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Identity;
+using Endatix.Persistence.PostgreSql.Setup;
+using Endatix.Persistence.SqlServer.Setup;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Endatix.Infrastructure.Data;
-using Endatix.Persistence.SqlServer.Setup;
-using Endatix.Persistence.PostgreSql.Setup;
-using Endatix.Core.Abstractions;
-using Endatix.Infrastructure.Identity;
-using Microsoft.Extensions.Options;
 
 namespace Endatix.Hosting.Builders;
 
@@ -39,11 +36,11 @@ public class EndatixPersistenceBuilder
     {
         // For backward compatibility, default to SQL Server
         UseDefaults(DatabaseProvider.SqlServer);
-        
+
         // Enable auto migrations and data seeding by default
         EnableAutoMigrations();
         EnableSampleDataSeeding();
-        
+
         return this;
     }
 
@@ -69,13 +66,13 @@ public class EndatixPersistenceBuilder
             default:
                 throw new ArgumentOutOfRangeException(nameof(databaseProvider), databaseProvider, "Unsupported database provider");
         }
-        
+
         // Note: ID generator is now registered centrally in EndatixServiceCollectionExtensions.AddEndatixCorePersistenceServices
-        
+
         // Enable auto migrations and data seeding by default
         EnableAutoMigrations();
         EnableSampleDataSeeding();
-        
+
         return this;
     }
 
@@ -226,20 +223,27 @@ public class EndatixPersistenceBuilder
     /// <returns>The builder for chaining.</returns>
     public EndatixPersistenceBuilder EnableAutoMigrations(bool applyOnStartup = true)
     {
-        _logger?.LogInformation("Auto migrations enabled with applyOnStartup={ApplyOnStartup}", applyOnStartup);
-        
-        // Update the DataOptions to enable migrations
-        _parentBuilder.Services.Configure<DataOptions>(opts => 
+        // Get existing options from configuration
+        var section = _parentBuilder.Configuration.GetSection(DataOptions.GetSectionName<DataOptions>());
+
+        // Configure options - this will preserve any values already set from configuration
+        _parentBuilder.Services.Configure<DataOptions>(opts =>
         {
-            opts.EnableAutoMigrations = applyOnStartup;
+            // Only set the value if it wasn't explicitly set in configuration
+            if (!section.GetSection("EnableAutoMigrations").Exists())
+            {
+                _logger?.LogInformation("Setting EnableAutoMigrations={ApplyOnStartup} from code", applyOnStartup);
+                opts.EnableAutoMigrations = applyOnStartup;
+            }
+            else
+            {
+                _logger?.LogInformation("Using EnableAutoMigrations value from configuration");
+            }
         });
-        
-        if (applyOnStartup)
-        {
-            // Register a hosted service to run migrations automatically
-            _parentBuilder.Services.AddHostedService<DatabaseMigrationService>();
-        }
-        
+
+        // Always register the service - it will check the flag internally
+        _parentBuilder.Services.AddHostedService<DatabaseMigrationService>();
+
         return this;
     }
 
@@ -256,26 +260,33 @@ public class EndatixPersistenceBuilder
     }
 
     /// <summary>
-    /// Enables seeding of sample data, including initial user.
+    /// Enables sample data seeding, including the initial user.
     /// </summary>
-    /// <param name="seedOnStartup">Whether to seed data at startup. Default is true.</param>
+    /// <param name="seedOnStartup">Whether to seed data automatically on startup (default: true).</param>
     /// <returns>The builder for chaining.</returns>
     public EndatixPersistenceBuilder EnableSampleDataSeeding(bool seedOnStartup = true)
     {
-        _logger?.LogInformation("Sample data seeding enabled with seedOnStartup={SeedOnStartup}", seedOnStartup);
-        
-        // Update the DataOptions to enable seeding
-        _parentBuilder.Services.Configure<DataOptions>(opts => 
+        // Get existing options from configuration
+        var section = _parentBuilder.Configuration.GetSection(DataOptions.GetSectionName<DataOptions>());
+
+        // Configure options - this will preserve any values already set from configuration
+        _parentBuilder.Services.Configure<DataOptions>(opts =>
         {
-            opts.SeedSampleData = seedOnStartup;
+            // Only set the value if it wasn't explicitly set in configuration
+            var seedSampleDataConfigValue = section.GetSection(nameof(DataOptions.SeedSampleData));
+            if (!seedSampleDataConfigValue.Exists())
+            {
+                _logger?.LogDebug("Setting SeedSampleData={SeedOnStartup} from code", seedOnStartup);
+                opts.SeedSampleData = seedOnStartup;
+            }
+            else
+            {
+                _logger?.LogDebug("Using SeedSampleData={SeedOnStartup} value from configuration", seedSampleDataConfigValue.Value);
+            }
         });
-        
-        if (seedOnStartup)
-        {
-            // Register a hosted service to seed data automatically
-            _parentBuilder.Services.AddHostedService<DataSeedingService>();
-        }
-        
+
+        _parentBuilder.Services.AddHostedService<DataSeedingService>();
+
         return this;
     }
 
