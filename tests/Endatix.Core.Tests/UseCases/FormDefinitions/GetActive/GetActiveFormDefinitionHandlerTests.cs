@@ -39,11 +39,11 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_ReturnsActiveFormDefinition()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.FORM_NAME_1)
+        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
         {
             Id = 1
         };
-        var activeDefinition = new FormDefinition(jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
         var request = new GetActiveFormDefinitionQuery(1);

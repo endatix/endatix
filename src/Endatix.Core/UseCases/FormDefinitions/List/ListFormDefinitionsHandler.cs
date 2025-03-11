@@ -17,6 +17,11 @@ public class ListFormDefinitionsHandler(IRepository<FormDefinition> _repository)
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
         var spec = new FormDefinitionsByFormIdSpec(request.FormId, pagingParams);
         IEnumerable<FormDefinition> formDefinitions = await _repository.ListAsync(spec, cancellationToken);
-        return Result.Success(formDefinitions);
+        if (formDefinitions.Any())
+        {
+            return Result.Success(formDefinitions);
+        }
+
+        return Result.NotFound("Form not found.");
     }
 }

@@ -81,7 +81,7 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
 
     private Form CreateForm(string name, long? id = null)
     {
-        return new Form(name)
+        return new Form(tenantId: 1, name)
         {
             Id = id ?? idGenerator.CreateId()
         };
@@ -89,7 +89,7 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
 
     private FormDefinition CreateDefinition(Form form, string jsonData, long? id = null, bool isActive = true)
     {
-        var formDefinition = new FormDefinition(jsonData: jsonData)
+        var formDefinition = new FormDefinition(tenantId: 1, jsonData: jsonData)
         {
             Id = id ?? idGenerator.CreateId()
         };
@@ -100,7 +100,7 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
 
     private Submission CreateSubmission(string jsonData, Form form, long? formDefinitionId = default)
     {
-        return new Submission(jsonData, form.Id, formDefinitionId ?? form.ActiveDefinition!.Id)
+        return new Submission(tenantId: 1, jsonData, form.Id, formDefinitionId ?? form.ActiveDefinition!.Id)
         {
             Id = idGenerator.CreateId()
         };

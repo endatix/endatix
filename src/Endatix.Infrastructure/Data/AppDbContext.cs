@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
@@ -14,13 +16,13 @@ namespace Endatix.Infrastructure.Data;
 public class AppDbContext : DbContext
 {
     private readonly IIdGenerator<long> _idGenerator;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ITenantContext _tenantContext;
 
     protected AppDbContext() { }
-    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator, IHttpContextAccessor httpContextAccessor) : base(options)
+    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator, ITenantContext tenantContext) : base(options)
     {
         _idGenerator = idGenerator;
-        _httpContextAccessor = httpContextAccessor;
+        _tenantContext = tenantContext;
     }
 
     public DbSet<Form> Forms { get; set; }
@@ -29,27 +31,50 @@ public class AppDbContext : DbContext
 
     public DbSet<Submission> Submissions { get; set; }
 
-    private bool IsInternalUser() {
-        var emailAddress = _httpContextAccessor.HttpContext?.User.ClaimValue("email");
-        if(emailAddress != null && emailAddress.ToLower().EndsWith("@endatix.com")) {
-            return true;
-        }
-        else {
-            return false;
-        }
-    }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
-        // TODO: Remove this query filter when multitenancy is implemented
-        var filterDate = DateTime.SpecifyKind(new DateTime(2021, 1, 1), DateTimeKind.Utc);
+        var getTenantIdMethod = typeof(AppDbContext).GetMethod(nameof(GetTenantId), BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var currentTenantId = Expression.Call(Expression.Constant(this), getTenantIdMethod);
+        foreach (var entityType in builder.Model.GetEntityTypes())
+        {
+            var parameter = Expression.Parameter(entityType.ClrType, "e");
+            var filters = new List<Expression>();
 
-        builder.Entity<Form>().HasQueryFilter(form =>
-            IsInternalUser() || (form.CreatedAt >= filterDate));
+            // Add deletion filter for BaseEntity descendants
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                var isDeletedProperty = Expression.Property(parameter, "IsDeleted");
+                var isDeletedFilter = Expression.Equal(isDeletedProperty, Expression.Constant(false));
+                filters.Add(isDeletedFilter);
+            }
+
+            // Add tenant filter for TenantEntity descendants
+            if (typeof(TenantEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                var currentTenantIdIsZero = Expression.Equal(Expression.Convert(currentTenantId, typeof(long)), Expression.Constant(0L));
+                var tenantIdProperty = Expression.Property(parameter, "TenantId");
+                var tenantIdEquals = Expression.Equal(tenantIdProperty, Expression.Convert(currentTenantId, typeof(long)));
+                var tenantFilter = Expression.OrElse(currentTenantIdIsZero, tenantIdEquals);
+                filters.Add(tenantFilter);
+            }
+
+            if (filters.Any())
+            {
+                var combinedFilter = filters.Aggregate(Expression.AndAlso);
+                var lambda = Expression.Lambda(combinedFilter, parameter);
+                builder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+            }
+        }
 
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         PrefixTableNames(builder);
+    }
+
+    private long GetTenantId()
+    {
+        return _tenantContext?.TenantId ?? 0;
     }
 
     public override int SaveChanges()

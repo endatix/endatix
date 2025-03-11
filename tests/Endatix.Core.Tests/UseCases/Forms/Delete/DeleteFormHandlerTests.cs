@@ -40,7 +40,7 @@ public class DeleteFormHandlerTests
     public async Task Handle_ValidRequest_DeletesForm()
     {
         // Arrange
-        var form = new Form("Test Form") { Id = 1 };
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
         var request = new DeleteFormCommand(1);
         
         _repository.SingleOrDefaultAsync(
@@ -67,7 +67,7 @@ public class DeleteFormHandlerTests
     public async Task Handle_ValidRequest_CallsDeleteOnForm()
     {
         // Arrange
-        var form = new Form("Test Form") { Id = 1 };
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
         var request = new DeleteFormCommand(1);
         
         _repository.SingleOrDefaultAsync(

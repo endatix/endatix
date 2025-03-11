@@ -24,8 +24,8 @@ public class FormsRepositoryTests
     public async Task CreateFormWithDefinitionAsync_ShouldCommitTransaction_WhenSuccessful()
     {
         // Arrange
-        var form = new Form("form", "description", true);
-        var formDefinition = new FormDefinition();
+        var form = new Form(SampleData.TENANT_ID, "form", "description", true);
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID);
 
         // Act
         await _sut.CreateFormWithDefinitionAsync(form, formDefinition);
@@ -40,8 +40,8 @@ public class FormsRepositoryTests
     public async Task CreateFormWithDefinitionAsync_ShouldRollbackTransaction_WhenExceptionThrown()
     {
         // Arrange
-        var form = new Form("form", "description", true);
-        var formDefinition = new FormDefinition();
+        var form = new Form(SampleData.TENANT_ID, "form", "description", true);
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID);
         _dbContext.Set<FormDefinition>().When(x => x.Add(formDefinition)).Do(x => { throw new Exception("Test exception"); });
 
         // Act & Assert

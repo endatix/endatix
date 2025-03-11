@@ -19,4 +19,9 @@ public static class ClaimNames
     /// Represents a claim indicating whether the user's email is verified.
     /// </summary>
     public const string EmailVerified = "email_verified";
+
+    /// <summary>
+    /// Represents a claim for the user's tenant identifier.
+    /// </summary>
+    public const string TenantId = "tenant_id";
 }

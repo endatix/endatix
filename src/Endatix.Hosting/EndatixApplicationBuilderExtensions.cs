@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Builder;
-using Endatix.Hosting.Builders;
 using Endatix.Api.Setup;
+using Endatix.Hosting.Builders;
 using Endatix.Infrastructure.Data;
+using Microsoft.AspNetCore.Builder;
 
 namespace Endatix.Hosting;
 
@@ -66,6 +66,11 @@ public static class EndatixApplicationBuilderExtensions
         if (options.UseSecurity)
         {
             builder.UseSecurity();
+        }
+
+        if (options.UseMultitenancy)
+        {
+            builder.UseMultitenancy();
         }
 
         if (options.UseHsts)
@@ -213,6 +218,11 @@ public class EndatixMiddlewareOptions
     /// Gets or sets a value indicating whether to use security middleware.
     /// </summary>
     public bool UseSecurity { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to use multitenancy middleware.
+    /// </summary>
+    public bool UseMultitenancy { get; set; } = true;
 
     /// <summary>
     /// Gets or sets a value indicating whether to use HSTS middleware.

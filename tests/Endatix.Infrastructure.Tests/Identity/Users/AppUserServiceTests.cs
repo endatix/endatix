@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Identity.Users;
 using FluentAssertions;
 using System.Security.Claims;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Tests;
 
 namespace Endatix.Infrastructure.Tests.Identity.Users;
 
@@ -52,7 +53,8 @@ public class AppUserServiceTests
         // Arrange
         var claimsPrincipal = new ClaimsPrincipal(new ClaimsIdentity());
         var appUser = new AppUser { 
-            Id = 22_111_111_111_111_111, 
+            Id = 22_111_111_111_111_111,
+            TenantId = 1,
             UserName = "test@example.com",
             Email = "test@example.com"
         };
@@ -65,13 +67,14 @@ public class AppUserServiceTests
         result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.Ok);
         result.Value.Should().NotBeNull();
         result.Value.Id.Should().Be(appUser.Id);
+        result.Value.TenantId.Should().Be(appUser.TenantId);
     }
 
     [Fact]
     public async Task ChangePasswordAsync_UserNotFound_ReturnsError()
     {
         // Arrange
-        var user = new User(22_111_111_111_111_111, "test@example.com", "test@example.com", true);
+        var user = new User(22_111_111_111_111_111, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns(null as AppUser);
 
         // Act
@@ -86,7 +89,7 @@ public class AppUserServiceTests
     public async Task ChangePasswordAsync_EmptyCurrentPassword_ReturnsError()
     {
         // Arrange
-        var user = new User(22_111_111_111_111_111, "test@example.com", "password", true);
+        var user = new User(22_111_111_111_111_111, SampleData.TENANT_ID, "test@example.com", "password", true);
         var appUser = new AppUser { 
             Id = user.Id, 
             UserName = user.Email,
@@ -106,7 +109,7 @@ public class AppUserServiceTests
     public async Task ChangePasswordAsync_ChangePasswordFails_ReturnsError()
     {
         // Arrange
-        var user = new User(22_111_111_111_111_111, "test@example.com", "password", true);
+        var user = new User(22_111_111_111_111_111, SampleData.TENANT_ID, "test@example.com", "password", true);
         var appUser = new AppUser { Id = user.Id, UserName = user.Email };
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(appUser);
         _userManager.ChangePasswordAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<string>())
@@ -124,7 +127,7 @@ public class AppUserServiceTests
     public async Task ChangePasswordAsync_Success_ReturnsSuccessMessage()
     {
         // Arrange
-        var user = new User(22_111_111_111_111_111, "test@example.com", "password", true);
+        var user = new User(22_111_111_111_111_111, SampleData.TENANT_ID, "test@example.com", "password", true);
         var appUser = new AppUser { Id = user.Id, UserName = user.Email };
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(appUser);
         _userManager.ChangePasswordAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<string>())

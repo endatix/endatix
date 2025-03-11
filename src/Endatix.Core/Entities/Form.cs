@@ -3,13 +3,14 @@ using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-public partial class Form : BaseEntity, IAggregateRoot
+public partial class Form : TenantEntity, IAggregateRoot
 {
     private readonly List<FormDefinition> _formDefinitions = [];
 
     private Form() { } // For EF Core
 
-    public Form(string name, string? description = null, bool isEnabled = false)
+    public Form(long tenantId, string name, string? description = null, bool isEnabled = false)
+        : base(tenantId)
     {
         Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
         Name = name;

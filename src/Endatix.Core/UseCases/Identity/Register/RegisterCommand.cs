@@ -3,7 +3,7 @@ using Endatix.Core.Infrastructure.Attributes;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Core.UseCases.Register;
+namespace Endatix.Core.UseCases.Identity.Register;
 
 public record RegisterCommand(string Email, string Password) : ICommand<Result<User>>
 {

@@ -43,7 +43,7 @@ public class PartialUpdateSubmissionHandlerTests
     public async Task Handle_ValidRequest_UpdatesSubmission()
     {
         // Arrange
-        var submission = new Submission("{ }", 2, 3) { Id = 1 };
+        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3) { Id = 1 };
         var request = new PartialUpdateSubmissionCommand(
             1, 2, true, 1, "{ \"updated\": true }", "metadata"
         );

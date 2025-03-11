@@ -1,10 +1,10 @@
+using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.DependencyInjection;
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -91,7 +91,7 @@ public static class IdentityServiceCollectionExtensions
                 .BindConfiguration(JwtOptions.SECTION_NAME)
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
-        
+
         // Register token service
         services.AddScoped<IUserTokenService, JwtTokenService>();
 

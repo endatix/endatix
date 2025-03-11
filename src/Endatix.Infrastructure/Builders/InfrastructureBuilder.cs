@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Infrastructure.Multitenancy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -84,6 +85,7 @@ public class InfrastructureBuilder
         // Configure core infrastructure services
         Services.AddHttpContextAccessor();
         Services.AddWebHookProcessing();
+        Services.AddMultitenancyConfiguration();
 
         Data.UseDefaults();
         Messaging.UseDefaults();

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Entities;
 
 namespace Endatix.ApplicationCore.Infrastructure.Data.Config;
+
 public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 {
     private const int TOKEN_VALUE_MAX_LENGTH = 64;
@@ -10,8 +11,6 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
     public void Configure(EntityTypeBuilder<Submission> builder)
     {
         builder.ToTable("Submissions");
-
-        builder.HasQueryFilter(s => !s.IsDeleted);
 
         builder.Property(s => s.Id)
             .IsRequired();

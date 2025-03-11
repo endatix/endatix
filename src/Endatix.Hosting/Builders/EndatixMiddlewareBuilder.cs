@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Endatix.Api.Infrastructure;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Multitenancy;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
@@ -72,6 +73,13 @@ public class EndatixMiddlewareBuilder
         LogSetupInfo("Adding security middleware");
         App.UseAuthentication();
         App.UseAuthorization();
+        return this;
+    }
+
+    public EndatixMiddlewareBuilder UseMultitenancy()
+    {
+        LogSetupInfo("Adding multitenancy middleware");
+        App.UseMiddleware<TenantMiddleware>();
         return this;
     }
 

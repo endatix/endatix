@@ -35,6 +35,7 @@ public class CreateSubmissionHandler(
         }
 
         var submission = new Submission(
+            activeDefinition!.TenantId,
             jsonData: request.JsonData,
             formId: request.FormId,
             formDefinitionId: activeDefinition!.Id,

@@ -41,7 +41,7 @@ public class ChangePasswordHandlerTests
     {
         // Arrange
         var command = new ChangePasswordCommand(_claimsPrincipal, "currentPass", "newPass");
-        var user = new User(1, "test@example.com", "test@example.com", true);
+        var user = new User(1, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
 
         _userService.GetUserAsync(Arg.Any<ClaimsPrincipal>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(user));
@@ -65,7 +65,7 @@ public class ChangePasswordHandlerTests
     {
         // Arrange
         var command = new ChangePasswordCommand(_claimsPrincipal, "currentPass", "newPass");
-        var user = new User(1, "test@example.com", "test@example.com", true);
+        var user = new User(1, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
 
         _userService.GetUserAsync(Arg.Any<ClaimsPrincipal>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(user));
@@ -91,7 +91,7 @@ public class ChangePasswordHandlerTests
         const string currentPassword = "currentPass";
         const string newPassword = "newPass";
         var command = new ChangePasswordCommand(_claimsPrincipal, currentPassword, newPassword);
-        var user = new User(1, "test@example.com", "test@example.com", true);
+        var user = new User(1, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
 
         _userService.GetUserAsync(Arg.Any<ClaimsPrincipal>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(user));

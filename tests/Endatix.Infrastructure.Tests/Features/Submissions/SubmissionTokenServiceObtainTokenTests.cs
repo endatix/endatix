@@ -57,7 +57,7 @@ public class SubmissionTokenServiceObtainTokenTests
     {
         // Arrange
         var submissionId = 1L;
-        var submission = new Submission(SampleData.FORM_DEFINITION_JSON_DATA_1, 2, 3, false) { Id = submissionId };
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.FORM_DEFINITION_JSON_DATA_1, 2, 3, false) { Id = submissionId };
         _repository.GetByIdAsync(submissionId).Returns(submission);
 
         // Act

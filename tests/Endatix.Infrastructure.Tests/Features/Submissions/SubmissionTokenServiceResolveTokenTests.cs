@@ -60,7 +60,7 @@ public class SubmissionTokenServiceResolveTokenTests
         // Arrange
         var token = "valid-token";
         var submissionId = 1L;
-        var submission = new Submission(SampleData.FORM_DEFINITION_JSON_DATA_1, 2, 3, false) { Id = submissionId };
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.FORM_DEFINITION_JSON_DATA_1, 2, 3, false) { Id = submissionId };
         submission.UpdateToken(new Token(24));
         _repository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
 
@@ -80,7 +80,7 @@ public class SubmissionTokenServiceResolveTokenTests
         var formId = 1L;
         var formDefinitionId = 2L;
         var token = "valid-token";
-        var submission = new Submission("{ }", formId,formDefinitionId, isComplete: true);
+        var submission = new Submission(SampleData.TENANT_ID, "{ }", formId,formDefinitionId, isComplete: true);
         submission.UpdateToken(new Token(24));
         _repository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
 

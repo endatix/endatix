@@ -67,7 +67,7 @@ public class GetByTokenTests
         var formDefinitionId = 2L;
         var submissionToken = "valid-token";
         var request = new GetByTokenRequest { FormId = formId, SubmissionToken = submissionToken };
-        var submission = new Submission("{}", formId, formDefinitionId) { Id = 1 };
+        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId) { Id = 1 };
         submission.UpdateToken(new Token(1));
         var result = Result.Success(submission);
 
@@ -97,7 +97,7 @@ public class GetByTokenTests
         };
         var formDefinitionId = 246L;
 
-        var result = Result.Success(new Submission("{}", request.FormId, formDefinitionId));
+        var result = Result.Success(new Submission(SampleData.TENANT_ID, "{}", request.FormId, formDefinitionId));
 
         _mediator.Send(Arg.Any<GetByTokenQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
