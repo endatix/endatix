@@ -230,14 +230,15 @@ public class EndatixPersistenceBuilder
         _parentBuilder.Services.Configure<DataOptions>(opts =>
         {
             // Only set the value if it wasn't explicitly set in configuration
-            if (!section.GetSection("EnableAutoMigrations").Exists())
+            var enableAutoMigrationsConfigValue = section.GetSection(nameof(DataOptions.EnableAutoMigrations));
+            if (!enableAutoMigrationsConfigValue.Exists())
             {
-                _logger?.LogInformation("Setting EnableAutoMigrations={ApplyOnStartup} from code", applyOnStartup);
+                _logger?.LogDebug("Setting EnableAutoMigrations={ApplyOnStartup} from code", applyOnStartup);
                 opts.EnableAutoMigrations = applyOnStartup;
             }
             else
             {
-                _logger?.LogInformation("Using EnableAutoMigrations value from configuration");
+                _logger?.LogDebug("Using EnableAutoMigrations={ApplyOnStartup} value from configuration", enableAutoMigrationsConfigValue.Value);
             }
         });
 
