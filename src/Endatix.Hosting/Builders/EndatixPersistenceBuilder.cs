@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
@@ -18,6 +19,13 @@ public class EndatixPersistenceBuilder
     private readonly EndatixBuilder _parentBuilder;
     private readonly ILogger? _logger;
 
+    // Only track default values that will be applied if not specified in configuration
+    private bool _autoMigrationsSetting = false;
+    private bool _sampleDataSeedingSetting = false;
+
+    // Track whether configurations have been applied
+    private bool _configurationsApplied = false;
+
     /// <summary>
     /// Initializes a new instance of the EndatixPersistenceBuilder class.
     /// </summary>
@@ -36,10 +44,6 @@ public class EndatixPersistenceBuilder
     {
         // For backward compatibility, default to SQL Server
         UseDefaults(DatabaseProvider.SqlServer);
-
-        // Enable auto migrations and data seeding by default
-        EnableAutoMigrations();
-        EnableSampleDataSeeding();
 
         return this;
     }
@@ -67,11 +71,12 @@ public class EndatixPersistenceBuilder
                 throw new ArgumentOutOfRangeException(nameof(databaseProvider), databaseProvider, "Unsupported database provider");
         }
 
-        // Note: ID generator is now registered centrally in EndatixServiceCollectionExtensions.AddEndatixCorePersistenceServices
-
         // Enable auto migrations and data seeding by default
         EnableAutoMigrations();
         EnableSampleDataSeeding();
+
+        // Apply configurations immediately for the default flow
+        EnsureConfigurationsApplied();
 
         return this;
     }
@@ -223,26 +228,10 @@ public class EndatixPersistenceBuilder
     /// <returns>The builder for chaining.</returns>
     public EndatixPersistenceBuilder EnableAutoMigrations(bool applyOnStartup = true)
     {
-        // Get existing options from configuration
-        var section = _parentBuilder.Configuration.GetSection(DataOptions.GetSectionName<DataOptions>());
+        // Just track the setting - will be applied if not in configuration
+        _autoMigrationsSetting = applyOnStartup;
 
-        // Configure options - this will preserve any values already set from configuration
-        _parentBuilder.Services.Configure<DataOptions>(opts =>
-        {
-            // Only set the value if it wasn't explicitly set in configuration
-            var enableAutoMigrationsConfigValue = section.GetSection(nameof(DataOptions.EnableAutoMigrations));
-            if (!enableAutoMigrationsConfigValue.Exists())
-            {
-                _logger?.LogDebug("Setting EnableAutoMigrations={ApplyOnStartup} from code", applyOnStartup);
-                opts.EnableAutoMigrations = applyOnStartup;
-            }
-            else
-            {
-                _logger?.LogDebug("Using EnableAutoMigrations={ApplyOnStartup} value from configuration", enableAutoMigrationsConfigValue.Value);
-            }
-        });
-
-        // Always register the service - it will check the flag internally
+        // Register the service that will check the DataOptions at runtime
         _parentBuilder.Services.AddHostedService<DatabaseMigrationService>();
 
         return this;
@@ -267,25 +256,10 @@ public class EndatixPersistenceBuilder
     /// <returns>The builder for chaining.</returns>
     public EndatixPersistenceBuilder EnableSampleDataSeeding(bool seedOnStartup = true)
     {
-        // Get existing options from configuration
-        var section = _parentBuilder.Configuration.GetSection(DataOptions.GetSectionName<DataOptions>());
+        // Just track the setting - will be applied if not in configuration
+        _sampleDataSeedingSetting = seedOnStartup;
 
-        // Configure options - this will preserve any values already set from configuration
-        _parentBuilder.Services.Configure<DataOptions>(opts =>
-        {
-            // Only set the value if it wasn't explicitly set in configuration
-            var seedSampleDataConfigValue = section.GetSection(nameof(DataOptions.SeedSampleData));
-            if (!seedSampleDataConfigValue.Exists())
-            {
-                _logger?.LogDebug("Setting SeedSampleData={SeedOnStartup} from code", seedOnStartup);
-                opts.SeedSampleData = seedOnStartup;
-            }
-            else
-            {
-                _logger?.LogDebug("Using SeedSampleData={SeedOnStartup} value from configuration", seedSampleDataConfigValue.Value);
-            }
-        });
-
+        // Register the service that will check the DataOptions at runtime
         _parentBuilder.Services.AddHostedService<DataSeedingService>();
 
         return this;
@@ -295,7 +269,70 @@ public class EndatixPersistenceBuilder
     /// Builds and returns the parent builder.
     /// </summary>
     /// <returns>The parent builder.</returns>
-    public EndatixBuilder Build() => _parentBuilder;
+    public EndatixBuilder Build()
+    {
+        // Apply all tracked configurations before returning the parent builder
+        EnsureConfigurationsApplied();
+
+        return _parentBuilder;
+    }
+
+    /// <summary>
+    /// Ensures that default values are applied to DataOptions if not specified in configuration.
+    /// This method guarantees that configuration is only applied once.
+    /// </summary>
+    /// <remarks>
+    /// EndatixPersistenceBuilder is the sole owner of DataOptions configuration.
+    /// </remarks>
+    private void EnsureConfigurationsApplied()
+    {
+        // Only apply configurations once
+        if (_configurationsApplied)
+        {
+            return;
+        }
+
+        var sectionName = DataOptions.GetSectionName<DataOptions>();
+        var section = _parentBuilder.Configuration.GetSection(sectionName);
+
+        // First, register the options with validation
+        _parentBuilder.Services.AddOptions<DataOptions>()
+            .BindConfiguration(sectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        // Then configure with our defaults where not specified in configuration
+        _parentBuilder.Services.Configure<DataOptions>(opts =>
+        {
+            // Check if EnableAutoMigrations is in configuration
+            var enableAutoMigrationsConfigValue = section.GetSection(nameof(DataOptions.EnableAutoMigrations));
+            if (!enableAutoMigrationsConfigValue.Exists())
+            {
+                // Not in config - apply our tracked default
+                _logger?.LogDebug("Setting EnableAutoMigrations={Setting} from code default", _autoMigrationsSetting);
+                opts.EnableAutoMigrations = _autoMigrationsSetting;
+            }
+            else
+            {
+                _logger?.LogDebug("Using EnableAutoMigrations={Setting} value from configuration", enableAutoMigrationsConfigValue.Value);
+            }
+
+            // Check if SeedSampleData is in configuration
+            var seedSampleDataConfigValue = section.GetSection(nameof(DataOptions.SeedSampleData));
+            if (!seedSampleDataConfigValue.Exists())
+            {
+                // Not in config - apply our tracked default
+                _logger?.LogDebug("Setting SeedSampleData={Setting} from code default", _sampleDataSeedingSetting);
+                opts.SeedSampleData = _sampleDataSeedingSetting;
+            }
+            else
+            {
+                _logger?.LogDebug("Using SeedSampleData={Setting} value from configuration", seedSampleDataConfigValue.Value);
+            }
+        });
+
+        _configurationsApplied = true;
+    }
 
     private void LogSetupInfo(string message)
     {

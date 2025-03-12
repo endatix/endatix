@@ -43,7 +43,7 @@ public class DataSeedingService : IHostedService
     {
         if (!_options.SeedSampleData)
         {
-            _logger.LogInformation("Automatic data seeding is disabled");
+            _logger.LogDebug("{Operation} operation skipped because automatic data seeding is disabled", "SeedingSampleData");
             return;
         }
 

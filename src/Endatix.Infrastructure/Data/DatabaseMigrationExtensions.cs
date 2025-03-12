@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Threading.Tasks;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -22,7 +20,7 @@ public static class DatabaseMigrationExtensions
     public static async Task ApplyDbMigrationsAsync(this IServiceProvider serviceProvider)
     {
         var logger = serviceProvider.GetService<ILogger<MigrationLogger>>();
-        logger?.LogInformation("Applying database migrations");
+        logger?.LogDebug("{Operation} operation started", nameof(ApplyDbMigrationsAsync));
         
         try
         {
@@ -46,7 +44,7 @@ public static class DatabaseMigrationExtensions
                 }
             }
             
-            logger?.LogInformation("All database migrations applied successfully");
+            logger?.LogDebug("{Operation} operation executed successfully", nameof(ApplyDbMigrationsAsync));
         }
         catch (Exception ex)
         {

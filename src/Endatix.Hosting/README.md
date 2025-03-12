@@ -264,3 +264,40 @@ You can control migrations and data seeding through configuration:
 ```
 
 > **Note**: Configuration values in `appsettings.json` take precedence over code defaults. If you explicitly set `EnableAutoMigrations` or `SeedSampleData` in your configuration file, those values will be used regardless of what you specify in code.
+
+## Configuration Architecture
+
+### Options Ownership
+
+In Endatix, each builder is the sole owner of its domain-specific options:
+
+- **EndatixPersistenceBuilder**: Owns and configures `DataOptions` (database migrations, data seeding)
+- **EndatixSecurityBuilder**: Owns and configures `SecurityOptions`
+- **EndatixApiBuilder**: Owns and configures API-specific options
+
+### Configuration Precedence
+
+For each option, the following precedence is applied:
+
+1. **appsettings.json values** - Always take highest precedence when specified
+2. **Code defaults** - Applied when configuration values are not present
+3. **Class defaults** - Used when neither of the above specifies a value
+
+### Example
+
+```csharp
+// Configuration in appsettings.json takes precedence over code:
+{
+  "Endatix": {
+    "Data": {
+      "EnableAutoMigrations": false  // This will override any code value
+    }
+  }
+}
+
+// Code defaults applied if not in configuration:
+builder.Persistence.EnableAutoMigrations(true);
+
+// DataOptions class default (used if neither of above is set):
+public bool EnableAutoMigrations { get; set; } = false;
+```

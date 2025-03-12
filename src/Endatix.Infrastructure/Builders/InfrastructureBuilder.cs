@@ -86,27 +86,15 @@ public class InfrastructureBuilder
         Services.AddHttpContextAccessor();
         Services.AddWebHookProcessing();
         Services.AddMultitenancyConfiguration();
+        Services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
 
         Data.UseDefaults();
         Messaging.UseDefaults();
         Identity.UseDefaults();
         Integrations.UseDefaults();
 
-        Services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
-
-        // Add default config options
-        ConfigureDefaultOptions();
-
         LogSetupInfo("Infrastructure configured successfully");
         return this;
-    }
-
-    private void ConfigureDefaultOptions()
-    {
-        Services.AddOptions<DataOptions>()
-            .BindConfiguration(DataOptions.GetSectionName<DataOptions>())
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
     }
 
     /// <summary>
