@@ -80,19 +80,82 @@ builder.Services.AddEndatix(builder.Configuration)
 Configure Swagger documentation with environment-specific settings:
 
 ```csharp
-// Add Swagger in development environment only
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddEndatix(builder.Configuration)
-        .Api
-        .AddSwagger()
-        .ConfigureFastEndpoints(config => 
-        {
-            config.IncludeXmlComments = true;
-            config.TagsFromNamespaceStrategy = true;
-        })
-        .Build();
-}
+// Basic Swagger configuration
+builder.Services.AddEndatix(builder.Configuration)
+    .Api
+    .AddSwagger()
+    .Build();
+
+// Advanced Swagger configuration
+builder.Services.AddEndatix(builder.Configuration)
+    .Api
+    .AddSwagger(options => 
+    {
+        // Configure FastEndpoints-specific options
+        options.IncludeXmlComments = true;
+        options.TagsFromNamespaceStrategy = true;
+    })
+    .Build();
+```
+
+When configuring middleware, you have several options for customizing Swagger:
+
+```csharp
+// Basic Swagger usage
+app.UseEndatix();
+
+// Custom Swagger path
+app.UseEndatix(options => {
+    options.SwaggerPath = "/api-docs";
+});
+
+// Advanced Swagger configuration
+app.UseEndatix(options => {
+    // Enable/disable Swagger
+    options.UseSwagger = true;
+    options.EnableSwaggerInProduction = environment.IsProduction();
+    
+    // Custom path
+    options.SwaggerPath = "/api-docs";
+    
+    // Advanced document configuration
+    options.ConfigureOpenApiDocument = settings => {
+        settings.DocumentName = "v1";
+        settings.PostProcess = (document, _) => {
+            document.Info.Title = "My Custom API";
+            document.Info.Version = "1.0";
+            document.Info.Description = "Documentation for my API";
+            document.Info.Contact = new() { Name = "API Support", Email = "support@example.com" };
+        };
+    };
+    
+    // UI customization
+    options.ConfigureSwaggerUi = settings => {
+        settings.DocExpansion = "list";
+        settings.DefaultModelsExpandDepth = 1;
+        
+        // OAuth2 configuration
+        settings.OAuth2Client = new() {
+            ClientId = "api-client",
+            AppName = "API Client"
+        };
+    };
+});
+```
+
+You can also configure Swagger using the middleware builder directly:
+
+```csharp
+// Direct middleware builder configuration
+app.UseEndatix()
+    .UseSwagger(
+        path: "/api-docs",
+        configureOpenApi: settings => {
+            settings.DocumentName = "v1";
+        },
+        configureSwaggerUi: settings => {
+            settings.DocExpansion = "list";
+        });
 ```
 
 ### CORS Configuration

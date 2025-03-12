@@ -144,12 +144,79 @@ Endatix uses Serilog with settings from the config. Copy the config and paste it
           "Roles": ["Admin", "Manager"]
         }
       ]
+    },
+    "Api": {
+      "UseSwagger": true,
+      "EnableSwaggerInProduction": false,
+      "SwaggerPath": "/swagger",
+      "RoutePrefix": "api",
+      "VersioningPrefix": "v"
     }
   }
 }
 ```
 
-### Step 6: Run the application
+### Step 6: Customize Swagger Configuration (Optional)
+
+If you need to customize Swagger beyond the basic settings in `appsettings.json`, you can configure it in your `Program.cs` file:
+
+```csharp
+// Advanced Swagger customization
+builder.Services.AddEndatix(builder.Configuration)
+    .Api
+    .AddSwagger(options =>
+    {
+        options.IncludeXmlComments = true;
+        options.TagsFromNamespaceStrategy = true;
+    })
+    .Build();
+
+var app = builder.Build();
+
+// Configure the middleware with custom Swagger settings
+app.UseEndatix(options => 
+{
+    // Custom Swagger UI path
+    options.SwaggerPath = "/api-docs";
+    
+    // Advanced OpenAPI document configuration
+    options.ConfigureOpenApiDocument = settings => 
+    {
+        settings.DocumentName = "v1";
+        settings.PostProcess = (document, _) => 
+        {
+            document.Info.Title = "My API";
+            document.Info.Version = "1.0";
+            document.Info.Description = "API documentation";
+        };
+    };
+    
+    // Custom Swagger UI settings
+    options.ConfigureSwaggerUi = settings => 
+    {
+        settings.DocExpansion = "list";
+        settings.DefaultModelsExpandDepth = 1;
+    };
+});
+
+app.Run();
+```
+
+For more advanced scenarios, you can also use the middleware builder pattern directly:
+
+```csharp
+app.UseEndatix()
+    .UseSwagger(
+        path: "/api-docs",
+        configureOpenApi: settings => {
+            settings.DocumentName = "v1";
+        },
+        configureSwaggerUi: settings => {
+            settings.DocExpansion = "list";
+        });
+```
+
+### Step 7: Run the application
 
 Run the application using the following command:
 

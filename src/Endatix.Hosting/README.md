@@ -96,6 +96,63 @@ Add Serilog configuration to your appsettings.json file:
 }
 ```
 
+### 3. Customizing Swagger Documentation
+
+Endatix provides several ways to customize Swagger documentation:
+
+```csharp
+// Using app.UseEndatix with options
+app.UseEndatix(options =>
+{
+    // Basic toggle for enabling/disabling Swagger
+    options.UseSwagger = true;
+    options.EnableSwaggerInProduction = false;
+    
+    // Custom path for Swagger UI (default is "/swagger")
+    options.SwaggerPath = "/api-docs";
+    
+    // Advanced Swagger configuration
+    options.ConfigureOpenApiDocument = settings => 
+    {
+        settings.DocumentName = "v1";
+        settings.PostProcess = (document, _) => 
+        {
+            document.Info.Title = "My Custom API";
+            document.Info.Version = "1.0";
+            document.Info.Description = "API documentation for my application";
+        };
+    };
+    
+    // Customize Swagger UI appearance
+    options.ConfigureSwaggerUi = settings => 
+    {
+        settings.DocExpansion = "list";
+        settings.DefaultModelsExpandDepth = 1;
+        settings.OAuth2Client = new NSwag.AspNetCore.OAuth2ClientSettings
+        {
+            ClientId = "api-client-id",
+            AppName = "My API Client"
+        };
+    };
+});
+```
+
+You can also configure Swagger directly using the middleware builder pattern:
+
+```csharp
+// Using the builder pattern for fine-grained control
+app.UseEndatix()
+    .UseSwagger("/api-docs", 
+        openApiSettings => 
+        {
+            openApiSettings.DocumentName = "v1";
+        },
+        swaggerUiSettings => 
+        {
+            swaggerUiSettings.DocExpansion = "list";
+        });
+```
+
 ## Two-Stage Logging
 
 Endatix follows Serilog's recommended two-stage initialization approach:

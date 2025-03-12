@@ -1,9 +1,16 @@
+using System.Reflection;
+using System.Security.Claims;
 using Endatix.Api.Builders;
+using Endatix.Api.Infrastructure;
+using Endatix.Infrastructure.Identity;
+using FastEndpoints;
+using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
 
 namespace Endatix.Hosting.Builders;
 
@@ -28,7 +35,7 @@ public class EndatixApiBuilder
     private readonly EndatixBuilder _parentBuilder;
     private readonly ILogger? _logger;
     private readonly ApiConfigurationBuilder _apiConfigurationBuilder;
-    private readonly EndatixApiMiddlewareOptions _middlewareOptions;
+    private readonly ApiOptions _apiOptions;
 
     /// <summary>
     /// Initializes a new instance of the EndatixApiBuilder class.
@@ -38,7 +45,7 @@ public class EndatixApiBuilder
     {
         _parentBuilder = parentBuilder;
         _logger = parentBuilder.LoggerFactory?.CreateLogger<EndatixApiBuilder>();
-        _middlewareOptions = new EndatixApiMiddlewareOptions();
+        _apiOptions = new ApiOptions();
 
         // Create the API configuration builder with all available parameters
         _apiConfigurationBuilder = new ApiConfigurationBuilder(
@@ -85,6 +92,11 @@ public class EndatixApiBuilder
         // Use the API configuration builder with defaults
         _apiConfigurationBuilder.UseDefaults();
 
+        // Set default options
+        _apiOptions.UseSwagger = true;
+        _apiOptions.UseVersioning = true;
+        _apiOptions.UseCors = true;
+
         LogSetupInfo("API configuration completed");
         return this;
     }
@@ -117,7 +129,7 @@ public class EndatixApiBuilder
         LogSetupInfo("Adding Swagger documentation");
 
         _apiConfigurationBuilder.AddSwagger();
-        _middlewareOptions.UseSwagger = true;
+        _apiOptions.UseSwagger = true;
 
         LogSetupInfo("Swagger documentation added");
         return this;
@@ -154,7 +166,7 @@ public class EndatixApiBuilder
     {
         LogSetupInfo("Disabling Swagger documentation");
 
-        _middlewareOptions.UseSwagger = false;
+        _apiOptions.UseSwagger = false;
 
         LogSetupInfo("Swagger documentation disabled");
         return this;
@@ -185,6 +197,7 @@ public class EndatixApiBuilder
         LogSetupInfo("Adding API versioning");
 
         _apiConfigurationBuilder.AddVersioning();
+        _apiOptions.UseVersioning = true;
 
         LogSetupInfo("API versioning added");
         return this;
@@ -215,7 +228,7 @@ public class EndatixApiBuilder
     {
         LogSetupInfo($"Setting API versioning prefix to '{prefix}'");
 
-        _middlewareOptions.VersioningPrefix = prefix;
+        _apiOptions.VersioningPrefix = prefix;
 
         LogSetupInfo($"API versioning prefix set to '{prefix}'");
         return this;
@@ -245,7 +258,7 @@ public class EndatixApiBuilder
     {
         LogSetupInfo($"Setting API route prefix to '{prefix}'");
 
-        _middlewareOptions.RoutePrefix = prefix;
+        _apiOptions.RoutePrefix = prefix;
 
         LogSetupInfo($"API route prefix set to '{prefix}'");
         return this;
@@ -266,7 +279,7 @@ public class EndatixApiBuilder
             options.AddPolicy(policyName, configurePolicy);
         });
 
-        _middlewareOptions.UseCors = true;
+        _apiOptions.UseCors = true;
 
         LogSetupInfo("CORS enabled");
         return this;
@@ -280,7 +293,7 @@ public class EndatixApiBuilder
     {
         LogSetupInfo("Disabling CORS");
 
-        _middlewareOptions.UseCors = false;
+        _apiOptions.UseCors = false;
 
         LogSetupInfo("CORS disabled");
         return this;
@@ -310,7 +323,7 @@ public class EndatixApiBuilder
     {
         LogSetupInfo("Configuring FastEndpoints");
 
-        _middlewareOptions.ConfigureFastEndpoints = configure;
+        _apiOptions.ConfigureFastEndpoints = configure;
 
         LogSetupInfo("FastEndpoints configuration added");
         return this;
@@ -325,16 +338,45 @@ public class EndatixApiBuilder
     {
         LogSetupInfo("Configuring API application middleware");
 
-        // Use the Endatix API middleware with our custom options
-        app.UseEndatixApi(options =>
+        // Apply exception handling middleware if enabled
+        if (_apiOptions.UseExceptionHandler)
         {
-            // Copy all settings from our builder to the middleware options
-            options.UseSwagger = _middlewareOptions.UseSwagger;
-            options.UseCors = _middlewareOptions.UseCors;
-            options.VersioningPrefix = _middlewareOptions.VersioningPrefix;
-            options.RoutePrefix = _middlewareOptions.RoutePrefix;
-            options.ConfigureFastEndpoints = _middlewareOptions.ConfigureFastEndpoints;
+            app.UseExceptionHandler(_apiOptions.ExceptionHandlerPath);
+        }
+
+        // Apply FastEndpoints middleware with configuration
+        app.UseFastEndpoints(c =>
+        {
+            // Apply versioning configuration
+            c.Versioning.Prefix = _apiOptions.VersioningPrefix;
+            c.Endpoints.RoutePrefix = _apiOptions.RoutePrefix;
+
+            // Apply serializer configuration
+            c.Serializer.Options.Converters.Add(new LongToStringConverter());
+
+            // Apply security configuration
+            c.Security.RoleClaimType = ClaimTypes.Role;
+            c.Security.PermissionsClaimType = ClaimNames.Permission;
+
+            // Apply any custom configuration
+            _apiOptions.ConfigureFastEndpoints?.Invoke(c);
         });
+
+        // Apply Swagger middleware if enabled
+        if (_apiOptions.UseSwagger)
+        {
+            var environment = app.ApplicationServices.GetService<IWebHostEnvironment>();
+            if (environment?.IsDevelopment() == true || _apiOptions.EnableSwaggerInProduction)
+            {
+                app.UseSwaggerGen();
+            }
+        }
+
+        // Apply CORS middleware if enabled
+        if (_apiOptions.UseCors)
+        {
+            app.UseCors();
+        }
 
         LogSetupInfo("API application middleware configured");
         return app;
