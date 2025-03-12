@@ -183,6 +183,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("SlackSettingsJson")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("Tenants", (string)null);

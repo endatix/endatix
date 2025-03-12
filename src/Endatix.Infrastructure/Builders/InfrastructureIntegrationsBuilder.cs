@@ -34,7 +34,6 @@ public class InfrastructureIntegrationsBuilder
         LogSetupInfo("Configuring integrations with default settings");
 
         _parentBuilder.Services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
-        _parentBuilder.Services.AddSlackConfiguration<SlackSettings>();
 
         LogSetupInfo("Integrations configuration completed");
         return this;
@@ -52,19 +51,6 @@ public class InfrastructureIntegrationsBuilder
     {
         LogSetupInfo($"Adding email provider: {typeof(TEmailSender).Name}");
         _parentBuilder.Services.AddEmailSender<TEmailSender, TSettings>();
-        return this;
-    }
-
-    /// <summary>
-    /// Adds Slack integration configuration.
-    /// </summary>
-    /// <typeparam name="TSettings">Type of settings.</typeparam>
-    /// <returns>The builder for chaining.</returns>
-    public InfrastructureIntegrationsBuilder AddSlack<TSettings>()
-        where TSettings : class, new()
-    {
-        LogSetupInfo($"Adding Slack integration with settings: {typeof(TSettings).Name}");
-        _parentBuilder.Services.AddSlackConfiguration<TSettings>();
         return this;
     }
 

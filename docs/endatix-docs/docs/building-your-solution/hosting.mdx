@@ -262,7 +262,6 @@ builder.Services.AddEndatix(builder.Configuration)
             .Build()
         .Integrations
             .AddEmail<SendGridEmailSender, SendGridSettings>()
-            .AddSlack<SlackSettings>()
             .Build()
         .Build();
 ```

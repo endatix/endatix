@@ -50,23 +50,6 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Register configuration for the Slack section of AppSettings and configure the DI container
-    /// </summary>
-    /// <typeparam name="TSettings">The POCO class that will be used for storing the configuration</typeparam>
-    /// <param name="services"></param>
-    /// <returns>Services ready to follow the AddServices pattern</returns>
-    public static IServiceCollection AddSlackConfiguration<TSettings>(this IServiceCollection services)
-           where TSettings : class
-    {
-        // Configure settings
-        services.AddOptions<TSettings>()
-                .BindConfiguration($"Integrations:Slack:{typeof(TSettings).Name}")
-                .ValidateDataAnnotations();
-
-        return services;
-    }
-
-    /// <summary>
     /// Using this will register centralized MediatR pipeline logic based of the LoggingPipelineBehavior class
     /// </summary>
     /// <param name="options">MediatRConfigOptions options</param>
