@@ -1,4 +1,3 @@
-using System;
 using System.Reflection;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;

@@ -26,7 +26,7 @@ public static class EndatixPersistenceExtensions
         var builder = new SqlServerPersistenceBuilder(services, loggerFactory);
         return builder.UseDefault<TContext>().Services;
     }
-    
+
     /// <summary>
     /// Adds SQL Server database persistence with custom options.
     /// </summary>
@@ -44,7 +44,7 @@ public static class EndatixPersistenceExtensions
         var builder = new SqlServerPersistenceBuilder(services, loggerFactory);
         return builder.Configure<TContext>(optionsAction).Services;
     }
-    
+
     /// <summary>
     /// Gets a SQL Server persistence builder for further configuration.
     /// </summary>
@@ -57,4 +57,4 @@ public static class EndatixPersistenceExtensions
     {
         return new SqlServerPersistenceBuilder(services, loggerFactory);
     }
-} 
+}

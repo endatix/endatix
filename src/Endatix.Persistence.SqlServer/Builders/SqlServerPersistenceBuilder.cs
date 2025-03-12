@@ -1,3 +1,4 @@
+using System.Reflection;
 using Endatix.Infrastructure.Data;
 using Endatix.Persistence.SqlServer.Options;
 using Microsoft.EntityFrameworkCore;
@@ -50,7 +51,7 @@ public class SqlServerPersistenceBuilder
 
             options.UseSqlServer(connectionString, sqlOptions =>
             {
-                sqlOptions.MigrationsAssembly(typeof(TContext).Assembly.GetName().Name);
+                sqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().GetName().Name);
                 sqlOptions.EnableRetryOnFailure();
             });
         });
@@ -75,7 +76,7 @@ public class SqlServerPersistenceBuilder
         {
             dbContextOptions.UseSqlServer(sqlServerOptions.ConnectionString, sqlOptions =>
             {
-                sqlOptions.MigrationsAssembly(sqlServerOptions.MigrationsAssembly ?? typeof(TContext).Assembly.GetName().Name);
+                sqlOptions.MigrationsAssembly(sqlServerOptions.MigrationsAssembly ?? Assembly.GetExecutingAssembly().GetName().Name);
 
                 if (sqlServerOptions.CommandTimeout.HasValue)
                 {
