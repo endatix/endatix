@@ -9,7 +9,7 @@ Persistence settings control how Endatix interacts with your database, including
 
 ## Configuring the Database Provider
 
-The easiest way to specify which database Endatix should use is through the configuration:
+The easiest way to specify which database provider Endatix should use is through the configuration:
 
 ```json
 "Endatix": {
@@ -23,17 +23,16 @@ The easiest way to specify which database Endatix should use is through the conf
 
 ### Automatic Configuration
 
-When using `AddEndatix().UseDefaults()`, the database provider will be automatically selected based on your configuration. If not specified, SQL Server is used by default:
+When using `AddEndatixWithDefaults()`, the database provider will be automatically selected based on your configuration. If not specified, SQL Server is used by default:
 
 ```csharp
 // Uses the provider from configuration, or SQL Server if not specified
-services.AddEndatix(configuration)
-    .UseDefaults();
+services.AddEndatixWithDefaults(configuration);
 ```
 
 ### Direct Provider Selection
 
-You can specify the database provider directly in code using the new convenience methods:
+You can specify the database provider directly in code using the fluent API:
 
 ```csharp
 // Option 1: Using convenience method with SQL Server
@@ -42,7 +41,7 @@ services.AddEndatixWithSqlServer<AppDbContext>(configuration);
 // Option 2: Using convenience method with PostgreSQL
 services.AddEndatixWithPostgreSql<AppDbContext>(configuration);
 
-// Option 3: Using builder methods directly
+// Option 3: Using builder pattern directly
 services.AddEndatix(configuration)
     .UseSqlServer<AppDbContext>();
 
@@ -56,21 +55,12 @@ services.AddEndatix(configuration)
 
 > **Note**: All persistence configuration methods automatically register both `AppDbContext` and `AppIdentityDbContext` with the same database provider and settings. You only need to specify one of them.
 
-### Legacy Method (Requires WithPersistence)
-
-For backward compatibility, you can still use the persistence builder explicitly:
-
-```csharp
-services.AddEndatix(configuration)
-    .WithPersistence()
-    .UsePostgreSql<AppDbContext>();
-```
-
 ## Available Settings
 
 | Setting | Description | Default Value |
 |---------|-------------|--------------|
 | `Endatix:Persistence:Provider` | The database provider to use (`SqlServer` or `PostgreSql`) | `SqlServer` |
+| `ConnectionStrings:DefaultConnection` | The default database connection string | *None* |
 
 ## Provider-Specific Options
 
@@ -88,7 +78,6 @@ services.AddEndatix(configuration)
         options.MaxRetryDelay = 30;
         options.EnableSensitiveDataLogging = false;
         options.EnableDetailedErrors = false;
-        options.AutoMigrateDatabase = false;
     });
 ```
 
@@ -104,8 +93,20 @@ services.AddEndatix(configuration)
         options.MaxRetryDelay = 30;
         options.EnableSensitiveDataLogging = false;
         options.EnableDetailedErrors = false;
-        options.AutoMigrateDatabase = false;
     });
+```
+
+## Combining with Other Settings
+
+You can combine persistence configuration with other Endatix features using the builder pattern:
+
+```csharp
+services.AddEndatix(configuration)
+    .UseSqlServer<AppDbContext>()
+    .EnableAutoMigrations()
+    .EnableSampleDataSeeding()
+    .Api.AddSwagger().Build()
+    .Security.UseJwtAuthentication().Build();
 ```
 
 :::warning Note

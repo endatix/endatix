@@ -5,31 +5,60 @@ title: Data Settings
 
 # Configuring Data Settings in Endatix
 
-Data settings are responbile for changing the behavior of the data persistance layer. They allow you to prevent or allow running data migrations of the DB schema
+Data settings control the behavior of the data persistence layer, including database migrations and sample data seeding.
 
-# Getting it done
+## Configuration
 
-To configure the data settings, add the following snippet to your appSettings.json file. Customize the values based on your requirements:
+To configure the data settings, add the following snippet to your `appsettings.json` file. Customize the values based on your requirements:
 
 ```json
 "Endatix": {
     "Data": {
-        "EnableAutoMigrations": true
-    },
+        "EnableAutoMigrations": true,
+        "SeedSampleData": true,
+        "InitialUser": {
+            "Email": "admin@example.com",
+            "Password": "StrongPassword123!",
+            "FirstName": "Admin", 
+            "LastName": "User"
+        }
+    }
 }
-
 ```
 
-# Explanation
+## Settings Reference
 
-The settings are defined within the `"Data": {...}` section:
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `EnableAutoMigrations` | Controls whether database migrations are automatically applied at application startup | `false` |
+| `SeedSampleData` | Controls whether initial sample data (including user) is seeded at startup | `false` |
+| `InitialUser` | Configuration for the initial admin user when seeding sample data | *(see below)* |
 
-- **EnableAutoMigrations**: Determines whether to apply or not the database migrations.
-    - Set to `true` to enable migrations.
-    - Omit or set to `false` will prevent migrations from running unless explicitly set to true
+### InitialUser Options
+
+When `SeedSampleData` is enabled, you can configure the initial user with these properties:
+
+| Property | Description | Required |
+|----------|-------------|----------|
+| `Email` | Email address for the initial user | Yes |
+| `Password` | Password for the initial user | Yes |
+| `FirstName` | First name for the initial user | No |
+| `LastName` | Last name for the initial user | No |
+
+## Programmatic Configuration
+
+You can also configure data settings using the builder pattern:
+
+```csharp
+builder.Services.AddEndatix(configuration)
+    .Persistence
+        .EnableAutoMigrations(true)
+        .EnableSampleDataSeeding(true)
+    .Build();
+```
 
 :::warning Note on importance
  
-:fire: Data settings are a critical part of your deployment strategy. You should carefully decide when and if data migrations are executed to ensure your database schema is properly managed according to your application's needs.
+:fire: Data settings are a critical part of your deployment strategy. You should carefully decide when and if data migrations and seeding are executed to ensure your database schema and data are properly managed according to your application's needs.
 
 :::

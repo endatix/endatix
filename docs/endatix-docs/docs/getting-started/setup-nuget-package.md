@@ -48,27 +48,6 @@ This package provides a more flexible configuration experience using the builder
 
 ### Step 4: Edit Program.cs
 
-#### Option A: Using Endatix.Api.Host
-
-```csharp
-using Endatix.Setup;
-
-var builder = WebApplication.CreateBuilder(args);
-
-builder.CreateEndatix()
-    .AddDefaultSetup()
-    .AddApiEndpoints();
-
-var app = builder.Build();
-
-app.UseEndatixMiddleware()
-    .UseEndatixApi();
-
-app.Run();
-```
-
-#### Option B: Using Endatix.Hosting
-
 ```csharp
 using Endatix.Hosting;
 
@@ -144,16 +123,28 @@ Endatix uses Serilog with settings from the config. Copy the config and paste it
       "Environment": "Local Development"
     }
   },
-  "Security": {
-    "JwtSigningKey": "{YOUR_JWT_SIGNING_KEY_HERE}",
-    "JwtExpiryInMinutes": 1440,
-    "DevUsers": [
-      {
+  "Endatix": {
+    "Data": {
+      "EnableAutoMigrations": true,
+      "SeedSampleData": true,
+      "InitialUser": {
         "Email": "{USER_EMAIL}",
         "Password": "{USER_PASSWORD}",
-        "Roles": ["Admin", "Manager"]
+        "FirstName": "Admin",
+        "LastName": "User"
       }
-    ]
+    },
+    "Security": {
+      "JwtSigningKey": "{YOUR_JWT_SIGNING_KEY_HERE}",
+      "JwtExpiryInMinutes": 1440,
+      "DevUsers": [
+        {
+          "Email": "{USER_EMAIL}",
+          "Password": "{USER_PASSWORD}",
+          "Roles": ["Admin", "Manager"]
+        }
+      ]
+    }
   }
 }
 ```
@@ -176,6 +167,8 @@ When you use `AddEndatixWithDefaults()`, the following features are automaticall
 - **JWT authentication** with secure defaults
 - **Standard authorization policies**
 - **Database persistence** (detected from connection string)
+- **Automatic database migrations** (if enabled in configuration)
+- **Sample data seeding** (if enabled in configuration)
 - **Logging** with Serilog
 
 ## Next Steps

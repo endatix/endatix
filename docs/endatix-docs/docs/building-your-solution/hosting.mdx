@@ -20,7 +20,7 @@ Endatix.Hosting uses the builder pattern to provide a fluent, intuitive API for 
 - **Separation of concerns**: Each builder focuses on a specific aspect of the application
 - **Type safety**: Strongly-typed configuration options with IntelliSense support
 
-The main `EndatixBuilder` class serves as a central hub that provides access to specialized builders:
+The main builder hierarchy in Endatix consists of:
 
 ```
 EndatixBuilder
@@ -35,7 +35,27 @@ EndatixBuilder
     └── Integrations (InfrastructureIntegrationsBuilder)
 ```
 
-Each builder provides methods for configuring specific aspects of your application, and a `Build()` method to return to the parent builder for further configuration.
+Each builder provides methods for configuring specific aspects of your application and a `Build()` method to return to the parent builder for further configuration.
+
+## Getting Started
+
+The simplest way to add Endatix to your application is with default settings:
+
+```csharp
+// Add Endatix with all default settings
+builder.Services.AddEndatixWithDefaults(builder.Configuration);
+```
+
+For more control, use the builder pattern to configure only what you need:
+
+```csharp
+// Configure Endatix with specific features
+builder.Services.AddEndatix(builder.Configuration)
+    .Api.AddSwagger().Build()
+    .Security.UseJwtAuthentication().Build()
+    .UseSqlServer<AppDbContext>()
+    .EnableAutoMigrations();
+```
 
 ## API Configuration
 
@@ -157,14 +177,12 @@ The `EndatixPersistenceBuilder` provides methods for configuring database provid
     builder.Services.AddEndatix(builder.Configuration)
         .UseSqlServer<AppDbContext>(options => 
         {
-            options.WithConnectionString("Server=myServer;Database=myDb;Trusted_Connection=True;");
-            options.WithSnowflakeIds(1);
-            options.WithCustomTablePrefix("app_");
+            options.ConnectionString = "Server=myServer;Database=myDb;Trusted_Connection=True;";
+            options.EnableSensitiveDataLogging = true;
+            options.EnableDetailedErrors = true;
         })
         .EnableAutoMigrations()
-        .ScanAssembliesForEntities(
-            typeof(Program).Assembly, 
-            typeof(MyDomainEntity).Assembly)
+        .EnableSampleDataSeeding()
         .Build();
     ```
   </TabItem>
@@ -173,26 +191,28 @@ The `EndatixPersistenceBuilder` provides methods for configuring database provid
     builder.Services.AddEndatix(builder.Configuration)
         .UsePostgreSql<AppDbContext>(options => 
         {
-            options.WithConnectionString("Host=localhost;Database=mydb;Username=postgres;Password=password");
-            options.WithCustomTablePrefix("app_");
-            options.WithSampleData(); // Add sample data for development
+            options.ConnectionString = "Host=localhost;Database=mydb;Username=postgres;Password=password";
+            options.MaxRetryCount = 5;
+            options.MaxRetryDelay = 30;
         })
         .EnableAutoMigrations()
+        .EnableSampleDataSeeding()
         .Build();
     ```
   </TabItem>
 </Tabs>
 
-### Entity Configuration
+### Database Migrations and Seeding
 
-You can scan assemblies for entity configurations:
+Configure database migrations and seeding:
 
 ```csharp
 builder.Services.AddEndatix(builder.Configuration)
-    .ScanAssembliesForEntities(
-        typeof(Program).Assembly,
-        typeof(MyDomainEntity).Assembly,
-        typeof(MyInfrastructureEntity).Assembly)
+    .UseSqlServer<AppDbContext>()
+    // Enable automatic migrations at startup
+    .EnableAutoMigrations()
+    // Enable sample data seeding at startup
+    .EnableSampleDataSeeding()
     .Build();
 ```
 
@@ -288,6 +308,7 @@ builder.Services.AddEndatix(builder.Configuration)
     // Persistence Configuration
     .UseSqlServer<AppDbContext>()
     .EnableAutoMigrations()
+    .EnableSampleDataSeeding()
     // Logging Configuration
     .Logging
         .UseApplicationInsights()
@@ -309,7 +330,8 @@ if (builder.Environment.IsDevelopment())
         .Logging
             .ConfigureSerilog(config => config.MinimumLevel.Debug())
             .Build()
-        .EnableAutoMigrations();
+        .EnableAutoMigrations()
+        .EnableSampleDataSeeding();
 }
 else if (builder.Environment.IsProduction())
 {
@@ -329,11 +351,34 @@ You can configure custom options for your application:
 
 ```csharp
 builder.Services.AddEndatix(builder.Configuration)
-    .ConfigureOptions(options => 
+    .ConfigureOptions<EndatixRootOptions>(options => 
     {
         options.ApplicationName = "My Endatix App";
-        options.EnableFeatureFlags = true;
-        options.MaxConcurrentRequests = 100;
+        options.EnableTelemetry = true;
+        options.EnvironmentName = "Production";
     })
     .Build();
+```
+
+## Registering Middleware
+
+After configuring your services, you need to register the Endatix middleware in your application:
+
+```csharp
+var app = builder.Build();
+
+// Add Endatix middleware with default configuration
+app.UseEndatix();
+
+// Or customize middleware configuration
+app.UseEndatix(options => 
+{
+    options.UseExceptionHandler = true;
+    options.UseApiEndpoints = true;
+    options.UseSwagger = builder.Environment.IsDevelopment();
+    options.UseSecurity = true;
+    options.UseHttpsRedirection = !builder.Environment.IsDevelopment();
+});
+
+app.Run();
 ``` 
