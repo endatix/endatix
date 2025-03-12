@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using Ardalis.GuardClauses;
+using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,30 +22,19 @@ public static class DatabaseMigrationExtensions
     /// <returns>A task representing the asynchronous operation.</returns>
     public static async Task ApplyDbMigrationsAsync(this IServiceProvider serviceProvider)
     {
-        var logger = serviceProvider.GetService<ILogger<MigrationLogger>>();
-        logger?.LogDebug("{Operation} operation started", nameof(ApplyDbMigrationsAsync));
-        
+        using var scope = serviceProvider.CreateScope();
+        var logger = serviceProvider.GetRequiredService<ILogger<MigrationLogger>>();
+        logger.LogDebug("{Operation} operation started", nameof(ApplyDbMigrationsAsync));
+
         try
         {
-            // Get all registered DbContext types
-            var dbContexts = serviceProvider.GetServices<DbContext>();
-            
-            foreach (var dbContext in dbContexts)
-            {
-                var contextType = dbContext.GetType();
-                logger?.LogInformation("Applying migrations for {DbContextType}", contextType.Name);
-                
-                try
-                {
-                    await dbContext.Database.MigrateAsync();
-                    logger?.LogInformation("Successfully applied migrations for {DbContextType}", contextType.Name);
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogError(ex, "Error applying migrations for {DbContextType}", contextType.Name);
-                    throw; // Rethrow to allow the caller to handle the error
-                }
-            }
+            var scopedProvider = scope.ServiceProvider;
+
+            using var appDbContext = scopedProvider.GetRequiredService<AppDbContext>();
+            await ApplyMigrationForContextAsync(appDbContext, logger);
+
+            using var identityDbContext = scopedProvider.GetRequiredService<AppIdentityDbContext>();
+            await ApplyMigrationForContextAsync(identityDbContext, logger);
             
             logger?.LogDebug("{Operation} operation executed successfully", nameof(ApplyDbMigrationsAsync));
         }
@@ -52,4 +44,21 @@ public static class DatabaseMigrationExtensions
             throw; // Rethrow for explicit migration calls
         }
     }
-} 
+
+    private static async Task ApplyMigrationForContextAsync<T>(T dbContext, ILogger logger) where T : DbContext
+    {
+        Guard.Against.Null(dbContext);
+        Guard.Against.Null(logger);
+
+        if (dbContext.Database.GetPendingMigrations().Any())
+        {
+            var startTime = Stopwatch.GetTimestamp();
+            logger.LogInformation("💽 Applying database migrations for {dbContextName}", typeof(T).Name);
+
+            await dbContext.Database.MigrateAsync();
+
+            var elapsedTime = Stopwatch.GetElapsedTime(startTime);
+            logger.LogInformation("💽 Database migrations applied for {dbContextName}. Took: {elapsedTime} ms.", typeof(T).Name, elapsedTime.TotalMilliseconds);
+        }
+    }
+}
