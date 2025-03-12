@@ -61,6 +61,7 @@ services.AddEndatix(configuration)
 |---------|-------------|--------------|
 | `Endatix:Persistence:Provider` | The database provider to use (`SqlServer` or `PostgreSql`) | `SqlServer` |
 | `ConnectionStrings:DefaultConnection` | The default database connection string | *None* |
+| `ConnectionStrings:DbProvider` | The database provider to use (`SqlServer` or `PostgreSql`) | *SqlServer* |
 
 ## Provider-Specific Options
 
