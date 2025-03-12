@@ -29,7 +29,7 @@ namespace Endatix.Hosting.Builders;
 /// </remarks>
 public class EndatixBuilder : IBuilderRoot
 {
-    private EndatixLoggingBuilder? _loggingBuilder;
+    private readonly EndatixLoggingBuilder? _loggingBuilder;
     private readonly ILogger<EndatixBuilder> _logger;
 
     /// <summary>
@@ -100,11 +100,9 @@ public class EndatixBuilder : IBuilderRoot
         // Create and initialize the logging builder
         _loggingBuilder = new EndatixLoggingBuilder(services, configuration);
         LoggerFactory = _loggingBuilder.GetComponents();
-
-        // Create a logger for this builder
         _logger = LoggerFactory.CreateLogger<EndatixBuilder>();
 
-        _logger.LogInformation("Initializing EndatixBuilder");
+        _logger.LogDebug("Initializing EndatixBuilder");
 
         // Try to get IAppEnvironment from DI
         var serviceProvider = services.BuildServiceProvider();

@@ -43,6 +43,7 @@ public class EndatixMiddlewareBuilder
         LogSetupInfo("Configuring middleware with default settings");
 
         UseExceptionHandler()
+            .UseMultitenancy()
             .UseSecurity()
             .UseHsts()
             .UseHttpsRedirection()
