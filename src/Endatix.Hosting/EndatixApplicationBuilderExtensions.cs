@@ -95,16 +95,28 @@ public static class EndatixApplicationBuilderExtensions
 
         if (options.UseApi)
         {
-            builder.UseApi();
+            builder.UseApi(apiOptions => 
+            {
+                apiOptions.UseExceptionHandler = options.ApiOptions.UseExceptionHandler;
+                apiOptions.ExceptionHandlerPath = options.ApiOptions.ExceptionHandlerPath;
+                apiOptions.UseSwagger = options.ApiOptions.UseSwagger;
+                apiOptions.EnableSwaggerInProduction = options.ApiOptions.EnableSwaggerInProduction;
+                apiOptions.SwaggerPath = options.ApiOptions.SwaggerPath;
+                apiOptions.ConfigureOpenApiDocument = options.ApiOptions.ConfigureOpenApiDocument;
+                apiOptions.ConfigureSwaggerUi = options.ApiOptions.ConfigureSwaggerUi;
+                apiOptions.UseCors = options.ApiOptions.UseCors;
+                apiOptions.UseVersioning = options.ApiOptions.UseVersioning;
+                apiOptions.VersioningPrefix = options.ApiOptions.VersioningPrefix;
+                apiOptions.RoutePrefix = options.ApiOptions.RoutePrefix;
+                apiOptions.ConfigureFastEndpoints = options.ApiOptions.ConfigureFastEndpoints;
+            });
         }
 
         if (options.UseHealthChecks)
         {
-            // Use the middleware builder's health checks method instead of direct extension method
             builder.UseHealthChecks(options.HealthCheckPath);
         }
 
-        // Apply additional custom middleware if provided
         options.ConfigureAdditionalMiddleware?.Invoke(app);
 
         return app;
