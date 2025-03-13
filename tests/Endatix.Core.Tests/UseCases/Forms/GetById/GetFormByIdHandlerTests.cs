@@ -38,7 +38,7 @@ public class GetFormByIdHandlerTests
     public async Task Handle_ValidRequest_ReturnsForm()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
         var request = new GetFormByIdQuery(1);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
