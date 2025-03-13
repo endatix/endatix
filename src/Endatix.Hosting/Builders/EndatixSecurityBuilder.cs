@@ -59,8 +59,9 @@ public class EndatixSecurityBuilder
     /// var builder = WebApplication.CreateBuilder(args);
     /// 
     /// // Configure security with defaults
-    /// builder.Services.AddEndatix(builder.Configuration)
-    ///     .Security.UseDefaults();
+    /// builder.Host.UseEndatix(endatix => endatix
+    ///     .WithSecurity(security => security
+    ///         .UseDefaults()));
     /// </code>
     /// </example>
     /// </remarks>
@@ -109,16 +110,18 @@ public class EndatixSecurityBuilder
     /// var builder = WebApplication.CreateBuilder(args);
     /// 
     /// // Configure JWT authentication with defaults
-    /// builder.Services.AddEndatix(builder.Configuration)
-    ///     .Security.UseJwtAuthentication();
+    /// builder.Host.UseEndatix(endatix => endatix
+    ///     .WithSecurity(security => security
+    ///         .UseJwtAuthentication()));
     ///     
     /// // Or with custom options
-    /// builder.Services.AddEndatix(builder.Configuration)
-    ///     .Security.UseJwtAuthentication(options => 
-    ///     {
-    ///         options.TokenValidationParameters.ValidateIssuer = false;
-    ///         options.TokenValidationParameters.ValidateAudience = false;
-    ///     });
+    /// builder.Host.UseEndatix(endatix => endatix
+    ///     .WithSecurity(security => security
+    ///         .UseJwtAuthentication(options => 
+    ///         {
+    ///             options.TokenValidationParameters.ValidateIssuer = false;
+    ///             options.TokenValidationParameters.ValidateAudience = false;
+    ///         })));
     /// </code>
     /// </example>
     /// </remarks>

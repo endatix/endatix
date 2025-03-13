@@ -36,7 +36,7 @@ try
     
     // Add Endatix with default configuration
     // This automatically sets up the fully configured logger
-    builder.Services.AddEndatixWithDefaults(builder.Configuration);
+    builder.Host.ConfigureEndatix();
     
     // Build and configure the application
     var app = builder.Build();
@@ -174,8 +174,8 @@ Endatix provides a clean builder API for configuring logging that follows Serilo
 
 ```csharp
 // Full control over bootstrap and configured loggers
-builder.Services.AddEndatix(builder.Configuration)
-    .Logging
+builder.Host.ConfigureEndatix(endatix => endatix
+    .WithLogging(logging => logging
         // Customize bootstrap logger
         .ConfigureBootstrapLogger(config => 
             config.MinimumLevel.Debug()
@@ -184,8 +184,7 @@ builder.Services.AddEndatix(builder.Configuration)
         .ConfigureSerilog(config => 
             config.WriteTo.File("logs/custom-.log", rollingInterval: RollingInterval.Day))
         // Add Application Insights
-        .UseApplicationInsights()
-    .Build();
+        .UseApplicationInsights()));
 ```
 
 The builder pattern ensures that all logging components work together seamlessly:
@@ -197,44 +196,24 @@ The builder pattern ensures that all logging components work together seamlessly
 
 ## Available Methods
 
-### AddEndatix
+### ConfigureEndatix
 
-The core method that adds all required Endatix services:
+The core method that configures Endatix on the host:
 
 ```csharp
-// Basic registration
-services.AddEndatix(configuration);
+// Basic configuration with defaults
+builder.Host.ConfigureEndatix();
 
 // Using the builder pattern for advanced configuration
-services.AddEndatix(configuration)
-    .AddApi()
-    .AddDatabase<TContext>()
-    .AddAuthentication()
-    .Build();
-```
-
-### AddEndatixWithDefaults
-
-A convenience method that adds Endatix with sensible defaults:
-
-```csharp
-services.AddEndatixWithDefaults(configuration);
-```
-
-### AddEndatixWithSqlServer<TContext>
-
-A convenience method that adds Endatix with SQL Server:
-
-```csharp
-services.AddEndatixWithSqlServer<MyDbContext>(configuration);
-```
-
-### AddEndatixWithPostgreSql<TContext>
-
-A convenience method that adds Endatix with PostgreSQL:
-
-```csharp
-services.AddEndatixWithPostgreSql<MyDbContext>(configuration);
+builder.Host.ConfigureEndatix(endatix => endatix
+    .WithApi(api => api
+        .AddSwagger()
+        .AddVersioning())
+    .WithPersistence(db => db
+        .UseSqlServer<AppDbContext>()
+        .EnableAutoMigrations())
+    .WithSecurity(security => security
+        .UseJwtAuthentication()));
 ```
 
 ## Documentation

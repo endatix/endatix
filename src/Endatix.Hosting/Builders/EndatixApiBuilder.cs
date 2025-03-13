@@ -79,8 +79,9 @@ public class EndatixApiBuilder
     /// var builder = WebApplication.CreateBuilder(args);
     /// 
     /// // Configure API with defaults
-    /// builder.Services.AddEndatix(builder.Configuration)
-    ///     .Api.UseDefaults();
+    /// builder.Host.UseEndatix(endatix => endatix
+    ///     .WithApi(api => api
+    ///         .UseDefaults()));
     /// </code>
     /// </example>
     /// </remarks>

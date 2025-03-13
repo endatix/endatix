@@ -1,12 +1,12 @@
 using Endatix.Hosting;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add health checks
 // builder.Services.AddHealthChecks();
 
-// Configure Endatix with fluent API
-builder.Services
-    .AddEndatixWithDefaults(builder.Configuration);
+// Configure Endatix with default settings
+builder.Host.ConfigureEndatix();
 
 var app = builder.Build();
 

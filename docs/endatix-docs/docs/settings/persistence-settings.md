@@ -23,11 +23,11 @@ The easiest way to specify which database provider Endatix should use is through
 
 ### Automatic Configuration
 
-When using `AddEndatixWithDefaults()`, the database provider will be automatically selected based on your configuration. If not specified, SQL Server is used by default:
+When using `ConfigureEndatix()`, the database provider will be automatically selected based on your configuration. If not specified, SQL Server is used by default:
 
 ```csharp
 // Uses the provider from configuration, or SQL Server if not specified
-services.AddEndatixWithDefaults(configuration);
+builder.Host.ConfigureEndatix();
 ```
 
 ### Direct Provider Selection
@@ -35,22 +35,27 @@ services.AddEndatixWithDefaults(configuration);
 You can specify the database provider directly in code using the fluent API:
 
 ```csharp
-// Option 1: Using convenience method with SQL Server
-services.AddEndatixWithSqlServer<AppDbContext>(configuration);
+// Option 1: Using persistence builder with SQL Server
+builder.Host.ConfigureEndatix(endatix => endatix
+    .WithPersistence(persistence => persistence
+        .UseSqlServer<AppDbContext>()));
 
-// Option 2: Using convenience method with PostgreSQL
-services.AddEndatixWithPostgreSql<AppDbContext>(configuration);
+// Option 2: Using persistence builder with PostgreSQL
+builder.Host.ConfigureEndatix(endatix => endatix
+    .WithPersistence(persistence => persistence
+        .UsePostgreSql<AppDbContext>()));
 
-// Option 3: Using builder pattern directly
-services.AddEndatix(configuration)
-    .UseSqlServer<AppDbContext>();
+// Option 3: Using convenience methods
+builder.Host.ConfigureEndatix(endatix => endatix
+    .UseSqlServer<AppDbContext>());
 
 // Option 4: With custom options
-services.AddEndatix(configuration)
-    .UsePostgreSql<AppDbContext>(options => {
-        options.ConnectionString = "your_connection_string";
-        options.EnableSensitiveDataLogging = true;
-    });
+builder.Host.ConfigureEndatix(endatix => endatix
+    .WithPersistence(persistence => persistence
+        .UsePostgreSql<AppDbContext>(options => {
+            options.ConnectionString = "your_connection_string";
+            options.EnableSensitiveDataLogging = true;
+        })));
 ```
 
 > **Note**: All persistence configuration methods automatically register both `AppDbContext` and `AppIdentityDbContext` with the same database provider and settings. You only need to specify one of them.

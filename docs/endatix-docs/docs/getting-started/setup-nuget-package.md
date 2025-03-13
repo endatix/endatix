@@ -53,16 +53,44 @@ using Endatix.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Endatix with default configuration
-builder.Services.AddEndatixWithDefaults(builder.Configuration);
+// Scenario 1: Add Endatix with default configuration (simplest approach)
+builder.Host.ConfigureEndatix();
 
-// Or for more control, use the builder pattern:
+// Scenario 2: Complete customization of all components
 /*
-builder.Services.AddEndatix(builder.Configuration)
-    .Api.AddSwagger().Build()
-    .Security.UseJwtAuthentication().Build()
-    .UseSqlServer<AppDbContext>()
-    .EnableAutoMigrations();
+builder.Host.ConfigureEndatix(endatix => endatix
+    .WithApi(api => api
+        .AddSwagger(options => {
+            options.Title = "My Custom API";
+            options.Version = "1.0";
+        })
+        .AddVersioning()
+        .EnableCors("AllowedOrigins", cors => 
+            cors.WithOrigins("https://example.com")
+                .AllowAnyMethod()))
+    .WithSecurity(security => security
+        .UseJwtAuthentication(options => {
+            options.TokenValidationParameters.ValidateAudience = false;
+        }))
+    .WithPersistence(db => db
+        .UseSqlServer<AppDbContext>(options => {
+            options.ConnectionString = "Server=myServer;Database=myDb;";
+        })
+        .EnableAutoMigrations())
+    .WithLogging(logging => logging
+        .ConfigureSerilog(config => {
+            config.MinimumLevel.Information();
+        })));
+*/
+
+// Scenario 3: Hybrid approach - start with defaults, customize specific components
+/*
+builder.Host.ConfigureEndatix(endatix => endatix
+    .UseDefaults()  // Apply sensible defaults first
+    .WithApi(api => api  // Then customize only what you need
+        .AddSwagger())
+    .WithPersistence(db => db
+        .EnableAutoMigrations()));
 */
 
 var app = builder.Build();
@@ -162,14 +190,14 @@ If you need to customize Swagger beyond the basic settings in `appsettings.json`
 
 ```csharp
 // Advanced Swagger customization
-builder.Services.AddEndatix(builder.Configuration)
-    .Api
-    .AddSwagger(options =>
-    {
-        options.IncludeXmlComments = true;
-        options.TagsFromNamespaceStrategy = true;
-    })
-    .Build();
+builder.Host.UseEndatix(endatix => endatix
+    .WithApi(api => api
+        .UseDefaults()
+        .AddSwagger(options =>
+        {
+            options.IncludeXmlComments = true;
+            options.TagsFromNamespaceStrategy = true;
+        })));
 
 var app = builder.Build();
 
@@ -228,7 +256,7 @@ The application should now be running on `https://localhost:7066` (or a similar 
 
 ## What's Included in the Default Setup
 
-When you use `AddEndatixWithDefaults()`, the following features are automatically configured:
+When you use `builder.Host.ConfigureEndatix()`, the following features are automatically configured:
 
 - **API endpoints** with Swagger documentation
 - **JWT authentication** with secure defaults

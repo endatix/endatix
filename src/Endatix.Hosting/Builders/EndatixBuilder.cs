@@ -25,7 +25,7 @@ namespace Endatix.Hosting.Builders;
 /// </list>
 /// 
 /// Typically, you obtain an instance of this builder by calling one of the extension methods
-/// in <see cref="EndatixServiceCollectionExtensions"/>, such as <c>AddEndatix</c>.
+/// in <see cref="EndatixHostBuilderExtensions"/>, such as <c>UseEndatix</c>.
 /// </remarks>
 public class EndatixBuilder : IBuilderRoot
 {
@@ -193,9 +193,9 @@ public class EndatixBuilder : IBuilderRoot
     /// var builder = WebApplication.CreateBuilder(args);
     /// 
     /// // Register Endatix with SQL Server
-    /// builder.Services.AddEndatix(builder.Configuration)
+    /// builder.Host.UseEndatix(endatix => endatix
     ///     .UseSqlServer&lt;AppDbContext&gt;()
-    ///     .EnableAutoMigrations();
+    ///     .EnableAutoMigrations());
     /// </code>
     /// </example>
     /// </remarks>
@@ -225,14 +225,14 @@ public class EndatixBuilder : IBuilderRoot
     /// // In Program.cs
     /// var builder = WebApplication.CreateBuilder(args);
     /// 
-    /// // Register Endatix with custom SQL Server options
-    /// builder.Services.AddEndatix(builder.Configuration)
+    /// // Register Endatix with SQL Server
+    /// builder.Host.UseEndatix(endatix => endatix
     ///     .UseSqlServer&lt;AppDbContext&gt;(options => 
     ///     {
     ///         options.WithConnectionString("Server=myServer;Database=myDb;Trusted_Connection=True;");
     ///         options.WithSnowflakeIds(1);
     ///     })
-    ///     .EnableAutoMigrations();
+    ///     .EnableAutoMigrations());
     /// </code>
     /// </example>
     /// </remarks>
@@ -259,9 +259,9 @@ public class EndatixBuilder : IBuilderRoot
     /// var builder = WebApplication.CreateBuilder(args);
     /// 
     /// // Register Endatix with PostgreSQL
-    /// builder.Services.AddEndatix(builder.Configuration)
+    /// builder.Host.UseEndatix(endatix => endatix
     ///     .UsePostgreSql&lt;AppDbContext&gt;()
-    ///     .EnableAutoMigrations();
+    ///     .EnableAutoMigrations());
     /// </code>
     /// </example>
     /// </remarks>
@@ -292,13 +292,13 @@ public class EndatixBuilder : IBuilderRoot
     /// var builder = WebApplication.CreateBuilder(args);
     /// 
     /// // Register Endatix with custom PostgreSQL options
-    /// builder.Services.AddEndatix(builder.Configuration)
+    /// builder.Host.UseEndatix(endatix => endatix
     ///     .UsePostgreSql&lt;AppDbContext&gt;(options => 
     ///     {
     ///         options.WithConnectionString("Host=localhost;Database=mydb;Username=postgres;Password=password");
     ///         options.WithCustomTablePrefix("app_");
     ///     })
-    ///     .EnableAutoMigrations();
+    ///     .EnableAutoMigrations());
     /// </code>
     /// </example>
     /// </remarks>
@@ -324,9 +324,9 @@ public class EndatixBuilder : IBuilderRoot
     /// var builder = WebApplication.CreateBuilder(args);
     /// 
     /// // Register Endatix with auto migrations
-    /// builder.Services.AddEndatix(builder.Configuration)
+    /// builder.Host.UseEndatix(endatix => endatix
     ///     .UseSqlServer&lt;AppDbContext&gt;()
-    ///     .EnableAutoMigrations();
+    ///     .EnableAutoMigrations());
     /// </code>
     /// </example>
     /// </remarks>
@@ -350,9 +350,9 @@ public class EndatixBuilder : IBuilderRoot
     /// var builder = WebApplication.CreateBuilder(args);
     /// 
     /// // Register Endatix and scan for entity configurations
-    /// builder.Services.AddEndatix(builder.Configuration)
+    /// builder.Host.UseEndatix(endatix => endatix
     ///     .UseSqlServer&lt;AppDbContext&gt;()
-    ///     .ScanAssembliesForEntities(typeof(Program).Assembly);
+    ///     .ScanAssembliesForEntities(typeof(Program).Assembly));
     /// </code>
     /// </example>
     /// </remarks>

@@ -42,19 +42,55 @@ Each builder provides methods for configuring specific aspects of your applicati
 The simplest way to add Endatix to your application is with default settings:
 
 ```csharp
-// Add Endatix with all default settings
-builder.Services.AddEndatixWithDefaults(builder.Configuration);
+// Scenario 1: Add Endatix with all default settings
+builder.Host.ConfigureEndatix();
 ```
 
 For more control, use the builder pattern to configure only what you need:
 
 ```csharp
-// Configure Endatix with specific features
-builder.Services.AddEndatix(builder.Configuration)
-    .Api.AddSwagger().Build()
-    .Security.UseJwtAuthentication().Build()
-    .UseSqlServer<AppDbContext>()
-    .EnableAutoMigrations();
+// Scenario 2: Complete custom configuration of all components
+builder.Host.ConfigureEndatix(endatix => endatix
+    .WithApi(api => api
+        .AddSwagger()
+        .AddVersioning()
+        .SetRoutePrefix("api")
+        .EnableCors("AllowedOrigins", cors => 
+            cors.WithOrigins("https://example.com")
+                .AllowAnyMethod()
+                .AllowAnyHeader()))
+    .WithSecurity(security => security
+        .UseJwtAuthentication()
+        .AddAuthorization(options => 
+            options.AddPolicy("RequireAdminRole", policy => 
+                policy.RequireRole("admin"))))
+    .WithPersistence(db => db
+        .UseSqlServer<AppDbContext>()
+        .EnableAutoMigrations())
+    .WithLogging(logging => logging
+        .UseApplicationInsights()
+        .ConfigureSerilog(config => 
+            config.MinimumLevel.Information())));
+```
+
+For a hybrid approach, start with defaults and customize specific aspects:
+
+```csharp
+// Scenario 3: Hybrid approach - start with defaults, then customize
+builder.Host.ConfigureEndatix(endatix => endatix
+    // Start with sensible defaults
+    .UseDefaults()
+    
+    // Then customize only what you need
+    .WithApi(api => api
+        .AddSwagger(options => {
+            options.Title = "My Custom API";
+            options.Version = "2.0";
+        }))
+    .WithSecurity(security => security
+        .WithJwtAuthentication(options => {
+            options.TokenExpirationMinutes = 120;
+        })));
 ```
 
 ## API Configuration
@@ -62,17 +98,16 @@ builder.Services.AddEndatix(builder.Configuration)
 The `EndatixApiBuilder` provides methods for configuring API-related services:
 
 ```csharp
-builder.Services.AddEndatix(builder.Configuration)
-    .Api
-    .AddSwagger()
-    .AddVersioning()
-    .SetVersioningPrefix("v")  // Results in URLs like /api/v1/resource
-    .SetRoutePrefix("services") // Changes base path from /api to /services
-    .EnableCors("AllowedOrigins", cors => 
-        cors.WithOrigins("https://example.com")
-            .AllowAnyMethod()
-            .AllowAnyHeader())
-    .Build(); // Return to parent builder
+builder.Host.ConfigureEndatix(endatix => endatix
+    .WithApi(api => api
+        .AddSwagger()
+        .AddVersioning()
+        .SetVersioningPrefix("v")  // Results in URLs like /api/v1/resource
+        .SetRoutePrefix("services") // Changes base path from /api to /services
+        .EnableCors("AllowedOrigins", cors => 
+            cors.WithOrigins("https://example.com")
+                .AllowAnyMethod()
+                .AllowAnyHeader())));
 ```
 
 ### Swagger Configuration
@@ -81,21 +116,21 @@ Configure Swagger documentation with environment-specific settings:
 
 ```csharp
 // Basic Swagger configuration
-builder.Services.AddEndatix(builder.Configuration)
-    .Api
-    .AddSwagger()
-    .Build();
+builder.Host.UseEndatix(endatix => endatix
+    .WithApi(api => api
+        .UseDefaults()
+        .AddSwagger()));
 
 // Advanced Swagger configuration
-builder.Services.AddEndatix(builder.Configuration)
-    .Api
-    .AddSwagger(options => 
-    {
-        // Configure FastEndpoints-specific options
-        options.IncludeXmlComments = true;
-        options.TagsFromNamespaceStrategy = true;
-    })
-    .Build();
+builder.Host.UseEndatix(endatix => endatix
+    .WithApi(api => api
+        .UseDefaults()
+        .AddSwagger(options => 
+        {
+            // Configure FastEndpoints-specific options
+            options.IncludeXmlComments = true;
+            options.TagsFromNamespaceStrategy = true;
+        })));
 ```
 
 When configuring middleware, you have several options for customizing Swagger:
@@ -163,18 +198,17 @@ app.UseEndatix()
 Configure Cross-Origin Resource Sharing (CORS) policies:
 
 ```csharp
-builder.Services.AddEndatix(builder.Configuration)
-    .Api
-    .EnableCors("AllowedOrigins", cors => 
-    {
-        cors.WithOrigins(
-                "https://example.com", 
-                "https://api.example.com")
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials();
-    })
-    .Build();
+builder.Host.UseEndatix(endatix => endatix
+    .WithApi(api => api
+        .EnableCors("AllowedOrigins", cors => 
+        {
+            cors.WithOrigins(
+                    "https://example.com", 
+                    "https://api.example.com")
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials();
+        })));
 ```
 
 ## Security Configuration
@@ -182,26 +216,25 @@ builder.Services.AddEndatix(builder.Configuration)
 The `EndatixSecurityBuilder` provides methods for configuring authentication and authorization:
 
 ```csharp
-builder.Services.AddEndatix(builder.Configuration)
-    .Security
-    .UseJwtAuthentication()
-    .AddAuthorization(options => 
-    {
-        // Add a policy requiring the 'admin' role
-        options.AddPolicy("RequireAdminRole", policy => 
-            policy.RequireRole("admin"));
-            
-        // Add a policy requiring a specific claim
-        options.AddPolicy("PremiumUsers", policy => 
-            policy.RequireClaim("subscription", "premium"));
-            
-        // Add a policy with multiple requirements
-        options.AddPolicy("SeniorEditor", policy => 
-            policy.RequireRole("editor")
-                 .RequireClaim("experience", "senior")
-                 .RequireClaim("department", "content"));
-    })
-    .Build();
+builder.Host.UseEndatix(endatix => endatix
+    .WithSecurity(security => security
+        .UseJwtAuthentication()
+        .AddAuthorization(options => 
+        {
+            // Add a policy requiring the 'admin' role
+            options.AddPolicy("RequireAdminRole", policy => 
+                policy.RequireRole("admin"));
+                
+            // Add a policy requiring a specific claim
+            options.AddPolicy("PremiumUsers", policy => 
+                policy.RequireClaim("subscription", "premium"));
+                
+            // Add a policy with multiple requirements
+            options.AddPolicy("SeniorEditor", policy => 
+                policy.RequireRole("editor")
+                     .RequireClaim("experience", "senior")
+                     .RequireClaim("department", "content"));
+        })));
 ```
 
 ### Custom JWT Configuration
@@ -209,25 +242,24 @@ builder.Services.AddEndatix(builder.Configuration)
 For advanced JWT configuration, you can customize the token validation parameters:
 
 ```csharp
-builder.Services.AddEndatix(builder.Configuration)
-    .Security
-    .WithJwtAuthentication(tokenParams => 
-    {
-        // Customize token validation parameters
-        tokenParams.ValidateLifetime = true;
-        tokenParams.ClockSkew = TimeSpan.FromMinutes(5);
-        tokenParams.RequireExpirationTime = true;
-        tokenParams.RequireSignedTokens = true;
-        
-        // Add custom validation logic
-        tokenParams.ValidateIssuerSigningKey = true;
-        tokenParams.IssuerSigningKeyResolver = (token, securityToken, kid, parameters) => 
+builder.Host.UseEndatix(endatix => endatix
+    .WithSecurity(security => security
+        .WithJwtAuthentication(tokenParams => 
         {
-            // Custom key resolution logic
-            return new List<SecurityKey> { /* your keys */ };
-        };
-    })
-    .Build();
+            // Customize token validation parameters
+            tokenParams.ValidateLifetime = true;
+            tokenParams.ClockSkew = TimeSpan.FromMinutes(5);
+            tokenParams.RequireExpirationTime = true;
+            tokenParams.RequireSignedTokens = true;
+            
+            // Add custom validation logic
+            tokenParams.ValidateIssuerSigningKey = true;
+            tokenParams.IssuerSigningKeyResolver = (token, securityToken, kid, parameters) => 
+            {
+                // Custom key resolution logic
+                return new List<SecurityKey> { /* your keys */ };
+            };
+        })));
 ```
 
 ## Persistence Configuration
@@ -237,30 +269,30 @@ The `EndatixPersistenceBuilder` provides methods for configuring database provid
 <Tabs>
   <TabItem value="sqlserver" label="SQL Server" default>
     ```csharp
-    builder.Services.AddEndatix(builder.Configuration)
-        .UseSqlServer<AppDbContext>(options => 
-        {
-            options.ConnectionString = "Server=myServer;Database=myDb;Trusted_Connection=True;";
-            options.EnableSensitiveDataLogging = true;
-            options.EnableDetailedErrors = true;
-        })
-        .EnableAutoMigrations()
-        .EnableSampleDataSeeding()
-        .Build();
+    builder.Host.UseEndatix(endatix => endatix
+        .WithPersistence(persistence => persistence
+            .UseSqlServer<AppDbContext>(options => 
+            {
+                options.ConnectionString = "Server=myServer;Database=myDb;Trusted_Connection=True;";
+                options.EnableSensitiveDataLogging = true;
+                options.EnableDetailedErrors = true;
+            })
+            .EnableAutoMigrations()
+            .EnableSampleDataSeeding()));
     ```
   </TabItem>
   <TabItem value="postgresql" label="PostgreSQL">
     ```csharp
-    builder.Services.AddEndatix(builder.Configuration)
-        .UsePostgreSql<AppDbContext>(options => 
-        {
-            options.ConnectionString = "Host=localhost;Database=mydb;Username=postgres;Password=password";
-            options.MaxRetryCount = 5;
-            options.MaxRetryDelay = 30;
-        })
-        .EnableAutoMigrations()
-        .EnableSampleDataSeeding()
-        .Build();
+    builder.Host.UseEndatix(endatix => endatix
+        .WithPersistence(persistence => persistence
+            .UsePostgreSql<AppDbContext>(options => 
+            {
+                options.ConnectionString = "Host=localhost;Database=mydb;Username=postgres;Password=password";
+                options.MaxRetryCount = 5;
+                options.MaxRetryDelay = 30;
+            })
+            .EnableAutoMigrations()
+            .EnableSampleDataSeeding()));
     ```
   </TabItem>
 </Tabs>
@@ -270,13 +302,13 @@ The `EndatixPersistenceBuilder` provides methods for configuring database provid
 Configure database migrations and seeding:
 
 ```csharp
-builder.Services.AddEndatix(builder.Configuration)
-    .UseSqlServer<AppDbContext>()
-    // Enable automatic migrations at startup
-    .EnableAutoMigrations()
-    // Enable sample data seeding at startup
-    .EnableSampleDataSeeding()
-    .Build();
+builder.Host.UseEndatix(endatix => endatix
+    .WithPersistence(persistence => persistence
+        .UseSqlServer<AppDbContext>()
+        // Enable automatic migrations at startup
+        .EnableAutoMigrations()
+        // Enable sample data seeding at startup
+        .EnableSampleDataSeeding()));
 ```
 
 ## Logging Configuration
@@ -284,31 +316,30 @@ builder.Services.AddEndatix(builder.Configuration)
 The `EndatixLoggingBuilder` provides methods for configuring logging providers and levels:
 
 ```csharp
-builder.Services.AddEndatix(builder.Configuration)
-    .Logging
-    .UseApplicationInsights(options => 
-    {
-        options.ConnectionString = "InstrumentationKey=your-key-here";
-        options.EnableAdaptiveSampling = false;
-        options.EnableQuickPulseMetricStream = true;
-    })
-    .ConfigureSerilog(logConfig => 
-    {
-        logConfig
-            .MinimumLevel.Information()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-            .MinimumLevel.Override("System", LogEventLevel.Warning)
-            .WriteTo.Console(
-                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-            .WriteTo.File(
-                path: "logs/endatix-.log",
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 7,
-                fileSizeLimitBytes: 10 * 1024 * 1024)
-            .Enrich.WithMachineName()
-            .Enrich.WithThreadId();
-    })
-    .Build();
+builder.Host.UseEndatix(endatix => endatix
+    .WithLogging(logging => logging
+        .UseApplicationInsights(options => 
+        {
+            options.ConnectionString = "InstrumentationKey=your-key-here";
+            options.EnableAdaptiveSampling = false;
+            options.EnableQuickPulseMetricStream = true;
+        })
+        .ConfigureSerilog(logConfig => 
+        {
+            logConfig
+                .MinimumLevel.Information()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .MinimumLevel.Override("System", LogEventLevel.Warning)
+                .WriteTo.Console(
+                    outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                .WriteTo.File(
+                    path: "logs/endatix-.log",
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 7,
+                    fileSizeLimitBytes: 10 * 1024 * 1024)
+                .Enrich.WithMachineName()
+                .Enrich.WithThreadId();
+        })));
 ```
 
 ## Infrastructure Configuration
@@ -316,8 +347,8 @@ builder.Services.AddEndatix(builder.Configuration)
 The `InfrastructureBuilder` provides access to lower-level services:
 
 ```csharp
-builder.Services.AddEndatix(builder.Configuration)
-    .Infrastructure
+builder.Host.UseEndatix(endatix => endatix
+    .WithInfrastructure(infrastructure => infrastructure
         .Data
             .UseDefaults()
             .Configure(options => 
@@ -346,7 +377,7 @@ builder.Services.AddEndatix(builder.Configuration)
         .Integrations
             .AddEmail<SendGridEmailSender, SendGridSettings>()
             .Build()
-        .Build();
+        .Build()));
 ```
 
 ## Advanced Scenarios
@@ -356,26 +387,27 @@ builder.Services.AddEndatix(builder.Configuration)
 The builder pattern allows you to configure multiple aspects of your application in a fluent manner:
 
 ```csharp
-builder.Services.AddEndatix(builder.Configuration)
+builder.Host.UseEndatix(endatix => endatix
     // API Configuration
-    .Api
+    .WithApi(api => api
         .AddSwagger()
         .AddVersioning()
         .EnableCors("AllowedOrigins", cors => cors.AllowAnyOrigin())
-        .Build()
+        .Build())
     // Security Configuration
-    .Security
+    .WithSecurity(security => security
         .UseJwtAuthentication()
         .AddDefaultAuthorization()
-        .Build()
+        .Build())
     // Persistence Configuration
-    .UseSqlServer<AppDbContext>()
-    .EnableAutoMigrations()
-    .EnableSampleDataSeeding()
+    .WithPersistence(persistence => persistence
+        .UseSqlServer<AppDbContext>()
+        .EnableAutoMigrations()
+        .EnableSampleDataSeeding())
     // Logging Configuration
-    .Logging
+    .WithLogging(logging => logging
         .UseApplicationInsights()
-        .Build();
+        .Build()));
 ```
 
 ### Environment-Specific Configuration
@@ -383,28 +415,39 @@ builder.Services.AddEndatix(builder.Configuration)
 You can apply different configurations based on the environment:
 
 ```csharp
-var endatixBuilder = builder.Services.AddEndatix(builder.Configuration);
+var endatixBuilder = builder.Host.UseEndatix(endatix => endatix);
 
 if (builder.Environment.IsDevelopment())
 {
     // Development-specific configuration
     endatixBuilder
-        .Api.AddSwagger().Build()
-        .Logging
+        .WithApi(api => api
+            .AddSwagger()
+            .AddVersioning()
+            .EnableCors("AllowedOrigins", cors => cors.AllowAnyOrigin())
+            .Build())
+        .WithLogging(logging => logging
             .ConfigureSerilog(config => config.MinimumLevel.Debug())
-            .Build()
-        .EnableAutoMigrations()
-        .EnableSampleDataSeeding();
+            .Build())
+        .WithPersistence(persistence => persistence
+            .EnableAutoMigrations()
+            .EnableSampleDataSeeding())
+        .WithSecurity(security => security
+            .UseJwtAuthentication()
+            .AddDefaultAuthorization()
+            .Build());
 }
 else if (builder.Environment.IsProduction())
 {
     // Production-specific configuration
     endatixBuilder
-        .Api.DisableSwagger().Build()
-        .Logging
+        .WithApi(api => api
+            .DisableSwagger()
+            .Build())
+        .WithLogging(logging => logging
             .UseApplicationInsights()
             .ConfigureSerilog(config => config.MinimumLevel.Information())
-            .Build();
+            .Build());
 }
 ```
 
@@ -413,14 +456,14 @@ else if (builder.Environment.IsProduction())
 You can configure custom options for your application:
 
 ```csharp
-builder.Services.AddEndatix(builder.Configuration)
+builder.Host.UseEndatix(endatix => endatix
     .ConfigureOptions<EndatixRootOptions>(options => 
     {
         options.ApplicationName = "My Endatix App";
         options.EnableTelemetry = true;
         options.EnvironmentName = "Production";
     })
-    .Build();
+    .Build());
 ```
 
 ## Registering Middleware
