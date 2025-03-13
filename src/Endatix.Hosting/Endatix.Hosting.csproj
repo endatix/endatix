@@ -10,6 +10,7 @@
     <PackageReference Include="Ardalis.GuardClauses" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="AspNetCore.HealthChecks.System" />
   </ItemGroup>
 
   <ItemGroup>

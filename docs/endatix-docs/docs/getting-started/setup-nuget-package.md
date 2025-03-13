@@ -53,44 +53,48 @@ using Endatix.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Scenario 1: Add Endatix with default configuration (simplest approach)
+// Option 1: Apply sensible defaults (simplest approach)
 builder.Host.ConfigureEndatix();
 
-// Scenario 2: Complete customization of all components
+// Option 2: Custom configuration (full control)
 /*
-builder.Host.ConfigureEndatix(endatix => endatix
-    .WithApi(api => api
+builder.Host.ConfigureEndatix(endatix => {
+    // Configure only the components you need
+    endatix.WithApi(api => api
         .AddSwagger(options => {
-            options.Title = "My Custom API";
-            options.Version = "1.0";
+            options.Title = "My API";
+            options.Version = "v1";
         })
-        .AddVersioning()
-        .EnableCors("AllowedOrigins", cors => 
-            cors.WithOrigins("https://example.com")
-                .AllowAnyMethod()))
-    .WithSecurity(security => security
-        .UseJwtAuthentication(options => {
-            options.TokenValidationParameters.ValidateAudience = false;
-        }))
-    .WithPersistence(db => db
+        .AddVersioning());
+        
+    endatix.WithPersistence(db => db
         .UseSqlServer<AppDbContext>(options => {
             options.ConnectionString = "Server=myServer;Database=myDb;";
-        })
-        .EnableAutoMigrations())
-    .WithLogging(logging => logging
+        }));
+        
+    endatix.WithSecurity(security => security
+        .UseJwtAuthentication());
+        
+    endatix.WithLogging(logging => logging
         .ConfigureSerilog(config => {
             config.MinimumLevel.Information();
-        })));
+        }));
+});
 */
 
-// Scenario 3: Hybrid approach - start with defaults, customize specific components
+// Option 3: Hybrid approach - defaults plus customization
 /*
-builder.Host.ConfigureEndatix(endatix => endatix
-    .UseDefaults()  // Apply sensible defaults first
-    .WithApi(api => api  // Then customize only what you need
-        .AddSwagger())
-    .WithPersistence(db => db
-        .EnableAutoMigrations()));
+builder.Host.ConfigureEndatixWithDefaults(endatix => {
+    // Apply defaults first, then customize specific parts
+    endatix.WithApi(api => api
+        .AddSwagger(options => {
+            options.Title = "My Custom API";
+        }));
+        
+    // Override default settings where needed
+    endatix.WithPersistence(db => db
+        .EnableAutoMigrations());
+});
 */
 
 var app = builder.Build();
@@ -99,6 +103,14 @@ var app = builder.Build();
 app.UseEndatix();
 app.Run();
 ```
+
+In the above examples:
+
+- **Option 1**: Applies all sensible defaults with minimal code - perfect for getting started quickly
+- **Option 2**: Gives you complete control over what gets configured - ideal for advanced scenarios
+- **Option 3**: Starts with defaults and lets you selectively override specific settings - best of both worlds
+
+Choose the approach that best fits your needs.
 
 ### Step 5: Configure the AppSettings
 
@@ -265,6 +277,7 @@ When you use `builder.Host.ConfigureEndatix()`, the following features are autom
 - **Automatic database migrations** (if enabled in configuration)
 - **Sample data seeding** (if enabled in configuration)
 - **Logging** with Serilog
+- **Health checks** with standard endpoints at `/health`, `/health/detail` (JSON), and `/health/ui` (HTML UI)
 
 ## Next Steps
 

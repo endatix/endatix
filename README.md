@@ -1,4 +1,3 @@
-
 # Endatix Platform
 
 [![Build & Test](https://github.com/endatix/endatix/actions/workflows/build-ci.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/build-ci.yml)
@@ -87,3 +86,15 @@ We recommend using GitHub Issues for public inquiries, bug reports, and feature 
 If you wish to learn more about Endatix and what you can do with it, please visit:
 - **Endatix Website**: https://endatix.com
 - **Endatix Documentation**: Documentation website (available soon)
+
+## Features
+
+- **Clean Architecture**: Enforces separation of concerns and dependency rules
+- **Domain-Driven Design**: Supports rich domain models and business logic
+- **Vertical Slice Architecture**: Organizes code by feature rather than technical concerns
+- **API Configuration**: Simplified setup for RESTful APIs with versioning, Swagger, and CORS
+- **Persistence**: Streamlined database configuration for SQL Server and PostgreSQL
+- **Security**: Built-in JWT authentication and authorization
+- **Logging**: Structured logging with Serilog
+- **Health Checks**: Comprehensive health monitoring for applications and dependencies
+- **Middleware**: Exception handling, request logging, and more

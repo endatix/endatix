@@ -1,5 +1,7 @@
 using Ardalis.GuardClauses;
 using Endatix.Hosting.Builders;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Endatix.Hosting;
@@ -53,5 +55,28 @@ public static class EndatixHostBuilderExtensions
         });
         
         return hostBuilder;
+    }
+    
+    /// <summary>
+    /// Configures Endatix services with default settings and then applies custom configuration.
+    /// This hybrid approach allows you to start with sensible defaults and then customize specific aspects.
+    /// </summary>
+    /// <param name="hostBuilder">The host builder.</param>
+    /// <param name="configureAction">Action to configure Endatix services after defaults are applied.</param>
+    /// <returns>The host builder for chaining.</returns>
+    public static IHostBuilder ConfigureEndatixWithDefaults(
+        this IHostBuilder hostBuilder, 
+        Action<EndatixBuilder> configureAction)
+    {
+        Guard.Against.Null(hostBuilder);
+        Guard.Against.Null(configureAction);
+
+        return hostBuilder.ConfigureEndatix(builder => {
+            // First apply defaults
+            builder.UseDefaults();
+            
+            // Then apply custom configuration
+            configureAction(builder);
+        });
     }
 } 

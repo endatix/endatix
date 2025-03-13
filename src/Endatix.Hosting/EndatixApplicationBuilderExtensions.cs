@@ -1,7 +1,10 @@
-using Endatix.Api.Builders;
+using Ardalis.GuardClauses;
 using Endatix.Hosting.Builders;
 using Endatix.Hosting.Options;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Hosting;
@@ -15,12 +18,15 @@ public static class EndatixApplicationBuilderExtensions
     /// Configures the application with Endatix middleware using default settings.
     /// </summary>
     /// <param name="app">The application builder.</param>
-    /// <returns>The application builder for chaining.</returns>
+    /// <returns>The configured application builder.</returns>
     public static IApplicationBuilder UseEndatix(this IApplicationBuilder app)
     {
+        Guard.Against.Null(app, nameof(app));
+
         app.GetLogger()?.LogInformation("Configuring Endatix middleware with default settings");
 
-        new EndatixMiddlewareBuilder(app).UseDefaults();
+        new EndatixMiddlewareBuilder(app)
+            .UseDefaults();
 
         app.GetLogger()?.LogInformation("Endatix middleware configured with default settings");
         return app;
@@ -44,13 +50,15 @@ public static class EndatixApplicationBuilderExtensions
     }
 
     /// <summary>
-    /// Configures the application with customized Endatix middleware using options.
+    /// Configures the application with Endatix middleware using the provided options.
     /// </summary>
     /// <param name="app">The application builder.</param>
     /// <param name="configure">A delegate to configure middleware options.</param>
     /// <returns>The application builder for chaining.</returns>
     public static IApplicationBuilder UseEndatix(this IApplicationBuilder app, Action<EndatixMiddlewareOptions> configure)
     {
+        Guard.Against.Null(app, nameof(app));
+
         // Create options with defaults
         var options = new EndatixMiddlewareOptions();
 
@@ -87,28 +95,66 @@ public static class EndatixApplicationBuilderExtensions
 
         if (options.UseApi)
         {
-            // Configure API using the ApiOptions from EndatixMiddlewareOptions
-            builder.UseApi(apiOpt =>
-            {
-                // Copy properties from ApiOptions to the delegate parameter
-                apiOpt.UseExceptionHandler = options.ApiOptions.UseExceptionHandler;
-                apiOpt.ExceptionHandlerPath = options.ApiOptions.ExceptionHandlerPath;
-                apiOpt.UseSwagger = options.ApiOptions.UseSwagger;
-                apiOpt.EnableSwaggerInProduction = options.ApiOptions.EnableSwaggerInProduction;
-                apiOpt.SwaggerPath = options.ApiOptions.SwaggerPath;
-                apiOpt.UseCors = options.ApiOptions.UseCors;
-                apiOpt.UseVersioning = options.ApiOptions.UseVersioning;
-                apiOpt.VersioningPrefix = options.ApiOptions.VersioningPrefix;
-                apiOpt.RoutePrefix = options.ApiOptions.RoutePrefix;
-                apiOpt.ConfigureFastEndpoints = options.ApiOptions.ConfigureFastEndpoints;
-                apiOpt.ConfigureOpenApiDocument = options.ApiOptions.ConfigureOpenApiDocument;
-                apiOpt.ConfigureSwaggerUi = options.ApiOptions.ConfigureSwaggerUi;
-            });
+            builder.UseApi();
         }
 
-        // Apply any additional middleware
+        if (options.UseHealthChecks)
+        {
+            // Use the middleware builder's health checks method instead of direct extension method
+            builder.UseHealthChecks(options.HealthCheckPath);
+        }
+
+        // Apply additional custom middleware if provided
         options.ConfigureAdditionalMiddleware?.Invoke(app);
 
+        return app;
+    }
+
+    /// <summary>
+    /// Configures all Endatix middleware components with default settings and then applies custom configuration.
+    /// This hybrid approach allows you to start with sensible defaults and then customize specific middleware aspects.
+    /// </summary>
+    /// <param name="app">The application builder.</param>
+    /// <param name="configureAction">Action to configure middleware after defaults are applied.</param>
+    /// <returns>The application builder for chaining.</returns>
+    public static IApplicationBuilder UseEndatixWithDefaults(
+        this IApplicationBuilder app,
+        Action<EndatixMiddlewareBuilder> configureAction)
+    {
+        Guard.Against.Null(app);
+        Guard.Against.Null(configureAction);
+
+        var middlewareBuilder = new EndatixMiddlewareBuilder(app);
+
+        // First apply defaults
+        middlewareBuilder.UseDefaults();
+
+        // Then apply custom configuration
+        configureAction(middlewareBuilder);
+
+        return app;
+    }
+
+    /// <summary>
+    /// Maps health check endpoints at the specified path.
+    /// </summary>
+    /// <param name="app">The application builder.</param>
+    /// <param name="path">The path where health checks will be exposed.</param>
+    /// <returns>The application builder for chaining.</returns>
+    public static IApplicationBuilder UseHealthChecks(this IApplicationBuilder app, string path = "/health")
+    {
+        Guard.Against.Null(app, nameof(app));
+
+        // Use the dedicated health checks middleware builder to avoid code duplication
+        var builder = new Builders.EndatixHealthChecksMiddlewareBuilder(new EndatixMiddlewareBuilder(app), 
+            app.ApplicationServices.GetService(typeof(ILoggerFactory)) is ILoggerFactory factory
+                ? factory.CreateLogger("Endatix.Middleware")
+                : null);
+        
+        builder.WithPath(path);
+        builder.Apply(app);
+
+        app.GetLogger()?.LogInformation("Health checks mapped to {Path}", path);
         return app;
     }
 

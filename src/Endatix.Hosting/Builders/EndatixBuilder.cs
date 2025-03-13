@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Hosting.Builders;
@@ -22,6 +23,7 @@ namespace Endatix.Hosting.Builders;
 /// <item><description>Messaging configuration through <see cref="Messaging"/></description></item>
 /// <item><description>Logging configuration through <see cref="Logging"/></description></item>
 /// <item><description>Infrastructure configuration through <see cref="Infrastructure"/></description></item>
+/// <item><description>Health checks configuration through <see cref="HealthChecks"/></description></item>
 /// </list>
 /// 
 /// Typically, you obtain an instance of this builder by calling one of the extension methods
@@ -86,6 +88,11 @@ public class EndatixBuilder : IBuilderRoot
     public InfrastructureBuilder Infrastructure { get; }
 
     /// <summary>
+    /// Gets the health checks builder.
+    /// </summary>
+    public EndatixHealthChecksBuilder HealthChecks { get; }
+
+    /// <summary>
     /// Initializes a new instance of the EndatixBuilder class.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -114,6 +121,7 @@ public class EndatixBuilder : IBuilderRoot
         Persistence = new EndatixPersistenceBuilder(this);
         Security = new EndatixSecurityBuilder(this);
         Messaging = new EndatixMessagingBuilder(this);
+        HealthChecks = new EndatixHealthChecksBuilder(this);
 
         _logger.LogInformation("EndatixBuilder initialized successfully");
     }
@@ -141,6 +149,10 @@ public class EndatixBuilder : IBuilderRoot
 
         Security.UseDefaults();
         _logger.LogInformation("Security configuration completed");
+
+        // Configure health checks with default settings
+        HealthChecks.UseDefaults();
+        _logger.LogInformation("Health checks configuration completed");
 
         _logger.LogInformation("Endatix configuration completed successfully");
         return this;

@@ -1,0 +1,36 @@
+## Health Checks
+
+Endatix provides built-in support for health checks, which are automatically configured when you use the default configuration. You can customize health checks using the `WithHealthChecks` method:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => endatix
+    .WithHealthChecks(health => health
+        .UseDefaults() // Adds a basic self-check
+        .AddCheck("custom-check", () => HealthCheckResult.Healthy("Custom check is healthy"));
+```
+
+Health checks are automatically exposed at the `/health` endpoint. You can customize the health checks middleware using the `WithHealthChecksMiddleware` method:
+
+```csharp
+app.UseEndatixMiddleware(middleware => middleware
+    .WithHealthChecksMiddleware(options => {
+        options.Path = "/system/health";
+        options.ResponseWriter = WriteHealthCheckResponse;
+    }));
+```
+
+When using the persistence builder, database health checks are automatically added for SQL Server and PostgreSQL databases:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => endatix
+    .WithPersistence(db => db
+        .UseSqlServer<AppDbContext>()));
+```
+
+### Skipping Health Checks
+
+If you want to disable health checks entirely, you can use the `SkipHealthChecks` method:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => endatix
+    .SkipHealthChecks()); 

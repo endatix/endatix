@@ -39,6 +39,16 @@ public class EndatixMiddlewareOptions
     public bool UseHttpsRedirection { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets a value indicating whether to use health checks middleware.
+    /// </summary>
+    public bool UseHealthChecks { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the path for health checks.
+    /// </summary>
+    public string HealthCheckPath { get; set; } = "/health";
+
+    /// <summary>
     /// Gets or sets the API options for configuring API middleware.
     /// </summary>
     /// <remarks>

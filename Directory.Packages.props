@@ -42,5 +42,7 @@
     <PackageVersion Include="serilog.sinks.async" Version="2.1.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="AspNetCore.HealthChecks.Uris" Version="7.0.0" />
+    <PackageVersion Include="AspNetCore.HealthChecks.System" Version="7.0.0" />
   </ItemGroup>
 </Project>

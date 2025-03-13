@@ -50,7 +50,8 @@ public class EndatixMiddlewareBuilder
             .UseSecurity()
             .UseHsts()
             .UseHttpsRedirection()
-            .UseApi();
+            .UseApi()
+            .UseHealthChecks();
 
         _logger?.LogInformation("Middleware configured with default settings");
         return this;
@@ -216,6 +217,32 @@ public class EndatixMiddlewareBuilder
     {
         _logger?.LogInformation("Adding API endpoints with custom configuration");
         App.UseApiEndpoints(configureApi);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds health checks middleware with default settings.
+    /// </summary>
+    /// <param name="path">Optional custom path for health checks. Defaults to "/health".</param>
+    /// <param name="configureHealthChecks">Optional delegate to configure health checks options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixMiddlewareBuilder UseHealthChecks(string path = "/health", Action<EndatixHealthChecksMiddlewareBuilder>? configureHealthChecks = null)
+    {
+        _logger?.LogInformation($"Adding health checks middleware with path: {path}");
+
+        // Use the dedicated health checks middleware builder to avoid code duplication
+        var healthChecksBuilder = new EndatixHealthChecksMiddlewareBuilder(this, _logger);
+
+        // Apply custom configuration if provided
+        if (configureHealthChecks is { })
+        {
+            configureHealthChecks(healthChecksBuilder);
+        }
+
+        // Configure the health checks middleware
+        healthChecksBuilder.WithPath(path);
+        healthChecksBuilder.Apply(App);
+
         return this;
     }
 }

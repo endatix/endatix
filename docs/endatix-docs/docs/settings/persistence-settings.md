@@ -21,44 +21,66 @@ The easiest way to specify which database provider Endatix should use is through
 
 ## Usage Examples
 
-### Automatic Configuration
+### 1. Automatic Configuration with Defaults
 
-When using `ConfigureEndatix()`, the database provider will be automatically selected based on your configuration. If not specified, SQL Server is used by default:
+The simplest way to configure persistence with defaults:
 
 ```csharp
-// Uses the provider from configuration, or SQL Server if not specified
+// Automatically selects the provider from configuration
 builder.Host.ConfigureEndatix();
 ```
 
-### Direct Provider Selection
+### 2. Direct Provider Selection with Full Custom Configuration
 
-You can specify the database provider directly in code using the fluent API:
+Complete control over persistence configuration:
 
 ```csharp
-// Option 1: Using persistence builder with SQL Server
-builder.Host.ConfigureEndatix(endatix => endatix
-    .WithPersistence(persistence => persistence
-        .UseSqlServer<AppDbContext>()));
-
-// Option 2: Using persistence builder with PostgreSQL
-builder.Host.ConfigureEndatix(endatix => endatix
-    .WithPersistence(persistence => persistence
-        .UsePostgreSql<AppDbContext>()));
-
-// Option 3: Using convenience methods
-builder.Host.ConfigureEndatix(endatix => endatix
-    .UseSqlServer<AppDbContext>());
-
-// Option 4: With custom options
-builder.Host.ConfigureEndatix(endatix => endatix
-    .WithPersistence(persistence => persistence
-        .UsePostgreSql<AppDbContext>(options => {
-            options.ConnectionString = "your_connection_string";
+// Full custom configuration
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.WithPersistence(persistence => persistence
+        .UseSqlServer<AppDbContext>(options => {
+            options.ConnectionString = "Server=myserver;Database=mydb;Trusted_Connection=True;";
             options.EnableSensitiveDataLogging = true;
-        })));
+            options.CommandTimeout = 60;
+            options.MaxRetryCount = 5;
+        })
+        .EnableAutoMigrations()
+        .EnableSampleDataSeeding());
+});
 ```
 
-> **Note**: All persistence configuration methods automatically register both `AppDbContext` and `AppIdentityDbContext` with the same database provider and settings. You only need to specify one of them.
+### 3. Hybrid Approach - Defaults Plus Customization
+
+Start with defaults and customize only what you need:
+
+```csharp
+// Hybrid approach
+builder.Host.ConfigureEndatixWithDefaults(endatix => {
+    endatix.WithPersistence(persistence => {
+        // Override the connection string
+        persistence.UseSqlServer<AppDbContext>(options => {
+            options.ConnectionString = "your_custom_connection_string";
+        });
+        
+        // Enable auto migrations
+        persistence.EnableAutoMigrations();
+    });
+});
+```
+
+#### Convenience Methods
+
+For scenarios where you only need to configure the database context without other customizations:
+
+```csharp
+// Use the convenience method for SQL Server
+builder.Host.ConfigureEndatix(endatix => 
+    endatix.UseSqlServer<AppDbContext>());
+
+// Use the convenience method for PostgreSQL
+builder.Host.ConfigureEndatix(endatix => 
+    endatix.UsePostgreSql<AppDbContext>());
+```
 
 ## Available Settings
 
