@@ -1,17 +1,19 @@
+using Endatix.Framework.Configuration;
+
 namespace Endatix.Infrastructure.Features.Submissions;
 
 /// <summary>
-/// Configuration options for submissions
+/// Configuration options for submissions.
 /// </summary>
-public class SubmissionOptions
+public class SubmissionOptions : EndatixOptionsBase
 {
     /// <summary>
-    /// The configuration section name where these options are stored.
+    /// Gets the section path for these options.
     /// </summary>
-    public static readonly string SECTION_NAME = "Endatix:Submissions";
+    public override string SectionPath => "Submissions";
 
     /// <summary>
-    /// The expiration time of the submission token in hours.
+    /// Gets or sets the token expiry in hours.
     /// </summary>
     public int TokenExpiryInHours { get; set; } = 24;
 }

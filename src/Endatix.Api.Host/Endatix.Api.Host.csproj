@@ -13,6 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Endatix.Api\Endatix.Api.csproj" />
-    <ProjectReference Include="..\Endatix.Extensions.Hosting\Endatix.Extensions.Hosting.csproj" />
+    <ProjectReference Include="..\Endatix.Hosting\Endatix.Hosting.csproj" />
   </ItemGroup>
 </Project>

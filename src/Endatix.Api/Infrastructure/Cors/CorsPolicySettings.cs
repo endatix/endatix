@@ -42,7 +42,7 @@ public class CorsPolicySettings
     /// Expires
     /// Last-Modified
     /// Pragma
-    /// These are called "simple response headers." <see cref="https://www.w3.org/TR/cors/#simple-response-header"/>
+    /// These are called "simple response headers." <see href="https://www.w3.org/TR/cors/#simple-response-header"/>
     /// Populate this to add additional headers to the app
     /// <example>["X-Forwarded-For", "X-Forwarded-Host", "x-custom-header"]</example>
     /// </summary>

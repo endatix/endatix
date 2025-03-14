@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 

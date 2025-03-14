@@ -1,21 +1,11 @@
-using Endatix.Setup;
+using Endatix.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHealthChecks();
-
-builder.CreateEndatix()
-    .AddDefaultSetup()
-    .AddApiEndpoints();
+builder.Host.ConfigureEndatix();
 
 var app = builder.Build();
 
-app.UseEndatixMiddleware()
-    .UseEndatixApi();
-
-await app.ApplyDbMigrationsAsync();
-await app.SeedInitialUserAsync();
-
-app.MapHealthChecks("/healthz");
+app.UseEndatix();
 
 app.Run();

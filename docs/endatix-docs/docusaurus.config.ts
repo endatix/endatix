@@ -54,7 +54,7 @@ const config: Config = {
           {
             id: "using-remote-url",
             // Remote File
-            spec: "https://app.endatix.com/swagger/Internal%20MVP%20(Alpha)%20Release/swagger.json",
+            spec: "./swagger.json",
             route: "/docs/api"
           },
         ],

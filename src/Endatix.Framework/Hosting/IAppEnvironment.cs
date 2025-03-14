@@ -9,10 +9,10 @@ public interface IAppEnvironment
     /// True if the environment name is Development, otherwise false. <see cref="https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.hosting.hostingenvironmentextensions.isdevelopment"/>
     /// </summary>
     /// <returns></returns>
-    bool IsDevelopment();
+    public bool IsDevelopment();
 
     /// <summary>
     /// The name of the current hosting environment
     /// </summary>
-    string EnvironmentName { get; }
+    public string EnvironmentName { get; }
 }
