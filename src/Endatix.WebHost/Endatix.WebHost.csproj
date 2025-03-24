@@ -5,6 +5,7 @@
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		  <PrivateAssets>all</PrivateAssets>
 		</PackageReference>
+    <ProjectReference Include="../Endatix.Hosting/Endatix.Hosting.csproj" />
     <ProjectReference Include="..\Endatix.Api.Host\Endatix.Api.Host.csproj" />
   </ItemGroup>
 

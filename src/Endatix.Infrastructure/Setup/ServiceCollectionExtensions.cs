@@ -1,18 +1,16 @@
-﻿using Ardalis.GuardClauses;
-using Microsoft.Extensions.Logging;
+﻿using System.Collections.Immutable;
+using System.Net.Sockets;
+using System.Threading.RateLimiting;
+using Endatix.Core;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
-using Endatix.Infrastructure.Setup;
-using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Core.Features.WebHooks;
-using Endatix.Core;
-using Polly;
+using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Infrastructure.Setup;
 using Microsoft.Extensions.Http.Resilience;
-using System.Threading.RateLimiting;
-using Polly.Timeout;
 using Microsoft.Extensions.Options;
-using System.Collections.Immutable;
-using System.Net.Sockets;
+using Polly;
+using Polly.Timeout;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -22,23 +20,6 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
-    /// <summary>
-    /// Uses the ILoggerFactory to create new logger instance and derive it from teh ServiceCollection's ServiceProvider
-    /// </summary>
-    /// <param name="services">IServiceCollection services</param>
-    /// <param name="loggerName">Name of the logger</param>
-    /// <returns>Logger instance</returns>
-    public static ILogger CreateLogger(this IServiceCollection services, string loggerName)
-    {
-        Guard.Against.NullOrEmpty(services);
-        Guard.Against.NullOrEmpty(loggerName);
-
-        var serviceProvider = services.BuildServiceProvider();
-
-        var logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(loggerName);
-        return logger;
-    }
-
     /// <summary>
     /// Add specific Email sender implementation, which will also register configuration for the AppSettings and configure the DI container
     /// </summary>

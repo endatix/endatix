@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Ardalis.GuardClauses" />
+    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="AspNetCore.HealthChecks.System" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Endatix.Persistence.SqlServer\Endatix.Persistence.SqlServer.csproj" />
+    <ProjectReference Include="..\Endatix.Persistence.PostgreSql\Endatix.Persistence.PostgreSql.csproj" />
+    <ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
+    <ProjectReference Include="..\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
+    <ProjectReference Include="..\Endatix.Api\Endatix.Api.csproj" />
+  </ItemGroup>
+
+</Project>

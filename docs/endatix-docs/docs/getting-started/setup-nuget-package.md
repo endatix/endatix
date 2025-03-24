@@ -30,45 +30,87 @@ and then cd into endatix-platform
 
 If you use VS Code, you can enter `code .`
 
-### Step 3: Install the Endatix.Api
-run `dotnet add package Endatix.Api.Host  --prerelease` or use NuGet package manager
+### Step 3: Install the Endatix packages
+
+You have two options for setting up Endatix:
+
+#### Option A: Using Endatix.Api.Host (Simplified)
+
+Run `dotnet add package Endatix.Api.Host --prerelease` or use NuGet package manager.
+
+This package provides a simplified setup experience with minimal configuration.
+
+#### Option B: Using Endatix.Hosting (Recommended)
+
+Run `dotnet add package Endatix.Hosting --prerelease` or use NuGet package manager.
+
+This package provides a more flexible configuration experience using the builder pattern, which gives you fine-grained control over all aspects of your application.
 
 ### Step 4: Edit Program.cs
 
-Open `Program.cs` file. Add the following code after the builder initialization:
-
 ```csharp
-builder.CreateEndatix()
-    .AddDefaultSetup()
-    .AddApiEndpoints();
-```
-
-Find where where the app is defined (`var app = builder.Build();`) and below it add the following code, which will register the Endatix middleware:
-
-```csharp
-app.UseEndatixMiddleware()
-            .UseEndatixApi();
-```
-
-At the end your Program.cs should look something like this.
-
-```csharp
-
-using Endatix.Setup;
+using Endatix.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.CreateEndatix()
-    .AddDefaultSetup()
-    .AddApiEndpoints();
+// Option 1: Apply sensible defaults (simplest approach)
+builder.Host.ConfigureEndatix();
+
+// Option 2: Custom configuration (full control)
+/*
+builder.Host.ConfigureEndatix(endatix => {
+    // Configure only the components you need
+    endatix.WithApi(api => api
+        .AddSwagger(options => {
+            options.Title = "My API";
+            options.Version = "v1";
+        })
+        .AddVersioning());
+        
+    endatix.WithPersistence(db => db
+        .UseSqlServer<AppDbContext>(options => {
+            options.ConnectionString = "Server=myServer;Database=myDb;";
+        }));
+        
+    endatix.WithSecurity(security => security
+        .UseJwtAuthentication());
+        
+    endatix.WithLogging(logging => logging
+        .ConfigureSerilog(config => {
+            config.MinimumLevel.Information();
+        }));
+});
+*/
+
+// Option 3: Hybrid approach - defaults plus customization
+/*
+builder.Host.ConfigureEndatixWithDefaults(endatix => {
+    // Apply defaults first, then customize specific parts
+    endatix.WithApi(api => api
+        .AddSwagger(options => {
+            options.Title = "My Custom API";
+        }));
+        
+    // Override default settings where needed
+    endatix.WithPersistence(db => db
+        .EnableAutoMigrations());
+});
+*/
 
 var app = builder.Build();
 
-app.UseEndatixMiddleware()
-            .UseEndatixApi();
-
+// Configure Endatix middleware
+app.UseEndatix();
 app.Run();
 ```
+
+In the above examples:
+
+- **Option 1**: Applies all sensible defaults with minimal code - perfect for getting started quickly
+- **Option 2**: Gives you complete control over what gets configured - ideal for advanced scenarios
+- **Option 3**: Starts with defaults and lets you selectively override specific settings - best of both worlds
+
+Choose the approach that best fits your needs.
 
 ### Step 5: Configure the AppSettings
 
@@ -79,7 +121,6 @@ Endatix uses Serilog with settings from the config. Copy the config and paste it
 
 ```json
 {
-  {
   "ConnectionStrings": {
     "DefaultConnection": "{YOUR_CONNECTION_STRING_HERE}"
   },
@@ -122,18 +163,125 @@ Endatix uses Serilog with settings from the config. Copy the config and paste it
       "Environment": "Local Development"
     }
   },
-  "Security": {
-    "JwtSigningKey": "{YOUR_JWT_SIGNING_KEY_HERE}",
-    "JwtExpiryInMinutes": 1440,
-    "DevUsers": [
-      {
+  "Endatix": {
+    "Data": {
+      "EnableAutoMigrations": true,
+      "SeedSampleData": true,
+      "InitialUser": {
         "Email": "{USER_EMAIL}",
         "Password": "{USER_PASSWORD}",
-        "Roles": ["Admin", "Manager"]
+        "FirstName": "Admin",
+        "LastName": "User"
       }
-    ]
+    },
+    "Security": {
+      "JwtSigningKey": "{YOUR_JWT_SIGNING_KEY_HERE}",
+      "JwtExpiryInMinutes": 1440,
+      "DevUsers": [
+        {
+          "Email": "{USER_EMAIL}",
+          "Password": "{USER_PASSWORD}",
+          "Roles": ["Admin", "Manager"]
+        }
+      ]
+    },
+    "Api": {
+      "UseSwagger": true,
+      "EnableSwaggerInProduction": false,
+      "SwaggerPath": "/swagger",
+      "RoutePrefix": "api",
+      "VersioningPrefix": "v"
+    }
   }
 }
 ```
 
-### Step 6: Run the application
+### Step 6: Customize Swagger Configuration (Optional)
+
+If you need to customize Swagger beyond the basic settings in `appsettings.json`, you can configure it in your `Program.cs` file:
+
+```csharp
+// Advanced Swagger customization
+builder.Host.UseEndatix(endatix => endatix
+    .WithApi(api => api
+        .UseDefaults()
+        .AddSwagger(options =>
+        {
+            options.IncludeXmlComments = true;
+            options.TagsFromNamespaceStrategy = true;
+        })));
+
+var app = builder.Build();
+
+// Configure the middleware with custom Swagger settings
+app.UseEndatix(options => 
+{
+    // Custom Swagger UI path
+    options.SwaggerPath = "/api-docs";
+    
+    // Advanced OpenAPI document configuration
+    options.ConfigureOpenApiDocument = settings => 
+    {
+        settings.DocumentName = "v1";
+        settings.PostProcess = (document, _) => 
+        {
+            document.Info.Title = "My API";
+            document.Info.Version = "1.0";
+            document.Info.Description = "API documentation";
+        };
+    };
+    
+    // Custom Swagger UI settings
+    options.ConfigureSwaggerUi = settings => 
+    {
+        settings.DocExpansion = "list";
+        settings.DefaultModelsExpandDepth = 1;
+    };
+});
+
+app.Run();
+```
+
+For more advanced scenarios, you can also use the middleware builder pattern directly:
+
+```csharp
+app.UseEndatix()
+    .UseSwagger(
+        path: "/api-docs",
+        configureOpenApi: settings => {
+            settings.DocumentName = "v1";
+        },
+        configureSwaggerUi: settings => {
+            settings.DocExpansion = "list";
+        });
+```
+
+### Step 7: Run the application
+
+Run the application using the following command:
+
+```bash
+dotnet run
+```
+
+The application should now be running on `https://localhost:7066` (or a similar port). You can access the Swagger UI at `https://localhost:7066/swagger`.
+
+## What's Included in the Default Setup
+
+When you use `builder.Host.ConfigureEndatix()`, the following features are automatically configured:
+
+- **API endpoints** with Swagger documentation
+- **JWT authentication** with secure defaults
+- **Standard authorization policies**
+- **Database persistence** (detected from connection string)
+- **Automatic database migrations** (if enabled in configuration)
+- **Sample data seeding** (if enabled in configuration)
+- **Logging** with Serilog
+- **Health checks** with standard endpoints at `/health`, `/health/detail` (JSON), and `/health/ui` (HTML UI)
+
+## Next Steps
+
+For more advanced configuration options and detailed usage of the Endatix.Hosting package, check out:
+
+- [Hosting Configuration](/docs/building-your-solution/hosting) - Learn how to use the builder pattern for advanced configuration
+- [Authentication](/docs/building-your-solution/authentication) - Configure authentication and authorization

@@ -1,11 +1,12 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Tests;
+using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Seed;
-using Microsoft.AspNetCore.Identity;
-using NSubstitute;
-using Microsoft.Extensions.Logging;
 using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
+using NSubstitute;
 
 namespace Endatix.Infrastructure.Tests.Identity.Seed;
 
