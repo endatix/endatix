@@ -52,7 +52,6 @@ public class SqlServerPersistenceBuilder
             options.UseSqlServer(connectionString, sqlOptions =>
             {
                 sqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().GetName().Name);
-                sqlOptions.EnableRetryOnFailure();
             });
         });
 
@@ -82,11 +81,6 @@ public class SqlServerPersistenceBuilder
                 {
                     sqlOptions.CommandTimeout(sqlServerOptions.CommandTimeout.Value);
                 }
-
-                sqlOptions.EnableRetryOnFailure(
-                    sqlServerOptions.MaxRetryCount,
-                    TimeSpan.FromSeconds(sqlServerOptions.MaxRetryDelay),
-                    null);
             });
 
             if (sqlServerOptions.EnableSensitiveDataLogging)
