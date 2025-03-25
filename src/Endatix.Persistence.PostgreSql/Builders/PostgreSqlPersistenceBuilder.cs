@@ -53,7 +53,6 @@ public class PostgreSqlPersistenceBuilder
             options.UseNpgsql(connectionString, npgsqlOptions =>
             {
                 npgsqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().GetName().Name);
-                npgsqlOptions.EnableRetryOnFailure(5);
             });
         });
 
@@ -85,11 +84,6 @@ public class PostgreSqlPersistenceBuilder
                 {
                     npgsqlOptions.CommandTimeout(postgresOptions.CommandTimeout.Value);
                 }
-
-                npgsqlOptions.EnableRetryOnFailure(
-                    postgresOptions.MaxRetryCount,
-                    TimeSpan.FromSeconds(postgresOptions.MaxRetryDelay),
-                    null);
             });
 
             if (postgresOptions.EnableSensitiveDataLogging)
