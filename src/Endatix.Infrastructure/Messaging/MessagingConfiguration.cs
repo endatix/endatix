@@ -51,8 +51,6 @@ public static class MessagingConfiguration
         services.AddMediatR(config =>
         {
             config.RegisterServicesFromAssemblies(mediatRAssemblies!);
-            config.NotificationPublisher = new TaskToThreadPoolPublisher();
-            config.NotificationPublisherType = typeof(TaskToThreadPoolPublisher);
         });
 
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
@@ -64,4 +62,4 @@ public static class MessagingConfiguration
 
         return services;
     }
-} 
+}
