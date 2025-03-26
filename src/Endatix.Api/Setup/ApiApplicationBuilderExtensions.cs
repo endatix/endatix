@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Api.Setup;
 
@@ -29,8 +30,13 @@ public static class ApiApplicationBuilderExtensions
 
         logger?.LogInformation("Configuring Endatix API middleware");
 
-        // Set up standard middleware pipeline with default options
-        var options = new ApiOptions();
+        // Get options from DI to incorporate appsettings values
+        var options = app.ApplicationServices.GetRequiredService<IOptionsSnapshot<ApiOptions>>().Value;
+
+        logger?.LogInformation("Using API options with EnableSwaggerInProduction={EnableSwaggerInProduction}",
+            options.EnableSwaggerInProduction);
+
+        // Set up standard middleware pipeline with options from configuration
         ConfigureApiMiddleware(app, options);
 
         logger?.LogInformation("Endatix API middleware configured successfully");
@@ -123,15 +129,14 @@ public static class ApiApplicationBuilderExtensions
 
         logger?.LogInformation("Configuring API endpoints in the application pipeline");
 
-        // Apply FastEndpoints with default configuration
-        app.UseFastEndpoints();
+        // Get options from DI
+        var options = app.ApplicationServices.GetRequiredService<IOptionsSnapshot<ApiOptions>>().Value;
 
-        // Apply Swagger if in development
-        var environment = app.ApplicationServices.GetService<IWebHostEnvironment>();
-        if (environment?.IsDevelopment() == true)
-        {
-            app.UseSwaggerGen();
-        }
+        logger?.LogInformation("Using API options with EnableSwaggerInProduction={EnableSwaggerInProduction}",
+            options.EnableSwaggerInProduction);
+
+        // Apply middleware based on options from configuration
+        ConfigureApiMiddleware(app, options);
 
         logger?.LogInformation("API endpoints configured in the application pipeline");
         return app;

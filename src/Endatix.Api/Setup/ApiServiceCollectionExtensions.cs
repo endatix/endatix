@@ -39,6 +39,20 @@ public static class ApiServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Adds API configuration options from appsettings.json
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <returns>Updated service collection with API options configuration</returns>
+    public static IServiceCollection AddApiOptions(this IServiceCollection services)
+    {
+        services.AddOptions<ApiOptions>()
+                .BindConfiguration(ApiOptions.SECTION_NAME)
+                .ValidateDataAnnotations();
+
+        return services;
+    }
+
+    /// <summary>
     /// Adds API endpoints with default settings.
     /// </summary>
     /// <param name="services">The service collection.</param>

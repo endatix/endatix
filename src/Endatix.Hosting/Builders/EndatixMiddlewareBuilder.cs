@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSwag.AspNetCore;
 
 namespace Endatix.Hosting.Builders;
@@ -115,9 +116,9 @@ public class EndatixMiddlewareBuilder
     }
 
     /// <summary>
-    /// Adds API middleware with optional custom configuration.
+    /// Adds API middleware with optional custom settings.
     /// </summary>
-    /// <param name="configureApi">Optional delegate to configure API options.</param>
+    /// <param name="configureApi">Optional action to configure API options.</param>
     /// <returns>The builder for chaining.</returns>
     public EndatixMiddlewareBuilder UseApi(Action<ApiOptions>? configureApi = null)
     {
@@ -125,7 +126,14 @@ public class EndatixMiddlewareBuilder
             ? "Adding API middleware with default settings"
             : "Adding API middleware with custom settings");
 
-        var options = new ApiOptions();
+        // Get options from DI to incorporate appsettings values
+        var options = App.ApplicationServices.GetRequiredService<IOptionsSnapshot<ApiOptions>>().Value;
+        
+        _logger?.LogInformation("Loaded ApiOptions from configuration: EnableSwaggerInProduction={EnableSwaggerInProduction}, SwaggerPath={SwaggerPath}",
+            options.EnableSwaggerInProduction,
+            options.SwaggerPath);
+        
+        // Apply any additional configuration if provided
         configureApi?.Invoke(options);
 
         UseFastEndpoints(config =>
@@ -145,6 +153,7 @@ public class EndatixMiddlewareBuilder
             var env = App.ApplicationServices.GetService<IWebHostEnvironment>();
             if (env != null && (env.IsDevelopment() || options.EnableSwaggerInProduction))
             {
+                _logger?.LogInformation($"Swagger UI enabled with production setting: {options.EnableSwaggerInProduction}");
                 UseSwagger(
                     options.SwaggerPath,
                     options.ConfigureOpenApiDocument,

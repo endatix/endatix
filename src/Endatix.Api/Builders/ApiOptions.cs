@@ -13,6 +13,11 @@ namespace Endatix.Api.Builders;
 public class ApiOptions
 {
     /// <summary>
+    /// The configuration section name where these options are stored.
+    /// </summary>
+    public const string SECTION_NAME = "Endatix:Api";
+
+    /// <summary>
     /// Gets or sets a value indicating whether to use exception handling middleware.
     /// </summary>
     public bool UseExceptionHandler { get; set; } = true;
