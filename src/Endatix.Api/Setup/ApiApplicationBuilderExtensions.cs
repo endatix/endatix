@@ -103,11 +103,7 @@ public static class ApiApplicationBuilderExtensions
         // Apply Swagger middleware if enabled
         if (options.UseSwagger)
         {
-            var environment = app.ApplicationServices.GetService<IWebHostEnvironment>();
-            if (environment?.IsDevelopment() == true || options.EnableSwaggerInProduction)
-            {
-                app.UseSwaggerGen();
-            }
+            app.UseSwaggerGen();
         }
 
         // Apply CORS middleware if enabled

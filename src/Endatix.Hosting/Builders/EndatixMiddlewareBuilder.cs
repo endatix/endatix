@@ -128,11 +128,11 @@ public class EndatixMiddlewareBuilder
 
         // Get options from DI to incorporate appsettings values
         var options = App.ApplicationServices.GetRequiredService<IOptionsSnapshot<ApiOptions>>().Value;
-        
-        _logger?.LogInformation("Loaded ApiOptions from configuration: EnableSwaggerInProduction={EnableSwaggerInProduction}, SwaggerPath={SwaggerPath}",
-            options.EnableSwaggerInProduction,
+
+        _logger?.LogInformation("Loaded ApiOptions from configuration: UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+            options.UseSwagger,
             options.SwaggerPath);
-        
+
         // Apply any additional configuration if provided
         configureApi?.Invoke(options);
 
@@ -150,15 +150,15 @@ public class EndatixMiddlewareBuilder
 
         if (options.UseSwagger)
         {
-            var env = App.ApplicationServices.GetService<IWebHostEnvironment>();
-            if (env != null && (env.IsDevelopment() || options.EnableSwaggerInProduction))
-            {
-                _logger?.LogInformation($"Swagger UI enabled with production setting: {options.EnableSwaggerInProduction}");
-                UseSwagger(
-                    options.SwaggerPath,
-                    options.ConfigureOpenApiDocument,
-                    options.ConfigureSwaggerUi);
-            }
+            _logger?.LogInformation("Swagger UI enabled with path: {SwaggerPath}", options.SwaggerPath);
+            UseSwagger(
+                options.SwaggerPath,
+                options.ConfigureOpenApiDocument,
+                options.ConfigureSwaggerUi);
+        }
+        else
+        {
+            _logger?.LogInformation("Swagger UI disabled through configuration");
         }
 
         if (options.UseCors)

@@ -7,16 +7,12 @@ namespace Endatix.Api.Builders;
 /// Core options for configuring Endatix API features.
 /// </summary>
 /// <remarks>
-/// This class is the definitive source of API configuration options and should be
-/// referenced by other projects rather than duplicating these properties.
+/// This class is the definitive source of API features configuration used throughout the application.
+/// Only a subset of these properties can be configured via appsettings.json through the
+/// <see cref="Configuration.ApiConfigurationOptions"/> class.
 /// </remarks>
 public class ApiOptions
 {
-    /// <summary>
-    /// The configuration section name where these options are stored.
-    /// </summary>
-    public const string SECTION_NAME = "Endatix:Api";
-
     /// <summary>
     /// Gets or sets a value indicating whether to use exception handling middleware.
     /// </summary>
@@ -29,17 +25,13 @@ public class ApiOptions
 
     /// <summary>
     /// Gets or sets a value indicating whether to use Swagger middleware.
+    /// This can be configured via appsettings.json.
     /// </summary>
     public bool UseSwagger { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets a value indicating whether to enable Swagger in production.
-    /// </summary>
-    public bool EnableSwaggerInProduction { get; set; } = false;
-
-    /// <summary>
     /// Gets or sets the custom path for Swagger UI endpoint. Must start with "/".
-    /// Default is "/api-docs".
+    /// Default is "/api-docs". This can be configured via appsettings.json.
     /// </summary>
     public string? SwaggerPath { get; set; } = "/api-docs";
 

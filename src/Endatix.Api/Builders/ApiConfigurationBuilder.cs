@@ -64,8 +64,14 @@ public class ApiConfigurationBuilder
     {
         LogSetupInfo("Configuring API endpoints with default settings");
 
-        // Register API options from configuration
-        Services.AddApiOptions();
+        if (_configuration != null)
+        {
+            Services.AddApiOptions(_configuration);
+        }
+        else
+        {
+            LogSetupInfo("No configuration provided. API settings from configuration will not be applied.");
+        }
 
         // Add CORS services
         AddCorsServices();
@@ -268,6 +274,6 @@ public class ApiConfigurationBuilder
 
     protected virtual void LogSetupInfo(string message)
     {
-        _logger?.LogInformation(message);
+        _logger?.LogDebug(message);
     }
 }

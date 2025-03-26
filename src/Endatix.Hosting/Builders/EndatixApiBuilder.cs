@@ -391,6 +391,6 @@ public class EndatixApiBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[API Setup] {Message}", message);
+        _logger?.LogDebug("[API Setup] {Message}", message);
     }
 }

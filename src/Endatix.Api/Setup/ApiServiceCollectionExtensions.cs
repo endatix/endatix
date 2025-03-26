@@ -12,6 +12,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Endatix.Framework.Hosting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Endatix.Api.Configuration;
+using Endatix.Framework.Configuration;
 
 namespace Endatix.Api.Setup;
 
@@ -39,15 +41,25 @@ public static class ApiServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Adds API configuration options from appsettings.json
+    /// Adds API configuration options from appsettings.json and maps them to ApiOptions used throughout the application.
     /// </summary>
     /// <param name="services">The service collection</param>
+    /// <param name="configuration">The application configuration</param>
     /// <returns>Updated service collection with API options configuration</returns>
-    public static IServiceCollection AddApiOptions(this IServiceCollection services)
+    public static IServiceCollection AddApiOptions(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddOptions<ApiOptions>()
-                .BindConfiguration(ApiOptions.SECTION_NAME)
-                .ValidateDataAnnotations();
+        services.AddEndatixOptions<ApiConfigurationOptions>(configuration);
+
+        services.AddTransient<IConfigureOptions<ApiOptions>>(provider =>
+        {
+            var config = provider.GetRequiredService<IOptions<ApiConfigurationOptions>>().Value;
+            return new ConfigureNamedOptions<ApiOptions>(Options.DefaultName, options =>
+            {
+                // Map properties from ApiConfigurationOptions to ApiOptions
+                options.UseSwagger = config.UseSwagger;
+                options.SwaggerPath = config.SwaggerPath;
+            });
+        });
 
         return services;
     }

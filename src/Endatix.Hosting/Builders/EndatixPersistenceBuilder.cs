@@ -269,7 +269,7 @@ public class EndatixPersistenceBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("[Persistence Setup] {Message}", message);
+        _logger?.LogDebug("[Persistence Setup] {Message}", message);
     }
 }
 

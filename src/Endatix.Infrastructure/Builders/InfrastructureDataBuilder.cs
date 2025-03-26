@@ -73,6 +73,6 @@ public class InfrastructureDataBuilder
     /// <param name="message">The message to log.</param>
     private void LogSetupInfo(string message)
     {
-        _logger.LogInformation("[Data Setup] {Message}", message);
+        _logger.LogDebug("[Data Setup] {Message}", message);
     }
 }
