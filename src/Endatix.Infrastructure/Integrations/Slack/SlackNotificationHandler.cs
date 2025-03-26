@@ -3,20 +3,20 @@ using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
-using Endatix.Core.Integrations.Slack;
 using MediatR;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Integrations.Slack;
 /// <summary>
 /// A client for communications with the Slack API.
 /// </summary>
-public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlackClient
+public class SlackNotificationHandler : INotificationHandler<SubmissionCompletedEvent>, ISlackNotificationHandler
 {
-    private readonly ILogger<SlackClient> _logger;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<SlackNotificationHandler> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IRepository<Tenant> _tenantRepository;
+    private readonly IRepository<Form> _formRepository;
+
     //TODO: The Slack message template should be configurable through the Hub's UI
     // {0} is the submissionURL, {1} is the form name
     private const string SLACK_MESSAGE_TEMPLATE = ":page_with_curl: <{0}|New submission> for {1}";
@@ -24,13 +24,16 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
     private const string SLACK_SUBMISSIONS_URL_TEMPLATE = "{0}/forms/{1}/submissions/{2}";
     private const string SLACK_API_POST_URL = "https://slack.com/api/chat.postMessage";
 
-    public SlackClient(ILogger<SlackClient> logger,
-        IServiceProvider serviceProvider,
-        IHttpClientFactory httpClientFactory)
+    public SlackNotificationHandler(
+        ILogger<SlackNotificationHandler> logger,
+        IHttpClientFactory httpClientFactory,
+        IRepository<Tenant> tenantRepository,
+        IRepository<Form> formRepository)
     {
         _logger = logger;
-        _serviceProvider = serviceProvider;
         _httpClientFactory = httpClientFactory;
+        _tenantRepository = tenantRepository;
+        _formRepository = formRepository;
     }
 
     public async Task Handle(SubmissionCompletedEvent notification, CancellationToken cancellationToken)
@@ -41,17 +44,10 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
             return;
         }
 
-        Tenant? tenant;
-        Form? form;
-        using (var scope = _serviceProvider.CreateScope())
-        {
-            var tenantRepository = scope.ServiceProvider.GetRequiredService<IRepository<Tenant>>();
-            tenant = await tenantRepository.GetByIdAsync(notification.Submission.TenantId, cancellationToken);
-            Guard.Against.Null(tenant, nameof(tenant));
+        var tenant = await _tenantRepository.GetByIdAsync(notification.Submission.TenantId, cancellationToken);
+        Guard.Against.Null(tenant, nameof(tenant));
 
-            var formRepository = scope.ServiceProvider.GetRequiredService<IRepository<Form>>();
-            form = await formRepository.GetByIdAsync(notification.Submission.FormId, cancellationToken);
-        }
+        var form = await _formRepository.GetByIdAsync(notification.Submission.FormId, cancellationToken);
 
         var slackSettings = tenant.SlackSettings;
         Guard.Against.Null(slackSettings.Active, nameof(slackSettings.Active), "Slack settings must specify whether the integration is active.");
@@ -85,7 +81,7 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
     private async Task PostMessageAsync(string message, SlackSettings slackSettings)
     {
         Guard.Against.NullOrEmpty(message, nameof(message), "Message cannot be empty.");
-        
+
         var httpClient = _httpClientFactory.CreateClient();
 
         httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {slackSettings.Token}");
@@ -110,7 +106,7 @@ public class SlackClient : INotificationHandler<SubmissionCompletedEvent>, ISlac
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Failed to post a message to Slack. Excption: {ex.Message}");
+            _logger.LogError($"Failed to post a message to Slack. Exception: {ex.Message}");
         }
     }
 }

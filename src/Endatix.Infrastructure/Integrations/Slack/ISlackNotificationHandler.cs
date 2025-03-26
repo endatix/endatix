@@ -1,8 +1,8 @@
 using Endatix.Core.Events;
 
-namespace Endatix.Core.Integrations.Slack;
+namespace Endatix.Infrastructure.Integrations.Slack;
 
-public interface ISlackClient {
+public interface ISlackNotificationHandler {
     /// <summary>
     /// Posts a message to a Slack channel through the Endatix Bot Slack app
     /// </summary>
