@@ -366,11 +366,12 @@ public class EndatixApiBuilder
         // Apply Swagger middleware if enabled
         if (_apiOptions.UseSwagger)
         {
-            var environment = app.ApplicationServices.GetService<IWebHostEnvironment>();
-            if (environment?.IsDevelopment() == true || _apiOptions.EnableSwaggerInProduction)
-            {
-                app.UseSwaggerGen();
-            }
+            LogSetupInfo($"Enabling Swagger UI with path: {_apiOptions.SwaggerPath}");
+            app.UseSwaggerGen();
+        }
+        else
+        {
+            LogSetupInfo("Swagger UI disabled through configuration");
         }
 
         // Apply CORS middleware if enabled

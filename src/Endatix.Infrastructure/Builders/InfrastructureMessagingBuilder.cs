@@ -63,6 +63,6 @@ public class InfrastructureMessagingBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger.LogInformation("[Messaging Setup] {Message}", message);
+        _logger.LogDebug("[Messaging Setup] {Message}", message);
     }
 }

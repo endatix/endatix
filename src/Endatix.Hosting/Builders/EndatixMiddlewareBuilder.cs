@@ -126,13 +126,13 @@ public class EndatixMiddlewareBuilder
             ? "Adding API middleware with default settings"
             : "Adding API middleware with custom settings");
 
-        // Get options from DI to incorporate appsettings values
-        var options = App.ApplicationServices.GetRequiredService<IOptionsSnapshot<ApiOptions>>().Value;
-
+        var optionsProvider = App.ApplicationServices.GetService<IOptions<ApiOptions>>();
+        var options = optionsProvider?.Value ?? new ApiOptions();
+        
         _logger?.LogInformation("Loaded ApiOptions from configuration: UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
             options.UseSwagger,
             options.SwaggerPath);
-
+        
         // Apply any additional configuration if provided
         configureApi?.Invoke(options);
 
@@ -148,6 +148,7 @@ public class EndatixMiddlewareBuilder
             options.ConfigureFastEndpoints?.Invoke(config);
         });
 
+        // Apply Swagger middleware if enabled through configuration
         if (options.UseSwagger)
         {
             _logger?.LogInformation("Swagger UI enabled with path: {SwaggerPath}", options.SwaggerPath);

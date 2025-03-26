@@ -100,7 +100,6 @@ public static class EndatixApplicationBuilderExtensions
                 apiOptions.UseExceptionHandler = options.ApiOptions.UseExceptionHandler;
                 apiOptions.ExceptionHandlerPath = options.ApiOptions.ExceptionHandlerPath;
                 apiOptions.UseSwagger = options.ApiOptions.UseSwagger;
-                apiOptions.EnableSwaggerInProduction = options.ApiOptions.EnableSwaggerInProduction;
                 apiOptions.SwaggerPath = options.ApiOptions.SwaggerPath;
                 apiOptions.ConfigureOpenApiDocument = options.ApiOptions.ConfigureOpenApiDocument;
                 apiOptions.ConfigureSwaggerUi = options.ApiOptions.ConfigureSwaggerUi;
