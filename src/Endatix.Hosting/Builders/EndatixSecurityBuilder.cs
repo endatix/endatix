@@ -293,6 +293,6 @@ public class EndatixSecurityBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogInformation("{Message}", message);
+        _logger?.LogDebug("[Security Setup] {Message}", message);
     }
 }

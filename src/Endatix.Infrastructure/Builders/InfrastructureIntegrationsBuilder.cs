@@ -62,6 +62,6 @@ public class InfrastructureIntegrationsBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger.LogInformation("[Integrations Setup] {Message}", message);
+        _logger.LogDebug("[Integrations Setup] {Message}", message);
     }
 }

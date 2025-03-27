@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSwag.AspNetCore;
 
 namespace Endatix.Hosting.Builders;
@@ -115,9 +116,9 @@ public class EndatixMiddlewareBuilder
     }
 
     /// <summary>
-    /// Adds API middleware with optional custom configuration.
+    /// Adds API middleware with optional custom settings.
     /// </summary>
-    /// <param name="configureApi">Optional delegate to configure API options.</param>
+    /// <param name="configureApi">Optional action to configure API options.</param>
     /// <returns>The builder for chaining.</returns>
     public EndatixMiddlewareBuilder UseApi(Action<ApiOptions>? configureApi = null)
     {
@@ -125,7 +126,14 @@ public class EndatixMiddlewareBuilder
             ? "Adding API middleware with default settings"
             : "Adding API middleware with custom settings");
 
-        var options = new ApiOptions();
+        var optionsProvider = App.ApplicationServices.GetService<IOptions<ApiOptions>>();
+        var options = optionsProvider?.Value ?? new ApiOptions();
+        
+        _logger?.LogInformation("Loaded ApiOptions from configuration: UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+            options.UseSwagger,
+            options.SwaggerPath);
+        
+        // Apply any additional configuration if provided
         configureApi?.Invoke(options);
 
         UseFastEndpoints(config =>
@@ -140,16 +148,18 @@ public class EndatixMiddlewareBuilder
             options.ConfigureFastEndpoints?.Invoke(config);
         });
 
+        // Apply Swagger middleware if enabled through configuration
         if (options.UseSwagger)
         {
-            var env = App.ApplicationServices.GetService<IWebHostEnvironment>();
-            if (env != null && (env.IsDevelopment() || options.EnableSwaggerInProduction))
-            {
-                UseSwagger(
-                    options.SwaggerPath,
-                    options.ConfigureOpenApiDocument,
-                    options.ConfigureSwaggerUi);
-            }
+            _logger?.LogInformation("Swagger UI enabled with path: {SwaggerPath}", options.SwaggerPath);
+            UseSwagger(
+                options.SwaggerPath,
+                options.ConfigureOpenApiDocument,
+                options.ConfigureSwaggerUi);
+        }
+        else
+        {
+            _logger?.LogInformation("Swagger UI disabled through configuration");
         }
 
         if (options.UseCors)

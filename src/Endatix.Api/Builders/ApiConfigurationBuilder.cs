@@ -1,6 +1,7 @@
 using System.Reflection;
 using Endatix.Api.Infrastructure;
 using Endatix.Api.Infrastructure.Cors;
+using Endatix.Api.Setup;
 using Endatix.Framework.Hosting;
 using Endatix.Framework.Setup;
 using FastEndpoints;
@@ -62,6 +63,15 @@ public class ApiConfigurationBuilder
     public virtual ApiConfigurationBuilder UseDefaults()
     {
         LogSetupInfo("Configuring API endpoints with default settings");
+
+        if (_configuration != null)
+        {
+            Services.AddApiOptions(_configuration);
+        }
+        else
+        {
+            LogSetupInfo("No configuration provided. Using default settings.");
+        }
 
         // Add CORS services
         AddCorsServices();
@@ -264,6 +274,6 @@ public class ApiConfigurationBuilder
 
     protected virtual void LogSetupInfo(string message)
     {
-        _logger?.LogInformation(message);
+        _logger?.LogDebug(message);
     }
 }

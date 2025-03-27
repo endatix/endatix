@@ -61,6 +61,6 @@ public class InfrastructureIdentityBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger.LogInformation("[Identity Setup] {Message}", message);
+        _logger.LogDebug("[Identity Setup] {Message}", message);
     }
 }

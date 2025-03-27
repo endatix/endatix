@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Api.Setup;
 
@@ -29,8 +30,14 @@ public static class ApiApplicationBuilderExtensions
 
         logger?.LogInformation("Configuring Endatix API middleware");
 
-        // Set up standard middleware pipeline with default options
-        var options = new ApiOptions();
+        var optionsProvider = app.ApplicationServices.GetService<IOptions<ApiOptions>>();
+        var options = optionsProvider?.Value ?? new ApiOptions();
+        
+        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}", 
+            options.UseSwagger,
+            options.SwaggerPath);
+            
+        // Set up standard middleware pipeline with options from configuration
         ConfigureApiMiddleware(app, options);
 
         logger?.LogInformation("Endatix API middleware configured successfully");
@@ -50,11 +57,16 @@ public static class ApiApplicationBuilderExtensions
 
         logger?.LogInformation("Configuring Endatix API middleware with custom options");
 
-        // Create options with defaults
-        var options = new ApiOptions();
-
-        // Apply custom configuration
+        // Get options from DI first - use IOptions not IOptionsSnapshot
+        var optionsProvider = app.ApplicationServices.GetService<IOptions<ApiOptions>>();
+        var options = optionsProvider?.Value ?? new ApiOptions();
+        
+        // Apply custom configuration on top of configuration-provided values
         configure(options);
+        
+        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}", 
+            options.UseSwagger,
+            options.SwaggerPath);
 
         // Set up middleware pipeline based on options
         ConfigureApiMiddleware(app, options);
@@ -97,11 +109,7 @@ public static class ApiApplicationBuilderExtensions
         // Apply Swagger middleware if enabled
         if (options.UseSwagger)
         {
-            var environment = app.ApplicationServices.GetService<IWebHostEnvironment>();
-            if (environment?.IsDevelopment() == true || options.EnableSwaggerInProduction)
-            {
-                app.UseSwaggerGen();
-            }
+            app.UseSwaggerGen();
         }
 
         // Apply CORS middleware if enabled
@@ -123,15 +131,16 @@ public static class ApiApplicationBuilderExtensions
 
         logger?.LogInformation("Configuring API endpoints in the application pipeline");
 
-        // Apply FastEndpoints with default configuration
-        app.UseFastEndpoints();
-
-        // Apply Swagger if in development
-        var environment = app.ApplicationServices.GetService<IWebHostEnvironment>();
-        if (environment?.IsDevelopment() == true)
-        {
-            app.UseSwaggerGen();
-        }
+        // Get options from DI - use IOptions not IOptionsSnapshot
+        var optionsProvider = app.ApplicationServices.GetService<IOptions<ApiOptions>>();
+        var options = optionsProvider?.Value ?? new ApiOptions();
+        
+        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+            options.UseSwagger,
+            options.SwaggerPath);
+            
+        // Apply middleware based on options from configuration
+        ConfigureApiMiddleware(app, options);
 
         logger?.LogInformation("API endpoints configured in the application pipeline");
         return app;
@@ -150,11 +159,16 @@ public static class ApiApplicationBuilderExtensions
 
         logger?.LogInformation("Configuring API endpoints in the application pipeline with custom options");
 
-        // Create options with defaults
-        var options = new ApiOptions();
-
-        // Apply configuration
+        // Get options from DI first - use IOptions not IOptionsSnapshot
+        var optionsProvider = app.ApplicationServices.GetService<IOptions<ApiOptions>>();
+        var options = optionsProvider?.Value ?? new ApiOptions();
+        
+        // Apply custom configuration on top of configuration-provided values
         configureApi(options);
+        
+        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}", 
+            options.UseSwagger,
+            options.SwaggerPath);
 
         // Apply middleware based on options
         ConfigureApiMiddleware(app, options);
