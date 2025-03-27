@@ -187,16 +187,66 @@ Endatix uses Serilog with settings from the config. Copy the config and paste it
     },
     "Api": {
       "UseSwagger": true,
-      "EnableSwaggerInProduction": false,
-      "SwaggerPath": "/swagger",
-      "RoutePrefix": "api",
-      "VersioningPrefix": "v"
+      "SwaggerPath": "/swagger"
     }
   }
 }
 ```
 
-### Step 6: Customize Swagger Configuration (Optional)
+> **Note**: For API configuration, only `UseSwagger` and `SwaggerPath` can be configured through appsettings.json. Other API options like `RoutePrefix` and `VersioningPrefix` must be configured programmatically in your application code.
+
+### Step 6: Environment-Specific Configuration
+
+When deploying to different environments (Development, CI, Production), you can use environment-specific appsettings files to configure different behaviors without duplicating configuration:
+
+#### Base Configuration in appsettings.json
+
+```json
+{
+  "Endatix": {
+    "Api": {
+      "SwaggerPath": "/api-docs"
+    }
+  }
+}
+```
+
+#### Development Environment (appsettings.Development.json)
+
+```json
+{
+  "Endatix": {
+    "Api": {
+      "UseSwagger": true
+    }
+  }
+}
+```
+
+#### Production Environment (appsettings.Production.json)
+
+```json
+{
+  "Endatix": {
+    "Api": {
+      "UseSwagger": false
+    }
+  }
+}
+```
+
+This approach follows the DRY principle (Don't Repeat Yourself) by only specifying what changes between environments.
+
+In your GitHub Actions workflows, you can set the environment by setting the `ASPNETCORE_ENVIRONMENT` environment variable:
+
+```yaml
+- name: Deploy to Production
+  env:
+    ASPNETCORE_ENVIRONMENT: Production
+  run: dotnet publish -c Release
+```
+
+### Step 7: Customize Swagger Configuration (Optional)
 
 If you need to customize Swagger beyond the basic settings in `appsettings.json`, you can configure it in your `Program.cs` file:
 
@@ -216,11 +266,12 @@ var app = builder.Build();
 // Configure the middleware with custom Swagger settings
 app.UseEndatix(options => 
 {
-    // Custom Swagger UI path
-    options.SwaggerPath = "/api-docs";
+    // Configure API options
+    options.ApiOptions.SwaggerPath = "/api-docs";
+    options.ApiOptions.UseSwagger = builder.Environment.IsDevelopment();
     
     // Advanced OpenAPI document configuration
-    options.ConfigureOpenApiDocument = settings => 
+    options.ApiOptions.ConfigureOpenApiDocument = settings => 
     {
         settings.DocumentName = "v1";
         settings.PostProcess = (document, _) => 
@@ -231,32 +282,32 @@ app.UseEndatix(options =>
         };
     };
     
-    // Custom Swagger UI settings
-    options.ConfigureSwaggerUi = settings => 
-    {
-        settings.DocExpansion = "list";
-        settings.DefaultModelsExpandDepth = 1;
-    };
+    // Note: RoutePrefix and VersioningPrefix must be configured programmatically
+    // as they're not available via appsettings.json
+    options.ApiOptions.RoutePrefix = "api"; // Default is "api"
+    options.ApiOptions.VersioningPrefix = "v"; // Default is "v"
 });
-
-app.Run();
 ```
 
 For more advanced scenarios, you can also use the middleware builder pattern directly:
 
 ```csharp
+// Get environment from configuration
+var isDevEnvironment = app.Environment.IsDevelopment();
+
 app.UseEndatix()
-    .UseSwagger(
-        path: "/api-docs",
-        configureOpenApi: settings => {
-            settings.DocumentName = "v1";
-        },
-        configureSwaggerUi: settings => {
-            settings.DocExpansion = "list";
-        });
+    .UseApi(options => {
+        // Configurable via appsettings.json
+        options.UseSwagger = isDevEnvironment; // Conditionally enable Swagger
+        options.SwaggerPath = "/api-docs";
+        
+        // Must be configured programmatically (not available via appsettings.json)
+        options.RoutePrefix = "api";
+        options.VersioningPrefix = "v";
+    });
 ```
 
-### Step 7: Run the application
+### Step 8: Run the application
 
 Run the application using the following command:
 
@@ -264,7 +315,7 @@ Run the application using the following command:
 dotnet run
 ```
 
-The application should now be running on `https://localhost:7066` (or a similar port). You can access the Swagger UI at `https://localhost:7066/swagger`.
+The application should now be running on `https://localhost:7066` (or a similar port). You can access the Swagger UI at `https://localhost:7066/swagger` or the path you configured.
 
 ## What's Included in the Default Setup
 

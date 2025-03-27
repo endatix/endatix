@@ -70,7 +70,7 @@ public class ApiConfigurationBuilder
         }
         else
         {
-            LogSetupInfo("No configuration provided. API settings from configuration will not be applied.");
+            LogSetupInfo("No configuration provided. Using default settings.");
         }
 
         // Add CORS services
