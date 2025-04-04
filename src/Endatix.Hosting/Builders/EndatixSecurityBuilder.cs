@@ -152,7 +152,8 @@ public class EndatixSecurityBuilder
 
         var isDevelopment = appEnvironment?.IsDevelopment() ?? false;
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
                 // Apply default configuration
@@ -168,6 +169,7 @@ public class EndatixSecurityBuilder
                     ValidateIssuerSigningKey = true,
                     ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW_IN_SECONDS)
                 };
+                options.MapInboundClaims = false;
 
                 // Apply custom configuration if provided
                 configure?.Invoke(options);
