@@ -33,6 +33,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Submission> Submissions { get; set; }
 
+    public DbSet<Theme> Themes { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
