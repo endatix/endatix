@@ -1,7 +1,9 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Features.Themes;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Infrastructure.Features.Themes;
 using Endatix.Infrastructure.Multitenancy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -87,6 +89,7 @@ public class InfrastructureBuilder
         Services.AddWebHookProcessing();
         Services.AddMultitenancyConfiguration();
         Services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
+        Services.AddScoped<IThemeService, ThemeService>();
 
         Data.UseDefaults();
         Messaging.UseDefaults();

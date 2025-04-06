@@ -43,6 +43,7 @@ public class InfrastructureDataBuilder
         Services.AddSingleton<EfCoreValueGeneratorFactory>();
         Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         Services.AddScoped<IFormsRepository, FormsRepository>();
+        Services.AddScoped<IThemesRepository, ThemesRepository>();
         Services.AddSingleton<DataSeeder>();
 
         LogSetupInfo("Data infrastructure configured successfully");
