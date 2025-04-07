@@ -1,17 +1,19 @@
 using FastEndpoints;
+using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Features.Themes;
+using Endatix.Core.Models.Themes;
 using Endatix.Infrastructure.Identity.Authorization;
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Themes.Create;
 
 namespace Endatix.Api.Endpoints.Themes;
 
 /// <summary>
 /// Endpoint for creating a new theme.
 /// </summary>
-public class Create(IThemeService themeService) : Endpoint<CreateRequest, Results<Created<CreateResponse>, BadRequest>>
+public class Create(IMediator mediator) : Endpoint<CreateRequest, Results<Created<CreateResponse>, BadRequest>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -51,11 +53,12 @@ public class Create(IThemeService themeService) : Endpoint<CreateRequest, Result
             }
         }
 
-        var result = await themeService.CreateThemeAsync(
+        var command = new CreateThemeCommand(
             request.Name!,
             request.Description,
-            themeData,
-            cancellationToken);
+            themeData);
+            
+        var result = await mediator.Send(command, cancellationToken);
 
         return TypedResultsBuilder
             .MapResult(result, ThemeMapper.Map<CreateResponse>)

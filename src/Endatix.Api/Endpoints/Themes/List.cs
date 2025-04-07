@@ -2,15 +2,15 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Features.Themes;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.UseCases.Themes.List;
 
 namespace Endatix.Api.Endpoints.Themes;
 
 /// <summary>
 /// Endpoint for listing themes.
 /// </summary>
-public class List(IThemeService themeService) : Endpoint<ListRequest, Results<Ok<IEnumerable<ThemeModelWithoutJsonData>>, BadRequest>>
+public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumerable<ThemeModelWithoutJsonData>>, BadRequest>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -31,7 +31,8 @@ public class List(IThemeService themeService) : Endpoint<ListRequest, Results<Ok
     /// <inheritdoc/>
     public override async Task<Results<Ok<IEnumerable<ThemeModelWithoutJsonData>>, BadRequest>> ExecuteAsync(ListRequest request, CancellationToken cancellationToken)
     {
-        var result = await themeService.GetThemesAsync(cancellationToken);
+        var query = new ListThemesQuery();
+        var result = await mediator.Send(query, cancellationToken);
 
         return TypedResultsBuilder
             .MapResult(result, themes => themes.ToThemeModelList())

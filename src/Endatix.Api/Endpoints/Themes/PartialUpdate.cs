@@ -1,17 +1,19 @@
 using FastEndpoints;
+using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Features.Themes;
+using Endatix.Core.Models.Themes;
 using Endatix.Infrastructure.Identity.Authorization;
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Themes.PartialUpdate;
 
 namespace Endatix.Api.Endpoints.Themes;
 
 /// <summary>
 /// Endpoint for partially updating a theme.
 /// </summary>
-public class PartialUpdate(IThemeService themeService) : Endpoint<PartialUpdateRequest, Results<Ok<PartialUpdateResponse>, BadRequest, NotFound>>
+public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateRequest, Results<Ok<PartialUpdateResponse>, BadRequest, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -23,7 +25,7 @@ public class PartialUpdate(IThemeService themeService) : Endpoint<PartialUpdateR
         Summary(s =>
         {
             s.Summary = "Partially update a theme";
-            s.Description = "Updates specific properties of a theme without requiring all fields.";
+            s.Description = "Updates specific fields of a theme as provided in the request.";
             s.Responses[200] = "Theme updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Theme not found.";
@@ -34,7 +36,7 @@ public class PartialUpdate(IThemeService themeService) : Endpoint<PartialUpdateR
     public override async Task<Results<Ok<PartialUpdateResponse>, BadRequest, NotFound>> ExecuteAsync(PartialUpdateRequest request, CancellationToken cancellationToken)
     {
         ThemeData? themeData = null;
-        
+
         // Parse JsonData if provided
         if (!string.IsNullOrEmpty(request.JsonData))
         {
@@ -51,13 +53,14 @@ public class PartialUpdate(IThemeService themeService) : Endpoint<PartialUpdateR
                     .SetTypedResults<Ok<PartialUpdateResponse>, BadRequest, NotFound>();
             }
         }
-        
-        var result = await themeService.UpdateThemeAsync(
+
+        var command = new PartialUpdateThemeCommand(
             request.ThemeId,
             request.Name,
             request.Description,
-            themeData,
-            cancellationToken);
+            themeData);
+            
+        var result = await mediator.Send(command, cancellationToken);
 
         return TypedResultsBuilder
             .MapResult(result, ThemeMapper.Map<PartialUpdateResponse>)

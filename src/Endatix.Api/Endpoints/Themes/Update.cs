@@ -1,17 +1,19 @@
 using FastEndpoints;
+using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Features.Themes;
+using Endatix.Core.Models.Themes;
 using Endatix.Infrastructure.Identity.Authorization;
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Themes.Update;
 
 namespace Endatix.Api.Endpoints.Themes;
 
 /// <summary>
-/// Endpoint for updating an existing theme.
+/// Endpoint for updating a theme.
 /// </summary>
-public class Update(IThemeService themeService) : Endpoint<UpdateRequest, Results<Ok<UpdateResponse>, BadRequest, NotFound>>
+public class Update(IMediator mediator) : Endpoint<UpdateRequest, Results<Ok<UpdateResponse>, BadRequest, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -22,8 +24,8 @@ public class Update(IThemeService themeService) : Endpoint<UpdateRequest, Result
         Permissions(Allow.AllowAll);
         Summary(s =>
         {
-            s.Summary = "Update an existing theme";
-            s.Description = "Updates an existing theme with the provided data.";
+            s.Summary = "Update a theme";
+            s.Description = "Updates a theme with the provided data.";
             s.Responses[200] = "Theme updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Theme not found.";
@@ -34,7 +36,7 @@ public class Update(IThemeService themeService) : Endpoint<UpdateRequest, Result
     public override async Task<Results<Ok<UpdateResponse>, BadRequest, NotFound>> ExecuteAsync(UpdateRequest request, CancellationToken cancellationToken)
     {
         ThemeData? themeData = null;
-        
+
         // Parse JsonData if provided
         if (!string.IsNullOrEmpty(request.JsonData))
         {
@@ -51,13 +53,14 @@ public class Update(IThemeService themeService) : Endpoint<UpdateRequest, Result
                     .SetTypedResults<Ok<UpdateResponse>, BadRequest, NotFound>();
             }
         }
-        
-        var result = await themeService.UpdateThemeAsync(
+
+        var command = new UpdateThemeCommand(
             request.ThemeId,
-            request.Name,
+            request.Name!,
             request.Description,
-            themeData,
-            cancellationToken);
+            themeData);
+            
+        var result = await mediator.Send(command, cancellationToken);
 
         return TypedResultsBuilder
             .MapResult(result, ThemeMapper.Map<UpdateResponse>)

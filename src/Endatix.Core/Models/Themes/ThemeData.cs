@@ -1,76 +1,82 @@
 using System.Text.Json.Serialization;
 
-namespace Endatix.Core.Features.Themes;
+namespace Endatix.Core.Models.Themes;
 
 /// <summary>
-/// Represents the structure of theme data stored in the Theme entity's JsonData field.
-/// This mirrors the structure of the survey-core ITheme TypeScript interface.
+/// Default implementation of ITheme interface
 /// </summary>
-public interface ITheme
+public class ThemeData : ITheme
 {
     /// <summary>
     /// Name of the theme
     /// </summary>
     [JsonPropertyName("themeName")]
-    string ThemeName { get; set; }
+    public string ThemeName { get; set; } = "Default Theme";
     
     /// <summary>
     /// Color palette, either "light" or "dark"
     /// </summary>
     [JsonPropertyName("colorPalette")]
-    string ColorPalette { get; set; }
+    public string ColorPalette { get; set; } = "light";
     
     /// <summary>
     /// Whether the theme is panelless
     /// </summary>
     [JsonPropertyName("isPanelless")]
-    bool IsPanelless { get; set; }
+    public bool IsPanelless { get; set; } = false;
     
     /// <summary>
     /// Background image URL
     /// </summary>
     [JsonPropertyName("backgroundImage")]
-    string? BackgroundImage { get; set; }
+    public string? BackgroundImage { get; set; }
     
     /// <summary>
     /// Background image fit style
     /// </summary>
     [JsonPropertyName("backgroundImageFit")]
-    string? BackgroundImageFit { get; set; }
+    public string? BackgroundImageFit { get; set; } = "cover";
     
     /// <summary>
     /// Background image attachment
     /// </summary>
     [JsonPropertyName("backgroundImageAttachment")]
-    string? BackgroundImageAttachment { get; set; }
+    public string? BackgroundImageAttachment { get; set; } = "scroll";
     
     /// <summary>
     /// Background opacity (0-1)
     /// </summary>
     [JsonPropertyName("backgroundOpacity")]
-    double? BackgroundOpacity { get; set; }
+    public double? BackgroundOpacity { get; set; } = 1.0;
     
     /// <summary>
     /// CSS variables for theming
     /// </summary>
     [JsonPropertyName("cssVariables")]
-    Dictionary<string, string>? CssVariables { get; set; }
+    public Dictionary<string, string>? CssVariables { get; set; } = new Dictionary<string, string>
+    {
+        ["--sjs-general-backcolor"] = "rgba(255, 255, 255, 1)",
+        ["--sjs-general-forecolor"] = "rgba(34, 34, 34, 1)",
+        ["--sjs-primary-backcolor"] = "rgba(0, 123, 255, 1)",
+        ["--sjs-primary-forecolor"] = "rgba(255, 255, 255, 1)",
+        ["--sjs-font-family"] = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    };
     
     /// <summary>
     /// Header configuration
     /// </summary>
     [JsonPropertyName("header")]
-    Dictionary<string, object>? Header { get; set; }
+    public Dictionary<string, object>? Header { get; set; }
     
     /// <summary>
     /// Header view type
     /// </summary>
     [JsonPropertyName("headerView")]
-    string? HeaderView { get; set; }
+    public string? HeaderView { get; set; }
     
     /// <summary>
     /// Additional theme properties
     /// </summary>
     [JsonPropertyName("additionalProperties")]
-    Dictionary<string, object>? AdditionalProperties { get; set; }
+    public Dictionary<string, object>? AdditionalProperties { get; set; }
 } 

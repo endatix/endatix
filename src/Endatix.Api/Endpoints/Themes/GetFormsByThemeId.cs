@@ -1,16 +1,17 @@
 using FastEndpoints;
+using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Features.Themes;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Api.Endpoints.Forms;
+using Endatix.Core.UseCases.Themes.GetFormsByThemeId;
 
 namespace Endatix.Api.Endpoints.Themes;
 
 /// <summary>
 /// Endpoint for getting forms using a specific theme.
 /// </summary>
-public class GetFormsByThemeId(IThemeService themeService) : Endpoint<GetFormsByThemeIdRequest, Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>>
+public class GetFormsByThemeId(IMediator mediator) : Endpoint<GetFormsByThemeIdRequest, Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -32,7 +33,8 @@ public class GetFormsByThemeId(IThemeService themeService) : Endpoint<GetFormsBy
     /// <inheritdoc/>
     public override async Task<Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>> ExecuteAsync(GetFormsByThemeIdRequest request, CancellationToken cancellationToken)
     {
-        var result = await themeService.GetFormsByThemeIdAsync(request.ThemeId, cancellationToken);
+        var query = new GetFormsByThemeIdQuery(request.ThemeId);
+        var result = await mediator.Send(query, cancellationToken);
 
         return TypedResultsBuilder
             .MapResult(result, forms => forms.ToFormModelList())
