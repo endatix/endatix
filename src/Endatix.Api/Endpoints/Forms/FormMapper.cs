@@ -20,6 +20,7 @@ public class FormMapper
         Name = form.Name,
         Description = form.Description,
         IsEnabled = form.IsEnabled,
+        ThemeId = form.ThemeId?.ToString(),
         CreatedAt = form.CreatedAt,
         ModifiedAt = form.ModifiedAt
     };
@@ -57,6 +58,7 @@ public static class FormMapperExtensions
         Name = formDto.Name,
         Description = formDto.Description,
         IsEnabled = formDto.IsEnabled,
+        ThemeId = formDto.ThemeId,
         CreatedAt = formDto.CreatedAt,
         ModifiedAt = formDto.ModifiedAt,
         SubmissionsCount = formDto.SubmissionsCount

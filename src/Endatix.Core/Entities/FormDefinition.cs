@@ -9,7 +9,7 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
 
     private FormDefinition() { } // For EF Core
 
-    public FormDefinition(long tenantId,bool isDraft = false, string? jsonData = null)
+    public FormDefinition(long tenantId, bool isDraft = false, string? jsonData = null)
         : base(tenantId)
     {
         jsonData ??= EndatixConfig.Configuration.DefaultFormDefinitionJson;

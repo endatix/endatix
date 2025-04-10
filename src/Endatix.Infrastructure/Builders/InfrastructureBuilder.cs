@@ -1,6 +1,5 @@
 using Endatix.Core.Abstractions;
 using Endatix.Framework.Hosting;
-using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Multitenancy;
 using Microsoft.Extensions.Configuration;
