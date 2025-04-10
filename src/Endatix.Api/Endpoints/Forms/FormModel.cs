@@ -26,6 +26,11 @@ public class FormModel
     public bool IsEnabled { get; set; }
 
     /// <summary>
+    /// The ID of the theme associated with the form.
+    /// </summary>
+    public string? ThemeId { get; set; }
+
+    /// <summary>
     /// The date and time when the form was created.
     /// </summary>
     public DateTime CreatedAt { get; set; }

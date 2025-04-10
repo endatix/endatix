@@ -66,7 +66,7 @@ public class ThemeData : ITheme
     /// Header configuration
     /// </summary>
     [JsonPropertyName("header")]
-    public Dictionary<string, object>? Header { get; set; }
+    public Dictionary<string, object>? Header { get; set; } = [];
     
     /// <summary>
     /// Header view type
