@@ -78,5 +78,5 @@ public class ThemeData : ITheme
     /// Additional theme properties
     /// </summary>
     [JsonPropertyName("additionalProperties")]
-    public Dictionary<string, object>? AdditionalProperties { get; set; }
+    public Dictionary<string, object>? AdditionalProperties { get; set; } = [];
 } 

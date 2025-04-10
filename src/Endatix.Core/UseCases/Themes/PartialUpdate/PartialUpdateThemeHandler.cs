@@ -33,10 +33,8 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themesRepository) : IC
                 return Result<Theme>.NotFound($"Theme with ID {request.ThemeId} not found");
             }
 
-            // Update name if provided
             if (!string.IsNullOrEmpty(request.Name))
             {
-                // Check if another theme with the same name exists
                 var existingTheme = await themesRepository.FirstOrDefaultAsync(
                     new ThemeSpecifications.ByName(request.Name), 
                     cancellationToken);
@@ -49,16 +47,14 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themesRepository) : IC
                 theme.UpdateName(request.Name);
             }
 
-            // Update description if provided
             if (request.Description != null)
             {
                 theme.UpdateDescription(request.Description);
             }
 
-            // Update theme data if provided
             if (request.ThemeData != null)
             {
-                string jsonData = JsonSerializer.Serialize(request.ThemeData);
+                var jsonData = JsonSerializer.Serialize(request.ThemeData);
                 theme.UpdateJsonData(jsonData);
             }
 
