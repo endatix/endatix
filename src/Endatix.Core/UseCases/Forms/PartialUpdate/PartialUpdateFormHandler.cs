@@ -28,12 +28,12 @@ public class PartialUpdateFormHandler : ICommandHandler<PartialUpdateFormCommand
         form.Description = request.Description ?? form.Description;
         form.IsEnabled = request.IsEnabled ?? form.IsEnabled;
 
-        if (request.ThemeId.HasValue && form.ThemeId.HasValue && form.ThemeId != request.ThemeId)
+        if (request.ThemeId.HasValue && form.ThemeId != request.ThemeId)
         {
             var theme = await _themeRepository.GetByIdAsync(request.ThemeId.Value, cancellationToken);
             if (theme == null)
             {
-                return Result.NotFound("Theme not found.");
+                return Result.NotFound("Form Theme not found.");
             }
             form.SetTheme(theme);
         }
