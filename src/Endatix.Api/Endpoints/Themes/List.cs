@@ -10,7 +10,7 @@ namespace Endatix.Api.Endpoints.Themes;
 /// <summary>
 /// Endpoint for listing themes.
 /// </summary>
-public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumerable<ThemeModelWithoutJsonData>>, BadRequest>>
+public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumerable<ThemeModel>>, BadRequest>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -29,13 +29,13 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumer
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<IEnumerable<ThemeModelWithoutJsonData>>, BadRequest>> ExecuteAsync(ListRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<IEnumerable<ThemeModel>>, BadRequest>> ExecuteAsync(ListRequest request, CancellationToken cancellationToken)
     {
         var query = new ListThemesQuery();
         var result = await mediator.Send(query, cancellationToken);
 
         return TypedResultsBuilder
-            .MapResult(result, themes => themes.ToThemeModelList())
-            .SetTypedResults<Ok<IEnumerable<ThemeModelWithoutJsonData>>, BadRequest>();
+            .MapResult(result, ThemeMapper.Map<ThemeModel>)
+            .SetTypedResults<Ok<IEnumerable<ThemeModel>>, BadRequest>();
     }
 }
