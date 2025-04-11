@@ -13,6 +13,8 @@ jobs:
     env:
       STORE_PATH:
     runs-on: ubuntu-latest
+    environment:
+      name: Production
     defaults:
       run:
         working-directory: ./docs/endatix-docs
@@ -29,7 +31,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.2
+          version: 10
           run_install: false
 
       - name: Get pnpm store directory
@@ -54,15 +56,18 @@ jobs:
       - name: 🔗 Copy Url Rewrites to the build folder
         run: cp rewriteRules.config ./build/
 
-      - name: 🚡 Upload package to FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: 🚡 Deploy to Static Web App
+        id: deploy-to-static-web-app
+        uses: Azure/static-web-apps-deploy@v1
         with:
-          server: ${{secrets.DOCS_FTP_URL}}
-          username: ${{secrets.DOCS_SITE_FTP_USER}}
-          password: ${{secrets.DOCS_FTP_PASS}}
-          local-dir: "./docs/endatix-docs/build/"
-          exclude: |
-            markdown-page/**
+          azure_static_web_apps_api_token: ${{ secrets.DOCS_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: "./docs/endatix-docs/build/"
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
+          api_location: ''
 
       - name: Summary message
         run: |
