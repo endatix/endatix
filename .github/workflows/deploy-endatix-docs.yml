@@ -74,3 +74,18 @@ jobs:
           echo ">[!TIP] " >> $GITHUB_STEP_SUMMARY
           echo "> ### Job Complete! :rocket:" >> $GITHUB_STEP_SUMMARY
           echo ">check site at https://docs.endatix.com/" >> $GITHUB_STEP_SUMMARY
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close PR Job
+    environment:
+      name: Production
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.DOCS_DEPLOYMENT_TOKEN }}
+          app_location: ''
+          action: 'close'

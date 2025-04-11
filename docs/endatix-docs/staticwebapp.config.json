@@ -8,7 +8,7 @@
       }
     ],
     "globalHeaders": {
-      "content-security-policy": "default-src https: 'unsafe-eval' 'unsafe-inline'; object-src 'none; worker-src blob:"
+      "content-security-policy": "default-src https: 'unsafe-eval' 'unsafe-inline'; object-src 'none; worker-src blob:; img-src https: data:"
     },
     "mimeTypes": {
       ".json": "text/json"
