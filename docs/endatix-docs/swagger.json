@@ -8,7 +8,7 @@
   },
   "servers": [
     {
-      "url": "https://localhost:5001"
+      "url": "https://ci.api.endatix.com"
     }
   ],
   "paths": {
@@ -687,6 +687,311 @@
             "description": "Invalid input data."
           }
         }
+      }
+    },
+    "/api/form-templates": {
+      "post": {
+        "tags": [
+          "Form-Templates"
+        ],
+        "summary": "Create a new form template",
+        "description": "Creates a new form template.",
+        "operationId": "EndatixApiEndpointsFormTemplatesCreate",
+        "requestBody": {
+          "x-name": "CreateFormTemplateRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFormTemplateRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "201": {
+            "description": "Form template created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateFormTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Form-Templates"
+        ],
+        "summary": "List form templates",
+        "description": "Lists all form templates with optional pagination.",
+        "operationId": "EndatixApiEndpointsFormTemplatesList",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The number of the page",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "The number of items to take.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Form templates retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FormTemplateModelWithoutJsonData"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/form-templates/{formTemplateId}": {
+      "delete": {
+        "tags": [
+          "Form-Templates"
+        ],
+        "summary": "Delete a form template",
+        "description": "Deletes a form template.",
+        "operationId": "EndatixApiEndpointsFormTemplatesDelete",
+        "parameters": [
+          {
+            "name": "formTemplateId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form template to delete.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form template not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Form-Templates"
+        ],
+        "summary": "Get a form template by ID",
+        "description": "Gets a form template by its ID.",
+        "operationId": "EndatixApiEndpointsFormTemplatesGetById",
+        "parameters": [
+          {
+            "name": "formTemplateId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form template to get.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Form template retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormTemplateModel"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form template not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Form-Templates"
+        ],
+        "summary": "Partially update a form template",
+        "description": "Partially updates a form template.",
+        "operationId": "EndatixApiEndpointsFormTemplatesPartialUpdate",
+        "parameters": [
+          {
+            "name": "formTemplateId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form template.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "PartialUpdateFormTemplateRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialUpdateFormTemplateRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Form template updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartialUpdateFormTemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Form template not found."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
       }
     },
     "/api/forms": {
@@ -2295,6 +2600,164 @@
           "token": {
             "type": "string",
             "description": "The name of the form.",
+            "nullable": true
+          }
+        }
+      },
+      "CreateFormTemplateResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormTemplateModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for creating a form template.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "FormTemplateModel": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormTemplateModelWithoutJsonData"
+          },
+          {
+            "type": "object",
+            "description": "Model of a form template.",
+            "additionalProperties": false,
+            "properties": {
+              "jsonData": {
+                "type": "string",
+                "description": "The JSON data representing the form template structure.",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "FormTemplateModelWithoutJsonData": {
+        "type": "object",
+        "description": "Model of a form template without the JSON data structure.",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the form template.",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the form template.",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the form template.",
+            "nullable": true
+          },
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Indicates if the form template is enabled."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "The date and time when the form template was created.",
+            "format": "date-time"
+          },
+          "modifiedAt": {
+            "type": "string",
+            "description": "The date and time when the form template was last modified.",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CreateFormTemplateRequest": {
+        "type": "object",
+        "description": "Request model for creating a form template.",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "isEnabled",
+          "jsonData"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the form template.",
+            "maxLength": 100,
+            "minLength": 2,
+            "nullable": false
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional description of the form template.",
+            "nullable": true
+          },
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Indicates if the form template is enabled.",
+            "minLength": 1,
+            "nullable": false
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data representing the form template structure.",
+            "minLength": 2,
+            "nullable": false
+          }
+        }
+      },
+      "DeleteFormTemplateRequest": {
+        "type": "object",
+        "description": "Request model for deleting a form template.",
+        "additionalProperties": false
+      },
+      "GetFormTemplateByIdRequest": {
+        "type": "object",
+        "description": "Request model for getting a form template by ID.",
+        "additionalProperties": false
+      },
+      "FormTemplatesListRequest": {
+        "type": "object",
+        "description": "Request model for listing form templates.",
+        "additionalProperties": false
+      },
+      "PartialUpdateFormTemplateResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormTemplateModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for partially updating a form template.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PartialUpdateFormTemplateRequest": {
+        "type": "object",
+        "description": "Request model for updating a form template.",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the form template.",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the form template.",
+            "nullable": true
+          },
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Indicates if the form template is enabled.",
+            "nullable": true
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data representing the form template structure.",
             "nullable": true
           }
         }
