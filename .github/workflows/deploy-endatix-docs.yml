@@ -54,7 +54,7 @@ jobs:
         run: pnpm run build
 
       - name: 🔗 Copy Url Rewrites to the build folder
-        run: cp rewriteRules.config ./build/
+        run: cp staticwebapp.config.json ./build/
 
       - name: 🚡 Deploy to Static Web App
         id: deploy-to-static-web-app
