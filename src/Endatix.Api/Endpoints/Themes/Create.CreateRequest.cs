@@ -10,7 +10,6 @@ public class CreateRequest
     /// <summary>
     /// The name of the theme.
     /// </summary>
-    [Required]
     public string? Name { get; set; }
 
     /// <summary>
