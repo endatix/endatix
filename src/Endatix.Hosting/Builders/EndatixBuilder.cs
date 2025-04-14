@@ -280,6 +280,7 @@ public class EndatixBuilder : IBuilderRoot
     {
         _logger.LogDebug("Finalizing all configurations");
 
+        // TODO: Add rest of the builders once they are implemented
         Infrastructure.Build();
 
         _logger.LogInformation("All configurations have been finalized");
