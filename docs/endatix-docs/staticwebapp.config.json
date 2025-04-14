@@ -1,0 +1,16 @@
+{
+    "trailingSlash": "auto",
+    "routes": [
+      {
+        "route": "/docs/getting-started/installation",
+        "redirect": "/docs/getting-started/setup-nuget-package",
+        "statusCode": 301
+      }
+    ],
+    "globalHeaders": {
+      "content-security-policy": "default-src https: 'unsafe-eval' 'unsafe-inline'; object-src 'none; worker-src blob:; img-src https: data:"
+    },
+    "mimeTypes": {
+      ".json": "text/json"
+    }
+  }
