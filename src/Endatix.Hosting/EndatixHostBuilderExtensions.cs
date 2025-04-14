@@ -1,7 +1,5 @@
 using Ardalis.GuardClauses;
 using Endatix.Hosting.Builders;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Endatix.Hosting;
@@ -12,11 +10,13 @@ namespace Endatix.Hosting;
 public static class EndatixHostBuilderExtensions
 {
     /// <summary>
-    /// Configures Endatix services on the host with default settings.
-    /// This is the entry point for adding Endatix to your application.
+    /// Configures Endatix services with default settings.
     /// </summary>
     /// <param name="hostBuilder">The host builder.</param>
     /// <returns>The host builder for chaining.</returns>
+    /// <example>
+    /// builder.Host.ConfigureEndatix();
+    /// </example>
     public static IHostBuilder ConfigureEndatix(this IHostBuilder hostBuilder)
     {
         Guard.Against.Null(hostBuilder);
@@ -29,17 +29,28 @@ public static class EndatixHostBuilderExtensions
             
             // Apply defaults
             builder.UseDefaults();
+            
+            // Finalize all configurations to ensure proper initialization
+            builder.FinalizeConfiguration();
         });
 
         return hostBuilder;
     }
 
     /// <summary>
-    /// Configures Endatix services on the host with custom options.
+    /// Configures Endatix services with custom options.
     /// </summary>
     /// <param name="hostBuilder">The host builder.</param>
     /// <param name="configureAction">The action to configure the Endatix builder.</param>
     /// <returns>The host builder for chaining.</returns>
+    /// <example>
+    /// builder.Host.ConfigureEndatix(endatix => {
+    ///     endatix.Infrastructure.Messaging.Configure(options => {
+    ///         options.IncludeLoggingPipeline = true;
+    ///     });
+    ///     endatix.UseSqlServer&lt;AppDbContext&gt;();
+    /// });
+    /// </example>
     public static IHostBuilder ConfigureEndatix(this IHostBuilder hostBuilder, Action<EndatixBuilder> configureAction)
     {
         Guard.Against.Null(hostBuilder);
@@ -52,29 +63,39 @@ public static class EndatixHostBuilderExtensions
             
             // Apply the configuration action
             configureAction(builder);
+            
+            // Finalize all configurations to ensure proper initialization
+            builder.FinalizeConfiguration();
         });
         
         return hostBuilder;
     }
     
     /// <summary>
-    /// Configures Endatix services with default settings and then applies custom configuration.
-    /// This hybrid approach allows you to start with sensible defaults and then customize specific aspects.
+    /// First applies default settings, then applies custom configuration.
     /// </summary>
     /// <param name="hostBuilder">The host builder.</param>
-    /// <param name="configureAction">Action to configure Endatix services after defaults are applied.</param>
+    /// <param name="configureAction">Action to configure Endatix services after defaults.</param>
     /// <returns>The host builder for chaining.</returns>
+    /// <example>
+    /// builder.Host.ConfigureEndatixWithDefaults(endatix => {
+    ///     endatix.Infrastructure.Identity.Configure(options => {
+    ///         options.RequireConfirmedEmail = true;
+    ///     });
+    /// });
+    /// </example>
     public static IHostBuilder ConfigureEndatixWithDefaults(
-        this IHostBuilder hostBuilder, 
+        this IHostBuilder hostBuilder,
         Action<EndatixBuilder> configureAction)
     {
         Guard.Against.Null(hostBuilder);
         Guard.Against.Null(configureAction);
 
-        return hostBuilder.ConfigureEndatix(builder => {
+        return hostBuilder.ConfigureEndatix(builder =>
+        {
             // First apply defaults
             builder.UseDefaults();
-            
+
             // Then apply custom configuration
             configureAction(builder);
         });
