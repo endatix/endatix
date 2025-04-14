@@ -33,7 +33,7 @@ public static class ServiceCollectionExtensions
     {
         // Configure settings
         services.AddOptions<TSettings>()
-                .BindConfiguration($"Email:{typeof(TSettings).Name}")
+                .BindConfiguration($"Endatix:Integrations:Email:{typeof(TSettings).Name}")
                 .ValidateDataAnnotations();
 
         // Register the email sender and invoke the initialization delegate
