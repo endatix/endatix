@@ -11,7 +11,7 @@ public static class FormSpecifications
     /// <summary>
     /// Specification to get a form by ID including related entities
     /// </summary>
-    public sealed class ByIdWithRelated : Specification<Form>, ISingleResultSpecification
+    public sealed class ByIdWithRelated : Specification<Form>
     {
         public ByIdWithRelated(long id)
         {
@@ -31,8 +31,7 @@ public static class FormSpecifications
         public ByThemeId(long themeId)
         {
             Query
-                .Where(f => f.ThemeId == themeId)
-                .Include(f => f.Theme);
+                .Where(f => f.ThemeId == themeId);
         }
     }
 
