@@ -20,17 +20,17 @@ public record UpdateThemeCommand : ICommand<Result<Theme>>
     /// The new name for the theme.
     /// </summary>
     public string Name { get; }
-    
+
     /// <summary>
     /// The new description for the theme.
     /// </summary>
     public string? Description { get; }
-    
+
     /// <summary>
     /// The new theme data containing visual properties.
     /// </summary>
     public ThemeData? ThemeData { get; }
-    
+
     /// <summary>
     /// Creates a new instance of UpdateThemeCommand.
     /// </summary>
@@ -40,12 +40,9 @@ public record UpdateThemeCommand : ICommand<Result<Theme>>
     /// <param name="themeData">The new theme data containing visual properties.</param>
     public UpdateThemeCommand(long themeId, string name, string? description = null, ThemeData? themeData = null)
     {
-        Guard.Against.NegativeOrZero(themeId, nameof(themeId));
-        Guard.Against.NullOrWhiteSpace(name, nameof(name));
-        
         ThemeId = themeId;
         Name = name;
         Description = description;
         ThemeData = themeData;
     }
-} 
+}

@@ -2,9 +2,9 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.UseCases.Themes.Delete;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Api.Endpoints.Themes;
 
@@ -40,7 +40,7 @@ public class Delete(IMediator mediator) : Endpoint<DeleteRequest, Results<NoCont
         {
             return TypedResults.NoContent();
         }
-        else if (result.Status == Endatix.Core.Infrastructure.Result.ResultStatus.NotFound)
+        else if (result.Status == ResultStatus.NotFound)
         {
             return TypedResults.NotFound();
         }

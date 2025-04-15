@@ -25,7 +25,7 @@ public class GetByIdTests
         // Arrange
         var request = new GetByIdRequest { ThemeId = 1 };
         var result = Result<Theme>.NotFound();
-        
+
         _mediator.Send(Arg.Any<GetThemeByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -43,7 +43,7 @@ public class GetByIdTests
         // Arrange
         var request = new GetByIdRequest { ThemeId = 0 }; // Invalid ID
         var result = Result<Theme>.Invalid();
-        
+
         _mediator.Send(Arg.Any<GetThemeByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -62,7 +62,7 @@ public class GetByIdTests
         var request = new GetByIdRequest { ThemeId = 1 };
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme", "Test Description", "{\"primaryColor\":\"#123456\"}") { Id = 1 };
         var result = Result<Theme>.Success(theme);
-        
+
         _mediator.Send(Arg.Any<GetThemeByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -84,7 +84,7 @@ public class GetByIdTests
         var request = new GetByIdRequest { ThemeId = 1 };
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme") { Id = 1 };
         var result = Result<Theme>.Success(theme);
-        
+
         _mediator.Send(Arg.Any<GetThemeByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -97,4 +97,4 @@ public class GetByIdTests
             Arg.Any<CancellationToken>()
         );
     }
-} 
+}

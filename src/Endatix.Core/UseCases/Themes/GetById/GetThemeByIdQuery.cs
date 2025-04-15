@@ -1,4 +1,3 @@
-using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -21,7 +20,6 @@ public record GetThemeByIdQuery : IQuery<Result<Theme>>
     /// <param name="themeId">The ID of the theme to retrieve.</param>
     public GetThemeByIdQuery(long themeId)
     {
-        Guard.Against.NegativeOrZero(themeId, nameof(themeId));
         ThemeId = themeId;
     }
-} 
+}

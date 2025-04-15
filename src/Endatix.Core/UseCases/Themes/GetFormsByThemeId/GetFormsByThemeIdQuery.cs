@@ -21,7 +21,6 @@ public record GetFormsByThemeIdQuery : IQuery<Result<List<Form>>>
     /// <param name="themeId">The ID of the theme.</param>
     public GetFormsByThemeIdQuery(long themeId)
     {
-        Guard.Against.NegativeOrZero(themeId, nameof(themeId));
         ThemeId = themeId;
     }
 } 

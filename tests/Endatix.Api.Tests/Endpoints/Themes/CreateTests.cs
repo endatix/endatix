@@ -2,10 +2,9 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Models.Themes;
 using Endatix.Api.Endpoints.Themes;
 using Endatix.Core.UseCases.Themes.Create;
-using System.Text.Json;
+
 using Endatix.Core.Entities;
 
 namespace Endatix.Api.Tests.Endpoints.Themes;
@@ -31,9 +30,9 @@ public class CreateTests
             Description = "Test Description",
             JsonData = ""
         };
-        
+
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<CreateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -49,13 +48,13 @@ public class CreateTests
     public async Task ExecuteAsync_ValidRequest_ReturnsCreatedWithTheme()
     {
         // Arrange
-        var request = new CreateRequest 
-        { 
+        var request = new CreateRequest
+        {
             Name = "Test Theme",
             Description = "Test Description",
             JsonData = "{\"primaryColor\":\"#123456\"}"
         };
-        
+
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme", "Test Description", "{\"primaryColor\":\"#123456\"}") { Id = 1 };
         var result = Result<Theme>.Created(theme);
 
@@ -101,10 +100,10 @@ public class CreateTests
             Description = "Test Description",
             JsonData = "{\"primaryColor\":\"#123456\"}"
         };
-        
+
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme", "Test Description", "{\"primaryColor\":\"#123456\"}") { Id = 1 };
         var result = Result<Theme>.Created(theme);
-        
+
         _mediator.Send(Arg.Any<CreateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -120,4 +119,4 @@ public class CreateTests
             Arg.Any<CancellationToken>()
         );
     }
-} 
+}

@@ -24,8 +24,9 @@ public class DeleteTests
         // Arrange
         var request = new DeleteRequest { ThemeId = 1 };
         var result = Result.NotFound();
-        
-        _mediator.Send(Arg.Any<DeleteThemeCommand>(), Arg.Any<CancellationToken>())
+        var deleteThemeCommand = new DeleteThemeCommand(request.ThemeId);
+
+        _mediator.Send(Arg.Is(deleteThemeCommand), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
         // Act
@@ -42,7 +43,7 @@ public class DeleteTests
         // Arrange
         var request = new DeleteRequest { ThemeId = 0 }; // Invalid ID
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<DeleteThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -60,7 +61,7 @@ public class DeleteTests
         // Arrange
         var request = new DeleteRequest { ThemeId = 1 };
         var result = Result.Success();
-        
+
         _mediator.Send(Arg.Any<DeleteThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -78,7 +79,7 @@ public class DeleteTests
         // Arrange
         var request = new DeleteRequest { ThemeId = 1 };
         var result = Result.Success();
-        
+
         _mediator.Send(Arg.Any<DeleteThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -91,4 +92,4 @@ public class DeleteTests
             Arg.Any<CancellationToken>()
         );
     }
-} 
+}

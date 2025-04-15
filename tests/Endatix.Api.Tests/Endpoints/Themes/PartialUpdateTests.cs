@@ -31,7 +31,7 @@ public class PartialUpdateTests
             Name = "Updated Theme"
         };
         var result = Result<Theme>.NotFound();
-        
+
         _mediator.Send(Arg.Any<PartialUpdateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -53,7 +53,7 @@ public class PartialUpdateTests
             Name = "Updated Theme"
         };
         var result = Result<Theme>.Invalid();
-        
+
         _mediator.Send(Arg.Any<PartialUpdateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -92,10 +92,10 @@ public class PartialUpdateTests
             ThemeId = 1,
             Name = "Updated Theme"
         };
-        
+
         var theme = new Theme(SampleData.TENANT_ID, "Updated Theme") { Id = 1 };
         var result = Result<Theme>.Success(theme);
-        
+
         _mediator.Send(Arg.Any<PartialUpdateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -118,10 +118,10 @@ public class PartialUpdateTests
             ThemeId = 1,
             Name = "Updated Theme"
         };
-        
+
         var theme = new Theme(SampleData.TENANT_ID, "Updated Theme") { Id = 1 };
         var result = Result<Theme>.Success(theme);
-        
+
         _mediator.Send(Arg.Any<PartialUpdateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -149,10 +149,10 @@ public class PartialUpdateTests
             ThemeId = 1,
             Description = "Updated Description"
         };
-        
+
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme", "Updated Description") { Id = 1 };
         var result = Result<Theme>.Success(theme);
-        
+
         _mediator.Send(Arg.Any<PartialUpdateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -180,10 +180,10 @@ public class PartialUpdateTests
             ThemeId = 1,
             JsonData = "{\"primaryColor\":\"#123456\"}"
         };
-        
+
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme") { Id = 1 };
         var result = Result<Theme>.Success(theme);
-        
+
         _mediator.Send(Arg.Any<PartialUpdateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -201,4 +201,4 @@ public class PartialUpdateTests
             Arg.Any<CancellationToken>()
         );
     }
-} 
+}

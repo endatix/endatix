@@ -13,14 +13,13 @@ public record DeleteThemeCommand : ICommand<Result>
     /// The ID of the theme to delete.
     /// </summary>
     public long ThemeId { get; }
-    
+
     /// <summary>
     /// Creates a new instance of DeleteThemeCommand.
     /// </summary>
     /// <param name="themeId">The ID of the theme to delete.</param>
     public DeleteThemeCommand(long themeId)
     {
-        Guard.Against.NegativeOrZero(themeId, nameof(themeId));
         ThemeId = themeId;
     }
-} 
+}

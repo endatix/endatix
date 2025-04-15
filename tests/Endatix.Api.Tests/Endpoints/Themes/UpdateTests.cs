@@ -2,11 +2,9 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Models.Themes;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Themes;
 using Endatix.Core.UseCases.Themes.Update;
-using System.Text.Json;
 
 namespace Endatix.Api.Tests.Endpoints.Themes;
 
@@ -33,7 +31,7 @@ public class UpdateTests
             JsonData = "{\"primaryColor\":\"#654321\"}"
         };
         var result = Result<Theme>.NotFound();
-        
+
         _mediator.Send(Arg.Any<UpdateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -57,7 +55,7 @@ public class UpdateTests
             JsonData = "{\"primaryColor\":\"#654321\"}"
         };
         var result = Result<Theme>.Invalid();
-        
+
         _mediator.Send(Arg.Any<UpdateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -100,10 +98,10 @@ public class UpdateTests
             Description = "Updated Description",
             JsonData = "{\"primaryColor\":\"#654321\"}"
         };
-        
+
         var theme = new Theme(SampleData.TENANT_ID, "Updated Theme", "Updated Description", "{\"primaryColor\":\"#654321\"}") { Id = 1 };
         var result = Result<Theme>.Success(theme);
-        
+
         _mediator.Send(Arg.Any<UpdateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -128,10 +126,10 @@ public class UpdateTests
             Description = "Updated Description",
             JsonData = "{\"primaryColor\":\"#654321\"}"
         };
-        
+
         var theme = new Theme(SampleData.TENANT_ID, "Updated Theme", "Updated Description", "{\"primaryColor\":\"#654321\"}") { Id = 1 };
         var result = Result<Theme>.Success(theme);
-        
+
         _mediator.Send(Arg.Any<UpdateThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -148,4 +146,4 @@ public class UpdateTests
             Arg.Any<CancellationToken>()
         );
     }
-} 
+}

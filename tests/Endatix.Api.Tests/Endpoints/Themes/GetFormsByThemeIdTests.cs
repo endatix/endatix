@@ -26,7 +26,7 @@ public class GetFormsByThemeIdTests
         // Arrange
         var request = new GetFormsByThemeIdRequest { ThemeId = 1 };
         var result = Result<List<Form>>.NotFound();
-        
+
         _mediator.Send(Arg.Any<GetFormsByThemeIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -44,7 +44,7 @@ public class GetFormsByThemeIdTests
         // Arrange
         var request = new GetFormsByThemeIdRequest { ThemeId = 0 }; // Invalid ID
         var result = Result<List<Form>>.Invalid();
-        
+
         _mediator.Send(Arg.Any<GetFormsByThemeIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -61,15 +61,15 @@ public class GetFormsByThemeIdTests
     {
         // Arrange
         var request = new GetFormsByThemeIdRequest { ThemeId = 1 };
-        
+
         var forms = new List<Form>
         {
             new Form(SampleData.TENANT_ID, "Form 1") { Id = 1 },
             new Form(SampleData.TENANT_ID, "Form 2") { Id = 2 }
         };
-        
+
         var result = Result<List<Form>>.Success(forms);
-        
+
         _mediator.Send(Arg.Any<GetFormsByThemeIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -90,7 +90,7 @@ public class GetFormsByThemeIdTests
         var request = new GetFormsByThemeIdRequest { ThemeId = 1 };
         var forms = new List<Form>();
         var result = Result<List<Form>>.Success(forms);
-        
+
         _mediator.Send(Arg.Any<GetFormsByThemeIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -111,7 +111,7 @@ public class GetFormsByThemeIdTests
         var request = new GetFormsByThemeIdRequest { ThemeId = 1 };
         var forms = new List<Form>();
         var result = Result<List<Form>>.Success(forms);
-        
+
         _mediator.Send(Arg.Any<GetFormsByThemeIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
 
@@ -124,4 +124,4 @@ public class GetFormsByThemeIdTests
             Arg.Any<CancellationToken>()
         );
     }
-} 
+}

@@ -15,22 +15,22 @@ public record PartialUpdateThemeCommand : ICommand<Result<Theme>>
     /// The ID of the theme to update.
     /// </summary>
     public long ThemeId { get; }
-    
+
     /// <summary>
     /// The new name for the theme (optional).
     /// </summary>
     public string? Name { get; }
-    
+
     /// <summary>
     /// The new description for the theme (optional).
     /// </summary>
     public string? Description { get; }
-    
+
     /// <summary>
     /// The new theme data (optional).
     /// </summary>
     public ThemeData? ThemeData { get; }
-    
+
     /// <summary>
     /// Creates a new instance of PartialUpdateThemeCommand.
     /// </summary>
@@ -40,11 +40,9 @@ public record PartialUpdateThemeCommand : ICommand<Result<Theme>>
     /// <param name="themeData">The new theme data (optional).</param>
     public PartialUpdateThemeCommand(long themeId, string? name = null, string? description = null, ThemeData? themeData = null)
     {
-        Guard.Against.NegativeOrZero(themeId, nameof(themeId));
-        
         ThemeId = themeId;
         Name = name;
         Description = description;
         ThemeData = themeData;
     }
-} 
+}
