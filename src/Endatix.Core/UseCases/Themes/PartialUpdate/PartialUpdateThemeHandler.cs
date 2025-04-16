@@ -34,6 +34,8 @@ public class PartialUpdateThemeHandler(IThemesRepository themesRepository) : ICo
                 return Result<Theme>.NotFound($"Theme not found");
             }
 
+            // Check if another theme with the same name exists.
+            // NOTE: this might be removed to support color scheme and border variants since names should match
             if (!string.IsNullOrEmpty(request.Name))
             {
                 var existingTheme = await themesRepository.FirstOrDefaultAsync(

@@ -30,10 +30,11 @@ public class UpdateThemeHandler(IRepository<Theme> themesRepository) : ICommandH
             var theme = await themesRepository.GetByIdAsync(request.ThemeId, cancellationToken);
             if (theme == null)
             {
-                return Result<Theme>.NotFound($"Theme with ID {request.ThemeId} not found");
+                return Result<Theme>.NotFound($"Theme not found");
             }
 
-            // Check if another theme with the same name exists
+            // Check if another theme with the same name exists.
+            // NOTE: this might be removed to support color scheme and border variants since names should match
             var existingTheme = await themesRepository.FirstOrDefaultAsync(
                 new ThemeSpecifications.ByName(request.Name), 
                 cancellationToken);
@@ -48,7 +49,7 @@ public class UpdateThemeHandler(IRepository<Theme> themesRepository) : ICommandH
 
             if (request.ThemeData != null)
             {
-                string jsonData = JsonSerializer.Serialize(request.ThemeData);
+                var jsonData = JsonSerializer.Serialize(request.ThemeData);
                 theme.UpdateJsonData(jsonData);
             }
 
