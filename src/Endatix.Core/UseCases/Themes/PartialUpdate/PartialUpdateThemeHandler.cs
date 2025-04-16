@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -13,7 +14,7 @@ namespace Endatix.Core.UseCases.Themes.PartialUpdate;
 /// <summary>
 /// Handler for partially updating a theme.
 /// </summary>
-public class PartialUpdateThemeHandler(IRepository<Theme> themesRepository) : ICommandHandler<PartialUpdateThemeCommand, Result<Theme>>
+public class PartialUpdateThemeHandler(IThemesRepository themesRepository) : ICommandHandler<PartialUpdateThemeCommand, Result<Theme>>
 {
     /// <summary>
     /// Handles the partial update of a theme.
@@ -30,13 +31,13 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themesRepository) : IC
             var theme = await themesRepository.GetByIdAsync(request.ThemeId, cancellationToken);
             if (theme == null)
             {
-                return Result<Theme>.NotFound($"Theme with ID {request.ThemeId} not found");
+                return Result<Theme>.NotFound($"Theme not found");
             }
 
             if (!string.IsNullOrEmpty(request.Name))
             {
                 var existingTheme = await themesRepository.FirstOrDefaultAsync(
-                    new ThemeSpecifications.ByName(request.Name), 
+                    new ThemeSpecifications.ByName(request.Name),
                     cancellationToken);
 
                 if (existingTheme != null && existingTheme.Id != request.ThemeId)
@@ -68,4 +69,4 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themesRepository) : IC
             return Result<Theme>.Error($"Error updating theme: {ex.Message}");
         }
     }
-} 
+}
