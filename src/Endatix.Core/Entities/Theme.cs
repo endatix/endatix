@@ -1,5 +1,7 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Models.Themes;
+using System.Text.Json;
 
 namespace Endatix.Core.Entities;
 
@@ -13,7 +15,7 @@ public class Theme : TenantEntity, IAggregateRoot
         : base(tenantId)
     {
         Guard.Against.NullOrEmpty(name, nameof(name));
-        
+
         Name = name;
         Description = description;
         JsonData = jsonData ?? "{}"; // Default to empty JSON object
@@ -21,7 +23,7 @@ public class Theme : TenantEntity, IAggregateRoot
 
     public string Name { get; private set; }
     public string? Description { get; private set; }
-    
+
     /// <summary>
     /// The JSON data representing the theme properties.
     /// Uses JSONB in PostgreSQL and NVARCHAR(MAX) in SQL Server.
@@ -40,6 +42,19 @@ public class Theme : TenantEntity, IAggregateRoot
     {
         Guard.Against.NullOrEmpty(name, nameof(name));
         Name = name;
+        if (!string.IsNullOrEmpty(JsonData))
+        {
+            try
+            {
+                var themeData = JsonSerializer.Deserialize<ThemeData>(JsonData) ?? new ThemeData();
+                themeData.ThemeName = name;
+                JsonData = JsonSerializer.Serialize(themeData);
+            }
+            catch (JsonException)
+            {
+                JsonData = JsonSerializer.Serialize(new ThemeData() { ThemeName = name });
+            }
+        }
     }
 
     /// <summary>
@@ -66,4 +81,4 @@ public class Theme : TenantEntity, IAggregateRoot
             base.Delete();
         }
     }
-} 
+}
