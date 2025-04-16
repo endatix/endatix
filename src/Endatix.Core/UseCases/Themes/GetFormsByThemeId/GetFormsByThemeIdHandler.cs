@@ -1,5 +1,4 @@
 using Ardalis.GuardClauses;
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -25,9 +24,8 @@ public class GetFormsByThemeIdHandler(IRepository<Form> formsRepository) : IQuer
 
         try
         {
-            var forms = await formsRepository.ListAsync(
-                new FormSpecifications.ByThemeId(request.ThemeId), 
-                cancellationToken);
+            var formsUsingThemeSpecification = new FormSpecifications.ByThemeId(request.ThemeId);
+            var forms = await formsRepository.ListAsync(formsUsingThemeSpecification, cancellationToken);
 
             return Result<List<Form>>.Success(forms.ToList());
         }
@@ -36,4 +34,4 @@ public class GetFormsByThemeIdHandler(IRepository<Form> formsRepository) : IQuer
             return Result<List<Form>>.Error($"Error retrieving forms: {ex.Message}");
         }
     }
-} 
+}
