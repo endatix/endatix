@@ -1,7 +1,7 @@
 using FastEndpoints;
 using FluentValidation;
 
-namespace Endatix.Api.Endpoints.Themes.GetFormsByThemeId;
+namespace Endatix.Api.Endpoints.Themes;
 
 /// <summary>
 /// Validator for the GetFormsByThemeIdRequest.

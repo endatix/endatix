@@ -3,7 +3,7 @@ using Endatix.Core.Models.Themes;
 using FastEndpoints;
 using FluentValidation;
 
-namespace Endatix.Api.Endpoints.Themes.Update;
+namespace Endatix.Api.Endpoints.Themes;
 
 public class UpdateValidator : Validator<UpdateRequest>
 {
