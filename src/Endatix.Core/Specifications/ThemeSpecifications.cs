@@ -1,5 +1,7 @@
 using Ardalis.Specification;
 using Endatix.Core.Entities;
+using Endatix.Core.Specifications.Parameters;
+using Endatix.Core.Specifications.Common;
 
 namespace Endatix.Core.Specifications;
 
@@ -42,17 +44,18 @@ public static class ThemeSpecifications
             Query.Where(t => t.Name.ToLower().Contains(filterText.ToLower()));
         }
     }
-    
+
     /// <summary>
     /// Specification to get themes with pagination
     /// </summary>
     public sealed class Paginated : Specification<Theme>
     {
-        public Paginated(int page, int pageSize)
+        public Paginated(PagingParameters pagingParams)
         {
             Query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize);
+                .OrderByDescending(x => x.ModifiedAt)
+                .Paginate(pagingParams)
+                .AsNoTracking();
         }
     }
-} 
+}

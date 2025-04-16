@@ -7,18 +7,18 @@ namespace Endatix.Core.UseCases.Themes.List;
 /// <summary>
 /// Query for retrieving all themes.
 /// </summary>
-public record ListThemesQuery : IQuery<Result<List<Theme>>>
+public record ListThemesQuery : IQuery<Result<IEnumerable<Theme>>>
 {
     /// <summary>
     /// The page number to retrieve (optional, for pagination).
     /// </summary>
     public int? Page { get; }
-    
+
     /// <summary>
     /// The number of items per page (optional, for pagination).
     /// </summary>
     public int? PageSize { get; }
-    
+
     /// <summary>
     /// Creates a new instance of ListThemesQuery.
     /// </summary>
@@ -29,4 +29,4 @@ public record ListThemesQuery : IQuery<Result<List<Theme>>>
         Page = page;
         PageSize = pageSize;
     }
-} 
+}
