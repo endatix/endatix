@@ -31,7 +31,7 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumer
     /// <inheritdoc/>
     public override async Task<Results<Ok<IEnumerable<ThemeModel>>, BadRequest>> ExecuteAsync(ListRequest request, CancellationToken cancellationToken)
     {
-        var query = new ListThemesQuery();
+        var query = new ListThemesQuery(request.Page, request.PageSize);
         var result = await mediator.Send(query, cancellationToken);
 
         return TypedResultsBuilder
