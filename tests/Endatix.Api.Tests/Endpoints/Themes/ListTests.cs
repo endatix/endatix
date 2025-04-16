@@ -24,7 +24,7 @@ public class ListTests
     {
         // Arrange
         var request = new ListRequest();
-        var result = Result<List<Theme>>.Invalid();
+        var result = Result<IEnumerable<Theme>>.Invalid();
 
         _mediator.Send(Arg.Any<ListThemesQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
@@ -47,7 +47,7 @@ public class ListTests
             new Theme(SampleData.TENANT_ID, "Theme 1") { Id = 1 },
             new Theme(SampleData.TENANT_ID, "Theme 2") { Id = 2 }
         };
-        var result = Result<List<Theme>>.Success(themes);
+        var result = Result<IEnumerable<Theme>>.Success(themes);
 
         _mediator.Send(Arg.Any<ListThemesQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
@@ -68,7 +68,7 @@ public class ListTests
         // Arrange
         var request = new ListRequest();
         var themes = new List<Theme>();
-        var result = Result<List<Theme>>.Success(themes);
+        var result = Result<IEnumerable<Theme>>.Success(themes);
 
         _mediator.Send(Arg.Any<ListThemesQuery>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
