@@ -1,9 +1,7 @@
 using Ardalis.GuardClauses;
-using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Infrastructure.Messaging;
-using MediatR;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Reflection;
 
 namespace Endatix.Infrastructure.Builders;
 
@@ -75,6 +73,24 @@ public class InfrastructureMessagingBuilder
         }
 
         return this;
+    }
+
+    /// <summary>
+    /// Adds a single assembly to be scanned for MediatR handlers.
+    /// </summary>
+    /// <param name="assembly">The assembly to add.</param>
+    /// <returns>The builder for chaining.</returns>
+    public InfrastructureMessagingBuilder AddAssembly(Assembly assembly)
+    {
+        Guard.Against.Null(assembly);
+
+        LogSetupInfo($"Adding assembly to MediatR scan: {assembly.GetName().Name}");
+
+        return Configure(options =>
+        {
+            var currentAssemblies = options.AdditionalAssemblies;
+            options.AdditionalAssemblies = [.. currentAssemblies, assembly];
+        });
     }
 
     /// <summary>
