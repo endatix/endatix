@@ -21,13 +21,11 @@ public class GetThemeByIdHandler(IThemesRepository themesRepository) : IQueryHan
     {
         try
         {
-            var theme = await themesRepository.FirstOrDefaultAsync(
-                new ThemeSpecifications.ByIdWithForms(request.ThemeId),
-                cancellationToken);
+            var theme = await themesRepository.GetByIdAsync(request.ThemeId, cancellationToken);
 
             if (theme == null)
             {
-                return Result<Theme>.NotFound($"Theme with ID {request.ThemeId} not found");
+                return Result<Theme>.NotFound($"Theme not found.");
             }
 
             return Result<Theme>.Success(theme);
@@ -37,4 +35,4 @@ public class GetThemeByIdHandler(IThemesRepository themesRepository) : IQueryHan
             return Result<Theme>.Error($"Error retrieving theme: {ex.Message}");
         }
     }
-} 
+}

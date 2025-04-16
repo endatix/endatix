@@ -11,7 +11,7 @@ public static class ThemeSpecifications
     /// <summary>
     /// Specification to get a theme by ID with forms
     /// </summary>
-    public sealed class ByIdWithForms : Specification<Theme>, ISingleResultSpecification
+    public sealed class ByIdWithForms : Specification<Theme>, ISingleResultSpecification<Theme>
     {
         public ByIdWithForms(long id)
         {
@@ -24,7 +24,7 @@ public static class ThemeSpecifications
     /// <summary>
     /// Specification to get a theme by name (case-insensitive)
     /// </summary>
-    public sealed class ByName : Specification<Theme>, ISingleResultSpecification
+    public sealed class ByName : Specification<Theme>, ISingleResultSpecification<Theme>
     {
         public ByName(string name)
         {
