@@ -34,7 +34,7 @@ public class CreateThemeHandler(
         {
             // Check if a theme with the same name already exists for this tenant
             var existingTheme = await themesRepository.FirstOrDefaultAsync(
-                new ThemeSpecifications.ByName(request.Name), 
+                new ThemeSpecifications.ByName(request.Name),
                 cancellationToken);
 
             if (existingTheme != null)
@@ -42,12 +42,12 @@ public class CreateThemeHandler(
                 return Result<Theme>.Error($"A theme with the name '{request.Name}' already exists");
             }
 
-            var jsonData = request.ThemeData != null 
-                ? JsonSerializer.Serialize(request.ThemeData) 
+            var jsonData = request.ThemeData != null
+                ? JsonSerializer.Serialize(request.ThemeData)
                 : JsonSerializer.Serialize(new ThemeData { ThemeName = request.Name });
 
             var theme = new Theme(tenantId, request.Name, request.Description, jsonData);
-            
+
             await themesRepository.AddAsync(theme, cancellationToken);
             await themesRepository.SaveChangesAsync(cancellationToken);
 
@@ -58,4 +58,4 @@ public class CreateThemeHandler(
             return Result<Theme>.Error($"Error creating theme: {ex.Message}");
         }
     }
-} 
+}

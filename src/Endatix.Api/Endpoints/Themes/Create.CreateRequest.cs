@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace Endatix.Api.Endpoints.Themes;
 
 /// <summary>
