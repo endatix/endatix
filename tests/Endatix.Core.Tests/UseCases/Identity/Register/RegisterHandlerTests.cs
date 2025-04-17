@@ -13,31 +13,13 @@ public class RegisterHandlerTests
 {
     private readonly IUserRegistrationService _userRegistrationService;
     private readonly IMediator _mediator;
-    private readonly ITenantContext _tenantContext;
     private readonly RegisterHandler _handler;
 
     public RegisterHandlerTests()
     {
         _userRegistrationService = Substitute.For<IUserRegistrationService>();
         _mediator = Substitute.For<IMediator>();
-        _tenantContext = Substitute.For<ITenantContext>();
-        _handler = new RegisterHandler(_userRegistrationService, _mediator, _tenantContext);
-    }
-
-    [Fact]
-    public async Task Handle_TenantIdIsZero_ThrowsArgumentNullException()
-    {
-        // Arrange
-        var request = new RegisterCommand("test@example.com", "password");
-        _tenantContext.TenantId.Returns(0);
-
-        // Act
-        var act = () => _handler.Handle(request, CancellationToken.None);
-
-        // Assert
-        var expectedMessage = GetErrorMessage("tenantContext.TenantId", ZeroOrNegative);
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage(expectedMessage);
+        _handler = new RegisterHandler(_userRegistrationService, _mediator);
     }
 
     [Fact]
@@ -46,12 +28,10 @@ public class RegisterHandlerTests
         // Arrange
         var email = "test@example.com";
         var password = "password";
-        var tenantId = 1L;
         var request = new RegisterCommand(email, password);
         var failureResult = Result<User>.Error("Registration failed");
         
-        _tenantContext.TenantId.Returns(tenantId);
-        _userRegistrationService.RegisterUserAsync(tenantId, email, password, Arg.Any<CancellationToken>())
+        _userRegistrationService.RegisterUserAsync(email, password, Arg.Any<CancellationToken>())
             .Returns(failureResult);
 
         // Act
@@ -74,8 +54,7 @@ public class RegisterHandlerTests
         var user = new User(1, tenantId, email, email, true);
         var successResult = Result<User>.Success(user);
 
-        _tenantContext.TenantId.Returns(tenantId);
-        _userRegistrationService.RegisterUserAsync(tenantId, email, password, Arg.Any<CancellationToken>())
+        _userRegistrationService.RegisterUserAsync(email, password, Arg.Any<CancellationToken>())
             .Returns(successResult);
 
         // Act

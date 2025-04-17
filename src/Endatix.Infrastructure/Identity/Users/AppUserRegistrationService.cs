@@ -10,18 +10,49 @@ namespace Endatix.Infrastructure.Identity.Users;
 /// </summary>
 public class AppUserRegistrationService(UserManager<AppUser> userManager, IUserStore<AppUser> userStore) : IUserRegistrationService
 {
+    // This is a short list of the top domains known to be used most frequently in disposable email registrations.
+    // It is a good start but for better results more complete lists should be used, like from e.g. https://github.com/disposable-email-domains/disposable-email-domains
+    // An even better approach is to use more advanced email validation techniques than just using blocked domains lists.
+    private static readonly HashSet<string> _disposableDomains = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "mailinator.com",
+        "10minutemail.com",
+        "tempmail.com",
+        "guerrillamail.com",
+        "yopmail.com",
+        "trashmail.com",
+        "getnada.com",
+        "emailondeck.com",
+        "fakeinbox.com",
+        "dispostable.com",
+        "throwawaymail.com",
+        "maildrop.cc",
+        "spamgourmet.com",
+        "mintemail.com",
+        "mytemp.email",
+        "moakt.com",
+        "mailcatch.com",
+        "inboxkitten.com",
+        "temp-mail.org",
+        "easytrashmail.com"
+    };
+
     /// <inheritdoc />
-    public async Task<Result<User>> RegisterUserAsync(long tenantId, string email, string password, CancellationToken cancellationToken)
+    public async Task<Result<User>> RegisterUserAsync(string email, string password, CancellationToken cancellationToken)
     {
         if (!userManager.SupportsUserEmail)
         {
             throw new NotSupportedException($"Registration logic requires a user store with email support. Please check your email settings");
         }
 
+        if (IsDisposableEmail(email))
+        {
+            return Result.Invalid(new ValidationError("The email is from a suspicious domain."));
+        }
+
         var newUser = new AppUser
         {
-            TenantId = tenantId,
-            EmailConfirmed = true
+            EmailConfirmed = false
         };
 
         var emailStore = (IUserEmailStore<AppUser>)userStore;
@@ -29,14 +60,29 @@ public class AppUserRegistrationService(UserManager<AppUser> userManager, IUserS
         await emailStore.SetEmailAsync(newUser, email, CancellationToken.None);
 
         var createUserResult = await userManager.CreateAsync(newUser, password);
-
         if (!createUserResult.Succeeded)
         {
+            if (createUserResult.Errors.Any(error => error.Code == "DuplicateUserName"))
+            {
+                return Result.Invalid(new ValidationError("The email is already registered."));
+            }
+            
             var resultErrors = new ErrorList(createUserResult.Errors.Select(error => $"Error code: {error.Code}. {error.Description}"));
             return Result.Error(resultErrors);
         }
 
         var domainUser = newUser.ToUserEntity();
         return Result.Success(domainUser);
+    }
+
+    public bool IsDisposableEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+        {
+            return true;
+        }
+
+        var domain = email.Split('@')[1].Trim().ToLowerInvariant();
+        return _disposableDomains.Contains(domain);
     }
 }

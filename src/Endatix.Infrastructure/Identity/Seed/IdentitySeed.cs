@@ -60,7 +60,7 @@ namespace Endatix.Infrastructure.Identity.Seed
                 password = DEFAULT_ADMIN_PASSWORD;
             }
 
-            await userRegistrationService.RegisterUserAsync(DEFAULT_ADMIN_TENANT_ID, email, password, CancellationToken.None);
+            await userRegistrationService.RegisterUserAsync(email, password, CancellationToken.None);
             logger.LogInformation($"👤 Initial user {email} created successfully! Please use it to authenticate.");
         }
     }

@@ -30,13 +30,27 @@ public class AppUser : IdentityUser<long>
         Guard.Against.NullOrEmpty(UserName);
         Guard.Against.NullOrEmpty(Email);
 
-        var user = new User(
-            id: Id,
-            tenantId: TenantId,
-            userName: UserName,
-            email: Email,
-            isVerified: EmailConfirmed
-        );
+        User user;
+        if (TenantId > 0)
+        {
+            user = new User(
+                id: Id,
+                tenantId: TenantId,
+                userName: UserName,
+                email: Email,
+                isVerified: EmailConfirmed
+            );
+        }
+        else
+        {
+            // Used when a new user is created and still does not have a tenant
+            user = new User(
+                id: Id,
+                userName: UserName,
+                email: Email,
+                isVerified: EmailConfirmed
+            );
+        }
 
         return user;
     }

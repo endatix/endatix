@@ -31,7 +31,7 @@ public class AppUserRegistrationServiceTests
         _userManager.SupportsUserEmail.Returns(false);
 
         // Act
-        var act = () => _sut.RegisterUserAsync(tenantId, email, password, CancellationToken.None);
+        var act = () => _sut.RegisterUserAsync(email, password, CancellationToken.None);
 
         // Assert
         await act.Should().ThrowAsync<NotSupportedException>()
@@ -52,7 +52,7 @@ public class AppUserRegistrationServiceTests
             .Returns(IdentityResult.Failed(identityError));
 
         // Act
-        var result = await _sut.RegisterUserAsync(tenantId, email, password, CancellationToken.None);
+        var result = await _sut.RegisterUserAsync(email, password, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -98,7 +98,7 @@ public class AppUserRegistrationServiceTests
             });
 
         // Act
-        var result = await _sut.RegisterUserAsync(tenantId, email, password, cancellationToken);
+        var result = await _sut.RegisterUserAsync(email, password, cancellationToken);
 
         // Assert
         result.Should().NotBeNull();
