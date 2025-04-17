@@ -35,4 +35,9 @@ public class FormDefinitionModel
     /// The date and time when the form definition was last modified.
     /// </summary>
     public DateTime? ModifiedAt { get; set; }
+
+    /// <summary>
+    /// The JSON data of the associated theme.
+    /// </summary>
+    public string? ThemeJsonData { get; set; }
 }

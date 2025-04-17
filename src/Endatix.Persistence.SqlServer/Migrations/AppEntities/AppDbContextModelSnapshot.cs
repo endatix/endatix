@@ -56,6 +56,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("ThemeId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ActiveDefinitionId")
@@ -63,6 +66,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasFilter("[ActiveDefinitionId] IS NOT NULL");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("ThemeId");
 
                     b.ToTable("Forms", (string)null);
                 });
@@ -234,6 +239,45 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.ToTable("Tenants", (string)null);
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.Theme", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JsonData")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("Themes", (string)null);
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.Form", b =>
                 {
                     b.HasOne("Endatix.Core.Entities.FormDefinition", "ActiveDefinition")
@@ -247,9 +291,16 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Endatix.Core.Entities.Theme", "Theme")
+                        .WithMany("Forms")
+                        .HasForeignKey("ThemeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("ActiveDefinition");
 
                     b.Navigation("Tenant");
+
+                    b.Navigation("Theme");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormDefinition", b =>
@@ -345,6 +396,17 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Navigation("Token");
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.Theme", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.Form", b =>
                 {
                     b.Navigation("FormDefinitions");
@@ -362,6 +424,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Navigation("Forms");
 
                     b.Navigation("Submissions");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Theme", b =>
+                {
+                    b.Navigation("Forms");
                 });
 #pragma warning restore 612, 618
         }

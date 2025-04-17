@@ -29,13 +29,21 @@ For detailed installation instructions, please visit [Endatix Installation Guide
 
 ## For AppDbContext Entities
 ```bash
+## For PostgreSQL
 dotnet ef migrations add InitialEntities --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.PostgreSql  --context AppDbContext --output-dir Migrations/AppEntities
+
+## For MS SQL Server
+dotnet ef migrations add InitialEntities --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.SqlServer  --context AppDbContext --output-dir Migrations/AppEntities
 ```
 
 ## For AppIdentityDbContext Entities
 
 ```bash
+## For PostgreSQL
 dotnet ef migrations add InitialIdentity --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.PostgreSql  --context AppIdentityDbContext --output-dir Migrations/AppIdentity
+
+## For MS SQL Server
+dotnet ef migrations add InitialIdentity --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.SqlServer  --context AppIdentityDbContext --output-dir Migrations/AppIdentity
 ```
 
 

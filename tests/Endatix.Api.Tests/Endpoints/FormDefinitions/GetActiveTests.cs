@@ -6,6 +6,7 @@ using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.FormDefinitions;
 using Endatix.Core.UseCases.FormDefinitions.GetActive;
 using Errors = Microsoft.AspNetCore.Mvc;
+using Endatix.Core.UseCases.FormDefinitions;
 
 namespace Endatix.Api.Tests.Endpoints.FormDefinitions;
 
@@ -65,7 +66,9 @@ public class GetActiveTests
         var formId = 1L;
         var request = new GetActiveFormDefinitionRequest { FormId = formId };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, true, "{ }") { Id = 1 };
-        var result = Result.Success(formDefinition);
+        var themeJsonData = "{ \"background\": \"#FFFFFF\" }";
+        var activeDefinitionDto = new ActiveDefinitionDto(formDefinition, themeJsonData);
+        var result = Result.Success(activeDefinitionDto);
 
         _mediator.Send(Arg.Any<GetActiveFormDefinitionQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -79,6 +82,7 @@ public class GetActiveTests
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Id.Should().Be(formDefinition.Id.ToString());
         okResult!.Value!.FormId.Should().Be(formDefinition.FormId.ToString());
+        okResult!.Value!.ThemeJsonData.Should().Be(themeJsonData);
     }
 
     [Fact]
@@ -86,7 +90,10 @@ public class GetActiveTests
     {
         // Arrange
         var request = new GetActiveFormDefinitionRequest { FormId = 123 };
-        var result = Result.Success(new FormDefinition(SampleData.TENANT_ID, true, "{ }"));
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, true, "{ }");
+        var themeJsonData = "{ \"background\": \"#FFFFFF\" }";
+        var activeDefinitionDto = new ActiveDefinitionDto(formDefinition, themeJsonData);
+        var result = Result.Success(activeDefinitionDto);
         
         _mediator.Send(Arg.Any<GetActiveFormDefinitionQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);

@@ -14,8 +14,9 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
     public string? Name { get; init; }
     public string? Description { get; init; }
     public bool? IsEnabled { get; init; }
+    public long? ThemeId { get; init; }
 
-    public PartialUpdateFormCommand(long formId, string? name, string? description, bool? isEnabled)
+    public PartialUpdateFormCommand(long formId, string? name, string? description, bool? isEnabled, long? themeId)
     {
         Guard.Against.NegativeOrZero(formId);
 
@@ -23,5 +24,6 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
+        ThemeId = themeId;
     }
 }

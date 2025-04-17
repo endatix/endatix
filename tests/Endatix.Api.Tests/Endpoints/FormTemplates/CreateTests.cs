@@ -1,12 +1,10 @@
 using FastEndpoints;
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.FormTemplates;
 using Endatix.Core.UseCases.FormTemplates.Create;
-using Endatix.Api.Tests.TestUtils;
 
 namespace Endatix.Api.Tests.Endpoints.FormTemplates;
 
@@ -32,9 +30,9 @@ public class CreateTests
             IsEnabled = true,
             JsonData = "{ }"
         };
-        
+
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<CreateFormTemplateCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -50,14 +48,14 @@ public class CreateTests
     public async Task ExecuteAsync_ValidRequest_ReturnsCreatedWithFormTemplate()
     {
         // Arrange
-        var request = new CreateFormTemplateRequest 
-        { 
+        var request = new CreateFormTemplateRequest
+        {
             Name = "Test Template",
             Description = "Test Description",
             IsEnabled = true,
             JsonData = "{ }"
         };
-        
+
         var formTemplate = new FormTemplate(SampleData.TENANT_ID, request.Name!) { Id = 1 };
         var result = Result<FormTemplate>.Created(formTemplate);
 
@@ -87,7 +85,7 @@ public class CreateTests
             JsonData = "{ }"
         };
         var result = Result<FormTemplate>.Created(new FormTemplate(SampleData.TENANT_ID, "Test Template"));
-        
+
         _mediator.Send(Arg.Any<CreateFormTemplateCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 

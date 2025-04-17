@@ -24,4 +24,9 @@ public class PartialUpdateFormRequest
     /// Indicates if the form is enabled.
     /// </summary>
     public bool? IsEnabled { get; set; }
+
+    /// <summary>
+    /// The ID of the theme to update.
+    /// </summary>
+    public long? ThemeId { get; set; }
 }

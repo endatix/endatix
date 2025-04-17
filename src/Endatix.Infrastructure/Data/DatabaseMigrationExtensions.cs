@@ -53,12 +53,12 @@ public static class DatabaseMigrationExtensions
         if (dbContext.Database.GetPendingMigrations().Any())
         {
             var startTime = Stopwatch.GetTimestamp();
-            logger.LogInformation("💽 Applying database migrations for {dbContextName}", typeof(T).Name);
+            logger.LogWarning("💽 Applying database migrations for {dbContextName}", typeof(T).Name);
 
             await dbContext.Database.MigrateAsync();
 
             var elapsedTime = Stopwatch.GetElapsedTime(startTime);
-            logger.LogInformation("💽 Database migrations applied for {dbContextName}. Took: {elapsedTime} ms.", typeof(T).Name, elapsedTime.TotalMilliseconds);
+            logger.LogWarning("💽 Database migrations applied for {dbContextName}. Took: {elapsedTime} ms.", typeof(T).Name, elapsedTime.TotalMilliseconds);
         }
     }
 }
