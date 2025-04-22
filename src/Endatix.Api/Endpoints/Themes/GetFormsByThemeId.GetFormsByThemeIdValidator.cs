@@ -11,7 +11,6 @@ public class GetFormsByThemeIdValidator : Validator<GetFormsByThemeIdRequest>
     public GetFormsByThemeIdValidator()
     {
         RuleFor(x => x.ThemeId)
-            .GreaterThan(0)
-            .WithMessage("Theme ID must be greater than 0.");
+            .GreaterThan(0);
     }
 }
