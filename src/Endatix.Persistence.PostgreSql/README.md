@@ -11,14 +11,6 @@ Adds support for using PostgreSQL database persistence with the Endatix Platform
 dotnet add package Endatix.Persistence.PostgreSql
 ```
 
-## Recommended Usage:
-
-For running and hosting the Endatix Platform, **Endatix.Api.Host** is the recommended main package as it simplifies the installation and setup process.
-
-```bash
-dotnet add package Endatix.Api.Host
-```
-
 ## More Information:
 For detailed installation instructions, please visit [Endatix Installation Guide](https://docs.endatix.com/docs/getting-started/installation).
 
@@ -31,9 +23,6 @@ For detailed installation instructions, please visit [Endatix Installation Guide
 ```bash
 ## For PostgreSQL
 dotnet ef migrations add InitialEntities --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.PostgreSql  --context AppDbContext --output-dir Migrations/AppEntities
-
-## For MS SQL Server
-dotnet ef migrations add InitialEntities --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.SqlServer  --context AppDbContext --output-dir Migrations/AppEntities
 ```
 
 ## For AppIdentityDbContext Entities
@@ -41,9 +30,6 @@ dotnet ef migrations add InitialEntities --startup-project src/Endatix.WebHost -
 ```bash
 ## For PostgreSQL
 dotnet ef migrations add InitialIdentity --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.PostgreSql  --context AppIdentityDbContext --output-dir Migrations/AppIdentity
-
-## For MS SQL Server
-dotnet ef migrations add InitialIdentity --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.SqlServer  --context AppIdentityDbContext --output-dir Migrations/AppIdentity
 ```
 
 
@@ -55,5 +41,6 @@ dotnet ef migrations add InitialIdentity --startup-project src/Endatix.WebHost -
 3. Create Postgres Login using the pgAdmin
 4. Update appSettings.Development.json by adding this connection string
 ```json
-"DefaultConnection": "Host=localhost; Database=endatix-db; Username=[YOUR_PG_LOGIN]; Password=[YOUR_PG_PASSWORD]"
+"DefaultConnection": "Host=localhost; Database=endatix-db; Username=[YOUR_PG_LOGIN]; Password=[YOUR_PG_PASSWORD]",
+"DefaultConnection_DbProvider": "PostgreSql" // Config first db provider setter. Not required if you configure the DB Provider via c# code.
 ```
