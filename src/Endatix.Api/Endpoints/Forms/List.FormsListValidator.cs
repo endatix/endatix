@@ -9,11 +9,23 @@ namespace Endatix.Api.Endpoints.Forms;
 /// </summary>
 public class FormsListValidator : Validator<FormsListRequest>
 {
+    private static readonly Dictionary<string, Type> _filterableFields = new()
+    {
+        { "id", typeof(long) },
+        { "createdAt", typeof(DateTime) },
+        { "updatedAt", typeof(DateTime) },
+        { "isEnabled", typeof(bool) },
+        { "themeId", typeof(long) },
+        { "activeDefinitionId", typeof(long) },
+        { "name", typeof(string) },
+        { "description", typeof(string) }
+    };
     /// <summary>
     /// Default constructor
     /// </summary>
     public FormsListValidator()
     {
         Include(new PagedRequestValidator());
+        Include(new FilteredRequestValidator(_filterableFields));
     }
 }

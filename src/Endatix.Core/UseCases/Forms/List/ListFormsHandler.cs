@@ -11,7 +11,9 @@ public class ListFormsHandler(IFormsRepository repository) : IQueryHandler<ListF
     public async Task<Result<IEnumerable<FormDto>>> Handle(ListFormsQuery request, CancellationToken cancellationToken)
     {
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
-        var spec = new FormsWithSubmissionsCountSpec(pagingParams);
+        var filterParams = new FilterParameters(request.FilterExpressions!);
+
+        var spec = new FormsWithSubmissionsCountSpec(pagingParams, filterParams);
         IEnumerable<FormDto> forms = await repository.ListAsync(spec, cancellationToken);
 
         return Result.Success(forms);

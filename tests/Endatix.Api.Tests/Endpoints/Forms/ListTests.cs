@@ -69,7 +69,37 @@ public class ListTests
         var request = new FormsListRequest
         {
             Page = 2,
-            PageSize = 20
+            PageSize = 20,
+            Filter = ["expression1", "expression2"]
+        };
+        var result = Result.Success(Enumerable.Empty<FormDto>());
+        
+        _mediator.Send(Arg.Any<ListFormsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<ListFormsQuery>(query =>
+                query.Page == request.Page &&
+                query.PageSize == request.PageSize &&
+                query.FilterExpressions == request.Filter
+            ),
+            Arg.Any<CancellationToken>()
+        );
+    }
+
+     [Fact]
+    public async Task ExecuteAsync_NoFilter_DoesNotPassFilterToQuery()
+    {
+        // Arrange
+        var request = new FormsListRequest
+        {
+            Page = 1,
+            PageSize = 10,
+            Filter = null
         };
         var result = Result.Success(Enumerable.Empty<FormDto>());
         
