@@ -30,7 +30,7 @@ public class ThemeModel
     /// <summary>
     /// The date and time when the theme was created.
     /// </summary>
-    public DateTime? CreatedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
     
     /// <summary>
     /// The date and time when the theme was last modified.
