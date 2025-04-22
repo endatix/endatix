@@ -23,7 +23,7 @@ public class DeleteTests
     {
         // Arrange
         var request = new DeleteRequest { ThemeId = 1 };
-        var result = Result.NotFound();
+        Result<string> result = Result.NotFound();
         var deleteThemeCommand = new DeleteThemeCommand(request.ThemeId);
 
         _mediator.Send(Arg.Is(deleteThemeCommand), Arg.Any<CancellationToken>())
@@ -42,7 +42,7 @@ public class DeleteTests
     {
         // Arrange
         var request = new DeleteRequest { ThemeId = 0 }; // Invalid ID
-        var result = Result.Invalid();
+        Result<string> result = Result.Invalid();
 
         _mediator.Send(Arg.Any<DeleteThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
@@ -60,7 +60,7 @@ public class DeleteTests
     {
         // Arrange
         var request = new DeleteRequest { ThemeId = 1 };
-        var result = Result.Success();
+        var result = Result.Success("1");
 
         _mediator.Send(Arg.Any<DeleteThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));
@@ -69,8 +69,9 @@ public class DeleteTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var noContentResult = response.Result as NoContent;
-        noContentResult.Should().NotBeNull();
+        var okResult = response.Result as Ok<string>;
+        okResult.Should().NotBeNull();
+        okResult!.Value.Should().Be("1");
     }
 
     [Fact]
@@ -78,7 +79,7 @@ public class DeleteTests
     {
         // Arrange
         var request = new DeleteRequest { ThemeId = 1 };
-        var result = Result.Success();
+        var result = Result.Success("1");
 
         _mediator.Send(Arg.Any<DeleteThemeCommand>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(result));

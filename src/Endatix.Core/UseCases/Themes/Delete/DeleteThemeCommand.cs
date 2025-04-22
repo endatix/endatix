@@ -1,4 +1,3 @@
-using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
@@ -7,7 +6,7 @@ namespace Endatix.Core.UseCases.Themes.Delete;
 /// <summary>
 /// Command for deleting a theme.
 /// </summary>
-public record DeleteThemeCommand : ICommand<Result>
+public record DeleteThemeCommand : ICommand<Result<string>>
 {
     /// <summary>
     /// The ID of the theme to delete.

@@ -14,7 +14,7 @@ namespace Endatix.Core.UseCases.Themes.Delete;
 public class DeleteThemeHandler(
     IThemesRepository themesRepository,
     IRepository<Form> formsRepository
-) : ICommandHandler<DeleteThemeCommand, Result>
+) : ICommandHandler<DeleteThemeCommand, Result<string>>
 {
     /// <summary>
     /// Handles the deletion of a theme.
@@ -22,7 +22,7 @@ public class DeleteThemeHandler(
     /// <param name="request">The command containing the theme ID to delete.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Success result if deleted, NotFound if theme doesn't exist.</returns>
-    public async Task<Result> Handle(DeleteThemeCommand request, CancellationToken cancellationToken)
+    public async Task<Result<string>> Handle(DeleteThemeCommand request, CancellationToken cancellationToken)
     {
         Guard.Against.NegativeOrZero(request.ThemeId, nameof(request.ThemeId));
 
@@ -52,7 +52,7 @@ public class DeleteThemeHandler(
             await themesRepository.DeleteAsync(theme, cancellationToken);
             await themesRepository.SaveChangesAsync(cancellationToken);
 
-            return Result.Success();
+            return Result.Success(theme.Id.ToString());
         }
         catch (Exception ex)
         {

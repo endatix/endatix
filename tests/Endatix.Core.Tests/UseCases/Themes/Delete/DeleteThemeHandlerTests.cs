@@ -101,7 +101,7 @@ public class DeleteThemeHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
-
+        result.Value.Should().Be(theme.Id.ToString());
         await _themesRepository.Received(1).DeleteAsync(
             Arg.Is<Theme>(t => t.Id == theme.Id),
             Arg.Any<CancellationToken>()
