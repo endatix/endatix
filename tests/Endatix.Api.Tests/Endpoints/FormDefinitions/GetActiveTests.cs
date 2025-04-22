@@ -82,7 +82,7 @@ public class GetActiveTests
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Id.Should().Be(formDefinition.Id.ToString());
         okResult!.Value!.FormId.Should().Be(formDefinition.FormId.ToString());
-        okResult!.Value!.ThemeJsonData.Should().Be(themeJsonData);
+        okResult!.Value!.ThemeModel.Should().Be(themeJsonData);
     }
 
     [Fact]

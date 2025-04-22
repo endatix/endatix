@@ -37,7 +37,7 @@ public class FormDefinitionModel
     public DateTime? ModifiedAt { get; set; }
 
     /// <summary>
-    /// The JSON data of the associated theme.
+    /// The model of the associated theme stored as a stringified JSON object.
     /// </summary>
-    public string? ThemeJsonData { get; set; }
+    public string? ThemeModel { get; set; }
 }

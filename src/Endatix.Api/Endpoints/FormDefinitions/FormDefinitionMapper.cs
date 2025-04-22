@@ -38,7 +38,7 @@ public class FormDefinitionMapper
         FormId = formDefinition.FormId.ToString(),
         CreatedAt = formDefinition.CreatedAt,
         ModifiedAt = formDefinition.ModifiedAt,
-        ThemeJsonData = formDefinition.ThemeJsonData
+        ThemeModel = formDefinition.ThemeJsonData
     };
 
     /// <summary>
