@@ -26,17 +26,17 @@ public class ThemeModel
     /// The JSON data representing the theme properties.
     /// </summary>
     public virtual string JsonData { get; set; } = "{}";
-    
+
     /// <summary>
     /// The date and time when the theme was created.
     /// </summary>
     public DateTime CreatedAt { get; set; }
-    
+
     /// <summary>
     /// The date and time when the theme was last modified.
     /// </summary>
     public DateTime? ModifiedAt { get; set; }
-    
+
     /// <summary>
     /// The count of forms using this theme.
     /// </summary>
@@ -53,4 +53,4 @@ public class ThemeModelWithoutJsonData : ThemeModel
     /// </summary>
     [JsonIgnore]
     public override string JsonData { get; set; } = "{}";
-} 
+}

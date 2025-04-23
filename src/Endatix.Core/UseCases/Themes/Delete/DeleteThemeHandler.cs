@@ -54,7 +54,7 @@ public class DeleteThemeHandler(
             }
 
             await themeRepository.DeleteAsync(theme, cancellationToken);
-            
+
             // Single SaveChanges for all modifications
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await unitOfWork.CommitTransactionAsync(cancellationToken);
