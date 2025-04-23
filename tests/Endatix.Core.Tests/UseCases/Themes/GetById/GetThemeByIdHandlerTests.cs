@@ -1,5 +1,5 @@
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Themes.GetById;
 
@@ -7,12 +7,12 @@ namespace Endatix.Core.Tests.UseCases.Themes.GetById;
 
 public class GetThemeByIdHandlerTests
 {
-    private readonly IThemesRepository _themesRepository;
+    private readonly IRepository<Theme> _themesRepository;
     private readonly GetThemeByIdHandler _handler;
 
     public GetThemeByIdHandlerTests()
     {
-        _themesRepository = Substitute.For<IThemesRepository>();
+        _themesRepository = Substitute.For<IRepository<Theme>>();
         _handler = new GetThemeByIdHandler(_themesRepository);
     }
 

@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -12,12 +13,13 @@ namespace Endatix.Core.UseCases.Themes.Delete;
 /// Handler for deleting a theme.
 /// </summary>
 public class DeleteThemeHandler(
-    IThemesRepository themesRepository,
-    IRepository<Form> formsRepository
+    IRepository<Theme> themeRepository,
+    IRepository<Form> formRepository,
+    IUnitOfWork unitOfWork
 ) : ICommandHandler<DeleteThemeCommand, Result<string>>
 {
     /// <summary>
-    /// Handles the deletion of a theme.
+    /// Handles the deletion of a theme with transaction support.
     /// </summary>
     /// <param name="request">The command containing the theme ID to delete.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -28,14 +30,17 @@ public class DeleteThemeHandler(
 
         try
         {
-            var theme = await themesRepository.GetByIdAsync(request.ThemeId, cancellationToken);
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            var theme = await themeRepository.GetByIdAsync(request.ThemeId, cancellationToken);
             if (theme == null)
             {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
                 return Result.NotFound($"Theme with ID {request.ThemeId} not found");
             }
 
             // Check if there are forms using this theme
-            var forms = await formsRepository.ListAsync(
+            var forms = await formRepository.ListAsync(
                 new FormSpecifications.ByThemeId(request.ThemeId),
                 cancellationToken);
 
@@ -46,16 +51,19 @@ public class DeleteThemeHandler(
                 {
                     form.SetTheme(null);
                 }
-                await formsRepository.SaveChangesAsync(cancellationToken);
             }
 
-            await themesRepository.DeleteAsync(theme, cancellationToken);
-            await themesRepository.SaveChangesAsync(cancellationToken);
+            await themeRepository.DeleteAsync(theme, cancellationToken);
+            
+            // Single SaveChanges for all modifications
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return Result.Success(theme.Id.ToString());
         }
         catch (Exception ex)
         {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             return Result.Error($"Error deleting theme: {ex.Message}");
         }
     }

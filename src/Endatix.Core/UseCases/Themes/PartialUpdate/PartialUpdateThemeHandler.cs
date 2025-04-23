@@ -1,6 +1,4 @@
 using Ardalis.GuardClauses;
-using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -14,7 +12,7 @@ namespace Endatix.Core.UseCases.Themes.PartialUpdate;
 /// <summary>
 /// Handler for partially updating a theme.
 /// </summary>
-public class PartialUpdateThemeHandler(IThemesRepository themesRepository) : ICommandHandler<PartialUpdateThemeCommand, Result<Theme>>
+public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository) : ICommandHandler<PartialUpdateThemeCommand, Result<Theme>>
 {
     /// <summary>
     /// Handles the partial update of a theme.
@@ -28,7 +26,7 @@ public class PartialUpdateThemeHandler(IThemesRepository themesRepository) : ICo
 
         try
         {
-            var theme = await themesRepository.GetByIdAsync(request.ThemeId, cancellationToken);
+            var theme = await themeRepository.GetByIdAsync(request.ThemeId, cancellationToken);
             if (theme == null)
             {
                 return Result<Theme>.NotFound($"Theme not found");
@@ -38,7 +36,7 @@ public class PartialUpdateThemeHandler(IThemesRepository themesRepository) : ICo
             // NOTE: this might be removed to support color scheme and border variants since names should match
             if (!string.IsNullOrEmpty(request.Name))
             {
-                var existingTheme = await themesRepository.FirstOrDefaultAsync(
+                var existingTheme = await themeRepository.FirstOrDefaultAsync(
                     new ThemeSpecifications.ByName(request.Name),
                     cancellationToken);
 
@@ -61,8 +59,8 @@ public class PartialUpdateThemeHandler(IThemesRepository themesRepository) : ICo
                 theme.UpdateJsonData(jsonData);
             }
 
-            await themesRepository.UpdateAsync(theme, cancellationToken);
-            await themesRepository.SaveChangesAsync(cancellationToken);
+            await themeRepository.UpdateAsync(theme, cancellationToken);
+            await themeRepository.SaveChangesAsync(cancellationToken);
 
             return Result<Theme>.Success(theme);
         }

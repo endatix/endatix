@@ -1,5 +1,4 @@
 using Ardalis.Specification;
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -12,12 +11,12 @@ namespace Endatix.Core.Tests.UseCases.Themes.PartialUpdate;
 
 public class PartialUpdateThemeHandlerTests
 {
-    private readonly IThemesRepository _themesRepository;
+    private readonly IRepository<Theme> _themesRepository;
     private readonly PartialUpdateThemeHandler _handler;
 
     public PartialUpdateThemeHandlerTests()
     {
-        _themesRepository = Substitute.For<IThemesRepository>();
+        _themesRepository = Substitute.For<IRepository<Theme>>();
         _handler = new PartialUpdateThemeHandler(_themesRepository);
     }
 

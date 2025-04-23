@@ -1,15 +1,14 @@
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.Themes.GetById;
 
 /// <summary>
 /// Handler for retrieving a theme by ID.
 /// </summary>
-public class GetThemeByIdHandler(IThemesRepository themesRepository) : IQueryHandler<GetThemeByIdQuery, Result<Theme>>
+public class GetThemeByIdHandler(IRepository<Theme> themeRepository) : IQueryHandler<GetThemeByIdQuery, Result<Theme>>
 {
     /// <summary>
     /// Handles the retrieval of a theme by ID.
@@ -21,7 +20,7 @@ public class GetThemeByIdHandler(IThemesRepository themesRepository) : IQueryHan
     {
         try
         {
-            var theme = await themesRepository.GetByIdAsync(request.ThemeId, cancellationToken);
+            var theme = await themeRepository.GetByIdAsync(request.ThemeId, cancellationToken);
 
             if (theme == null)
             {

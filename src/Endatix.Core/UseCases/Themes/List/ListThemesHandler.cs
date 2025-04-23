@@ -1,5 +1,5 @@
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -10,7 +10,7 @@ namespace Endatix.Core.UseCases.Themes.List;
 /// <summary>
 /// Handler for retrieving all themes.
 /// </summary>
-public class ListThemesHandler(IThemesRepository themesRepository)
+public class ListThemesHandler(IRepository<Theme> themeRepository)
     : IQueryHandler<ListThemesQuery, Result<IEnumerable<Theme>>>
 {
     /// <summary>
@@ -28,7 +28,7 @@ public class ListThemesHandler(IThemesRepository themesRepository)
                 request.PageSize);
 
             var spec = new ThemeSpecifications.Paginated(pagingParams);
-            IEnumerable<Theme> themes = await themesRepository.ListAsync(spec, cancellationToken);
+            IEnumerable<Theme> themes = await themeRepository.ListAsync(spec, cancellationToken);
 
             return Result.Success(themes);
         }

@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -10,15 +11,17 @@ namespace Endatix.Core.Tests.UseCases.Themes.Delete;
 
 public class DeleteThemeHandlerTests
 {
-    private readonly IThemesRepository _themesRepository;
+    private readonly IRepository<Theme> _themesRepository;
     private readonly IRepository<Form> _formsRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly DeleteThemeHandler _handler;
 
     public DeleteThemeHandlerTests()
     {
-        _themesRepository = Substitute.For<IThemesRepository>();
+        _themesRepository = Substitute.For<IRepository<Theme>>();
         _formsRepository = Substitute.For<IRepository<Form>>();
-        _handler = new DeleteThemeHandler(_themesRepository, _formsRepository);
+        _unitOfWork = Substitute.For<IUnitOfWork>();
+        _handler = new DeleteThemeHandler(_themesRepository, _formsRepository, _unitOfWork);
     }
 
     [Fact]
@@ -75,9 +78,9 @@ public class DeleteThemeHandlerTests
             form.ThemeId.Should().BeNull();
         }
 
-        await _formsRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         await _themesRepository.Received(1).DeleteAsync(theme, Arg.Any<CancellationToken>());
-        await _themesRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(1).CommitTransactionAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -106,7 +109,8 @@ public class DeleteThemeHandlerTests
             Arg.Is<Theme>(t => t.Id == theme.Id),
             Arg.Any<CancellationToken>()
         );
-        await _themesRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(1).CommitTransactionAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

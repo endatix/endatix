@@ -1,7 +1,7 @@
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Tests;
 using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Infrastructure.Repositories;
 using NSubstitute;
 

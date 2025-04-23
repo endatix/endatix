@@ -1,5 +1,5 @@
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Themes.List;
@@ -9,12 +9,12 @@ namespace Endatix.Core.Tests.UseCases.Themes.List;
 
 public class ListThemesHandlerTests
 {
-    private readonly IThemesRepository _themesRepository;
+    private readonly IRepository<Theme> _themesRepository;
     private readonly ListThemesHandler _handler;
 
     public ListThemesHandlerTests()
     {
-        _themesRepository = Substitute.For<IThemesRepository>();
+        _themesRepository = Substitute.For<IRepository<Theme>>();
         _handler = new ListThemesHandler(_themesRepository);
     }
 

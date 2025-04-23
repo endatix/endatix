@@ -1,4 +1,4 @@
-namespace Endatix.Infrastructure.Data.Abstractions
+namespace Endatix.Core.Abstractions.Data
 {
     /// <summary>
     /// This interface represents the Unit of Work pattern in the application.
