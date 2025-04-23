@@ -70,7 +70,7 @@ public class ListThemesHandlerTests
                      .ThrowsAsync(new Exception("Database error"));
 
         // Act 
-        var act = async () => await _handler.Handle(request, CancellationToken.None);
+        var act = () => _handler.Handle(request, CancellationToken.None);
 
         // Assert
         await act.Should().ThrowAsync<Exception>();

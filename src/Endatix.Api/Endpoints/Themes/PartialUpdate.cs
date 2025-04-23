@@ -35,35 +35,16 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateRequest, 
     /// <inheritdoc/>
     public override async Task<Results<Ok<PartialUpdateResponse>, BadRequest, NotFound>> ExecuteAsync(PartialUpdateRequest request, CancellationToken cancellationToken)
     {
-        ThemeData? themeData = null;
-
-        // Parse JsonData if provided
-        if (!string.IsNullOrEmpty(request.JsonData))
-        {
-            try
-            {
-                themeData = JsonSerializer.Deserialize<ThemeData>(request.JsonData);
-            }
-            catch (JsonException)
-            {
-                // Return bad request if JSON is invalid
-                var invalidResult = Result<PartialUpdateResponse>.Invalid(new ValidationError("Invalid JSON data provided."));
-                return TypedResultsBuilder
-                    .FromResult(invalidResult)
-                    .SetTypedResults<Ok<PartialUpdateResponse>, BadRequest, NotFound>();
-            }
-        }
-
         var command = new PartialUpdateThemeCommand(
             request.ThemeId,
             request.Name,
             request.Description,
-            themeData);
-            
+            request.JsonData);
+
         var result = await mediator.Send(command, cancellationToken);
 
         return TypedResultsBuilder
             .MapResult(result, ThemeMapper.Map<PartialUpdateResponse>)
             .SetTypedResults<Ok<PartialUpdateResponse>, BadRequest, NotFound>();
     }
-} 
+}

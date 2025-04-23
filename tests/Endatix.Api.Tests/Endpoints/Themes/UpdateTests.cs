@@ -68,26 +68,6 @@ public class UpdateTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_InvalidJsonData_ReturnsBadRequest()
-    {
-        // Arrange
-        var request = new UpdateRequest
-        {
-            ThemeId = 1,
-            Name = "Updated Theme",
-            Description = "Updated Description",
-            JsonData = "{ invalid json }"
-        };
-
-        // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
-
-        // Assert
-        var badRequestResult = response.Result as BadRequest;
-        badRequestResult.Should().NotBeNull();
-    }
-
-    [Fact]
     public async Task ExecuteAsync_ValidRequest_ReturnsOkWithUpdatedTheme()
     {
         // Arrange

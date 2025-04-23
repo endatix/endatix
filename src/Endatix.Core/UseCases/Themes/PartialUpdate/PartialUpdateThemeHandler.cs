@@ -24,49 +24,47 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository) : ICo
     {
         Guard.Against.NegativeOrZero(request.ThemeId, nameof(request.ThemeId));
 
-        try
+        var theme = await themeRepository.GetByIdAsync(request.ThemeId, cancellationToken);
+        if (theme == null)
         {
-            var theme = await themeRepository.GetByIdAsync(request.ThemeId, cancellationToken);
-            if (theme == null)
-            {
-                return Result<Theme>.NotFound($"Theme not found");
-            }
-
-            // Check if another theme with the same name exists.
-            // NOTE: this might be removed to support color scheme and border variants since names should match
-            if (!string.IsNullOrEmpty(request.Name))
-            {
-                var existingTheme = await themeRepository.FirstOrDefaultAsync(
-                    new ThemeSpecifications.ByName(request.Name),
-                    cancellationToken);
-
-                if (existingTheme != null && existingTheme.Id != request.ThemeId)
-                {
-                    return Result<Theme>.Error($"Another theme with the name '{request.Name}' already exists");
-                }
-
-                theme.UpdateName(request.Name);
-            }
-
-            if (request.Description != null)
-            {
-                theme.UpdateDescription(request.Description);
-            }
-
-            if (request.ThemeData != null)
-            {
-                var jsonData = JsonSerializer.Serialize(request.ThemeData);
-                theme.UpdateJsonData(jsonData);
-            }
-
-            await themeRepository.UpdateAsync(theme, cancellationToken);
-            await themeRepository.SaveChangesAsync(cancellationToken);
-
-            return Result<Theme>.Success(theme);
+            return Result<Theme>.NotFound($"Theme not found");
         }
-        catch (Exception ex)
+
+        // Check if another theme with the same name exists.
+        // NOTE: this might be removed to support color scheme and border variants since names should match
+        if (!string.IsNullOrEmpty(request.Name))
         {
-            return Result<Theme>.Error($"Error updating theme: {ex.Message}");
+            var existingTheme = await themeRepository.FirstOrDefaultAsync(
+                new ThemeSpecifications.ByName(request.Name),
+                cancellationToken);
+
+            if (existingTheme != null && existingTheme.Id != request.ThemeId)
+            {
+                return Result<Theme>.Error($"Another theme with the name '{request.Name}' already exists");
+            }
+
+            theme.UpdateName(request.Name);
         }
+
+        if (request.Description != null)
+        {
+            theme.UpdateDescription(request.Description);
+        }
+
+        if (request.ThemeData != null)
+        {
+            var themeDataResult = ThemeJsonData.Create(request.ThemeData);
+            if (!themeDataResult.IsSuccess)
+            {
+                return Result<Theme>.Invalid(themeDataResult.ValidationErrors);
+            }
+
+            theme.UpdateJsonData(themeDataResult.Value);
+        }
+
+        await themeRepository.UpdateAsync(theme, cancellationToken);
+        await themeRepository.SaveChangesAsync(cancellationToken);
+
+        return Result<Theme>.Success(theme);
     }
 }

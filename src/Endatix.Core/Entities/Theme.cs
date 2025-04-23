@@ -68,10 +68,10 @@ public class Theme : TenantEntity, IAggregateRoot
     /// <summary>
     /// Updates the theme's JSON data
     /// </summary>
-    public void UpdateJsonData(string jsonData)
+    public void UpdateJsonData(ThemeJsonData jsonData)
     {
-        Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
-        JsonData = jsonData;
+        Guard.Against.Null(jsonData, nameof(jsonData));
+        JsonData = jsonData.ToString();
     }
 
     public override void Delete()

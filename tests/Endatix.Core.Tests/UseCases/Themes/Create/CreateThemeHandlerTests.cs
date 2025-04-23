@@ -107,7 +107,7 @@ public class CreateThemeHandlerTests
     public async Task Handle_InvalidJsonData_ReturnsInvalidResult()
     {
         // Arrange
-        var request = new CreateThemeCommand("Test Theme", "Test Description", "Invalid JSON");
+        var request = new CreateThemeCommand("Test Theme", "Test Description", "invalid-json-data");
         
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
         _themesRepository.FirstOrDefaultAsync(
@@ -122,6 +122,6 @@ public class CreateThemeHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Invalid);
         result.IsInvalid().Should().BeTrue();
-        result.ValidationErrors.Should().Contain(e => e.ErrorMessage.Contains("Invalid JSON provided for theme data."));
+        result.ValidationErrors.Should().Contain(e => e.ErrorMessage.Contains("Invalid JSON"));
     }
 } 

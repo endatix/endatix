@@ -1,5 +1,4 @@
 using Ardalis.GuardClauses;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -25,42 +24,40 @@ public class UpdateThemeHandler(IRepository<Theme> themesRepository) : ICommandH
     {
         Guard.Against.NegativeOrZero(request.ThemeId, nameof(request.ThemeId));
 
-        try
+        var theme = await themesRepository.GetByIdAsync(request.ThemeId, cancellationToken);
+        if (theme == null)
         {
-            var theme = await themesRepository.GetByIdAsync(request.ThemeId, cancellationToken);
-            if (theme == null)
-            {
-                return Result<Theme>.NotFound($"Theme not found");
-            }
-
-            // Check if another theme with the same name exists.
-            // NOTE: this might be removed to support color scheme and border variants since names should match
-            var existingTheme = await themesRepository.FirstOrDefaultAsync(
-                new ThemeSpecifications.ByName(request.Name), 
-                cancellationToken);
-
-            if (existingTheme != null && existingTheme.Id != request.ThemeId)
-            {
-                return Result<Theme>.Error($"Another theme with the name '{request.Name}' already exists");
-            }
-
-            theme.UpdateName(request.Name);
-            theme.UpdateDescription(request.Description);
-
-            if (request.ThemeData != null)
-            {
-                var jsonData = JsonSerializer.Serialize(request.ThemeData);
-                theme.UpdateJsonData(jsonData);
-            }
-
-            await themesRepository.UpdateAsync(theme, cancellationToken);
-            await themesRepository.SaveChangesAsync(cancellationToken);
-
-            return Result<Theme>.Success(theme);
+            return Result<Theme>.NotFound($"Theme not found");
         }
-        catch (Exception ex)
+
+        // Check if another theme with the same name exists.
+        // NOTE: this might be removed to support color scheme and border variants since names should match
+        var existingTheme = await themesRepository.FirstOrDefaultAsync(
+            new ThemeSpecifications.ByName(request.Name),
+            cancellationToken);
+
+        if (existingTheme != null && existingTheme.Id != request.ThemeId)
         {
-            return Result<Theme>.Error($"Error updating theme: {ex.Message}");
+            return Result<Theme>.Error($"Another theme with the name '{request.Name}' already exists");
         }
+
+        theme.UpdateName(request.Name);
+        theme.UpdateDescription(request.Description);
+
+        if (request.ThemeData != null)
+        {
+            var themeDataResult = ThemeJsonData.Create(request.ThemeData);
+            if (!themeDataResult.IsSuccess)
+            {
+                return Result<Theme>.Invalid(themeDataResult.ValidationErrors);
+            }
+
+            theme.UpdateJsonData(themeDataResult.Value);
+        }
+
+        await themesRepository.UpdateAsync(theme, cancellationToken);
+        await themesRepository.SaveChangesAsync(cancellationToken);
+
+        return Result<Theme>.Success(theme);
     }
-} 
+}

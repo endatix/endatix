@@ -1,6 +1,4 @@
-using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
-using Endatix.Core.Models.Themes;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
@@ -27,9 +25,9 @@ public record PartialUpdateThemeCommand : ICommand<Result<Theme>>
     public string? Description { get; }
 
     /// <summary>
-    /// The new theme data (optional).
+    /// The new theme data represented as a stringified JSON object (optional).
     /// </summary>
-    public ThemeData? ThemeData { get; }
+    public string? ThemeData { get; }
 
     /// <summary>
     /// Creates a new instance of PartialUpdateThemeCommand.
@@ -37,8 +35,8 @@ public record PartialUpdateThemeCommand : ICommand<Result<Theme>>
     /// <param name="themeId">The ID of the theme to update.</param>
     /// <param name="name">The new name for the theme (optional).</param>
     /// <param name="description">The new description for the theme (optional).</param>
-    /// <param name="themeData">The new theme data (optional).</param>
-    public PartialUpdateThemeCommand(long themeId, string? name = null, string? description = null, ThemeData? themeData = null)
+    /// <param name="themeData">The new theme data represented as a stringified JSON object (optional).</param>
+    public PartialUpdateThemeCommand(long themeId, string? name = null, string? description = null, string? themeData = null)
     {
         ThemeId = themeId;
         Name = name;

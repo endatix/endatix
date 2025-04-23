@@ -41,21 +41,18 @@ public class CreateThemeHandler(
             return Result.Invalid(new ValidationError($"A theme with the name '{request.Name}' already exists"));
         }
 
-        var jsonData = JsonSerializer.Serialize(new ThemeData { ThemeName = request.Name });
+        var theme = new Theme(tenantId, request.Name, request.Description);
+
         if (request.ThemeData != null)
         {
-            try
+            var themeDataResult = ThemeJsonData.Create(request.ThemeData);
+            if (!themeDataResult.IsSuccess)
             {
-                JsonSerializer.Deserialize<ThemeData>(request.ThemeData);
-                jsonData = request.ThemeData;
+                return Result<Theme>.Invalid(themeDataResult.ValidationErrors);
             }
-            catch (JsonException)
-            {
-                return Result<Theme>.Invalid(new ValidationError("Invalid JSON provided for theme data."));
-            }
-        }
 
-        var theme = new Theme(tenantId, request.Name, request.Description, jsonData);
+            theme.UpdateJsonData(themeDataResult.Value);
+        }
 
         await themesRepository.AddAsync(theme, cancellationToken);
         await themesRepository.SaveChangesAsync(cancellationToken);

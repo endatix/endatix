@@ -27,9 +27,9 @@ public record UpdateThemeCommand : ICommand<Result<Theme>>
     public string? Description { get; }
 
     /// <summary>
-    /// The new theme data containing visual properties.
+    /// The new theme data containing visual properties as a JSON string.
     /// </summary>
-    public ThemeData? ThemeData { get; }
+    public string? ThemeData { get; }
 
     /// <summary>
     /// Creates a new instance of UpdateThemeCommand.
@@ -37,8 +37,8 @@ public record UpdateThemeCommand : ICommand<Result<Theme>>
     /// <param name="themeId">The ID of the theme to update.</param>
     /// <param name="name">The new name for the theme.</param>
     /// <param name="description">The new description for the theme.</param>
-    /// <param name="themeData">The new theme data containing visual properties.</param>
-    public UpdateThemeCommand(long themeId, string name, string? description = null, ThemeData? themeData = null)
+    /// <param name="themeData">The new theme data containing visual properties as a JSON string.</param>
+    public UpdateThemeCommand(long themeId, string name, string? description = null, string? themeData = null)
     {
         ThemeId = themeId;
         Name = name;

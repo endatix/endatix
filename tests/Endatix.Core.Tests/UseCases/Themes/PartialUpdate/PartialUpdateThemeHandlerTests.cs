@@ -42,8 +42,7 @@ public class PartialUpdateThemeHandlerTests
     {
         // Arrange
         var themeId = 1;
-        var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
-        originalTheme.UpdateJsonData("{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}");
+        var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description", "{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}") { Id = themeId };
 
         var request = new PartialUpdateThemeCommand(themeId, "Updated Theme");
 
@@ -81,8 +80,8 @@ public class PartialUpdateThemeHandlerTests
     {
         // Arrange
         var themeId = 1;
-        var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
-        originalTheme.UpdateJsonData("{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}");
+        var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description", "{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}") { Id = themeId };
+
 
         var request = new PartialUpdateThemeCommand(themeId, null, "Updated Description");
 
@@ -121,16 +120,19 @@ public class PartialUpdateThemeHandlerTests
         // Arrange
         var themeId = 1;
         var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
-        originalTheme.UpdateJsonData("{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}");
+        var jsonDataPayload = "{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}";
+        var jsonData = ThemeJsonData.Create(jsonDataPayload);
+        originalTheme.UpdateJsonData(jsonData.Value);
 
-        var themeData = new ThemeData
+        var newThemeData = new ThemeData
         {
             ThemeName = "Original Name", // Keep name the same
             ColorPalette = "dark", // Change only color palette
             CssVariables = new Dictionary<string, string> { ["--primary-color"] = "#000000" }
         };
+        var newThemeDataJson = JsonSerializer.Serialize(newThemeData);
 
-        var request = new PartialUpdateThemeCommand(themeId, null, null, themeData);
+        var request = new PartialUpdateThemeCommand(themeId, null, null, newThemeDataJson);
 
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
@@ -146,11 +148,11 @@ public class PartialUpdateThemeHandlerTests
         result.Value.Description.Should().Be("Original Description");
 
         // Verify only theme data was updated
-        var jsonData = JsonSerializer.Deserialize<ThemeData>(result.Value.JsonData);
-        jsonData.Should().NotBeNull();
-        jsonData!.ThemeName.Should().Be("Original Name");
-        jsonData!.ColorPalette.Should().Be("dark");
-        jsonData!.CssVariables.Should().ContainKey("--primary-color");
+        var themeData = JsonSerializer.Deserialize<ThemeData>(result.Value.JsonData);
+        themeData.Should().NotBeNull();
+        themeData!.ThemeName.Should().Be("Original Name");
+        themeData!.ColorPalette.Should().Be("dark");
+        themeData!.CssVariables.Should().ContainKey("--primary-color");
 
         await _themesRepository.Received(1).UpdateAsync(
             Arg.Is<Theme>(t =>
@@ -167,17 +169,17 @@ public class PartialUpdateThemeHandlerTests
     {
         // Arrange
         var themeId = 1;
-        var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
-        originalTheme.UpdateJsonData("{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}");
+        var jsonData = "{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}";
+        var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description", jsonData) { Id = themeId };
 
-        var themeData = new ThemeData
+        var newThemeData = new ThemeData
         {
             ThemeName = "Updated Theme",
             ColorPalette = "dark",
             CssVariables = new Dictionary<string, string> { ["--primary-color"] = "#000000" }
         };
-
-        var request = new PartialUpdateThemeCommand(themeId, "Updated Theme", "Updated Description", themeData);
+        var newThemeDataJson = JsonSerializer.Serialize(newThemeData);
+        var request = new PartialUpdateThemeCommand(themeId, "Updated Theme", "Updated Description", newThemeDataJson);
 
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
@@ -193,11 +195,11 @@ public class PartialUpdateThemeHandlerTests
         result.Value.Description.Should().Be("Updated Description");
 
         // Verify all theme data was updated
-        var jsonData = JsonSerializer.Deserialize<ThemeData>(result.Value.JsonData);
-        jsonData.Should().NotBeNull();
-        jsonData!.ThemeName.Should().Be("Updated Theme");
-        jsonData!.ColorPalette.Should().Be("dark");
-        jsonData!.CssVariables.Should().ContainKey("--primary-color");
+        var themeData = JsonSerializer.Deserialize<ThemeData>(result.Value.JsonData);
+        themeData.Should().NotBeNull();
+        themeData!.ThemeName.Should().Be("Updated Theme");
+        themeData!.ColorPalette.Should().Be("dark");
+        themeData!.CssVariables.Should().ContainKey("--primary-color");
 
         await _themesRepository.Received(1).UpdateAsync(
             Arg.Is<Theme>(t =>
@@ -210,7 +212,7 @@ public class PartialUpdateThemeHandlerTests
     }
 
     [Fact]
-    public async Task Handle_RepositoryException_ReturnsErrorResult()
+    public async Task Handle_RepositoryException_ThrowsException()
     {
         // Arrange
         var themeId = 1;
@@ -224,12 +226,10 @@ public class PartialUpdateThemeHandlerTests
                      .ThrowsAsync(new Exception("Database error"));
 
         // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        var act = () => _handler.Handle(request, CancellationToken.None);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Status.Should().Be(ResultStatus.Error);
-        result.Errors.Should().Contain(e => e.Contains("Error updating theme"));
+        await act.Should().ThrowAsync<Exception>();
     }
 
     [Fact]
@@ -261,5 +261,27 @@ public class PartialUpdateThemeHandlerTests
 
         // Verify the theme was not updated
         await _themesRepository.DidNotReceive().UpdateAsync(Arg.Any<Theme>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_InvalidThemeData_ReturnsInvalidResult()
+    {
+        // Arrange
+        var themeId = 1;
+        var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
+        var invalidThemeData = "invalid-theme-data";
+
+        var request = new PartialUpdateThemeCommand(themeId, null, null, invalidThemeData);
+
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
+                     .Returns(originalTheme);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().Contain(e => e.ErrorMessage.Contains("Invalid JSON"));
     }
 }

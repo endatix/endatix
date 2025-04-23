@@ -3,7 +3,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Models.Themes;
 using Endatix.Core.UseCases.Themes.Update;
-using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using System.Text.Json;
 using Ardalis.Specification;
@@ -25,7 +24,7 @@ public class UpdateThemeHandlerTests
     public async Task Handle_ThemeNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var request = new UpdateThemeCommand(1, "Updated Theme", "Updated Description", new ThemeData());
+        var request = new UpdateThemeCommand(1, "Updated Theme", "Updated Description", string.Empty);
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns((Theme?)null);
 
@@ -50,8 +49,8 @@ public class UpdateThemeHandlerTests
             ColorPalette = "dark",
             CssVariables = new Dictionary<string, string> { ["--primary-color"] = "#000000" }
         };
-        
-        var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", themeData);
+        var themeDataJson = JsonSerializer.Serialize(themeData);
+        var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", themeDataJson);
         
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
@@ -88,11 +87,15 @@ public class UpdateThemeHandlerTests
     {
         // Arrange
         var themeId = 1;
-        var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") 
+        var originalTheme = new Theme(
+            tenantId: SampleData.TENANT_ID, 
+            name: "Original Name", 
+            description: "Original Description", 
+            jsonData: "{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}"
+        ) 
         { 
             Id = themeId 
         };
-        originalTheme.UpdateJsonData("{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}");
         
         var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", null);
         
@@ -117,12 +120,18 @@ public class UpdateThemeHandlerTests
     }
 
     [Fact]
-    public async Task Handle_RepositoryException_ReturnsErrorResult()
+    public async Task Handle_RepositoryException_ThrowsException()
     {
         // Arrange
         var themeId = 1;
+        var themeDataPayload = "{\"themeName\":\"Updated Theme\",\"colorPalette\":\"dark\"}";
         var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
-        var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", new ThemeData());
+        var request = new UpdateThemeCommand(
+            themeId: themeId, 
+            name: "Updated Theme", 
+            description: "Updated Description",
+            themeData: themeDataPayload
+        );
         
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
@@ -131,12 +140,10 @@ public class UpdateThemeHandlerTests
                      .ThrowsAsync(new Exception("Database error"));
 
         // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        var act = () => _handler.Handle(request, CancellationToken.None);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Status.Should().Be(ResultStatus.Error);
-        result.Errors.Should().Contain(e => e.Contains("Error updating theme"));
+        await act.Should().ThrowAsync<Exception>();
     }
     
     [Fact]
@@ -146,11 +153,12 @@ public class UpdateThemeHandlerTests
         var themeId = 1;
         var existingThemeId = 2;
         var themeName = "Duplicate Theme Name";
+        var emptyThemeData = string.Empty;
         
         var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
         var existingTheme = new Theme(SampleData.TENANT_ID, themeName, "Another Description") { Id = existingThemeId };
         
-        var request = new UpdateThemeCommand(themeId, themeName, "Updated Description", new ThemeData());
+        var request = new UpdateThemeCommand(themeId, themeName, "Updated Description", emptyThemeData);
         
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
@@ -168,5 +176,27 @@ public class UpdateThemeHandlerTests
         
         // Verify the theme was not updated
         await _themesRepository.DidNotReceive().UpdateAsync(Arg.Any<Theme>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_InvalidThemeData_ReturnsInvalidResult()
+    {
+        // Arrange
+        var themeId = 1;
+        var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
+        var invalidThemeData = "invalid-theme-data";
+
+        var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", invalidThemeData);
+
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
+                     .Returns(originalTheme);   
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();    
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().Contain(e => e.ErrorMessage.Contains("Invalid JSON"));
     }
 } 
