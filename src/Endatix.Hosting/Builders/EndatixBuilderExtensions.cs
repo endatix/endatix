@@ -8,7 +8,7 @@ internal static class EndatixBuilderExtensions
     /// <summary>
     /// Logs a setup information message.
     /// </summary>
-    public static T LogSetupInfo<T>(this T builder, string message, params object?[] args) 
+    public static T LogSetupInfo<T>(this T builder, string message, params object?[] args)
         where T : class
     {
         var parentBuilder = GetRootBuilder(builder);
@@ -19,7 +19,7 @@ internal static class EndatixBuilderExtensions
     /// <summary>
     /// Logs a setup warning message.
     /// </summary>
-    public static T LogSetupWarning<T>(this T builder, string message, params object?[] args) 
+    public static T LogSetupWarning<T>(this T builder, string message, params object?[] args)
         where T : class
     {
         var parentBuilder = GetRootBuilder(builder);
@@ -30,7 +30,7 @@ internal static class EndatixBuilderExtensions
     /// <summary>
     /// Logs a setup error message.
     /// </summary>
-    public static T LogSetupError<T>(this T builder, string message, params object?[] args) 
+    public static T LogSetupError<T>(this T builder, string message, params object?[] args)
         where T : class
     {
         var parentBuilder = GetRootBuilder(builder);
@@ -46,10 +46,10 @@ internal static class EndatixBuilderExtensions
             EndatixApiBuilder api => api.Build(),
             EndatixPersistenceBuilder persistence => persistence.Build(),
             EndatixSecurityBuilder security => security.Build(),
-            EndatixMessagingBuilder messaging => messaging.Build(),
+            EndatixInfrastructureBuilder infrastructure => infrastructure.Build(),
             EndatixLoggingBuilder logging => logging.Build(),
             EndatixBuilder main => main,
             _ => throw new ArgumentException($"Unsupported builder type: {typeof(T).Name}")
         };
     }
-} 
+}
