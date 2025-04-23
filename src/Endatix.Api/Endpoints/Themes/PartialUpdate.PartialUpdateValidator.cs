@@ -1,4 +1,5 @@
 ﻿using Endatix.Api.Endpoints.Themes;
+using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
 

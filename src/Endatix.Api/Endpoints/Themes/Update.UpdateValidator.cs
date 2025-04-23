@@ -1,5 +1,4 @@
-using System.Text.Json;
-using Endatix.Core.Models.Themes;
+using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
 
@@ -14,34 +13,11 @@ public class UpdateValidator : Validator<UpdateRequest>
 
         RuleFor(x => x.Name)
             .NotEmpty()
-            .WithMessage("Name is required.")
-            .MaximumLength(100)
-            .WithMessage("Name must not exceed 100 characters.");
-
-        RuleFor(x => x.Description)
-            .MaximumLength(500)
-            .WithMessage("Description must not exceed 500 characters.");
+            .MinimumLength(DataSchemaConstants.MIN_NAME_LENGTH)
+            .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
 
         RuleFor(x => x.JsonData)
-            .Must((x, jsonData) => BeValidJson(jsonData ?? string.Empty))
-            .WithMessage("Invalid JSON data provided.");
-    }
-
-    private bool BeValidJson(string jsonData)
-    {
-        if (string.IsNullOrEmpty(jsonData))
-        {
-            return true; // Allow empty JSON data
-        }
-
-        try
-        {
-            JsonSerializer.Deserialize<ThemeData>(jsonData);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
+            .NotEmpty()
+            .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH);
     }
 }
