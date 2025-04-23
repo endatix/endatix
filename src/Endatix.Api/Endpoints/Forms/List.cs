@@ -32,7 +32,7 @@ public class List(IMediator mediator) : Endpoint<FormsListRequest, Results<Ok<IE
     public override async Task<Results<Ok<IEnumerable<FormModel>>, BadRequest>> ExecuteAsync(FormsListRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
-            new ListFormsQuery(request.Page, request.PageSize),
+            new ListFormsQuery(request.Page, request.PageSize, request.Filter),
             cancellationToken);
 
         return TypedResultsBuilder

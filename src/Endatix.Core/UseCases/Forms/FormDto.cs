@@ -26,6 +26,11 @@ public record FormDto
     public bool IsEnabled { get; init; }
 
     /// <summary>
+    /// The ID of the theme associated with the form.
+    /// </summary>
+    public string? ThemeId { get; init; }
+
+    /// <summary>
     /// Timestamp when the form was created.
     /// </summary>
     public DateTime CreatedAt { get; init; }

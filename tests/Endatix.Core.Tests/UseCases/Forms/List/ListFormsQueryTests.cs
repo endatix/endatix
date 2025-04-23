@@ -11,13 +11,15 @@ public class ListFormsQueryTests
         // Arrange
         int? page = 1;
         int? pageSize = 10;
+        IEnumerable<string>? filter = ["name:form1"];
 
         // Act
-        var query = new ListFormsQuery(page, pageSize);
+        var query = new ListFormsQuery(page, pageSize, filter);
 
         // Assert
         query.Page.Should().Be(page);
         query.PageSize.Should().Be(pageSize);
+        query.FilterExpressions.Should().BeEquivalentTo(filter);
     }
 
     [Fact]
@@ -33,5 +35,22 @@ public class ListFormsQueryTests
         // Assert
         query.Page.Should().BeNull();
         query.PageSize.Should().BeNull();
+    }
+
+    [Fact]
+    public void Constructor_NullFilter_SetsPropertiesCorrectly()
+    {
+        // Arrange
+        int? page = 1;
+        int? pageSize = 10;
+        IEnumerable<string>? filter = null;
+
+        // Act
+        var query = new ListFormsQuery(page, pageSize, filter);
+
+        // Assert
+        query.Page.Should().Be(page);
+        query.PageSize.Should().Be(pageSize);
+        query.FilterExpressions.Should().BeNull();
     }
 }

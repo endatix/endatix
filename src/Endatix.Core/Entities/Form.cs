@@ -23,8 +23,10 @@ public partial class Form : TenantEntity, IAggregateRoot
     public bool IsEnabled { get; set; }
 
     public long? ActiveDefinitionId { get; private set; }
-
     public FormDefinition? ActiveDefinition { get; private set; }
+
+    public long? ThemeId { get; private set; }
+    public Theme? Theme { get; private set; }
 
     public IReadOnlyCollection<FormDefinition> FormDefinitions => _formDefinitions.AsReadOnly();
 
@@ -48,6 +50,12 @@ public partial class Form : TenantEntity, IAggregateRoot
         {
             SetActiveFormDefinition(formDefinition);
         }
+    }
+    
+    public void SetTheme(Theme? theme)
+    {
+        Theme = theme;
+        ThemeId = theme?.Id;
     }
 
     public override void Delete()

@@ -1,14 +1,13 @@
 ﻿using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.FormDefinitions.GetActive;
 
-public class GetActiveFormDefinitionHandler(IFormsRepository formRepository) : IQueryHandler<GetActiveFormDefinitionQuery, Result<FormDefinition>>
+public class GetActiveFormDefinitionHandler(IFormsRepository formRepository) : IQueryHandler<GetActiveFormDefinitionQuery, Result<ActiveDefinitionDto>>
 {
-    public async Task<Result<FormDefinition>> Handle(GetActiveFormDefinitionQuery request, CancellationToken cancellationToken)
+    public async Task<Result<ActiveDefinitionDto>> Handle(GetActiveFormDefinitionQuery request, CancellationToken cancellationToken)
     {
         var spec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
         var formWithActiveDefinition = await formRepository.SingleOrDefaultAsync(spec, cancellationToken);
@@ -18,6 +17,10 @@ public class GetActiveFormDefinitionHandler(IFormsRepository formRepository) : I
             return Result.NotFound("Active form definition not found.");
         }
 
-        return Result.Success(formWithActiveDefinition.ActiveDefinition!);
+        var activeDefinitionDto = new ActiveDefinitionDto(
+            formWithActiveDefinition.ActiveDefinition,
+            formWithActiveDefinition.Theme?.JsonData);
+
+        return Result.Success(activeDefinitionDto);
     }
 }

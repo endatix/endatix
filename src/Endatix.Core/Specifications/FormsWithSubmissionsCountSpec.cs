@@ -8,10 +8,11 @@ namespace Endatix.Core.Specifications;
 
 public sealed class FormsWithSubmissionsCountSpec : Specification<Form, FormDto>
 {
-    public FormsWithSubmissionsCountSpec(PagingParameters pagingParams)
+    public FormsWithSubmissionsCountSpec(PagingParameters pagingParams, FilterParameters filterParams)
     {
         Query
             .Where(f => !f.ActiveDefinition.IsDraft)
+            .Filter(filterParams)
             .OrderByDescending(x => x.CreatedAt)
             .Paginate(pagingParams)
             .AsNoTracking();

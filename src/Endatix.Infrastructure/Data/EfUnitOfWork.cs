@@ -1,4 +1,4 @@
-using Endatix.Infrastructure.Data.Abstractions;
+using Endatix.Core.Abstractions.Data;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Infrastructure.Data

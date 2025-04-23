@@ -28,5 +28,11 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
             .HasForeignKey<Form>(f => f.ActiveDefinitionId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
+            
+        builder.HasOne(f => f.Theme)
+            .WithMany(t => t.Forms)
+            .HasForeignKey(f => f.ThemeId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
