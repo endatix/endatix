@@ -18,20 +18,13 @@ public class GetThemeByIdHandler(IRepository<Theme> themeRepository) : IQueryHan
     /// <returns>Result containing the theme if found, or an error if not found.</returns>
     public async Task<Result<Theme>> Handle(GetThemeByIdQuery request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var theme = await themeRepository.GetByIdAsync(request.ThemeId, cancellationToken);
+        var theme = await themeRepository.GetByIdAsync(request.ThemeId, cancellationToken);
 
-            if (theme == null)
-            {
-                return Result<Theme>.NotFound($"Theme not found.");
-            }
-
-            return Result<Theme>.Success(theme);
-        }
-        catch (Exception ex)
+        if (theme == null)
         {
-            return Result<Theme>.Error($"Error retrieving theme: {ex.Message}");
+            return Result<Theme>.NotFound($"Theme not found.");
         }
+
+        return Result<Theme>.Success(theme);
     }
 }

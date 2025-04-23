@@ -21,20 +21,13 @@ public class ListThemesHandler(IRepository<Theme> themeRepository)
     /// <returns>Result containing the list of themes.</returns>
     public async Task<Result<IEnumerable<Theme>>> Handle(ListThemesQuery request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var pagingParams = new PagingParameters(
-                request.Page,
-                request.PageSize);
+        var pagingParams = new PagingParameters(
+                 request.Page,
+                 request.PageSize);
 
-            var spec = new ThemeSpecifications.Paginated(pagingParams);
-            IEnumerable<Theme> themes = await themeRepository.ListAsync(spec, cancellationToken);
+        var spec = new ThemeSpecifications.Paginated(pagingParams);
+        IEnumerable<Theme> themes = await themeRepository.ListAsync(spec, cancellationToken);
 
-            return Result.Success(themes);
-        }
-        catch (Exception ex)
-        {
-            return Result.Error($"Error retrieving themes: {ex.Message}");
-        }
+        return Result<IEnumerable<Theme>>.Success(themes);
     }
 }

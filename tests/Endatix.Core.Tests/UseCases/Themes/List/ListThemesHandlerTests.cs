@@ -62,19 +62,17 @@ public class ListThemesHandlerTests
     }
 
     [Fact]
-    public async Task Handle_RepositoryException_ReturnsErrorResult()
+    public async Task Handle_RepositoryException_ThrowsException()
     {
         // Arrange
         var request = new ListThemesQuery();
         _themesRepository.ListAsync(Arg.Any<ThemeSpecifications.Paginated>(), Arg.Any<CancellationToken>())
                      .ThrowsAsync(new Exception("Database error"));
 
-        // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        // Act 
+        var act = async () => await _handler.Handle(request, CancellationToken.None);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Status.Should().Be(ResultStatus.Error);
-        result.Errors.Should().Contain(e => e.Contains("Error retrieving themes"));
+        await act.Should().ThrowAsync<Exception>();
     }
 }
