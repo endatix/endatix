@@ -30,7 +30,7 @@ public class CreateThemeHandlerTests
     {
         // Arrange
         var themeData = new ThemeData { ThemeName = "Test Theme" };
-        var request = new CreateThemeCommand("Test Theme", "Test Description", themeData);
+        var request = new CreateThemeCommand("Test Theme", "Test Description", JsonSerializer.Serialize(themeData));
         
         _themesRepository.FirstOrDefaultAsync(
             Arg.Any<ThemeSpecifications.ByName>(),
@@ -81,7 +81,7 @@ public class CreateThemeHandlerTests
     }
 
     [Fact]
-    public async Task Handle_DuplicateThemeName_ReturnsErrorResult()
+    public async Task Handle_DuplicateThemeName_ReturnsInvalidResult()
     {
         // Arrange
         var request = new CreateThemeCommand("Existing Theme", "Test Description");
@@ -98,33 +98,30 @@ public class CreateThemeHandlerTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().Be(ResultStatus.Error);
-        result.Errors.Should().Contain(e => e.Contains("already exists"));
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.IsInvalid().Should().BeTrue();
+        result.ValidationErrors.Should().Contain(e => e.ErrorMessage.Contains("already exists"));
     }
 
     [Fact]
-    public async Task Handle_ExceptionDuringCreation_ReturnsErrorResult()
+    public async Task Handle_InvalidJsonData_ReturnsInvalidResult()
     {
         // Arrange
-        var request = new CreateThemeCommand("Test Theme", "Test Description");
+        var request = new CreateThemeCommand("Test Theme", "Test Description", "Invalid JSON");
         
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
         _themesRepository.FirstOrDefaultAsync(
             Arg.Any<ThemeSpecifications.ByName>(),
             Arg.Any<CancellationToken>())
             .Returns((Theme?)null);
-        
-        _themesRepository.AddAsync(
-            Arg.Any<Theme>(),
-            Arg.Any<CancellationToken>())
-            .ThrowsAsync(new Exception("Database error"));
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().Be(ResultStatus.Error);
-        result.Errors.Should().Contain(e => e.Contains("Error creating theme"));
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.IsInvalid().Should().BeTrue();
+        result.ValidationErrors.Should().Contain(e => e.ErrorMessage.Contains("Invalid JSON provided for theme data."));
     }
 } 

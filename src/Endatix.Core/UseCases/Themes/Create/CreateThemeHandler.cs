@@ -30,32 +30,36 @@ public class CreateThemeHandler(
         var tenantId = tenantContext.TenantId;
         Guard.Against.NegativeOrZero(tenantId, "Current tenant ID");
 
-        try
-        {
-            // Check if a theme with the same name already exists for this tenant
-            var existingTheme = await themesRepository.FirstOrDefaultAsync(
-                new ThemeSpecifications.ByName(request.Name),
-                cancellationToken);
+        // Check if a theme with the same name already exists for this tenant
+        var existingTheme = await themesRepository.FirstOrDefaultAsync(
+            new ThemeSpecifications.ByName(request.Name),
+            cancellationToken);
 
-            if (existingTheme != null)
+
+        if (existingTheme != null)
+        {
+            return Result.Invalid(new ValidationError($"A theme with the name '{request.Name}' already exists"));
+        }
+
+        var jsonData = JsonSerializer.Serialize(new ThemeData { ThemeName = request.Name });
+        if (request.ThemeData != null)
+        {
+            try
             {
-                return Result<Theme>.Error($"A theme with the name '{request.Name}' already exists");
+                JsonSerializer.Deserialize<ThemeData>(request.ThemeData);
+                jsonData = request.ThemeData;
             }
-
-            var jsonData = request.ThemeData != null
-                ? JsonSerializer.Serialize(request.ThemeData)
-                : JsonSerializer.Serialize(new ThemeData { ThemeName = request.Name });
-
-            var theme = new Theme(tenantId, request.Name, request.Description, jsonData);
-
-            await themesRepository.AddAsync(theme, cancellationToken);
-            await themesRepository.SaveChangesAsync(cancellationToken);
-
-            return Result<Theme>.Created(theme);
+            catch (JsonException)
+            {
+                return Result<Theme>.Invalid(new ValidationError("Invalid JSON provided for theme data."));
+            }
         }
-        catch (Exception ex)
-        {
-            return Result<Theme>.Error($"Error creating theme: {ex.Message}");
-        }
+
+        var theme = new Theme(tenantId, request.Name, request.Description, jsonData);
+
+        await themesRepository.AddAsync(theme, cancellationToken);
+        await themesRepository.SaveChangesAsync(cancellationToken);
+
+        return Result<Theme>.Created(theme);
     }
 }

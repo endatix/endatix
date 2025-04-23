@@ -82,6 +82,11 @@ public class CreateTests
             JsonData = "{ invalid json }"
         };
 
+        var result = Result.Invalid(new ValidationError("Invalid JSON provided for theme data."));
+
+        _mediator.Send(Arg.Any<CreateThemeCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
         // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
