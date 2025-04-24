@@ -1,64 +1,69 @@
-import clsx from 'clsx';
-import Heading from '@theme/Heading';
-import styles from './styles.module.css';
+import clsx from "clsx";
+import React from "react";
+import styles from "./styles.module.css";
 
 type FeatureItem = {
   title: string;
   imgUrl: string;
-  description: JSX.Element;
+  description: React.ReactNode;
 };
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Forms Management',
-    imgUrl: require('@site/static/img/forms-design.png').default,
+    title: "Forms Management",
+    imgUrl: require("@site/static/img/forms-design.png").default,
     description: (
       <>
-        Effortlessly define and manage complex SurveyJS forms with advanced capabilities.
+        Effortlessly define and manage complex SurveyJS forms with advanced
+        capabilities.
       </>
     ),
   },
   {
-    title: 'Top Dev Experience',
-    imgUrl: require('@site/static/img/forms-integrate.png').default,
+    title: "Top Dev Experience",
+    imgUrl: require("@site/static/img/forms-integrate.png").default,
     description: (
       <>
-        Seamlessly integrate into your software products for a smooth and efficient developer experience.
+        Seamlessly integrate into your software products for a smooth and
+        efficient developer experience.
       </>
     ),
   },
   {
-    title: 'End-to-end Data',
-    imgUrl: require('@site/static/img/forms-data.png').default,
+    title: "End-to-end Data",
+    imgUrl: require("@site/static/img/forms-data.png").default,
     description: (
       <>
-        Collect, store, and process data securely and efficiently with endless customization possibilities.
+        Collect, store, and process data securely and efficiently with endless
+        customization possibilities.
       </>
     ),
   },
 ];
 
-function Feature({title, imgUrl, description}: FeatureItem) {
-  return (
-    <div className={clsx('col col--4')}>
-      <div className="text--center">
-        <img className={styles.featureSvg} src={imgUrl} />
-      </div>
-      <div className="text--center padding-horiz--md">
-        <Heading as="h3">{title}</Heading>
-        <p>{description}</p>
-      </div>
-    </div>
-  );
-}
-
-export default function HomepageFeatures(): JSX.Element {
+export default function HomepageFeatures(): React.ReactNode {
   return (
     <section className={styles.features}>
       <div className="container">
         <div className="row">
-          {FeatureList.map((props, idx) => (
-            <Feature key={idx} {...props} />
+          {FeatureList.map((feature, idx) => (
+            <div key={idx} className={clsx("col col--4")}>
+              <div className={styles.featureCard}>
+                <div className="text--center">
+                  <img
+                    className={styles.featureSvg}
+                    src={feature.imgUrl}
+                    alt={feature.title}
+                  />
+                </div>
+                <div className="text--center padding-horiz--md">
+                  <h3 className={styles.featureTitle}>{feature.title}</h3>
+                  <p className={styles.featureDescription}>
+                    {feature.description}
+                  </p>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>
