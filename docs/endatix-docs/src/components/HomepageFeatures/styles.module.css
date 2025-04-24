@@ -13,14 +13,26 @@
   padding: 0.5rem;
 }
 
+/* Row of cards with equal height */
+.featuresRow {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Column for each feature */
+.featuresCol {
+  display: flex;
+  margin-bottom: 20px;
+}
+
 /* Feature card styling */
 .featureCard {
   display: flex;
   flex-direction: column;
-  height: 100%;
   border-radius: 8px;
   padding: 1.5rem;
-  margin: 1rem 0;
+  width: 100%;
+  height: 100%;
   background-color: white;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
@@ -42,13 +54,7 @@
   font-size: 1rem;
   line-height: 1.6;
   color: #4a4a4a;
-  flex-grow: 1; /* Make description take up available space */
-}
-
-/* Make the card container full height */
-.cardContainer {
-  display: flex;
-  height: 100%;
+  margin-bottom: 0;
 }
 
 [data-theme='dark'] {

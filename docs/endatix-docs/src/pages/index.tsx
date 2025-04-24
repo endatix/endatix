@@ -4,7 +4,6 @@ import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import HomepageFeatures from "@site/src/components/HomepageFeatures";
 import Heading from "@theme/Heading";
-import React from "react";
 
 import styles from "./index.module.css";
 
@@ -20,7 +19,8 @@ function HomepageHeader() {
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
-            to="/docs/getting-started/what-is-endatix">
+            to="/docs/getting-started/what-is-endatix"
+          >
             What is Endatix?
           </Link>
         </div>
@@ -29,12 +29,12 @@ function HomepageHeader() {
   );
 }
 
-export default function Home(): React.ReactNode {
+export default function Home(): JSX.Element {
   const { siteConfig } = useDocusaurusContext();
   return (
     <Layout
-      title={`${siteConfig.title}`}
-      description="Official documentation for Endatix data platform"
+      title={`Hello from ${siteConfig.title}`}
+      description="Description will go into a meta tag in <head />"
     >
       <HomepageHeader />
       <main>
