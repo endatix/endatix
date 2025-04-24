@@ -48,19 +48,21 @@ export default function HomepageFeatures(): React.ReactNode {
         <div className="row">
           {FeatureList.map((feature, idx) => (
             <div key={idx} className={clsx("col col--4")}>
-              <div className={styles.featureCard}>
-                <div className="text--center">
-                  <img
-                    className={styles.featureSvg}
-                    src={feature.imgUrl}
-                    alt={feature.title}
-                  />
-                </div>
-                <div className="text--center padding-horiz--md">
-                  <h3 className={styles.featureTitle}>{feature.title}</h3>
-                  <p className={styles.featureDescription}>
-                    {feature.description}
-                  </p>
+              <div className={styles.cardContainer}>
+                <div className={styles.featureCard}>
+                  <div className="text--center">
+                    <img
+                      className={styles.featureSvg}
+                      src={feature.imgUrl}
+                      alt={feature.title}
+                    />
+                  </div>
+                  <div className="text--center padding-horiz--md">
+                    <h3 className={styles.featureTitle}>{feature.title}</h3>
+                    <p className={styles.featureDescription}>
+                      {feature.description}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

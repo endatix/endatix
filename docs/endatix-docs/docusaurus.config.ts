@@ -38,11 +38,10 @@ const config: Config = {
           sidebarPath: "./sidebars.ts",
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl:
-            "https://github.com/endatix/docs-website/issues/new/choose",
+          editUrl: "https://github.com/endatix/docs-website/issues/new/choose",
         },
         theme: {
-          customCss: "./src/css/custom.css",
+          customCss: "./src/css/endatix-theme.css",
         },
       } satisfies Preset.Options,
     ],
@@ -55,12 +54,12 @@ const config: Config = {
             id: "using-remote-url",
             // Remote File
             spec: "./swagger.json",
-            route: "/docs/api"
+            route: "/docs/api",
           },
         ],
         // Theme Options for modifying how redoc renders them
         theme: {
-          primaryColor: "#0054D1"
+          primaryColor: "#0066FF",
         },
       },
     ] satisfies Redocusaurus.PresetEntry,
@@ -70,11 +69,11 @@ const config: Config = {
     // Replace with your project's social card
     image: "img/endatix-transparent.png",
     navbar: {
-      title: "Endatix Documentation",
-      // logo: {
-      //   alt: "Endatix Logo",
-      //   src: "img/logo.svg",
-      // },
+
+      logo: {
+        alt: "Endatix Logo",
+        src: "img/endatix.svg",
+      },
       items: [
         {
           type: "docSidebar",
@@ -91,14 +90,47 @@ const config: Config = {
       ],
     },
     footer: {
-      style: "dark",
+      style: "light",
       links: [
         {
-          title: "Docs",
+          title: "Endatix.com",
           items: [
             {
-              label: "API Reference",
-              to: "/docs/api",
+              label: "Blog",
+              href: "https://endatix.com/blog",
+            },
+            {
+              label: "Product",
+              href: "https://endatix.com/products",
+            },
+            {
+              label: "Services",
+              href: "https://endatix.com/services",
+            },
+            {
+              label: "Contact us",
+              href: "https://endatix.com/contact",
+            },
+          ],
+        },
+        {
+          title: "Resources",
+          items: [
+            {
+              label: "Support",
+              href: "https://github.com/endatix/endatix/issues/new/choose",
+            },
+            {
+              label: "Releases",
+              href: "https://github.com/endatix/endatix/releases",
+            },
+            {
+              label: "NuGet",
+              href: "https://www.nuget.org/packages?q=endatix",
+            },
+            {
+              label: "SurveyJS",
+              href: "https://surveyjs.io",
             },
           ],
         },
@@ -106,45 +138,41 @@ const config: Config = {
           title: "Community",
           items: [
             {
-              label: "Stack Overflow",
-              href: "https://stackoverflow.com/questions/tagged/endatix",
+              label: "GitHub",
+              href: "https://github.com/endatix",
             },
             {
-              label: "Discord",
-              href: "https://discord.gg/VPqzMJgS",
+              label: "Stack Overflow",
+              href: "https://stackoverflow.com/questions/tagged/endatix",
             },
             {
               label: "Twitter",
               href: "https://x.com/endatix_",
             },
-          ],
-        },
-        {
-          title: "More",
-          items: [
             {
-              label: "Web",
-              href: "https://endatix.com",
-            },
-            {
-              label: "GitHub",
-              href: "https://github.com/endatix",
+              label: "Videos",
+              href: "https://www.youtube.com/@endatix",
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Endatix. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Endatix, Ltd. All rights reserved.`,
     },
     prism: {
       theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
-      additionalLanguages: [ "csharp", "json"]
+      darkTheme: prismThemes.oneDark,
+      additionalLanguages: ["csharp", "json"],
+    },
+    colorMode: {
+      defaultMode: "light",
+      disableSwitch: false,
+      respectPrefersColorScheme: true,
     },
   } satisfies Preset.ThemeConfig,
   markdown: {
     mermaid: true,
   },
-  themes: ['@docusaurus/theme-mermaid'],
+  themes: ["@docusaurus/theme-mermaid"],
 };
 
 export default config;

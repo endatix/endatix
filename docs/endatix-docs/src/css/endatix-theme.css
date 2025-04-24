@@ -17,7 +17,13 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
   --ifm-navbar-background-color: #ffffff;
   --ifm-navbar-link-color: #000000;
-  --ifm-footer-background-color: #0066FF;
+  
+  /* Footer variables for light mode - matches corp site */
+  --ifm-footer-background-color: #f4f5f7;
+  --ifm-footer-title-color: #1a1a1a;
+  --ifm-footer-link-color: #0066FF;
+  --ifm-footer-text-color: #666666;
+  
   --ifm-hero-background-color: #0066FF;
   --ifm-hero-text-color: #ffffff;
 }
@@ -34,7 +40,13 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
   --ifm-navbar-background-color: #1B1B1D;
   --ifm-navbar-link-color: #ffffff;
-  --ifm-footer-background-color: #0066FF;
+  
+  /* Footer variables for dark mode */
+  --ifm-footer-background-color: #2b3137;
+  --ifm-footer-title-color: #ffffff;
+  --ifm-footer-link-color: #ffffff;
+  --ifm-footer-text-color: #ffffff;
+  
   --ifm-hero-background-color: #0066FF;
   --ifm-hero-text-color: #ffffff;
 }
@@ -88,16 +100,30 @@
   background-color: var(--ifm-footer-background-color);
 }
 
-.footer__link-item {
-  color: #FFFFFF;
+.footer__title {
+  color: var(--ifm-footer-title-color);
+  font-weight: 600;
 }
 
-.footer__title {
-  color: #FFFFFF;
+.footer__link-item {
+  color: var(--ifm-footer-link-color);
+}
+
+.footer__link-item:hover {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
 }
 
 .footer__copyright {
-  color: #FFFFFF;
+  color: var(--ifm-footer-text-color);
+  font-size: 0.875rem;
+}
+
+/* Add social icons spacing if needed */
+.footer__social-links {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 /* Customize admonition (tip, note, etc.) boxes */
