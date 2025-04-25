@@ -44,9 +44,8 @@ const config: Config = {
         theme: {
           customCss: "./src/css/endatix-theme.css",
         },
-        gtag: {
-          trackingID: "G-EX59EFQH18",
-          anonymizeIP: true,
+        googleTagManager: {
+          containerId: "GTM-EX59EFQH18",
         },
       } satisfies Preset.Options,
     ],

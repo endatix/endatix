@@ -10,7 +10,7 @@ Endatix Platform is an open-source data collection and management library for .N
 
 :::tip
 
-If you just want to see how to install the platform and read about it later, please go to [Setup Using NuGet Package](/docs/getting-started/setup-nuget-package.md) or [Setup Using Docker](/docs/getting-started/setup-docker.md).
+If you just want to see how to install the platform and read about it later, please go to [Setup Using NuGet Package](/docs/getting-started/setup-nuget-package) or [Setup Using Docker](/docs/getting-started/setup-docker).
 
 :::
 
