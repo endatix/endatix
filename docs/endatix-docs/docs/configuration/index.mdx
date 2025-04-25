@@ -1,0 +1,120 @@
+---
+sidebar_position: 1
+title: "Configuration Fundamentals"
+description: "Learn the main principles and basics of configuration for your Endatix application"
+---
+
+# Configuration Fundamentals
+
+This guide provides a comprehensive overview of how to configure Endatix applications. Whether you've installed Endatix via NuGet packages or from the repository, these configuration options apply to all deployment scenarios.
+
+## Configuration Philosophy
+
+Endatix follows a configuration philosophy that balances ease of use with flexibility, offering three primary approaches:
+
+### 1. Sensible Defaults Approach
+
+The simplest way to add Endatix to your application with pre-configured settings that work for most scenarios:
+
+```csharp
+// Apply all defaults with minimal code
+builder.Host.ConfigureEndatix();
+```
+
+**Best for**: Getting started quickly, proof-of-concept projects, or applications that don't need custom configuration.
+
+### 2. Fully Customizable Approach
+
+For maximum control over every aspect of Endatix, configure only what you need:
+
+```csharp wordWrap=true
+// Configure only the components you need
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Persistence.UseSqlServer<AppDbContext>(o => o.ConnectionString = builder.Configuration.GetConnectionString("FormsDb")!);
+    endatix.Security.UseJwtAuthentication();
+});
+```
+
+**Best for**: Production applications with specific requirements, integrations with existing systems, or when you need fine-grained control.
+
+### 3. Hybrid Approach (Defaults + Overrides)
+
+Start with sensible defaults and selectively customize only what you need:
+
+```csharp
+// Start with defaults, then customize specific parts
+builder.Host.ConfigureEndatixWithDefaults(endatix => {
+    // Override specific components after applying defaults
+    endatix.Security.WithCustomJwtAuthentication(options => {
+        options.TokenValidationParameters.ValidateIssuer = false;
+    });
+});
+```
+
+**Best for**: Most production applications, balancing convenience with customization where needed.
+
+## Configuration Paradigms
+
+Endatix supports two main ways to provide configuration settings:
+
+### Code-Based Configuration
+
+Using the builder pattern in your `Program.cs` file provides a strongly-typed, fluent API for configuration:
+
+```csharp wordWrap=true
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Persistence.UsePostgreSql<AppDbContext>(p => p.ConnectionString = builder.Configuration.GetConnectionString("PostgresFormsDb")!);
+    endatix.Security.UseJwtAuthentication(options => {
+        options.TokenValidationParameters.ValidateIssuer = false;
+    });
+});
+```
+
+**Advantages**:
+- Type safety with compiler checks
+- IntelliSense support in your IDE
+- Immediate validation of configuration options
+- Integration with dependency injection
+
+### File-Based Configuration
+
+Using `appsettings.json` files for configuration:
+
+```json
+{
+  "Endatix": {
+    "ApplicationName": "My Endatix App",
+    "Jwt": {
+      "SigningKey": "your-secure-key",
+      "AccessExpiryInMinutes": 60,
+      "Issuer": "endatix-api"
+    },
+    "Data": {
+      "ConnectionString": "Server=...;Database=...;",
+      "EnableAutoMigrations": true
+    }
+  }
+}
+```
+
+**Advantages**:
+- Configuration can be changed without recompiling
+- Environment-specific settings (using `appsettings.Development.json`, etc.)
+- Easier integration with configuration management tools
+- Support for configuration reloading during runtime
+
+Most applications will use a combination of both paradigms, with code-based configuration referencing values from appsettings.json files.
+
+## Domain-Specific Configuration Areas
+
+Endatix configuration is organized into several key domains:
+
+- [**Security Configuration**](./security-configuration.mdx) - Authentication, authorization, and JWT settings
+- [**Environment Configuration**](./environment-configuration.mdx) - Setting up for development, staging, and production
+- [**Data Configuration**](./data-configuration.mdx) - Database providers, connection strings, and persistence options
+- [**Infrastructure Configuration**](./infrastructure-configuration.mdx) - Health checks, middleware, and logging
+- [**API Configuration**](./api-configuration.mdx) - Endpoints, routing, versioning, and API behaviors
+
+## What's Next?
+
+Choose a configuration domain from the sidebar to learn more about specific configuration options, or explore the environment-specific configuration guides to understand how to configure Endatix for different deployment scenarios. 

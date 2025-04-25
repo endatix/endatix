@@ -38,7 +38,7 @@ const config: Config = {
           sidebarPath: "./sidebars.ts",
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl: "https://github.com/endatix/docs-website/issues/new/choose",
+          editUrl: "https://github.com/endatix/endatix/tree/main/docs/endatix-docs",
         },
         theme: {
           customCss: "./src/css/endatix-theme.css",
@@ -161,7 +161,7 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.oneDark,
-      additionalLanguages: ["csharp", "json"],
+      additionalLanguages: ["csharp", "json"]
     },
     colorMode: {
       defaultMode: "light",

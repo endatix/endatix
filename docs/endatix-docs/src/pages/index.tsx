@@ -90,7 +90,7 @@ function HomepageContent() {
             <div className={styles.buttons}>
               <Link
                 className="button button--primary button--lg margin-right--md"
-                to="/docs/getting-started/installation"
+                to="/docs/getting-started/quick-start"
               >
                 Installation Guide
               </Link>
