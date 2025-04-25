@@ -38,10 +38,15 @@ const config: Config = {
           sidebarPath: "./sidebars.ts",
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl: "https://github.com/endatix/endatix/tree/main/docs/endatix-docs",
+          editUrl:
+            "https://github.com/endatix/endatix/tree/main/docs/endatix-docs",
         },
         theme: {
           customCss: "./src/css/endatix-theme.css",
+        },
+        gtag: {
+          trackingID: "G-EX59EFQH18",
+          anonymizeIP: true,
         },
       } satisfies Preset.Options,
     ],
@@ -69,7 +74,6 @@ const config: Config = {
     // Replace with your project's social card
     image: "img/endatix-transparent.png",
     navbar: {
-
       logo: {
         alt: "Endatix Logo",
         src: "img/endatix.svg",
@@ -161,7 +165,7 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.oneDark,
-      additionalLanguages: ["csharp", "json"]
+      additionalLanguages: ["csharp", "json"],
     },
     colorMode: {
       defaultMode: "light",
