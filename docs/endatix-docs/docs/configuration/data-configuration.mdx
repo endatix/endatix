@@ -1,0 +1,255 @@
+---
+sidebar_position: 4
+title: "Data Configuration"
+description: "Configure database providers, connections, and persistence options for your Endatix application"
+draft: true
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Data Configuration
+
+This guide covers how to configure data persistence for your Endatix application, including database providers, connection strings, entity configurations, and migrations.
+
+## Database Configuration
+
+Endatix supports multiple database providers to store your application data. You can choose the provider that best fits your requirements.
+
+### Code-Based Database Configuration
+
+#### SQL Server
+
+Configure SQL Server as your database provider:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Data.UseSqlServer(connectionString, options => {
+        options.EnableAutoMigrations = true;
+        options.SeedSampleData = builder.Environment.IsDevelopment();
+    });
+});
+```
+
+#### PostgreSQL
+
+Configure PostgreSQL as your database provider:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Data.UseNpgsql(connectionString, options => {
+        options.EnableAutoMigrations = true;
+    });
+});
+```
+
+### Database Settings in appsettings.json
+
+Configure your database connection in `appsettings.json`:
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=myServerAddress;Database=myDataBase;User Id=myUsername;Password=myPassword;"
+  },
+  "Endatix": {
+    "Data": {
+      "Provider": "SqlServer",
+      "ConnectionStringName": "DefaultConnection",
+      "EnableAutoMigrations": true,
+      "SeedSampleData": true,
+      "CommandTimeout": 30
+    }
+  }
+}
+```
+
+### Data Settings Explained
+
+- **Provider:** The database provider to use. Supported values:
+  - `"SqlServer"` - Microsoft SQL Server
+  - `"Npgsql"` - PostgreSQL
+  - `"Sqlite"` - SQLite
+  - `"InMemory"` - In-memory database (for development/testing)
+
+- **ConnectionStringName:** The name of the connection string in the ConnectionStrings section
+
+- **EnableAutoMigrations:** Whether to automatically apply pending migrations on startup
+  - Set to `false` in production for controlled migration deployment
+
+- **SeedSampleData:** Whether to seed sample data for development purposes
+  - Typically set to `true` only in development environments
+
+- **CommandTimeout:** Database command timeout in seconds (default: 30)
+
+## Entity Persistence Configuration
+
+Endatix offers configurations for how entities are persisted and managed in the database.
+
+### Code-Based Persistence Configuration
+
+Configure entity persistence options:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Data.ConfigurePersistence(options => {
+        options.DefaultPagingSize = 25;
+        options.MaxPagingSize = 100;
+        options.EnableSoftDelete = true;
+    });
+});
+```
+
+### Custom Entity Configuration
+
+Add custom entity type configurations:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Data.ConfigureEntities(entities => {
+        entities.ConfigureEntity<MyCustomEntity>(builder => {
+            builder.ToTable("MyCustomEntities");
+            builder.HasKey(e => e.Id);
+            builder.Property(e => e.Name).IsRequired().HasMaxLength(100);
+        });
+    });
+});
+```
+
+### Persistence Settings in appsettings.json
+
+Configure persistence behavior in your `appsettings.json`:
+
+```json
+{
+  "Endatix": {
+    "Persistence": {
+      "DefaultPagingSize": 25,
+      "MaxPagingSize": 100,
+      "EnableSoftDelete": true,
+      "EntityHistory": {
+        "Enabled": true,
+        "RetentionDays": 90
+      },
+      "ConcurrencyMode": "Optimistic"
+    }
+  }
+}
+```
+
+### Persistence Settings Explained
+
+- **DefaultPagingSize:** Default number of records per page when paginating results (default: 25)
+
+- **MaxPagingSize:** Maximum allowed page size when clients request larger pages (default: 100)
+
+- **EnableSoftDelete:** When true, entities marked with `ISoftDelete` are not physically deleted (default: true)
+
+- **EntityHistory:** Configuration for entity version history:
+  - **Enabled:** Whether to track entity changes (default: true)
+  - **RetentionDays:** How long to keep history records (default: 90 days)
+
+- **ConcurrencyMode:** How to handle concurrent updates:
+  - `"Optimistic"` - Uses EF Core's optimistic concurrency with rowversion/timestamps
+  - `"None"` - Last write wins (no concurrency control)
+  - `"Pessimistic"` - Uses database locks (fewer conflicts but potential performance impact)
+
+## Migration Configuration
+
+Database migrations allow you to evolve your database schema as your application changes.
+
+### Auto-Migration Configuration
+
+Configure automatic migrations:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Data.UseSqlServer(connectionString, options => {
+        options.EnableAutoMigrations = true;
+    });
+});
+```
+
+### Manual Migration Execution
+
+For production environments, you might want to run migrations manually:
+
+```bash
+# Make sure you have the EF Core tools installed
+dotnet tool install --global dotnet-ef
+
+# Navigate to your project directory
+cd src/YourProject
+
+# Create a new migration
+dotnet ef migrations add MyMigrationName
+
+# Apply migrations to the database
+dotnet ef database update
+```
+
+## Repository Pattern Support
+
+Endatix implements the repository pattern to provide a clean abstraction over data access.
+
+### Using the Default Repository
+
+Inject and use the default repository in your services:
+
+```csharp
+public class CustomerService
+{
+    private readonly IRepository<Customer> _customerRepository;
+
+    public CustomerService(IRepository<Customer> customerRepository)
+    {
+        _customerRepository = customerRepository;
+    }
+
+    public async Task<List<Customer>> GetCustomersAsync()
+    {
+        return await _customerRepository.GetAllAsync();
+    }
+}
+```
+
+### Custom Repository Implementation
+
+Create a custom repository with specific behavior:
+
+```csharp
+public interface ICustomerRepository : IRepository<Customer>
+{
+    Task<List<Customer>> GetPremiumCustomersAsync();
+}
+
+public class CustomerRepository : Repository<Customer>, ICustomerRepository
+{
+    public CustomerRepository(DbContext dbContext) : base(dbContext)
+    {
+    }
+
+    public async Task<List<Customer>> GetPremiumCustomersAsync()
+    {
+        return await GetQueryable()
+            .Where(c => c.IsPremium)
+            .ToListAsync();
+    }
+}
+```
+
+Register your custom repository:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Data.AddRepository<ICustomerRepository, CustomerRepository>();
+});
+```
+
+## Best Practices
+
+1. **Environment-Specific Configuration:** Use different database settings for development, testing, and production
+2. **Connection String Management:** Store connection strings securely using user secrets or environment variables
+3. **Production Migrations:** Disable auto-migrations in production and apply them manually or through your CI/CD pipeline
+4. **Entity Configuration:** Define explicit entity configurations for all entities to ensure database schema stability
+5. **Command Timeout:** Adjust command timeout values based on your application requirements to avoid long-running queries 

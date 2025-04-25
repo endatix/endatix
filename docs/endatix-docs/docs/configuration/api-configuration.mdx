@@ -1,0 +1,328 @@
+---
+sidebar_position: 6
+title: "API Configuration"
+description: "Configure API endpoints, routing, versioning, and other API behaviors for your Endatix application"
+draft: true
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# API Configuration
+
+This guide covers how to configure the API layer of your Endatix application, including endpoints, routing, versioning, and other API behaviors.
+
+## API Endpoints Configuration
+
+Endatix provides a simplified way to configure API endpoints using the builder pattern.
+
+### Basic API Configuration
+
+Configure the API with sensible defaults:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Api.UseEndpoints();
+});
+```
+
+This registers all Endatix API endpoints with default configurations.
+
+### Custom API Configuration
+
+For more control over API endpoints:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Api.UseEndpoints(endpoints => {
+        endpoints.UsePrefix("/api/v{version:apiVersion}");
+        endpoints.EnableVersioning();
+        endpoints.ScanAssembly(typeof(Program).Assembly); // Scan for endpoints in your assembly
+    });
+});
+```
+
+## API Versioning
+
+Endatix supports API versioning to maintain backward compatibility as your API evolves.
+
+### Basic API Versioning
+
+Enable API versioning with default settings:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Api.UseVersioning();
+});
+```
+
+### Custom API Versioning
+
+Configure API versioning with custom options:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Api.UseVersioning(options => {
+        options.DefaultApiVersion = new ApiVersion(1, 0);
+        options.AssumeDefaultVersionWhenUnspecified = true;
+        options.ReportApiVersions = true;
+        options.ApiVersionReader = ApiVersionReader.Combine(
+            new UrlSegmentApiVersionReader(),
+            new HeaderApiVersionReader("X-Api-Version")
+        );
+    });
+});
+```
+
+### API Versioning in appsettings.json
+
+Configure API versioning in your `appsettings.json`:
+
+```json
+{
+  "Endatix": {
+    "Api": {
+      "Versioning": {
+        "Enabled": true,
+        "DefaultVersion": "1.0",
+        "AssumeDefaultVersionWhenUnspecified": true,
+        "ReportApiVersions": true,
+        "Readers": {
+          "UrlSegment": true,
+          "Header": "X-Api-Version",
+          "QueryString": "api-version"
+        }
+      }
+    }
+  }
+}
+```
+
+## Swagger / OpenAPI Configuration
+
+Endatix provides built-in support for Swagger/OpenAPI documentation.
+
+### Basic Swagger Configuration
+
+Enable Swagger with default settings:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Api.UseSwagger();
+});
+```
+
+### Custom Swagger Configuration
+
+Configure Swagger with custom options:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Api.UseSwagger(options => {
+        options.Title = "My Endatix API";
+        options.Description = "API for my Endatix application";
+        options.Version = "v1";
+        options.EnableAnnotations = true;
+        
+        // Add JWT authentication support to Swagger UI
+        options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Description = "JWT Authorization header using the Bearer scheme",
+            Name = "Authorization",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.ApiKey,
+            Scheme = "Bearer"
+        });
+    });
+});
+```
+
+### Swagger Settings in appsettings.json
+
+Configure Swagger in your `appsettings.json`:
+
+```json
+{
+  "Endatix": {
+    "Api": {
+      "Swagger": {
+        "Enabled": true,
+        "Title": "My Endatix API",
+        "Description": "API for my Endatix application",
+        "Contact": {
+          "Name": "API Support",
+          "Email": "support@example.com",
+          "Url": "https://example.com/support"
+        },
+        "License": {
+          "Name": "MIT",
+          "Url": "https://opensource.org/licenses/MIT"
+        },
+        "EnableAnnotations": true,
+        "RoutePrefix": "swagger",
+        "IncludeXmlComments": true
+      }
+    }
+  }
+}
+```
+
+## Rate Limiting
+
+Endatix provides support for API rate limiting to protect your API from abuse.
+
+### Basic Rate Limiting
+
+Enable rate limiting with default settings:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Api.UseRateLimiting();
+});
+```
+
+### Custom Rate Limiting
+
+Configure rate limiting with custom options:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Api.UseRateLimiting(options => {
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        {
+            return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: context.User.Identity?.Name ?? context.Request.Headers.Host.ToString(),
+                factory: partition => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = 100,
+                    Window = TimeSpan.FromMinutes(1)
+                });
+        });
+    });
+});
+```
+
+### Rate Limiting Settings in appsettings.json
+
+Configure rate limiting in your `appsettings.json`:
+
+```json
+{
+  "Endatix": {
+    "Api": {
+      "RateLimiting": {
+        "Enabled": true,
+        "PermitLimit": 100,
+        "WindowInMinutes": 1,
+        "QueueLimit": 0,
+        "ReplenishmentPeriodInSeconds": 1,
+        "TokensPerPeriod": 1,
+        "AutoReplenishment": true
+      }
+    }
+  }
+}
+```
+
+## Response Formatting
+
+Configure how API responses are formatted:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Api.ConfigureResponses(options => {
+        options.UseEnvelopePattern = true;
+        options.IncludeExceptionDetails = builder.Environment.IsDevelopment();
+        options.UseHyphenCasePropertyNames = true;
+    });
+});
+```
+
+### Response Formatting Settings in appsettings.json
+
+Configure response formatting in your `appsettings.json`:
+
+```json
+{
+  "Endatix": {
+    "Api": {
+      "Responses": {
+        "UseEnvelopePattern": true,
+        "IncludeExceptionDetails": false,
+        "UseHyphenCasePropertyNames": true,
+        "DefaultPageSize": 25,
+        "MaxPageSize": 100
+      }
+    }
+  }
+}
+```
+
+## Custom Endpoint Configuration
+
+Endatix uses a modern, FastEndpoints-based approach for defining API endpoints. Here's how to create a custom endpoint:
+
+```csharp
+public class GetCustomerRequest
+{
+    public int Id { get; set; }
+}
+
+public class GetCustomerResponse
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public string Email { get; set; }
+}
+
+public class GetCustomerEndpoint : Endpoint<GetCustomerRequest, GetCustomerResponse>
+{
+    private readonly ICustomerService _customerService;
+
+    public GetCustomerEndpoint(ICustomerService customerService)
+    {
+        _customerService = customerService;
+    }
+
+    public override void Configure()
+    {
+        Get("/customers/{Id}");
+        Version(1);
+        Summary(s =>
+        {
+            s.Summary = "Get a customer by ID";
+            s.Description = "Retrieves a customer by their unique identifier";
+            s.ExampleRequest = new GetCustomerRequest { Id = 1 };
+        });
+    }
+
+    public override async Task HandleAsync(GetCustomerRequest req, CancellationToken ct)
+    {
+        var customer = await _customerService.GetCustomerByIdAsync(req.Id, ct);
+        
+        if (customer == null)
+        {
+            await SendNotFoundAsync(ct);
+            return;
+        }
+        
+        var response = new GetCustomerResponse
+        {
+            Id = customer.Id,
+            Name = customer.Name,
+            Email = customer.Email
+        };
+        
+        await SendOkAsync(response, ct);
+    }
+}
+```
+
+## Best Practices
+
+1. **API Versioning:** Always version your API to maintain backward compatibility
+2. **Rate Limiting:** Apply rate limiting to protect your API from abuse
+3. **Response Formatting:** Use consistent response formats across all endpoints
+4. **Documentation:** Keep your Swagger documentation up-to-date with accurate descriptions
+5. **Security:** Ensure all sensitive API endpoints are properly secured with authentication and authorization 

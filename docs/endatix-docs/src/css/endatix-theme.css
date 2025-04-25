@@ -1,0 +1,169 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-color-primary: #0066FF;
+  --ifm-color-primary-dark: #0055D9;
+  --ifm-color-primary-darker: #0049CC;
+  --ifm-color-primary-darkest: #003CB3;
+  --ifm-color-primary-light: #1A75FF;
+  --ifm-color-primary-lighter: #3385FF;
+  --ifm-color-primary-lightest: #4D94FF;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --ifm-navbar-background-color: #ffffff;
+  --ifm-navbar-link-color: #000000;
+  
+  /* Footer variables for light mode - matches corp site */
+  --ifm-footer-background-color: #f4f5f7;
+  --ifm-footer-title-color: #1a1a1a;
+  --ifm-footer-link-color: #0066FF;
+  --ifm-footer-text-color: #666666;
+  
+  --ifm-hero-background-color: #0066FF;
+  --ifm-hero-text-color: #ffffff;
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #4D94FF;
+  --ifm-color-primary-dark: #3385FF;
+  --ifm-color-primary-darker: #1A75FF;
+  --ifm-color-primary-darkest: #0066FF;
+  --ifm-color-primary-light: #66A3FF;
+  --ifm-color-primary-lighter: #80B3FF;
+  --ifm-color-primary-lightest: #99C2FF;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-navbar-background-color: #1B1B1D;
+  --ifm-navbar-link-color: #ffffff;
+  
+  /* Footer variables for dark mode */
+  --ifm-footer-background-color: #2b3137;
+  --ifm-footer-title-color: #ffffff;
+  --ifm-footer-link-color: #ffffff;
+  --ifm-footer-text-color: #ffffff;
+  
+  --ifm-hero-background-color: #0066FF;
+  --ifm-hero-text-color: #ffffff;
+}
+
+/* Hero section styling */
+.hero {
+  background-color: var(--ifm-hero-background-color);
+  color: var(--ifm-hero-text-color);
+}
+
+.hero__title, 
+.hero__subtitle {
+  color: var(--ifm-hero-text-color);
+}
+
+.button.button--secondary {
+  color: #000000;
+  background-color: #FFFFFF;
+  border-color: #FFFFFF;
+}
+
+[data-theme='dark'] .button.button--secondary {
+  color: #FFFFFF;
+  background-color: transparent;
+  border-color: #FFFFFF;
+}
+
+/* Logo and navbar styling */
+.navbar__logo {
+  height: 2.5rem;
+  margin-right: 0.5rem;
+}
+
+.navbar__logo img {
+  height: 2.5rem;
+  margin-right: 0.5rem;
+  position: relative;
+  top: 3px; 
+}
+
+/* Make navbar sticky */
+.navbar {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Enhance navbar links */
+.navbar__link {
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.navbar__link:hover {
+  color: var(--ifm-color-primary);
+}
+
+/* Footer styling */
+.footer {
+  background-color: var(--ifm-footer-background-color);
+}
+
+.footer__title {
+  color: var(--ifm-footer-title-color);
+  font-weight: 600;
+}
+
+.footer__link-item {
+  color: var(--ifm-footer-link-color);
+}
+
+.footer__link-item:hover {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.footer__copyright {
+  color: var(--ifm-footer-text-color);
+  font-size: 0.875rem;
+}
+
+/* Add social icons spacing if needed */
+.footer__social-links {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* Customize admonition (tip, note, etc.) boxes */
+.alert--success {
+  --ifm-alert-background-color: rgba(0, 102, 255, 0.1);
+  --ifm-alert-border-color: #0066FF;
+  --ifm-alert-color: var(--ifm-font-color-base);
+}
+
+.alert--success .admonition-icon svg {
+  fill: #0066FF;
+}
+
+[data-theme='dark'] .alert--success {
+  --ifm-alert-background-color: rgba(77, 148, 255, 0.1);
+  --ifm-alert-border-color: #4D94FF;
+}
+
+[data-theme='dark'] .alert--success .admonition-icon svg {
+  fill: #4D94FF;
+}
+
+/* Make in-text links more visible */
+article a {
+  font-weight: 500;
+}
+
+/* Style the table of contents */
+.table-of-contents {
+  font-size: 0.9rem;
+}
+
+.table-of-contents__link--active {
+  font-weight: 600;
+  color: var(--ifm-color-primary);
+}

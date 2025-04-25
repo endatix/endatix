@@ -1,0 +1,261 @@
+---
+sidebar_position: 5
+title: "Infrastructure Configuration"
+description: "Configure health checks, middleware, and other infrastructure components for your Endatix application"
+draft: true
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Infrastructure Configuration
+
+This guide covers how to configure infrastructure components in your Endatix application, including health checks, middleware, and logging.
+
+## Health Checks
+
+Health checks help monitor the health and availability of your application and its dependencies. Endatix provides a comprehensive health check system that integrates with ASP.NET Core health checks.
+
+### Basic Health Check Configuration
+
+Enable health checks with sensible defaults:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Infrastructure.AddHealthChecks();
+});
+```
+
+This adds default health checks for all registered dependencies and configures standard endpoints.
+
+### Custom Health Check Configuration
+
+For more control over health checks:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Infrastructure.AddHealthChecks(health => {
+        // Add custom health checks
+        health.AddCheck("ExampleCheck", () => HealthCheckResult.Healthy());
+        
+        // Add checks for external dependencies
+        health.AddSqlServer(connectionString, name: "database", tags: new[] { "db", "sql", "sqlserver" });
+        health.AddUrlGroup(new Uri("https://example.com"), name: "example-api");
+        
+        // Configure the health UI
+        health.AddHealthUI(options => {
+            options.UIPath = "/health-ui";
+            options.ApiPath = "/health";
+        });
+    });
+});
+```
+
+### Health Check Settings in appsettings.json
+
+Configure health checks in your `appsettings.json`:
+
+```json
+{
+  "Endatix": {
+    "HealthChecks": {
+      "Enabled": true,
+      "Path": "/health",
+      "UI": {
+        "Enabled": true,
+        "Path": "/health-ui",
+        "ApiPath": "/healthcheck-api"
+      },
+      "EvaluationTimeInSeconds": 10,
+      "MinimumSecondsBetweenFailureNotifications": 60,
+      "Tags": {
+        "Database": ["db", "sql", "sqlserver"],
+        "API": ["api", "http"]
+      }
+    }
+  }
+}
+```
+
+### Health Check Settings Explained
+
+- **Enabled:** Whether health checks are enabled (default: true)
+- **Path:** The endpoint path for health checks (default: "/health")
+- **UI:** Configuration for the health check UI:
+  - **Enabled:** Whether the UI is enabled (default: true in development, false in production)
+  - **Path:** The endpoint path for the health UI (default: "/health-ui")
+  - **ApiPath:** The path for the health check JSON API (default: "/healthcheck-api")
+- **EvaluationTimeInSeconds:** How often health checks are evaluated
+- **MinimumSecondsBetweenFailureNotifications:** Throttle notifications for failures
+- **Tags:** Group health checks by tags for filtered results
+
+### Custom Health Check Implementation
+
+Create and register a custom health check:
+
+```csharp
+public class ExampleHealthCheck : IHealthCheck
+{
+    private readonly IExampleService _exampleService;
+
+    public ExampleHealthCheck(IExampleService exampleService)
+    {
+        _exampleService = exampleService;
+    }
+
+    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Check if the service is functioning
+            bool isHealthy = await _exampleService.IsAvailableAsync();
+            
+            if (isHealthy)
+            {
+                return HealthCheckResult.Healthy("Example service is healthy");
+            }
+            
+            return HealthCheckResult.Degraded("Example service is experiencing issues");
+        }
+        catch (Exception ex)
+        {
+            return HealthCheckResult.Unhealthy("Example service is unhealthy", ex);
+        }
+    }
+}
+```
+
+Register your custom health check:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Infrastructure.AddHealthChecks(health => {
+        health.AddCheck<ExampleHealthCheck>("example-service", tags: new[] { "services" });
+    });
+});
+```
+
+### Health Check UI
+
+Endatix integrates the popular HealthChecks UI package to provide a web interface for monitoring health checks:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Infrastructure.AddHealthChecks(health => {
+        health.AddHealthUI(options => {
+            options.AddHealthCheckEndpoint("Main", "/health");
+            options.SetEvaluationTimeInSeconds(10);
+        });
+    });
+});
+```
+
+## Middleware Configuration
+
+Configure middleware components for your Endatix application:
+
+### Exception Handling Middleware
+
+Configure global exception handling:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Infrastructure.UseExceptionHandling(options => {
+        options.IncludeExceptionDetails = builder.Environment.IsDevelopment();
+        options.UseDefaultResponseFactory = true;
+    });
+});
+```
+
+### Response Compression
+
+Enable and configure response compression:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Infrastructure.UseResponseCompression(options => {
+        options.EnableForHttps = true;
+        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+            new[] { "application/vnd.endatix.hateoas+json" });
+    });
+});
+```
+
+### Middleware Settings in appsettings.json
+
+Configure middleware settings in your `appsettings.json`:
+
+```json
+{
+  "Endatix": {
+    "Infrastructure": {
+      "ExceptionHandling": {
+        "IncludeExceptionDetails": false,
+        "UseDefaultResponseFactory": true
+      },
+      "ResponseCompression": {
+        "EnableForHttps": true,
+        "Providers": {
+          "Gzip": true,
+          "Brotli": true
+        }
+      }
+    }
+  }
+}
+```
+
+## Logging Configuration
+
+Configure logging for your Endatix application:
+
+### Serilog Integration
+
+Endatix uses Serilog for structured logging:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Infrastructure.ConfigureLogging(logging => {
+        logging.UseConsole = true;
+        logging.UseFile = true;
+        logging.MinimumLevel = LogLevel.Information;
+    });
+});
+```
+
+### Logging Settings in appsettings.json
+
+Configure logging in your `appsettings.json`:
+
+```json
+{
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft": "Warning",
+        "System": "Warning"
+      }
+    },
+    "WriteTo": [
+      { "Name": "Console" },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "logs/log-.txt",
+          "rollingInterval": "Day"
+        }
+      }
+    ],
+    "Enrich": ["FromLogContext", "WithMachineName", "WithThreadId"]
+  }
+}
+```
+
+## Best Practices
+
+1. **Health Checks:** Include all critical dependencies in your health checks (database, cache, message broker, etc.)
+2. **Response Times:** Configure health checks with appropriate timeouts to avoid cascading failures
+3. **Logging Strategy:** Set appropriate log levels to balance information with performance
+4. **Exception Handling:** Never expose exception details in production environments
+5. **Compression:** Enable compression for API responses to improve performance, especially for large payloads 
