@@ -39,12 +39,12 @@ Install the Endatix NuGet package
 <Tabs>
   <TabItem value="dotnet-cli" label=".NET CLI" default>
     ```bash
-    dotnet add package Endatix.Hosting
+    dotnet add package Endatix.Hosting 
     ```
   </TabItem>
   <TabItem value="nuget-cli" label="NuGet CLI">
-    ```
-    bash nuget install Endatix.Hosting
+    ```bash
+    nuget install Endatix.Hosting
     ```
   </TabItem>
 </Tabs>
@@ -66,7 +66,7 @@ app.UseEndatix();
 app.Run();
 ```
 
-This minimal setup configures Endatix with sensible defaults suitable for most scenarios. 
+This minimal setup configures Endatix with sensible defaults suitable for most scenarios.
 
 <details>
   <summary>**What's Included in the Default Setup?**</summary>
@@ -96,9 +96,9 @@ Find or create a new `appsettings.Development.json` file in the project root and
 <details>
   <summary>expand the code block below to copy the following code to your **appsettings.Development.json**</summary>
 
-  :bulb: **Note on Connection Strings:** The Default connection string is required. This is line 3. The other connection strings are optional and can be used to configure the database provider. If you want to use PostgresSQL as the database provider, uncomment the _DefaultConnection_DbProvider_ line and set the value to "postgresql". Otherwise, delete line 4.
+:bulb: **Note on Connection Strings:** The Default connection string is required. This is line 3. The other connection strings are optional and can be used to configure the database provider. If you want to use PostgresSQL as the database provider, uncomment the _DefaultConnection_DbProvider_ line and set the value to "postgresql". Otherwise, delete line 4.
 
-  :bulb: **Note on Initial User:** Line 13 and 14 are optional and they allow you to configure the credentials for the initial user. Change the email and password to your own credentials. You can remove these lines upon successful app setup and login. Never commit your credentials to the repository.
+:bulb: **Note on Initial User:** Line 13 and 14 are optional and they allow you to configure the credentials for the initial user. Change the email and password to your own credentials. You can remove these lines upon successful app setup and login. Never commit your credentials to the repository.
 
 ```json {3,4,12,13} showLineNumbers
 {
@@ -111,6 +111,8 @@ Find or create a new `appsettings.Development.json` file in the project root and
       "SwaggerPath": "/api-docs"
     },
     "Data": {
+      "EnableAutoMigrations": true,
+      "SeedSampleData": true,
       "InitialUser": {
         "Email": "admin@admin.com", // this is the default email for the initial user. Change this to your email
         "Password": "P@ssw0rd" // this is the default password for the initial user. Change this to a more secure password
@@ -118,11 +120,13 @@ Find or create a new `appsettings.Development.json` file in the project root and
     }
     "Jwt": {
       "SigningKey": "L2yGC_Vpd3k#L[<9Zb,h?.HT:n'T/5CTDmBpDskU?NAaT$sLfRU"
-    }
-  },
-    "Email": {
-    "SendGridSettings": {
-      "ApiKey": "{{YOUR_SENDGRID_API_KEY}}"
+    },
+    "Integrations": {
+      "Email": {
+        "SendGridSettings": {
+          "ApiKey": "{{SENDGRID_API_KEY}}"
+        }
+      }
     }
   },
   "Serilog": {
@@ -170,7 +174,6 @@ Find or create a new `appsettings.Development.json` file in the project root and
 
 </details>
 
-
 ## Step 5: Run the application
 
 Run the application using the .NET CLI:
@@ -183,9 +186,6 @@ dotnet run
 
 After installation, you can verify that Endatix is running correctly by making a simple API call:
 
-* **Verify the service is healthy** - `https://localhost:YOUR_PORT/health/ui`
-* **See the Swagger UI** - `https://localhost:YOUR_PORT/api-docs`
-* **Login** - use the default crendentials from the appsettings.Development.json file to authenticate and change them after login
-
-
-
+- **Verify the service is healthy** - `https://localhost:YOUR_PORT/health/ui`
+- **See the Swagger UI** - `https://localhost:YOUR_PORT/api-docs`
+- **Login** - use the default crendentials from the appsettings.Development.json file to authenticate and change them after login
