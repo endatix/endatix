@@ -1,0 +1,281 @@
+---
+sidebar_position: 3
+title: "Security Configuration"
+description: "Configure authentication, authorization, and JWT settings for your Endatix application"
+draft: true
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Security Configuration
+
+This guide covers the security configuration options for your Endatix application, including authentication, authorization, and JWT settings.
+
+## JWT Authentication
+
+JSON Web Tokens (JWT) are the primary authentication mechanism in Endatix. Here's how to configure JWT authentication:
+
+### Basic JWT Configuration
+
+To enable JWT authentication with default settings:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Security.UseJwtAuthentication();
+});
+```
+
+This configures JWT authentication with sensible defaults from your configuration.
+
+### Custom JWT Configuration
+
+For more control over JWT authentication:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Security.UseJwtAuthentication(options => {
+        options.RequireHttpsMetadata = false; // For development only
+        options.TokenValidationParameters.ValidateIssuer = false;
+        options.TokenValidationParameters.ValidateAudience = false;
+    });
+});
+```
+
+### JWT Settings in appsettings.json
+
+Configure JWT settings in your `appsettings.json` file:
+
+```json
+{
+  "Endatix": {
+    "Jwt": {
+      "SigningKey": "your-secure-signing-key",
+      "AccessExpiryInMinutes": 60,
+      "RefreshExpiryInDays": 7,
+      "Issuer": "endatix-api",
+      "Audiences": ["endatix-hub", "endatix-client"]
+    }
+  }
+}
+```
+
+:::warning Security Alert
+
+:lock: Never expose sensitive JWT settings, like the SigningKey, in public configuration files or the client-side code. Exposing these keys is a security vulnerability that can lead to token forgery, data breaches, or unauthorized access. Always store them securely in environment variables or a dedicated secrets manager.
+
+:::
+
+### JWT Settings Explained
+
+- **SigningKey:** The key used to sign the JWT token. This key must remain confidential.
+  - :bulb: **Tip:** Generate a secure key using: `openssl rand -hex 32`
+  - Example: `a28110cc8b94c5f3b3c923aa2c9fae4ed50c86ec61debfe6edb3c29947dbb00c`
+
+- **AccessExpiryInMinutes:** Defines the lifetime of the JWT token (default: 60 minutes)
+  - :bulb: **Tip:** For production, consider shorter times (15-30 minutes) to reduce security risks
+
+- **RefreshExpiryInDays:** Defines the lifetime of refresh tokens (default: 7 days)
+  
+- **Issuer:** Specifies the valid issuer of the JWT token
+  - Example: `"api.myapp.com"`, `"https://localhost:5000"`, or `"endatix-api"`
+
+- **Audiences:** A list of valid audiences that can receive the token
+  - Example: `["www.myapp.com", "https://localhost:3000", "my-endatix-app"]`
+
+## JWT Signing Key Generation
+
+### Why Secure Keys Matter
+
+JWT signing keys are used to sign and verify tokens used for authentication. A secure, randomly generated key is crucial for maintaining the security of your application.
+
+### Automatic Key Generation in Development
+
+In development environments, Endatix will automatically generate a secure JWT signing key if:
+- The key is missing in the configuration
+- The key is set to the placeholder value `"REPLACE_WITH_ACTUAL_KEY"`
+- The key is using a known insecure/default value
+
+This feature ensures you can quickly start development without manual key generation. It's implemented using ASP.NET Core's `IPostConfigureOptions<JwtOptions>` mechanism, so it runs automatically when your application starts in the development environment.
+
+### Using the JWT Key Generator Tool
+
+For more control, you can use the included `endatix-jwt-key` tool to generate keys:
+
+```bash
+# Navigate to the tool directory
+cd oss/tools/JwtKeyGenerator
+
+# Run the tool directly
+dotnet run
+
+# Or install it as a global tool
+dotnet pack -o ./nupkg
+dotnet tool install --global --add-source ./nupkg Endatix.Tools.JwtKeyGenerator
+
+# Generate a key using the global tool
+endatix-jwt-key
+
+# Options
+endatix-jwt-key --length=64            # Specify key length
+endatix-jwt-key --no-special-chars     # Generate a key without special characters
+endatix-jwt-key --help                 # Show help
+```
+
+### Using dotnet user-secrets
+
+For local development, the recommended approach is to use .NET's user secrets:
+
+```bash
+# Navigate to your project directory
+cd src/YourProject
+
+# Initialize user secrets if not already done
+dotnet user-secrets init
+
+# Generate and store a key
+dotnet user-secrets set "Endatix:Jwt:SigningKey" "$(cd ../../oss/tools/JwtKeyGenerator && dotnet run)"
+```
+
+This keeps the key out of your codebase and source control.
+
+### Production Key Management
+
+For production environments, follow these best practices:
+
+1. **Never** use the same key as development environments
+2. Use environment variables or a secure secrets manager (Azure Key Vault, AWS Secrets Manager, etc.)
+3. Rotate keys regularly according to your security policies
+4. Use a key length of at least 256 bits (32 bytes)
+
+Example using environment variables:
+
+```json
+{
+  "Endatix": {
+    "Jwt": {
+      "SigningKey": "#{JWT_SIGNING_KEY}#"
+    }
+  }
+}
+```
+
+Then set the environment variable `JWT_SIGNING_KEY` to your secure key value.
+
+## Authorization Configuration
+
+### Default Authorization
+
+To configure default authorization policies:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Security.AddDefaultAuthorization();
+});
+```
+
+### Custom Authorization Policies
+
+To define custom authorization policies:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Security.AddAuthorization(options => {
+        options.AddPolicy("RequireAdminRole", policy => 
+            policy.RequireRole("admin"));
+            
+        options.AddPolicy("PremiumUsers", policy => 
+            policy.RequireClaim("subscription", "premium"));
+    });
+});
+```
+
+## CORS Configuration
+
+CORS (Cross-Origin Resource Sharing) controls how your web API interacts with applications from different origins.
+
+### Default CORS Behavior
+
+By default, Endatix applies different CORS policies based on the environment:
+
+- **Development:** A permissive policy that allows any origin, header, and method (AllowAll)
+- **Production:** A restrictive policy that disables all origins, headers, and methods (DisallowAll)
+
+### Code-Based CORS Configuration
+
+Configure CORS using the builder pattern:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => {
+    endatix.Security.AddCors(options => {
+        options.AddDefaultPolicy(builder => {
+            builder.WithOrigins("https://your-app-client.com")
+                   .AllowAnyMethod()
+                   .AllowAnyHeader();
+        });
+    });
+});
+```
+
+### CORS Settings in appsettings.json
+
+Configure CORS in your `appsettings.json`:
+
+```json
+{
+  "Endatix": {
+    "Cors": {
+      "DefaultPolicyName": "ProductionCorsPolicy",
+      "CorsPolicies": [
+        {
+          "PolicyName": "ProductionCorsPolicy",
+          "AllowedOrigins": ["https://my.domain.com", "https://admin.mydomain.com"],
+          "AllowedMethods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+          "AllowedHeaders": ["*"],
+          "ExposedHeaders": [],
+          "AllowCredentials": false,
+          "PreflightMaxAgeInSeconds": 1200
+        }
+      ]
+    }
+  }
+}
+```
+
+### CORS Settings Explained
+
+- **DefaultPolicyName:** Specifies which named policy to use as the default. If omitted, falls back to environment defaults.
+
+- **PolicyName:** A unique identifier for each CORS policy.
+  - Example: `"MainPolicy"` or `"StagingPolicy"`
+
+- **AllowedOrigins:** Origins allowed to make cross-origin requests.
+  - Example: `["https://my.domain.com", "http://my.domain.com"]` - allows specific domains
+  - Example: `["*"]` - allows any origin (not recommended for production)
+  - Example: `["-"]` - disallows all origins (disables CORS)
+
+- **AllowedMethods:** HTTP methods permitted for cross-origin requests.
+  - Example: `["GET","POST","PATCH","DELETE","PUT","OPTIONS"]` - typical API methods
+  - Example: `["*"]` - allows all HTTP methods (not recommended for production)
+
+- **AllowedHeaders:** Headers that can be used in the request.
+  - Example: `["Content-Type", "Authorization"]` - allows specific headers
+  - Example: `["*"]` - allows all headers
+
+- **ExposedHeaders:** Additional headers that can be exposed to the browser.
+
+- **AllowCredentials:** Determines if cross-origin credentials are allowed (default: false).
+
+- **PreflightMaxAgeInSeconds:** How long the preflight request can be cached.
+
+:::tip CORS Best Practices
+
+- **Never** combine `AllowedOrigins: ["*"]` with `AllowCredentials: true` as it creates a security vulnerability
+- Use different policies for development and production environments
+- Follow the principle of least privilege - only expose what's necessary
+- For production, explicitly list allowed origins rather than using wildcards
+- Consider setting shorter preflight cache times in development for easier testing
+
+:::
+
+CORS is implemented via ASP.NET Core's [CORS middleware](https://learn.microsoft.com/en-us/aspnet/core/security/cors). For more details on CORS concepts, see the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS). 

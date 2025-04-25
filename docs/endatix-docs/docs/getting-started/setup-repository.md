@@ -95,7 +95,6 @@ After starting the application, you can verify that Endatix is running correctly
 For detailed information on configuring your Endatix application, please refer to our configuration guides:
 
 - [Configuring Endatix](/docs/configuration/) - Learn about the different configuration approaches and paradigms
-- [Environment-Specific Configuration](/docs/configuration/environment-configuration) - Configure your app for different environments
 - [Security Configuration](/docs/configuration/security-configuration) - JWT authentication and authorization settings
 
 ## Solution Structure
