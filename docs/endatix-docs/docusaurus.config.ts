@@ -45,7 +45,7 @@ const config: Config = {
           customCss: "./src/css/endatix-theme.css",
         },
         googleTagManager: {
-          containerId: "GTM-EX59EFQH18",
+          containerId: "G-EX59EFQH18",
         },
       } satisfies Preset.Options,
     ],
