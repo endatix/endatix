@@ -38,7 +38,8 @@ public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
             ))
             .Where(s => s.FormDefinition.FormId == formId)
             .Filter(filterParams)
-            .OrderByDescending(s => s.CompletedAt)
+            .OrderByDescending(s => s.CreatedAt)
+            .ThenByDescending(s => s.CompletedAt)
             .Paginate(pagingParams)
             .AsNoTracking();
     }
