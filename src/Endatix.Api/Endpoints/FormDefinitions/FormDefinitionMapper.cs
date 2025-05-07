@@ -38,7 +38,8 @@ public class FormDefinitionMapper
         FormId = formDefinition.FormId.ToString(),
         CreatedAt = formDefinition.CreatedAt,
         ModifiedAt = formDefinition.ModifiedAt,
-        ThemeModel = formDefinition.ThemeJsonData
+        ThemeModel = formDefinition.ThemeJsonData,
+        CustomQuestions = formDefinition.CustomQuestions
     };
 
     /// <summary>
