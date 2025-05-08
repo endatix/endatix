@@ -8,6 +8,21 @@ namespace Endatix.Core.Features.WebHooks;
 public record WebHookOperation
 {
     /// <summary>
+    /// A static instance of WebHookOperation representing a form creation.
+    /// </summary>
+    public static readonly WebHookOperation FormCreated = new("form_created", nameof(Form), ActionName.Created);
+
+    /// <summary>
+    /// A static instance of WebHookOperation representing a form update.
+    /// </summary>
+    public static readonly WebHookOperation FormUpdated = new("form_updated", nameof(Form), ActionName.Updated);
+
+    /// <summary>
+    /// A static instance of WebHookOperation representing a form enabled state change.
+    /// </summary>
+    public static readonly WebHookOperation FormEnabledStateChanged = new("form_enabled_state_changed", nameof(Form), ActionName.Updated);
+
+    /// <summary>
     /// A static instance of WebHookOperation representing a form submission.
     /// </summary>
     public static readonly WebHookOperation FormSubmitted = new("form_submitted", nameof(Submission), ActionName.Created);

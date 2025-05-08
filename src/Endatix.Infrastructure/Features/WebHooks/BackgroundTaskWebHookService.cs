@@ -23,27 +23,39 @@ internal class BackgroundTaskWebHookService(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task EnqueueWebHookAsync<TPayload>(WebHookMessage<TPayload> message, CancellationToken cancellationToken) where TPayload : notnull
     {
-        if (!_webHookSettings.Events.FormSubmitted.IsEnabled)
+        var eventSetting = GetEventSetting(message.Operation.EventName);
+        if (!eventSetting.IsEnabled)
         {
-            logger.LogTrace("WebHook for FormSubmitted event is disabled. Skipping processing...");
+            logger.LogTrace("WebHook for {eventName} event is disabled. Skipping processing...", message.Operation.EventName);
             return;
         }
-        var destinationUrls = _webHookSettings.Events.FormSubmitted?.WebHookUrls;
+
+        var destinationUrls = eventSetting.WebHookUrls;
         if (destinationUrls is null || !destinationUrls.Any())
         {
-            logger.LogTrace("No destination URLs found for FormSubmitted event. Skipping processing...");
+            logger.LogTrace("No destination URLs found for {eventName} event. Skipping processing...", message.Operation.EventName);
             return;
         }
 
         foreach (var destinationUrl in destinationUrls)
         {
             await backgroundQueue.EnqueueAsync(async token =>
-             {
-                 TaskInstructions instructions = new(destinationUrl);
-                 var result = await httpServer.FireWebHookAsync(message, instructions, token);
-             });
+            {
+                TaskInstructions instructions = new(destinationUrl);
+                var result = await httpServer.FireWebHookAsync(message, instructions, token);
+            });
         }
+    }
 
-        return;
+    private WebHookSettings.EventSetting GetEventSetting(string eventName)
+    {
+        return eventName switch
+        {
+            WebHooksPlugin.EventNames.FORM_CREATED => _webHookSettings.Events.FormCreated,
+            WebHooksPlugin.EventNames.FORM_UPDATED => _webHookSettings.Events.FormUpdated,
+            WebHooksPlugin.EventNames.FORM_ENABLED_STATE_CHANGED => _webHookSettings.Events.FormEnabledStateChanged,
+            WebHooksPlugin.EventNames.FORM_SUBMITTED => _webHookSettings.Events.FormSubmitted,
+            _ => throw new ArgumentException($"Unknown event name: {eventName}", nameof(eventName))
+        };
     }
 }

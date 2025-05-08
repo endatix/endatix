@@ -77,6 +77,21 @@ public class WebHookSettings : IEndatixSettings
     public class WebHookEvents
     {
         /// <summary>
+        /// Represents the settings for the 'FormCreated' event.
+        /// </summary>
+        public EventSetting FormCreated { get; set; } = new() { EventName = EventNames.FORM_CREATED };
+
+        /// <summary>
+        /// Represents the settings for the 'FormUpdated' event.
+        /// </summary>
+        public EventSetting FormUpdated { get; set; } = new() { EventName = EventNames.FORM_UPDATED };
+
+        /// <summary>
+        /// Represents the settings for the 'FormEnabledStateChanged' event.
+        /// </summary>
+        public EventSetting FormEnabledStateChanged { get; set; } = new() { EventName = EventNames.FORM_ENABLED_STATE_CHANGED };
+
+        /// <summary>
         /// Represents the settings for the 'FormSubmitted' event.
         /// </summary>
         public EventSetting FormSubmitted { get; set; } = new() { EventName = EventNames.FORM_SUBMITTED };
