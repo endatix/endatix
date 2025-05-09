@@ -34,7 +34,7 @@ public class EndatixHealthChecksBuilder
         }
 
         // Add basic self-check
-        AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "self" });
+        AddCheck("endatix-api", () => HealthCheckResult.Healthy(), tags: new[] { "live" });
 
         // TODO: Add more health checks
 
