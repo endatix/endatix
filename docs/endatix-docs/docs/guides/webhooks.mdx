@@ -1,0 +1,226 @@
+---
+sidebar_position: 1
+title: Webhooks
+description: Learn how to work with webhooks in Endatix
+---
+
+# Webhooks
+
+Endatix provides a flexible webhook system that allows you to send notifications to external systems when specific events occur in your application. This guide will show you how to implement custom webhook handlers in an external assembly.
+
+## Overview
+
+Webhooks in Endatix are implemented as event handlers that process specific events and send them to configured webhook endpoints. The system supports various types of events, including:
+
+- Form events (`FormCreated`, `FormUpdated`, `FormEnabledStateChanged`)
+- Submission events (`SubmissionCompleted`)
+
+## Implementation Steps
+
+### 1. Create a New Project
+
+First, create a new class library project that will contain your webhook handlers:
+
+```bash
+dotnet new classlib -n YourCompany.Endatix.WebHooks
+```
+
+### 2. Add Required Dependencies
+
+Add the following NuGet packages to your project:
+
+```xml
+<ItemGroup>
+    ...
+    <PackageReference Include="Endatix.Core" Version="1.0.0" />
+    ...
+</ItemGroup>
+```
+
+### 3. Create Webhook Handlers
+
+Create handlers for the events you want to process. Here's an example of a `FormCreated` event handler:
+
+```csharp
+using Endatix.Core.Events;
+using Endatix.Core.Features.WebHooks;
+using MediatR;
+using Microsoft.Extensions.Logging;
+
+namespace YourCompany.Endatix.WebHooks.FormEventHandlers;
+
+public class FormCreatedHandler(IWebHookService webHookService, ILogger<FormCreatedHandler> logger) : INotificationHandler<FormCreatedEvent>
+{
+    public async Task Handle(FormCreatedEvent notification, CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Handling FormCreatedEvent for form {FormId}", notification.Form.Id);
+
+        var form = new
+        {
+            notification.Form.Id,
+            notification.Form.TenantId,
+            notification.Form.Name,
+            notification.Form.Description,
+            notification.Form.IsEnabled,
+            notification.Form.ActiveDefinitionId,
+            notification.Form.ThemeId,
+            notification.Form.CreatedAt,
+            notification.Form.ModifiedAt,
+        };
+
+        var message = new WebHookMessage<object>(
+            notification.Form.Id,
+            WebHookOperation.FormCreated,
+            form);
+
+        await webHookService.EnqueueWebHookAsync(message, cancellationToken);
+    }
+}
+```
+
+You can find this example and others in the [Endatix.Samples.CustomEventHandlers](https://github.com/endatix/endatix/tree/main/samples/Endatix.Samples.CustomEventHandlers) project in the Endatix open source repository.
+
+> **Note**: These are basic examples. Production code may include additional logging, should have proper error handling, etc.
+
+### 4. Create an Assembly Reference
+
+Create a static class to reference your assembly:
+
+```csharp
+namespace YourCompany.Endatix.WebHooks;
+
+public static class AssemblyReference
+{
+    public static readonly Assembly Assembly = typeof(AssemblyReference).Assembly;
+}
+```
+
+### 5. Register the Assembly in Endatix
+
+First, add a project reference to your custom assembly in your Endatix application's project file:
+
+```xml
+<ItemGroup>
+    ...
+    <ProjectReference Include="../YourCompany.Endatix.WebHooks/YourCompany.Endatix.WebHooks.csproj" />
+    ...
+</ItemGroup>
+```
+
+Then, in your Endatix application's `Program.cs`, register your webhook handlers assembly:
+
+```csharp
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    endatix.Infrastructure.Messaging.AddAssembly(YourCompany.Endatix.WebHooks.AssemblyReference.Assembly);
+});
+```
+
+> **Note**: If your Endatix application is configured with the basic `builder.Host.ConfigureEndatix()`, you need to change it to `ConfigureEndatixWithDefaults` as shown in the example above.
+
+## Testing Webhooks
+
+You can use [webhook.site](https://webhook.site/) to test your webhook implementation. This service provides a unique URL that you can use as your webhook endpoint. It will display all incoming requests in real-time, allowing you to:
+
+- View the complete request payload
+- Inspect headers
+- See the exact format of the data being sent
+- Test different event types
+- Verify the webhook message structure
+
+To test your webhooks:
+1. Go to [webhook.site](https://webhook.site/)
+2. Copy the unique URL provided
+3. Configure this URL as your webhook endpoint in Endatix by adding it to your `appsettings.Development.json`:
+
+```json
+{
+  ...
+  "Endatix": {
+    ...
+    "WebHooks": {
+      "Events": {
+        "FormCreated": {
+          "IsEnabled": true,
+          "WebHookUrls": [
+            "https://webhook.site/your-unique-id"
+          ]
+        },
+        "FormUpdated": {
+          "IsEnabled": true,
+          "WebHookUrls": [
+            "https://webhook.site/your-unique-id"
+          ]
+        },
+        "FormEnabledStateChanged": {
+          "IsEnabled": true,
+          "WebHookUrls": [
+            "https://webhook.site/your-unique-id"
+          ]
+        },
+        "FormSubmitted": {
+          "IsEnabled": true,
+          "WebHookUrls": [
+            "https://webhook.site/your-unique-id"
+          ]
+        }
+      }
+    }
+    ...
+  }
+  ...
+}
+```
+
+4. Trigger events in your application
+5. View the incoming webhook requests on webhook.site
+
+## Available Events
+
+### Form Events
+
+- `FormCreatedEvent`: Triggered when a new form is created
+  - Endpoints that can trigger the event:
+    - `POST api/forms`
+  - Useful for synchronizing form data with external systems or triggering notifications
+
+- `FormUpdatedEvent`: Triggered when a form is updated
+  - Endpoints that can trigger the event:
+    - `PUT api/forms/{formId}`
+    - `PATCH api/forms/{formId}`
+  - This event is triggered when performing form update action even if all the data remains the same
+  - Can be used to track form changes and update related systems
+
+- `FormEnabledStateChangedEvent`: Triggered when a form's enabled state changes
+  - Endpoints that can trigger the event:
+    - `PUT api/forms/{formId}`
+    - `PATCH api/forms/{formId}`
+  - This event is triggered only when the value of `IsEnabled` field changes
+  - Useful for managing form availability in external systems
+
+### Submission Events
+
+- `SubmissionCompletedEvent`: Triggered when a form submission is completed
+  - Endpoints that can trigger the event:
+    - `POST api/forms/{formId}/submissions`
+    - `PUT api/forms/{formId}/submissions/{submissionId}`
+    - `PATCH api/forms/{formId}/submissions/{submissionId}`
+    - `PATCH api/forms/{formId}/submissions/by-token/{submissionToken}`
+  - This event is triggered once per submission when `IsComplete` field is set to true
+  - Can be used to process form responses, trigger workflows, or update external systems
+
+## Webhook Message Structure
+
+Each webhook message contains:
+
+- `Id`: The ID of the entity that triggered the event
+- `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_submitted`)
+- `Action`: The action that triggered the event (e.g., `created`, `updated`)
+- `Payload`: The event data specific to the operation, containing the complete entity data
+
+## Best Practices
+
+1. **Error Handling**: Always implement proper error handling in your webhook handlers
+2. **Logging**: Use logging to track webhook processing
+3. **Idempotency**: Design your webhook handlers to be idempotent to handle potential duplicate deliveries
+4. **Validation**: Validate the payload structure and required fields before processing 
