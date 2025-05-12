@@ -8,7 +8,7 @@ namespace Endatix.Core.UseCases.FormDefinitions;
 /// </summary>
 public class ActiveDefinitionDto
 {
-    public ActiveDefinitionDto(FormDefinition formDefinition, string? themeJsonData = null)
+    public ActiveDefinitionDto(FormDefinition formDefinition, string? themeJsonData = null, IEnumerable<string>? customQuestions = null)
     {
         Id = formDefinition.Id;
         FormId = formDefinition.FormId;
@@ -17,6 +17,7 @@ public class ActiveDefinitionDto
         ThemeJsonData = themeJsonData;
         ModifiedAt = formDefinition.ModifiedAt;
         CreatedAt = formDefinition.CreatedAt;
+        CustomQuestions = customQuestions ?? Enumerable.Empty<string>();
     }
 
     /// <summary>
@@ -54,4 +55,9 @@ public class ActiveDefinitionDto
     /// The timestamp when this form definition was created.
     /// </summary>
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// The list of custom questions' JSON data associated with this form definition's tenant.
+    /// </summary>
+    public IEnumerable<string> CustomQuestions { get; set; }
 }

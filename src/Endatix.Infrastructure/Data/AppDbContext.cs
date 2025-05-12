@@ -35,6 +35,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Theme> Themes { get; set; }
 
+    public DbSet<CustomQuestion> CustomQuestions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
