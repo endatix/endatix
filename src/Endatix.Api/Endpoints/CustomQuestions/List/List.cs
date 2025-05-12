@@ -17,7 +17,7 @@ public class List(IMediator mediator) : Endpoint<EmptyRequest, Results<Ok<IEnume
     /// </summary>
     public override void Configure()
     {
-        Get("customization/questions");
+        Get("questions");
         Permissions(Allow.AllowAll);
         Summary(s =>
         {

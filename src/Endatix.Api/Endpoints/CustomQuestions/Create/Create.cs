@@ -17,7 +17,7 @@ public class Create(IMediator mediator) : Endpoint<CreateCustomQuestionRequest, 
     /// </summary>
     public override void Configure()
     {
-        Post("customization/questions");
+        Post("questions");
         Permissions(Allow.AllowAll);
         Summary(s =>
         {
