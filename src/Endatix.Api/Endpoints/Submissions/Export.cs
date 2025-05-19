@@ -3,14 +3,14 @@ using System.Text.Json;
 using CsvHelper;
 using CsvHelper.Configuration;
 using FastEndpoints;
-using Endatix.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Endatix.Framework.Tooling;
+using Endatix.Core.Entities;
+using Endatix.Core.Abstractions.Repositories;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
-public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
+public class Export(ISubmissionExportRepository exportRepository) : Endpoint<Export.Request>
 {
     public class Request
     {
@@ -60,10 +60,7 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
 
     private IAsyncEnumerable<SubmissionExportRow> GetExportDataAsync(long formId, CancellationToken ct)
     {
-        return dbContext.Set<SubmissionExportRow>()
-            .FromSqlRaw("SELECT * FROM export_form_submissions({0})", formId)
-            .AsNoTracking()
-            .AsAsyncEnumerable();
+        return exportRepository.GetExportRowsAsync(formId, ct);
     }
 
     private static async Task WriteCsvHeaderAsync(CsvWriter csv, IEnumerable<string> columns)
