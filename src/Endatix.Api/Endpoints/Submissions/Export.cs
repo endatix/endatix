@@ -133,6 +133,9 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
         await writer.FlushAsync();
     }
 
+    /// <summary>
+    /// Builds a dictionary representing a CSV record from a submission row, including entity and dynamic columns.
+    /// </summary>
     private IDictionary<string, object> BuildRecord(
         SubmissionExportRow row,
         List<string> dynamicColumns)
