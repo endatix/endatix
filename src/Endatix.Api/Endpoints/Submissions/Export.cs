@@ -33,7 +33,7 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
 
     public override async Task HandleAsync(Request req, CancellationToken ct)
     {
-        using var dbg = new MeasureExecution();
+        using var measureExecution = new MeasureExecution();
 
         try
         {
@@ -64,6 +64,15 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
             .FromSqlRaw("SELECT * FROM export_form_submissions({0})", formId)
             .AsNoTracking()
             .AsAsyncEnumerable();
+    }
+
+    private static async Task WriteCsvHeaderAsync(CsvWriter csv, IEnumerable<string> columns)
+    {
+        foreach (var key in columns)
+        {
+            csv.WriteField(key);
+        }
+        await csv.NextRecordAsync();
     }
 
     private async Task ExportToCsvAsync(IAsyncEnumerable<SubmissionExportRow> exportRows, Stream outputStream, CancellationToken ct)
@@ -105,12 +114,7 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
             HasHeaderRecord = false // We'll write the header manually
         });
 
-        // Write header
-        foreach (var key in orderedKeys)
-        {
-            csv.WriteField(key);
-        }
-        await csv.NextRecordAsync();
+        await WriteCsvHeaderAsync(csv, orderedKeys);
 
         // If there are no rows, just flush and return
         if (firstRow is null)
@@ -119,9 +123,10 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
             return;
         }
 
-        // Build an async enumerable of records
+        // Build an async enumerable of records for CSV streaming
         async IAsyncEnumerable<IDictionary<string, object>> GetRecords()
         {
+            // Yield the first row, then the rest from the enumerator
             yield return BuildRecord(firstRow, dynamicColumns);
             while (await enumerator.MoveNextAsync())
             {
@@ -135,6 +140,7 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
 
     /// <summary>
     /// Builds a dictionary representing a CSV record from a submission row, including entity and dynamic columns.
+    /// Uses JsonDocument for efficient dynamic field extraction.
     /// </summary>
     private IDictionary<string, object> BuildRecord(
         SubmissionExportRow row,
@@ -151,29 +157,34 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
             [nameof(SubmissionExportRow.CompletedAt)] = row.CompletedAt?.ToString("o") ?? string.Empty
         };
 
-        // Dynamic fields
-        Dictionary<string, JsonElement>? dict = null;
         if (!string.IsNullOrWhiteSpace(row.AnswersModel))
         {
-            dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(row.AnswersModel);
-        }
-
-        foreach (var key in dynamicColumns)
-        {
-            var value = string.Empty;
-            if (dict is not null && dict.TryGetValue(key, out var element))
+            using var doc = JsonDocument.Parse(row.AnswersModel);
+            var root = doc.RootElement;
+            foreach (var key in dynamicColumns)
             {
-                value = element.ValueKind switch
+                var value = string.Empty;
+                if (root.TryGetProperty(key, out var element))
                 {
-                    JsonValueKind.String => element.GetString(),
-                    JsonValueKind.Number => element.ToString(),
-                    JsonValueKind.True => "true",
-                    JsonValueKind.False => "false",
-                    JsonValueKind.Null => string.Empty,
-                    _ => element.ToString()
-                } ?? string.Empty;
+                    value = element.ValueKind switch
+                    {
+                        JsonValueKind.String => element.GetString(),
+                        JsonValueKind.Number => element.ToString(),
+                        JsonValueKind.True => "true",
+                        JsonValueKind.False => "false",
+                        JsonValueKind.Null => string.Empty,
+                        _ => element.ToString()
+                    } ?? string.Empty;
+                }
+                record[key] = value;
             }
-            record[key] = value;
+        }
+        else
+        {
+            foreach (var key in dynamicColumns)
+            {
+                record[key] = string.Empty;
+            }
         }
 
         return record;
