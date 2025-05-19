@@ -53,8 +53,8 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
 
     private async Task ExportToCsvAsync(List<SubmissionExportRow> exportRows, Stream outputStream, CancellationToken ct)
     {
-        var allRecords = new List<Dictionary<string, string>>();
-        var allKeys = new HashSet<string>
+        // Define entity columns
+        var entityColumns = new List<string>
         {
             nameof(SubmissionExportRow.FormId),
             nameof(SubmissionExportRow.Id),
@@ -64,44 +64,18 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
             nameof(SubmissionExportRow.CompletedAt)
         };
 
-        foreach (var row in exportRows)
+        // Determine dynamic columns from the first row
+        List<string> dynamicColumns = new();
+        if (exportRows.Count > 0 && !string.IsNullOrWhiteSpace(exportRows[0].AnswersModel))
         {
-            var record = new Dictionary<string, string>
+            var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(exportRows[0].AnswersModel);
+            if (dict is not null)
             {
-                [nameof(SubmissionExportRow.FormId)] = row.FormId.ToString(),
-                [nameof(SubmissionExportRow.Id)] = row.Id.ToString(),
-                [nameof(SubmissionExportRow.IsComplete)] = row.IsComplete.ToString(),
-                [nameof(SubmissionExportRow.CreatedAt)] = row.CreatedAt.ToString("o"),
-                [nameof(SubmissionExportRow.ModifiedAt)] = row.ModifiedAt?.ToString("o"),
-                [nameof(SubmissionExportRow.CompletedAt)] = row.CompletedAt?.ToString("o")
-            };
-
-            // Merge in AnswersModel fields if present
-            if (!string.IsNullOrWhiteSpace(row.AnswersModel))
-            {
-                var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(row.AnswersModel);
-                if (dict is not null)
-                {
-                    foreach (var kvp in dict)
-                    {
-                        record[kvp.Key] = kvp.Value.ValueKind switch
-                        {
-                            JsonValueKind.String => kvp.Value.GetString(),
-                            JsonValueKind.Number => kvp.Value.ToString(),
-                            JsonValueKind.True => "true",
-                            JsonValueKind.False => "false",
-                            JsonValueKind.Null => null,
-                            _ => kvp.Value.ToString()
-                        };
-                        allKeys.Add(kvp.Key);
-                    }
-                }
+                dynamicColumns = dict.Keys.ToList();
             }
-
-            allRecords.Add(record);
         }
 
-        var orderedKeys = allKeys.ToList();
+        var orderedKeys = entityColumns.Concat(dynamicColumns).ToList();
 
         using var writer = new StreamWriter(outputStream, leaveOpen: true);
         using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
@@ -109,17 +83,47 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
             HasHeaderRecord = true
         });
 
+        // Write header
         foreach (var key in orderedKeys)
         {
             csv.WriteField(key);
         }
         csv.NextRecord();
 
-        foreach (var record in allRecords)
+        // Stream each row directly
+        foreach (var row in exportRows)
         {
-            foreach (var key in orderedKeys)
+            // Entity fields
+            csv.WriteField(row.FormId.ToString());
+            csv.WriteField(row.Id.ToString());
+            csv.WriteField(row.IsComplete.ToString());
+            csv.WriteField(row.CreatedAt.ToString("o"));
+            csv.WriteField(row.ModifiedAt?.ToString("o") ?? string.Empty);
+            csv.WriteField(row.CompletedAt?.ToString("o") ?? string.Empty);
+
+            // Dynamic fields
+            Dictionary<string, JsonElement>? dict = null;
+            if (!string.IsNullOrWhiteSpace(row.AnswersModel))
             {
-                csv.WriteField(record[key]);
+                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(row.AnswersModel);
+            }
+
+            foreach (var key in dynamicColumns)
+            {
+                string value = string.Empty;
+                if (dict is not null && dict.TryGetValue(key, out var element))
+                {
+                    value = element.ValueKind switch
+                    {
+                        JsonValueKind.String => element.GetString(),
+                        JsonValueKind.Number => element.ToString(),
+                        JsonValueKind.True => "true",
+                        JsonValueKind.False => "false",
+                        JsonValueKind.Null => string.Empty,
+                        _ => element.ToString()
+                    } ?? string.Empty;
+                }
+                csv.WriteField(value);
             }
             csv.NextRecord();
         }
