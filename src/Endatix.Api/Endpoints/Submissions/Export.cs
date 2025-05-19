@@ -6,6 +6,8 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Mvc;
 using Endatix.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using Endatix.Framework.Tooling;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -32,26 +34,40 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
 
     public override async Task HandleAsync(Request req, CancellationToken ct)
     {
-        var exportRows = await GetExportDataAsync(req.FormId, ct);
-        var csvStream = new MemoryStream();
-        await ExportToCsvAsync(exportRows, csvStream, ct);
-        csvStream.Position = 0;
+        using var dbg = new MeasureExecution();
 
-        await SendStreamAsync(
-            csvStream,
-            fileName: $"submissions-{req.FormId}.csv",
-            contentType: "text/csv",
-            cancellation: ct);
+        try
+        {
+            var exportRows = GetExportDataAsync(req.FormId, ct);
+            HttpContext.Response.ContentType = "text/csv";
+            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename=submissions-{req.FormId}.csv";
+
+            await ExportToCsvAsync(exportRows, HttpContext.Response.Body, ct);
+        }
+        catch (Exception ex)
+        {
+            // Log the error (replace with your logger if available)
+            Console.WriteLine($"Export failed: {ex.Message}\n{ex.StackTrace}");
+
+            // If the response has not started, you can set a 500 status code and write a message
+            if (!HttpContext.Response.HasStarted)
+            {
+                HttpContext.Response.StatusCode = 500;
+                await HttpContext.Response.WriteAsync("An error occurred during export.");
+            }
+            // If the response has started, you can't change the status code or write more data
+        }
     }
 
-    private async Task<List<SubmissionExportRow>> GetExportDataAsync(long formId, CancellationToken ct)
+    private IAsyncEnumerable<SubmissionExportRow> GetExportDataAsync(long formId, CancellationToken ct)
     {
-        return await dbContext.Set<SubmissionExportRow>()
+        return dbContext.Set<SubmissionExportRow>()
             .FromSqlRaw("SELECT * FROM export_form_submissions({0})", formId)
-            .ToListAsync(ct);
+            .AsNoTracking()
+            .AsAsyncEnumerable();
     }
 
-    private async Task ExportToCsvAsync(List<SubmissionExportRow> exportRows, Stream outputStream, CancellationToken ct)
+    private async Task ExportToCsvAsync(IAsyncEnumerable<SubmissionExportRow> exportRows, Stream outputStream, CancellationToken ct)
     {
         // Define entity columns
         var entityColumns = new List<string>
@@ -64,11 +80,18 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
             nameof(SubmissionExportRow.CompletedAt)
         };
 
-        // Determine dynamic columns from the first row
-        List<string> dynamicColumns = new();
-        if (exportRows.Count > 0 && !string.IsNullOrWhiteSpace(exportRows[0].AnswersModel))
+        // Get the first row to determine dynamic columns
+        SubmissionExportRow? firstRow = null;
+        await foreach (var row in exportRows.WithCancellation(ct))
         {
-            var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(exportRows[0].AnswersModel);
+            firstRow = row;
+            break;
+        }
+
+        List<string> dynamicColumns = new();
+        if (firstRow != null && !string.IsNullOrWhiteSpace(firstRow.AnswersModel))
+        {
+            var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(firstRow.AnswersModel);
             if (dict is not null)
             {
                 dynamicColumns = dict.Keys.ToList();
@@ -77,10 +100,10 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
 
         var orderedKeys = entityColumns.Concat(dynamicColumns).ToList();
 
-        using var writer = new StreamWriter(outputStream, leaveOpen: true);
-        using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
+        var writer = new StreamWriter(outputStream, leaveOpen: true);
+        var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            HasHeaderRecord = true
+            HasHeaderRecord = false // We'll write the header manually
         });
 
         // Write header
@@ -90,44 +113,66 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
         }
         csv.NextRecord();
 
-        // Stream each row directly
-        foreach (var row in exportRows)
+        // Build an async enumerable of dictionaries for all rows
+        async IAsyncEnumerable<IDictionary<string, object>> GetRecords()
         {
-            // Entity fields
-            csv.WriteField(row.FormId.ToString());
-            csv.WriteField(row.Id.ToString());
-            csv.WriteField(row.IsComplete.ToString());
-            csv.WriteField(row.CreatedAt.ToString("o"));
-            csv.WriteField(row.ModifiedAt?.ToString("o") ?? string.Empty);
-            csv.WriteField(row.CompletedAt?.ToString("o") ?? string.Empty);
-
-            // Dynamic fields
-            Dictionary<string, JsonElement>? dict = null;
-            if (!string.IsNullOrWhiteSpace(row.AnswersModel))
+            if (firstRow != null)
             {
-                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(row.AnswersModel);
+                yield return BuildRecord(firstRow, entityColumns, dynamicColumns);
             }
 
-            foreach (var key in dynamicColumns)
+            var skipFirst = true;
+            await foreach (var row in exportRows.WithCancellation(ct))
             {
-                string value = string.Empty;
-                if (dict is not null && dict.TryGetValue(key, out var element))
-                {
-                    value = element.ValueKind switch
-                    {
-                        JsonValueKind.String => element.GetString(),
-                        JsonValueKind.Number => element.ToString(),
-                        JsonValueKind.True => "true",
-                        JsonValueKind.False => "false",
-                        JsonValueKind.Null => string.Empty,
-                        _ => element.ToString()
-                    } ?? string.Empty;
-                }
-                csv.WriteField(value);
+                if (skipFirst) { skipFirst = false; continue; }
+                yield return BuildRecord(row, entityColumns, dynamicColumns);
             }
-            csv.NextRecord();
         }
 
+        await csv.WriteRecordsAsync(GetRecords(), ct);
         await writer.FlushAsync();
+    }
+
+    private IDictionary<string, object> BuildRecord(
+        SubmissionExportRow row,
+        List<string> dynamicColumns)
+    {
+        var record = new Dictionary<string, object>
+        {
+            // Entity fields
+            [nameof(SubmissionExportRow.FormId)] = row.FormId,
+            [nameof(SubmissionExportRow.Id)] = row.Id,
+            [nameof(SubmissionExportRow.IsComplete)] = row.IsComplete,
+            [nameof(SubmissionExportRow.CreatedAt)] = row.CreatedAt.ToString("o"),
+            [nameof(SubmissionExportRow.ModifiedAt)] = row.ModifiedAt?.ToString("o") ?? string.Empty,
+            [nameof(SubmissionExportRow.CompletedAt)] = row.CompletedAt?.ToString("o") ?? string.Empty
+        };
+
+        // Dynamic fields
+        Dictionary<string, JsonElement>? dict = null;
+        if (!string.IsNullOrWhiteSpace(row.AnswersModel))
+        {
+            dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(row.AnswersModel);
+        }
+
+        foreach (var key in dynamicColumns)
+        {
+            var value = string.Empty;
+            if (dict is not null && dict.TryGetValue(key, out var element))
+            {
+                value = element.ValueKind switch
+                {
+                    JsonValueKind.String => element.GetString(),
+                    JsonValueKind.Number => element.ToString(),
+                    JsonValueKind.True => "true",
+                    JsonValueKind.False => "false",
+                    JsonValueKind.Null => string.Empty,
+                    _ => element.ToString()
+                } ?? string.Empty;
+            }
+            record[key] = value;
+        }
+
+        return record;
     }
 }
