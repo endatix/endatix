@@ -3,7 +3,6 @@ using System.Text.Json;
 using CsvHelper;
 using CsvHelper.Configuration;
 using FastEndpoints;
-using Microsoft.AspNetCore.Mvc;
 using Endatix.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
@@ -81,11 +80,11 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
         };
 
         // Get the first row to determine dynamic columns
+        await using var enumerator = exportRows.GetAsyncEnumerator(ct);
         SubmissionExportRow? firstRow = null;
-        await foreach (var row in exportRows.WithCancellation(ct))
+        if (await enumerator.MoveNextAsync())
         {
-            firstRow = row;
-            break;
+            firstRow = enumerator.Current;
         }
 
         List<string> dynamicColumns = new();
@@ -111,21 +110,22 @@ public class Export(AppDbContext dbContext) : Endpoint<Export.Request>
         {
             csv.WriteField(key);
         }
-        csv.NextRecord();
+        await csv.NextRecordAsync();
 
-        // Build an async enumerable of dictionaries for all rows
+        // If there are no rows, just flush and return
+        if (firstRow is null)
+        {
+            await writer.FlushAsync();
+            return;
+        }
+
+        // Build an async enumerable of records
         async IAsyncEnumerable<IDictionary<string, object>> GetRecords()
         {
-            if (firstRow != null)
+            yield return BuildRecord(firstRow, dynamicColumns);
+            while (await enumerator.MoveNextAsync())
             {
-                yield return BuildRecord(firstRow, entityColumns, dynamicColumns);
-            }
-
-            var skipFirst = true;
-            await foreach (var row in exportRows.WithCancellation(ct))
-            {
-                if (skipFirst) { skipFirst = false; continue; }
-                yield return BuildRecord(row, entityColumns, dynamicColumns);
+                yield return BuildRecord(enumerator.Current, dynamicColumns);
             }
         }
 
