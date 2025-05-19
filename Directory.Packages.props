@@ -10,6 +10,7 @@
     <PackageVersion Include="Ardalis.GuardClauses" Version="5.0.0" />
     <PackageVersion Include="Ardalis.Specification" Version="8.0.0" />
     <PackageVersion Include="Ardalis.Specification.EntityFrameworkCore" Version="8.0.0" />
+    <PackageVersion Include="CsvHelper" Version="33.0.1" />
     <PackageVersion Include="Endatix.Api.Host" Version="0.1.0" />
     <PackageVersion Include="FastEndpoints" Version="5.31.0.17-beta" />
     <PackageVersion Include="FastEndpoints.Security" Version="5.31.0.17-beta" />
