@@ -75,8 +75,8 @@ public class AppDbContext : DbContext
         }
 
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
-        PrefixTableNames(builder);
         builder.Entity<SubmissionExportRow>().HasNoKey();
+        PrefixTableNames(builder);
     }
 
     private long GetTenantId()
