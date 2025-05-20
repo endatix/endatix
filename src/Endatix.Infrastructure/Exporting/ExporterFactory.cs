@@ -23,7 +23,7 @@ internal sealed class ExporterFactory : IExporterFactory
     /// <param name="format">The export format.</param>
     /// <returns>An exporter for the specified format.</returns>
     /// <exception cref="ArgumentException">Thrown when the format is not supported.</exception>
-    public IExporter<T> GetExporter<T>(string format)
+    public IExporter<T> GetExporter<T>(string format) where T : class
     {
         Guard.Against.Null(format, nameof(format));
 

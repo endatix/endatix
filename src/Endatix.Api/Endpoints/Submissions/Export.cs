@@ -1,32 +1,28 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Http;
 using Endatix.Framework.Tooling;
-using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.UseCases.Submissions.Export;
 using Endatix.Core.Abstractions.Exporting;
-using Microsoft.Extensions.Logging;
 using Endatix.Core.Entities;
+using Microsoft.Extensions.Logging;
+using MediatR;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
-public class Export : Endpoint<Export.Request>
+public class Export : Endpoint<ExportRequest>
 {
-    private readonly ISubmissionExportRepository _exportRepository;
+    private readonly IMediator _mediator;
     private readonly IExporterFactory _exporterFactory;
     private readonly ILogger<Export> _logger;
 
     public Export(
-        ISubmissionExportRepository exportRepository,
+        IMediator mediator,
         IExporterFactory exporterFactory,
         ILogger<Export> logger)
     {
-        _exportRepository = exportRepository;
+        _mediator = mediator;
         _exporterFactory = exporterFactory;
         _logger = logger;
-    }
-
-    public class Request
-    {
-        public long FormId { get; set; }
     }
 
     public override void Configure()
@@ -40,47 +36,63 @@ public class Export : Endpoint<Export.Request>
            s.Responses[200] = "The submissions were successfully exported";
            s.Responses[400] = "Invalid input data.";
            s.Responses[404] = "Form not found. Cannot export submissions";
+           s.Responses[500] = "An error occurred during export";
        });
     }
 
-    public override async Task HandleAsync(Request req, CancellationToken ct)
+    /// <inheritdoc/>
+    public override async Task HandleAsync(ExportRequest request, CancellationToken cancellationToken)
     {
         using var measureExecution = new MeasureExecution();
 
         try
         {
-            var exportRows = _exportRepository.GetExportRowsAsync(req.FormId, ct);
-            var exporter = _exporterFactory.GetExporter<SubmissionExportRow>("csv");
-
             // Create export options (can be customized based on user preferences in the future)
             var options = new ExportOptions
             {
                 // For now we use default column selection
                 Columns = null,
-                Transformers = null
+                Transformers = null,
+                Metadata = new Dictionary<string, object> { ["FormId"] = request.FormId }
             };
 
-            // Set response headers before streaming starts
-            HttpContext.Response.ContentType = "text/csv";
+            // Resolve the exporter once
+            var exporter = _exporterFactory.GetExporter<SubmissionExportRow>("csv");
 
-            // Set a default filename that includes form ID
-            var defaultFileName = $"submissions-{req.FormId}.csv";
-            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={defaultFileName}";
+            // Get headers first to set them before streaming
+            var headers = await exporter.GetHeadersAsync(options, cancellationToken);
 
-            // Let the exporter stream directly to the response
-            await exporter.StreamExportAsync(
-                records: exportRows,
-                options: options,
-                cancellationToken: ct,
-                outputStream: HttpContext.Response.Body);
+            // Set headers BEFORE writing anything to the response
+            HttpContext.Response.ContentType = headers.ContentType;
+            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={headers.FileName}";
+
+            // Create query with the already resolved exporter
+            var exportQuery = new SubmissionsExportQuery(
+                FormId: request.FormId,
+                Exporter: exporter,
+                Options: options,
+                OutputStream: HttpContext.Response.Body
+            );
+
+            // Stream directly to the response
+            var result = await _mediator.Send(exportQuery, cancellationToken);
+
+            if (!result.IsSuccess)
+            {
+                // This can only happen if an error occurred after headers were sent
+                _logger.LogError("Export failed: {ErrorMessage}", result.ErrorMessage);
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error exporting submissions");
+            _logger.LogError(ex, "Unhandled error in export endpoint");
+
             if (!HttpContext.Response.HasStarted)
             {
+                HttpContext.Response.Clear();
                 HttpContext.Response.StatusCode = 500;
-                await HttpContext.Response.WriteAsync("An error occurred during export.");
+                HttpContext.Response.ContentType = "text/plain";
+                await HttpContext.Response.WriteAsync("An unexpected error occurred during export.");
             }
         }
     }

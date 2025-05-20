@@ -15,6 +15,7 @@ namespace Endatix.Infrastructure.Features.Submissions;
 public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
 {
     private const string NOT_AVAILABLE_VALUE = "N/A";
+    private const string CSV_CONTENT_TYPE = "text/csv";
     private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
     {
         [nameof(SubmissionExportRow.FormId)] = row => row.FormId,
@@ -36,6 +37,29 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
     }
 
     /// <summary>
+    /// Gets the HTTP headers for the export without processing data.
+    /// </summary>
+    public Task<ExportHeaders> GetHeadersAsync(ExportOptions? options, CancellationToken cancellationToken)
+    {
+        // For CSV export, we can determine the headers without any data processing
+        
+        // Default filename with a placeholder for form ID
+        var fileName = "submissions.csv";
+        
+        // If options contains a FormId, we can use it in the filename
+        if (options?.Metadata != null && 
+            options.Metadata.TryGetValue("FormId", out var formIdObj))
+        {
+            if (formIdObj is long formId)
+            {
+                fileName = $"submissions-{formId}.csv";
+            }
+        }
+        
+        return Task.FromResult(new ExportHeaders(CSV_CONTENT_TYPE, fileName));
+    }
+
+    /// <summary>
     /// Streams the export directly to the provided output stream.
     /// </summary>
     public async Task<ExportFileResult> StreamExportAsync(
@@ -51,7 +75,7 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
 
         if (_firstRow is null)
         {
-            return new ExportFileResult("text/csv", "no-submissions.csv");
+            return new ExportFileResult(CSV_CONTENT_TYPE, "no-submissions.csv");
         }
 
         BuildColumnDefinitions(_firstRow, options);
@@ -68,7 +92,7 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
         await writer.FlushAsync();
 
         var fileName = $"submissions-{_firstRow.FormId}.csv";
-        return new ExportFileResult("text/csv", fileName);
+        return new ExportFileResult(CSV_CONTENT_TYPE, fileName);
     }
 
     /// <summary>
