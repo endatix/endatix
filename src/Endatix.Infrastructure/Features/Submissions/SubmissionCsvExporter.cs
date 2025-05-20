@@ -1,10 +1,6 @@
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
+using Ardalis.GuardClauses;
 using CsvHelper;
 using CsvHelper.Configuration;
 using Endatix.Core.Abstractions.Exporting;
@@ -26,13 +22,14 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
         CancellationToken cancellationToken,
         Stream outputStream)
     {
-        if (outputStream is null)
-        {
-            throw new ArgumentNullException(nameof(outputStream), "Output stream must be provided for streaming export.");
-        }
+        Guard.Against.Null(outputStream);
 
-        // --- Formatting: extract headers and dynamic columns ---
-        var (firstRow, orderedKeys, dynamicColumns, enumerator) = await ExtractHeadersAndColumns(records, options, cancellationToken);
+        var (firstRow, enumerator) = await PeekFirstRowAsync(records, cancellationToken);
+
+        if (firstRow is null)
+        {
+            return new ExportFileResult("text/csv", "no-submissions.csv");
+        }
 
         var writer = new StreamWriter(outputStream, leaveOpen: true);
         var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
@@ -40,51 +37,63 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
             HasHeaderRecord = false
         });
 
-        // Write header
-        foreach (var key in orderedKeys)
-        {
-            csv.WriteField(key);
-        }
+        // Extract column information
+        var questionNames = ExtractQuestionNames(firstRow);
+        var headerColumns = BuildHeaderColumns(questionNames, options);
 
-        await csv.NextRecordAsync();
+        await WriteHeaderRowAsync(csv, headerColumns);
+        await StreamDataRowsAsync(csv, firstRow, enumerator, questionNames, options, cancellationToken);
 
-        // If there are no rows, just flush and return
-        if (firstRow is null)
-        {
-            await writer.FlushAsync();
-            return new ExportFileResult("text/csv", "submissions-export.csv");
-        }
-
-        // --- Export logic: stream records ---
-        async IAsyncEnumerable<IDictionary<string, object>> GetRecords()
-        {
-            yield return BuildRecord(firstRow, dynamicColumns, options?.Transformers);
-            while (await enumerator.MoveNextAsync())
-            {
-                yield return BuildRecord(enumerator.Current, dynamicColumns, options?.Transformers);
-            }
-        }
-
-        await csv.WriteRecordsAsync(GetRecords(), cancellationToken);
+        // Write all data to the output stream
         await writer.FlushAsync();
-
-        var fileName = $"submissions-{firstRow.FormId}.csv";
+        var fileName = firstRow is not null
+            ? $"submissions-{firstRow.FormId}.csv"
+            : "submissions-export.csv";
         return new ExportFileResult("text/csv", fileName);
     }
 
     /// <summary>
-    /// Extracts the first row, ordered columns (entity + dynamic), and dynamic columns from the records.
-    /// Respects column selection from options if provided.
-    /// Returns the enumerator positioned after the first row.
+    /// Peeks at the first row to get column information while preserving the enumerator position.
     /// </summary>
-    private static async Task<(SubmissionExportRow? firstRow, List<string> orderedKeys, List<string> dynamicColumns, IAsyncEnumerator<SubmissionExportRow> enumerator)>
-        ExtractHeadersAndColumns(
-            IAsyncEnumerable<SubmissionExportRow> records, 
-            ExportOptions options, 
-            CancellationToken cancellationToken)
+    private static async Task<(SubmissionExportRow? FirstRow, IAsyncEnumerator<SubmissionExportRow> Enumerator)>
+        PeekFirstRowAsync(IAsyncEnumerable<SubmissionExportRow> records, CancellationToken cancellationToken)
     {
-        // Define default entity columns
-        var entityColumns = new List<string>
+        var enumerator = records.GetAsyncEnumerator(cancellationToken);
+        SubmissionExportRow? firstRow = null;
+
+        if (await enumerator.MoveNextAsync())
+        {
+            firstRow = enumerator.Current;
+        }
+
+        return (firstRow, enumerator);
+    }
+
+    /// <summary>
+    /// Extracts the question names from the first row's answers model.
+    /// </summary>
+    private static List<string> ExtractQuestionNames(SubmissionExportRow? firstRow)
+    {
+        var questionNames = new List<string>();
+
+        if (firstRow != null && !string.IsNullOrWhiteSpace(firstRow.AnswersModel))
+        {
+            var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(firstRow.AnswersModel);
+            if (dict is not null)
+            {
+                questionNames = [.. dict.Keys];
+            }
+        }
+
+        return questionNames;
+    }
+
+    /// <summary>
+    /// Gets the standard entity columns that are always included.
+    /// </summary>
+    private static List<string> GetEntityColumns()
+    {
+        return new List<string>
         {
             nameof(SubmissionExportRow.FormId),
             nameof(SubmissionExportRow.Id),
@@ -93,49 +102,83 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
             nameof(SubmissionExportRow.ModifiedAt),
             nameof(SubmissionExportRow.CompletedAt)
         };
+    }
 
-        var enumerator = records.GetAsyncEnumerator(cancellationToken);
-        SubmissionExportRow? firstRow = null;
-        if (await enumerator.MoveNextAsync())
-        {
-            firstRow = enumerator.Current;
-        }
-
-        // Determine dynamic columns from the first row
-        var dynamicColumns = new List<string>();
-        if (firstRow != null && !string.IsNullOrWhiteSpace(firstRow.AnswersModel))
-        {
-            var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(firstRow.AnswersModel);
-            if (dict is not null)
-            {
-                dynamicColumns = new List<string>(dict.Keys);
-            }
-        }
-
+    /// <summary>
+    /// Builds the final set of header columns based on entity columns, dynamic columns, and options.
+    /// </summary>
+    private static List<string> BuildHeaderColumns(List<string> dynamicColumns, ExportOptions? options)
+    {
         // Combine all columns
-        var allColumns = entityColumns.Concat(dynamicColumns).ToList();
-        
+        var allColumns = GetEntityColumns().Concat(dynamicColumns).ToList();
+
         // Filter by options.Columns if provided
-        List<string> orderedKeys = allColumns;
         if (options?.Columns != null && options.Columns.Any())
         {
             // Only include columns that exist in the data
-            orderedKeys = options.Columns
+            return options.Columns
                 .Where(allColumns.Contains)
                 .ToList();
         }
 
-        return (firstRow, orderedKeys, dynamicColumns, enumerator);
+        return allColumns;
+    }
+
+    /// <summary>
+    /// Writes the header row to the CSV file.
+    /// </summary>
+    private static async Task WriteHeaderRowAsync(CsvWriter csv, List<string> headerColumns)
+    {
+        foreach (var column in headerColumns)
+        {
+            csv.WriteField(column);
+        }
+
+        await csv.NextRecordAsync();
+    }
+
+    /// <summary>
+    /// Streams all data rows to the CSV writer.
+    /// </summary>
+    private static async Task StreamDataRowsAsync(
+        CsvWriter csv,
+        SubmissionExportRow? firstRow,
+        IAsyncEnumerator<SubmissionExportRow> enumerator,
+        List<string> questionNames,
+        ExportOptions? options,
+        CancellationToken cancellationToken)
+    {
+        // If there are no rows, just return
+        if (firstRow is null)
+        {
+            return;
+        }
+
+        // Define a local async generator function to yield records
+        async IAsyncEnumerable<IDictionary<string, object>> GetRecords()
+        {
+            // First yield the first row we already read
+            yield return BuildRecord(firstRow, questionNames, options?.Transformers);
+
+            // Then yield the rest of the rows
+            while (await enumerator.MoveNextAsync())
+            {
+                yield return BuildRecord(enumerator.Current, questionNames, options?.Transformers);
+            }
+        }
+
+        // Write all records to the CSV
+        await csv.WriteRecordsAsync(GetRecords(), cancellationToken);
     }
 
     /// <summary>
     /// Builds a dictionary representing a CSV record from a submission row.
-    /// Applies transformers if provided in options.
+    /// Applies transformers if provided in options.        
     /// </summary>
     private static IDictionary<string, object> BuildRecord(
         SubmissionExportRow row,
         List<string> dynamicColumns,
-        IDictionary<string, System.Func<object, string>> transformers = null)
+        IDictionary<string, System.Func<object, string>>? transformers = null)
     {
         var record = new Dictionary<string, object>
         {
@@ -166,13 +209,13 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
                         _ => element.ToString()
                     } ?? string.Empty;
                 }
-                
+
                 // Apply transformer if available
                 if (transformers != null && transformers.TryGetValue(key, out var transformer))
                 {
                     value = transformer(value);
                 }
-                
+
                 record[key] = value;
             }
         }
@@ -186,4 +229,4 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
 
         return record;
     }
-} 
+}
