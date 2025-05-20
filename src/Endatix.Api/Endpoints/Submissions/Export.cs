@@ -4,18 +4,23 @@ using Endatix.Framework.Tooling;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Exporting;
 using Microsoft.Extensions.Logging;
+using Endatix.Core.Entities;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 public class Export : Endpoint<Export.Request>
 {
     private readonly ISubmissionExportRepository _exportRepository;
-    private readonly IExporter _exporter;
+    private readonly IExporterFactory _exporterFactory;
     private readonly ILogger<Export> _logger;
-    public Export(ISubmissionExportRepository exportRepository, IExporter exporter, ILogger<Export> logger)
+    
+    public Export(
+        ISubmissionExportRepository exportRepository, 
+        IExporterFactory exporterFactory, 
+        ILogger<Export> logger)
     {
         _exportRepository = exportRepository;
-        _exporter = exporter;
+        _exporterFactory = exporterFactory;
         _logger = logger;
     }
 
@@ -45,16 +50,27 @@ public class Export : Endpoint<Export.Request>
         try
         {
             var exportRows = _exportRepository.GetExportRowsAsync(req.FormId, ct);
-            var fileName = $"submissions-{req.FormId}.csv";
-            var contentType = "text/csv";
+            var exporter = _exporterFactory.GetExporter<SubmissionExportRow>("csv");
+            
+            // Create export options (can be customized based on user preferences in the future)
+            var options = new ExportOptions
+            {
+                // For now we use default column selection
+                Columns = null,
+                Transformers = null
+            };
 
-            HttpContext.Response.ContentType = contentType;
-            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileName}";
-
-            await _exporter.StreamExportAsync(
-                exportRows,
-                columns: null, // columns are determined by the exporter for now
-                format: "csv",
+            // Set response headers before streaming starts
+            HttpContext.Response.ContentType = "text/csv";
+            
+            // Set a default filename that includes form ID
+            var defaultFileName = $"submissions-{req.FormId}.csv";
+            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={defaultFileName}";
+            
+            // Let the exporter stream directly to the response
+            await exporter.StreamExportAsync(
+                records: exportRows,
+                options: options,
                 cancellationToken: ct,
                 outputStream: HttpContext.Response.Body);
         }
