@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Abstractions.Exporting;
 
@@ -18,8 +19,8 @@ public interface IExporter<T> where T : class
     /// <param name="options">Export options.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="outputStream">The stream to write to.</param>
-    /// <returns>A result containing export metadata.</returns>
-    Task<ExportFileResult> StreamExportAsync(
+    /// <returns>A result containing export metadata or error information.</returns>
+    Task<Result<FileExport>> StreamExportAsync(
         IAsyncEnumerable<T> records,
         ExportOptions? options,
         CancellationToken cancellationToken,
@@ -30,38 +31,8 @@ public interface IExporter<T> where T : class
     /// </summary>
     /// <param name="options">Export options.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Export headers.</returns>
-    Task<ExportHeaders> GetHeadersAsync(
+    /// <returns>Export headers or error information.</returns>
+    Task<Result<FileExport>> GetHeadersAsync(
         ExportOptions? options,
         CancellationToken cancellationToken);
-}
-
-/// <summary>
-/// Represents the result of an export operation.
-/// </summary>
-public sealed record ExportFileResult(
-    string ContentType,
-    string FileName
-);
-
-/// <summary>
-/// Options for customizing export operations.
-/// </summary>
-public class ExportOptions
-{
-    /// <summary>
-    /// Optional columns to include in the export. If null, all columns are included.
-    /// </summary>
-    public IEnumerable<string>? Columns { get; set; }
-    
-    /// <summary>
-    /// Optional dictionary of column transformers to customize how values are formatted.
-    /// Keys are column names, values are functions that transform the original value to a string.
-    /// </summary>
-    public IDictionary<string, System.Func<object?, string>>? Transformers { get; set; }
-    
-    /// <summary>
-    /// Optional metadata for export operations. Can be used to pass additional context.
-    /// </summary>
-    public IDictionary<string, object>? Metadata { get; set; } = new Dictionary<string, object>();
 } 
