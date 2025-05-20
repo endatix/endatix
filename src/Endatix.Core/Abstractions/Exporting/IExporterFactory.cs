@@ -11,5 +11,5 @@ public interface IExporterFactory
     /// <typeparam name="T">The type of records to export.</typeparam>
     /// <param name="format">The export format (e.g., "csv", "json", "excel").</param>
     /// <returns>An exporter for the specified format.</returns>
-    IExporter<T> GetExporter<T>(string format);
+    IExporter<T> GetExporter<T>(string format) where T : class;
 } 
