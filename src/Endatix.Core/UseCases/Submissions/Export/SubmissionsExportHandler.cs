@@ -37,12 +37,12 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
             // Get the export data stream
             var exportRows = _exportRepository.GetExportRowsAsync(request.FormId, cancellationToken);
             
-            // Stream the export directly to the provided output stream
+            // Stream the export directly to the provided output writer
             return await request.Exporter.StreamExportAsync(
                 records: exportRows,
                 options: options,
                 cancellationToken: cancellationToken,
-                outputStream: request.OutputStream);
+                writer: request.OutputWriter);
         }
         catch (Exception ex)
         {

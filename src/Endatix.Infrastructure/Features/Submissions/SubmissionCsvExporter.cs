@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO.Pipelines;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 using CsvHelper;
@@ -45,12 +46,12 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
         try
         {
             // For CSV export, we can determine the headers without any data processing
-            
+
             // Default filename with a placeholder for form ID
             var fileName = "submissions.csv";
-            
+
             // If options contains a FormId, we can use it in the filename
-            if (options?.Metadata != null && 
+            if (options?.Metadata != null &&
                 options.Metadata.TryGetValue("FormId", out var formIdObj))
             {
                 if (formIdObj is long formId)
@@ -58,7 +59,7 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
                     fileName = $"submissions-{formId}.csv";
                 }
             }
-            
+
             var fileExport = new FileExport(CSV_CONTENT_TYPE, fileName);
             return Task.FromResult(Result<FileExport>.Success(fileExport));
         }
@@ -70,15 +71,15 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
     }
 
     /// <summary>
-    /// Streams the export directly to the provided output stream.
+    /// Streams the export directly to the provided PipeWriter.
     /// </summary>
     public async Task<Result<FileExport>> StreamExportAsync(
         IAsyncEnumerable<SubmissionExportRow> records,
         ExportOptions? options,
         CancellationToken cancellationToken,
-        Stream outputStream)
+        PipeWriter writer)
     {
-        Guard.Against.Null(outputStream);
+        Guard.Against.Null(writer);
 
         try
         {
@@ -93,16 +94,22 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
 
             BuildColumnDefinitions(_firstRow, options);
 
+            // Convert PipeWriter to Stream for CsvHelper compatibility
+            var writerStream = writer.AsStream();
+
             // Configure writer and write CSV
-            var writer = new StreamWriter(outputStream, leaveOpen: true);
-            var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
+            var streamWriter = new StreamWriter(writerStream, leaveOpen: true);
+            var csvWriter = new CsvWriter(streamWriter, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
                 HasHeaderRecord = false
             });
 
-            await WriteHeaderRowAsync(csv);
-            await StreamSubmissionRowsAsync(csv, cancellationToken);
-            await writer.FlushAsync();
+            await WriteHeaderRowAsync(csvWriter);
+            await StreamSubmissionRowsAsync(csvWriter, cancellationToken);
+
+            // Ensure all data is written and flushed to the pipe
+            await streamWriter.FlushAsync();
+            await writer.FlushAsync(cancellationToken);
 
             var fileName = $"submissions-{_firstRow.FormId}.csv";
             return Result<FileExport>.Success(

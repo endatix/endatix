@@ -7,8 +7,8 @@ using Endatix.Core.Entities;
 using Microsoft.Extensions.Logging;
 using MediatR;
 using Endatix.Core.Infrastructure.Result;
-using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using System.IO.Pipelines;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -76,12 +76,12 @@ public class Export : Endpoint<ExportRequest>
             HttpContext.Response.ContentType = fileExport.ContentType;
             HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileExport.FileName}";
 
-            // Create export query
+            var pipeWriter = HttpContext.Response.BodyWriter;
             var exportQuery = new SubmissionsExportQuery(
                 FormId: request.FormId,
                 Exporter: exporter,
                 Options: options,
-                OutputStream: HttpContext.Response.Body
+                OutputWriter: pipeWriter
             );
 
             // Execute the export
@@ -93,7 +93,8 @@ public class Export : Endpoint<ExportRequest>
                 return;
             }
 
-            await HttpContext.Response.Body.FlushAsync(cancellationToken);
+            await pipeWriter.FlushAsync(cancellationToken);
+            await pipeWriter.CompleteAsync();
             _logger.LogDebug("Successfully exported submissions for form {FormId}", request.FormId);
         }
         catch (Exception ex)
