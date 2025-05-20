@@ -5,6 +5,7 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Features.Submissions;
 
@@ -13,157 +14,175 @@ namespace Endatix.Infrastructure.Features.Submissions;
 /// </summary>
 public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
 {
+    private const string NOT_AVAILABLE_VALUE = "N/A";
+    private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
+    {
+        [nameof(SubmissionExportRow.FormId)] = row => row.FormId,
+        [nameof(SubmissionExportRow.Id)] = row => row.Id,
+        [nameof(SubmissionExportRow.IsComplete)] = row => row.IsComplete,
+        [nameof(SubmissionExportRow.CreatedAt)] = row => row.CreatedAt,
+        [nameof(SubmissionExportRow.ModifiedAt)] = row => row.ModifiedAt,
+        [nameof(SubmissionExportRow.CompletedAt)] = row => row.CompletedAt
+    };
+
+    private readonly ILogger<SubmissionCsvExporter> _logger;
+    private SubmissionExportRow? _firstRow;
+    private IAsyncEnumerator<SubmissionExportRow>? _enumerator;
+    private readonly List<ColumnDefinition<SubmissionExportRow>> _columnDefinitions = new();
+
+    public SubmissionCsvExporter(ILogger<SubmissionCsvExporter> logger)
+    {
+        _logger = logger;
+    }
+
     /// <summary>
     /// Streams the export directly to the provided output stream.
     /// </summary>
     public async Task<ExportFileResult> StreamExportAsync(
         IAsyncEnumerable<SubmissionExportRow> records,
-        ExportOptions options,
+        ExportOptions? options,
         CancellationToken cancellationToken,
         Stream outputStream)
     {
         Guard.Against.Null(outputStream);
 
-        var (firstRow, enumerator) = await PeekFirstRowAsync(records, cancellationToken);
+        // Initialize enumeration and read first row
+        await InitializeEnumerationAsync(records, cancellationToken);
 
-        if (firstRow is null)
+        if (_firstRow is null)
         {
             return new ExportFileResult("text/csv", "no-submissions.csv");
         }
 
+        BuildColumnDefinitions(_firstRow, options);
+
+        // Configure writer and write CSV
         var writer = new StreamWriter(outputStream, leaveOpen: true);
         var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
             HasHeaderRecord = false
         });
 
-        // Extract column information
-        var questionNames = ExtractQuestionNames(firstRow);
-        var headerColumns = BuildHeaderColumns(questionNames, options);
-
-        await WriteHeaderRowAsync(csv, headerColumns);
-        await StreamDataRowsAsync(csv, firstRow, enumerator, questionNames, options, cancellationToken);
-
-        // Write all data to the output stream
+        await WriteHeaderRowAsync(csv);
+        await StreamSubmissionRowsAsync(csv, cancellationToken);
         await writer.FlushAsync();
-        var fileName = firstRow is not null
-            ? $"submissions-{firstRow.FormId}.csv"
-            : "submissions-export.csv";
+
+        var fileName = $"submissions-{_firstRow.FormId}.csv";
         return new ExportFileResult("text/csv", fileName);
     }
 
     /// <summary>
-    /// Peeks at the first row to get column information while preserving the enumerator position.
+    /// Builds the column definitions based on entity columns, question names, and options.
     /// </summary>
-    private static async Task<(SubmissionExportRow? FirstRow, IAsyncEnumerator<SubmissionExportRow> Enumerator)>
-        PeekFirstRowAsync(IAsyncEnumerable<SubmissionExportRow> records, CancellationToken cancellationToken)
-    {
-        var enumerator = records.GetAsyncEnumerator(cancellationToken);
-        SubmissionExportRow? firstRow = null;
-
-        if (await enumerator.MoveNextAsync())
-        {
-            firstRow = enumerator.Current;
-        }
-
-        return (firstRow, enumerator);
-    }
-
-    /// <summary>
-    /// Extracts the question names from the first row's answers model.
-    /// </summary>
-    private static List<string> ExtractQuestionNames(SubmissionExportRow? firstRow)
+    private void BuildColumnDefinitions(SubmissionExportRow firstRow, ExportOptions? options)
     {
         var questionNames = new List<string>();
 
-        if (firstRow != null && !string.IsNullOrWhiteSpace(firstRow.AnswersModel))
+        // Extract question names from first row
+        if (!string.IsNullOrWhiteSpace(firstRow.AnswersModel))
         {
-            var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(firstRow.AnswersModel);
-            if (dict is not null)
+            try
             {
-                questionNames = [.. dict.Keys];
+                using var document = JsonDocument.Parse(firstRow.AnswersModel);
+                var root = document.RootElement;
+
+                foreach (var property in root.EnumerateObject())
+                {
+                    questionNames.Add(property.Name);
+                }
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse JSON answers for row ID {RowId}. Form ID: {FormId}. This may cause missing columns in export.",
+                    firstRow.Id, firstRow.FormId);
             }
         }
 
-        return questionNames;
-    }
+        var allColumnNames = new List<string>(_staticColumnAccessors.Keys);
+        allColumnNames.AddRange(questionNames);
 
-    /// <summary>
-    /// Gets the standard entity columns that are always included.
-    /// </summary>
-    private static List<string> GetEntityColumns()
-    {
-        return new List<string>
+        // Apply column filters if specified
+        var columnNames = (options?.Columns != null && options.Columns.Any())
+            ? options.Columns
+                .Where(allColumnNames.Contains)
+                .ToList()
+            : allColumnNames;
+
+        // Add entity columns that are in the final selection
+        foreach (var name in columnNames.Where(_staticColumnAccessors.ContainsKey))
         {
-            nameof(SubmissionExportRow.FormId),
-            nameof(SubmissionExportRow.Id),
-            nameof(SubmissionExportRow.IsComplete),
-            nameof(SubmissionExportRow.CreatedAt),
-            nameof(SubmissionExportRow.ModifiedAt),
-            nameof(SubmissionExportRow.CompletedAt)
-        };
-    }
+            var columnDef = new StaticColumnDefinition<SubmissionExportRow>(
+                name,
+                _staticColumnAccessors[name]
+            );
 
-    /// <summary>
-    /// Builds the final set of header columns based on entity columns, dynamic columns, and options.
-    /// </summary>
-    private static List<string> BuildHeaderColumns(List<string> dynamicColumns, ExportOptions? options)
-    {
-        // Combine all columns
-        var allColumns = GetEntityColumns().Concat(dynamicColumns).ToList();
+            // Add transformer if specified
+            if (options?.Transformers != null && options.Transformers.TryGetValue(name, out var transformer))
+            {
+                _ = columnDef.WithTransformer(transformer);
+            }
 
-        // Filter by options.Columns if provided
-        if (options?.Columns != null && options.Columns.Any())
-        {
-            // Only include columns that exist in the data
-            return options.Columns
-                .Where(allColumns.Contains)
-                .ToList();
+            _columnDefinitions.Add(columnDef);
         }
 
-        return allColumns;
+        // Add dynamic columns from question names
+        foreach (var questionName in columnNames.Where(n => questionNames.Contains(n)))
+        {
+            var columnDef = new JsonColumnDefinition<SubmissionExportRow>(
+                questionName,
+                questionName
+            );
+
+            // Add transformer if specified
+            if (options?.Transformers != null && options.Transformers.TryGetValue(questionName, out var transformer))
+            {
+                _ = columnDef.WithTransformer(transformer);
+            }
+
+            _columnDefinitions.Add(columnDef);
+        }
+    }
+
+    /// <summary>
+    /// Initializes the enumeration by creating an enumerator and reading the first row.
+    /// </summary>
+    private async Task InitializeEnumerationAsync(IAsyncEnumerable<SubmissionExportRow> records, CancellationToken cancellationToken)
+    {
+        _enumerator = records.GetAsyncEnumerator(cancellationToken);
+        _firstRow = null;
+
+        if (await _enumerator.MoveNextAsync())
+        {
+            _firstRow = _enumerator.Current;
+        }
     }
 
     /// <summary>
     /// Writes the header row to the CSV file.
     /// </summary>
-    private static async Task WriteHeaderRowAsync(CsvWriter csv, List<string> headerColumns)
+    private async Task WriteHeaderRowAsync(CsvWriter csv)
     {
-        foreach (var column in headerColumns)
+        foreach (var column in _columnDefinitions)
         {
-            csv.WriteField(column);
+            csv.WriteField(column.Name);
         }
 
         await csv.NextRecordAsync();
     }
 
     /// <summary>
-    /// Streams all data rows to the CSV writer.
+    /// Streams all submission rows to the CSV writer.
     /// </summary>
-    private static async Task StreamDataRowsAsync(
-        CsvWriter csv,
-        SubmissionExportRow? firstRow,
-        IAsyncEnumerator<SubmissionExportRow> enumerator,
-        List<string> questionNames,
-        ExportOptions? options,
-        CancellationToken cancellationToken)
+    private async Task StreamSubmissionRowsAsync(CsvWriter csv, CancellationToken cancellationToken)
     {
-        // If there are no rows, just return
-        if (firstRow is null)
-        {
-            return;
-        }
-
         // Define a local async generator function to yield records
         async IAsyncEnumerable<IDictionary<string, object>> GetRecords()
         {
-            // First yield the first row we already read
-            yield return BuildRecord(firstRow, questionNames, options?.Transformers);
+            yield return BuildSingleCsvRecord(_firstRow!);
 
-            // Then yield the rest of the rows
-            while (await enumerator.MoveNextAsync())
+            while (_enumerator != null && await _enumerator.MoveNextAsync())
             {
-                yield return BuildRecord(enumerator.Current, questionNames, options?.Transformers);
+                yield return BuildSingleCsvRecord(_enumerator.Current);
             }
         }
 
@@ -172,59 +191,47 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
     }
 
     /// <summary>
-    /// Builds a dictionary representing a CSV record from a submission row.
-    /// Applies transformers if provided in options.        
+    /// Builds a dictionary representing a CSV record by parsing JSON once per row.
     /// </summary>
-    private static IDictionary<string, object> BuildRecord(
-        SubmissionExportRow row,
-        List<string> dynamicColumns,
-        IDictionary<string, System.Func<object, string>>? transformers = null)
+    private IDictionary<string, object> BuildSingleCsvRecord(SubmissionExportRow row)
     {
-        var record = new Dictionary<string, object>
-        {
-            [nameof(SubmissionExportRow.FormId)] = row.FormId,
-            [nameof(SubmissionExportRow.Id)] = row.Id,
-            [nameof(SubmissionExportRow.IsComplete)] = row.IsComplete,
-            [nameof(SubmissionExportRow.CreatedAt)] = row.CreatedAt.ToString("o"),
-            [nameof(SubmissionExportRow.ModifiedAt)] = row.ModifiedAt?.ToString("o") ?? string.Empty,
-            [nameof(SubmissionExportRow.CompletedAt)] = row.CompletedAt?.ToString("o") ?? string.Empty
-        };
+        var record = new Dictionary<string, object>();
+        JsonDocument? document = null;
 
-        if (!string.IsNullOrWhiteSpace(row.AnswersModel))
+        try
         {
-            using var doc = JsonDocument.Parse(row.AnswersModel);
-            var root = doc.RootElement;
-            foreach (var key in dynamicColumns)
+            if (!string.IsNullOrWhiteSpace(row.AnswersModel))
             {
-                var value = string.Empty;
-                if (root.TryGetProperty(key, out var element))
-                {
-                    value = element.ValueKind switch
-                    {
-                        JsonValueKind.String => element.GetString(),
-                        JsonValueKind.Number => element.ToString(),
-                        JsonValueKind.True => "true",
-                        JsonValueKind.False => "false",
-                        JsonValueKind.Null => string.Empty,
-                        _ => element.ToString()
-                    } ?? string.Empty;
-                }
+                document = JsonDocument.Parse(row.AnswersModel);
+            }
 
-                // Apply transformer if available
-                if (transformers != null && transformers.TryGetValue(key, out var transformer))
-                {
-                    value = transformer(value);
-                }
-
-                record[key] = value;
+            // Process each column with the cached document
+            foreach (var columnDef in _columnDefinitions)
+            {
+                record[columnDef.Name] = columnDef.GetFormattedValue(row, document);
             }
         }
-        else
+        catch (JsonException ex)
         {
-            foreach (var key in dynamicColumns)
+            _logger.LogWarning(ex, "Failed to parse JSON answers for row ID {RowId}. Form ID: {FormId}.",
+                row.Id, row.FormId);
+
+            // On parsing error, still include static columns
+            foreach (var columnDef in _columnDefinitions)
             {
-                record[key] = string.Empty;
+                if (columnDef is StaticColumnDefinition<SubmissionExportRow>)
+                {
+                    record[columnDef.Name] = columnDef.GetFormattedValue(row, null);
+                }
+                else
+                {
+                    record[columnDef.Name] = NOT_AVAILABLE_VALUE;
+                }
             }
+        }
+        finally
+        {
+            document?.Dispose();
         }
 
         return record;

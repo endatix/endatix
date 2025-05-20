@@ -13,10 +13,10 @@ public class Export : Endpoint<Export.Request>
     private readonly ISubmissionExportRepository _exportRepository;
     private readonly IExporterFactory _exporterFactory;
     private readonly ILogger<Export> _logger;
-    
+
     public Export(
-        ISubmissionExportRepository exportRepository, 
-        IExporterFactory exporterFactory, 
+        ISubmissionExportRepository exportRepository,
+        IExporterFactory exporterFactory,
         ILogger<Export> logger)
     {
         _exportRepository = exportRepository;
@@ -51,7 +51,7 @@ public class Export : Endpoint<Export.Request>
         {
             var exportRows = _exportRepository.GetExportRowsAsync(req.FormId, ct);
             var exporter = _exporterFactory.GetExporter<SubmissionExportRow>("csv");
-            
+
             // Create export options (can be customized based on user preferences in the future)
             var options = new ExportOptions
             {
@@ -62,11 +62,11 @@ public class Export : Endpoint<Export.Request>
 
             // Set response headers before streaming starts
             HttpContext.Response.ContentType = "text/csv";
-            
+
             // Set a default filename that includes form ID
             var defaultFileName = $"submissions-{req.FormId}.csv";
             HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={defaultFileName}";
-            
+
             // Let the exporter stream directly to the response
             await exporter.StreamExportAsync(
                 records: exportRows,
