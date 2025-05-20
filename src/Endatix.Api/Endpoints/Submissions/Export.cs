@@ -37,7 +37,6 @@ public class Export : Endpoint<ExportRequest>
            s.Summary = "Export submissions";
            s.Description = "Export submissions for a given form";
            s.Responses[200] = "The submissions were successfully exported";
-           s.Responses[400] = "Invalid input data.";
            s.Responses[404] = "Form not found. Cannot export submissions";
            s.Responses[500] = "An error occurred during export";
        });
@@ -71,6 +70,9 @@ public class Export : Endpoint<ExportRequest>
             var fileExport = headersResult.Value;
 
             // Set response headers BEFORE streaming
+            // Note: We intentionally don't set Content-Length here as this is a streaming response.
+            // The response will automatically use chunked transfer encoding which is well-supported
+            // by modern HTTP clients and allows for true streaming without buffering the entire output.
             HttpContext.Response.ContentType = fileExport.ContentType;
             HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileExport.FileName}";
 
@@ -87,17 +89,12 @@ public class Export : Endpoint<ExportRequest>
 
             if (!result.IsSuccess)
             {
-                if (result.Status == ResultStatus.NotFound)
-                {
-                    await SetErrorResponse("Form not found", StatusCodes.Status400BadRequest);
-                    return;
-                }
-
-                _logger.LogError("Export failed due to: {Errors}", string.Join(", ", result.Errors));
-                await SetErrorResponse(string.Join(", ", result.Errors));
+                await HandleErrorResult(result);
                 return;
-
             }
+
+            await HttpContext.Response.Body.FlushAsync(cancellationToken);
+            _logger.LogDebug("Successfully exported submissions for form {FormId}", request.FormId);
         }
         catch (Exception ex)
         {
@@ -105,6 +102,20 @@ public class Export : Endpoint<ExportRequest>
             await SetErrorResponse("An unexpected error occurred during export.");
         }
     }
+
+    private async Task<bool> HandleErrorResult<T>(Result<T> result)
+    {
+        if (result.Status == ResultStatus.NotFound)
+        {
+            await SetErrorResponse("Form not found", StatusCodes.Status404NotFound);
+            return true;
+        }
+
+        _logger.LogError("Export failed due to: {Errors}", string.Join(", ", result.Errors));
+        await SetErrorResponse(string.Join(", ", result.Errors));
+        return true;
+    }
+
 
     private async Task SetErrorResponse(string message, int? statusCode = null)
     {
