@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
 using MediatR;
 
 namespace Endatix.Core.UseCases.Submissions.Export;
@@ -9,7 +10,7 @@ public sealed record SubmissionsExportQuery(
     IExporter<SubmissionExportRow> Exporter,
     ExportOptions? Options,
     Stream OutputStream
-) : IRequest<ExportResult>
+) : IRequest<Result<FileExport>>
 {
     public ExportOptions GetOptionsWithFormId()
     {

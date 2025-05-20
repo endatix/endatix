@@ -5,6 +5,7 @@ using CsvHelper;
 using CsvHelper.Configuration;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Features.Submissions;
@@ -39,30 +40,39 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
     /// <summary>
     /// Gets the HTTP headers for the export without processing data.
     /// </summary>
-    public Task<ExportHeaders> GetHeadersAsync(ExportOptions? options, CancellationToken cancellationToken)
+    public Task<Result<FileExport>> GetHeadersAsync(ExportOptions? options, CancellationToken cancellationToken)
     {
-        // For CSV export, we can determine the headers without any data processing
-        
-        // Default filename with a placeholder for form ID
-        var fileName = "submissions.csv";
-        
-        // If options contains a FormId, we can use it in the filename
-        if (options?.Metadata != null && 
-            options.Metadata.TryGetValue("FormId", out var formIdObj))
+        try
         {
-            if (formIdObj is long formId)
+            // For CSV export, we can determine the headers without any data processing
+            
+            // Default filename with a placeholder for form ID
+            var fileName = "submissions.csv";
+            
+            // If options contains a FormId, we can use it in the filename
+            if (options?.Metadata != null && 
+                options.Metadata.TryGetValue("FormId", out var formIdObj))
             {
-                fileName = $"submissions-{formId}.csv";
+                if (formIdObj is long formId)
+                {
+                    fileName = $"submissions-{formId}.csv";
+                }
             }
+            
+            var fileExport = new FileExport(CSV_CONTENT_TYPE, fileName);
+            return Task.FromResult(Result<FileExport>.Success(fileExport));
         }
-        
-        return Task.FromResult(new ExportHeaders(CSV_CONTENT_TYPE, fileName));
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting export headers");
+            return Task.FromResult(Result<FileExport>.Error($"Failed to get export headers: {ex.Message}"));
+        }
     }
 
     /// <summary>
     /// Streams the export directly to the provided output stream.
     /// </summary>
-    public async Task<ExportFileResult> StreamExportAsync(
+    public async Task<Result<FileExport>> StreamExportAsync(
         IAsyncEnumerable<SubmissionExportRow> records,
         ExportOptions? options,
         CancellationToken cancellationToken,
@@ -70,29 +80,39 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
     {
         Guard.Against.Null(outputStream);
 
-        // Initialize enumeration and read first row
-        await InitializeEnumerationAsync(records, cancellationToken);
-
-        if (_firstRow is null)
+        try
         {
-            return new ExportFileResult(CSV_CONTENT_TYPE, "no-submissions.csv");
+            // Initialize enumeration and read first row
+            await InitializeEnumerationAsync(records, cancellationToken);
+
+            if (_firstRow is null)
+            {
+                return Result<FileExport>.Success(
+                    new FileExport(CSV_CONTENT_TYPE, "no-submissions.csv"));
+            }
+
+            BuildColumnDefinitions(_firstRow, options);
+
+            // Configure writer and write CSV
+            var writer = new StreamWriter(outputStream, leaveOpen: true);
+            var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                HasHeaderRecord = false
+            });
+
+            await WriteHeaderRowAsync(csv);
+            await StreamSubmissionRowsAsync(csv, cancellationToken);
+            await writer.FlushAsync();
+
+            var fileName = $"submissions-{_firstRow.FormId}.csv";
+            return Result<FileExport>.Success(
+                new FileExport(CSV_CONTENT_TYPE, fileName));
         }
-
-        BuildColumnDefinitions(_firstRow, options);
-
-        // Configure writer and write CSV
-        var writer = new StreamWriter(outputStream, leaveOpen: true);
-        var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
+        catch (Exception ex)
         {
-            HasHeaderRecord = false
-        });
-
-        await WriteHeaderRowAsync(csv);
-        await StreamSubmissionRowsAsync(csv, cancellationToken);
-        await writer.FlushAsync();
-
-        var fileName = $"submissions-{_firstRow.FormId}.csv";
-        return new ExportFileResult(CSV_CONTENT_TYPE, fileName);
+            _logger.LogError(ex, "Error exporting submissions to CSV");
+            return Result<FileExport>.Error($"Failed to export submissions: {ex.Message}");
+        }
     }
 
     /// <summary>

@@ -6,6 +6,9 @@ using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Microsoft.Extensions.Logging;
 using MediatR;
+using Endatix.Core.Infrastructure.Result;
+using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -47,26 +50,31 @@ public class Export : Endpoint<ExportRequest>
 
         try
         {
-            // Create export options (can be customized based on user preferences in the future)
+            // Create export options (to be customized based on user preferences in the future)
             var options = new ExportOptions
             {
-                // For now we use default column selection
                 Columns = null,
                 Transformers = null,
                 Metadata = new Dictionary<string, object> { ["FormId"] = request.FormId }
             };
 
-            // Resolve the exporter once
             var exporter = _exporterFactory.GetExporter<SubmissionExportRow>("csv");
+            var headersResult = await exporter.GetHeadersAsync(options, cancellationToken);
 
-            // Get headers first to set them before streaming
-            var headers = await exporter.GetHeadersAsync(options, cancellationToken);
+            if (!headersResult.IsSuccess)
+            {
+                _logger.LogError("Failed to get export headers: {Errors}", string.Join(", ", headersResult.Errors));
+                await SetErrorResponse("Failed to get export headers");
+                return;
+            }
 
-            // Set headers BEFORE writing anything to the response
-            HttpContext.Response.ContentType = headers.ContentType;
-            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={headers.FileName}";
+            var fileExport = headersResult.Value;
 
-            // Create query with the already resolved exporter
+            // Set response headers BEFORE streaming
+            HttpContext.Response.ContentType = fileExport.ContentType;
+            HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileExport.FileName}";
+
+            // Create export query
             var exportQuery = new SubmissionsExportQuery(
                 FormId: request.FormId,
                 Exporter: exporter,
@@ -74,26 +82,46 @@ public class Export : Endpoint<ExportRequest>
                 OutputStream: HttpContext.Response.Body
             );
 
-            // Stream directly to the response
+            // Execute the export
             var result = await _mediator.Send(exportQuery, cancellationToken);
 
             if (!result.IsSuccess)
             {
-                // This can only happen if an error occurred after headers were sent
-                _logger.LogError("Export failed: {ErrorMessage}", result.ErrorMessage);
+                if (result.Status == ResultStatus.NotFound)
+                {
+                    await SetErrorResponse("Form not found", StatusCodes.Status400BadRequest);
+                    return;
+                }
+
+                _logger.LogError("Export failed due to: {Errors}", string.Join(", ", result.Errors));
+                await SetErrorResponse(string.Join(", ", result.Errors));
+                return;
+
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled error in export endpoint");
-
-            if (!HttpContext.Response.HasStarted)
-            {
-                HttpContext.Response.Clear();
-                HttpContext.Response.StatusCode = 500;
-                HttpContext.Response.ContentType = "text/plain";
-                await HttpContext.Response.WriteAsync("An unexpected error occurred during export.");
-            }
+            await SetErrorResponse("An unexpected error occurred during export.");
         }
+    }
+
+    private async Task SetErrorResponse(string message, int? statusCode = null)
+    {
+        if (!HttpContext.Response.HasStarted)
+        {
+            HttpContext.Response.Clear();
+        }
+
+        HttpContext.Response.StatusCode = statusCode ?? StatusCodes.Status500InternalServerError;
+        HttpContext.Response.ContentType = "application/json";
+
+        var problem = new FastEndpoints.ProblemDetails
+        {
+            Detail = message,
+            Status = statusCode ?? StatusCodes.Status500InternalServerError,
+        };
+
+        await HttpContext.Response.WriteAsync(JsonSerializer.Serialize(problem));
     }
 }
