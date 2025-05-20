@@ -42,11 +42,11 @@ public class ExportOptions
     /// <summary>
     /// Optional columns to include in the export. If null, all columns are included.
     /// </summary>
-    public IEnumerable<string> Columns { get; set; }
+    public IEnumerable<string>? Columns { get; set; }
     
     /// <summary>
     /// Optional dictionary of column transformers to customize how values are formatted.
     /// Keys are column names, values are functions that transform the original value to a string.
     /// </summary>
-    public IDictionary<string, System.Func<object, string>> Transformers { get; set; }
+    public IDictionary<string, System.Func<object?, string>>? Transformers { get; set; }
 } 
