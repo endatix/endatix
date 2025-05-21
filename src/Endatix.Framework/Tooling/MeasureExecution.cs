@@ -6,6 +6,7 @@ namespace Endatix.Framework.Tooling;
 
 public sealed class MeasureExecution : IDisposable
 {
+#if DEBUG
     private readonly string _className;
     private readonly string _methodName;
     private readonly long _startTime;
@@ -27,4 +28,18 @@ public sealed class MeasureExecution : IDisposable
         var elapsedTime = Stopwatch.GetElapsedTime(_startTime);
         Console.WriteLine($"⌚ {_className}.{_methodName} completed in {elapsedTime.TotalMilliseconds}ms | memory allocated: {(memoryAfter - _memoryBefore) / (1024.0 * 1024.0):F2} MB");
     }
+#else
+    // Empty implementation for production builds
+    public MeasureExecution(
+        [CallerMemberName] string methodName = "",
+        [CallerFilePath] string filePath = "")
+    {
+        // No-op in production
+    }
+
+    public void Dispose()
+    {
+        // No-op in production
+    }
+#endif
 }
