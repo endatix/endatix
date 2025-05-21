@@ -24,7 +24,8 @@ public static class EndatixPersistenceExtensions
         where TContext : DbContext
     {
         var builder = new PostgreSqlPersistenceBuilder(services, loggerFactory);
-        builder.UseDefault<TContext>();
+        builder.UseDefault<TContext>()
+               .AddDbSpecificRepositories();
         
         return builder.Services;
     }
@@ -44,7 +45,8 @@ public static class EndatixPersistenceExtensions
         where TContext : DbContext
     {
         var builder = new PostgreSqlPersistenceBuilder(services, loggerFactory);
-        builder.Configure<TContext>(optionsAction);
+        builder.Configure<TContext>(optionsAction)
+               .AddDbSpecificRepositories();
         
         return builder.Services;
     }

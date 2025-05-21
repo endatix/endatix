@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
+    <ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

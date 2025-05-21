@@ -1,8 +1,9 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace Endatix.Infrastructure.Data.Repositories;
+namespace Endatix.Persistence.PostgreSql.Repositories;
 
 public sealed class SubmissionExportRepository : ISubmissionExportRepository
 {
