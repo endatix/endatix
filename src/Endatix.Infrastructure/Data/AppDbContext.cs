@@ -75,7 +75,9 @@ public class AppDbContext : DbContext
         }
 
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
-        builder.Entity<SubmissionExportRow>().HasNoKey();
+        builder.Entity<SubmissionExportRow>()
+            .HasNoKey()
+            .ToTable(t => t.ExcludeFromMigrations());
         PrefixTableNames(builder);
     }
 

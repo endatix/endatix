@@ -9,6 +9,7 @@ using MediatR;
 using Endatix.Core.Infrastructure.Result;
 using System.Text.Json;
 using System.IO.Pipelines;
+using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -30,8 +31,8 @@ public class Export : Endpoint<ExportRequest>
 
     public override void Configure()
     {
-        Get("forms/{formId}/submissions/export");
-        AllowAnonymous(); // Adjust as needed for auth
+        Post("forms/{formId}/submissions/export");
+        Permissions(Allow.AllowAll);
         Summary(s =>
        {
            s.Summary = "Export submissions";

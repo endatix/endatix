@@ -245,6 +245,36 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.ToTable("Submissions", (string)null);
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.SubmissionExportRow", b =>
+                {
+                    b.Property<string>("AnswersModel")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsComplete")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.ToTable("SubmissionExportRows", null, t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.Tenant", b =>
                 {
                     b.Property<long>("Id")
