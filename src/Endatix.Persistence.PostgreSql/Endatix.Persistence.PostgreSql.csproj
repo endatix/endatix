@@ -10,16 +10,22 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <RootNamespace>Endatix.Persistence.PostgreSQL</RootNamespace>
+    <RootNamespace>Endatix.Persistence.PostgreSql</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../Endatix.Framework/Endatix.Framework.csproj" />
     <ProjectReference Include="../Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
     <ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Scripts\**\*.sql" />
   </ItemGroup>
 
 </Project>
