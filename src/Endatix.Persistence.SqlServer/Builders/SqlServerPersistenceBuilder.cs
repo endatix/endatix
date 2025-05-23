@@ -1,6 +1,8 @@
 using System.Reflection;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Infrastructure.Data;
 using Endatix.Persistence.SqlServer.Options;
+using Endatix.Persistence.SqlServer.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -97,6 +99,17 @@ public class SqlServerPersistenceBuilder
         LogSetupInfo($"Persistence for {typeof(TContext).Name} configured successfully");
         return this;
     }
+
+       /// <summary>
+    /// Registers PostgreSQL-specific repositories.
+    /// </summary>
+    /// <returns>The builder for chaining.</returns>
+    public SqlServerPersistenceBuilder AddDbSpecificRepositories()
+    {
+        Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
+        return this;
+    }
+
 
     private void LogSetupInfo(string message)
     {

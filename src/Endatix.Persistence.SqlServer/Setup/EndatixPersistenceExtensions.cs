@@ -24,7 +24,10 @@ public static class EndatixPersistenceExtensions
         where TContext : DbContext
     {
         var builder = new SqlServerPersistenceBuilder(services, loggerFactory);
-        return builder.UseDefault<TContext>().Services;
+        builder.UseDefault<TContext>()
+               .AddDbSpecificRepositories();
+
+        return builder.Services;
     }
 
     /// <summary>
