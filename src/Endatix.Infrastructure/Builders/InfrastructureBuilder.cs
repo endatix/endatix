@@ -1,6 +1,5 @@
 using Endatix.Core.Abstractions;
 using Endatix.Framework.Hosting;
-using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Multitenancy;
 using Microsoft.Extensions.Configuration;
@@ -110,5 +109,12 @@ public class InfrastructureBuilder
     /// Builds and returns the root builder.
     /// </summary>
     /// <returns>The root builder.</returns>
-    public IBuilderRoot Build() => _parentBuilder;
+    public IBuilderRoot Build()
+    {
+        // Call Build() on all child builders to ensure their configuration is applied
+        // TODO: Add rest of infrastructure builders once they are implemented
+        Messaging.Build();
+
+        return _parentBuilder;
+    }
 }

@@ -12,6 +12,7 @@ using SendGrid.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Endatix.Core;
 using Ardalis.GuardClauses;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Endatix.Infrastructure.Email;
 
@@ -35,9 +36,13 @@ public class SendGridEmailSender : IEmailSender, IHasConfigSection<SendGridSetti
         services.AddSendGrid((provider, options) =>
        {
            var settings = provider.GetService<IOptions<SendGridSettings>>()?.Value;
-
-           Guard.Against.NullOrWhiteSpace(settings?.ApiKey);
-           options.ApiKey = settings.ApiKey;
+           if (settings != null && string.IsNullOrWhiteSpace(settings.ApiKey))
+           {
+              settings.ApiKey = Environment.GetEnvironmentVariable("SENDGRID_API_KEY")?? "ENDATIX_SENDGRID_API_KEY";
+              var logger = provider.GetRequiredService<ILogger<SendGridEmailSender>>();
+              logger.LogWarning("SendGrid API key not found in configuration, using environment variable: {apiKey}", settings.ApiKey);
+           }
+           options.ApiKey = settings?.ApiKey;
        });
     };
 

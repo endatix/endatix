@@ -22,6 +22,45 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Endatix.Core.Entities.CustomQuestion", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("JsonData")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("CustomQuestions", (string)null);
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.Form", b =>
                 {
                     b.Property<long>("Id")
@@ -56,12 +95,17 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("ThemeId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ActiveDefinitionId")
                         .IsUnique();
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("ThemeId");
 
                     b.ToTable("Forms", (string)null);
                 });
@@ -233,6 +277,56 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.ToTable("Tenants", (string)null);
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.Theme", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("JsonData")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("Themes", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.CustomQuestion", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.Form", b =>
                 {
                     b.HasOne("Endatix.Core.Entities.FormDefinition", "ActiveDefinition")
@@ -246,9 +340,16 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Endatix.Core.Entities.Theme", "Theme")
+                        .WithMany("Forms")
+                        .HasForeignKey("ThemeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("ActiveDefinition");
 
                     b.Navigation("Tenant");
+
+                    b.Navigation("Theme");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormDefinition", b =>
@@ -344,6 +445,17 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Navigation("Token");
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.Theme", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.Form", b =>
                 {
                     b.Navigation("FormDefinitions");
@@ -361,6 +473,11 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Navigation("Forms");
 
                     b.Navigation("Submissions");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Theme", b =>
+                {
+                    b.Navigation("Forms");
                 });
 #pragma warning restore 612, 618
         }

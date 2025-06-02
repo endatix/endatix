@@ -35,4 +35,14 @@ public class FormDefinitionModel
     /// The date and time when the form definition was last modified.
     /// </summary>
     public DateTime? ModifiedAt { get; set; }
+
+    /// <summary>
+    /// The model of the associated theme stored as a stringified JSON object.
+    /// </summary>
+    public string? ThemeModel { get; set; }
+
+    /// <summary>
+    /// The list of custom questions' JSON data associated with this form definition.
+    /// </summary>
+    public IEnumerable<string>? CustomQuestions { get; set; }
 }

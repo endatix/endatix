@@ -13,6 +13,8 @@ jobs:
     env:
       STORE_PATH:
     runs-on: ubuntu-latest
+    environment:
+      name: Production
     defaults:
       run:
         working-directory: ./docs/endatix-docs
@@ -29,7 +31,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.2
+          version: 10.10
           run_install: false
 
       - name: Get pnpm store directory
@@ -52,20 +54,38 @@ jobs:
         run: pnpm run build
 
       - name: 🔗 Copy Url Rewrites to the build folder
-        run: cp rewriteRules.config ./build/
+        run: cp staticwebapp.config.json ./build/
 
-      - name: 🚡 Upload package to FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: 🚡 Deploy to Static Web App
+        id: deploy-to-static-web-app
+        uses: Azure/static-web-apps-deploy@v1
         with:
-          server: ${{secrets.DOCS_FTP_URL}}
-          username: ${{secrets.DOCS_SITE_FTP_USER}}
-          password: ${{secrets.DOCS_FTP_PASS}}
-          local-dir: "./docs/endatix-docs/build/"
-          exclude: |
-            markdown-page/**
+          azure_static_web_apps_api_token: ${{ secrets.DOCS_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: "./docs/endatix-docs/build/"
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
+          api_location: ''
 
       - name: Summary message
         run: |
           echo ">[!TIP] " >> $GITHUB_STEP_SUMMARY
           echo "> ### Job Complete! :rocket:" >> $GITHUB_STEP_SUMMARY
           echo ">check site at https://docs.endatix.com/" >> $GITHUB_STEP_SUMMARY
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close PR Job
+    environment:
+      name: Production
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.DOCS_DEPLOYMENT_TOKEN }}
+          app_location: ''
+          action: 'close'

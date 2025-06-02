@@ -1,0 +1,190 @@
+---
+sidebar_position: 2
+title: Setup Using NuGet Package
+description: Install and configure Endatix in your .NET Core project using NuGet
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# Setup Using NuGet Package
+
+This guide provides step-by-step instructions for setting up the Endatix platform using the NuGet package manager.
+
+## Prerequisites
+
+Before getting started, make sure you have:
+
+- **.NET 9.0 SDK** or newer installed
+- **NuGet Package Manager** (included with Visual Studio or the .NET CLI)
+
+## Step 1: Create a new .NET Core project
+
+Create a new .NET Core project using the .NET CLI. The [empty project template](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-new-sdk-templates#web) is recommended:
+
+```bash
+dotnet new web -n My.Endatix.App
+```
+
+then navigate to the project directory, e.g.:
+
+```bash
+cd My.Endatix.App
+```
+
+## Step 2: Install the Endatix NuGet package
+
+Install the Endatix NuGet package
+
+<Tabs>
+  <TabItem value="dotnet-cli" label=".NET CLI" default>
+    ```bash
+    dotnet add package Endatix.Hosting 
+    ```
+  </TabItem>
+  <TabItem value="nuget-cli" label="NuGet CLI">
+    ```bash
+    nuget install Endatix.Hosting
+    ```
+  </TabItem>
+</Tabs>
+
+## Step 3: Add Endatix with default configuration
+
+Once the package is installed, open your `Program.cs` file and update it as follows:
+
+```csharp
+using Endatix.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Host.ConfigureEndatix();
+
+var app = builder.Build();
+
+app.UseEndatix();
+
+app.Run();
+```
+
+This minimal setup configures Endatix with sensible defaults suitable for most scenarios.
+
+<details>
+  <summary>**What's Included in the Default Setup?**</summary>
+
+When you use `builder.Host.ConfigureEndatix()`, the following features are automatically configured with sensible defaults:
+
+- **API endpoints**
+- **Authentication and authorization**
+- **Database persistence**
+- **Serilog logging**
+- **Health checks**
+- **Webhooks**
+- **Data migration and seeding**
+- **CQR with MediatR**
+
+:bulb: **Note:** The specific implementation details of these components are subject to change as the framework evolves. For detailed information on configuring your Endatix application, please refer to our configuration guides:
+
+- [Configuring Endatix](/docs/configuration/) - Learn about the different configuration approaches and paradigms
+
+</details>
+
+## Step 4: Add the AppSettings file
+
+Find or create a new `appsettings.Development.json` file in the project root and add the following configuration:
+
+<details>
+  <summary>expand the code block below to copy the following code to your **appsettings.Development.json**</summary>
+
+:bulb: **Note on Connection Strings:** The Default connection string is required. This is line 3. The other connection strings are optional and can be used to configure the database provider. If you want to use PostgresSQL as the database provider, uncomment the _DefaultConnection_DbProvider_ line and set the value to "postgresql". Otherwise, delete line 4.
+
+:bulb: **Note on Initial User:** Line 13 and 14 are optional and they allow you to configure the credentials for the initial user. Change the email and password to your own credentials. You can remove these lines upon successful app setup and login. Never commit your credentials to the repository.
+
+```json {3,4,12,13} showLineNumbers
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "{{YOUR_CONNECTION_STRING}}" // required
+    // "DefaultConnection_DbProvider": "postgresql" // optional, uncomment this to use PostgresSQL as the database provider. Default is MS SQL Server
+  },
+  "Endatix": {
+    "Api": {
+      "SwaggerPath": "/api-docs"
+    },
+    "Data": {
+      "EnableAutoMigrations": true,
+      "SeedSampleData": true,
+      "InitialUser": {
+        "Email": "admin@admin.com", // this is the default email for the initial user. Change this to your email
+        "Password": "P@ssw0rd" // this is the default password for the initial user. Change this to a more secure password
+      }
+    }
+    "Jwt": {
+      "SigningKey": "L2yGC_Vpd3k#L[<9Zb,h?.HT:n'T/5CTDmBpDskU?NAaT$sLfRU"
+    },
+    "Integrations": {
+      "Email": {
+        "SendGridSettings": {
+          "ApiKey": "{{SENDGRID_API_KEY}}"
+        }
+      }
+    }
+  },
+  "Serilog": {
+    "Using": ["Serilog.Sinks.Console", "Serilog.Sinks.File"],
+    "MinimumLevel": {
+      "Default": "Debug",
+      "Override": {
+        "Microsoft": "Information",
+        "System": "Warning"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "Console",
+        "Args": {
+          "applyThemeToRedirectedOutput": true,
+          "theme": "Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme::Sixteen, Serilog.Sinks.Console",
+          "outputTemplate": "[{Timestamp: HH:mm:ss.fff} Level:{Level:u3}] {Message:lj}{NewLine}{Exception}"
+        }
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "/logs/log-.txt",
+          "rollingInterval": "Day",
+          "rollOnFileSizeLimit": true,
+          "formatter": "Serilog.Formatting.Json.JsonFormatter"
+        }
+      }
+    ],
+    "Enrich": [
+      "FromLogContext",
+      "WithMachineName",
+      "WithProcessId",
+      "WithThreadId"
+    ],
+    "Properties": {
+      "Application": "Endatix API",
+      "Environment": "Development"
+    }
+  }
+}
+
+```
+
+</details>
+
+## Step 5: Run the application
+
+Run the application using the .NET CLI:
+
+```bash
+dotnet run
+```
+
+## Step 6: Verify the Installation
+
+After installation, you can verify that Endatix is running correctly by making a simple API call:
+
+- **Verify the service is healthy** - `https://localhost:YOUR_PORT/health/ui`
+- **See the Swagger UI** - `https://localhost:YOUR_PORT/api-docs`
+- **Login** - use the default crendentials from the appsettings.Development.json file to authenticate and change them after login

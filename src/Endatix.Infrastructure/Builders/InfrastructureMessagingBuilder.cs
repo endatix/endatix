@@ -1,7 +1,7 @@
-using Endatix.Core.Infrastructure.Messaging;
+using Ardalis.GuardClauses;
 using Endatix.Infrastructure.Messaging;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Reflection;
 
 namespace Endatix.Infrastructure.Builders;
 
@@ -10,8 +10,18 @@ namespace Endatix.Infrastructure.Builders;
 /// </summary>
 public class InfrastructureMessagingBuilder
 {
+    // Default configuration action - defined once and reused
+    private static readonly Action<MediatRConfigOptions> _defaultConfigAction = options =>
+    {
+        options.IncludeLoggingPipeline = true;
+    };
+
     private readonly InfrastructureBuilder _parentBuilder;
     private readonly ILogger _logger;
+
+    // Store the configuration to be applied when Build() is called
+    private Action<MediatRConfigOptions>? _configureAction;
+    private bool _configured;
 
     /// <summary>
     /// Initializes a new instance of the InfrastructureMessagingBuilder class.
@@ -29,14 +39,8 @@ public class InfrastructureMessagingBuilder
     /// <returns>The builder for chaining.</returns>
     public InfrastructureMessagingBuilder UseDefaults()
     {
-        LogSetupInfo("Configuring messaging with default settings");
-
-        _parentBuilder.Services.AddMediatRMessaging(options =>
-        {
-            options.IncludeLoggingPipeline = true;
-        });
-
-        LogSetupInfo("Messaging configuration completed");
+        LogSetupInfo("Using default messaging configuration");
+        _configureAction = _defaultConfigAction;
         return this;
     }
 
@@ -47,19 +51,70 @@ public class InfrastructureMessagingBuilder
     /// <returns>The builder for chaining.</returns>
     public InfrastructureMessagingBuilder Configure(Action<MediatRConfigOptions> configure)
     {
-        LogSetupInfo("Configuring messaging with custom settings");
+        Guard.Against.Null(configure);
 
-        _parentBuilder.Services.AddMediatRMessaging(configure);
+        LogSetupInfo("Storing custom messaging configuration");
 
-        LogSetupInfo("Messaging configuration completed");
+        if (_configureAction == null)
+        {
+            // If no previous configuration, just store this one
+            _configureAction = configure;
+        }
+        else
+        {
+            // If there was a previous configuration (e.g., from UseDefaults),
+            // compose a new action that applies both in sequence
+            var previousAction = _configureAction;
+            _configureAction = options =>
+            {
+                previousAction(options);
+                configure(options);
+            };
+        }
+
         return this;
     }
 
     /// <summary>
+    /// Adds a single assembly to be scanned for MediatR handlers.
+    /// </summary>
+    /// <param name="assembly">The assembly to add.</param>
+    /// <returns>The builder for chaining.</returns>
+    public InfrastructureMessagingBuilder AddAssembly(Assembly assembly)
+    {
+        Guard.Against.Null(assembly);
+
+        LogSetupInfo($"Adding assembly to MediatR scan: {assembly.GetName().Name}");
+
+        return Configure(options =>
+        {
+            var currentAssemblies = options.AdditionalAssemblies;
+            options.AdditionalAssemblies = [.. currentAssemblies, assembly];
+        });
+    }
+
+    /// <summary>
     /// Builds and returns the parent infrastructure builder.
+    /// This method applies the configuration if it hasn't been applied yet.
     /// </summary>
     /// <returns>The parent infrastructure builder.</returns>
-    public InfrastructureBuilder Build() => _parentBuilder;
+    public InfrastructureBuilder Build()
+    {
+        if (!_configured)
+        {
+            LogSetupInfo("Applying messaging configuration");
+
+            // If no configuration was provided, use defaults
+            var configAction = _configureAction ?? _defaultConfigAction;
+
+            _parentBuilder.Services.AddMediatRMessaging(configAction);
+            _configured = true;
+
+            LogSetupInfo("Messaging configuration applied");
+        }
+
+        return _parentBuilder;
+    }
 
     private void LogSetupInfo(string message)
     {

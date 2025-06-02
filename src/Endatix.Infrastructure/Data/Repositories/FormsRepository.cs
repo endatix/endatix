@@ -1,7 +1,7 @@
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Data.Abstractions;
 
 namespace Endatix.Infrastructure.Repositories
 {

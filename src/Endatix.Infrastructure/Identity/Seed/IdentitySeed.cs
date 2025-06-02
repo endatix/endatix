@@ -62,6 +62,7 @@ namespace Endatix.Infrastructure.Identity.Seed
 
             await userRegistrationService.RegisterUserAsync(email, password, CancellationToken.None);
             logger.LogInformation($"👤 Initial user {email} created successfully! Please use it to authenticate.");
+            logger.LogInformation($"🔐 The default password is {DEFAULT_ADMIN_PASSWORD}. Please change it after logging in.");
         }
     }
 }

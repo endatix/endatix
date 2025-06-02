@@ -1,8 +1,12 @@
 ---
-sidebar_position: 4
+sidebar_position: 3
+title: Setup Using Docker
+description: Run Endatix as a standalone service using Docker
 ---
 
-# Setup Using Docker
+:::warning
+**Important:** The Docker image is currently outdated and does not include the latest features available in the NuGet packages. This setup guide will be updated once Docker images are refreshed to match the latest NuGet releases.
+:::
 
 This guide will help you quickly set up Endatix Platform using Docker with a simple setup script that handles everything from environment configuration to container management.
 
@@ -87,7 +91,7 @@ Once you have the setup script and `docker-compose.dev.yml` file, follow these i
 
 ### Environment Variables Configuration Details
 
-During the setup, the script will ask for the following environment variables. Most of them have default values that can be used if no values is entered. Here’s a quick overview of what each one means:
+During the setup, the script will ask for the following environment variables. Most of them have default values that can be used if no values is entered. Here's a quick overview of what each one means:
 
 - **ASPNETCORE_ENVIRONMENT**: Do not enter anything to use the default value `Development`. The containers are not ready for production environment, because they lack https connection, prod level security for the configuration and others.
 - **SECURITY_JWT_SIGNING_KEY**: The secret key to be used in Endatix API to sign JWT tokens for authentication. The default value is `L2yGC_Vpd3k#L[<9Zb,h?.HT:n'T/5CTDmBpDskU?NAaT$sLfRU`.
@@ -100,7 +104,7 @@ You will be prompted one by one to provide these values. The script will automat
 
 ### Getting the Images and Creating the Containers
 
-Once you’ve entered the necessary environment variables:
+Once you've entered the necessary environment variables:
 
 1. The setup script will **automatically pull the necessary Docker images** from Docker Hub.
 2. It will **create and configure the containers** for the Endatix Platform, using the settings you've provided.

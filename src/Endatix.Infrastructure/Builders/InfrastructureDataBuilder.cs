@@ -1,9 +1,8 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Data.Abstractions;
-using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
