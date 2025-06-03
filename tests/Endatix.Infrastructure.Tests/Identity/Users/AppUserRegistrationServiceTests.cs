@@ -64,7 +64,7 @@ public class AppUserRegistrationServiceTests
     public async Task RegisterUserAsync_ValidRequest_CreatesUserSuccessfully()
     {
         // Arrange
-        var tenantId = 1L;
+        var tenantId = 0;
         var userId = 123L;
         var email = "test@example.com";
         var password = "P@ssw0rd";
@@ -107,15 +107,15 @@ public class AppUserRegistrationServiceTests
         result.Value.Id.Should().Be(userId);
         result.Value.TenantId.Should().Be(tenantId);
         result.Value.Email.Should().Be(email);
-        result.Value.IsVerified.Should().BeTrue();
+        result.Value.IsVerified.Should().BeFalse();
 
         await _userStore.Received(1).SetUserNameAsync(
-            Arg.Is<AppUser>(u => u.TenantId == tenantId && u.EmailConfirmed), 
+            Arg.Is<AppUser>(u => u.TenantId == tenantId && !u.EmailConfirmed), 
             email, 
             cancellationToken);
         
         await _emailStore.Received(1).SetEmailAsync(
-            Arg.Is<AppUser>(u => u.TenantId == tenantId && u.EmailConfirmed), 
+            Arg.Is<AppUser>(u => u.TenantId == tenantId && !u.EmailConfirmed), 
             email, 
             cancellationToken);
 
@@ -123,9 +123,84 @@ public class AppUserRegistrationServiceTests
             Arg.Is<AppUser>(u => 
                 u.Id == userId &&
                 u.TenantId == tenantId && 
-                u.EmailConfirmed && 
+                !u.EmailConfirmed && 
                 u.UserName == email && 
                 u.Email == email),
             password);
+    }
+
+    [Theory]
+    [InlineData("test@mailinator.com")]
+    [InlineData("test@10minutemail.com")]
+    [InlineData("test@tempmail.com")]
+    [InlineData("test@guerrillamail.com")]
+    [InlineData("test@yopmail.com")]
+    [InlineData("test@YOPMAIL.com")] // Test case insensitivity
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("invalid-email")]
+    [InlineData("test@")]
+    [InlineData("@domain.com")]
+    public async Task RegisterUserAsync_DisposableEmail_ReturnsInvalidResult(string email)
+    {
+        // Arrange
+        var password = "P@ssw0rd";
+        _userManager.SupportsUserEmail.Returns(true);
+
+        // Act
+        var result = await _sut.RegisterUserAsync(email, password, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.IsSuccess.Should().BeFalse();
+        result.ValidationErrors.Should().ContainSingle(ve => ve.ErrorMessage == "The email is from a suspicious domain.");
+    }
+
+    [Theory]
+    [InlineData("test@gmail.com")]
+    [InlineData("test@outlook.com")]
+    [InlineData("test@company.com")]
+    [InlineData("test@university.edu")]
+    public async Task RegisterUserAsync_NonDisposableEmail_ProceedsWithRegistration(string email)
+    {
+        // Arrange
+        var password = "P@ssw0rd";
+        var userId = 123L;
+        _userManager.SupportsUserEmail.Returns(true);
+        _userManager.CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                var user = callInfo.Arg<AppUser>();
+                user.Id = userId;
+                return Task.FromResult(IdentityResult.Success);
+            });
+
+        _userStore.SetUserNameAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var user = callInfo.Arg<AppUser>();
+                var userName = callInfo.Arg<string>();
+                user.UserName = userName;
+                return Task.CompletedTask;
+            });
+
+        _emailStore.SetEmailAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var user = callInfo.Arg<AppUser>();
+                var emailArg = callInfo.Arg<string>();
+                user.Email = emailArg;
+                return Task.CompletedTask;
+            });
+
+        // Act
+        var result = await _sut.RegisterUserAsync(email, password, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value.Email.Should().Be(email);
     }
 }

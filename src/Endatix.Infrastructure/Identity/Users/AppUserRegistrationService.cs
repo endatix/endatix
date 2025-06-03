@@ -75,14 +75,20 @@ public class AppUserRegistrationService(UserManager<AppUser> userManager, IUserS
         return Result.Success(domainUser);
     }
 
-    public bool IsDisposableEmail(string email)
+    private bool IsDisposableEmail(string email)
     {
-        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+        if (string.IsNullOrWhiteSpace(email))
         {
             return true;
         }
 
-        var domain = email.Split('@')[1].Trim().ToLowerInvariant();
+        var parts = email.Split('@');
+        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+        {
+            return true;
+        }
+
+        var domain = parts[1].Trim().ToLowerInvariant();
         return _disposableDomains.Contains(domain);
     }
 }
