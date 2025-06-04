@@ -13,12 +13,30 @@ public sealed class User : TenantEntity, IAggregateRoot
 {
     public User(
         long id,
+        string userName,
+        string email,
+        bool isVerified
+        ) : base()
+    {
+        Initialize(id, userName, email, isVerified);
+    }
+
+    public User(
+        long id,
         long tenantId,
         string userName,
         string email,
         bool isVerified
-        )
-        : base(tenantId)
+        ) : base(tenantId)
+    {
+        Initialize(id, userName, email, isVerified);
+    }
+
+    private void Initialize(
+        long id,
+        string userName,
+        string email,
+        bool isVerified)
     {
         Guard.Against.NegativeOrZero(id);
         Guard.Against.NullOrWhiteSpace(userName);
