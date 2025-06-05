@@ -64,7 +64,7 @@ public class AppUserRegistrationServiceTests
     public async Task RegisterUserAsync_ValidRequest_CreatesUserSuccessfully()
     {
         // Arrange
-        var tenantId = 0;
+        var tenantId = 1;
         var userId = 123L;
         var email = "test@example.com";
         var password = "P@ssw0rd";
@@ -107,15 +107,15 @@ public class AppUserRegistrationServiceTests
         result.Value.Id.Should().Be(userId);
         result.Value.TenantId.Should().Be(tenantId);
         result.Value.Email.Should().Be(email);
-        result.Value.IsVerified.Should().BeFalse();
+        result.Value.IsVerified.Should().BeTrue();
 
         await _userStore.Received(1).SetUserNameAsync(
-            Arg.Is<AppUser>(u => u.TenantId == tenantId && !u.EmailConfirmed), 
+            Arg.Is<AppUser>(u => u.TenantId == tenantId && u.EmailConfirmed), 
             email, 
             cancellationToken);
         
         await _emailStore.Received(1).SetEmailAsync(
-            Arg.Is<AppUser>(u => u.TenantId == tenantId && !u.EmailConfirmed), 
+            Arg.Is<AppUser>(u => u.TenantId == tenantId && u.EmailConfirmed), 
             email, 
             cancellationToken);
 
@@ -123,7 +123,7 @@ public class AppUserRegistrationServiceTests
             Arg.Is<AppUser>(u => 
                 u.Id == userId &&
                 u.TenantId == tenantId && 
-                !u.EmailConfirmed && 
+                u.EmailConfirmed && 
                 u.UserName == email && 
                 u.Email == email),
             password);
