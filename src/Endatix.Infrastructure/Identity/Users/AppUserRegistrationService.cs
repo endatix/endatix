@@ -52,7 +52,8 @@ public class AppUserRegistrationService(UserManager<AppUser> userManager, IUserS
 
         var newUser = new AppUser
         {
-            EmailConfirmed = false
+            TenantId = 1,           // TODO: This must 0 for a user that still does not have a tenant. Set to 1 for the initial user seeding
+            EmailConfirmed = true   // TODO: This must be false when we have a proper email verification
         };
 
         var emailStore = (IUserEmailStore<AppUser>)userStore;
