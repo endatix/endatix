@@ -1,6 +1,5 @@
 using System.Reflection;
 using Endatix.Core.Abstractions.Repositories;
-using Endatix.Infrastructure.Data;
 using Endatix.Persistence.SqlServer.Options;
 using Endatix.Persistence.SqlServer.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -100,8 +99,8 @@ public class SqlServerPersistenceBuilder
         return this;
     }
 
-       /// <summary>
-    /// Registers PostgreSQL-specific repositories.
+    /// <summary>
+    /// Registers SQL Server-specific repositories.
     /// </summary>
     /// <returns>The builder for chaining.</returns>
     public SqlServerPersistenceBuilder AddDbSpecificRepositories()
