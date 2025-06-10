@@ -1,5 +1,7 @@
 using System.Reflection;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Persistence.PostgreSql.Options;
+using Endatix.Persistence.PostgreSql.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -98,6 +100,16 @@ public class PostgreSqlPersistenceBuilder
         });
 
         LogSetupInfo($"PostgreSQL persistence for {typeof(TContext).Name} configured successfully");
+        return this;
+    }
+
+    /// <summary>
+    /// Registers PostgreSQL-specific repositories.
+    /// </summary>
+    /// <returns>The builder for chaining.</returns>
+    public PostgreSqlPersistenceBuilder AddDbSpecificRepositories()
+    {
+        Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         return this;
     }
 

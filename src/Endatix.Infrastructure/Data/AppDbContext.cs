@@ -5,8 +5,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
 using Ardalis.GuardClauses;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.AspNetCore.Http;
-using FastEndpoints.Security;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -36,6 +34,8 @@ public class AppDbContext : DbContext
     public DbSet<Theme> Themes { get; set; }
 
     public DbSet<CustomQuestion> CustomQuestions { get; set; }
+
+    public DbSet<SubmissionExportRow> SubmissionExportRows { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -75,6 +75,9 @@ public class AppDbContext : DbContext
         }
 
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        builder.Entity<SubmissionExportRow>()
+            .HasNoKey()
+            .ToTable(t => t.ExcludeFromMigrations());
         PrefixTableNames(builder);
     }
 
