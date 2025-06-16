@@ -34,8 +34,9 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
         try
         {
             // Fetch submission by formId and submissionId
-            var spec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
+            var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
             var submission = await submissionRepository.SingleOrDefaultAsync(spec, cancellationToken);
+        
             if (submission is null)
             {
                 await SendNotFoundAsync();
@@ -71,11 +72,16 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
                 await SendNotFoundAsync();
                 return;
             }
+            
+            var FormDefinition = JsonDocument.Parse(submission.FormDefinition.JsonData);
+            var formTitle = FormDefinition.RootElement.GetProperty("title").GetString();
+            var zipFileName = string.IsNullOrEmpty(formTitle) ? "submission-files" : formTitle;
+            zipFileName = $"{SanitizeFileName(zipFileName)}-{submission.Id}.zip";
 
             HttpContext.MarkResponseStart();
             HttpContext.Response.StatusCode = 200;
             HttpContext.Response.ContentType = "application/zip";
-            HttpContext.Response.Headers["Content-Disposition"] = "attachment; filename=submission-files.zip";
+            HttpContext.Response.Headers["Content-Disposition"] = $"attachment; filename={zipFileName}";
 
             using var zipStream = new MemoryStream();
             using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
