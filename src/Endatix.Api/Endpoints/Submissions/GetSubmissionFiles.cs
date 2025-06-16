@@ -47,21 +47,22 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
             var files = new List<(string fileName, string mimeType, Stream stream)>();
             var httpClient = httpClientFactory.CreateClient();
 
-            // Sanitize and use the prefix if provided
             var prefix = SanitizeFileName(request.FileNamesPrefix ?? string.Empty);
 
             foreach (var property in doc.RootElement.EnumerateObject())
             {
                 if (property.Value.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var item in property.Value.EnumerateArray())
+                    var items = property.Value.EnumerateArray().ToList();
+                    var total = items.Count;
+                    for (var i = 0; i < total; i++)
                     {
-                        TryExtractFile(property.Name, item, files, httpClient, cancellationToken, prefix);
+                        TryExtractFile(property.Name, items[i], files, httpClient, cancellationToken, prefix, i + 1, total);
                     }
                 }
                 else if (property.Value.ValueKind == JsonValueKind.Object)
                 {
-                    TryExtractFile(property.Name, property.Value, files, httpClient, cancellationToken, prefix);
+                    TryExtractFile(property.Name, property.Value, files, httpClient, cancellationToken, prefix, 0, 1);
                 }
             }
 
@@ -96,7 +97,7 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
         }
     }
 
-    private static void TryExtractFile(string questionName, JsonElement fileElement, List<(string fileName, string mimeType, Stream stream)> files, HttpClient httpClient, CancellationToken cancellationToken, string prefix)
+    private static void TryExtractFile(string questionName, JsonElement fileElement, List<(string fileName, string mimeType, Stream stream)> files, HttpClient httpClient, CancellationToken cancellationToken, string prefix, int index, int total)
     {
         if (!fileElement.TryGetProperty("name", out var nameProp) ||
             !fileElement.TryGetProperty("type", out var typeProp) ||
@@ -105,7 +106,15 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
             return;
         }
 
-        var fileName = SanitizeFileName(questionName + "-" + nameProp.GetString() ?? "file");
+        var originalName = nameProp.GetString() ?? "file";
+        var ext = Path.GetExtension(originalName);
+        var baseName = string.IsNullOrEmpty(prefix) ? "" : prefix + "-";
+        baseName += questionName;
+        if (total > 1)
+        {
+            baseName += $"-{index}";
+        }
+        var fileName = SanitizeFileName(baseName) + ext;
         var mimeType = typeProp.GetString() ?? "application/octet-stream";
         var content = contentProp.GetString() ?? string.Empty;
 
@@ -114,15 +123,8 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
             return;
         }
 
-        // Prepend prefix if provided
-        if (!string.IsNullOrEmpty(prefix))
-        {
-            fileName = prefix + fileName;
-        }
-
         if (content.StartsWith("http://") || content.StartsWith("https://"))
         {
-            // Download from URL (sync-over-async for simplicity in this static method)
             var response = httpClient.GetAsync(content, HttpCompletionOption.ResponseHeadersRead, cancellationToken).GetAwaiter().GetResult();
             if (response.IsSuccessStatusCode)
             {
@@ -132,7 +134,6 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
         }
         else if (content.StartsWith("data:"))
         {
-            // data:[<mediatype>][;base64],<data>
             var base64Index = content.IndexOf(",", StringComparison.Ordinal);
             if (base64Index > 0)
             {
@@ -142,18 +143,17 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
                     var bytes = Convert.FromBase64String(base64);
                     files.Add((fileName, mimeType, new MemoryStream(bytes)));
                 }
-                catch { /* skip invalid base64 */ }
+                catch { }
             }
         }
         else
         {
-            // Try to decode as base64 directly
             try
             {
                 var bytes = Convert.FromBase64String(content);
                 files.Add((fileName, mimeType, new MemoryStream(bytes)));
             }
-            catch { /* skip invalid base64 */ }
+            catch { }
         }
     }
 
