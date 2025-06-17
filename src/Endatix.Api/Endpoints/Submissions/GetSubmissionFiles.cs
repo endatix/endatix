@@ -36,7 +36,7 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
             // Fetch submission by formId and submissionId
             var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
             var submission = await submissionRepository.SingleOrDefaultAsync(spec, cancellationToken);
-        
+
             if (submission is null)
             {
                 await SendNotFoundAsync();
@@ -50,33 +50,29 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
 
             var prefix = SanitizeFileName(request.FileNamesPrefix ?? string.Empty);
 
-            foreach (var property in doc.RootElement.EnumerateObject())
-            {
-                if (property.Value.ValueKind == JsonValueKind.Array)
-                {
-                    var items = property.Value.EnumerateArray().ToList();
-                    var total = items.Count;
-                    for (var i = 0; i < total; i++)
-                    {
-                        TryExtractFile(property.Name, items[i], files, httpClient, cancellationToken, prefix, i + 1, total);
-                    }
-                }
-                else if (property.Value.ValueKind == JsonValueKind.Object)
-                {
-                    TryExtractFile(property.Name, property.Value, files, httpClient, cancellationToken, prefix, 0, 1);
-                }
-            }
+            // Recursive file extraction
+            FindFilesRecursive(doc.RootElement, string.Empty, files, httpClient, cancellationToken, prefix);
 
             if (files.Count == 0)
             {
-                await SendNotFoundAsync();
+                // Return an empty ZIP archive with 200 OK
+                using var emptyZipStream = new MemoryStream();
+                using (var archive = new ZipArchive(emptyZipStream, ZipArchiveMode.Create, true))
+                { }
+                emptyZipStream.Position = 0;
+                await SendStreamAsync(emptyZipStream, "application/zip");
                 return;
             }
-            
+
             var FormDefinition = JsonDocument.Parse(submission.FormDefinition.JsonData);
-            var formTitle = FormDefinition.RootElement.GetProperty("title").GetString();
-            var zipFileName = string.IsNullOrEmpty(formTitle) ? "submission-files" : formTitle;
-            zipFileName = $"{SanitizeFileName(zipFileName)}-{submission.Id}.zip";
+
+            var formTitle = "submission-files";
+            if (FormDefinition.RootElement.TryGetProperty("title", out var titleProp))
+            {
+                formTitle = titleProp.GetString() ?? "submission-files";
+            }
+
+            var zipFileName = $"{SanitizeFileName(formTitle)}-{submission.Id}.zip";
 
             HttpContext.MarkResponseStart();
             HttpContext.Response.StatusCode = 200;
@@ -97,10 +93,47 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
             zipStream.Seek(0, SeekOrigin.Begin);
             await zipStream.CopyToAsync(HttpContext.Response.Body, cancellationToken);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             await SendNotFoundAsync();
         }
+    }
+
+    // Recursive file finder
+    private static void FindFilesRecursive(JsonElement element, string path, List<(string fileName, string mimeType, Stream stream)> files, HttpClient httpClient, CancellationToken cancellationToken, string prefix)
+    {
+        if (IsFileObject(element))
+        {
+            var rootQuestionName = path.Trim('.').Split('.')[0];
+            TryExtractFile(rootQuestionName, element, files, httpClient, cancellationToken, prefix, 0, 1);
+            return;
+        }
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var prop in element.EnumerateObject())
+            {
+                var newPath = string.IsNullOrEmpty(path) ? prop.Name : $"{path}.{prop.Name}";
+                FindFilesRecursive(prop.Value, newPath, files, httpClient, cancellationToken, prefix);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            var idx = 0;
+            foreach (var item in element.EnumerateArray())
+            {
+                FindFilesRecursive(item, path, files, httpClient, cancellationToken, prefix);
+                idx++;
+            }
+        }
+    }
+
+    // Helper to check if an element is a file object
+    private static bool IsFileObject(JsonElement element)
+    {
+        return element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty("name", out _)
+            && element.TryGetProperty("type", out _)
+            && element.TryGetProperty("content", out _);
     }
 
     private static void TryExtractFile(string questionName, JsonElement fileElement, List<(string fileName, string mimeType, Stream stream)> files, HttpClient httpClient, CancellationToken cancellationToken, string prefix, int index, int total)
