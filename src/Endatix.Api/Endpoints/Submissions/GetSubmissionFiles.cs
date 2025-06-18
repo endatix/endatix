@@ -63,7 +63,7 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
                 { }
                 emptyZipStream.Position = 0;
 
-                HttpContext.Response.Headers["X-Endatix-Empty-Zip"] = "true";
+                HttpContext.Response.Headers["X-Endatix-Empty-File"] = "true";
                 await SendStreamAsync(emptyZipStream, "application/zip");
                 return;
             }
