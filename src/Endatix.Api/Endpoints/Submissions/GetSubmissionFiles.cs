@@ -1,20 +1,16 @@
 using System.IO.Compression;
 using FastEndpoints;
 using MediatR;
-using System.Text.Json;
-using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Domain;
-using Endatix.Core.Specifications;
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Infrastructure.Utils;
-using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Core.UseCases.Submissions.GetFiles;
+using FluentValidation.Results;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for downloading files for a submission.
 /// </summary>
-public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClientFactory, IRepository<Submission> submissionRepository, IFormsRepository formRepository) : Endpoint<GetSubmissionFilesRequest>
+public class GetSubmissionFiles(IMediator mediator) : Endpoint<GetSubmissionFilesRequest>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -36,39 +32,28 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
     {
         try
         {
-            // Fetch submission by formId and submissionId
-            var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
-            var submission = await submissionRepository.SingleOrDefaultAsync(spec, cancellationToken);
-            var form = await formRepository.GetByIdAsync(request.FormId, cancellationToken);
+            var query = new GetFilesQuery(request.FormId, request.SubmissionId, request.FileNamesPrefix);
+            var result = await mediator.Send(query, cancellationToken);
 
-            if (submission is null || form is null)
+            if (!result.IsSuccess || result.Value is null)
             {
                 await SendNotFoundAsync();
                 return;
             }
 
-            // Parse submission.JsonData
-            using var doc = JsonDocument.Parse(submission.JsonData);
-            var httpClient = httpClientFactory.CreateClient();
-            var prefix = FileNameHelper.SanitizeFileName(request.FileNamesPrefix ?? string.Empty);
-
-            var extractor = new SubmissionFileExtractor(httpClient);
-            var extractedFiles = extractor.ExtractFiles(doc.RootElement, prefix, cancellationToken);
-
-            if (extractedFiles.Count == 0)
+            var filesResult = result.Value;
+            if (filesResult.Files.Count == 0)
             {
-                // Return an empty ZIP archive with 200 OK and a custom header
                 using var emptyZipStream = new MemoryStream();
                 using (var archive = new ZipArchive(emptyZipStream, ZipArchiveMode.Create, true))
                 { }
                 emptyZipStream.Position = 0;
-
                 HttpContext.Response.Headers["X-Endatix-Empty-File"] = "true";
                 await SendStreamAsync(emptyZipStream, "application/zip");
                 return;
             }
 
-            var zipFileName = $"{StringUtils.ToKebabCase(form.Name)}-{submission.Id}.zip";
+            var zipFileName = $"{StringUtils.ToKebabCase(filesResult.FormName)}-{filesResult.SubmissionId}.zip";
 
             HttpContext.MarkResponseStart();
             HttpContext.Response.StatusCode = 200;
@@ -78,20 +63,22 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
             using var zipStream = new MemoryStream();
             using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
             {
-                foreach (var (fileName, mimeType, stream) in extractedFiles)
+                foreach (var file in filesResult.Files)
                 {
-                    var entry = archive.CreateEntry(fileName, CompressionLevel.Fastest);
+                    var entry = archive.CreateEntry(file.FileName, CompressionLevel.Fastest);
                     using var entryStream = entry.Open();
-                    await stream.CopyToAsync(entryStream, cancellationToken);
-                    stream.Dispose();
+                    await file.Content.CopyToAsync(entryStream, cancellationToken);
+                    file.Content.Dispose();
                 }
             }
+
             zipStream.Seek(0, SeekOrigin.Begin);
             await zipStream.CopyToAsync(HttpContext.Response.Body, cancellationToken);
         }
         catch (Exception ex)
         {
-            await SendNotFoundAsync();
+            this.ValidationFailures.Add(new ValidationFailure("error", ex.Message));
+            await SendErrorsAsync(500, cancellationToken);
         }
     }
 }

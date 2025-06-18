@@ -1,11 +1,9 @@
 using MediatR;
-using NSubstitute;
-using FluentAssertions;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Submissions.GetById;
 using Endatix.Core.UseCases.Submissions.GetByToken;
+using Endatix.Core.Abstractions.Submissions;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.GetByToken;
 

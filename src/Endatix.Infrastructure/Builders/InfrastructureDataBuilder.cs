@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
@@ -47,7 +48,8 @@ public class InfrastructureDataBuilder
         Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         Services.AddScoped<IFormsRepository, FormsRepository>();
         Services.AddScoped<IExporterFactory, ExporterFactory>();
-        Services.AddScoped<IExporter<SubmissionExportRow>, SubmissionCsvExporter>();        
+        Services.AddScoped<IExporter<SubmissionExportRow>, SubmissionCsvExporter>();
+        Services.AddScoped<ISubmissionFileExtractor, SubmissionFileExtractor>();
         Services.AddSingleton<DataSeeder>();
 
         LogSetupInfo("Data infrastructure configured successfully");

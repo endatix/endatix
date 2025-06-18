@@ -1,5 +1,5 @@
 using Ardalis.GuardClauses;
-using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -43,7 +43,7 @@ public class SubmissionTokenService : ISubmissionTokenService
         }
 
         await _repository.SaveChangesAsync(cancellationToken);
-        return Result<string>.Success(submission.Token.Value);
+        return Result<string>.Success(submission!.Token!.Value);
     }
 
     public async Task<Result<long>> ResolveTokenAsync(string token, CancellationToken cancellationToken)

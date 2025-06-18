@@ -5,8 +5,8 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Abstractions.Submissions;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 

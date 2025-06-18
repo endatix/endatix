@@ -1,31 +1,45 @@
 using System.Text.Json;
+using Endatix.Core.Abstractions.Submissions;
 
 namespace Endatix.Infrastructure.Features.Submissions;
 
-public sealed class SubmissionFileExtractor
+public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
 {
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public SubmissionFileExtractor(HttpClient httpClient)
+    public SubmissionFileExtractor(IHttpClientFactory httpClientFactory)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
     }
 
-    public record ExtractedFile(string FileName, string MimeType, Stream Content);
-
-    public List<ExtractedFile> ExtractFiles(JsonElement root, string prefix = "", CancellationToken cancellationToken = default)
+    public async Task<List<ISubmissionFileExtractor.ExtractedFile>> ExtractFilesAsync(
+        JsonElement root, string prefix = "", CancellationToken cancellationToken = default)
     {
-        var files = new List<ExtractedFile>();
-        FindFilesRecursive(root, string.Empty, files, prefix, cancellationToken);
+        var files = new List<ISubmissionFileExtractor.ExtractedFile>();
+        var context = new ExtractionContext(prefix, cancellationToken, files);
+        await FindFilesRecursiveAsync(root, string.Empty, context);
         return files;
     }
 
-    private void FindFilesRecursive(JsonElement element, string path, List<ExtractedFile> files, string prefix, CancellationToken cancellationToken)
+    private class ExtractionContext
+    {
+        public string Prefix { get; }
+        public CancellationToken CancellationToken { get; }
+        public List<ISubmissionFileExtractor.ExtractedFile> Files { get; }
+        public ExtractionContext(string prefix, CancellationToken token, List<ISubmissionFileExtractor.ExtractedFile> files)
+        {
+            Prefix = prefix;
+            CancellationToken = token;
+            Files = files;
+        }
+    }
+
+    private async Task FindFilesRecursiveAsync(JsonElement element, string path, ExtractionContext context)
     {
         if (IsFileObject(element))
         {
             var rootQuestionName = path.Trim('.').Split('.')[0];
-            TryExtractFile(rootQuestionName, element, files, prefix, cancellationToken, 0, 1);
+            await TryExtractFileAsync(rootQuestionName, element, context, 0, 1);
             return;
         }
         if (element.ValueKind == JsonValueKind.Object)
@@ -33,7 +47,7 @@ public sealed class SubmissionFileExtractor
             foreach (var prop in element.EnumerateObject())
             {
                 var newPath = string.IsNullOrEmpty(path) ? prop.Name : $"{path}.{prop.Name}";
-                FindFilesRecursive(prop.Value, newPath, files, prefix, cancellationToken);
+                await FindFilesRecursiveAsync(prop.Value, newPath, context);
             }
         }
         else if (element.ValueKind == JsonValueKind.Array)
@@ -45,11 +59,11 @@ public sealed class SubmissionFileExtractor
                 if (IsFileObject(item))
                 {
                     var rootQuestionName = path.Trim('.').Split('.')[0];
-                    TryExtractFile(rootQuestionName, item, files, prefix, cancellationToken, idx + 1, array.Count);
+                    await TryExtractFileAsync(rootQuestionName, item, context, idx + 1, array.Count);
                 }
                 else
                 {
-                    FindFilesRecursive(item, path, files, prefix, cancellationToken);
+                    await FindFilesRecursiveAsync(item, path, context);
                 }
             }
         }
@@ -63,7 +77,8 @@ public sealed class SubmissionFileExtractor
             && element.TryGetProperty("content", out _);
     }
 
-    private void TryExtractFile(string questionName, JsonElement fileElement, List<ExtractedFile> files, string prefix, CancellationToken cancellationToken, int index, int total)
+    private async Task TryExtractFileAsync(
+        string questionName, JsonElement fileElement, ExtractionContext context, int index, int total)
     {
         if (!fileElement.TryGetProperty("name", out var nameProp) ||
             !fileElement.TryGetProperty("type", out var typeProp) ||
@@ -74,7 +89,7 @@ public sealed class SubmissionFileExtractor
 
         var originalName = nameProp.GetString() ?? "file";
         var ext = Path.GetExtension(originalName);
-        var baseName = string.IsNullOrEmpty(prefix) ? "" : prefix + "-";
+        var baseName = string.IsNullOrEmpty(context.Prefix) ? "" : context.Prefix + "-";
         baseName += questionName;
         if (total > 1)
         {
@@ -91,11 +106,12 @@ public sealed class SubmissionFileExtractor
 
         if (content.StartsWith("http://") || content.StartsWith("https://"))
         {
-            var response = _httpClient.GetAsync(content, HttpCompletionOption.ResponseHeadersRead, cancellationToken).GetAwaiter().GetResult();
+            var httpClient = _httpClientFactory.CreateClient();
+            var response = await httpClient.GetAsync(content, HttpCompletionOption.ResponseHeadersRead, context.CancellationToken);
             if (response.IsSuccessStatusCode)
             {
-                var stream = response.Content.ReadAsStreamAsync(cancellationToken).GetAwaiter().GetResult();
-                files.Add(new ExtractedFile(fileName, mimeType, stream));
+                var stream = await response.Content.ReadAsStreamAsync(context.CancellationToken);
+                context.Files.Add(new ISubmissionFileExtractor.ExtractedFile(fileName, mimeType, stream));
             }
         }
         else if (content.StartsWith("data:"))
@@ -107,7 +123,7 @@ public sealed class SubmissionFileExtractor
                 try
                 {
                     var bytes = Convert.FromBase64String(base64);
-                    files.Add(new ExtractedFile(fileName, mimeType, new MemoryStream(bytes)));
+                    context.Files.Add(new ISubmissionFileExtractor.ExtractedFile(fileName, mimeType, new MemoryStream(bytes)));
                 }
                 catch { }
             }
@@ -117,9 +133,9 @@ public sealed class SubmissionFileExtractor
             try
             {
                 var bytes = Convert.FromBase64String(content);
-                files.Add(new ExtractedFile(fileName, mimeType, new MemoryStream(bytes)));
+                context.Files.Add(new ISubmissionFileExtractor.ExtractedFile(fileName, mimeType, new MemoryStream(bytes)));
             }
             catch { }
         }
     }
-} 
+}
