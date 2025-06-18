@@ -5,13 +5,14 @@ using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
+using Endatix.Core.Abstractions.Repositories;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for downloading files for a submission.
 /// </summary>
-public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClientFactory, IRepository<Submission> submissionRepository) : Endpoint<GetSubmissionFilesRequest>
+public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClientFactory, IRepository<Submission> submissionRepository, IFormsRepository formRepository) : Endpoint<GetSubmissionFilesRequest>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -36,8 +37,9 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
             // Fetch submission by formId and submissionId
             var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
             var submission = await submissionRepository.SingleOrDefaultAsync(spec, cancellationToken);
+            var form = await formRepository.GetByIdAsync(request.FormId, cancellationToken);
 
-            if (submission is null)
+            if (submission is null || form is null)
             {
                 await SendNotFoundAsync();
                 return;
@@ -55,24 +57,18 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
 
             if (files.Count == 0)
             {
-                // Return an empty ZIP archive with 200 OK
+                // Return an empty ZIP archive with 200 OK and a custom header
                 using var emptyZipStream = new MemoryStream();
                 using (var archive = new ZipArchive(emptyZipStream, ZipArchiveMode.Create, true))
                 { }
                 emptyZipStream.Position = 0;
+
+                HttpContext.Response.Headers["X-Endatix-Empty-Zip"] = "true";
                 await SendStreamAsync(emptyZipStream, "application/zip");
                 return;
             }
 
-            var FormDefinition = JsonDocument.Parse(submission.FormDefinition.JsonData);
-
-            var formTitle = "submission-files";
-            if (FormDefinition.RootElement.TryGetProperty("title", out var titleProp))
-            {
-                formTitle = titleProp.GetString() ?? "submission-files";
-            }
-
-            var zipFileName = $"{SanitizeFileName(formTitle)}-{submission.Id}.zip";
+            var zipFileName = $"{ToKebabCase(form.Name)}-{submission.Id}.zip";
 
             HttpContext.MarkResponseStart();
             HttpContext.Response.StatusCode = 200;
@@ -204,5 +200,63 @@ public class GetSubmissionFiles(IMediator mediator, IHttpClientFactory httpClien
         }
 
         return fileName;
+    }
+
+    private static string ToKebabCase(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return string.Empty;
+        }
+
+        ReadOnlySpan<char> src = input;
+        // For most names, 2x length is plenty (worst case: every char becomes "-x")
+        Span<char> buffer = src.Length <= 128 ? stackalloc char[src.Length * 2] : new char[src.Length * 2];
+        var pos = 0;
+        var wasLower = false;
+
+        for (var i = 0; i < src.Length; i++)
+        {
+            var c = src[i];
+            if (char.IsWhiteSpace(c) || c == '_' || c == '-')
+            {
+                if (pos > 0 && buffer[pos - 1] != '-')
+                {
+                    buffer[pos++] = '-';
+                }
+
+                wasLower = false;
+            }
+            else if (char.IsUpper(c))
+            {
+                if (wasLower && pos > 0 && buffer[pos - 1] != '-')
+                {
+                    buffer[pos++] = '-';
+                }
+
+                buffer[pos++] = char.ToLowerInvariant(c);
+                wasLower = false;
+            }
+            else
+            {
+                buffer[pos++] = c;
+                wasLower = true;
+            }
+        }
+
+        // Remove trailing dash
+        if (pos > 0 && buffer[pos - 1] == '-')
+        {
+            pos--;
+        }
+
+        // Remove leading dash
+        var start = 0;
+        if (pos > 0 && buffer[0] == '-')
+        {
+            start = 1;
+        }
+
+        return new string(buffer[start..pos]);
     }
 }
