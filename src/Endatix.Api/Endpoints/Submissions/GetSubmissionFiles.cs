@@ -49,7 +49,8 @@ public class GetSubmissionFiles(IMediator mediator) : Endpoint<GetSubmissionFile
                 { }
                 emptyZipStream.Position = 0;
                 HttpContext.Response.Headers["X-Endatix-Empty-File"] = "true";
-                await SendStreamAsync(emptyZipStream, "application/zip");
+                HttpContext.Response.ContentType = "application/zip";
+                await SendStreamAsync(emptyZipStream, contentType: "application/zip");
                 return;
             }
 
