@@ -3,23 +3,26 @@ using Endatix.Infrastructure.Features.Submissions;
 using System.Net;
 using System.Net.Http.Headers;
 using NSubstitute;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Tests.Features.Submissions;
 
 public sealed class SubmissionFileExtractorTests
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<SubmissionFileExtractor> _logger;
     private readonly SubmissionFileExtractor _extractor;
 
      public SubmissionFileExtractorTests()
     {
         _httpClientFactory = Substitute.For<IHttpClientFactory>();
+        _logger = Substitute.For<ILogger<SubmissionFileExtractor>>();
         // Default: returns a dummy HttpClient with a handler that always returns a canned response
         var handler = new DummyHandler();
         var httpClient = new HttpClient(handler);
         _httpClientFactory.CreateClient(Arg.Any<string>()).Returns(httpClient);
 
-        _extractor = new SubmissionFileExtractor(_httpClientFactory);
+        _extractor = new SubmissionFileExtractor(_httpClientFactory, _logger);
     }
 
     [Fact]
@@ -33,9 +36,10 @@ public sealed class SubmissionFileExtractorTests
             "\"content\": \"SGVsbG8gd29ybGQ=\"}" +
             "}";
         var doc = JsonDocument.Parse(json);
+        var submissionId = 12;
 
         // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement);
+        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId);
 
         // Assert
         Assert.Single(files);
@@ -57,9 +61,10 @@ public sealed class SubmissionFileExtractorTests
             "\"content\": \"data:text/plain;base64,SGVsbG8gd29ybGQ=\"}" +
             "}";
         var doc = JsonDocument.Parse(json);
+        var submissionId = 12;
 
         // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement);
+        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId);
 
         // Assert
         Assert.Single(files);
@@ -104,9 +109,10 @@ public sealed class SubmissionFileExtractorTests
   ]
 }";
         var doc = JsonDocument.Parse(json);
+        var submissionId = 12;
 
         // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement);
+        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId);
 
         // Assert
         Assert.Equal(2, files.Count);
@@ -131,9 +137,10 @@ public sealed class SubmissionFileExtractorTests
   ""q3"": ""a3""
 }";
         var doc = JsonDocument.Parse(json);
+        var submissionId = 12;
 
         // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement);
+        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId);
 
         // Assert
         Assert.Empty(files);
@@ -151,9 +158,10 @@ public sealed class SubmissionFileExtractorTests
 }";
         var doc = JsonDocument.Parse(json);
         var prefix = "myprefix";
+        var submissionId = 12;
 
         // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement, prefix);
+        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId, prefix);
 
         // Assert
         Assert.Single(files);
@@ -181,9 +189,10 @@ public sealed class SubmissionFileExtractorTests
   }
 }";
         var doc = JsonDocument.Parse(json);
+        var submissionId = 12;
 
         // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement);
+        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId);
 
         // Assert
         Assert.Single(files);

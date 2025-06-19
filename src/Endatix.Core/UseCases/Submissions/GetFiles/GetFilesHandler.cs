@@ -38,7 +38,7 @@ public sealed class GetFilesHandler : IQueryHandler<GetFilesQuery, Result<GetFil
 
         using var doc = System.Text.Json.JsonDocument.Parse(submission.JsonData);
         var files = new List<FileDescriptor>();
-        var extracted = await _fileExtractor.ExtractFilesAsync(doc.RootElement, request.FileNamesPrefix ?? string.Empty, cancellationToken);
+        var extracted = await _fileExtractor.ExtractFilesAsync(doc.RootElement, submission.Id, request.FileNamesPrefix ?? string.Empty, cancellationToken);
         foreach (var f in extracted)
         {
             files.Add(new FileDescriptor(f.FileName, f.MimeType, f.Content));

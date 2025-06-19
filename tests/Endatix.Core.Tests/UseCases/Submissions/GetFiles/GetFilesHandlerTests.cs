@@ -76,7 +76,7 @@ public class GetFilesHandlerTests
         };
 
         _extractor
-            .ExtractFilesAsync(Arg.Any<System.Text.Json.JsonElement>(), prefix, Arg.Any<CancellationToken>())
+            .ExtractFilesAsync(Arg.Any<System.Text.Json.JsonElement>(), submissionId, prefix, Arg.Any<CancellationToken>())
             .Returns(files);
 
         // Act
@@ -108,7 +108,7 @@ public class GetFilesHandlerTests
             .Returns(Task.FromResult((Form?)form));
 
         _extractor
-            .ExtractFilesAsync(Arg.Any<System.Text.Json.JsonElement>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ExtractFilesAsync(Arg.Any<System.Text.Json.JsonElement>(), submissionId, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new List<ISubmissionFileExtractor.ExtractedFile>());
 
         // Act
