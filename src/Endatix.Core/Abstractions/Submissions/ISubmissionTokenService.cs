@@ -1,6 +1,6 @@
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Core.Abstractions;
+namespace Endatix.Core.Abstractions.Submissions;
 
 /// <summary>
 /// Represents a service that manages secure tokens for submission identifiers.

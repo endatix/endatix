@@ -1,4 +1,4 @@
-using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Multitenancy;
@@ -85,7 +85,7 @@ public class InfrastructureBuilder
         Services.AddHttpContextAccessor();
         Services.AddWebHookProcessing();
         Services.AddMultitenancyConfiguration();
-        Services.AddScoped(typeof(ISubmissionTokenService), typeof(SubmissionTokenService));
+        Services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
 
         Data.UseDefaults();
         Messaging.UseDefaults();

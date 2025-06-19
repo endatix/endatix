@@ -1,9 +1,9 @@
 using MediatR;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Submissions.PartialUpdate;
+using Endatix.Core.Abstractions.Submissions;
 
 namespace Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
 
