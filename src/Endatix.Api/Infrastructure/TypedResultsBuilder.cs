@@ -260,4 +260,17 @@ where TResult3 : HttpResults.IResult
         ResultStatus.NotFound => resultMapper.SourceResult.ToNotFound(),
         _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
     };
+
+    /// <summary>
+    /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok, BadRequest with <see cref="ProblemDetails"/>, and NotFound.
+    /// </summary>
+    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
+    /// <returns>A Results instance for Ok, BadRequest with <see cref="ProblemDetails"/>, and NotFound.</returns>
+    public static implicit operator Results<Ok<TData>, BadRequest<ProblemDetails>, NotFound>(TypedResultsBuilder<TData, TResult1, TResult2, TResult3> resultMapper) => resultMapper.SourceResult.Status switch
+    {
+        ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
+        ResultStatus.Invalid => resultMapper.SourceResult.ToBadRequest(resultMapper.ErrorMessage),
+        ResultStatus.NotFound => TypedResults.NotFound(),
+        _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
+    };
 }

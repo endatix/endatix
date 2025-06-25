@@ -1,5 +1,8 @@
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Users;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Result;
 using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using NSubstitute;
@@ -11,6 +14,7 @@ public class AppUserRegistrationServiceTests
     private readonly UserManager<AppUser> _userManager;
     private readonly IUserStore<AppUser> _userStore;
     private readonly IUserEmailStore<AppUser> _emailStore;
+    private readonly IEmailVerificationService _emailVerificationService;
     private readonly AppUserRegistrationService _sut;
 
     public AppUserRegistrationServiceTests()
@@ -18,7 +22,8 @@ public class AppUserRegistrationServiceTests
         _userStore = Substitute.For<IUserStore<AppUser>, IUserEmailStore<AppUser>>();
         _emailStore = (IUserEmailStore<AppUser>)_userStore;
         _userManager = Substitute.For<UserManager<AppUser>>(_userStore, null, null, null, null, null, null, null, null);
-        _sut = new AppUserRegistrationService(_userManager, _userStore);
+        _emailVerificationService = Substitute.For<IEmailVerificationService>();
+        _sut = new AppUserRegistrationService(_userManager, _userStore, _emailVerificationService);
     }
 
     [Fact]
@@ -97,6 +102,10 @@ public class AppUserRegistrationServiceTests
                 return Task.CompletedTask;
             });
 
+        // Mock the email verification service
+        _emailVerificationService.CreateVerificationTokenAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new EmailVerificationToken(userId, "test-token", DateTime.UtcNow.AddHours(24))));
+
         // Act
         var result = await _sut.RegisterUserAsync(email, password, cancellationToken);
 
@@ -105,28 +114,29 @@ public class AppUserRegistrationServiceTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value.Id.Should().Be(userId);
-        result.Value.TenantId.Should().Be(tenantId);
+        result.Value.TenantId.Should().Be(0); // Should be 0 for new users without tenant
         result.Value.Email.Should().Be(email);
-        result.Value.IsVerified.Should().BeTrue();
+        result.Value.IsVerified.Should().BeFalse(); // Should be false since email is not confirmed
 
         await _userStore.Received(1).SetUserNameAsync(
-            Arg.Is<AppUser>(u => u.TenantId == tenantId && u.EmailConfirmed), 
+            Arg.Is<AppUser>(u => u.TenantId == 0 && !u.EmailConfirmed), 
             email, 
             cancellationToken);
         
         await _emailStore.Received(1).SetEmailAsync(
-            Arg.Is<AppUser>(u => u.TenantId == tenantId && u.EmailConfirmed), 
+            Arg.Is<AppUser>(u => u.TenantId == 0 && !u.EmailConfirmed), 
             email, 
             cancellationToken);
 
         _userManager.Received(1).CreateAsync(
             Arg.Is<AppUser>(u => 
-                u.Id == userId &&
-                u.TenantId == tenantId && 
-                u.EmailConfirmed && 
+                u.TenantId == 0 && 
+                !u.EmailConfirmed && 
                 u.UserName == email && 
                 u.Email == email),
             password);
+
+        await _emailVerificationService.Received(1).CreateVerificationTokenAsync(userId, cancellationToken);
     }
 
     [Theory]
@@ -193,6 +203,10 @@ public class AppUserRegistrationServiceTests
                 user.Email = emailArg;
                 return Task.CompletedTask;
             });
+
+        // Mock the email verification service
+        _emailVerificationService.CreateVerificationTokenAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new EmailVerificationToken(userId, "test-token", DateTime.UtcNow.AddHours(24))));
 
         // Act
         var result = await _sut.RegisterUserAsync(email, password, CancellationToken.None);

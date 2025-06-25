@@ -1,7 +1,11 @@
 using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Framework.Configuration;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
+using Endatix.Infrastructure.Identity.EmailVerification;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -73,6 +77,16 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, AppUserService>();
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
+        services.AddScoped<IEmailVerificationService, EmailVerificationService>();
+
+        // Register email verification options
+        services.AddOptions<EmailVerificationOptions>()
+                .BindConfiguration(EndatixOptionsBase.GetSectionName<EmailVerificationOptions>())
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+
+        // Register EmailVerificationToken repository to use AppIdentityDbContext
+        services.AddScoped<IRepository<EmailVerificationToken>, EmailVerificationTokenRepository>();
 
         return services;
     }
