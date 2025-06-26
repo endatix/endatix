@@ -10,7 +10,7 @@ namespace Endatix.Api.Endpoints.Integrations;
 /// <summary>
 /// Endpoint for receiving the slack token.
 /// </summary>
-public class SlackToken(IMediator mediator, ILogger<SlackToken> logger, IEmailSender emailSender) : Endpoint<SlackTokenRequest, Results<Ok<string>, BadRequest>>
+public class SlackToken(ILogger<SlackToken> logger, IEmailSender emailSender) : Endpoint<SlackTokenRequest, Results<Ok<string>, BadRequest>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -19,6 +19,7 @@ public class SlackToken(IMediator mediator, ILogger<SlackToken> logger, IEmailSe
     {
         Post("slacktoken");
         AllowAnonymous();
+        Tags("hidden"); // With this tag, the endpoint is hidden from the API documentation
         Summary(s =>
         {
             s.Summary = "Receives a Slack token";
