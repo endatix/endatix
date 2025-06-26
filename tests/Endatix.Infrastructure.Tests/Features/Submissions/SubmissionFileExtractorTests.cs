@@ -166,7 +166,7 @@ public sealed class SubmissionFileExtractorTests
         // Assert
         Assert.Single(files);
         var file = files[0];
-        Assert.Equal("myprefix-fileQuestion.txt", file.FileName);
+        Assert.Equal("myprefixfileQuestion.txt", file.FileName);
         Assert.Equal("text/plain", file.MimeType);
         using var reader = new StreamReader(file.Content);
         Assert.Equal("Hello world", reader.ReadToEnd());
