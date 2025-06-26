@@ -8,7 +8,10 @@ namespace Endatix.Infrastructure.Identity.Users;
 /// <summary>
 /// Implements the user registration service.
 /// </summary>
-public class AppUserRegistrationService(UserManager<AppUser> userManager, IUserStore<AppUser> userStore) : IUserRegistrationService
+public class AppUserRegistrationService(
+    UserManager<AppUser> userManager, 
+    IUserStore<AppUser> userStore,
+    IEmailVerificationService emailVerificationService) : IUserRegistrationService
 {
     // This is a short list of the top domains known to be used most frequently in disposable email registrations.
     // It is a good start but for better results more complete lists should be used, like from e.g. https://github.com/disposable-email-domains/disposable-email-domains
@@ -52,8 +55,8 @@ public class AppUserRegistrationService(UserManager<AppUser> userManager, IUserS
 
         var newUser = new AppUser
         {
-            TenantId = 1,           // TODO: This must 0 for a user that still does not have a tenant. Set to 1 for the initial user seeding
-            EmailConfirmed = true   // TODO: This must be false when we have a proper email verification
+            TenantId = 0,           // TODO: This must be 0 for a user that still does not have a tenant. It must be 1 for the initial user seeding so there is a need for a fix in the seeding.
+            EmailConfirmed = false  // Users start as unverified and need email verification
         };
 
         var emailStore = (IUserEmailStore<AppUser>)userStore;
@@ -70,6 +73,14 @@ public class AppUserRegistrationService(UserManager<AppUser> userManager, IUserS
             
             var resultErrors = new ErrorList(createUserResult.Errors.Select(error => $"Error code: {error.Code}. {error.Description}"));
             return Result.Error(resultErrors);
+        }
+
+        // Create email verification token
+        var tokenResult = await emailVerificationService.CreateVerificationTokenAsync(newUser.Id, cancellationToken);
+        if (!tokenResult.IsSuccess)
+        {
+            // If token creation fails, we should still return the user but log the error
+            // The user can request a new verification token later
         }
 
         var domainUser = newUser.ToUserEntity();

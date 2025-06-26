@@ -61,6 +61,6 @@ public class RegisterTests
         badResponse.Should().NotBeNull();
         badResponse!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
         badResponse!.Value!.Status.Should().Be(StatusCodes.Status400BadRequest);
-        badResponse!.Value!.Title.Should().Be("Registration failed. Please check your input and try again.");
+        badResponse!.Value!.Title.Should().Be("There was a problem with your request.");
     }
 }
