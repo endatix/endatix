@@ -18,8 +18,10 @@ public class CreateSubmissionHandler(
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
-    private const int DEFAULT_CURRENT_PAGE = 1;
-    private const string DEFAULT_METADATA = null;
+    private const int DEFAULT_CURRENT_PAGE = 0;
+    private const string DEFAULT_METADATA = "{}";
+
+    private const string DEFAULT_JSON_DATA = "{}";
 
     public async Task<Result<Submission>> Handle(CreateSubmissionCommand request, CancellationToken cancellationToken)
     {
@@ -36,7 +38,7 @@ public class CreateSubmissionHandler(
 
         var submission = new Submission(
             activeDefinition!.TenantId,
-            jsonData: request.JsonData,
+            jsonData: request.JsonData ?? DEFAULT_JSON_DATA,
             formId: request.FormId,
             formDefinitionId: activeDefinition!.Id,
             isComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
@@ -46,8 +48,9 @@ public class CreateSubmissionHandler(
 
         await submissionRepository.AddAsync(submission, cancellationToken);
         await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
-        
-        if(submission.IsComplete) {
+
+        if (submission.IsComplete)
+        {
             await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
         }
 

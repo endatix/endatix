@@ -19,7 +19,12 @@ public class CreateSubmissionValidator : Validator<CreateSubmissionRequest>
             .GreaterThan(0);
 
         RuleFor(x => x.JsonData)
-            .NotEmpty()
-            .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH);
+            .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH)
+            .When(x => x.JsonData != null);
+
+        RuleFor(x => x.Metadata)
+            .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH)
+            .When(x => x.Metadata != null);
+
     }
 }
