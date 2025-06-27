@@ -155,6 +155,10 @@ public class ApiConfigurationBuilder
                 settings.Description = "The Endatix Platform is an open-source .NET library for data collection and management. This product is actively developed, and some API design characteristics may evolve. For more information, visit <a href=\"https://docs.endatix.com\">Endatix Documentation</a>.";
                 settings.SchemaSettings.SchemaType = SchemaType.OpenApi3;
             };
+            options.EndpointFilter = ep => {
+                var hasHiddenTag = ep.EndpointTags?.Contains("hidden") ?? false;
+                return hasHiddenTag ? false : true;
+            };
         });
 
         LogSetupInfo("Swagger documentation configured successfully");
