@@ -102,7 +102,7 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
 
         var originalName = nameProp.GetString() ?? "file";
         var ext = Path.GetExtension(originalName);
-        var baseName = string.IsNullOrEmpty(context.Prefix) ? "" : context.Prefix + "-";
+        var baseName = string.IsNullOrEmpty(context.Prefix) ? "" : context.Prefix;
         baseName += questionName;
         if (total > 1)
         {
