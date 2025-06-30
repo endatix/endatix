@@ -1,8 +1,9 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 
 namespace Endatix.Core.Entities;
 
-public abstract class TenantEntity : BaseEntity
+public abstract class TenantEntity : BaseEntity, ITenantOwned
 {
     protected TenantEntity(long tenantId)
     {
