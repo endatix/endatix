@@ -1,10 +1,13 @@
+using Endatix.Core;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.SendVerificationEmail;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using System.Collections.Generic;
 
 namespace Endatix.Core.Tests.UseCases.Identity.SendVerificationEmail;
 
@@ -12,6 +15,8 @@ public class SendVerificationEmailHandlerTests
 {
     private readonly IEmailVerificationService _emailVerificationService;
     private readonly IUserService _userService;
+    private readonly IEmailSender _emailSender;
+    private readonly IEmailTemplateService _emailTemplateService;
     private readonly ILogger<SendVerificationEmailHandler> _logger;
     private readonly SendVerificationEmailHandler _sut;
 
@@ -19,8 +24,10 @@ public class SendVerificationEmailHandlerTests
     {
         _emailVerificationService = Substitute.For<IEmailVerificationService>();
         _userService = Substitute.For<IUserService>();
+        _emailSender = Substitute.For<IEmailSender>();
+        _emailTemplateService = Substitute.For<IEmailTemplateService>();
         _logger = Substitute.For<ILogger<SendVerificationEmailHandler>>();
-        _sut = new SendVerificationEmailHandler(_emailVerificationService, _userService, _logger);
+        _sut = new SendVerificationEmailHandler(_emailVerificationService, _userService, _emailSender, _emailTemplateService, _logger);
     }
 
     [Fact]
@@ -37,6 +44,19 @@ public class SendVerificationEmailHandlerTests
             .Returns(Result.Success(user));
         _emailVerificationService.CreateVerificationTokenAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Success(token));
+        _emailTemplateService.CreateVerificationEmail(email, token.Token)
+            .Returns(new EmailWithTemplate
+            {
+                To = email,
+                From = "noreply@example.com",
+                Subject = "Verify Your Email Address",
+                TemplateId = "email-verification",
+                Metadata = new Dictionary<string, object>
+                {
+                    ["verificationToken"] = token.Token,
+                    ["hubUrl"] = "https://app.example.com"
+                }
+            });
 
         // Act
         var result = await _sut.Handle(command, CancellationToken.None);

@@ -33,7 +33,8 @@ public class InfrastructureIntegrationsBuilder
     {
         LogSetupInfo("Configuring integrations with default settings");
 
-        _parentBuilder.Services.AddEmailSender<SendGridEmailSender, SendGridSettings>();
+        _parentBuilder.Services.AddEmailTemplateSettings();
+        _parentBuilder.Services.AddEmailSender<SmtpEmailSender, SmtpSettings>();
 
         LogSetupInfo("Integrations configuration completed");
         return this;

@@ -37,6 +37,8 @@ public class AppDbContext : DbContext
 
     public DbSet<SubmissionExportRow> SubmissionExportRows { get; set; }
 
+    public DbSet<EmailTemplate> EmailTemplates { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,8 @@ namespace Endatix.Core.UseCases.Identity.SendVerificationEmail;
 public class SendVerificationEmailHandler(
     IEmailVerificationService emailVerificationService,
     IUserService userService,
+    IEmailSender emailSender,
+    IEmailTemplateService emailTemplateService,
     ILogger<SendVerificationEmailHandler> logger) : ICommandHandler<SendVerificationEmailCommand, Result>
 {
     /// <summary>
@@ -45,18 +48,29 @@ public class SendVerificationEmailHandler(
         var tokenResult = await emailVerificationService.CreateVerificationTokenAsync(user.Id, cancellationToken);
         if (tokenResult.IsSuccess)
         {
-            // TODO: Implement email sending logic
+            try
+            {
+                var emailModel = emailTemplateService.CreateVerificationEmail(
+                    user.Email, 
+                    tokenResult.Value!.Token);
+
+                await emailSender.SendEmailAsync(emailModel, cancellationToken);
+
+                logger.LogInformation("Verification email sent successfully to {Email}", user.Email);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send verification email to {Email}", user.Email);
+            }
         }
         else
         {
             // Log token creation failure
             logger.LogError("Failed to create verification token for user: {Email} (UserId: {UserId}). Errors: {Errors}", 
                 request.Email, user.Id, string.Join(", ", tokenResult.ValidationErrors.Select(e => e.ErrorMessage)));
-            
-            // If token creation fails, we should still return success but log the error
-            // The user can request a new verification token later
         }
 
+        // If token creation or email sending fails, we should still return success but log the error
         return Result.Success();
     }
 } 

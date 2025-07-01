@@ -3,8 +3,10 @@ using System.Net.Sockets;
 using System.Threading.RateLimiting;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Configuration;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Features.WebHooks;
+using Endatix.Infrastructure.Email;
 using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Infrastructure.Setup;
 using Microsoft.Extensions.Http.Resilience;
@@ -45,6 +47,22 @@ public static class ServiceCollectionExtensions
         }
 
         services.AddScoped<IEmailSender, TEmailSender>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Adds email template settings configuration to the service collection.
+    /// </summary>
+    /// <param name="services">The service collection to configure.</param>
+    /// <returns>The configured service collection.</returns>
+    public static IServiceCollection AddEmailTemplateSettings(this IServiceCollection services)
+    {
+        services.AddOptions<EmailTemplateSettings>()
+                .BindConfiguration("Endatix:EmailTemplates")
+                .ValidateOnStart();
+
+        services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
         return services;
     }
