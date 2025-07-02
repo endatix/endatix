@@ -32,8 +32,19 @@ public class Register(IMediator mediator) : Endpoint<RegisterRequest, Results<Ok
         var registerUserCommand = new RegisterCommand(request.Email, request.Password);
         var userRegistrationResult = await mediator.Send(registerUserCommand, cancellationToken);
 
+        var errorMessage = "Registration failed. ";
+        if (userRegistrationResult.Status == Core.Infrastructure.Result.ResultStatus.Invalid && userRegistrationResult.ValidationErrors.Any())
+        {
+            errorMessage += userRegistrationResult.ValidationErrors.First().ErrorMessage;
+        }
+        else
+        {
+            errorMessage += "Please check your input and try again.";
+        }
+
         return TypedResultsBuilder
                 .MapResult(userRegistrationResult, (user) => new RegisterResponse(Success: true, Message: "User has been successfully registered"))
+                .SetErrorMessage(errorMessage)
                 .SetTypedResults<Ok<RegisterResponse>, BadRequest<Errors.ProblemDetails>>();
     }
 }
