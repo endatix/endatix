@@ -5,13 +5,14 @@ using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
 using Ardalis.GuardClauses;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Endatix.Infrastructure.Data.Abstractions;
 
 namespace Endatix.Infrastructure.Data;
 
 /// <summary>
 /// Represents the application database context for persisting the Endatix Domain entities
 /// </summary>
-public class AppDbContext : DbContext
+public class AppDbContext : DbContext, ITenantDbContext
 {
     private readonly IIdGenerator<long> _idGenerator;
     private readonly ITenantContext _tenantContext;
@@ -42,51 +43,17 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-
-        var getTenantIdMethod = typeof(AppDbContext).GetMethod(nameof(GetTenantId), BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var currentTenantId = Expression.Call(Expression.Constant(this), getTenantIdMethod);
-        foreach (var entityType in builder.Model.GetEntityTypes())
-        {
-            var parameter = Expression.Parameter(entityType.ClrType, "e");
-            var filters = new List<Expression>();
-
-            // Add deletion filter for BaseEntity descendants
-            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
-            {
-                var isDeletedProperty = Expression.Property(parameter, "IsDeleted");
-                var isDeletedFilter = Expression.Equal(isDeletedProperty, Expression.Constant(false));
-                filters.Add(isDeletedFilter);
-            }
-
-            // Add tenant filter for TenantEntity descendants
-            if (typeof(TenantEntity).IsAssignableFrom(entityType.ClrType))
-            {
-                var currentTenantIdIsZero = Expression.Equal(Expression.Convert(currentTenantId, typeof(long)), Expression.Constant(0L));
-                var tenantIdProperty = Expression.Property(parameter, "TenantId");
-                var tenantIdEquals = Expression.Equal(tenantIdProperty, Expression.Convert(currentTenantId, typeof(long)));
-                var tenantFilter = Expression.OrElse(currentTenantIdIsZero, tenantIdEquals);
-                filters.Add(tenantFilter);
-            }
-
-            if (filters.Any())
-            {
-                var combinedFilter = filters.Aggregate(Expression.AndAlso);
-                var lambda = Expression.Lambda(combinedFilter, parameter);
-                builder.Entity(entityType.ClrType).HasQueryFilter(lambda);
-            }
-        }
-
+        builder.ApplyEndatixQueryFilters(this);
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        
         builder.Entity<SubmissionExportRow>()
             .HasNoKey()
             .ToTable(t => t.ExcludeFromMigrations());
+
         PrefixTableNames(builder);
     }
 
-    private long GetTenantId()
-    {
-        return _tenantContext?.TenantId ?? 0;
-    }
+    public long GetTenantId() => _tenantContext?.TenantId ?? 0;
 
     public override int SaveChanges()
     {
