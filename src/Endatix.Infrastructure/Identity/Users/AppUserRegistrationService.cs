@@ -1,7 +1,9 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Identity.Users;
 
@@ -11,7 +13,10 @@ namespace Endatix.Infrastructure.Identity.Users;
 public class AppUserRegistrationService(
     UserManager<AppUser> userManager, 
     IUserStore<AppUser> userStore,
-    IEmailVerificationService emailVerificationService) : IUserRegistrationService
+    IEmailVerificationService emailVerificationService,
+    IEmailSender emailSender,
+    IEmailTemplateService emailTemplateService,
+    ILogger<AppUserRegistrationService> logger) : IUserRegistrationService
 {
     // This is a short list of the top domains known to be used most frequently in disposable email registrations.
     // It is a good start but for better results more complete lists should be used, like from e.g. https://github.com/disposable-email-domains/disposable-email-domains
@@ -75,14 +80,33 @@ public class AppUserRegistrationService(
             return Result.Error(resultErrors);
         }
 
-        // Create email verification token
+        // Create email verification token and send verification email
         var tokenResult = await emailVerificationService.CreateVerificationTokenAsync(newUser.Id, cancellationToken);
-        if (!tokenResult.IsSuccess)
+        if (tokenResult.IsSuccess)
         {
-            // If token creation fails, we should still return the user but log the error
-            // The user can request a new verification token later
+            try
+            {
+                var emailModel = emailTemplateService.CreateVerificationEmail(
+                    email, 
+                    tokenResult.Value!.Token);
+
+                await emailSender.SendEmailAsync(emailModel, cancellationToken);
+
+                logger.LogInformation("Verification email sent successfully to {Email} during registration", email);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send verification email to {Email} during registration", email);
+            }
+        }
+        else
+        {
+            // Log token creation failure
+            logger.LogError("Failed to create verification token for user: {Email} (UserId: {UserId}). Errors: {Errors}", 
+                email, newUser.Id, string.Join(", ", tokenResult.ValidationErrors.Select(e => e.ErrorMessage)));
         }
 
+        // If token creation or email sending fails, we should still return success but log the error
         var domainUser = newUser.ToUserEntity();
         return Result.Success(domainUser);
     }

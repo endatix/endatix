@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,10 +6,7 @@ using Microsoft.Extensions.Options;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
 using SendGrid.Extensions.DependencyInjection;
-using Newtonsoft.Json;
 using Endatix.Core;
-using Ardalis.GuardClauses;
-using Microsoft.AspNetCore.Mvc;
 
 namespace Endatix.Infrastructure.Email;
 
@@ -74,25 +68,13 @@ public class SendGridEmailSender : IEmailSender, IHasConfigSection<SendGridSetti
         msg.AddTo(new EmailAddress(email.To));
         msg.SetTemplateId(email.TemplateId);
 
-        var dynamicTemplateData = new ExampleTemplateData();
-        if (email.Metadata.TryGetValue("name", out var name))
-        {
-            dynamicTemplateData.Name = (string)name;
-        }
-        msg.SetTemplateData(dynamicTemplateData);
+        msg.SetTemplateData(email.Metadata);
 
         var response = await _sendGridClient
                 .SendEmailAsync(msg, cancellationToken)
                 .ConfigureAwait(false);
 
         var responseBody = await response.Body.ReadAsStringAsync();
-        _logger.LogInformation("Sending SendGrid message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
-    }
-
-    private class ExampleTemplateData
-    {
-        [JsonProperty("name")]
-        public string Name { get; set; }
-
+        _logger.LogInformation("Sending SendGrid template message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
     }
 }

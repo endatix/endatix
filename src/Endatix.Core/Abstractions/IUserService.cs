@@ -15,7 +15,15 @@ public interface IUserService
     /// <param name="claimsPrincipal">The ClaimsPrincipal object representing the user.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The User entity associated with the provided ClaimsPrincipal.</returns>
-    public Task<Result<User>> GetUserAsync(ClaimsPrincipal claimsPrincipal, CancellationToken cancellationToken = default);
+    Task<Result<User>> GetUserAsync(ClaimsPrincipal claimsPrincipal, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a user by email address.
+    /// </summary>
+    /// <param name="email">The email address to search for.</param>
+    /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
+    /// <returns>A Result containing the User if found, or NotFound if not found.</returns>
+    Task<Result<User>> GetUserAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Changes the password for a user after validating their current password.
@@ -25,5 +33,5 @@ public interface IUserService
     /// <param name="newPassword">The new password to set for the user.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
     /// <returns>A Result containing a message if successful, or an error if the operation fails.</returns>
-    public Task<Result<string>> ChangePasswordAsync(User user, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
+    Task<Result<string>> ChangePasswordAsync(User user, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
 }

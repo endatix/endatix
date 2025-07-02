@@ -38,10 +38,21 @@ Implements the email verification logic:
 - Updates user verification status
 - Handles token cleanup
 
-### 4. API Endpoint
+### 4. SendVerificationEmail Use Case
 
-Located in `src/Endatix.Api/Endpoints/Auth/VerifyEmail.cs`
+Located in `src/Endatix.Core/UseCases/Identity/SendVerificationEmail/`
 
+Handles the business logic for sending verification emails:
+- Finds users by email address
+- Validates user verification status
+- Creates new verification tokens
+- Implements security measures to prevent email enumeration
+
+### 5. API Endpoints
+
+Located in `src/Endatix.Api/Endpoints/Auth/`
+
+#### Verify Email Endpoint
 - **POST** `/api/auth/verify-email`
 - Accepts a verification token
 - Returns the user ID on success
@@ -50,6 +61,16 @@ Located in `src/Endatix.Api/Endpoints/Auth/VerifyEmail.cs`
   - `400 Bad Request` - Invalid or expired token (with problem details)
   - `404 Not Found` - Token not found
 - Anonymous access (no authentication required)
+
+#### Send Verification Email Endpoint
+- **POST** `/api/auth/send-verification-email`
+- Accepts an email address
+- Creates a new verification token and sends it via email (when email sending is implemented)
+- Returns appropriate HTTP status codes:
+  - `200 OK` - Verification email sent successfully (or would be sent if email sending is implemented)
+  - `400 Bad Request` - Invalid email address (with problem details)
+- Anonymous access (no authentication required)
+- **Security Note**: Always returns success to prevent email enumeration attacks
 
 ## Configuration
 
@@ -96,7 +117,14 @@ The `EmailVerificationTokens` table is located in the `identity` schema and cont
    - Returns the user ID on success
    - User can now log in
 
-3. **Login**
+3. **Send Verification Email** (if resending is needed)
+   - User requests a verification email by calling `POST /api/auth/send-verification-email` with their email address
+   - System validates email format and checks if user exists and is not verified
+   - If valid, a new verification token is generated and the old one is invalidated
+   - New token is sent via email (when email sending is implemented)
+   - Always returns success to prevent email enumeration attacks
+
+4. **Login**
    - User attempts to log in
    - System checks `EmailConfirmed` status
    - Only verified users can log in
@@ -140,11 +168,13 @@ HTTP/1.1 404 Not Found
 The implementation includes comprehensive tests:
 - Entity tests: `tests/Endatix.Core.Tests/Entities/Identity/EmailVerificationTokenTests.cs`
 - Service tests: `tests/Endatix.Infrastructure.Tests/Identity/EmailVerification/EmailVerificationServiceTests.cs`
+- Use case tests: `tests/Endatix.Core.Tests/UseCases/Identity/SendVerificationEmail/SendVerificationEmailHandlerTests.cs`
 - API tests: `tests/Endatix.Api.Tests/Endpoints/Auth/VerifyEmailTests.cs`
+- Send API tests: `tests/Endatix.Api.Tests/Endpoints/Auth/SendVerificationEmailTests.cs`
 
 ## Future Enhancements
 
-1. **Token Resend**: Allow users to request new verification tokens
+1. **Email Sending**: Implement actual email sending for verification tokens
 2. **Rate Limiting**: Prevent abuse of verification endpoints
 3. **Audit Logging**: Track verification attempts and failures
 4. **Custom Expiry**: Allow different expiry times for different user types 

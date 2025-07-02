@@ -28,6 +28,23 @@ public class AppUserService(UserManager<AppUser> userManager) : IUserService
         return Result.Success(user.ToUserEntity());
     }
 
+    /// <inheritdoc />
+    public async Task<Result<User>> GetUserAsync(string email, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return Result.NotFound();
+        }
+
+        var user = await userManager.FindByEmailAsync(email);
+        if (user == null)
+        {
+            return Result.NotFound();
+        }
+
+        return Result.Success(user.ToUserEntity());
+    }
+
     public async Task<Result<string>> ChangePasswordAsync(User user, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
     {
         var appUser = await userManager.FindByIdAsync(user.Id.ToString());
