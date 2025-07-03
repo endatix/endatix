@@ -17,7 +17,7 @@ public class ActiveDefinitionDto
         ThemeJsonData = themeJsonData;
         ModifiedAt = formDefinition.ModifiedAt;
         CreatedAt = formDefinition.CreatedAt;
-        CustomQuestions = customQuestions ?? Enumerable.Empty<string>();
+        CustomQuestions = customQuestions ?? [];
     }
 
     /// <summary>
@@ -33,7 +33,7 @@ public class ActiveDefinitionDto
     /// <summary>
     /// Indicates whether reCAPTCHA is enabled for this form definition.
     /// </summary>
-    public bool? RequiresReCaptcha { get; set; }
+    public bool? RequiresReCaptcha { get; init; }
 
     /// <summary>
     /// Indicates whether this form definition is in draft status.

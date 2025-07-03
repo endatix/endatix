@@ -33,12 +33,12 @@ public class GetActiveFormDefinitionHandler(
 
         var customQuestionsJson = customQuestions?.Select(q => q.JsonData);
 
-        var activeDefinitionDto = new ActiveDefinitionDto(
-            formWithActiveDefinition.ActiveDefinition,
-            formWithActiveDefinition.Theme?.JsonData,
-            customQuestionsJson);
-
-        activeDefinitionDto.RequiresReCaptcha = reCaptchaPolicyService.RequiresReCaptcha(formWithActiveDefinition);
+        var activeDefinitionDto = new ActiveDefinitionDto(formWithActiveDefinition.ActiveDefinition)
+        {
+            ThemeJsonData = formWithActiveDefinition.Theme?.JsonData,
+            RequiresReCaptcha = reCaptchaPolicyService.RequiresReCaptcha(formWithActiveDefinition),
+            CustomQuestions = customQuestionsJson ?? []
+        };
 
         return Result.Success(activeDefinitionDto);
     }
