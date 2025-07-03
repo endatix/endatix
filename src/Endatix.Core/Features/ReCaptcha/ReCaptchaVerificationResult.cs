@@ -1,6 +1,6 @@
 using Ardalis.GuardClauses;
 
-namespace Endatix.Infrastructure.ReCaptcha;
+namespace Endatix.Core.Features.ReCaptcha;
 
 /// <summary>
 /// Represents the result of a reCAPTCHA verification.
@@ -59,22 +59,22 @@ public record ReCaptchaVerificationResult
 
     public static ReCaptchaVerificationResult NotEnabled()
     {
-        return new ReCaptchaVerificationResult(true, 1.0, ReCaptchaConstants.NO_ACTION_APPLICABLE, ["reCAPTCHA is not enabled"]);
+        return new ReCaptchaVerificationResult(true, 1.0, ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE, ["reCAPTCHA is not enabled"]);
     }
 
     public static ReCaptchaVerificationResult SystemError(string errorMessage)
     {
-        return new ReCaptchaVerificationResult(false, 0.0, ReCaptchaConstants.NO_ACTION_APPLICABLE, [errorMessage, ReCaptchaConstants.ERROR_SYSTEM_ERROR]);
+        return new ReCaptchaVerificationResult(false, 0.0, ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE, [errorMessage, ReCaptchaConstants.ErrorCodes.ERROR_SYSTEM_ERROR]);
     }
 
     public static ReCaptchaVerificationResult SystemError(string[] errorMessages)
     {
-        return new ReCaptchaVerificationResult(false, 0.0, ReCaptchaConstants.NO_ACTION_APPLICABLE, errorMessages);
+        return new ReCaptchaVerificationResult(false, 0.0, ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE, errorMessages);
     }
 
     public static ReCaptchaVerificationResult Skipped()
     {
-        return new ReCaptchaVerificationResult(true, 1.0, ReCaptchaConstants.NO_ACTION_APPLICABLE, ["reCAPTCHA verification skipped"]);
+        return new ReCaptchaVerificationResult(true, 1.0, ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE, ["reCAPTCHA verification skipped"]);
     }
 
 }

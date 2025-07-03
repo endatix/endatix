@@ -1,4 +1,4 @@
-using Endatix.Infrastructure.ReCaptcha;
+using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -44,7 +44,7 @@ public abstract class BaseSubmissionRequest
     /// <param name="cancellationToken">The cancellation token</param>
     /// <returns>The result of the reCAPTCHA verification <see cref="ReCaptchaVerificationResult"/></returns>
     public async Task<ReCaptchaVerificationResult> ValidateReCaptchaAsync(
-        IGoogleReCaptchaService recaptchaService,
+        IReCaptchaPolicyService recaptchaService,
         CancellationToken cancellationToken)
     {
         var shouldValidate =

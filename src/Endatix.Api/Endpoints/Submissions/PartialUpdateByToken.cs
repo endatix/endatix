@@ -1,18 +1,18 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Infrastructure.ReCaptcha;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
 using Microsoft.AspNetCore.Http;
 using Errors = Microsoft.AspNetCore.Mvc;
 using FastEndpoints;
+using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for partially updating a form submission by token.
 /// </summary>
-public class PartialUpdateByToken(IMediator mediator, IGoogleReCaptchaService recaptchaService) : Endpoint<PartialUpdateSubmissionByTokenRequest, Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
+public class PartialUpdateByToken(IMediator mediator, IReCaptchaPolicyService recaptchaService) : Endpoint<PartialUpdateSubmissionByTokenRequest, Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.

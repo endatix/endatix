@@ -14,14 +14,14 @@ public class CreateTests
 {
     private readonly IMediator _mediator;
 
-    private readonly IGoogleReCaptchaService _recaptcha;
+    private readonly IReCaptchaPolicyService _recaptcha;
 
     private readonly Create _endpoint;
 
     public CreateTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _recaptcha = Substitute.For<IGoogleReCaptchaService>();
+        _recaptcha = Substitute.For<IReCaptchaPolicyService>();
         _endpoint = Factory.Create<Create>(_mediator, _recaptcha);
     }
 

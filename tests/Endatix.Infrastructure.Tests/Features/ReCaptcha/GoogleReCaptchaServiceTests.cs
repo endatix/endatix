@@ -1,4 +1,5 @@
-using System.Net;
+using Endatix.Core.Entities;
+using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.ReCaptcha;
 using Microsoft.Extensions.Options;
@@ -42,7 +43,7 @@ public class GoogleReCaptchaServiceTests
     {
         // Arrange
         var options = new ReCaptchaOptions { IsEnabled = enabled, SecretKey = secret, MinimumScore = minScore };
-        var service = new GoogleReCaptchaService(MockHttpClient(MockedGoogleReCaptchaResponses.Success()), Options(options));
+        var service = new GoogleReCaptchaService(MockHttpClient(StubGoogleReCaptchaResponses.Success()), Options(options));
 
         // Act
         var result = service.IsEnabled;
@@ -64,7 +65,7 @@ public class GoogleReCaptchaServiceTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(1.0, result.Score);
-        Assert.Equal(ReCaptchaConstants.NO_ACTION_APPLICABLE, result.Action);
+        Assert.Equal(ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE, result.Action);
         Assert.Contains("reCAPTCHA is not enabled", result.ErrorCodes);
     }
 
@@ -72,7 +73,7 @@ public class GoogleReCaptchaServiceTests
     public async Task VerifyTokenAsync_ReturnsTokenMissing_WhenTokenIsNullOrEmpty()
     {
         // Arrange
-        var mockResponse = MockedGoogleReCaptchaResponses.Success();
+        var mockResponse = StubGoogleReCaptchaResponses.Success();
         var httpClient = MockHttpClient(mockResponse);
         var service = new GoogleReCaptchaService(httpClient, Options());
 
@@ -88,7 +89,7 @@ public class GoogleReCaptchaServiceTests
     public async Task VerifyTokenAsync_ReturnsInvalidResponse_WhenGoogleResponseIsInvalid()
     {
         // Arrange
-        var mockResponse = MockedGoogleReCaptchaResponses.InvalidResponse();
+        var mockResponse = StubGoogleReCaptchaResponses.InvalidResponse();
         var httpClient = MockHttpClient(mockResponse);
         var service = new GoogleReCaptchaService(httpClient, Options());
 
@@ -104,7 +105,7 @@ public class GoogleReCaptchaServiceTests
     public async Task VerifyTokenAsync_ReturnsScoreTooLow_WhenScoreIsBelowMinimum()
     {
         // Arrange
-        var mockResponse = MockedGoogleReCaptchaResponses.ScoreTooLow(0.1);
+        var mockResponse = StubGoogleReCaptchaResponses.ScoreTooLow(0.1);
         var httpClient = MockHttpClient(mockResponse);
         var service = new GoogleReCaptchaService(httpClient, Options());
 
@@ -120,7 +121,7 @@ public class GoogleReCaptchaServiceTests
     public async Task VerifyTokenAsync_ReturnsSuccess_WhenValid()
     {
         // Arrange
-        var mockResponse = MockedGoogleReCaptchaResponses.Success();
+        var mockResponse = StubGoogleReCaptchaResponses.Success();
         var httpClient = MockHttpClient(mockResponse);
         var service = new GoogleReCaptchaService(httpClient, Options());
 
@@ -136,7 +137,7 @@ public class GoogleReCaptchaServiceTests
     public async Task VerifyTokenAsync_ReturnsInvalidResponse_WhenHttpResponseIsNotSuccess()
     {
         // Arrange
-        var mockResponse = MockedGoogleReCaptchaResponses.InvalidResponse();
+        var mockResponse = StubGoogleReCaptchaResponses.InvalidResponse();
         var httpClient = MockHttpClient(mockResponse);
         var service = new GoogleReCaptchaService(httpClient, Options());
 
@@ -148,10 +149,85 @@ public class GoogleReCaptchaServiceTests
         Assert.Contains("invalid_response", result.ErrorCodes);
     }
 
-    private class MockedGoogleReCaptchaResponses
+    private class StubGoogleReCaptchaResponses
     {
         public static GoogleReCaptchaResponse Success(double score = 1.0) => new(true, DateTime.UtcNow, "localhost", score, "form_submit", null);
         public static GoogleReCaptchaResponse InvalidResponse() => new(false, DateTime.UtcNow, "localhost", 0.0, "form_submit", ["invalid_response"]);
         public static GoogleReCaptchaResponse ScoreTooLow(double score = 0.3) => new(true, DateTime.UtcNow, "localhost", score, "form_submit", null);
+    }
+
+    public class StubForm : Form
+    {
+        public StubForm(long tenantId) : base(tenantId, "TestForm") { }
+    }
+
+    [Fact]
+    public void RequiresReCaptcha_ThrowsArgumentNullException_WhenFormIsNull()
+    {
+        // Arrange
+        var service = new GoogleReCaptchaService(MockHttpClient(StubGoogleReCaptchaResponses.Success()), Options());
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => service.RequiresReCaptcha(null!));
+    }
+
+    [Fact]
+    public void RequiresReCaptcha_ReturnsFalse_WhenIsEnabledIsFalse()
+    {
+        // Arrange
+        var options = new ReCaptchaOptions { IsEnabled = false, SecretKey = "secret", MinimumScore = 0.5, EnabledForTenantIds = new long[] { 1 } };
+        var service = new GoogleReCaptchaService(MockHttpClient(StubGoogleReCaptchaResponses.Success()), Options(options));
+        var form = new StubForm(1);
+
+        // Act
+        var result = service.RequiresReCaptcha(form);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void RequiresReCaptcha_ReturnsFalse_WhenTenantNotInEnabledList()
+    {
+        // Arrange
+        var options = new ReCaptchaOptions { IsEnabled = true, SecretKey = "secret", MinimumScore = 0.5, EnabledForTenantIds = new long[] { 2, 3 } };
+        var service = new GoogleReCaptchaService(MockHttpClient(StubGoogleReCaptchaResponses.Success()), Options(options));
+        var form = new StubForm(1);
+
+        // Act
+        var result = service.RequiresReCaptcha(form);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void RequiresReCaptcha_ReturnsTrue_WhenTenantInEnabledList()
+    {
+        // Arrange
+        var options = new ReCaptchaOptions { IsEnabled = true, SecretKey = "secret", MinimumScore = 0.5, EnabledForTenantIds = new long[] { 1, 2 } };
+        var service = new GoogleReCaptchaService(MockHttpClient(StubGoogleReCaptchaResponses.Success()), Options(options));
+        var form = new StubForm(1);
+
+        // Act
+        var result = service.RequiresReCaptcha(form);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void RequiresReCaptcha_ReturnsFalse_WhenEnabledForTenantIdsIsNull()
+    {
+        // Arrange
+        var options = new ReCaptchaOptions { IsEnabled = true, SecretKey = "secret", MinimumScore = 0.5, EnabledForTenantIds = null };
+        var service = new GoogleReCaptchaService(MockHttpClient(StubGoogleReCaptchaResponses.Success()), Options(options));
+        var form = new StubForm(1);
+
+        // Act
+        var result = service.RequiresReCaptcha(form);
+
+        // Assert
+        Assert.False(result);
     }
 }

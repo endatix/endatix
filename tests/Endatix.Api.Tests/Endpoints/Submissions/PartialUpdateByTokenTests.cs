@@ -15,12 +15,12 @@ public class PartialUpdateByTokenTests
     private readonly IMediator _mediator;
     private readonly PartialUpdateByToken _endpoint;
 
-    private readonly IGoogleReCaptchaService _recaptcha;
+    private readonly IReCaptchaPolicyService _recaptcha;
 
     public PartialUpdateByTokenTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _recaptcha = Substitute.For<IGoogleReCaptchaService>();
+        _recaptcha = Substitute.For<IReCaptchaPolicyService>();
         _endpoint = Factory.Create<PartialUpdateByToken>(_mediator, _recaptcha);
     }
 

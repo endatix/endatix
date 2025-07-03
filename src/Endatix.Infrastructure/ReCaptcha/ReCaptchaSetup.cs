@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Endatix.Framework.Configuration;
+using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Infrastructure.ReCaptcha;
 
@@ -14,7 +15,7 @@ public static class ReCaptchaSetup
             client.BaseAddress = new Uri("https://www.google.com/recaptcha/api/");
             client.Timeout = TimeSpan.FromSeconds(5);
         });
-        services.AddScoped<IGoogleReCaptchaService, GoogleReCaptchaService>();
+        services.AddScoped<IReCaptchaPolicyService, GoogleReCaptchaService>();
         return services;
     }
-} 
+}

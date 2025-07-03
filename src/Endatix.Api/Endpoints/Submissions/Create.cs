@@ -3,16 +3,16 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.Create;
-using Endatix.Infrastructure.ReCaptcha;
 using Errors = Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
+using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for creating a new form submission.
 /// </summary>
-public class Create(IMediator mediator, IGoogleReCaptchaService recaptchaService) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
+public class Create(IMediator mediator, IReCaptchaPolicyService recaptchaService) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
 {
     /// <inheritdoc/>
     public override void Configure()

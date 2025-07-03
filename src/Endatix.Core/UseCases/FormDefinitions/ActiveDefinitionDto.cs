@@ -31,6 +31,11 @@ public class ActiveDefinitionDto
     public long FormId { get; set; }
 
     /// <summary>
+    /// Indicates whether reCAPTCHA is enabled for this form definition.
+    /// </summary>
+    public bool? RequiresReCaptcha { get; set; }
+
+    /// <summary>
     /// Indicates whether this form definition is in draft status.
     /// </summary>
     public bool IsDraft { get; set; }
@@ -60,4 +65,6 @@ public class ActiveDefinitionDto
     /// The list of custom questions' JSON data associated with this form definition's tenant.
     /// </summary>
     public IEnumerable<string> CustomQuestions { get; set; }
+
+
 }
