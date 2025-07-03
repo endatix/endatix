@@ -1,7 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
 using Endatix.Infrastructure.Email;
-using Endatix.Infrastructure.Integrations.Slack;
+using Endatix.Infrastructure.ReCaptcha;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -35,6 +35,7 @@ public class InfrastructureIntegrationsBuilder
 
         _parentBuilder.Services.AddEmailTemplateSettings();
         _parentBuilder.Services.AddEmailSender<SmtpEmailSender, SmtpSettings>();
+        _parentBuilder.Services.AddReCaptcha(_parentBuilder.Configuration);
 
         LogSetupInfo("Integrations configuration completed");
         return this;
