@@ -7,8 +7,6 @@ namespace Endatix.Infrastructure.ReCaptcha;
 /// </summary>
 public record ReCaptchaVerificationResult
 {
-    private const string NO_ACTION_APPLICABLE = "N/A";
-
     /// <summary>
     /// Indicates if the verification was successful.
     /// </summary>
@@ -61,17 +59,22 @@ public record ReCaptchaVerificationResult
 
     public static ReCaptchaVerificationResult NotEnabled()
     {
-        return new ReCaptchaVerificationResult(true, 1.0, NO_ACTION_APPLICABLE, ["reCAPTCHA is not enabled"]);
+        return new ReCaptchaVerificationResult(true, 1.0, ReCaptchaConstants.NO_ACTION_APPLICABLE, ["reCAPTCHA is not enabled"]);
     }
 
     public static ReCaptchaVerificationResult SystemError(string errorMessage)
     {
-        return new ReCaptchaVerificationResult(false, 0.0, NO_ACTION_APPLICABLE, [errorMessage, "system_error"]);
+        return new ReCaptchaVerificationResult(false, 0.0, ReCaptchaConstants.NO_ACTION_APPLICABLE, [errorMessage, ReCaptchaConstants.ERROR_SYSTEM_ERROR]);
     }
 
     public static ReCaptchaVerificationResult SystemError(string[] errorMessages)
     {
-        return new ReCaptchaVerificationResult(false, 0.0, NO_ACTION_APPLICABLE, errorMessages);
+        return new ReCaptchaVerificationResult(false, 0.0, ReCaptchaConstants.NO_ACTION_APPLICABLE, errorMessages);
+    }
+
+    public static ReCaptchaVerificationResult Skipped()
+    {
+        return new ReCaptchaVerificationResult(true, 1.0, ReCaptchaConstants.NO_ACTION_APPLICABLE, ["reCAPTCHA verification skipped"]);
     }
 
 }

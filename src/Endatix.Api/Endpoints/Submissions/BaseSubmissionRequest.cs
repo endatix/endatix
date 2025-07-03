@@ -1,3 +1,5 @@
+using Endatix.Infrastructure.ReCaptcha;
+
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
@@ -34,4 +36,27 @@ public abstract class BaseSubmissionRequest
     /// reCAPTCHA v3 token for bot protection
     /// </summary>
     public string? ReCaptchaToken { get; set; }
-} 
+
+    /// <summary>
+    /// Validates the reCAPTCHA token if it is present and the form is complete
+    /// </summary>
+    /// <param name="recaptchaService">The reCAPTCHA service to use</param>
+    /// <param name="cancellationToken">The cancellation token</param>
+    /// <returns>The result of the reCAPTCHA verification <see cref="ReCaptchaVerificationResult"/></returns>
+    public async Task<ReCaptchaVerificationResult> ValidateReCaptchaAsync(
+        IGoogleReCaptchaService recaptchaService,
+        CancellationToken cancellationToken)
+    {
+        var shouldValidate =
+            recaptchaService.IsEnabled
+            && string.IsNullOrEmpty(ReCaptchaToken) == false
+            && IsComplete == true;
+
+        if (!shouldValidate)
+        {
+            return ReCaptchaVerificationResult.Skipped();
+        }
+
+        return await recaptchaService.VerifyTokenAsync(ReCaptchaToken!, cancellationToken);
+    }
+}

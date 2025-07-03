@@ -1,24 +1,23 @@
-using System.Text.Json;
 using Microsoft.Extensions.Options;
-using System.Text.Json.Serialization;
-using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Infrastructure.ReCaptcha;
 
 internal sealed class GoogleReCaptchaService : IGoogleReCaptchaService
 {
-    private readonly IReCaptchaHttpClient _httpClient;
+    private readonly IReCaptchaHttpClient _reCaptchaClient;
     private readonly ReCaptchaOptions _options;
 
-    public GoogleReCaptchaService(IReCaptchaHttpClient httpClient, IOptions<ReCaptchaOptions> options)
+    public GoogleReCaptchaService(IReCaptchaHttpClient reCaptchaClient, IOptions<ReCaptchaOptions> options)
     {
-        _httpClient = httpClient;
+        _reCaptchaClient = reCaptchaClient;
         _options = options.Value;
-        IsEnabled = _options.IsEnabled
-            && !string.IsNullOrEmpty(_options.SecretKey)
-            && _options.MinimumScore > 0.0
-            && _options.MinimumScore <= 1.0;
+        IsEnabled = _options.IsEnabled && AreReCaptchaOptionsValid(_options);
     }
+
+    private static bool AreReCaptchaOptionsValid(ReCaptchaOptions options) =>
+        !string.IsNullOrEmpty(options.SecretKey)
+        && options.MinimumScore > 0.0
+        && options.MinimumScore <= 1.0;
 
     public async Task<ReCaptchaVerificationResult> VerifyTokenAsync(string token, CancellationToken cancellationToken)
     {
@@ -29,68 +28,30 @@ internal sealed class GoogleReCaptchaService : IGoogleReCaptchaService
 
         if (string.IsNullOrEmpty(token))
         {
-            return ReCaptchaVerificationResult.InvalidResponse(0.0, "N/A", "token_missing");
+            return ReCaptchaVerificationResult.InvalidResponse(0.0, ReCaptchaConstants.NO_ACTION_APPLICABLE, ReCaptchaConstants.ERROR_TOKEN_MISSING);
         }
 
-        var tokenValidationResponse = await GetTokenValidationResponseAsync(token, cancellationToken);
+        var googleReCaptchaTokenResult = await _reCaptchaClient.GetTokenValidationResponseAsync(token, _options.SecretKey, cancellationToken);
 
-        if (!tokenValidationResponse.IsSuccess)
+        if (!googleReCaptchaTokenResult.IsSuccess)
         {
-            return ReCaptchaVerificationResult.InvalidResponse(0.0, "N/A", ["invalid_response"]);
+            return ReCaptchaVerificationResult.InvalidResponse(0.0, ReCaptchaConstants.NO_ACTION_APPLICABLE, ReCaptchaConstants.ERROR_INVALID_RESPONSE);
         }
 
-        var result = tokenValidationResponse.Value;
+        var reCaptchaToken = googleReCaptchaTokenResult.Value;
 
-        if (!result.Success)
+        if (!reCaptchaToken.Success)
         {
-            return ReCaptchaVerificationResult.InvalidResponse(0.0, result.Action, result.ErrorCodes ?? []);
+            return ReCaptchaVerificationResult.InvalidResponse(0.0, reCaptchaToken.Action, reCaptchaToken.ErrorCodes ?? []);
         }
 
-        if (result.Score < _options.MinimumScore)
+        if (reCaptchaToken.Score < _options.MinimumScore)
         {
-            return ReCaptchaVerificationResult.InvalidResponse(result.Score, result.Action, ["score_too_low", $"{result.Score} < {_options.MinimumScore}"]);
+            return ReCaptchaVerificationResult.InvalidResponse(reCaptchaToken.Score, reCaptchaToken.Action, [ReCaptchaConstants.ERROR_SCORE_TOO_LOW, $"{reCaptchaToken.Score} < {_options.MinimumScore}"]);
         }
 
-        return ReCaptchaVerificationResult.Success(result.Score, result.Action);
-    }
-
-    private async Task<Result<GoogleReCaptchaResponse>> GetTokenValidationResponseAsync(string token, CancellationToken cancellationToken)
-    {
-        var content = new FormUrlEncodedContent(new[]
-        {
-            new KeyValuePair<string, string>("secret", _options.SecretKey),
-            new KeyValuePair<string, string>("response", token)
-        });
-
-        var response = await _httpClient.VerifyTokenAsync(content, cancellationToken);
-        var responseContent = await response!.Content.ReadAsStreamAsync(cancellationToken);
-
-        if (response.IsSuccessStatusCode)
-        {
-            try
-            {
-                var result = await JsonSerializer.DeserializeAsync<GoogleReCaptchaResponse>(responseContent, cancellationToken: cancellationToken);
-                return result is null ?
-                Result.Error("Failed to deserialize Google ReCaptcha response") :
-                Result.Success(result);
-            }
-            catch (Exception)
-            {
-                return Result.Error("Failed to deserialize Google ReCaptcha response");
-            }
-        }
-
-        return Result.Error("Failed to validate reCAPTCHA token");
+        return ReCaptchaVerificationResult.Success(reCaptchaToken.Score, reCaptchaToken.Action);
     }
 
     public bool IsEnabled { get; }
-
-    private sealed record GoogleReCaptchaResponse(
-        [property: JsonPropertyName("success")] bool Success,
-        [property: JsonPropertyName("challenge_ts")] DateTime ChallengeTs,
-        [property: JsonPropertyName("hostname")] string Hostname,
-        [property: JsonPropertyName("score")] double Score,
-        [property: JsonPropertyName("action")] string Action,
-        [property: JsonPropertyName("error-codes")] string[]? ErrorCodes
-    );
 }

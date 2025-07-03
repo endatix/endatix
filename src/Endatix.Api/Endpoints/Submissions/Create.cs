@@ -32,13 +32,14 @@ public class Create(IMediator mediator, IGoogleReCaptchaService recaptchaService
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken cancellationToken)
     {
-        if (recaptchaService.IsEnabled && request.ReCaptchaToken != null)
+        var recaptchaResult = await request.ValidateReCaptchaAsync(recaptchaService, cancellationToken);
+        if (!recaptchaResult.IsSuccess)
         {
-            var recaptchaResult = await recaptchaService.VerifyTokenAsync(request.ReCaptchaToken, cancellationToken);
-            if (!recaptchaResult.IsSuccess)
+            return TypedResults.BadRequest(new Errors.ProblemDetails
             {
-                return TypedResults.BadRequest(new Errors.ProblemDetails { Title = "Invalid reCAPTCHA token" });
-            }
+                Title = "Invalid reCAPTCHA token",
+                Detail = recaptchaResult.ErrorCodes.FirstOrDefault()
+            });
         }
 
         var createCommand = new CreateSubmissionCommand(

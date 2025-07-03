@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Endatix.Api\Endatix.Api.csproj" />
     <ProjectReference Include="..\..\src\Endatix.Core\Endatix.Core.csproj" />
+    <ProjectReference Include="..\..\src\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
