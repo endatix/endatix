@@ -1,6 +1,8 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.ReCaptcha;
+using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.ReCaptcha;
@@ -12,18 +14,52 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
 {
     private readonly IReCaptchaHttpClient _reCaptchaClient;
     private readonly ReCaptchaOptions _options;
-
-    public GoogleReCaptchaService(IReCaptchaHttpClient reCaptchaClient, IOptions<ReCaptchaOptions> options)
+    private readonly IUserContext _userContext;
+    public GoogleReCaptchaService(
+        IReCaptchaHttpClient reCaptchaClient,
+        IOptions<ReCaptchaOptions> options,
+        IUserContext userContext)
     {
         _reCaptchaClient = reCaptchaClient;
         _options = options.Value;
         IsEnabled = _options.IsEnabled && AreReCaptchaOptionsValid(_options);
+        _userContext = userContext;
     }
 
-    private static bool AreReCaptchaOptionsValid(ReCaptchaOptions options) =>
-        !string.IsNullOrEmpty(options.SecretKey)
-        && options.MinimumScore > 0.0
-        && options.MinimumScore <= 1.0;
+
+    /// <inheritdoc/>
+    public async Task<Result> ValidateReCaptchaAsync(SubmissionVerificationContext context, CancellationToken cancellationToken)
+    {
+        Guard.Against.Null(context);
+
+        if (context.IsComplete == false)
+        {
+            return Result.Success();
+        }
+
+        if (!RequiresReCaptcha(context.Form))
+        {
+            return Result.Success();
+        }
+
+        if (_userContext.IsAuthenticated)
+        {
+            return Result.SuccessWithMessage("ReCAPTCHA is not required for authenticated users");
+        }
+
+        if (string.IsNullOrEmpty(context.ReCaptchaToken))
+        {
+            return Result.Invalid(new ValidationError("ReCAPTCHA token is required"));
+        }
+
+        var recaptchaVerificationResult = await VerifyTokenAsync(context.ReCaptchaToken, cancellationToken);
+        if (!recaptchaVerificationResult.IsSuccess)
+        {
+            return Result.Invalid(new ValidationError("reCAPTCHA validation failed"));
+        }
+
+        return Result.Success();
+    }
 
     public async Task<ReCaptchaVerificationResult> VerifyTokenAsync(string token, CancellationToken cancellationToken)
     {
@@ -65,6 +101,7 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
     public bool RequiresReCaptcha(Form form)
     {
         Guard.Against.Null(form);
+
         if (!IsEnabled)
         {
             return false;
@@ -72,4 +109,10 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
 
         return _options.EnabledForTenantIds?.Contains(form.TenantId) ?? false;
     }
+
+
+    private static bool AreReCaptchaOptionsValid(ReCaptchaOptions options) =>
+        !string.IsNullOrEmpty(options.SecretKey)
+        && options.MinimumScore > 0.0
+        && options.MinimumScore <= 1.0;
 }

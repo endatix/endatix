@@ -2,17 +2,15 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
-using Microsoft.AspNetCore.Http;
 using Errors = Microsoft.AspNetCore.Mvc;
 using FastEndpoints;
-using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for partially updating a form submission by token.
 /// </summary>
-public class PartialUpdateByToken(IMediator mediator, IReCaptchaPolicyService recaptchaService) : Endpoint<PartialUpdateSubmissionByTokenRequest, Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
+public class PartialUpdateByToken(IMediator mediator) : Endpoint<PartialUpdateSubmissionByTokenRequest, Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -34,23 +32,14 @@ public class PartialUpdateByToken(IMediator mediator, IReCaptchaPolicyService re
     /// <inheritdoc/>
     public override async Task<Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>> ExecuteAsync(PartialUpdateSubmissionByTokenRequest request, CancellationToken cancellationToken)
     {
-        var recaptchaResult = await request.ValidateReCaptchaAsync(recaptchaService, cancellationToken);
-        if (!recaptchaResult.IsSuccess)
-        {
-            return TypedResults.BadRequest(new Errors.ProblemDetails
-            {
-                Title = "Invalid reCAPTCHA token",
-                Detail = recaptchaResult.ErrorCodes.FirstOrDefault()
-            });
-        }
-
         var updateSubmissionCommand = new PartialUpdateSubmissionByTokenCommand(
             request.SubmissionToken,
             request.FormId,
             request.IsComplete,
             request.CurrentPage,
             request.JsonData,
-            request.Metadata
+            request.Metadata,
+            request.ReCaptchaToken
         );
 
         var result = await mediator.Send(updateSubmissionCommand, cancellationToken);

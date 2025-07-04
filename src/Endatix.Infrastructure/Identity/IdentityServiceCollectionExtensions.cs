@@ -76,6 +76,7 @@ public static class IdentityServiceCollectionExtensions
         // Register essential identity services
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, AppUserService>();
+        services.AddScoped<IUserContext, UserContext>();
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
 

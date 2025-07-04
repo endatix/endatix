@@ -5,8 +5,8 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
-using Endatix.Infrastructure.ReCaptcha;
 using Errors = Microsoft.AspNetCore.Mvc;
+using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
@@ -15,13 +15,10 @@ public class PartialUpdateByTokenTests
     private readonly IMediator _mediator;
     private readonly PartialUpdateByToken _endpoint;
 
-    private readonly IReCaptchaPolicyService _recaptcha;
-
     public PartialUpdateByTokenTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _recaptcha = Substitute.For<IReCaptchaPolicyService>();
-        _endpoint = Factory.Create<PartialUpdateByToken>(_mediator, _recaptcha);
+        _endpoint = Factory.Create<PartialUpdateByToken>(_mediator);
     }
 
     [Fact]
@@ -136,78 +133,5 @@ public class PartialUpdateByTokenTests
             ),
             Arg.Any<CancellationToken>()
         );
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_SkipsReCaptcha_WhenFormIsNotComplete()
-    {
-        // Arrange
-        var request = new PartialUpdateSubmissionByTokenRequest { FormId = 1, SubmissionToken = "token", IsComplete = false };
-        _mediator.Send(Arg.Any<PartialUpdateSubmissionByTokenCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new Submission(1, "{}", 1, 1)));
-
-        // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
-
-        // Assert
-        await _recaptcha.DidNotReceive().VerifyTokenAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        var okResult = response.Result as Ok<PartialUpdateSubmissionByTokenResponse>;
-        okResult.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_SkipsReCaptcha_WhenReCaptchaIsDisabled()
-    {
-        // Arrange
-        _recaptcha.IsEnabled.Returns(false);
-        var request = new PartialUpdateSubmissionByTokenRequest { FormId = 1, SubmissionToken = "token", IsComplete = true, ReCaptchaToken = "token" };
-        _mediator.Send(Arg.Any<PartialUpdateSubmissionByTokenCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new Submission(1, "{}", 1, 1)));
-
-        // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
-
-        // Assert
-        await _recaptcha.DidNotReceive().VerifyTokenAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
-        var okResult = response.Result as Ok<PartialUpdateSubmissionByTokenResponse>;
-        okResult.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_ReturnsBadRequest_WhenReCaptchaFails_AndIsComplete()
-    {
-        // Arrange
-        _recaptcha.IsEnabled.Returns(true);
-        _recaptcha.VerifyTokenAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(ReCaptchaVerificationResult.InvalidResponse(0.0, "form_submit", "invalid"));
-
-        var request = new PartialUpdateSubmissionByTokenRequest { FormId = 1, SubmissionToken = "token", IsComplete = true, ReCaptchaToken = "token" };
-
-        // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
-
-        // Assert
-        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
-        badRequestResult.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_Proceeds_WhenReCaptchaSucceeds_AndIsComplete()
-    {
-        // Arrange
-        _recaptcha.IsEnabled.Returns(true);
-        _recaptcha.VerifyTokenAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(ReCaptchaVerificationResult.Success(1.0, "form_submit"));
-
-        var request = new PartialUpdateSubmissionByTokenRequest { FormId = 1, SubmissionToken = "token", IsComplete = true, ReCaptchaToken = "token" };
-        _mediator.Send(Arg.Any<PartialUpdateSubmissionByTokenCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new Submission(1, "{}", 1, 1)));
-
-        // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
-
-        // Assert
-        var okResult = response.Result as Ok<PartialUpdateSubmissionByTokenResponse>;
-        okResult.Should().NotBeNull();
     }
 }

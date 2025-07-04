@@ -4,15 +4,13 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.Create;
 using Errors = Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http;
-using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for creating a new form submission.
 /// </summary>
-public class Create(IMediator mediator, IReCaptchaPolicyService recaptchaService) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
+public class Create(IMediator mediator) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -32,22 +30,13 @@ public class Create(IMediator mediator, IReCaptchaPolicyService recaptchaService
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken cancellationToken)
     {
-        var recaptchaResult = await request.ValidateReCaptchaAsync(recaptchaService, cancellationToken);
-        if (!recaptchaResult.IsSuccess)
-        {
-            return TypedResults.BadRequest(new Errors.ProblemDetails
-            {
-                Title = "Invalid reCAPTCHA token",
-                Detail = recaptchaResult.ErrorCodes.FirstOrDefault()
-            });
-        }
-
         var createCommand = new CreateSubmissionCommand(
-            request.FormId,
-            request.JsonData!,
-            request.Metadata,
-            request.CurrentPage,
-            request.IsComplete
+            FormId: request.FormId,
+            JsonData: request.JsonData!,
+            Metadata: request.Metadata,
+            CurrentPage: request.CurrentPage,
+            IsComplete: request.IsComplete,
+            ReCaptchaToken: request.ReCaptchaToken
         );
 
         var result = await mediator.Send(createCommand, cancellationToken);

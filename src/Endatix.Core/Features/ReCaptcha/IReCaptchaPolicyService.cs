@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Features.ReCaptcha;
 
@@ -7,6 +8,14 @@ namespace Endatix.Core.Features.ReCaptcha;
 /// </summary>
 public interface IReCaptchaPolicyService
 {
+    /// <summary>
+    /// Validates a reCAPTCHA token for a given submission
+    /// </summary>
+    /// <param name="context">The submission context for reCAPTCHA validation</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result indicating if the token is valid</returns>
+    Task<Result> ValidateReCaptchaAsync(SubmissionVerificationContext context, CancellationToken cancellationToken);
+    
     /// <summary>
     /// Verifies a reCAPTCHA token with Google's API
     /// </summary>

@@ -14,7 +14,15 @@ public class PartialUpdateSubmissionByTokenCommandTests
         var formId = 1L;
 
         // Act
-        Action act = () => new PartialUpdateSubmissionByTokenCommand(token, formId, null, null, null, null);
+        Action act = () => new PartialUpdateSubmissionByTokenCommand(
+            token: token,
+            formId: formId,
+            isComplete: null,
+            currentPage: null,
+            jsonData: null,
+            metadata: null,
+            reCaptchaToken: null
+        );
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -29,7 +37,14 @@ public class PartialUpdateSubmissionByTokenCommandTests
         var formId = -1L;
 
         // Act
-        Action act = () => new PartialUpdateSubmissionByTokenCommand(token, formId, null, null, null, null);
+        Action act = () => new PartialUpdateSubmissionByTokenCommand(
+            token,
+            formId,
+            null,
+            null,
+            null,
+            null,
+            null);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -51,7 +66,8 @@ public class PartialUpdateSubmissionByTokenCommandTests
             isComplete: false,
             currentPage: negativeCurrentPage,
             jsonData: null,
-            metadata: null
+            metadata: null,
+            reCaptchaToken: null
         );
 
         // Assert
@@ -69,9 +85,18 @@ public class PartialUpdateSubmissionByTokenCommandTests
         int? currentPage = null;
         var jsonData = "{}";
         var metadata = string.Empty;
+        var reCaptchaToken = "valid-reCaptchaToken";
 
         // Act
-        var command = new PartialUpdateSubmissionByTokenCommand(token, formId, isComplete, currentPage, jsonData, metadata);
+        var command = new PartialUpdateSubmissionByTokenCommand(
+            token: token,
+            formId: formId,
+            isComplete: isComplete,
+            currentPage: currentPage,
+            jsonData: jsonData,
+            metadata: metadata,
+            reCaptchaToken: reCaptchaToken
+        );
 
         // Assert
         command.Should().NotBeNull();
@@ -88,9 +113,17 @@ public class PartialUpdateSubmissionByTokenCommandTests
         var currentPage = 2;
         var jsonData = "{\"key\":\"value\"}";
         var metadata = "{\"meta\":\"data\"}";
+        var reCaptchaToken = "valid-reCaptchaToken";
 
         // Act
-        var command = new PartialUpdateSubmissionByTokenCommand(token, formId, isComplete, currentPage, jsonData, metadata);
+        var command = new PartialUpdateSubmissionByTokenCommand(
+            token: token,
+            formId: formId,
+            isComplete: isComplete,
+            currentPage: currentPage,
+            jsonData: jsonData,
+            metadata: metadata,
+            reCaptchaToken: reCaptchaToken);
 
         // Assert
         command.Token.Should().Be(token);
@@ -109,7 +142,15 @@ public class PartialUpdateSubmissionByTokenCommandTests
         var formId = 1L;
 
         // Act
-        var command = new PartialUpdateSubmissionByTokenCommand(token, formId, null, null, null, null);
+        var command = new PartialUpdateSubmissionByTokenCommand(
+            token: token,
+            formId: formId,
+            isComplete: null,
+            currentPage: null,
+            jsonData: null,
+            metadata: null,
+            reCaptchaToken: null
+        );
 
         // Assert
         command.Token.Should().Be(token);
@@ -118,5 +159,6 @@ public class PartialUpdateSubmissionByTokenCommandTests
         command.CurrentPage.Should().BeNull();
         command.JsonData.Should().BeNull();
         command.Metadata.Should().BeNull();
+        command.ReCaptchaToken.Should().BeNull();
     }
 }
