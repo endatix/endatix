@@ -28,6 +28,11 @@ public record WebHookOperation
     public static readonly WebHookOperation FormSubmitted = new("form_submitted", nameof(Submission), ActionName.Created);
 
     /// <summary>
+    /// A static instance of WebHookOperation representing a form deletion.
+    /// </summary>
+    public static readonly WebHookOperation FormDeleted = new("form_deleted", nameof(Form), ActionName.Deleted);
+
+    /// <summary>
     /// Initializes a new instance of the WebHookOperation record.
     /// </summary>
     /// <param name="eventName">The name of the WebHook event.</param>

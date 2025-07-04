@@ -95,6 +95,11 @@ public class WebHookSettings : IEndatixSettings
         /// Represents the settings for the 'FormSubmitted' event.
         /// </summary>
         public EventSetting FormSubmitted { get; set; } = new() { EventName = EventNames.FORM_SUBMITTED };
+
+        /// <summary>
+        /// Represents the settings for the 'FormDeleted' event.
+        /// </summary>
+        public EventSetting FormDeleted { get; set; } = new() { EventName = EventNames.FORM_DELETED };
     }
 
     /// <summary>
