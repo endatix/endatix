@@ -39,7 +39,8 @@ public class FormDefinitionMapper
         CreatedAt = formDefinition.CreatedAt,
         ModifiedAt = formDefinition.ModifiedAt,
         ThemeModel = formDefinition.ThemeJsonData,
-        CustomQuestions = formDefinition.CustomQuestions
+        CustomQuestions = formDefinition.CustomQuestions,
+        RequiresReCaptcha = formDefinition.RequiresReCaptcha,
     };
 
     /// <summary>

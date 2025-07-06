@@ -24,7 +24,7 @@ public class PartialUpdateSubmissionByTokenHandler(
         var tokenResult = await tokenService.ResolveTokenAsync(request.Token, cancellationToken);
         if (!tokenResult.IsSuccess)
         {
-            return Result.NotFound("Invalid or expired token");
+            return Result.Invalid(new ValidationError("Token", "Invalid or expired token", "submission_token_invalid", ValidationSeverity.Error));
         }
 
         var submissionId = tokenResult.Value;

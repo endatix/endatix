@@ -53,9 +53,10 @@ public static partial class ResultExtensions
     public static BadRequest<ProblemDetails> ToBadRequest(this AppDomain.IResult result, string? title = null)
     {
         var details = DEFAULT_BAD_REQUEST_TITLE;
-        if (result.ValidationErrors.Any())
+        var validationError = result.ValidationErrors.FirstOrDefault();
+        if (validationError != null)
         {
-            details = result.ValidationErrors.First().ErrorMessage;
+            details = validationError.ErrorMessage;
         }
 
         var problemDetails = new ProblemDetails
@@ -64,6 +65,11 @@ public static partial class ResultExtensions
             Detail = details.ToString(),
             Status = StatusCodes.Status400BadRequest
         };
+
+        if (validationError?.ErrorCode != null)
+        {
+            problemDetails.Extensions.Add("errorCode", validationError.ErrorCode);
+        }
 
         return TypedResults.BadRequest(problemDetails);
     }
@@ -105,7 +111,9 @@ public static partial class ResultExtensions
         var details = new StringBuilder("Next error(s) occurred:");
 
         foreach (var error in result.Errors)
+        {
             details.Append("* ").Append(error).AppendLine();
+        }
 
         return TypedResults.UnprocessableEntity(new ProblemDetails
         {
@@ -121,7 +129,9 @@ public static partial class ResultExtensions
         if (result.Errors.Any())
         {
             foreach (var error in result.Errors)
+            {
                 details.Append("* ").Append(error).AppendLine();
+            }
 
             return TypedResults.NotFound(new ProblemDetails
             {
@@ -142,7 +152,9 @@ public static partial class ResultExtensions
         if (result.Errors.Any())
         {
             foreach (var error in result.Errors)
+            {
                 details.Append("* ").Append(error).AppendLine();
+            }
 
             return TypedResults.Conflict(new ProblemDetails
             {
@@ -163,7 +175,9 @@ public static partial class ResultExtensions
         if (result.Errors.Any())
         {
             foreach (var error in result.Errors)
+            {
                 details.Append("* ").Append(error).AppendLine();
+            }
 
             return TypedResults.Problem(new ProblemDetails()
             {
@@ -185,7 +199,9 @@ public static partial class ResultExtensions
         if (result.Errors.Any())
         {
             foreach (var error in result.Errors)
+            {
                 details.Append("* ").Append(error).AppendLine();
+            }
 
             return TypedResults.Problem(new ProblemDetails
             {
@@ -207,7 +223,9 @@ public static partial class ResultExtensions
         if (result.Errors.Any())
         {
             foreach (var error in result.Errors)
+            {
                 details.Append("* ").Append(error).AppendLine();
+            }
 
             return TypedResults.Problem(new ProblemDetails
             {
@@ -229,7 +247,9 @@ public static partial class ResultExtensions
         if (result.Errors.Any())
         {
             foreach (var error in result.Errors)
+            {
                 details.Append("* ").Append(error).AppendLine();
+            }
 
             return TypedResults.Problem(new ProblemDetails
             {

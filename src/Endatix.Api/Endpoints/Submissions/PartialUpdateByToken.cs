@@ -4,6 +4,8 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
 using Errors = Microsoft.AspNetCore.Mvc;
 using FastEndpoints;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
