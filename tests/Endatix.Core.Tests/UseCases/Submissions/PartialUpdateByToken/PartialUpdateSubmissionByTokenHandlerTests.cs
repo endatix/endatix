@@ -27,7 +27,7 @@ public class PartialUpdateSubmissionByTokenHandlerTests
     }
 
     [Fact]
-    public async Task Handle_InvalidToken_ReturnsNotFoundResult()
+    public async Task Handle_InvalidToken_ReturnsInvalidResult()
     {
         // Arrange
         var token = "invalid-token";
@@ -41,7 +41,7 @@ public class PartialUpdateSubmissionByTokenHandlerTests
             metadata: null,
             reCaptchaToken: null
         );
-        var tokenResult = Result.NotFound("Invalid or expired token");
+        var tokenResult = Result.Invalid(SubmissonTokenErrors.ValidationErrors.SubmissionTokenInvalid);
 
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(tokenResult);
@@ -52,8 +52,9 @@ public class PartialUpdateSubmissionByTokenHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
-        result.Status.Should().Be(ResultStatus.NotFound);
-        result.Errors.Should().Contain("Invalid or expired token");
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().HaveCount(1);
+        result.ValidationErrors.First().Should().BeEquivalentTo(SubmissonTokenErrors.ValidationErrors.SubmissionTokenInvalid);
     }
 
     [Fact]
@@ -217,7 +218,7 @@ public class PartialUpdateSubmissionByTokenHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReCaptchaValidationFailed_ReturnsBadRequestResult()
+    public async Task Handle_ReCaptchaValidationFailed_ReturnsInvalidResult()
     {
         // Arrange
         var token = "valid-token";
@@ -246,7 +247,7 @@ public class PartialUpdateSubmissionByTokenHandlerTests
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
             Arg.Any<CancellationToken>())
-            .Returns(Result.Invalid(new ValidationError("reCAPTCHA validation failed")));
+            .Returns(Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed));
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -256,6 +257,7 @@ public class PartialUpdateSubmissionByTokenHandlerTests
         result.IsSuccess.Should().BeFalse();
         result.Status.Should().Be(ResultStatus.Invalid);
         await _sender.DidNotReceive().Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>());
-        result.ValidationErrors.Should().Contain(e => e.ErrorMessage.Contains("reCAPTCHA validation failed"));
+        result.ValidationErrors.Should().HaveCount(1);
+        result.ValidationErrors.First().Should().BeEquivalentTo(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
     }
 }

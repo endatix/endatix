@@ -47,12 +47,7 @@ public class CreateSubmissionHandler(
         var recaptchaResult = await recaptchaService.ValidateReCaptchaAsync(validationContext, cancellationToken);
         if (!recaptchaResult.IsSuccess)
         {
-            return Result.Invalid(new ValidationError(
-                "reCAPTCHA",
-                "reCAPTCHA validation failed",
-                ReCaptchaConstants.ErrorCodes.ERROR_RECAPTCHA_VERIFICATION_FAILED,
-                ValidationSeverity.Error
-            ));
+            return Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
         }
 
         var submission = new Submission(

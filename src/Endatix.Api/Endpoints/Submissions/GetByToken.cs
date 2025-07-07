@@ -3,13 +3,14 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.GetByToken;
+using Errors = Microsoft.AspNetCore.Mvc;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for getting a form submission by ID.
 /// </summary>
-public class GetByToken(IMediator mediator) : Endpoint<GetByTokenRequest, Results<Ok<SubmissionModel>, BadRequest, NotFound>>
+public class GetByToken(IMediator mediator) : Endpoint<GetByTokenRequest, Results<Ok<SubmissionModel>, BadRequest<Errors.ProblemDetails>, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -29,14 +30,14 @@ public class GetByToken(IMediator mediator) : Endpoint<GetByTokenRequest, Result
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<SubmissionModel>, BadRequest, NotFound>> ExecuteAsync(GetByTokenRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<SubmissionModel>, BadRequest<Errors.ProblemDetails>, NotFound>> ExecuteAsync(GetByTokenRequest request, CancellationToken cancellationToken)
     {
         var query = new GetByTokenQuery(request.FormId, request.SubmissionToken!);
         var result = await mediator.Send(query, cancellationToken);
 
         return TypedResultsBuilder
                     .MapResult(result, SubmissionMapper.Map<SubmissionModel>)
-                    .SetTypedResults<Ok<SubmissionModel>, BadRequest, NotFound>();
+                    .SetTypedResults<Ok<SubmissionModel>, BadRequest<Errors.ProblemDetails>, NotFound>();
 
     }
 }

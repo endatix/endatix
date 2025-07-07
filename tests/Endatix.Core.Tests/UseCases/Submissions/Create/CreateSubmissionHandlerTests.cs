@@ -260,7 +260,7 @@ public class CreateSubmissionHandlerTests
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
             Arg.Any<CancellationToken>())
-            .Returns(Result.Invalid(new ValidationError("reCAPTCHA validation failed")));
+            .Returns(Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed));
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -273,6 +273,7 @@ public class CreateSubmissionHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Any(e => e.ErrorMessage == "reCAPTCHA validation failed").Should().BeTrue();
+        result.ValidationErrors.Should().HaveCount(1);
+        result.ValidationErrors.First().Should().BeEquivalentTo(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
     }
 }

@@ -24,7 +24,7 @@ public class PartialUpdateSubmissionByTokenHandler(
         var tokenResult = await tokenService.ResolveTokenAsync(request.Token, cancellationToken);
         if (!tokenResult.IsSuccess)
         {
-            return Result.Invalid(new ValidationError("Token", "Invalid or expired token", "submission_token_invalid", ValidationSeverity.Error));
+            return Result.Invalid(SubmissonTokenErrors.ValidationErrors.SubmissionTokenInvalid);
         }
 
         var submissionId = tokenResult.Value;
@@ -68,7 +68,7 @@ public class PartialUpdateSubmissionByTokenHandler(
 
         if (!recaptchaResult.IsSuccess)
         {
-            return Result.Invalid(new ValidationError("reCAPTCHA validation failed"));
+            return Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
         }
 
         return Result.Success();
