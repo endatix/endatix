@@ -33,8 +33,19 @@ public class VerifyEmail(IMediator mediator) : Endpoint<VerifyEmailRequest, Resu
         var verifyEmailCommand = new VerifyEmailCommand(request.Token);
         var emailVerificationResult = await mediator.Send(verifyEmailCommand, cancellationToken);
 
+        var errorMessage = string.Empty;
+        if (emailVerificationResult.Status == Core.Infrastructure.Result.ResultStatus.Invalid && emailVerificationResult.ValidationErrors.Any())
+        {
+            errorMessage += emailVerificationResult.ValidationErrors.First().ErrorMessage;
+        }
+        else
+        {
+            errorMessage += "Please check the verification token and try again.";
+        }
+
         return TypedResultsBuilder
                 .MapResult(emailVerificationResult, user => user.Id.ToString())
+                .SetErrorMessage(errorMessage)
                 .SetTypedResults<Ok<string>, BadRequest<Errors.ProblemDetails>, NotFound>();
     }
 } 
