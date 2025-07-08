@@ -12,7 +12,7 @@ Endatix provides a flexible webhook system that allows you to send notifications
 
 Webhooks in Endatix are implemented as event handlers that process specific events and send them to configured webhook endpoints. The system supports various types of events, including:
 
-- Form events (`FormCreated`, `FormUpdated`, `FormEnabledStateChanged`)
+- Form events (`FormCreated`, `FormUpdated`, `FormEnabledStateChanged`, `FormDeleted`)
 - Submission events (`SubmissionCompleted`)
 
 ## Implementation Steps
@@ -163,6 +163,12 @@ To test your webhooks:
           "WebHookUrls": [
             "https://webhook.site/your-unique-id"
           ]
+        },
+        "FormDeleted": {
+          "IsEnabled": true,
+          "WebHookUrls": [
+            "https://webhook.site/your-unique-id"
+          ]
         }
       }
     }
@@ -198,6 +204,12 @@ To test your webhooks:
   - This event is triggered only when the value of `IsEnabled` field changes
   - Useful for managing form availability in external systems
 
+- `FormDeletedEvent`: Triggered when a form is deleted
+  - Endpoints that can trigger the event:
+    - `DELETE api/forms/{formId}`
+  - This event is triggered when a form is soft-deleted
+  - Useful for cleaning up related data in external systems or triggering notifications
+
 ### Submission Events
 
 - `SubmissionCompletedEvent`: Triggered when a form submission is completed
@@ -214,8 +226,8 @@ To test your webhooks:
 Each webhook message contains:
 
 - `Id`: The ID of the entity that triggered the event
-- `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_submitted`)
-- `Action`: The action that triggered the event (e.g., `created`, `updated`)
+- `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_deleted`, `form_submitted`)
+- `Action`: The action that triggered the event (e.g., `created`, `updated`, `deleted`)
 - `Payload`: The event data specific to the operation, containing the complete entity data
 
 ## Best Practices

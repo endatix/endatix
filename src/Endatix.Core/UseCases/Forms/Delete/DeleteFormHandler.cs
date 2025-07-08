@@ -1,12 +1,14 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using MediatR;
 
 namespace Endatix.Core.UseCases.Forms.Delete;
 
-public class DeleteFormHandler(IRepository<Form> _repository) : ICommandHandler<DeleteFormCommand, Result<Form>>
+public class DeleteFormHandler(IRepository<Form> _repository, IMediator mediator) : ICommandHandler<DeleteFormCommand, Result<Form>>
 {
     public async Task<Result<Form>> Handle(DeleteFormCommand request, CancellationToken cancellationToken)
     {
@@ -19,6 +21,8 @@ public class DeleteFormHandler(IRepository<Form> _repository) : ICommandHandler<
 
         form.Delete();
         await _repository.UpdateAsync(form, cancellationToken);
+
+        await mediator.Publish(new FormDeletedEvent(form), cancellationToken);
 
         return Result.Success(form);
     }
