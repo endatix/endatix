@@ -17,7 +17,7 @@ public class GetByTokenHandler(ISender sender, ISubmissionTokenService tokenServ
         var tokenResult = await tokenService.ResolveTokenAsync(request.Token, cancellationToken);
         if (!tokenResult.IsSuccess)
         {
-            return Result.NotFound("Invalid or expired token");
+            return Result.Invalid(SubmissonTokenErrors.ValidationErrors.SubmissionTokenInvalid);
         }
 
         var submissionId = tokenResult.Value;

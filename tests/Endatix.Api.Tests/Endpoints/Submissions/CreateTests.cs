@@ -5,12 +5,15 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.Create;
+using Errors = Microsoft.AspNetCore.Mvc;
+using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
 public class CreateTests
 {
     private readonly IMediator _mediator;
+
     private readonly Create _endpoint;
 
     public CreateTests()
@@ -26,7 +29,7 @@ public class CreateTests
         var formId = 1L;
         var request = new CreateSubmissionRequest { FormId = formId };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -34,7 +37,7 @@ public class CreateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
+        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
         badRequestResult.Should().NotBeNull();
     }
 
@@ -44,15 +47,15 @@ public class CreateTests
         // Arrange
         var formId = 1L;
         var jsonData = "{ }";
-        var request = new CreateSubmissionRequest 
-        { 
+        var request = new CreateSubmissionRequest
+        {
             FormId = formId,
             JsonData = jsonData,
             IsComplete = true,
             CurrentPage = 2,
             Metadata = "test metadata"
         };
-        
+
         var submission = new Submission(SampleData.TENANT_ID, jsonData, formId, 2) { Id = 1 };
         submission.UpdateToken(new Token(1));
         var result = Result<Submission>.Created(submission);
@@ -82,10 +85,11 @@ public class CreateTests
             IsComplete = true,
             CurrentPage = 2,
             JsonData = """{ "field": "value" }""",
-            Metadata = """{ "key", "value" }"""
+            Metadata = """{ "key", "value" }""",
+            ReCaptchaToken = "recaptcha-token"
         };
         var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
-        
+
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -103,5 +107,25 @@ public class CreateTests
             ),
             Arg.Any<CancellationToken>()
         );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ReCaptchaValidationFailed_ReturnsBadRequest()
+    {
+        // Arrange
+        var request = new CreateSubmissionRequest { FormId = 1, ReCaptchaToken = "invalid-token" };
+        var result = Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
+
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        // Assert
+        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
+        badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value!.Detail.Should().Be(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED);
+        badRequestResult!.Value!.Extensions["errorCode"].Should().Be(ReCaptchaErrors.ErrorCodes.RECAPTCHA_VERIFICATION_FAILED);
     }
 }

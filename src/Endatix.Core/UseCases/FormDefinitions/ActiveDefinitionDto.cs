@@ -17,7 +17,7 @@ public class ActiveDefinitionDto
         ThemeJsonData = themeJsonData;
         ModifiedAt = formDefinition.ModifiedAt;
         CreatedAt = formDefinition.CreatedAt;
-        CustomQuestions = customQuestions ?? Enumerable.Empty<string>();
+        CustomQuestions = customQuestions ?? [];
     }
 
     /// <summary>
@@ -29,6 +29,11 @@ public class ActiveDefinitionDto
     /// The identifier of the form to which this definition belongs.
     /// </summary>
     public long FormId { get; set; }
+
+    /// <summary>
+    /// Indicates whether reCAPTCHA is enabled for this form definition.
+    /// </summary>
+    public bool? RequiresReCaptcha { get; init; }
 
     /// <summary>
     /// Indicates whether this form definition is in draft status.
@@ -60,4 +65,6 @@ public class ActiveDefinitionDto
     /// The list of custom questions' JSON data associated with this form definition's tenant.
     /// </summary>
     public IEnumerable<string> CustomQuestions { get; set; }
+
+
 }

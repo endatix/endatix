@@ -45,4 +45,9 @@ public class FormDefinitionModel
     /// The list of custom questions' JSON data associated with this form definition.
     /// </summary>
     public IEnumerable<string>? CustomQuestions { get; set; }
+
+    /// <summary>
+    /// Indicates if reCAPTCHA is enabled for this form definition.
+    /// </summary>
+    public bool? RequiresReCaptcha { get; set; }
 }

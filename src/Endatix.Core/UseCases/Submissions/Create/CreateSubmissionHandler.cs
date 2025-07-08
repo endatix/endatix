@@ -7,6 +7,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
@@ -14,6 +15,7 @@ public class CreateSubmissionHandler(
     IRepository<Submission> submissionRepository,
     IFormsRepository formRepository,
     ISubmissionTokenService tokenService,
+    IReCaptchaPolicyService recaptchaService,
     IMediator mediator
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
@@ -34,6 +36,18 @@ public class CreateSubmissionHandler(
         if (formWithActiveDefinition?.ActiveDefinition is null)
         {
             return Result.NotFound("Form not found. Cannot create a submission");
+        }
+
+        var validationContext = new SubmissionVerificationContext(
+            formWithActiveDefinition,
+            request.IsComplete ?? DEFAULT_IS_COMPLETE,
+            request.JsonData,
+            request.ReCaptchaToken
+        );
+        var recaptchaResult = await recaptchaService.ValidateReCaptchaAsync(validationContext, cancellationToken);
+        if (!recaptchaResult.IsSuccess)
+        {
+            return Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
         }
 
         var submission = new Submission(

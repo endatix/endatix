@@ -4,12 +4,15 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Core.UseCases.FormDefinitions.GetActive;
 
 public class GetActiveFormDefinitionHandler(
     IFormsRepository formRepository,
-    IRepository<CustomQuestion> customQuestionsRepository) 
+    IRepository<CustomQuestion> customQuestionsRepository,
+    IReCaptchaPolicyService reCaptchaPolicyService
+    )
     : IQueryHandler<GetActiveFormDefinitionQuery, Result<ActiveDefinitionDto>>
 {
     public async Task<Result<ActiveDefinitionDto>> Handle(GetActiveFormDefinitionQuery request, CancellationToken cancellationToken)
@@ -30,10 +33,12 @@ public class GetActiveFormDefinitionHandler(
 
         var customQuestionsJson = customQuestions?.Select(q => q.JsonData);
 
-        var activeDefinitionDto = new ActiveDefinitionDto(
-            formWithActiveDefinition.ActiveDefinition,
-            formWithActiveDefinition.Theme?.JsonData,
-            customQuestionsJson);
+        var activeDefinitionDto = new ActiveDefinitionDto(formWithActiveDefinition.ActiveDefinition)
+        {
+            ThemeJsonData = formWithActiveDefinition.Theme?.JsonData,
+            RequiresReCaptcha = reCaptchaPolicyService.RequiresReCaptcha(formWithActiveDefinition),
+            CustomQuestions = customQuestionsJson ?? []
+        };
 
         return Result.Success(activeDefinitionDto);
     }

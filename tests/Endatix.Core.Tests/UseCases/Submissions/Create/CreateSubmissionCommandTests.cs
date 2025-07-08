@@ -13,7 +13,8 @@ public class CreateSubmissionCommandTests
             JsonData: null,
             Metadata: null,
             CurrentPage: null,
-            IsComplete: null
+            IsComplete: null,
+            ReCaptchaToken: null
         );
 
         // Assert
@@ -30,9 +31,9 @@ public class CreateSubmissionCommandTests
         var metadata = "{\"meta\":\"data\"}";
         int? currentPage = 3;
         bool? isComplete = true;
-
+        var reCaptchaToken = "test-token";
         // Act
-        var command = new CreateSubmissionCommand(formId, jsonData, metadata, currentPage, isComplete);
+        var command = new CreateSubmissionCommand(formId, jsonData, metadata, currentPage, isComplete, reCaptchaToken);
 
         // Assert
         Assert.Equal(formId, command.FormId);
@@ -40,6 +41,7 @@ public class CreateSubmissionCommandTests
         Assert.Equal(metadata, command.Metadata);
         Assert.Equal(currentPage, command.CurrentPage);
         Assert.Equal(isComplete, command.IsComplete);
+        Assert.Equal(reCaptchaToken, command.ReCaptchaToken);
     }
 
     [Fact]
@@ -51,7 +53,8 @@ public class CreateSubmissionCommandTests
             JsonData: null,
             Metadata: null,
             CurrentPage: null,
-            IsComplete: null
+            IsComplete: null,
+            ReCaptchaToken: null
         );
 
         // Assert

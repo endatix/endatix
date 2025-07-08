@@ -1,15 +1,16 @@
-using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
+using Errors = Microsoft.AspNetCore.Mvc;
+using FastEndpoints;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for partially updating a form submission by token.
 /// </summary>
-public class PartialUpdateByToken(IMediator mediator) : Endpoint<PartialUpdateSubmissionByTokenRequest, Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest, NotFound>>
+public class PartialUpdateByToken(IMediator mediator) : Endpoint<PartialUpdateSubmissionByTokenRequest, Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -29,7 +30,7 @@ public class PartialUpdateByToken(IMediator mediator) : Endpoint<PartialUpdateSu
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest, NotFound>> ExecuteAsync(PartialUpdateSubmissionByTokenRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>> ExecuteAsync(PartialUpdateSubmissionByTokenRequest request, CancellationToken cancellationToken)
     {
         var updateSubmissionCommand = new PartialUpdateSubmissionByTokenCommand(
             request.SubmissionToken,
@@ -37,13 +38,14 @@ public class PartialUpdateByToken(IMediator mediator) : Endpoint<PartialUpdateSu
             request.IsComplete,
             request.CurrentPage,
             request.JsonData,
-            request.Metadata
+            request.Metadata,
+            request.ReCaptchaToken
         );
 
         var result = await mediator.Send(updateSubmissionCommand, cancellationToken);
 
         return TypedResultsBuilder
             .MapResult(result, SubmissionMapper.Map<PartialUpdateSubmissionByTokenResponse>)
-            .SetTypedResults<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest, NotFound>();
+            .SetTypedResults<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>();
     }
-} 
+}

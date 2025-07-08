@@ -5,6 +5,9 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
+using Errors = Microsoft.AspNetCore.Mvc;
+using Endatix.Core.Features.ReCaptcha;
+using Endatix.Core.Abstractions.Submissions;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
@@ -26,8 +29,8 @@ public class PartialUpdateByTokenTests
         var formId = 1L;
         var submissionToken = "invalid-token";
         var request = new PartialUpdateSubmissionByTokenRequest { FormId = formId, SubmissionToken = submissionToken };
-        var result = Result.Invalid();
-        
+        var result = Result.Invalid(SubmissonTokenErrors.ValidationErrors.SubmissionTokenInvalid);
+
         _mediator.Send(Arg.Any<PartialUpdateSubmissionByTokenCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -35,8 +38,10 @@ public class PartialUpdateByTokenTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
+        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
         badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value!.Detail.Should().Be(SubmissonTokenErrors.Messages.SUBMISSION_TOKEN_INVALID);
+        badRequestResult!.Value!.Extensions["errorCode"].Should().Be(SubmissonTokenErrors.ErrorCodes.SUBMISSION_TOKEN_INVALID);
     }
 
     [Fact]
@@ -60,6 +65,29 @@ public class PartialUpdateByTokenTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_ReCaptchaValidationFailed_ReturnsBadRequest()
+    {
+        // Arrange
+        var formId = 1L;
+        var submissionToken = "valid-token";
+        var reCaptchaToken = "invalid-token";   
+        var request = new PartialUpdateSubmissionByTokenRequest { FormId = formId, SubmissionToken = submissionToken, ReCaptchaToken = reCaptchaToken };
+        var result = Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
+
+        _mediator.Send(Arg.Any<PartialUpdateSubmissionByTokenCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        // Assert
+        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
+        badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value!.Detail.Should().Be(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED);
+        badRequestResult!.Value!.Extensions["errorCode"].Should().Be(ReCaptchaErrors.ErrorCodes.RECAPTCHA_VERIFICATION_FAILED);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ValidRequest_ReturnsOkWithUpdatedSubmission()
     {
         // Arrange
@@ -67,16 +95,16 @@ public class PartialUpdateByTokenTests
         var formDefinitionId = 2L;
         var submissionToken = "valid-token";
         var jsonData = "{ }";
-        var request = new PartialUpdateSubmissionByTokenRequest 
-        { 
-            FormId = formId, 
+        var request = new PartialUpdateSubmissionByTokenRequest
+        {
+            FormId = formId,
             SubmissionToken = submissionToken,
             JsonData = jsonData,
             IsComplete = true,
             CurrentPage = 2,
             Metadata = "test metadata"
         };
-        
+
         var submission = new Submission(SampleData.TENANT_ID, jsonData, formId, formDefinitionId) { Id = 1 };
         submission.UpdateToken(new Token(1));
         var result = Result.Success(submission);
@@ -107,11 +135,12 @@ public class PartialUpdateByTokenTests
             IsComplete = true,
             CurrentPage = 2,
             JsonData = """{ "field": "value" }""",
-            Metadata = """{ "key", "value" }"""
+            Metadata = """{ "key", "value" }""",
+            ReCaptchaToken = "recaptcha-token"
         };
         var formDefinitionId = 456;
         var result = Result.Success(new Submission(SampleData.TENANT_ID, request.JsonData, request.FormId, formDefinitionId));
-        
+
         _mediator.Send(Arg.Any<PartialUpdateSubmissionByTokenCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 

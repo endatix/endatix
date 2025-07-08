@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -11,13 +12,15 @@ public class GetActiveFormDefinitionHandlerTests
 {
     private readonly IFormsRepository _formsRepository;
     private readonly IRepository<CustomQuestion> _customQuestionsRepository;
+    private readonly IReCaptchaPolicyService _recaptchaPolicyService;
     private readonly GetActiveFormDefinitionHandler _handler;
 
     public GetActiveFormDefinitionHandlerTests()
     {
         _formsRepository = Substitute.For<IFormsRepository>();
         _customQuestionsRepository = Substitute.For<IRepository<CustomQuestion>>();
-        _handler = new GetActiveFormDefinitionHandler(_formsRepository, _customQuestionsRepository);
+        _recaptchaPolicyService = Substitute.For<IReCaptchaPolicyService>();
+        _handler = new GetActiveFormDefinitionHandler(_formsRepository, _customQuestionsRepository, _recaptchaPolicyService);
     }
 
     [Fact]

@@ -5,6 +5,8 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.GetByToken;
+using Errors = Microsoft.AspNetCore.Mvc;
+using Endatix.Core.Abstractions.Submissions;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
@@ -26,7 +28,7 @@ public class GetByTokenTests
         var formId = 1L;
         var submissionToken = "invalid-token";
         var request = new GetByTokenRequest { FormId = formId, SubmissionToken = submissionToken };
-        var result = Result.Invalid();
+        var result = Result.Invalid(SubmissonTokenErrors.ValidationErrors.SubmissionTokenInvalid);
 
         _mediator.Send(Arg.Any<GetByTokenQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -35,8 +37,11 @@ public class GetByTokenTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
+        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
         badRequestResult.Should().NotBeNull();
+        badRequestResult!.Value.Should().NotBeNull();
+        badRequestResult!.Value!.Detail.Should().Be(SubmissonTokenErrors.Messages.SUBMISSION_TOKEN_INVALID);
+        badRequestResult!.Value!.Extensions["errorCode"].Should().Be(SubmissonTokenErrors.ErrorCodes.SUBMISSION_TOKEN_INVALID);
     }
 
     [Fact]
