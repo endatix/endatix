@@ -1,5 +1,4 @@
 using FastEndpoints;
-using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Api.Endpoints.MyAccount;
 
@@ -9,6 +8,13 @@ public class UserInfo : EndpointWithoutRequest<UserInfoResponse>
     {
         Get("/my-account/user-info");
         AllowAnonymous();
+        Summary(s =>
+        {
+            s.Summary = "Get current user information";
+            s.Description = "Returns the current authenticated user's claims and information";
+            s.Responses[200] = "User information retrieved successfully";
+            s.Responses[401] = "User is not authenticated";
+        });
     }
 
     public override Task<UserInfoResponse> ExecuteAsync(CancellationToken cancellationToken)

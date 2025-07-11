@@ -1,15 +1,15 @@
-using System;
 using Microsoft.Extensions.DependencyInjection;
-using System.Linq;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Ardalis.GuardClauses;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.Extensions.Logging;
-using Endatix.Framework.Hosting;
+using Microsoft.AspNetCore.Authentication;
+using System.Text;
+using Microsoft.AspNetCore.Authorization;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Endatix.Hosting.Builders;
 
@@ -146,15 +146,52 @@ public class EndatixSecurityBuilder
 
         // Register JWT-specific services from Endatix.Infrastructure
         services.AddEndatixJwtServices(configuration);
-
+        services.AddTransient<IClaimsTransformation, JwtClaimsTransformer>();
         var jwtSettings = configuration.GetRequiredSection(JwtOptions.SECTION_NAME).Get<JwtOptions>();
         Guard.Against.Null(jwtSettings, nameof(jwtSettings), "JWT settings are required for authentication");
 
         var isDevelopment = appEnvironment?.IsDevelopment() ?? false;
 
-        services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
+        var authenticationBuilder = services
+            .AddAuthentication("MultiScheme");
+
+        // Add a policy scheme that can route to the correct JWT scheme
+        authenticationBuilder.AddPolicyScheme("MultiScheme", "Multi Scheme", options =>
+        {
+            options.ForwardDefaultSelector = context =>
+            {
+                var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+                if (authHeader?.StartsWith("Bearer ") == true)
+                {
+                    var token = authHeader.Substring("Bearer ".Length).Trim();
+                    
+                    // Parse the token to check the issuer
+                    try
+                    {
+                        var handler = new JwtSecurityTokenHandler();
+                        var jsonToken = handler.ReadJwtToken(token);
+                        var issuer = jsonToken.Issuer;
+                        
+                        // Route based on issuer
+                        if (issuer?.Contains("localhost:8080/realms/endatix") == true)
+                        {
+                            return AuthSchemes.Keycloak;
+                        }
+                        else if (issuer == "endatix-api")
+                        {
+                            return AuthSchemes.Endatix;
+                        }
+                    }
+                    catch
+                    {
+                        // If we can't parse the token, try Endatix first
+                    }
+                }
+                return AuthSchemes.Endatix; // Default to Endatix
+            };
+        });
+
+        authenticationBuilder.AddJwtBearer(AuthSchemes.Endatix, options =>
             {
                 // Apply default configuration
                 options.RequireHttpsMetadata = !isDevelopment;
@@ -173,6 +210,22 @@ public class EndatixSecurityBuilder
 
                 // Apply custom configuration if provided
                 configure?.Invoke(options);
+            });
+
+        authenticationBuilder.AddJwtBearer(AuthSchemes.Keycloak, options =>
+            {
+                options.RequireHttpsMetadata = !isDevelopment;
+                options.Audience = "account";
+                options.MetadataAddress = "http://localhost:8080/realms/endatix/.well-known/openid-configuration";
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidIssuer = "http://localhost:8080/realms/endatix",
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ValidateLifetime = false,
+                    ValidateIssuerSigningKey = false,
+                };
+                options.MapInboundClaims = true;
             });
 
         LogSetupInfo("JWT authentication configured successfully");
@@ -230,7 +283,17 @@ public class EndatixSecurityBuilder
     {
         LogSetupInfo("Adding default authorization policies");
 
-        _parentBuilder.Services.AddAuthorization();
+        _parentBuilder.Services.AddAuthorization(
+            options =>
+            {
+                // Create a policy that uses the MultiScheme
+                var defaultEndatixPolicy = new AuthorizationPolicyBuilder("MultiScheme")
+                    .RequireAuthenticatedUser()
+                    .Build();
+
+                options.DefaultPolicy = defaultEndatixPolicy;
+            }
+        );
 
         LogSetupInfo("Default authorization policies added");
         return this;
@@ -277,7 +340,7 @@ public class EndatixSecurityBuilder
     /// </remarks>
     /// <param name="configure">The action to configure authorization options.</param>
     /// <returns>The security builder for chaining.</returns>
-    public EndatixSecurityBuilder AddAuthorization(Action<Microsoft.AspNetCore.Authorization.AuthorizationOptions> configure)
+    public EndatixSecurityBuilder AddAuthorization(Action<AuthorizationOptions> configure)
     {
         LogSetupInfo("Adding custom authorization policies");
 
