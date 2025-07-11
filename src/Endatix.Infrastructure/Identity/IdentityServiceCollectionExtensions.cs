@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.Infrastructure.Identity;
 
 /// <summary>
-/// Extension methods for configuring identity services in the application.
+/// Extension methods for configuring identity services in the dependency injection container.
 /// </summary>
 public static class IdentityServiceCollectionExtensions
 {
@@ -79,12 +79,15 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserContext, UserContext>();
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
+        
+        // Register auth scheme selector for JWT token routing
+        services.AddSingleton<IAuthSchemeSelector, DefaultAuthSchemeSelector>();
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()
-                .BindConfiguration(EndatixOptionsBase.GetSectionName<EmailVerificationOptions>())
-                .ValidateDataAnnotations()
-                .ValidateOnStart();
+            .BindConfiguration(EndatixOptionsBase.GetSectionName<EmailVerificationOptions>())
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         // Register EmailVerificationToken repository to use AppIdentityDbContext
         services.AddScoped<IRepository<EmailVerificationToken>, EmailVerificationTokenRepository>();
