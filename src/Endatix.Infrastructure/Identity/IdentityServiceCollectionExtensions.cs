@@ -80,8 +80,8 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
         
-        // Register JWT token inspector for routing
-        services.AddSingleton<IJwtTokenInspector, LightweightJwtTokenInspector>();
+        // Register auth scheme selector for JWT token routing
+        services.AddSingleton<IAuthSchemeSelector, DefaultAuthSchemeSelector>();
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()

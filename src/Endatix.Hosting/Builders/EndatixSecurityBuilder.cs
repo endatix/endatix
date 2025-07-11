@@ -162,20 +162,15 @@ public class EndatixSecurityBuilder
                 if (authHeader?.StartsWith("Bearer ") == true)
                 {
                     var token = authHeader["Bearer ".Length..].Trim();
-                    var tokenInspector = context.RequestServices.GetService<IJwtTokenInspector>();
-                    if (tokenInspector != null)
+                    
+                    var authSchemeSelector = context.RequestServices.GetService<IAuthSchemeSelector>();
+                    if (authSchemeSelector != null)
                     {
-                        var issuer = tokenInspector.GetIssuer(token);
-                        
-                        return issuer switch
-                        {
-                            "endatix-api" => AuthSchemes.Endatix,
-                            string iss when iss?.Contains("localhost:8080/realms/endatix") == true => AuthSchemes.Keycloak,
-                            _ => AuthSchemes.Endatix
-                        };
+                        return authSchemeSelector.SelectScheme(token);
                     }
                 }
-                return AuthSchemes.Endatix; // Default to Endatix
+                
+                return AuthSchemes.Endatix;
             };
         });
 
