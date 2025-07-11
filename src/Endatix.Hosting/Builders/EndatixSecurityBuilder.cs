@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authentication;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
-using System.IdentityModel.Tokens.Jwt;
 
 namespace Endatix.Hosting.Builders;
 
@@ -155,7 +154,6 @@ public class EndatixSecurityBuilder
         var authenticationBuilder = services
             .AddAuthentication("MultiScheme");
 
-        // Add a policy scheme that can route to the correct JWT scheme
         authenticationBuilder.AddPolicyScheme("MultiScheme", "Multi Scheme", options =>
         {
             options.ForwardDefaultSelector = context =>
@@ -163,28 +161,18 @@ public class EndatixSecurityBuilder
                 var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
                 if (authHeader?.StartsWith("Bearer ") == true)
                 {
-                    var token = authHeader.Substring("Bearer ".Length).Trim();
-                    
-                    // Parse the token to check the issuer
-                    try
+                    var token = authHeader["Bearer ".Length..].Trim();
+                    var tokenInspector = context.RequestServices.GetService<IJwtTokenInspector>();
+                    if (tokenInspector != null)
                     {
-                        var handler = new JwtSecurityTokenHandler();
-                        var jsonToken = handler.ReadJwtToken(token);
-                        var issuer = jsonToken.Issuer;
+                        var issuer = tokenInspector.GetIssuer(token);
                         
-                        // Route based on issuer
-                        if (issuer?.Contains("localhost:8080/realms/endatix") == true)
+                        return issuer switch
                         {
-                            return AuthSchemes.Keycloak;
-                        }
-                        else if (issuer == "endatix-api")
-                        {
-                            return AuthSchemes.Endatix;
-                        }
-                    }
-                    catch
-                    {
-                        // If we can't parse the token, try Endatix first
+                            "endatix-api" => AuthSchemes.Endatix,
+                            string iss when iss?.Contains("localhost:8080/realms/endatix") == true => AuthSchemes.Keycloak,
+                            _ => AuthSchemes.Endatix
+                        };
                     }
                 }
                 return AuthSchemes.Endatix; // Default to Endatix

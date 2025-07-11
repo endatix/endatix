@@ -75,6 +75,23 @@ internal sealed class JwtTokenService : IUserTokenService
 
     public async Task<Result<long>> ValidateAccessTokenAsync(string accessToken, bool validateLifetime = true)
     {
+        var handler = new JwtSecurityTokenHandler();
+        var jsonToken = handler.ReadJwtToken(accessToken);
+        var issuer = jsonToken.Issuer;
+
+        if (issuer.Contains("localhost:8080/realms/endatix"))
+        {
+            // This means the token is from Keycloak - skip complete TokenValidation for now
+            // TODO: Implement proper Keycloak validation using JWKS token inspection and validation
+            var userIdClaim = jsonToken.Subject;
+            if (long.TryParse(userIdClaim, out var keycloakUserId))
+            {
+                return Result.Success(keycloakUserId);
+            }
+            
+            return Result.Invalid(new ValidationError("Invalid user ID"));
+        }
+
         var validationParameters = new TokenValidationParameters
         {
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey)),
