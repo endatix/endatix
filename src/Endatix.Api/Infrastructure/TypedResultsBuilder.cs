@@ -167,6 +167,23 @@ where TResult2 : HttpResults.IResult
     }
 
     /// <summary>
+    /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok and ProblemDetails.
+    /// </summary>
+    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
+    /// <returns>A Results instance for Ok and ProblemDetails.</returns>
+    public static implicit operator Results<Ok<TData>, ProblemHttpResult>(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper)
+    {
+        return resultMapper.SourceResult.Status switch
+        {
+            ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
+            ResultStatus.Invalid => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
+            ResultStatus.NotFound => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
+            ResultStatus.Error => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
+            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
+        };
+    }
+
+    /// <summary>
     /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok and NotFound.
     /// </summary>
     /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
@@ -213,7 +230,7 @@ where TResult3 : HttpResults.IResult
     /// <param name="errorMessage">Optional error message to set.</param>
     protected internal TypedResultsBuilder(Result<TData> sourceResult, string? errorMessage = null) : base(sourceResult)
     {
-         ErrorMessage = errorMessage;
+        ErrorMessage = errorMessage;
     }
 
     /// <summary>

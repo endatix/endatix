@@ -74,6 +74,31 @@ public static partial class ResultExtensions
         return TypedResults.BadRequest(problemDetails);
     }
 
+    public static ProblemHttpResult ToProblem(this AppDomain.IResult result, string title)
+    {
+        var status = result.Status switch
+        {
+            ResultStatus.Invalid => StatusCodes.Status400BadRequest,
+            ResultStatus.NotFound => StatusCodes.Status404NotFound,
+            ResultStatus.Error => StatusCodes.Status500InternalServerError,
+            _ => StatusCodes.Status500InternalServerError
+        };
+
+        var details = new StringBuilder("Next error(s) occurred:");
+
+        foreach (var error in result.Errors)
+        {
+            details.Append("* ").Append(error).AppendLine();
+        }
+
+        foreach (var error in result.ValidationErrors)
+        {
+            details.Append("* ").Append(error.ErrorMessage).AppendLine();
+        }
+
+        return TypedResults.Problem(title, details.ToString(), status);
+    }
+
     /// <summary>
     /// Convert a <see cref="Result{TEntity}"/> to an instance of <c>Microsoft.AspNetCore.Http.HttpResults.Results&lt;,...,&gt;</c>
     /// </summary>
