@@ -12,7 +12,7 @@ public class EfUnitOfWorkTests
 {
     private readonly AppDbContext _appDbContext;
     private readonly IDbContextTransaction _dbTransaction;
-    private readonly EfUnitOfWork _sut;
+    private readonly AppUnitOfWork _sut;
 
     public EfUnitOfWorkTests()
     {
@@ -22,7 +22,7 @@ public class EfUnitOfWorkTests
         var database = Substitute.For<DatabaseFacade>(_appDbContext);
         _appDbContext.Database.Returns(database);
 
-        _sut = new EfUnitOfWork(_appDbContext);
+        _sut = new AppUnitOfWork(_appDbContext);
     }
 
     [Fact]
