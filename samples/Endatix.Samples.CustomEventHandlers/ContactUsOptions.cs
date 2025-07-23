@@ -13,20 +13,20 @@ public class ContactUsOptions
     public const string CONFIG_SECTION_KEY = "Email:ContactUsForm";
 
     /// <summary>
-    /// The "Welcome email" template Id that will be used for sending the Welcome email
+    /// The template Id that will be used for sending the Contact Us Response email
     /// </summary>
     [Required]
-    public required string WelcomeEmailTemplateId { get; set; }
+    public required string ContactUsResponseTemplateId { get; set; }
 
     /// <summary>
-    /// The email address on behalf of which "Welcome email" will be sent
+    /// The email address from where the system email notifications will be sent on successful Contact Us form submission
     /// </summary>
     [EmailAddress]
     [Required]
-    public required string WelcomeEmailFrom { get; set; }
+    public required string NotificationEmailFrom { get; set; }
 
     /// <summary>
-    /// The email address where the system email notifications will be sent on successful contact us form submission
+    /// The email address to where the system email notifications will be sent on successful Contact Us form submission
     /// </summary>
     [EmailAddress]
     [Required]

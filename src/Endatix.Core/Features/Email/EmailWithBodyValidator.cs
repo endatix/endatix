@@ -9,6 +9,13 @@ public class EmailWithBodyValidator : AbstractValidator<EmailWithBody>
     {
         Include(new BaseEmailModelValidator());
 
+        RuleFor(x => x.From)
+            .NotEmpty()
+            .EmailAddress();
+
+        RuleFor(x => x.Subject)
+           .NotEmpty();
+
         RuleFor(x => x.HtmlBody)
             .NotEmpty();
 
