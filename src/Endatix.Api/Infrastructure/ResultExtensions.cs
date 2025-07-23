@@ -74,7 +74,7 @@ public static partial class ResultExtensions
         return TypedResults.BadRequest(problemDetails);
     }
 
-    public static ProblemHttpResult ToProblem(this AppDomain.IResult result, string title)
+    public static ProblemHttpResult ToProblem(this AppDomain.IResult result, string? title = null)
     {
         var status = result.Status switch
         {
@@ -96,7 +96,7 @@ public static partial class ResultExtensions
             details.Append("* ").Append(error.ErrorMessage).AppendLine();
         }
 
-        return TypedResults.Problem(title, details.ToString(), status);
+        return TypedResults.Problem(title ?? "Something went wrong.", details.ToString(), status);
     }
 
     /// <summary>

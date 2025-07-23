@@ -207,6 +207,23 @@ where TResult2 : HttpResults.IResult
             _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
         };
     }
+
+    /// <summary>
+    /// Implicitly converts the TypedResultsBuilder to a Results instance for Created and ProblemHttpResult.
+    /// </summary>
+    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
+    /// <returns>A Results instance for Created and ProblemHttpResult.</returns>
+    public static implicit operator Results<Created<TData>, ProblemHttpResult>(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper)
+    {
+        return resultMapper.SourceResult.Status switch
+        {
+            ResultStatus.Created => TypedResults.Created(default(string), resultMapper.SourceResult.Value),
+            ResultStatus.Invalid => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
+            ResultStatus.NotFound => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
+            ResultStatus.Error => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
+            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
+        };
+    }
 }
 
 
