@@ -92,7 +92,7 @@ public class MailgunEmailSender : IEmailSender, IHasConfigSection<MailgunSetting
     {
         Guard.Against.NullOrWhiteSpace(email.To);
 
-        var httpClient = _factory.CreateClient("github");
+        var httpClient = _factory.CreateClient();
         var authToken = Encoding.ASCII.GetBytes($"api:{_settings.ApiKey}");
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(authToken));
 
