@@ -17,7 +17,9 @@ public static class DbContextModelBuilderExtensions
     /// <param name="dbContext">The database context to get the tenant id from.</param>
     public static void ApplyEndatixQueryFilters(this ModelBuilder builder, ITenantDbContext dbContext)
     {
-
+        var getTenantIdMethod = dbContext.GetType().GetMethod(nameof(ITenantDbContext.GetTenantId));
+        var currentTenantId = Expression.Call(Expression.Constant(dbContext), getTenantIdMethod!);
+        
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             var parameter = Expression.Parameter(entityType.ClrType, "e");
@@ -34,7 +36,7 @@ public static class DbContextModelBuilderExtensions
             // Add tenant filter for TenantEntity descendants
             if (typeof(ITenantOwned).IsAssignableFrom(entityType.ClrType))
             {
-                var currentTenantId = Expression.Call(Expression.Constant(dbContext), dbContext.GetType().GetMethod(nameof(ITenantDbContext.GetTenantId))!);
+
                 var currentTenantIdIsZero = Expression.Equal(Expression.Convert(currentTenantId, typeof(long)), Expression.Constant(0L));
                 var tenantIdProperty = Expression.Property(parameter, "TenantId");
                 var tenantIdEquals = Expression.Equal(tenantIdProperty, Expression.Convert(currentTenantId, typeof(long)));
