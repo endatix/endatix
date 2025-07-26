@@ -26,10 +26,4 @@ public class MailgunSettings
     /// </summary>
     [Required]
     public string Domain { get; set; }
-
-    /// <summary>
-    /// The "Welcome email" template that will be used for sending the Welcome email
-    /// </summary>
-    [Required]
-    public string WelcomeEmailTemplateName { get; set; }
 }
