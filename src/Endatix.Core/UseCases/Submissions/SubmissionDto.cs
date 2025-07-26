@@ -17,7 +17,8 @@ namespace Endatix.Core.UseCases.Submissions;
 /// <param name="CreatedAt">The date and time when the submission was created.</param>
 /// <param name="Metadata">Additional metadata related to the submission.
 /// <param name="Status">The status of the submission.</param>
-public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object> JsonData, long FormId, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt, string? Metadata, string Status)
+/// <param name="SubmittedBy">The unique identifier of the user who created the submission, if applicable.</param>
+public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object> JsonData, long FormId, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt, string? Metadata, string Status, long? SubmittedBy)
 {
     public long Id { get; init; } = Id;
     public bool IsComplete { get; init; } = IsComplete;
@@ -29,6 +30,7 @@ public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object>
     public DateTime? CompletedAt { get; init; } = CompletedAt;
     public DateTime CreatedAt { get; init; } = CreatedAt;
     public string Status { get; init; } = Status;
+    public long? SubmittedBy { get; init; } = SubmittedBy;
 
     public static SubmissionDto FromSubmission(Submission submission)
     {
@@ -48,7 +50,8 @@ public record SubmissionDto(long Id, bool IsComplete, Dictionary<string, object>
                 CompletedAt: submission.CompletedAt,
                 CreatedAt: submission.CreatedAt,
                 Metadata: submission.Metadata,
-                Status: submission.Status.Code
+                Status: submission.Status.Code,
+                SubmittedBy: submission.SubmittedBy
             );
         }
         catch (JsonException ex)

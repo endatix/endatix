@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
@@ -17,6 +18,7 @@ public class CreateSubmissionHandlerTests
     private readonly IFormsRepository _formsRepository;
     private readonly ISubmissionTokenService _submissionTokenService;
     private readonly IReCaptchaPolicyService _recaptchaService;
+    private readonly IUserContext _userContext;
     private readonly IMediator _mediator;
     private readonly CreateSubmissionHandler _handler;
 
@@ -26,12 +28,14 @@ public class CreateSubmissionHandlerTests
         _formsRepository = Substitute.For<IFormsRepository>();
         _submissionTokenService = Substitute.For<ISubmissionTokenService>();
         _recaptchaService = Substitute.For<IReCaptchaPolicyService>();
+        _userContext = Substitute.For<IUserContext>();
         _mediator = Substitute.For<IMediator>();
         _handler = new CreateSubmissionHandler(
             _submissionsRepository,
             _formsRepository,
             _submissionTokenService,
             _recaptchaService,
+            _userContext,
             _mediator);
     }
 
@@ -275,5 +279,108 @@ public class CreateSubmissionHandlerTests
         result.Status.Should().Be(ResultStatus.Invalid);
         result.ValidationErrors.Should().HaveCount(1);
         result.ValidationErrors.First().Should().BeEquivalentTo(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
+    }
+
+    [Fact]
+    public async Task Handle_AuthenticatedUser_SetsSubmittedByToUserId()
+    {
+        // Arrange
+        const long userId = 123;
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ \"field\": \"value\" }",
+            IsComplete: true,
+            CurrentPage: 3,
+            Metadata: "{ \"meta\": \"data\" }",
+            ReCaptchaToken: "test-token"
+        );
+
+        _userContext.GetCurrentUserId().Returns(userId);
+
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.Should().NotBeNull();
+
+        await _submissionsRepository.Received(1).AddAsync(
+            Arg.Is<Submission>(s =>
+                s.FormId == request.FormId &&
+                s.FormDefinitionId == formDefinition.Id &&
+                s.JsonData == request.JsonData &&
+                s.IsComplete == request.IsComplete &&
+                s.CurrentPage == request.CurrentPage &&
+                s.Metadata == request.Metadata &&
+                s.SubmittedBy == userId
+            ),
+            Arg.Any<CancellationToken>()
+        );
+    }
+
+    [Fact]
+    public async Task Handle_AnonymousUser_SetsSubmittedByToNull()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ \"field\": \"value\" }",
+            IsComplete: true,
+            CurrentPage: 3,
+            Metadata: "{ \"meta\": \"data\" }",
+            ReCaptchaToken: "test-token"
+        );
+
+        _userContext.GetCurrentUserId().Returns((long?)null);
+
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.Should().NotBeNull();
+
+        await _submissionsRepository.Received(1).AddAsync(
+            Arg.Is<Submission>(s =>
+                s.FormId == request.FormId &&
+                s.FormDefinitionId == formDefinition.Id &&
+                s.JsonData == request.JsonData &&
+                s.IsComplete == request.IsComplete &&
+                s.CurrentPage == request.CurrentPage &&
+                s.Metadata == request.Metadata &&
+                s.SubmittedBy == null
+            ),
+            Arg.Any<CancellationToken>()
+        );
     }
 }
