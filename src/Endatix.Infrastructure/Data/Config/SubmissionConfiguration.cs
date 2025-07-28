@@ -21,6 +21,9 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
         builder.Property(s => s.JsonData)
             .IsRequired();
 
+        builder.Property(s => s.SubmittedBy)
+            .IsRequired(false);
+
         builder.HasOne(s => s.FormDefinition)
             .WithMany(fd => fd.Submissions)
             .HasForeignKey(s => s.FormDefinitionId)
@@ -48,5 +51,7 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
         // FormId index is needed for frequent lookups by form
         builder.HasIndex(s => s.FormId);
         builder.HasIndex(s => s.FormDefinitionId);
+        // SubmittedBy index for filtering submissions by user
+        builder.HasIndex(s => s.SubmittedBy);
     }
 }

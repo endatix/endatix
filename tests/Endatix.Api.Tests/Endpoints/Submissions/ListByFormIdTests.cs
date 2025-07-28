@@ -65,8 +65,8 @@ public class ListByFormIdTests
         var request = new ListByFormIdRequest { FormId = formId, Page = 1, PageSize = 10 };
         var submissions = new List<SubmissionDto> 
         { 
-            new(3, false, [], 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new"),
-            new(4, false, [], 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new"),
+            new(3, false, [], 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null),
+            new(4, false, [], 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", 7),
         };
         var result = Result.Success(submissions.AsEnumerable());
 

@@ -57,7 +57,8 @@ public class CreateSubmissionHandler(
             formDefinitionId: activeDefinition!.Id,
             isComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
             currentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            metadata: request.Metadata ?? DEFAULT_METADATA
+            metadata: request.Metadata ?? DEFAULT_METADATA,
+            submittedBy: request.SubmittedBy
         );
 
         await submissionRepository.AddAsync(submission, cancellationToken);
