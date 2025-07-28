@@ -159,7 +159,7 @@ public class JwtTokenServiceTests
         jsonToken.Should().NotBeNull();
         jsonToken!.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Sub && c.Value == "1");
         jsonToken.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Email && c.Value == "test@example.com");
-        jsonToken.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.NameId && c.Value == "testuser");
+        jsonToken.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.NameId && c.Value == "1");
         jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.Role && c.Value == RoleNames.ADMIN);
         jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.Permission && c.Value == Allow.AllowAll);
         jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.TenantId && c.Value == SampleData.TENANT_ID.ToString());

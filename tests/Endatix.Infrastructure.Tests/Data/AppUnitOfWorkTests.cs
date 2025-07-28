@@ -8,13 +8,13 @@ using NSubstitute.ExceptionExtensions;
 
 namespace Endatix.Infrastructure.Tests.Data;
 
-public class EfUnitOfWorkTests
+public class AppUnitOfWorkTests
 {
     private readonly AppDbContext _appDbContext;
     private readonly IDbContextTransaction _dbTransaction;
-    private readonly EfUnitOfWork _sut;
+    private readonly AppUnitOfWork _sut;
 
-    public EfUnitOfWorkTests()
+    public AppUnitOfWorkTests()
     {
         _appDbContext = Substitute.For<AppDbContext>();
         _dbTransaction = Substitute.For<IDbContextTransaction>();
@@ -22,7 +22,7 @@ public class EfUnitOfWorkTests
         var database = Substitute.For<DatabaseFacade>(_appDbContext);
         _appDbContext.Database.Returns(database);
 
-        _sut = new EfUnitOfWork(_appDbContext);
+        _sut = new AppUnitOfWork(_appDbContext);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class EfUnitOfWorkTests
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Transaction is not started. Please call BeginTransactionAsync method first.");
+            .WithMessage("Transaction not started. Call BeginTransactionAsync first.");
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public class EfUnitOfWorkTests
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Transaction is not started. Please call BeginTransactionAsync method first.");
+            .WithMessage("Transaction not started. Call BeginTransactionAsync first.");
     }
 
     [Fact]

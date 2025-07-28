@@ -43,7 +43,7 @@ public class InfrastructureDataBuilder
         LogSetupInfo("Configuring data infrastructure with default settings");
 
         Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
-        Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        Services.AddScoped<IUnitOfWork, AppUnitOfWork>();
         Services.AddSingleton<EfCoreValueGeneratorFactory>();
         Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         Services.AddScoped<IFormsRepository, FormsRepository>();
