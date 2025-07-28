@@ -8,7 +8,6 @@ using Endatix.Core.Specifications;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Features.ReCaptcha;
-using Endatix.Core.Abstractions;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
@@ -17,7 +16,6 @@ public class CreateSubmissionHandler(
     IFormsRepository formRepository,
     ISubmissionTokenService tokenService,
     IReCaptchaPolicyService recaptchaService,
-    IUserContext userContext,
     IMediator mediator
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
@@ -52,8 +50,6 @@ public class CreateSubmissionHandler(
             return Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
         }
 
-        var submittedBy = userContext.GetCurrentUserId();
-
         var submission = new Submission(
             activeDefinition!.TenantId,
             jsonData: request.JsonData ?? DEFAULT_JSON_DATA,
@@ -62,7 +58,7 @@ public class CreateSubmissionHandler(
             isComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
             currentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
             metadata: request.Metadata ?? DEFAULT_METADATA,
-            submittedBy: submittedBy
+            submittedBy: request.SubmittedBy
         );
 
         await submissionRepository.AddAsync(submission, cancellationToken);

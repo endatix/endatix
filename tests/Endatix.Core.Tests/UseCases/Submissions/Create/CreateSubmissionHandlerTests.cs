@@ -18,7 +18,6 @@ public class CreateSubmissionHandlerTests
     private readonly IFormsRepository _formsRepository;
     private readonly ISubmissionTokenService _submissionTokenService;
     private readonly IReCaptchaPolicyService _recaptchaService;
-    private readonly IUserContext _userContext;
     private readonly IMediator _mediator;
     private readonly CreateSubmissionHandler _handler;
 
@@ -28,14 +27,12 @@ public class CreateSubmissionHandlerTests
         _formsRepository = Substitute.For<IFormsRepository>();
         _submissionTokenService = Substitute.For<ISubmissionTokenService>();
         _recaptchaService = Substitute.For<IReCaptchaPolicyService>();
-        _userContext = Substitute.For<IUserContext>();
         _mediator = Substitute.For<IMediator>();
         _handler = new CreateSubmissionHandler(
             _submissionsRepository,
             _formsRepository,
             _submissionTokenService,
             _recaptchaService,
-            _userContext,
             _mediator);
     }
 
@@ -43,7 +40,7 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_FormNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, null);
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, null, null);
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             Arg.Any<CancellationToken>())
@@ -71,7 +68,8 @@ public class CreateSubmissionHandlerTests
             IsComplete: true,
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
-            ReCaptchaToken: "test-token"
+            ReCaptchaToken: "test-token",
+            SubmittedBy: 123
         );
 
         _recaptchaService.ValidateReCaptchaAsync(
@@ -99,7 +97,8 @@ public class CreateSubmissionHandlerTests
                 s.JsonData == request.JsonData &&
                 s.IsComplete == request.IsComplete &&
                 s.CurrentPage == request.CurrentPage &&
-                s.Metadata == request.Metadata
+                s.Metadata == request.Metadata &&
+                s.SubmittedBy == request.SubmittedBy
             ),
             Arg.Any<CancellationToken>()
         );
@@ -113,7 +112,7 @@ public class CreateSubmissionHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, "test-token");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, "test-token", null);
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -147,7 +146,15 @@ public class CreateSubmissionHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token");
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ \"field\": \"value\" }",
+            IsComplete: true,
+            CurrentPage: 3,
+            Metadata: "{ \"meta\": \"data\" }",
+            ReCaptchaToken: "test-token",
+            SubmittedBy: 123
+        );
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -165,12 +172,10 @@ public class CreateSubmissionHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Created);
+        result.Value.Should().NotBeNull();
 
         await _mediator.Received(1).Publish(
-            Arg.Is<SubmissionCompletedEvent>(e =>
-                e.Submission.FormId == request.FormId &&
-                e.Submission.JsonData == request.JsonData
-            ),
+            Arg.Is<SubmissionCompletedEvent>(e => e.Submission.Id == result.Value.Id),
             Arg.Any<CancellationToken>()
         );
     }
@@ -190,7 +195,8 @@ public class CreateSubmissionHandlerTests
             IsComplete: false,
             CurrentPage: 5,
             Metadata: null,
-            ReCaptchaToken: "test-token"
+            ReCaptchaToken: "test-token",
+            SubmittedBy: null
         );
 
         _recaptchaService.ValidateReCaptchaAsync(
@@ -228,7 +234,8 @@ public class CreateSubmissionHandlerTests
             IsComplete: false,
             CurrentPage: null,
             Metadata: null,
-            ReCaptchaToken: "test-token"
+            ReCaptchaToken: "test-token",
+            SubmittedBy: 456
         );
 
         _recaptchaService.ValidateReCaptchaAsync(
@@ -259,7 +266,7 @@ public class CreateSubmissionHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", 789);
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -296,10 +303,9 @@ public class CreateSubmissionHandlerTests
             IsComplete: true,
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
-            ReCaptchaToken: "test-token"
+            ReCaptchaToken: "test-token",
+            SubmittedBy: userId
         );
-
-        _userContext.GetCurrentUserId().Returns(userId);
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -347,10 +353,9 @@ public class CreateSubmissionHandlerTests
             IsComplete: true,
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
-            ReCaptchaToken: "test-token"
+            ReCaptchaToken: "test-token",
+            SubmittedBy: null
         );
-
-        _userContext.GetCurrentUserId().Returns((long?)null);
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
