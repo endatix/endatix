@@ -169,7 +169,7 @@ public class EndatixSecurityBuilder
                     ValidateIssuerSigningKey = true,
                     ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW_IN_SECONDS)
                 };
-                options.MapInboundClaims = false;
+                options.MapInboundClaims = true;
 
                 // Apply custom configuration if provided
                 configure?.Invoke(options);
