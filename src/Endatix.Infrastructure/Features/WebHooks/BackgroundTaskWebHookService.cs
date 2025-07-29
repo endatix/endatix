@@ -54,7 +54,7 @@ internal class BackgroundTaskWebHookService(
             WebHooksPlugin.EventNames.FORM_CREATED => _webHookSettings.Events.FormCreated,
             WebHooksPlugin.EventNames.FORM_UPDATED => _webHookSettings.Events.FormUpdated,
             WebHooksPlugin.EventNames.FORM_ENABLED_STATE_CHANGED => _webHookSettings.Events.FormEnabledStateChanged,
-            WebHooksPlugin.EventNames.FORM_SUBMITTED => _webHookSettings.Events.FormSubmitted,
+            WebHooksPlugin.EventNames.SUBMISSION_COMPLETED => _webHookSettings.Events.SubmissionCompleted,
             WebHooksPlugin.EventNames.FORM_DELETED => _webHookSettings.Events.FormDeleted,
             _ => throw new ArgumentException($"Unknown event name: {eventName}", nameof(eventName))
         };

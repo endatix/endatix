@@ -29,7 +29,7 @@ internal class SubmissionCompletedHandler(IWebHookService webHookService, ILogge
 
         var message = new WebHookMessage<object>(
             notification.Submission.Id,
-            WebHookOperation.FormSubmitted,
+            WebHookOperation.SubmissionCompleted,
             submission);
 
         await webHookService.EnqueueWebHookAsync(message, cancellationToken);
