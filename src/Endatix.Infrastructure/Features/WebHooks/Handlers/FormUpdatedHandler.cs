@@ -16,15 +16,15 @@ public class FormUpdatedWebHookHandler(IWebHookService webHookService, ILogger<F
 
         var form = new
         {
-            notification.Form.Id,
-            notification.Form.TenantId,
-            notification.Form.Name,
-            notification.Form.Description,
-            notification.Form.IsEnabled,
-            notification.Form.ActiveDefinitionId,
-            notification.Form.ThemeId,
-            notification.Form.CreatedAt,
-            notification.Form.ModifiedAt,
+            id = notification.Form.Id,
+            tenantId = notification.Form.TenantId,
+            name = notification.Form.Name,
+            description = notification.Form.Description,
+            isEnabled = notification.Form.IsEnabled,
+            activeDefinitionId = notification.Form.ActiveDefinitionId,
+            themeId = notification.Form.ThemeId,
+            createdAt = notification.Form.CreatedAt,
+            modifiedAt = notification.Form.ModifiedAt,
         };
 
         var message = new WebHookMessage<object>(
