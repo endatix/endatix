@@ -14,4 +14,5 @@ public class SubmissionModel
     public DateTime CreatedAt { get; set; }
     public DateTime? ModifiedAt { get; set; }
     public string Status { get; set; }
+    public string? SubmittedBy { get; set; }
 }

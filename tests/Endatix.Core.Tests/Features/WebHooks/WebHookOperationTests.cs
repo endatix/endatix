@@ -5,27 +5,27 @@ namespace Endatix.Core.Tests.Features.WebHooks;
 public class WebHookOperationTests
 {
     [Fact]
-    public void FormSubmitted_Operation_ShouldHaveCorrectValues()
+    public void SubmissionCompleted_Operation_ShouldHaveCorrectValues()
     {
         // Arrange & Act
-        var formSubmitted = WebHookOperation.FormSubmitted;
+        var submissionCompleted = WebHookOperation.SubmissionCompleted;
 
         // Assert
-        formSubmitted.Should().NotBeNull();
-        formSubmitted.EventName.Should().Be("form_submitted");
-        formSubmitted.Entity.Should().Be("Submission");
-        formSubmitted.Action.Should().Be(ActionName.Created);
-        formSubmitted.Action.GetDisplayName().Should().Be("created");
+        submissionCompleted.Should().NotBeNull();
+        submissionCompleted.EventName.Should().Be("submission_completed");
+        submissionCompleted.Entity.Should().Be("Submission");
+        submissionCompleted.Action.Should().Be(ActionName.Updated);
+        submissionCompleted.Action.GetDisplayName().Should().Be("updated");
     }
 
     [Fact]
     public void WebHookOperation_Equality_ShouldBeValueBased()
     {
         // Arrange
-        var formSubmittedOperation1 = WebHookOperation.FormSubmitted;
-        var formSubmittedOperation2 = WebHookOperation.FormSubmitted;
+        var submissionCompletedOperation1 = WebHookOperation.SubmissionCompleted;
+        var submissionCompletedOperation2 = WebHookOperation.SubmissionCompleted;
 
         // Act & Assert
-        formSubmittedOperation1.Should().Be(formSubmittedOperation2);
+        submissionCompletedOperation1.Should().Be(submissionCompletedOperation2);
     }
 }

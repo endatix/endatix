@@ -8,9 +8,9 @@ public abstract class BaseEmailModel : IHasMetadata
 {
     public required string To { get; init; }
 
-    public required string From { get; init; }
+    public string? From { get; init; }
 
-    public required string Subject { get; init; }
+    public string? Subject { get; init; }
 
     public Dictionary<string, object> Metadata { get; init; } = [];
 

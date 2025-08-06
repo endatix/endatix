@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
@@ -39,7 +40,7 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_FormNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, null);
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, null, null);
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             Arg.Any<CancellationToken>())
@@ -67,7 +68,8 @@ public class CreateSubmissionHandlerTests
             IsComplete: true,
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
-            ReCaptchaToken: "test-token"
+            ReCaptchaToken: "test-token",
+            SubmittedBy: 123
         );
 
         _recaptchaService.ValidateReCaptchaAsync(
@@ -95,7 +97,8 @@ public class CreateSubmissionHandlerTests
                 s.JsonData == request.JsonData &&
                 s.IsComplete == request.IsComplete &&
                 s.CurrentPage == request.CurrentPage &&
-                s.Metadata == request.Metadata
+                s.Metadata == request.Metadata &&
+                s.SubmittedBy == request.SubmittedBy
             ),
             Arg.Any<CancellationToken>()
         );
@@ -109,7 +112,7 @@ public class CreateSubmissionHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, "test-token");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, "test-token", null);
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -143,7 +146,15 @@ public class CreateSubmissionHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token");
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ \"field\": \"value\" }",
+            IsComplete: true,
+            CurrentPage: 3,
+            Metadata: "{ \"meta\": \"data\" }",
+            ReCaptchaToken: "test-token",
+            SubmittedBy: 123
+        );
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -161,12 +172,10 @@ public class CreateSubmissionHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Created);
+        result.Value.Should().NotBeNull();
 
         await _mediator.Received(1).Publish(
-            Arg.Is<SubmissionCompletedEvent>(e =>
-                e.Submission.FormId == request.FormId &&
-                e.Submission.JsonData == request.JsonData
-            ),
+            Arg.Is<SubmissionCompletedEvent>(e => e.Submission.Id == result.Value.Id),
             Arg.Any<CancellationToken>()
         );
     }
@@ -186,7 +195,8 @@ public class CreateSubmissionHandlerTests
             IsComplete: false,
             CurrentPage: 5,
             Metadata: null,
-            ReCaptchaToken: "test-token"
+            ReCaptchaToken: "test-token",
+            SubmittedBy: null
         );
 
         _recaptchaService.ValidateReCaptchaAsync(
@@ -224,7 +234,8 @@ public class CreateSubmissionHandlerTests
             IsComplete: false,
             CurrentPage: null,
             Metadata: null,
-            ReCaptchaToken: "test-token"
+            ReCaptchaToken: "test-token",
+            SubmittedBy: 456
         );
 
         _recaptchaService.ValidateReCaptchaAsync(
@@ -255,7 +266,7 @@ public class CreateSubmissionHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", 789);
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -275,5 +286,106 @@ public class CreateSubmissionHandlerTests
         result.Status.Should().Be(ResultStatus.Invalid);
         result.ValidationErrors.Should().HaveCount(1);
         result.ValidationErrors.First().Should().BeEquivalentTo(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
+    }
+
+    [Fact]
+    public async Task Handle_AuthenticatedUser_SetsSubmittedByToUserId()
+    {
+        // Arrange
+        const long userId = 123;
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ \"field\": \"value\" }",
+            IsComplete: true,
+            CurrentPage: 3,
+            Metadata: "{ \"meta\": \"data\" }",
+            ReCaptchaToken: "test-token",
+            SubmittedBy: userId
+        );
+
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.Should().NotBeNull();
+
+        await _submissionsRepository.Received(1).AddAsync(
+            Arg.Is<Submission>(s =>
+                s.FormId == request.FormId &&
+                s.FormDefinitionId == formDefinition.Id &&
+                s.JsonData == request.JsonData &&
+                s.IsComplete == request.IsComplete &&
+                s.CurrentPage == request.CurrentPage &&
+                s.Metadata == request.Metadata &&
+                s.SubmittedBy == userId
+            ),
+            Arg.Any<CancellationToken>()
+        );
+    }
+
+    [Fact]
+    public async Task Handle_AnonymousUser_SetsSubmittedByToNull()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ \"field\": \"value\" }",
+            IsComplete: true,
+            CurrentPage: 3,
+            Metadata: "{ \"meta\": \"data\" }",
+            ReCaptchaToken: "test-token",
+            SubmittedBy: null
+        );
+
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.Should().NotBeNull();
+
+        await _submissionsRepository.Received(1).AddAsync(
+            Arg.Is<Submission>(s =>
+                s.FormId == request.FormId &&
+                s.FormDefinitionId == formDefinition.Id &&
+                s.JsonData == request.JsonData &&
+                s.IsComplete == request.IsComplete &&
+                s.CurrentPage == request.CurrentPage &&
+                s.Metadata == request.Metadata &&
+                s.SubmittedBy == null
+            ),
+            Arg.Any<CancellationToken>()
+        );
     }
 }

@@ -10,7 +10,7 @@ public class WebHooksPlugin : IPluginInitializer
         public const string FORM_CREATED = "form_created";
         public const string FORM_UPDATED = "form_updated";
         public const string FORM_ENABLED_STATE_CHANGED = "form_enabled_state_changed";
-        public const string FORM_SUBMITTED = "form_submitted";
+        public const string SUBMISSION_COMPLETED = "submission_completed";
         public const string FORM_DELETED = "form_deleted";
     }
 

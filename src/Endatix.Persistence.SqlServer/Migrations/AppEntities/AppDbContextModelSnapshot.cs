@@ -279,6 +279,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<long?>("SubmittedBy")
+                        .HasColumnType("bigint");
+
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
@@ -287,6 +290,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasIndex("FormDefinitionId");
 
                     b.HasIndex("FormId");
+
+                    b.HasIndex("SubmittedBy");
 
                     b.HasIndex("TenantId");
 

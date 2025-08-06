@@ -412,21 +412,21 @@ public class EndatixSecurityBuilder
 
         // Configure single Endatix JWT scheme
         authenticationBuilder.AddJwtBearer(AuthSchemes.Endatix, options =>
-        {
-            // Apply default configuration
-            options.RequireHttpsMetadata = !isDevelopment;
-            options.TokenValidationParameters = new TokenValidationParameters
             {
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
-                ValidIssuer = jwtSettings.Issuer,
-                ValidAudiences = jwtSettings.Audiences,
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW_IN_SECONDS)
-            };
-            options.MapInboundClaims = false;
+                // Apply default configuration
+                options.RequireHttpsMetadata = !isDevelopment;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
+                    ValidIssuer = jwtSettings.Issuer,
+                    ValidAudiences = jwtSettings.Audiences,
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW_IN_SECONDS)
+                };
+                options.MapInboundClaims = true;
 
             // Apply custom configuration if provided
             configure?.Invoke(options);

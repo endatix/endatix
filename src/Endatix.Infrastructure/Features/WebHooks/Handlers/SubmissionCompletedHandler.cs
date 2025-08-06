@@ -16,23 +16,24 @@ public class SubmissionCompletedWebHookHandler(IWebHookService webHookService, I
 
         var submission = new
         {
-            notification.Submission.Id,
-            notification.Submission.FormId,
-            notification.Submission.FormDefinitionId,
-            notification.Submission.TenantId,
-            notification.Submission.IsComplete,
-            notification.Submission.JsonData,
-            notification.Submission.CurrentPage,
-            notification.Submission.Metadata,
-            Status = notification.Submission.Status.Code,
-            notification.Submission.CreatedAt,
-            notification.Submission.ModifiedAt,
-            notification.Submission.CompletedAt,
+            id = notification.Submission.Id,
+            formId = notification.Submission.FormId,
+            formDefinitionId = notification.Submission.FormDefinitionId,
+            tenantId = notification.Submission.TenantId,
+            isComplete = notification.Submission.IsComplete,
+            jsonData = notification.Submission.JsonData,
+            currentPage = notification.Submission.CurrentPage,
+            metadata = notification.Submission.Metadata,
+            submittedBy = notification.Submission.SubmittedBy,
+            status = notification.Submission.Status.Code,
+            createdAt = notification.Submission.CreatedAt,
+            modifiedAt = notification.Submission.ModifiedAt,
+            completedAt = notification.Submission.CompletedAt,
         };
 
         var message = new WebHookMessage<object>(
             notification.Submission.Id,
-            WebHookOperation.FormSubmitted,
+            WebHookOperation.SubmissionCompleted,
             submission);
 
         await webHookService.EnqueueWebHookAsync(message, cancellationToken);
