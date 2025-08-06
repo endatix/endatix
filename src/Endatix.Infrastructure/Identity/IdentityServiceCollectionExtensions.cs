@@ -4,6 +4,7 @@ using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Framework.Configuration;
 using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Infrastructure.Identity.Authentication.Extensions;
 using Endatix.Infrastructure.Identity.Users;
 using Endatix.Infrastructure.Identity.EmailVerification;
 using Microsoft.AspNetCore.Identity;
@@ -80,7 +81,11 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
         
-        // Register auth scheme selector for JWT token routing
+        // Register authentication provider system
+        services.AddAuthenticationProviders();
+        services.AddBuiltInAuthenticationProviders();
+        
+        // Register auth scheme selector for JWT token routing (now using provider registry)
         services.AddSingleton<IAuthSchemeSelector, DefaultAuthSchemeSelector>();
 
         // Register email verification options

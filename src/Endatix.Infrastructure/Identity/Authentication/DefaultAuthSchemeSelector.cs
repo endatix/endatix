@@ -1,17 +1,32 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 
 /// <summary>
-/// Default implementation of auth scheme selection based on JWT token issuers.
-/// Designed to be replaced/extended by a plugin-based system in the future.
+/// Default implementation of auth scheme selection that delegates to a provider registry.
+/// Uses the provider registry to select appropriate schemes based on token issuers.
 /// </summary>
 internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
 {
+    private readonly IAuthProviderRegistry _providerRegistry;
+    private readonly ILogger<DefaultAuthSchemeSelector>? _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the DefaultAuthSchemeSelector.
+    /// </summary>
+    /// <param name="providerRegistry">The provider registry for scheme selection</param>
+    /// <param name="logger">Optional logger for debugging</param>
+    public DefaultAuthSchemeSelector(IAuthProviderRegistry providerRegistry, ILogger<DefaultAuthSchemeSelector>? logger = null)
+    {
+        _providerRegistry = providerRegistry ?? throw new ArgumentNullException(nameof(providerRegistry));
+        _logger = logger;
+    }
+
     /// <summary>
     /// The default authentication scheme used when no specific provider matches.
     /// </summary>
-    public string DefaultScheme => AuthSchemes.Endatix;
+    public string DefaultScheme => _providerRegistry.DefaultScheme;
 
     /// <inheritdoc />
     public string SelectScheme(string token)
@@ -24,12 +39,14 @@ internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
         var issuer = ExtractIssuerFromToken(token);
         if (string.IsNullOrEmpty(issuer))
         {
+            _logger?.LogDebug("No issuer found in token, using default scheme: {DefaultScheme}", DefaultScheme);
             return DefaultScheme;
         }
 
-        // TODO: Replace with plugin-based provider registry in the future
-        // This will become: return _providerRegistry.SelectScheme(issuer) ?? DefaultScheme;
-        return SelectSchemeByIssuer(issuer);
+        var selectedScheme = _providerRegistry.SelectScheme(issuer);
+        _logger?.LogDebug("Selected scheme {Scheme} for issuer {Issuer}", selectedScheme, issuer);
+        
+        return selectedScheme;
     }
 
     /// <summary>
@@ -86,29 +103,5 @@ internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
         }
     }
 
-    /// <summary>
-    /// Selects authentication scheme based on issuer patterns.
-    /// This method will be replaced by a plugin-based provider registry.
-    /// </summary>
-    /// <param name="issuer">The JWT issuer claim</param>
-    /// <returns>The authentication scheme name</returns>
-    private string SelectSchemeByIssuer(string issuer)
-    {
-        // Current hardcoded routing logic - future: move to provider registry
-        return issuer switch
-        {
-            // Exact match for Endatix tokens
-            "endatix-api" => AuthSchemes.Endatix,
-            
-            // Pattern match for Keycloak (supports different realms)
-            string iss when iss.Contains("localhost:8080/realms/endatix") => AuthSchemes.Keycloak,
-            
-            // Future providers can be added here or via plugin system:
-            // string iss when iss.Contains("auth0.com") => AuthSchemes.Auth0,
-            // string iss when iss.Contains("login.microsoftonline.com") => AuthSchemes.AzureAD,
-            
-            // Default fallback
-            _ => DefaultScheme
-        };
-    }
+
 } 
