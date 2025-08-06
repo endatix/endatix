@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Ardalis.GuardClauses;
 using Endatix.Core.Features.WebHooks;
 using Microsoft.Extensions.Logging;
 using Polly.Timeout;
@@ -9,7 +10,7 @@ namespace Endatix.Infrastructure.Features.WebHooks;
 /// <summary>
 /// Represents a server for firing WebHooks.
 /// </summary>
-internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
+public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
 {
     /// <summary>
     /// Fires a WebHook asynchronously.
@@ -35,7 +36,7 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
             {
                 Content = content,
             };
-            AddWebHookHeaders(request, message);
+            AddWebHookHeaders(request, message, instructions);
 
             var response = await httpClient.SendAsync(request, token);
 
@@ -76,11 +77,43 @@ internal class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logge
     }
 
 
-    private void AddWebHookHeaders<T>(HttpRequestMessage request, WebHookMessage<T> message)
+    private void AddWebHookHeaders<T>(HttpRequestMessage request, WebHookMessage<T> message, TaskInstructions instructions)
     {
+        // Add standard Endatix webhook headers
         request.Headers.Add(WebHookRequestHeaders.Event, message.operation.EventName);
         request.Headers.Add(WebHookRequestHeaders.Entity, message.operation.Entity);
         request.Headers.Add(WebHookRequestHeaders.Action, message.operation.Action.GetDisplayName());
         request.Headers.Add(WebHookRequestHeaders.HookId, message.id.ToString());
+
+        // Add authentication headers based on configuration
+        AddAuthenticationHeaders(request, instructions.Authentication);
+    }
+
+    /// <summary>
+    /// Adds authentication headers to the HTTP request based on the authentication configuration.
+    /// </summary>
+    /// <param name="request">The HTTP request message.</param>
+    /// <param name="authConfig">The authentication configuration.</param>
+    private void AddAuthenticationHeaders(HttpRequestMessage request, AuthenticationConfig? authConfig)
+    {
+        if (authConfig == null)
+        {
+            return;
+        }
+
+        switch (authConfig.Type)
+        {
+            case AuthenticationType.ApiKey:
+                Guard.Against.NullOrWhiteSpace(authConfig.ApiKeyHeader);
+                Guard.Against.NullOrWhiteSpace(authConfig.ApiKey);
+
+                request.Headers.Add(authConfig.ApiKeyHeader, authConfig.ApiKey);
+                break;
+
+            case AuthenticationType.None:
+            default:
+                // No authentication headers to add
+                break;
+        }
     }
 }
