@@ -92,9 +92,9 @@ public class WebHookSettings : IEndatixSettings
         public EventSetting FormEnabledStateChanged { get; set; } = new() { EventName = EventNames.FORM_ENABLED_STATE_CHANGED };
 
         /// <summary>
-        /// Represents the settings for the 'FormSubmitted' event.
+        /// Represents the settings for the 'SubmissionCompleted' event.
         /// </summary>
-        public EventSetting FormSubmitted { get; set; } = new() { EventName = EventNames.FORM_SUBMITTED };
+        public EventSetting SubmissionCompleted { get; set; } = new() { EventName = EventNames.SUBMISSION_COMPLETED };
 
         /// <summary>
         /// Represents the settings for the 'FormDeleted' event.

@@ -35,14 +35,10 @@ public class ContactUsFormSubmissionHandler : INotificationHandler<SubmissionCom
         var submissionData = EmailHelper.ParseJsonToDictionary(domainEvent.Submission.JsonData);
         if (submissionData.TryGetValue("email", out var email))
         {
-            var subject = "Welcome to Endatix – We're Glad to Have You!";
-
             var emailModel = new EmailWithTemplate()
             {
                 To = email,
-                From = _settings.WelcomeEmailFrom,
-                Subject = subject,
-                TemplateId = _settings.WelcomeEmailTemplateId
+                TemplateId = _settings.ContactUsResponseTemplateId
             };
 
             var name = submissionData["name"] ?? string.Empty;
@@ -70,7 +66,7 @@ public class ContactUsFormSubmissionHandler : INotificationHandler<SubmissionCom
         var emailModel = new EmailWithBody()
         {
             To = _settings.NotificationEmailTo,
-            From = _settings.WelcomeEmailFrom,
+            From = _settings.NotificationEmailFrom,
             Subject = subject,
             HtmlBody = htmlBody,
             PlainTextBody = formattedSubmission

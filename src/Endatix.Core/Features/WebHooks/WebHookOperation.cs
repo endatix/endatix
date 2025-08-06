@@ -23,9 +23,9 @@ public record WebHookOperation
     public static readonly WebHookOperation FormEnabledStateChanged = new("form_enabled_state_changed", nameof(Form), ActionName.Updated);
 
     /// <summary>
-    /// A static instance of WebHookOperation representing a form submission.
+    /// A static instance of WebHookOperation representing a submission set as completed.
     /// </summary>
-    public static readonly WebHookOperation FormSubmitted = new("form_submitted", nameof(Submission), ActionName.Created);
+    public static readonly WebHookOperation SubmissionCompleted = new("submission_completed", nameof(Submission), ActionName.Updated);
 
     /// <summary>
     /// A static instance of WebHookOperation representing a form deletion.

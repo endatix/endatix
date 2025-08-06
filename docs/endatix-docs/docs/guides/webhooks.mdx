@@ -158,7 +158,7 @@ To test your webhooks:
             "https://webhook.site/your-unique-id"
           ]
         },
-        "FormSubmitted": {
+        "SubmissionCompleted": {
           "IsEnabled": true,
           "WebHookUrls": [
             "https://webhook.site/your-unique-id"
@@ -226,7 +226,7 @@ To test your webhooks:
 Each webhook message contains:
 
 - `Id`: The ID of the entity that triggered the event
-- `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_deleted`, `form_submitted`)
+- `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_deleted`, `submission_completed`)
 - `Action`: The action that triggered the event (e.g., `created`, `updated`, `deleted`)
 - `Payload`: The event data specific to the operation, containing the complete entity data
 

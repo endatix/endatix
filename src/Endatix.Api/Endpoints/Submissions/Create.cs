@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.Create;
+using Endatix.Core.Abstractions;
 using Errors = Microsoft.AspNetCore.Mvc;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -10,7 +11,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Endpoint for creating a new form submission.
 /// </summary>
-public class Create(IMediator mediator) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
+public class Create(IMediator mediator, IUserContext userContext) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -30,13 +31,16 @@ public class Create(IMediator mediator) : Endpoint<CreateSubmissionRequest, Resu
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken cancellationToken)
     {
+        var submittedBy = userContext.GetCurrentUserId();
+        
         var createCommand = new CreateSubmissionCommand(
             FormId: request.FormId,
             JsonData: request.JsonData!,
             Metadata: request.Metadata,
             CurrentPage: request.CurrentPage,
             IsComplete: request.IsComplete,
-            ReCaptchaToken: request.ReCaptchaToken
+            ReCaptchaToken: request.ReCaptchaToken,
+            SubmittedBy: submittedBy
         );
 
         var result = await mediator.Send(createCommand, cancellationToken);

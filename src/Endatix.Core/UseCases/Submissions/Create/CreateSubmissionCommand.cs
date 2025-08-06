@@ -13,11 +13,13 @@ namespace Endatix.Core.UseCases.Submissions.Create;
 /// <param name="CurrentPage"></param>
 /// <param name="IsComplete"></param>
 /// <param name="ReCaptchaToken"></param>
+/// <param name="SubmittedBy"></param>
 public record CreateSubmissionCommand(
     long FormId,
     string? JsonData,
     string? Metadata,
     int? CurrentPage,
     bool? IsComplete,
-    string? ReCaptchaToken
+    string? ReCaptchaToken,
+    long? SubmittedBy
 ) : ICommand<Result<Submission>>;

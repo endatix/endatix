@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.Create;
+using Endatix.Core.Abstractions;
 using Errors = Microsoft.AspNetCore.Mvc;
 using Endatix.Core.Features.ReCaptcha;
 
@@ -13,13 +14,14 @@ namespace Endatix.Api.Tests.Endpoints.Submissions;
 public class CreateTests
 {
     private readonly IMediator _mediator;
-
+    private readonly IUserContext _userContext;
     private readonly Create _endpoint;
 
     public CreateTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _endpoint = Factory.Create<Create>(_mediator);
+        _userContext = Substitute.For<IUserContext>();
+        _endpoint = Factory.Create<Create>(_mediator, _userContext);
     }
 
     [Fact]
@@ -79,6 +81,7 @@ public class CreateTests
     public async Task ExecuteAsync_ShouldMapRequestToCommandCorrectly()
     {
         // Arrange
+        const long userId = 123;
         var request = new CreateSubmissionRequest
         {
             FormId = 123,
@@ -90,6 +93,7 @@ public class CreateTests
         };
         var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
 
+        _userContext.GetCurrentUserId().Returns(userId);
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -103,7 +107,46 @@ public class CreateTests
                 cmd.IsComplete == request.IsComplete &&
                 cmd.CurrentPage == request.CurrentPage &&
                 cmd.JsonData == request.JsonData &&
-                cmd.Metadata == request.Metadata
+                cmd.Metadata == request.Metadata &&
+                cmd.ReCaptchaToken == request.ReCaptchaToken &&
+                cmd.SubmittedBy == userId
+            ),
+            Arg.Any<CancellationToken>()
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_AnonymousUser_PassesNullSubmittedBy()
+    {
+        // Arrange
+        var request = new CreateSubmissionRequest
+        {
+            FormId = 123,
+            IsComplete = true,
+            CurrentPage = 2,
+            JsonData = """{ "field": "value" }""",
+            Metadata = """{ "key", "value" }""",
+            ReCaptchaToken = "recaptcha-token"
+        };
+        var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+
+        _userContext.GetCurrentUserId().Returns((long?)null);
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<CreateSubmissionCommand>(cmd =>
+                cmd.FormId == request.FormId &&
+                cmd.IsComplete == request.IsComplete &&
+                cmd.CurrentPage == request.CurrentPage &&
+                cmd.JsonData == request.JsonData &&
+                cmd.Metadata == request.Metadata &&
+                cmd.ReCaptchaToken == request.ReCaptchaToken &&
+                cmd.SubmittedBy == null
             ),
             Arg.Any<CancellationToken>()
         );
