@@ -1,4 +1,5 @@
 using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Xunit;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authentication;
@@ -9,7 +10,12 @@ public class DefaultAuthSchemeSelectorTests
 
     public DefaultAuthSchemeSelectorTests()
     {
-        _selector = new DefaultAuthSchemeSelector();
+        // Create a registry with test providers for the expected behavior
+        var registry = new AuthProviderRegistry();
+        registry.RegisterProvider(new EndatixJwtProvider());
+        registry.RegisterProvider(new KeycloakProvider());
+        
+        _selector = new DefaultAuthSchemeSelector(registry);
     }
 
     [Fact]
