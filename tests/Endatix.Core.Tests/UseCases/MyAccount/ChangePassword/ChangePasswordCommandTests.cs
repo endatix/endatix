@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.MyAccount.ChangePassword;
 using MediatR;
@@ -11,15 +10,15 @@ public class ChangePasswordCommandTests
     public void Constructor_ShouldSetProperties()
     {
         // Arrange
-        var claimsPrincipal = new ClaimsPrincipal(new ClaimsIdentity());
+        var userId = 123L;
         const string currentPassword = "currentPass123";
         const string newPassword = "newPass123";
 
         // Act
-        var command = new ChangePasswordCommand(claimsPrincipal, currentPassword, newPassword);
+        var command = new ChangePasswordCommand(userId, currentPassword, newPassword);
 
         // Assert
-        command.User.Should().BeSameAs(claimsPrincipal);
+        command.UserId.Should().Be(userId);
         command.CurrentPassword.Should().Be(currentPassword);
         command.NewPassword.Should().Be(newPassword);
     }
@@ -28,8 +27,8 @@ public class ChangePasswordCommandTests
     public void Command_ShouldBeImmutable()
     {
         // Arrange
-        var claimsPrincipal = new ClaimsPrincipal(new ClaimsIdentity());
-        var command = new ChangePasswordCommand(claimsPrincipal, "current", "new");
+        var userId = 123L;
+        var command = new ChangePasswordCommand(userId, "current", "new");
 
         // Act & Assert
         command.Should().BeAssignableTo<IRequest<Result<string>>>();
