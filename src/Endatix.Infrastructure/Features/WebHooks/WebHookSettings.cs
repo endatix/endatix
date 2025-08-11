@@ -118,8 +118,90 @@ public class WebHookSettings : IEndatixSettings
         public required string EventName { get; init; }
 
         /// <summary>
+        /// Gets or sets the webhook endpoints for this event.
+        /// </summary>
+        public IEnumerable<WebHookEndpoint>? WebHookEndpoints { get; init; }
+
+        /// <summary>
         /// Gets or sets the URLs for the WebHooks associated with this event.
+        /// This property is maintained for backward compatibility.
+        /// If WebHookEndpoints is null or empty, this will be used to create simple endpoints without authentication.
         /// </summary>
         public IEnumerable<string>? WebHookUrls { get; init; }
+
+        /// <summary>
+        /// Gets all webhook endpoints, combining both WebHookEndpoints and WebHookUrls for backward compatibility.
+        /// </summary>
+        public IEnumerable<WebHookEndpoint> GetAllEndpoints()
+        {
+            var endpoints = new List<WebHookEndpoint>();
+
+            // Add configured endpoints
+            if (WebHookEndpoints?.Any() == true)
+            {
+                endpoints.AddRange(WebHookEndpoints);
+            }
+
+            // Add simple URLs as endpoints without authentication (backward compatibility)
+            if (WebHookUrls?.Any() == true)
+            {
+                endpoints.AddRange(WebHookUrls.Select(url => new WebHookEndpoint { Url = url }));
+            }
+
+            return endpoints;
+        }
     }
+}
+
+/// <summary>
+/// Represents a webhook endpoint with its authentication configuration.
+/// </summary>
+public class WebHookEndpoint
+{
+    /// <summary>
+    /// Gets or sets the webhook URL.
+    /// </summary>
+    public required string Url { get; init; }
+
+    /// <summary>
+    /// Gets or sets the authentication configuration for this endpoint.
+    /// </summary>
+    public AuthenticationConfig? Authentication { get; init; }
+}
+
+/// <summary>
+/// Represents the authentication configuration for a webhook endpoint.
+/// </summary>
+public class AuthenticationConfig
+{
+    /// <summary>
+    /// Gets or sets the authentication type.
+    /// </summary>
+    public AuthenticationType Type { get; init; } = AuthenticationType.None;
+
+    /// <summary>
+    /// Gets or sets the API key value. Used when Type is ApiKey.
+    /// </summary>
+    public string? ApiKey { get; init; }
+
+    /// <summary>
+    /// Gets or sets the header name for the API key. Used when Type is ApiKey.
+    /// </summary>
+    public string? ApiKeyHeader { get; init; }
+}
+
+/// <summary>
+/// Defines the available authentication types for webhook endpoints.
+/// </summary>
+public enum AuthenticationType
+{
+    /// <summary>
+    /// No authentication.
+    /// </summary>
+    None,
+
+    /// <summary>
+    /// API key authentication using a custom header.
+    /// </summary>
+    ApiKey
 }

@@ -7,7 +7,7 @@ namespace Endatix.Infrastructure.Features.WebHooks;
 /// <summary>
 /// Handles the queuing of WebHook messages for asynchronous processing in the background.
 /// </summary>
-internal class BackgroundTaskWebHookService(
+public class BackgroundTaskWebHookService(
     ILogger<BackgroundTaskWebHookService> logger,
     IBackgroundTasksQueue backgroundQueue,
     IOptions<WebHookSettings> webHookOptions,
@@ -23,25 +23,25 @@ internal class BackgroundTaskWebHookService(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task EnqueueWebHookAsync<TPayload>(WebHookMessage<TPayload> message, CancellationToken cancellationToken) where TPayload : notnull
     {
-        var eventSetting = GetEventSetting(message.Operation.EventName);
+        var eventSetting = GetEventSetting(message.operation.EventName);
         if (!eventSetting.IsEnabled)
         {
-            logger.LogTrace("WebHook for {eventName} event is disabled. Skipping processing...", message.Operation.EventName);
+            logger.LogTrace("WebHook for {eventName} event is disabled. Skipping processing...", message.operation.EventName);
             return;
         }
 
-        var destinationUrls = eventSetting.WebHookUrls;
-        if (destinationUrls is null || !destinationUrls.Any())
+        var endpoints = eventSetting.GetAllEndpoints();
+        if (!endpoints.Any())
         {
-            logger.LogTrace("No destination URLs found for {eventName} event. Skipping processing...", message.Operation.EventName);
+            logger.LogTrace("No webhook endpoints found for {eventName} event. Skipping processing...", message.operation.EventName);
             return;
         }
 
-        foreach (var destinationUrl in destinationUrls)
+        foreach (var endpoint in endpoints)
         {
             await backgroundQueue.EnqueueAsync(async token =>
             {
-                TaskInstructions instructions = new(destinationUrl);
+                var instructions = TaskInstructions.FromEndpoint(endpoint);
                 var result = await httpServer.FireWebHookAsync(message, instructions, token);
             });
         }
