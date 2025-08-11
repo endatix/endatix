@@ -6,21 +6,24 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using FastEndpoints;
 using System.Security.Claims;
+using Endatix.Core.Abstractions;
 
 namespace Endatix.Api.Tests.Endpoints.MyAccount;
 
 public class ChangePasswordTests
 {
     private readonly IMediator _mediator;
+    private readonly IUserContext _userContext;
     private readonly ChangePassword _endpoint;
 
     public ChangePasswordTests()
     {
         _mediator = Substitute.For<IMediator>();
+        _userContext = Substitute.For<IUserContext>();
         _endpoint = Factory.Create<ChangePassword>(ctx =>
         {
             ctx.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, "test-user") }));
-        }, _mediator);
+        }, _mediator, _userContext);
     }
 
 
@@ -29,7 +32,9 @@ public class ChangePasswordTests
     {
         // Arrange
         var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
-
+        var userId = 123L;
+        
+        _userContext.GetCurrentUserId().Returns(userId);
         _mediator
             .Send(Arg.Any<ChangePasswordCommand>())
             .Returns(Result.Success("Password changed successfully"));
@@ -48,7 +53,9 @@ public class ChangePasswordTests
     {
         // Arrange
         var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
-
+        var userId = 123L;
+        
+        _userContext.GetCurrentUserId().Returns(userId);
         _mediator
             .Send(Arg.Any<ChangePasswordCommand>())
             .Returns(Result.Invalid(new ValidationError("Invalid current password")));
@@ -67,7 +74,9 @@ public class ChangePasswordTests
     {
         // Arrange
         var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
-
+        var userId = 123L;
+        
+        _userContext.GetCurrentUserId().Returns(userId);
         _mediator
             .Send(Arg.Any<ChangePasswordCommand>())
             .Returns(Result.Success("Success"));
@@ -80,6 +89,7 @@ public class ChangePasswordTests
             .Received(1)
             .Send(
                 Arg.Is<ChangePasswordCommand>(cmd =>
+                    cmd.UserId == userId &&
                     cmd.CurrentPassword == request.CurrentPassword &&
                     cmd.NewPassword == request.NewPassword),
                 Arg.Any<CancellationToken>()

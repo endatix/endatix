@@ -18,6 +18,14 @@ public interface IUserService
     Task<Result<User>> GetUserAsync(ClaimsPrincipal claimsPrincipal, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a user by user ID.
+    /// </summary>
+    /// <param name="userId">The user ID to search for.</param>
+    /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
+    /// <returns>A Result containing the User if found, or NotFound if not found.</returns>
+    Task<Result<User>> GetUserAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets a user by email address.
     /// </summary>
     /// <param name="email">The email address to search for.</param>

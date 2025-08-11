@@ -5,13 +5,14 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.MyAccount.ChangePassword;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions;
 
 namespace Endatix.Api.Endpoints.MyAccount;
 
 /// <summary>
 /// Endpoint for changing a user's password
 /// </summary>
-public class ChangePassword(IMediator mediator) : Endpoint<ChangePasswordRequest, Results<Ok<ChangePasswordResponse>, BadRequest<Errors.ProblemDetails>>>
+public class ChangePassword(IMediator mediator, IUserContext userContext) : Endpoint<ChangePasswordRequest, Results<Ok<ChangePasswordResponse>, BadRequest<Errors.ProblemDetails>>>
 {
     /// <summary>
     /// Configures the endpoint settings for the password change functionality.
@@ -36,8 +37,10 @@ public class ChangePassword(IMediator mediator) : Endpoint<ChangePasswordRequest
     /// <param name="cancellationToken">Cancellation token for the async operation</param>
     public override async Task<Results<Ok<ChangePasswordResponse>, BadRequest<Errors.ProblemDetails>>> ExecuteAsync(ChangePasswordRequest request, CancellationToken cancellationToken)
     {
+        var userId = userContext.GetCurrentUserId();
+
         var changePasswordCmd = new ChangePasswordCommand(
-            User,
+            userId,
             request.CurrentPassword,
             request.NewPassword
         );

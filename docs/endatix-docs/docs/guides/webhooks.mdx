@@ -142,32 +142,57 @@ To test your webhooks:
       "Events": {
         "FormCreated": {
           "IsEnabled": true,
-          "WebHookUrls": [
-            "https://webhook.site/your-unique-id"
+          "WebHookEndpoints": [
+            {
+              "Url": "https://webhook.site/your-unique-id",
+              "Authentication": {
+                "Type": "None"
+              }
+            }
           ]
         },
         "FormUpdated": {
           "IsEnabled": true,
-          "WebHookUrls": [
-            "https://webhook.site/your-unique-id"
+          "WebHookEndpoints": [
+            {
+              "Url": "https://webhook.site/your-unique-id",
+              "Authentication": {
+                "Type": "None"
+              }
+            }
           ]
         },
         "FormEnabledStateChanged": {
           "IsEnabled": true,
-          "WebHookUrls": [
-            "https://webhook.site/your-unique-id"
+          "WebHookEndpoints": [
+            {
+              "Url": "https://webhook.site/your-unique-id",
+              "Authentication": {
+                "Type": "None"
+              }
+            }
           ]
         },
         "SubmissionCompleted": {
           "IsEnabled": true,
-          "WebHookUrls": [
-            "https://webhook.site/your-unique-id"
+          "WebHookEndpoints": [
+            {
+              "Url": "https://webhook.site/your-unique-id",
+              "Authentication": {
+                "Type": "None"
+              }
+            }
           ]
         },
         "FormDeleted": {
           "IsEnabled": true,
-          "WebHookUrls": [
-            "https://webhook.site/your-unique-id"
+          "WebHookEndpoints": [
+            {
+              "Url": "https://webhook.site/your-unique-id",
+              "Authentication": {
+                "Type": "None"
+              }
+            }
           ]
         }
       }
@@ -180,6 +205,76 @@ To test your webhooks:
 
 4. Trigger events in your application
 5. View the incoming webhook requests on webhook.site
+
+## Webhook Authentication
+
+Endatix supports configurable authentication for securing your webhook endpoints. You can configure authentication per endpoint to match your API requirements.
+
+### Authentication Types
+
+#### 1. API Key Authentication (`ApiKey`)
+Sends an API key in a custom header:
+
+```json
+{
+  "Url": "https://api.example.com/webhooks",
+  "Authentication": {
+    "Type": "ApiKey",
+    "ApiKeyHeader": "X-SURVEY-API-KEY",
+    "ApiKey": "your-secret-api-key"
+  }
+}
+```
+
+#### 2. No Authentication (`None`)
+No authentication headers are sent:
+
+```json
+{
+  "Url": "https://api.example.com/webhooks",
+  "Authentication": {
+    "Type": "None"
+  }
+}
+```
+
+### Backward Compatibility
+
+The existing `WebHookUrls` configuration is still supported for backward compatibility. URLs configured this way will be called without authentication:
+
+```json
+{
+  "FormCreated": {
+    "IsEnabled": true,
+    "WebHookUrls": [
+      "https://webhook.site/your-unique-id"
+    ]
+  }
+}
+```
+
+You can also mix both approaches in the same event configuration:
+
+```json
+{
+  "FormCreated": {
+    "IsEnabled": true,
+    "WebHookUrls": [
+      "https://webhook.site/no-auth-endpoint"
+    ],
+    "WebHookEndpoints": [
+      {
+        "Url": "https://api.example.com/secure-endpoint",
+        "Authentication": {
+          "Type": "ApiKey",
+          "ApiKeyHeader": "X-SURVEY-API-KEY",
+          "ApiKey": "secret-key"
+        }
+      }
+    ]
+  }
+}
+```
 
 ## Available Events
 

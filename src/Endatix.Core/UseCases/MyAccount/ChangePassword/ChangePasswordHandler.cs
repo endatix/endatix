@@ -17,7 +17,12 @@ public class ChangePasswordHandler(IUserService userService) : IRequestHandler<C
     /// <returns>Result indicating success or failure</returns>
     public async Task<Result<string>> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
     {
-        var userResult = await userService.GetUserAsync(request.User, cancellationToken);
+        if (request.UserId == null)
+        {
+            return Result.Invalid(new ValidationError("User not found"));
+        }
+
+        var userResult = await userService.GetUserAsync(request.UserId.Value, cancellationToken);
 
         if (!userResult.IsSuccess || userResult.Value is not { } user)
         {

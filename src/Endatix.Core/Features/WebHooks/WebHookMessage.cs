@@ -6,31 +6,31 @@ namespace Endatix.Core.Features.WebHooks;
 /// Represents a message to be sent via a WebHook.
 /// </summary>
 /// <typeparam name="TPayload">The type of the payload carried by the message.</typeparam>
-public record WebHookMessage<TPayload>(long Id, WebHookOperation Operation, TPayload Payload)
+public record WebHookMessage<TPayload>(long id, WebHookOperation operation, TPayload payload)
 {
     /// <summary>
     /// Gets or sets the unique identifier of the message.
     /// </summary>
-    public long Id { get; init; } = Id;
+    public long id { get; init; } = id;
 
     /// <summary>
     /// Gets or sets the name of the event associated with the message.
     /// </summary>
-    public string EventName { get; set; } = Operation.EventName;
+    public string eventName { get; set; } = operation.EventName;
 
     /// <summary>
     /// Gets or sets the display name of the action associated with the message.
     /// </summary>
-    public string Action { get; set; } = Operation.Action.GetDisplayName();
+    public string action { get; set; } = operation.Action.GetDisplayName();
 
     /// <summary>
     /// Gets or sets the operation associated with the message.
     /// </summary>
     [JsonIgnore]
-    public WebHookOperation Operation { get; init; } = Operation;
+    public WebHookOperation operation { get; init; } = operation;
 
     /// <summary>
     /// Gets or sets the payload of the message.
     /// </summary>
-    public TPayload Payload { get; init; } = Payload;
+    public TPayload payload { get; init; } = payload;
 }
