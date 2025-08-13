@@ -29,6 +29,23 @@ public class AppUserService(UserManager<AppUser> userManager) : IUserService
     }
 
     /// <inheritdoc />
+    public async Task<Result<User>> GetUserAsync(long userId, CancellationToken cancellationToken = default)
+    {
+        if (userId <= 0)
+        {
+            return Result.NotFound();
+        }
+
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return Result.NotFound();
+        }
+
+        return Result.Success(user.ToUserEntity());
+    }
+
+    /// <inheritdoc />
     public async Task<Result<User>> GetUserAsync(string email, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(email))

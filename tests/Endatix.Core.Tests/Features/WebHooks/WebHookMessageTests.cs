@@ -17,10 +17,10 @@ public class WebHookMessageTests
         var webHookMessage = new WebHookMessage<Submission>(expectedId, submissionCompletedOperation, expectedPayload);
 
         // Assert
-        webHookMessage.Id.Should().Be(expectedId);
-        webHookMessage.Operation.Should().Be(submissionCompletedOperation);
-        webHookMessage.Payload.Should().Be(expectedPayload);
-        webHookMessage.Action.Should().Be("updated");
+        webHookMessage.id.Should().Be(expectedId);
+        webHookMessage.operation.Should().Be(submissionCompletedOperation);
+        webHookMessage.payload.Should().Be(expectedPayload);
+        webHookMessage.action.Should().Be("updated");
     }
 
     [Fact]
@@ -35,9 +35,9 @@ public class WebHookMessageTests
         var message = new WebHookMessage<Submission>(expectedId, expectedOperation, nullPayload);
 
         // Assert
-        message.Id.Should().Be(expectedId);
-        message.Operation.Should().Be(expectedOperation);
-        message.Payload.Should().BeNull();
-        message.Action.Should().Be("updated");
+        message.id.Should().Be(expectedId);
+        message.operation.Should().Be(expectedOperation);
+        message.payload.Should().BeNull();
+        message.action.Should().Be("updated");
     }
 }

@@ -29,6 +29,9 @@ const config: Config = {
     defaultLocale: "en",
     locales: ["en"],
   },
+  future: {
+    v4: true,
+  },
 
   presets: [
     [
