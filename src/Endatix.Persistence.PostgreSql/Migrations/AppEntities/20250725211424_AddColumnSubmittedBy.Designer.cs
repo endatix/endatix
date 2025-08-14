@@ -281,7 +281,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<long>("SubmittedBy")
+                    b.Property<long?>("SubmittedBy")
                         .HasColumnType("bigint");
 
                     b.Property<long>("TenantId")
