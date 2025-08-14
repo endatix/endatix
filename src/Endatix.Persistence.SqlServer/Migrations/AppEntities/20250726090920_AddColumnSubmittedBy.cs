@@ -10,10 +10,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<long>(
+            migrationBuilder.AddColumn<string>(
                 name: "SubmittedBy",
                 table: "Submissions",
-                type: "bigint",
+                type: "nvarchar(64)",
                 nullable: true);
 
             migrationBuilder.CreateIndex(

@@ -282,8 +282,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<long?>("SubmittedBy")
-                        .HasColumnType("bigint");
+                    b.Property<string>("SubmittedBy")
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");

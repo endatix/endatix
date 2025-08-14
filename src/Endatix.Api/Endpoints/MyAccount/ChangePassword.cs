@@ -37,10 +37,10 @@ public class ChangePassword(IMediator mediator, IUserContext userContext) : Endp
     /// <param name="cancellationToken">Cancellation token for the async operation</param>
     public override async Task<Results<Ok<ChangePasswordResponse>, BadRequest<Errors.ProblemDetails>>> ExecuteAsync(ChangePasswordRequest request, CancellationToken cancellationToken)
     {
-        var userId = userContext.GetCurrentUserId();
+        var userIdString = userContext.GetCurrentUserId();
 
         var changePasswordCmd = new ChangePasswordCommand(
-            userId,
+            long.TryParse(userIdString, out var userId) ? userId : null,
             request.CurrentPassword,
             request.NewPassword
         );

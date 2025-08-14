@@ -10,10 +10,11 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<long>(
+            migrationBuilder.AddColumn<string>(
                 name: "SubmittedBy",
                 table: "Submissions",
-                type: "bigint",
+                type: "character varying(64)",
+                maxLength: 64,
                 nullable: true);
 
             migrationBuilder.CreateIndex(
