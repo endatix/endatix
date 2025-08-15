@@ -51,11 +51,10 @@ public class CreateSubmissionHandler(
             return Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
         }
 
-        // Enrich metadata with submitter name if available (server-side concern)
-        var effectiveMetadata = request.Metadata;
+        var metadata = request.Metadata;
         if (!string.IsNullOrWhiteSpace(request.SubmittedByName))
         {
-            effectiveMetadata = JsonHelpers.AddOrUpdateTopLevelField(effectiveMetadata, "submittedByName", request.SubmittedByName!);
+            metadata = JsonHelpers.AddOrUpdateTopLevelField(metadata, "submittedByName", request.SubmittedByName!);
         }
 
         var submission = new Submission(
@@ -65,7 +64,7 @@ public class CreateSubmissionHandler(
             formDefinitionId: activeDefinition!.Id,
             isComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
             currentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            metadata: effectiveMetadata ?? DEFAULT_METADATA,
+            metadata: metadata ?? DEFAULT_METADATA,
             submittedBy: request.SubmittedById
         );
 
