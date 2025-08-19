@@ -9,6 +9,7 @@ namespace Endatix.Api.Tests.Infrastructure;
 public class ResultExtensionsTests
 {
     internal const string DEFAULT_UNEXPECTED_ERROR_TITLE = "An unexpected error occurred.";
+    internal const string DEFAULT_BAD_REQUEST_TITLE = "There was a problem with your request.";
 
     [Fact]
     public void ToNotFound_WithErrors_ReturnsProblemDetailsWithErrors()
@@ -168,7 +169,7 @@ public class ResultExtensionsTests
     }
 
     [Fact]
-    public void ToProblem_WithValidationErrors_ReturnsProblemDetailsWithValidationErrors()
+    public void ToProblem_WithValidationError_ReturnsProblemDetailsWithValidationError()
     {
         // Arrange
         var validationError = new ValidationError("Field", "Validation error message", "ERROR_CODE", ValidationSeverity.Error);
@@ -203,7 +204,7 @@ public class ResultExtensionsTests
     }
 
     [Fact]
-    public void ToProblem_WithMixedErrors_ReturnsProblemDetailsWithAllErrors()
+    public void ToProblem_WithErrorResult_ReturnsProblemDetailsCorrectly()
     {
         // Arrange
         var result = Result.Error("General error");
@@ -230,7 +231,34 @@ public class ResultExtensionsTests
         }
         problemDetails.Title.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
         problemDetails.Detail.Should().Contain("General error");
+        problemDetails.Extensions.Should().NotContainKey("errorCode");
+    }
+
+    [Fact]
+    public void ToProblem_WithValidationError_ReturnsProblemDetailsCorectly()
+    {
+        // Arrange
+        var result = Result.Invalid(new ValidationError("Field", "Validation error", "ERROR_CODE", ValidationSeverity.Error));
+
+        // Act
+        var httpResult = result.ToProblem();
+
+        // Assert
+        httpResult.Should().NotBeNull();
+        httpResult.Should().BeOfType<ProblemHttpResult>();
+
+        var statusCode = httpResult.StatusCode;
+        statusCode.Should().Be(StatusCodes.Status400BadRequest);
+
+        var problemDetails = httpResult.ProblemDetails;
+        if (problemDetails is null)
+        {
+            Assert.Fail("Problem details are null");
+        }
+        problemDetails.Title.Should().Be(DEFAULT_BAD_REQUEST_TITLE);
         problemDetails.Detail.Should().Contain("Validation error");
+        problemDetails.Extensions.Should().ContainKey("errorCode");
+        problemDetails.Extensions["errorCode"].Should().Be("ERROR_CODE");
     }
 
     [Fact]
@@ -382,9 +410,11 @@ public class ResultExtensionsTests
         {
             Assert.Fail("Problem details are null");
         }
-        problemDetails.Title.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
+        problemDetails.Title.Should().Be(DEFAULT_BAD_REQUEST_TITLE);
         problemDetails.Detail.Should().Contain("First validation error");
         problemDetails.Detail.Should().Contain("Second validation error");
+        problemDetails.Extensions.Should().ContainKey("errorCode");
+        problemDetails.Extensions["errorCode"].Should().Be("ERROR1");
     }
 
     [Fact]

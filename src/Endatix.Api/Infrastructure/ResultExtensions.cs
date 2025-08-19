@@ -100,6 +100,7 @@ public static partial class ResultExtensions
 
         if (result.IsInvalid())
         {
+            problemResult.ProblemDetails.Title = title ?? DEFAULT_BAD_REQUEST_TITLE;
             foreach (var error in result.ValidationErrors)
             {
                 details.Append(error.ErrorMessage).AppendLine();
