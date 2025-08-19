@@ -2,7 +2,6 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Account.ResetPassword;
 using FastEndpoints;
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Auth;
@@ -34,18 +33,5 @@ public class ResetPassword(
         return TypedResultsBuilder
                 .FromResult(result)
                 .SetTypedResults<Ok<string>, ProblemHttpResult>();
-    }
-
-    private static ProblemHttpResult InvalidTokenResult()
-    {
-        const string INVALID_TOKEN_MESSAGE = "Password reset link is invalid or has expired. Generate a new link and try again.";
-        var invalidTokenResult = TypedResults.Problem(
-            title: "Invalid token",
-            detail: INVALID_TOKEN_MESSAGE,
-            statusCode: StatusCodes.Status400BadRequest
-        );
-        invalidTokenResult.ProblemDetails.Extensions.Add("errorCode", "invalid_token");
-
-        return invalidTokenResult;
     }
 }

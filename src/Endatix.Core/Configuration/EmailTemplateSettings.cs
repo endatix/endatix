@@ -26,9 +26,9 @@ public class EmailTemplateSettings
     public EmailTemplateConfig ForgotPasswordEmail { get; set; } = new();
 
     /// <summary>
-    /// Reset password email template settings.
+    /// Password changed email template settings.
     /// </summary>
-    public EmailTemplateConfig ResetPasswordEmail { get; set; } = new();
+    public EmailTemplateConfig PasswordChangedEmail { get; set; } = new();
 }
 
 /// <summary>

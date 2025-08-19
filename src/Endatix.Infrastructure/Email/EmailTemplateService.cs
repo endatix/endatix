@@ -64,4 +64,18 @@ public class EmailTemplateService : IEmailTemplateService
             }
         };
     }
+
+    /// <inheritdoc />
+    public EmailWithTemplate CreatePasswordChangedEmail(string userEmail)
+    {
+        Guard.Against.NullOrWhiteSpace(userEmail);
+
+        return new EmailWithTemplate
+        {
+            To = userEmail,
+            From = _emailTemplateSettings.Value.PasswordChangedEmail.FromAddress ?? DEFAULT_FROM_ADDRESS,
+            TemplateId = _emailTemplateSettings.Value.PasswordChangedEmail.TemplateId,
+            Metadata = []
+        };
+    }
 }
