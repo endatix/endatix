@@ -54,6 +54,11 @@ public static class IdentityServiceCollectionExtensions
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
 
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+        {
+            options.TokenLifespan = TimeSpan.FromHours(2);
+        });
+
         if (options.InitialUserSettings != null)
         {
             services.Configure<InitialUserOptions>(config =>
