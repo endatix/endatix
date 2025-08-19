@@ -63,13 +63,3 @@ public class ForgotPassword(
         return TypedResults.Ok(new ForgotPasswordResponse { Message = GENERAL_MESSAGE });
     }
 }
-
-public sealed class ForgotPasswordRequest
-{
-    public required string Email { get; init; }
-}
-
-public sealed class ForgotPasswordResponse
-{
-    public required string Message { get; init; }
-}
