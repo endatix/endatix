@@ -9,6 +9,8 @@ using Endatix.Infrastructure.Identity.EmailVerification;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Endatix.Infrastructure.Features.Account;
+using Endatix.Core.Abstractions.Account;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -84,6 +86,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserContext, UserContext>();
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
+        services.AddScoped<IUserPasswordManageService, UserPasswordManageService>();
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()

@@ -1,25 +1,12 @@
-using System;
-using System.Text;
-using System.Text.Encodings.Web;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Abstractions;
-using Endatix.Core.Features.Email;
-using Endatix.Infrastructure.Identity;
+using Endatix.Core.UseCases.Account;
 using FastEndpoints;
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Logging;
 
 namespace Endatix.Api.Endpoints.Auth;
 
-public class ForgotPassword(
-        UserManager<AppUser> userManager,
-        IEmailSender emailSender,
-        ILogger<ForgotPassword> logger
-    ) :
+public class ForgotPassword(IMediator mediator) :
     Endpoint<ForgotPasswordRequest, Results<Ok<ForgotPasswordResponse>, ProblemHttpResult>>
 {
     public override void Configure()
@@ -38,28 +25,11 @@ public class ForgotPassword(
 
     public override async Task<Results<Ok<ForgotPasswordResponse>, ProblemHttpResult>> ExecuteAsync(ForgotPasswordRequest request, CancellationToken cancellationToken)
     {
-        const string GENERAL_MESSAGE = "Thank you. If an account exists with this email, you will receive an email with instructions to reset your password.";
+        var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
+        var result = await mediator.Send(forgotPasswordCommand, cancellationToken);
 
-        var user = await userManager.FindByEmailAsync(request.Email);
-        if (user is not null && await userManager.IsEmailConfirmedAsync(user))
-        {
-            var token = await userManager.GeneratePasswordResetTokenAsync(user);
-            var resetCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-            var query = $"email={HtmlEncoder.Default.Encode(request.Email)}&resetCode={HtmlEncoder.Default.Encode(resetCode)}";
-            logger.LogInformation("Reset password query: {Query}", query);
-            var endatixHubBaseUrl = "http://localhost:3000";
-            var callbackUrl = new Uri($"{endatixHubBaseUrl}/reset-password?{query}");
-            var resetPasswordEmail = new EmailWithBody()
-            {
-                To = request.Email,
-                From = "no-reply@endatix.com",
-                Subject = "Reset Password",
-                HtmlBody = "Please reset your password by clicking here: <a href=\"" + callbackUrl + "\">link</a>",
-                PlainTextBody = "Please reset your password by clicking here: " + callbackUrl
-            };
-            await emailSender.SendEmailAsync(resetPasswordEmail, cancellationToken);
-        }
-
-        return TypedResults.Ok(new ForgotPasswordResponse { Message = GENERAL_MESSAGE });
+        return TypedResultsBuilder
+                 .MapResult(result, (message) => new ForgotPasswordResponse { Message = message })
+                 .SetTypedResults<Ok<ForgotPasswordResponse>, ProblemHttpResult>();
     }
 }

@@ -19,6 +19,16 @@ public class EmailTemplateSettings
     /// Welcome email template settings.
     /// </summary>
     public EmailTemplateConfig WelcomeEmail { get; set; } = new();
+
+    /// <summary>
+    /// Forgot password email template settings.
+    /// </summary>
+    public EmailTemplateConfig ForgotPasswordEmail { get; set; } = new();
+
+    /// <summary>
+    /// Reset password email template settings.
+    /// </summary>
+    public EmailTemplateConfig ResetPasswordEmail { get; set; } = new();
 }
 
 /// <summary>
@@ -35,4 +45,4 @@ public class EmailTemplateConfig
     /// From email address.
     /// </summary>
     public string FromAddress { get; set; } = string.Empty;
-} 
+}
