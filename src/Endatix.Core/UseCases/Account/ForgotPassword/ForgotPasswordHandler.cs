@@ -5,7 +5,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
 
-namespace Endatix.Core.UseCases.Account;
+namespace Endatix.Core.UseCases.Account.ForgotPassword;
 
 public class ForgotPasswordHandler(
     IUserPasswordManageService userPasswordManageService,

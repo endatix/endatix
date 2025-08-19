@@ -1,5 +1,5 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Account;
+using Endatix.Core.UseCases.Account.ForgotPassword;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
