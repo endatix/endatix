@@ -1,13 +1,25 @@
--- Insert the email verification template
-INSERT INTO public."EmailTemplates" ("Id", "Name", "Subject", "HtmlContent", "PlainTextContent", "FromAddress", "CreatedAt", "ModifiedAt", "IsDeleted")
-VALUES (
-    2,
-    'forgot-password',
-    'Reset your password',
-    '<html>
+-- Insert the forgot password template
+INSERT INTO
+    EmailTemplates (
+        Id,
+        Name,
+        Subject,
+        HtmlContent,
+        PlainTextContent,
+        FromAddress,
+        CreatedAt,
+        ModifiedAt,
+        IsDeleted
+    )
+VALUES
+    (
+        2,
+        'forgot-password',
+        'Reset your password',
+        '<html>
 <head>
     <meta charset="utf-8">
-    <title>Your password reset link</title>
+    <title>Your Endatix password reset link</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -39,11 +51,11 @@ VALUES (
     </div>
 </body>
 </html>',
-    'Verify your email address
+        'Your Endatix password reset link
 
-Thank you for creating your Endatix account.
+We received a request to reset the password for your Endatix account.
 
-To get started, please verify your email address by clicking the link below:
+To reset your password, please copy and paste the link below into your browser:
 
 {{hubUrl}}/reset-password?{{resetCodeQuery}}
 
@@ -56,8 +68,8 @@ If you didn’t request a password reset, you can safely ignore this email.
 ---
 
 This is an automated message. Please do not reply to this email.',
-    'noreply@endatix.com',
-    NOW(),
-    NOW(),
-    FALSE
-);
+        'noreply@endatix.com',
+        GETUTCDATE (),
+        GETUTCDATE (),
+        0
+    );
