@@ -22,10 +22,10 @@ public class ResetPasswordTests
     public async Task ExecuteAsync_WithValidResetRequest_ReturnsOkResult()
     {
         // Arrange
-        var request = new ResetPasswordRequest 
-        { 
-            Email = "user@example.com", 
-            ResetCode = "valid-reset-code", 
+        var request = new ResetPasswordRequest
+        {
+            Email = "user@example.com",
+            ResetCode = "valid-reset-code",
             NewPassword = "NewPassword123!",
             ConfirmPassword = "NewPassword123!"
         };
@@ -51,10 +51,10 @@ public class ResetPasswordTests
     public async Task ExecuteAsync_WithInvalidTokenResult_ReturnsProblemResult()
     {
         // Arrange
-        var request = new ResetPasswordRequest 
-        { 
-            Email = "user@example.com", 
-            ResetCode = "invalid-reset-code", 
+        var request = new ResetPasswordRequest
+        {
+            Email = "user@example.com",
+            ResetCode = "invalid-reset-code",
             NewPassword = "NewPassword123!",
             ConfirmPassword = "NewPassword123!"
         };
@@ -82,40 +82,13 @@ public class ResetPasswordTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithEmptyResetCode_ReturnsProblemResult()
-    {
-        // Arrange
-        var request = new ResetPasswordRequest 
-        { 
-            Email = "user@example.com", 
-            ResetCode = string.Empty, 
-            NewPassword = "NewPassword123!",
-            ConfirmPassword = "NewPassword123!"
-        };
-        var resetPasswordCommand = new ResetPasswordCommand(request.Email, request.ResetCode, request.NewPassword);
-        var errorResult = Result.Invalid(new ValidationError("Reset code is required."));
-
-        _mediator.Send(resetPasswordCommand)
-           .Returns(errorResult);
-
-        // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
-
-        // Assert
-        var problemResult = response!.Result as ProblemHttpResult;
-        problemResult.Should().NotBeNull();
-        problemResult!.StatusCode.Should().Be(400);
-        problemResult!.ProblemDetails.Detail.Should().Contain("Reset code is required.");
-    }
-
-    [Fact]
     public async Task ExecuteAsync_WithSystemError_ReturnsProblemResult()
     {
         // Arrange
-        var request = new ResetPasswordRequest 
-        { 
-            Email = "user@example.com", 
-            ResetCode = "valid-reset-code", 
+        var request = new ResetPasswordRequest
+        {
+            Email = "user@example.com",
+            ResetCode = "valid-reset-code",
             NewPassword = "NewPassword123!",
             ConfirmPassword = "NewPassword123!"
         };

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 using Endatix.Core.Abstractions.Account;
 using Endatix.Core.Infrastructure.Result;
@@ -27,7 +28,7 @@ public class UserPasswordManageService(
             var token = await userManager.GeneratePasswordResetTokenAsync(user);
             return token is not null ?
                 Result.Success(token) :
-                Result.Invalid(new ValidationError("Failed to generate password reset token"));
+                Result.Error("Failed to generate password reset token");
         }
 
         return Result.Invalid(new ValidationError("User not found"));
@@ -35,7 +36,7 @@ public class UserPasswordManageService(
 
     public async Task<Result<string>> ResetPasswordAsync(string email, string resetCode, string newPassword, CancellationToken cancellationToken = default)
     {
-        if (email is null || resetCode is null || newPassword is null)
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(resetCode) || string.IsNullOrWhiteSpace(newPassword))
         {
             return Result.Invalid(new ValidationError("Invalid input"));
         }
@@ -47,11 +48,10 @@ public class UserPasswordManageService(
             return Result.Invalid(new ValidationError("Invalid input")); // Don't leak information about the user's existence
         }
 
-        var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(resetCode));
-
         IdentityResult result;
         try
         {
+            var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(resetCode));
             result = await userManager.ResetPasswordAsync(user, code, newPassword);
         }
         catch (FormatException)

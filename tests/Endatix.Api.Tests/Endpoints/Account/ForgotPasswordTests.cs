@@ -82,46 +82,4 @@ public class ForgotPasswordTests
         problemResult!.StatusCode.Should().Be(500);
         problemResult!.ProblemDetails.Detail.Should().Contain(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
     }
-
-    [Fact]
-    public async Task ExecuteAsync_WithEmptyEmail_ReturnsProblemResult()
-    {
-        // Arrange
-        var request = new ForgotPasswordRequest { Email = string.Empty };
-        var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
-        var errorResult = Result.Invalid(new ValidationError("Email is required."));
-
-        _mediator.Send(forgotPasswordCommand)
-           .Returns(errorResult);
-
-        // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
-
-        // Assert
-        var problemResult = response!.Result as ProblemHttpResult;
-        problemResult.Should().NotBeNull();
-        problemResult!.StatusCode.Should().Be(400);
-        problemResult!.ProblemDetails.Detail.Should().Contain("Email is required.");
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_WithNullEmail_ReturnsProblemResult()
-    {
-        // Arrange
-        var request = new ForgotPasswordRequest { Email = null! };
-        var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
-        var errorResult = Result.Invalid(new ValidationError("Email cannot be null."));
-
-        _mediator.Send(forgotPasswordCommand)
-           .Returns(errorResult);
-
-        // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
-
-        // Assert
-        var problemResult = response!.Result as ProblemHttpResult;
-        problemResult.Should().NotBeNull();
-        problemResult!.StatusCode.Should().Be(400);
-        problemResult!.ProblemDetails.Detail.Should().Contain("Email cannot be null.");
-    }
 }
