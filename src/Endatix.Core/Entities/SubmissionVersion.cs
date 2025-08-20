@@ -10,11 +10,12 @@ public class SubmissionVersion : TenantEntity, IAggregateRoot
 {
     private SubmissionVersion() { } // For EF Core
 
-    public SubmissionVersion(long tenantId, long submissionId, string jsonData)
+    public SubmissionVersion(long tenantId, long submissionId, string jsonData, DateTime createdAt)
         : base(tenantId)
     {
         SubmissionId = submissionId;
         JsonData = jsonData;
+        CreatedAt = createdAt;
     }
 
     /// <summary>

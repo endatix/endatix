@@ -6,7 +6,6 @@ using Endatix.Core.Abstractions;
 using Ardalis.GuardClauses;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Endatix.Infrastructure.Data.Abstractions;
-using Endatix.Infrastructure.Data.Interceptors;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -46,8 +45,6 @@ public class AppDbContext : DbContext, ITenantDbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         base.OnConfiguring(optionsBuilder);
-        
-        optionsBuilder.AddInterceptors(new SubmissionVersioningInterceptor(_idGenerator));
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
