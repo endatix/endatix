@@ -45,7 +45,7 @@ public class PartialUpdateSubmissionHandlerTests
         // Arrange
         var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3) { Id = 1 };
         var request = new PartialUpdateSubmissionCommand(
-            1, 2, true, 1, "{ \"updated\": true }", "metadata"
+            1, 2, true, 1, "{ \"updated\": true }", "{ \"meta\": \"data\" }"
         );
 
         _repository.SingleOrDefaultAsync(
@@ -63,7 +63,7 @@ public class PartialUpdateSubmissionHandlerTests
         result.Value.JsonData.Should().Be(request.JsonData);
         result.Value.IsComplete.Should().Be(request.IsComplete!.Value);
         result.Value.CurrentPage.Should().Be(request.CurrentPage!.Value);
-        result.Value.Metadata.Should().Be(request.Metadata);
+        result.Value.Metadata.Should().Be("{\"meta\":\"data\"}");
         result.Value.FormId.Should().Be(request.FormId);
 
         await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());

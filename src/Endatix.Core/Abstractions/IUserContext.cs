@@ -25,5 +25,10 @@ public interface IUserContext
     /// <summary>
     /// Gets the current user's ID, or null if not authenticated.
     /// </summary>
-    long? GetCurrentUserId();
+    string? GetCurrentUserId();
+
+    /// <summary>
+    /// Gets the current user's display name from the Name claim, or null if not available.
+    /// </summary>
+    string? GetCurrentUserName();
 }

@@ -6,6 +6,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using MediatR;
+using Endatix.Core.Helpers;
 
 namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 
@@ -33,12 +34,14 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
         // TODO: add more advanced PATCH-ing where we can not only replace individual properties, but merge, remove and other typical operations. This is valid especially for the JSON based JsonData and Metadata properties, so we can keep payloads and client logic light, e.g. submit one answer at a time and update JsonData
         // TODO: investigate if IsComplete and CurrentPage should be auto calculated as part of processing the submission
+        var mergedMetadata = JsonHelpers.MergeTopLevelObject(submission.Metadata, request.Metadata);
+
         submission.Update(
             request.JsonData ?? submission.JsonData,
             submission.FormDefinitionId,
             request.IsComplete ?? submission.IsComplete,
             request.CurrentPage ?? submission.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            request.Metadata ?? submission.Metadata
+            mergedMetadata
         );
 
         await repository.SaveChangesAsync(cancellationToken);
