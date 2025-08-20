@@ -43,7 +43,8 @@ public class UserPasswordManageService(
         var user = await userManager.FindByEmailAsync(email);
         if (user is null || !await userManager.IsEmailConfirmedAsync(user))
         {
-            return Result.Invalid(new ValidationError("User not found or email not confirmed"));
+            logger.LogWarning("User not found or email not confirmed for email: {Email}", email);
+            return Result.Invalid(new ValidationError("Invalid input")); // Don't leak information about the user's existence
         }
 
         var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(resetCode));
