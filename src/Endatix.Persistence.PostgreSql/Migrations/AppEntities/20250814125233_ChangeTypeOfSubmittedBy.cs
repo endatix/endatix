@@ -23,16 +23,16 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<long>(
-                name: "SubmittedBy",
-                table: "Submissions",
-                type: "bigint",
-                nullable: false,
-                defaultValue: 0L,
-                oldClrType: typeof(string),
-                oldType: "character varying(64)",
-                oldMaxLength: 64,
-                oldNullable: true);
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""Submissions"" 
+                ALTER COLUMN ""SubmittedBy"" TYPE bigint 
+                USING (
+                    CASE 
+                        WHEN ""SubmittedBy"" ~ '^[0-9]+$' THEN (""SubmittedBy"")::bigint 
+                        ELSE NULL 
+                    END
+                );
+            ");
         }
     }
 }
