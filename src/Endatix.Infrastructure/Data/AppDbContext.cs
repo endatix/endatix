@@ -6,6 +6,7 @@ using Endatix.Core.Abstractions;
 using Ardalis.GuardClauses;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Endatix.Infrastructure.Data.Abstractions;
+using Endatix.Infrastructure.Data.Interceptors;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -32,6 +33,8 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<Submission> Submissions { get; set; }
 
+    public DbSet<SubmissionVersion> SubmissionVersions { get; set; }
+
     public DbSet<Theme> Themes { get; set; }
 
     public DbSet<CustomQuestion> CustomQuestions { get; set; }
@@ -39,6 +42,13 @@ public class AppDbContext : DbContext, ITenantDbContext
     public DbSet<SubmissionExportRow> SubmissionExportRows { get; set; }
 
     public DbSet<EmailTemplate> EmailTemplates { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        
+        optionsBuilder.AddInterceptors(new SubmissionVersioningInterceptor(_idGenerator));
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -85,10 +95,14 @@ public class AppDbContext : DbContext, ITenantDbContext
                         entry.CurrentValues["Id"] = _idGenerator.CreateId();
                     }
 
-                    // Set the CreatedAt value
+                    // Set the CreatedAt value when not already provided
                     if (entry.CurrentValues.Properties.Any(p => p.Name == "CreatedAt"))
                     {
-                        entry.CurrentValues["CreatedAt"] = DateTime.UtcNow;
+                        var createdAtObj = entry.CurrentValues["CreatedAt"];
+                        if (createdAtObj is DateTime createdAt && createdAt == default)
+                        {
+                            entry.CurrentValues["CreatedAt"] = DateTime.UtcNow;
+                        }
                     }
 
                     break;
