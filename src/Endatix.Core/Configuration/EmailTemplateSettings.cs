@@ -23,12 +23,20 @@ public class EmailTemplateSettings
     /// <summary>
     /// Forgot password email template settings.
     /// </summary>
-    public EmailTemplateConfig ForgotPasswordEmail { get; set; } = new();
+    public EmailTemplateConfig ForgotPasswordEmail { get; set; } = new()
+    {
+        TemplateId = "forgot-passwords",
+        FromAddress = "noreply@endatix.com"
+    };
 
     /// <summary>
     /// Password changed email template settings.
     /// </summary>
-    public EmailTemplateConfig PasswordChangedEmail { get; set; } = new();
+    public EmailTemplateConfig PasswordChangedEmail { get; set; } = new()
+    {
+        TemplateId = "password-changed",
+        FromAddress = "noreply@endatix.com"
+    };
 }
 
 /// <summary>

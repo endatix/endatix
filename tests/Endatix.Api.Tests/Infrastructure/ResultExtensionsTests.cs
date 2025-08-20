@@ -204,7 +204,7 @@ public class ResultExtensionsTests
     }
 
     [Fact]
-    public void ToProblem_WithErrorResult_ReturnsProblemDetailsCorrectly()
+    public void ToProblem_WithErrorResult_IgnoresValidationErrors()
     {
         // Arrange
         var result = Result.Error("General error");
@@ -366,7 +366,7 @@ public class ResultExtensionsTests
     public void ToProblem_WithMultipleErrors_CombinesAllErrorMessages()
     {
         // Arrange
-        var result = Result.Error("First error");
+        var result = Result.Error(new ErrorList(["First error", "Second error"]));
 
         // Act
         var httpResult = result.ToProblem();
@@ -385,6 +385,7 @@ public class ResultExtensionsTests
         }
         problemDetails.Title.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
         problemDetails.Detail.Should().Contain("First error");
+        problemDetails.Detail.Should().Contain("Second error");
     }
 
     [Fact]
@@ -410,6 +411,7 @@ public class ResultExtensionsTests
         {
             Assert.Fail("Problem details are null");
         }
+
         problemDetails.Title.Should().Be(DEFAULT_BAD_REQUEST_TITLE);
         problemDetails.Detail.Should().Contain("First validation error");
         problemDetails.Detail.Should().Contain("Second validation error");
