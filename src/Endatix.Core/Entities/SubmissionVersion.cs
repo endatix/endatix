@@ -6,12 +6,11 @@ namespace Endatix.Core.Entities;
 /// Represents a version/snapshot of a submission's JSON data at a specific point in time.
 /// This entity tracks the history of JSON data changes to prevent data loss.
 /// </summary>
-public class SubmissionVersion : TenantEntity, IAggregateRoot
+public class SubmissionVersion : BaseEntity, IAggregateRoot
 {
     private SubmissionVersion() { } // For EF Core
 
-    public SubmissionVersion(long tenantId, long submissionId, string jsonData, DateTime createdAt)
-        : base(tenantId)
+    public SubmissionVersion(long submissionId, string jsonData, DateTime createdAt)
     {
         SubmissionId = submissionId;
         JsonData = jsonData;

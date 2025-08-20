@@ -343,7 +343,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.Property<string>("JsonData")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -351,14 +351,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<long>("SubmissionId")
                         .HasColumnType("bigint");
 
-                    b.Property<long>("TenantId")
-                        .HasColumnType("bigint");
-
                     b.HasKey("Id");
 
                     b.HasIndex("SubmissionId");
-
-                    b.HasIndex("TenantId");
 
                     b.ToTable("SubmissionVersions", (string)null);
                 });
@@ -572,15 +567,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Submission");
-
-                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Theme", b =>

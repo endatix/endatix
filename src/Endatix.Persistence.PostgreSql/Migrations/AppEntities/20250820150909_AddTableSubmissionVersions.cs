@@ -17,12 +17,11 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     SubmissionId = table.Column<long>(type: "bigint", nullable: false),
-                    JsonData = table.Column<string>(type: "text", nullable: false),
+                    JsonData = table.Column<string>(type: "jsonb", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
-                    TenantId = table.Column<long>(type: "bigint", nullable: false)
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -33,23 +32,12 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                         principalTable: "Submissions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_SubmissionVersions_Tenants_TenantId",
-                        column: x => x.TenantId,
-                        principalTable: "Tenants",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SubmissionVersions_SubmissionId",
                 table: "SubmissionVersions",
                 column: "SubmissionId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SubmissionVersions_TenantId",
-                table: "SubmissionVersions",
-                column: "TenantId");
         }
 
         /// <inheritdoc />

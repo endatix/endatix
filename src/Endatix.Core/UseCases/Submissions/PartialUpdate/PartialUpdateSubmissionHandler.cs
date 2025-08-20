@@ -46,7 +46,6 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         {
             var effectiveTimestamp = submission.ModifiedAt ?? submission.CreatedAt;
             var version = new SubmissionVersion(
-                submission.TenantId,
                 submission.Id,
                 originalJson,
                 effectiveTimestamp

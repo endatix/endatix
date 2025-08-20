@@ -46,7 +46,6 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         {
             var effectiveTimestamp = submission.ModifiedAt ?? submission.CreatedAt;
             var version = new SubmissionVersion(
-                submission.TenantId,
                 submission.Id,
                 originalJson,
                 effectiveTimestamp
