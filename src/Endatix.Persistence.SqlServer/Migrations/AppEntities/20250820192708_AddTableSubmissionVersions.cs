@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
+namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     /// <inheritdoc />
     public partial class AddTableSubmissionVersions : Migration
@@ -17,11 +17,11 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     SubmissionId = table.Column<long>(type: "bigint", nullable: false),
-                    JsonData = table.Column<string>(type: "jsonb", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false)
+                    JsonData = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {

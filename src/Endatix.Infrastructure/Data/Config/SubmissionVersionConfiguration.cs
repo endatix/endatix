@@ -17,7 +17,6 @@ public class SubmissionVersionConfiguration : IEntityTypeConfiguration<Submissio
             .IsRequired();
 
         builder.Property(sv => sv.JsonData)
-            .HasColumnType("jsonb")
             .IsRequired();
 
         builder.HasOne(sv => sv.Submission)
