@@ -2,7 +2,7 @@ using System;
 using FastEndpoints;
 using FluentValidation;
 
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Account;
 
 public class ForgotPasswordValidator : Validator<ForgotPasswordRequest>
 {

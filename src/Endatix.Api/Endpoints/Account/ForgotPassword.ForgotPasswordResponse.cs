@@ -1,4 +1,4 @@
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Account;
 
 public sealed record ForgotPasswordResponse
 {

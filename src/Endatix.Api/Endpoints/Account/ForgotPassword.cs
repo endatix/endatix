@@ -4,14 +4,14 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Account;
 
 public class ForgotPassword(IMediator mediator) :
     Endpoint<ForgotPasswordRequest, Results<Ok<ForgotPasswordResponse>, ProblemHttpResult>>
 {
     public override void Configure()
     {
-        Post("auth/forgot-password");
+        Post("account/forgot-password");
         AllowAnonymous();
         Summary(s =>
         {

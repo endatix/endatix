@@ -2,11 +2,11 @@ using Endatix.Api.Common.Security;
 using FastEndpoints;
 using FluentValidation;
 
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Account;
 
-public class Validator : Validator<ResetPasswordRequest>
+public class ResetPasswordValidator : Validator<ResetPasswordRequest>
 {
-    public Validator()
+    public ResetPasswordValidator()
     {
         RuleFor(x => x.Email)
             .NotEmpty()

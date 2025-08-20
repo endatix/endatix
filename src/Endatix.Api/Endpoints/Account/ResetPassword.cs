@@ -4,17 +4,15 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Account;
 
 public class ResetPassword(
     IMediator mediator
 ) : Endpoint<ResetPasswordRequest, Results<Ok<string>, ProblemHttpResult>>
 {
-    public const string ENDPOINT_PATH = "auth/reset-password";
-    /// <inheritdoc/>
     public override void Configure()
     {
-        Post(ENDPOINT_PATH);
+        Post("account/reset-password");
         AllowAnonymous();
         Summary(s =>
         {

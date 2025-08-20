@@ -1,10 +1,12 @@
 using Endatix.Core.Infrastructure.Attributes;
 
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Account;
 
 public sealed record ResetPasswordRequest
 {
     public required string Email { get; init; }
+
+    [Sensitive]
     public required string ResetCode { get; init; }
 
     [Sensitive]
