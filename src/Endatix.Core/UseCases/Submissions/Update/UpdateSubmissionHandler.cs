@@ -11,7 +11,7 @@ namespace Endatix.Core.UseCases.Submissions;
 /// <summary>
 /// Handler for updating a form submission.
 /// </summary>
-public class UpdateSubmissionHandler(IRepository<Submission> repository, IMediator mediator) : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
+public class UpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator) : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
     private const int DEFAULT_CURRENT_PAGE = 1;
@@ -32,6 +32,8 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IMediat
             mustPublishEvent = true;
         }
 
+        var originalJson = submission.JsonData;
+
         submission.Update(
             request.JsonData,
             submission.FormDefinitionId,
@@ -39,6 +41,18 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IMediat
             request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
             request.Metadata ?? DEFAULT_METADATA
         );
+
+        if (!string.Equals(originalJson, request.JsonData, StringComparison.Ordinal))
+        {
+            var effectiveTimestamp = submission.ModifiedAt ?? submission.CreatedAt;
+            var version = new SubmissionVersion(
+                submission.Id,
+                originalJson,
+                effectiveTimestamp
+            );
+
+            await versions.AddAsync(version, cancellationToken);
+        }
 
         await repository.SaveChangesAsync(cancellationToken);
 
