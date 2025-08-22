@@ -1,3 +1,6 @@
+-- Delete existing forgot password template if it exists
+DELETE FROM public."EmailTemplates" WHERE "Id" = 2;
+
 -- Insert the forgot password template
 INSERT INTO public."EmailTemplates" ("Id", "Name", "Subject", "HtmlContent", "PlainTextContent", "FromAddress", "CreatedAt", "ModifiedAt", "IsDeleted")
 VALUES (

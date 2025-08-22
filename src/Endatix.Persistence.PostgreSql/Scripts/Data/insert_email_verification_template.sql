@@ -1,3 +1,6 @@
+-- Delete existing email verification template if it exists
+DELETE FROM public."EmailTemplates" WHERE "Id" = 1;
+
 -- Insert the email verification template
 INSERT INTO public."EmailTemplates" ("Id", "Name", "Subject", "HtmlContent", "PlainTextContent", "FromAddress", "CreatedAt", "ModifiedAt", "IsDeleted")
 VALUES (

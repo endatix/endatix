@@ -1,3 +1,6 @@
+-- Delete existing password changed template if it exists
+DELETE FROM EmailTemplates WHERE Id = 3;
+
 -- Insert the password changed template
 INSERT INTO
     EmailTemplates (

@@ -1,3 +1,6 @@
+-- Delete existing email verification template if it exists
+DELETE FROM EmailTemplates WHERE Id = 1;
+
 -- Insert the email verification template
 INSERT INTO EmailTemplates (Id, Name, Subject, HtmlContent, PlainTextContent, FromAddress, CreatedAt, ModifiedAt, IsDeleted)
 VALUES (

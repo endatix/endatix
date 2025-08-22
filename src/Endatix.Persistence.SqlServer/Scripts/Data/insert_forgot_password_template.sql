@@ -1,3 +1,6 @@
+-- Delete existing forgot password template if it exists
+DELETE FROM EmailTemplates WHERE Id = 2;
+
 -- Insert the forgot password template
 INSERT INTO
     EmailTemplates (
