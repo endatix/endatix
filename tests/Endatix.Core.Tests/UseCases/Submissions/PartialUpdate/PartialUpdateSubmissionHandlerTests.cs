@@ -10,6 +10,7 @@ namespace Endatix.Core.Tests.UseCases.Submissions.PartialUpdate;
 public class PartialUpdateSubmissionHandlerTests
 {
     private readonly IRepository<Submission> _repository;
+    private readonly IRepository<SubmissionVersion> _versions;
     private readonly PartialUpdateSubmissionHandler _handler;
     private readonly IMediator _mediator;
 
@@ -17,7 +18,8 @@ public class PartialUpdateSubmissionHandlerTests
     {
         _repository = Substitute.For<IRepository<Submission>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new PartialUpdateSubmissionHandler(_repository, _mediator);
+        _versions = Substitute.For<IRepository<SubmissionVersion>>();
+        _handler = new PartialUpdateSubmissionHandler(_repository, _versions, _mediator);
     }
 
     [Fact]
@@ -67,6 +69,47 @@ public class PartialUpdateSubmissionHandlerTests
         result.Value.FormId.Should().Be(request.FormId);
 
         await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_JsonDataChanged_CreatesSubmissionVersion()
+    {
+        // Arrange
+        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3) { Id = 1 };
+        var request = new PartialUpdateSubmissionCommand(1, 2, true, 1, "{ \"updated\": true }", "metadata");
+
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        await _versions.Received(1).AddAsync(
+            Arg.Is<SubmissionVersion>(v => v.SubmissionId == submission.Id && v.JsonData == "{ }"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_JsonDataUnchanged_DoesNotCreateSubmissionVersion()
+    {
+        // Arrange
+        var originalJson = "{ }";
+        var submission = new Submission(SampleData.TENANT_ID, originalJson, 2, 3) { Id = 1 };
+        var request = new PartialUpdateSubmissionCommand(1, 2, null, null, null, null);
+
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        await _versions.DidNotReceive().AddAsync(Arg.Any<SubmissionVersion>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
