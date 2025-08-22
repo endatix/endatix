@@ -25,7 +25,7 @@ public class EmailTemplateSettings
     /// </summary>
     public EmailTemplateConfig ForgotPasswordEmail { get; set; } = new()
     {
-        TemplateId = "forgot-passwords",
+        TemplateId = "forgot-password",
         FromAddress = "noreply@endatix.com"
     };
 
