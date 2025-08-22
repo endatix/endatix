@@ -19,6 +19,8 @@ namespace Endatix.Infrastructure.Identity;
 /// </summary>
 public static class IdentityServiceCollectionExtensions
 {
+    private const int DEFAULT_PASSWORD_RESET_TOKEN_EXPIRATION_IN_MINUTES = 120;
+
     /// <summary>
     /// Adds default identity configuration to the service collection.
     /// </summary>
@@ -58,7 +60,7 @@ public static class IdentityServiceCollectionExtensions
 
         services.Configure<DataProtectionTokenProviderOptions>(options =>
         {
-            options.TokenLifespan = TimeSpan.FromHours(2);
+            options.TokenLifespan = TimeSpan.FromMinutes(DEFAULT_PASSWORD_RESET_TOKEN_EXPIRATION_IN_MINUTES);
         });
 
         if (options.InitialUserSettings != null)
