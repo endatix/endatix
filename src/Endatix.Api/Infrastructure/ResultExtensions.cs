@@ -4,6 +4,7 @@ using Endatix.Core.Infrastructure.Result;
 using AppDomain = Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Connections.Features;
 
 namespace Endatix.Api.Infrastructure;
 
@@ -86,6 +87,10 @@ public static partial class ResultExtensions
             _ => StatusCodes.Status500InternalServerError
         };
 
+        var problemResult = TypedResults.Problem(
+            title: title ?? DEFAULT_UNEXPECTED_ERROR_TITLE,
+            statusCode: status);
+
         var details = new StringBuilder();
 
         foreach (var error in result.Errors)
@@ -93,15 +98,24 @@ public static partial class ResultExtensions
             details.Append(error).AppendLine();
         }
 
-        foreach (var error in result.ValidationErrors)
+        if (result.IsInvalid())
         {
-            details.Append(error.ErrorMessage).AppendLine();
+            problemResult.ProblemDetails.Title = title ?? DEFAULT_BAD_REQUEST_TITLE;
+            foreach (var error in result.ValidationErrors)
+            {
+                details.Append(error.ErrorMessage).AppendLine();
+            }
+
+            var errorCode = result.ValidationErrors.FirstOrDefault()?.ErrorCode;
+            if (errorCode != null)
+            {
+                problemResult.ProblemDetails.Extensions.Add("errorCode", errorCode);
+            }
         }
 
-        return TypedResults.Problem(
-            title: title ?? DEFAULT_UNEXPECTED_ERROR_TITLE,
-            detail: details.ToString(),
-            statusCode: status);
+        problemResult.ProblemDetails.Detail = details.ToString();
+
+        return problemResult;
     }
 
     /// <summary>
