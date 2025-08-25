@@ -34,4 +34,37 @@ public class ChangePasswordCommandTests
         command.Should().BeAssignableTo<IRequest<Result<string>>>();
         command.GetType().Should().BeAssignableTo<IEquatable<ChangePasswordCommand>>();
     }
+
+    [Fact]
+    public void Command_ShouldThrowException_WhenCurrentPasswordIsEmpty()
+    {
+        // Arrange & Act
+        var userId = 123L;
+        var command = () => new ChangePasswordCommand(userId, "", "new");
+
+        // Assert
+        command.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Command_ShouldThrowException_WhenCurrentNewPasswordIsEmpty()
+    {
+        // Arrange & Act
+        var userId = 123L;
+        var command = () => new ChangePasswordCommand(userId, "current", "");
+
+        // Assert
+        command.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Command_ShouldNotThrowException_WhenUserIdIsNull()
+    {
+        // Arrange & Act
+        var userId = null as long?;
+        var command = () => new ChangePasswordCommand(userId, "current", "new");
+
+        // Assert
+        command.Should().NotThrow<ArgumentException>();
+    }
 }
