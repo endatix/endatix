@@ -2,13 +2,20 @@ using MediatR;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Account;
+using Endatix.Core.Features.Email;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.MyAccount.ChangePassword;
 
 /// <summary>
 /// Handles the change password command
 /// </summary>
-public class ChangePasswordHandler(IUserPasswordManageService userPasswordManageService) : IRequestHandler<ChangePasswordCommand, Result<string>>
+public class ChangePasswordHandler(
+    IUserPasswordManageService userPasswordManageService,
+    IEmailTemplateService emailTemplateService,
+    IEmailSender emailSender,
+    ILogger<ChangePasswordHandler> logger
+    ) : IRequestHandler<ChangePasswordCommand, Result<string>>
 {
     /// <summary>
     /// Handles the password change request
@@ -27,9 +34,23 @@ public class ChangePasswordHandler(IUserPasswordManageService userPasswordManage
 
         if (changePasswordResult.IsSuccess)
         {
+            try
+            {
+                var passwordChangedEmail = emailTemplateService.CreatePasswordChangedEmail(changePasswordResult.Value.Email);
+                await emailSender.SendEmailAsync(passwordChangedEmail, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send password changed email to {Email}", changePasswordResult.Value.Email);
+            }
             return Result.Success("Password changed successfully");
         }
 
-        return changePasswordResult;
+        return changePasswordResult.Status switch
+        {
+            ResultStatus.Invalid => Result.Invalid(changePasswordResult.ValidationErrors),
+            ResultStatus.Error => Result.Error(new ErrorList(changePasswordResult.Errors, changePasswordResult.CorrelationId)),
+            _ => Result.Error("An unexpected error occurred")
+        };
     }
 }

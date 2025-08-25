@@ -488,7 +488,7 @@ public class UserPasswordManageServiceTests
     }
 
     [Fact]
-    public async Task ChangePasswordAsync_Success_ReturnsSuccessMessage()
+    public async Task ChangePasswordAsync_Success_ReturnsSuccessUser()
     {
         // Arrange
         var user = new AppUser()
@@ -505,7 +505,7 @@ public class UserPasswordManageServiceTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Ok);
-        result.Value.Should().Be("Password changed successfully");
+        result.Value.Should().Be(user.ToUserEntity());
     }
 
     #endregion

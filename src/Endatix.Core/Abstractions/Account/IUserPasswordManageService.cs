@@ -1,3 +1,4 @@
+using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Abstractions.Account;
@@ -32,6 +33,6 @@ public interface IUserPasswordManageService
     /// <param name="currentPassword">The current password of the user.</param>
     /// <param name="newPassword">The new password to set for the user.</param>
     /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
-    /// <returns>A Result containing a message if successful, or an error if the operation fails.</returns>
-    Task<Result<string>> ChangePasswordAsync(long userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
+    /// <returns>A Result containing the updated user if successful, or an error if the operation fails.</returns>
+    Task<Result<User>> ChangePasswordAsync(long userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
 }

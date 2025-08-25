@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using Endatix.Core.Abstractions.Account;
+using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -80,7 +81,7 @@ public class UserPasswordManageService(
     }
 
     /// <inheritdoc />
-    public async Task<Result<string>> ChangePasswordAsync(long userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
+    public async Task<Result<User>> ChangePasswordAsync(long userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(currentPassword))
         {
@@ -116,6 +117,6 @@ public class UserPasswordManageService(
             return Result.Error(ex.Message);
         }
 
-        return Result.Success("Password changed successfully");
+        return Result.Success(appUser.ToUserEntity());
     }
 }

@@ -1,21 +1,31 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Account;
+using Endatix.Core.Entities;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.MyAccount.ChangePassword;
+using Microsoft.Extensions.Logging;
+using NSubstitute.ExceptionExtensions;
 
 namespace Endatix.Core.Tests.UseCases.MyAccount.ChangePassword;
 
 public class ChangePasswordHandlerTests
 {
     private readonly IUserPasswordManageService _passwordService;
+    private readonly IEmailTemplateService _emailTemplateService;
+    private readonly IEmailSender _emailSender;
+    private readonly ILogger<ChangePasswordHandler> _logger;
     private readonly ChangePasswordHandler _handler;
     private readonly long _testUserId = 123L;
 
     public ChangePasswordHandlerTests()
     {
         _passwordService = Substitute.For<IUserPasswordManageService>();
-        _handler = new ChangePasswordHandler(_passwordService);
+        _emailTemplateService = Substitute.For<IEmailTemplateService>();
+        _emailSender = Substitute.For<IEmailSender>();
+        _logger = Substitute.For<ILogger<ChangePasswordHandler>>();
+        _handler = new ChangePasswordHandler(_passwordService, _emailTemplateService, _emailSender, _logger);
     }
 
     [Fact]
@@ -56,7 +66,7 @@ public class ChangePasswordHandlerTests
         // Arrange
         var command = new ChangePasswordCommand(_testUserId, "currentPass", "newPass");
         _passwordService.ChangePasswordAsync(Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(Result<string>.Invalid(new ValidationError("User not found")));
+            .Returns(Result<User>.Invalid(new ValidationError("User not found")));
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -104,7 +114,7 @@ public class ChangePasswordHandlerTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(Result.Success("Password changed successfully"));
+            .Returns(Result.Success(user));
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -112,6 +122,79 @@ public class ChangePasswordHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be("Password changed successfully");
+    }
+
+    [Fact]
+    public async Task Handle_WhenSuccessful_SendsEmail()
+    {
+        // Arrange
+        var command = new ChangePasswordCommand(_testUserId, "currentPass", "newPass");
+        var user = new User(_testUserId, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
+
+        _passwordService.ChangePasswordAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(user));
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        await _emailSender.Received(1).SendEmailAsync(Arg.Any<EmailWithTemplate>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenSuccessful_ButEmailSendingFails_ReturnsSuccessResult()
+    {
+        // Arrange
+        var command = new ChangePasswordCommand(_testUserId, "currentPass", "newPass");
+        var user = new User(_testUserId, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
+
+        _passwordService.ChangePasswordAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(user));
+
+        _emailSender.SendEmailAsync(Arg.Any<EmailWithTemplate>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new Exception("Failed to send email"));
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        await _emailSender.Received(1).SendEmailAsync(Arg.Any<EmailWithTemplate>(), Arg.Any<CancellationToken>());
+    }
+
+
+    [Fact]
+    public async Task Handle_WhenChangePassword_FailsWithNotExpectedResult_ReturnsErrorResult()
+    {
+        // Arrange
+        var command = new ChangePasswordCommand(_testUserId, "currentPass", "newPass");
+        var user = new User(_testUserId, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
+        var notExpectedResult = Result.NotFound();
+
+        _passwordService.ChangePasswordAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
+            .Returns(notExpectedResult);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Error);
+        result.Errors.Should().HaveCount(1);
+        result.Errors.First().Should().Be("An unexpected error occurred");
     }
 
     [Fact]
@@ -128,7 +211,7 @@ public class ChangePasswordHandlerTests
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(Result.Success("Success"));
+            .Returns(Result.Success(user));
 
         // Act
         await _handler.Handle(command, CancellationToken.None);
