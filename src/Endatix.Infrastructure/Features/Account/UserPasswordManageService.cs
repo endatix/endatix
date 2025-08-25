@@ -34,6 +34,7 @@ public class UserPasswordManageService(
         return Result.Invalid(new ValidationError("User not found"));
     }
 
+    /// <inheritdoc />
     public async Task<Result<string>> ResetPasswordAsync(string email, string resetCode, string newPassword, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(resetCode) || string.IsNullOrWhiteSpace(newPassword))
@@ -78,5 +79,43 @@ public class UserPasswordManageService(
         return Result.Success("Password reset successfully");
     }
 
+    /// <inheritdoc />
+    public async Task<Result<string>> ChangePasswordAsync(long userId, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(currentPassword))
+        {
+            return Result.Invalid(new ValidationError("The current password is required to set a new password. If the old password is forgotten, use password reset."));
+        }
 
+        if (string.IsNullOrEmpty(newPassword))
+        {
+            return Result.Invalid(new ValidationError("The new password is required to change the password."));
+        }
+
+        var appUser = await userManager.FindByIdAsync(userId.ToString());
+        if (appUser == null)
+        {
+            return Result.Invalid(new ValidationError("User not found"));
+        }
+
+        try
+        {
+            var changePasswordResult = await userManager.ChangePasswordAsync(appUser, currentPassword, newPassword);
+            if (!changePasswordResult.Succeeded)
+            {
+                return Result.Invalid(changePasswordResult.Errors.Select(e => new ValidationError(e.Description)
+                {
+                    Identifier = "change_password",
+                    ErrorCode = e.Code,
+                    Severity = ValidationSeverity.Error
+                }));
+            }
+        }
+        catch (Exception ex)
+        {
+            return Result.Error(ex.Message);
+        }
+
+        return Result.Success("Password changed successfully");
+    }
 }

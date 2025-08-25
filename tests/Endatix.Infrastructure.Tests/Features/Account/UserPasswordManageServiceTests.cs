@@ -377,6 +377,139 @@ public class UserPasswordManageServiceTests
 
     #endregion
 
+    #region ChangePasswordAsync Tests
+
+    [Fact]
+    public async Task ChangePasswordAsync_UserNotFound_ReturnsError()
+    {
+        // Arrange
+        var requestedUser = new AppUser()
+        {
+            Id = 22_111_111_111_111_111,
+            UserName = "test@example.com"
+        };
+        AppUser nullUser = null!;
+        _userManager.FindByIdAsync(Arg.Any<string>()).Returns(nullUser);
+
+        // Act
+        var result = await _service.ChangePasswordAsync(requestedUser.Id, "currentPass", "newPass");
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().HaveCount(1);
+        result.ValidationErrors.First().ErrorMessage.Should().Be("User not found");
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_EmptyCurrentPassword_ReturnsError()
+    {
+        // Arrange
+        var user = new AppUser()
+        {
+            Id = 22_111_111_111_111_111,
+            UserName = "test@example.com"
+        };
+        _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
+
+        // Act
+        var result = await _service.ChangePasswordAsync(user.Id, "", "newPass");
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().HaveCount(1);
+        result.ValidationErrors.First().ErrorMessage.Should().Be("The current password is required to set a new password. If the old password is forgotten, use password reset.");
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_EmptyNewPassword_ReturnsError()
+    {
+        // Arrange
+        var user = new AppUser()
+        {
+            Id = 22_111_111_111_111_111,
+            UserName = "test@example.com"
+        };
+        _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
+
+        // Act
+        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "");
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().HaveCount(1);
+        result.ValidationErrors.First().ErrorMessage.Should().Be("The new password is required to change the password.");
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ChangePasswordFailsWithIdentityError_ReturnsError()
+    {
+        // Arrange
+        var user = new AppUser()
+        {
+            Id = 22_111_111_111_111_111,
+            UserName = "test@example.com"
+        };
+        var errorDescriber = new IdentityErrorDescriber();
+        _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
+        _userManager.ChangePasswordAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(IdentityResult.Failed(errorDescriber.PasswordMismatch()));
+
+        // Act
+        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "newPass");
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().HaveCount(1);
+        result.ValidationErrors.First().ErrorCode.Should().Be(nameof(errorDescriber.PasswordMismatch));
+        result.ValidationErrors.First().ErrorMessage.Should().Be(errorDescriber.PasswordMismatch().Description);
+    }
+
+
+    [Fact]
+    public async Task ChangePasswordAsync_ChangePasswordThrowsException_ReturnsError()
+    {
+        // Arrange
+        var user = new AppUser()
+        {
+            Id = 22_111_111_111_111_111,
+            UserName = "test@example.com"
+        };
+        _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
+        _userManager.ChangePasswordAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<string>())
+            .ThrowsAsync(new Exception("An unexpected error occurred while changing the password"));
+
+        // Act
+        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "newPass");
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Error);
+        result.Errors.Should().HaveCount(1);
+        result.Errors.First().Should().Be("An unexpected error occurred while changing the password");
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_Success_ReturnsSuccessMessage()
+    {
+        // Arrange
+        var user = new AppUser()
+        {
+            Id = 22_111_111_111_111_111,
+            UserName = "test@example.com"
+        };
+        _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
+        _userManager.ChangePasswordAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(IdentityResult.Success);
+
+        // Act
+        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "newPass");
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().Be("Password changed successfully");
+    }
+
+    #endregion
+
     #region Security and Privacy Tests
 
     [Fact]

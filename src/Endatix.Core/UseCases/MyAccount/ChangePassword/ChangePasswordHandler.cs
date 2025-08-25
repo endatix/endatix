@@ -1,13 +1,14 @@
 using MediatR;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Account;
 
 namespace Endatix.Core.UseCases.MyAccount.ChangePassword;
 
 /// <summary>
 /// Handles the change password command
 /// </summary>
-public class ChangePasswordHandler(IUserService userService) : IRequestHandler<ChangePasswordCommand, Result<string>>
+public class ChangePasswordHandler(IUserPasswordManageService userPasswordManageService) : IRequestHandler<ChangePasswordCommand, Result<string>>
 {
     /// <summary>
     /// Handles the password change request
@@ -17,25 +18,18 @@ public class ChangePasswordHandler(IUserService userService) : IRequestHandler<C
     /// <returns>Result indicating success or failure</returns>
     public async Task<Result<string>> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
     {
-        if (request.UserId == null)
+        if (request.UserId is null || request.UserId.Value <= 0)
         {
             return Result.Invalid(new ValidationError("User not found"));
         }
 
-        var userResult = await userService.GetUserAsync(request.UserId.Value, cancellationToken);
-
-        if (!userResult.IsSuccess || userResult.Value is not { } user)
-        {
-            return Result.Invalid(new ValidationError("User not found"));
-        }
-
-        var changePasswordResult = await userService.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword, cancellationToken);
+        var changePasswordResult = await userPasswordManageService.ChangePasswordAsync(request.UserId.Value, request.CurrentPassword, request.NewPassword, cancellationToken);
 
         if (changePasswordResult.IsSuccess)
         {
             return Result.Success("Password changed successfully");
         }
 
-        return Result.Invalid(new ValidationError(changePasswordResult.Errors?.First() ?? "Failed to change password"));
+        return changePasswordResult;
     }
 }

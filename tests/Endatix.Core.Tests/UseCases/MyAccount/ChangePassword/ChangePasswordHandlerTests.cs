@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Account;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.MyAccount.ChangePassword;
@@ -7,14 +8,14 @@ namespace Endatix.Core.Tests.UseCases.MyAccount.ChangePassword;
 
 public class ChangePasswordHandlerTests
 {
-    private readonly IUserService _userService;
+    private readonly IUserPasswordManageService _passwordService;
     private readonly ChangePasswordHandler _handler;
     private readonly long _testUserId = 123L;
 
     public ChangePasswordHandlerTests()
     {
-        _userService = Substitute.For<IUserService>();
-        _handler = new ChangePasswordHandler(_userService);
+        _passwordService = Substitute.For<IUserPasswordManageService>();
+        _handler = new ChangePasswordHandler(_passwordService);
     }
 
     [Fact]
@@ -32,13 +33,13 @@ public class ChangePasswordHandlerTests
         result.ValidationErrors.Should().Contain(e => e.ErrorMessage == "User not found");
     }
 
-    [Fact]
-    public async Task Handle_WhenUserNotFound_ReturnsInvalidResult()
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    public async Task Handle_WhenUserIdIsNegativeOrZero_ReturnsInvalidResult(int userId)
     {
         // Arrange
-        var command = new ChangePasswordCommand(_testUserId, "currentPass", "newPass");
-        _userService.GetUserAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns(Result<User>.NotFound());
+        var command = new ChangePasswordCommand(userId, "currentPass", "newPass");
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -50,20 +51,12 @@ public class ChangePasswordHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenChangePasswordFails_ReturnsInvalidResult()
+    public async Task Handle_WhenChangePasswordFailsWithValidationError_ReturnsInvalidResult()
     {
         // Arrange
         var command = new ChangePasswordCommand(_testUserId, "currentPass", "newPass");
-        var user = new User(_testUserId, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
-
-        _userService.GetUserAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(user));
-        _userService.ChangePasswordAsync(
-                Arg.Any<User>(),
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>())
-            .Returns(Result<string>.Error("Failed to change password"));
+        _passwordService.ChangePasswordAsync(Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result<string>.Invalid(new ValidationError("User not found")));
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -71,7 +64,32 @@ public class ChangePasswordHandlerTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().Contain(e => e.ErrorMessage == "Failed to change password");
+        result.ValidationErrors.Should().HaveCount(1);
+        result.ValidationErrors.First().ErrorMessage.Should().Be("User not found");
+    }
+
+    [Fact]
+    public async Task Handle_WhenChangePasswordFailsWithError_ReturnsErrorResult()
+    {
+        // Arrange
+        var command = new ChangePasswordCommand(_testUserId, "currentPass", "newPass");
+        var user = new User(_testUserId, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
+
+        _passwordService.ChangePasswordAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Error("Failed to change password"));
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Error);
+        result.Errors.Should().HaveCount(1);
+        result.Errors.First().Should().Be("Failed to change password");
     }
 
     [Fact]
@@ -81,10 +99,8 @@ public class ChangePasswordHandlerTests
         var command = new ChangePasswordCommand(_testUserId, "currentPass", "newPass");
         var user = new User(_testUserId, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
 
-        _userService.GetUserAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(user));
-        _userService.ChangePasswordAsync(
-                Arg.Any<User>(),
+        _passwordService.ChangePasswordAsync(
+                Arg.Any<long>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
@@ -107,10 +123,8 @@ public class ChangePasswordHandlerTests
         var command = new ChangePasswordCommand(_testUserId, currentPassword, newPassword);
         var user = new User(_testUserId, SampleData.TENANT_ID, "test@example.com", "test@example.com", true);
 
-        _userService.GetUserAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(user));
-        _userService.ChangePasswordAsync(
-                Arg.Any<User>(),
+        _passwordService.ChangePasswordAsync(
+                Arg.Any<long>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
@@ -120,13 +134,8 @@ public class ChangePasswordHandlerTests
         await _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        await _userService.Received(1).GetUserAsync(
+        await _passwordService.Received(1).ChangePasswordAsync(
             Arg.Is<long>(id => id == _testUserId),
-            Arg.Any<CancellationToken>()
-        );
-        
-        await _userService.Received(1).ChangePasswordAsync(
-            Arg.Is<User>(u => u.Id == user.Id),
             Arg.Is<string>(p => p == currentPassword),
             Arg.Is<string>(p => p == newPassword),
             Arg.Any<CancellationToken>()
