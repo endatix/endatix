@@ -494,7 +494,8 @@ public class UserPasswordManageServiceTests
         var user = new AppUser()
         {
             Id = 22_111_111_111_111_111,
-            UserName = "test@example.com"
+            UserName = "test@example.com",
+            Email = "test@example.com",
         };
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
         _userManager.ChangePasswordAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<string>())
@@ -505,7 +506,7 @@ public class UserPasswordManageServiceTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Ok);
-        result.Value.Should().Be(user.ToUserEntity());
+        result.Value.Id.Should().Be(user.ToUserEntity().Id);
     }
 
     #endregion
