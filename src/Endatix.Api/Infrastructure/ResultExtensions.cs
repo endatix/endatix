@@ -4,7 +4,6 @@ using Endatix.Core.Infrastructure.Result;
 using AppDomain = Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Connections.Features;
 
 namespace Endatix.Api.Infrastructure;
 
@@ -15,6 +14,7 @@ public static partial class ResultExtensions
 
     private const string DEFAULT_UNEXPECTED_ERROR_TITLE = "An unexpected error occurred.";
     private const string DEFAULT_BAD_REQUEST_TITLE = "There was a problem with your request.";
+
     /// <summary>
     /// Converts an IResult from an operation to a NotFound HTTP IResult with ProblemDetails.
     /// </summary>
