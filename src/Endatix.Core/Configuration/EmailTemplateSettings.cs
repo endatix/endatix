@@ -19,6 +19,24 @@ public class EmailTemplateSettings
     /// Welcome email template settings.
     /// </summary>
     public EmailTemplateConfig WelcomeEmail { get; set; } = new();
+
+    /// <summary>
+    /// Forgot password email template settings.
+    /// </summary>
+    public EmailTemplateConfig ForgotPasswordEmail { get; set; } = new()
+    {
+        TemplateId = "forgot-password",
+        FromAddress = "noreply@endatix.com"
+    };
+
+    /// <summary>
+    /// Password changed email template settings.
+    /// </summary>
+    public EmailTemplateConfig PasswordChangedEmail { get; set; } = new()
+    {
+        TemplateId = "password-changed",
+        FromAddress = "noreply@endatix.com"
+    };
 }
 
 /// <summary>
@@ -35,4 +53,4 @@ public class EmailTemplateConfig
     /// From email address.
     /// </summary>
     public string FromAddress { get; set; } = string.Empty;
-} 
+}

@@ -1,12 +1,11 @@
 using Endatix.Api.Endpoints.MyAccount;
 using Endatix.Core.UseCases.MyAccount.ChangePassword;
 using MediatR;
-using Errors = Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Core.Infrastructure.Result;
 using FastEndpoints;
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Api.Tests.Endpoints.MyAccount;
 
@@ -33,7 +32,7 @@ public class ChangePasswordTests
         // Arrange
         var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
         var userId = 123L;
-        
+
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
             .Send(Arg.Any<ChangePasswordCommand>())
@@ -44,17 +43,18 @@ public class ChangePasswordTests
 
         // Assert
         var okResult = response.Result as Ok<ChangePasswordResponse>;
-        okResult.Should().NotBeNull();
-        okResult.Value.Message.Should().Be("Password changed successfully");
+        Assert.NotNull(okResult);
+        Assert.NotNull(okResult.Value);
+        Assert.Equal("Password changed successfully", okResult.Value.Message);
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenFailed_ShouldReturnBadRequest()
+    public async Task ExecuteAsync_WhenInvalidResult_ShouldReturnProblemDetails()
     {
         // Arrange
         var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
         var userId = 123L;
-        
+
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
             .Send(Arg.Any<ChangePasswordCommand>())
@@ -64,9 +64,39 @@ public class ChangePasswordTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        Console.WriteLine(response.Result);
-        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
-        badRequestResult.Should().NotBeNull();
+        var problemDetailsResult = response.Result as ProblemHttpResult;
+
+        Assert.NotNull(problemDetailsResult);
+        Assert.NotNull(problemDetailsResult.ProblemDetails);
+
+        problemDetailsResult.ProblemDetails.Title.Should().Be("There was a problem with your request.");
+        problemDetailsResult.ProblemDetails.Detail.Should().Contain("Invalid current password");
+        problemDetailsResult.ProblemDetails.Status.Should().Be(400);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenErrorResult_ShouldReturnProblemDetails()
+    {
+        // Arrange
+        var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
+        var userId = 123L;
+
+        _userContext.GetCurrentUserId().Returns(userId);
+        _mediator
+            .Send(Arg.Any<ChangePasswordCommand>())
+            .Returns(Result.Error("Failed to change password"));
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        // Assert
+        var problemDetailsResult = response.Result as ProblemHttpResult;
+
+        Assert.NotNull(problemDetailsResult);
+        Assert.NotNull(problemDetailsResult.ProblemDetails);
+        problemDetailsResult.ProblemDetails.Title.Should().Be("An unexpected error occurred.");
+        problemDetailsResult.ProblemDetails.Detail.Should().Contain("Failed to change password");
+        problemDetailsResult.ProblemDetails.Status.Should().Be(500);
     }
 
     [Fact]
@@ -75,7 +105,7 @@ public class ChangePasswordTests
         // Arrange
         var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
         var userId = 123L;
-        
+
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
             .Send(Arg.Any<ChangePasswordCommand>())
