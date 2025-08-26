@@ -10,6 +10,8 @@ using Endatix.Infrastructure.Identity.EmailVerification;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Endatix.Infrastructure.Features.Account;
+using Endatix.Core.Abstractions.Account;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -18,6 +20,8 @@ namespace Endatix.Infrastructure.Identity;
 /// </summary>
 public static class IdentityServiceCollectionExtensions
 {
+    private const int DEFAULT_PASSWORD_RESET_TOKEN_EXPIRATION_IN_MINUTES = 120;
+
     /// <summary>
     /// Adds default identity configuration to the service collection.
     /// </summary>
@@ -55,6 +59,11 @@ public static class IdentityServiceCollectionExtensions
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
 
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+        {
+            options.TokenLifespan = TimeSpan.FromMinutes(DEFAULT_PASSWORD_RESET_TOKEN_EXPIRATION_IN_MINUTES);
+        });
+
         if (options.InitialUserSettings != null)
         {
             services.Configure<InitialUserOptions>(config =>
@@ -80,13 +89,14 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserContext, UserContext>();
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
-        
+
         // Register authentication provider system
         services.AddAuthenticationProviders();
         services.AddBuiltInAuthenticationProviders();
-        
+
         // Register auth scheme selector for JWT token routing (now using provider registry)
         services.AddSingleton<IAuthSchemeSelector, DefaultAuthSchemeSelector>();
+        services.AddScoped<IUserPasswordManageService, UserPasswordManageService>();
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()

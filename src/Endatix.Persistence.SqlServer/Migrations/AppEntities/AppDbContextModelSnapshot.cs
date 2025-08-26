@@ -328,6 +328,37 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         });
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.SubmissionVersion", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JsonData")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("SubmissionId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubmissionId");
+
+                    b.ToTable("SubmissionVersions", (string)null);
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.Tenant", b =>
                 {
                     b.Property<long>("Id")
@@ -527,6 +558,17 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Navigation("Tenant");
 
                     b.Navigation("Token");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.SubmissionVersion", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Submission", "Submission")
+                        .WithMany()
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Submission");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Theme", b =>
