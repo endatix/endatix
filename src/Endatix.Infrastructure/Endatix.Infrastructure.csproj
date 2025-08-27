@@ -36,7 +36,6 @@
 		<ProjectReference Include="../Endatix.Framework/Endatix.Framework.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-		<Folder Include="Identity/Authentication/" />
 		<Folder Include="Identity/Authorization/" />
 		<Folder Include="Logging/" />
 	</ItemGroup>

@@ -7,8 +7,8 @@ using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authentication;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 
 namespace Endatix.Hosting.Builders;
 
@@ -29,8 +29,6 @@ public class EndatixSecurityBuilder
 {
     private readonly EndatixBuilder _parentBuilder;
     private readonly ILogger? _logger;
-
-    private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
 
     /// <summary>
     /// Initializes a new instance of the EndatixSecurityBuilder class.
@@ -146,8 +144,6 @@ public class EndatixSecurityBuilder
         // Register JWT-specific services from Endatix.Infrastructure
         services.AddEndatixJwtServices(configuration);
         services.AddTransient<IClaimsTransformation, JwtClaimsTransformer>();
-        var jwtSettings = configuration.GetRequiredSection(JwtOptions.SECTION_NAME).Get<JwtOptions>();
-        Guard.Against.Null(jwtSettings, nameof(jwtSettings), "JWT settings are required for authentication");
 
         var isDevelopment = appEnvironment?.IsDevelopment() ?? false;
 
@@ -162,54 +158,31 @@ public class EndatixSecurityBuilder
                 if (authHeader?.StartsWith("Bearer ") == true)
                 {
                     var token = authHeader["Bearer ".Length..].Trim();
-                    
+
                     var authSchemeSelector = context.RequestServices.GetService<IAuthSchemeSelector>();
                     if (authSchemeSelector != null)
                     {
                         return authSchemeSelector.SelectScheme(token);
                     }
                 }
-                
-                return AuthSchemes.Endatix;
+
+                return AuthSchemes.EndatixJwt;
             };
         });
 
-        authenticationBuilder.AddJwtBearer(AuthSchemes.Endatix, options =>
-            {
-                // Apply default configuration
-                options.RequireHttpsMetadata = !isDevelopment;
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
-                    ValidIssuer = jwtSettings.Issuer,
-                    ValidAudiences = jwtSettings.Audiences,
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ClockSkew = TimeSpan.FromSeconds(JWT_CLOCK_SKEW_IN_SECONDS)
-                };
-                options.MapInboundClaims = true;
+        // Register the JWT authentication provider
+        services.AddTransient<IAuthProvider, EndatixJwtAuthProvider>();
+        services.AddTransient<IAuthProvider, KeycloakAuthProvider>();
 
-                // Apply custom configuration if provided
-                configure?.Invoke(options);
-            });
+        // Configure the authentication providers
+        var authProviders = services.BuildServiceProvider().GetServices<IAuthProvider>();
+        foreach (var authProvider in authProviders)
+        {
+            authProvider.Configure(authenticationBuilder, _parentBuilder.Configuration, isDevelopment);
+        }
 
-        authenticationBuilder.AddJwtBearer(AuthSchemes.Keycloak, options =>
-            {
-                options.RequireHttpsMetadata = !isDevelopment;
-                options.Audience = "account";
-                options.MetadataAddress = "http://localhost:8080/realms/endatix/.well-known/openid-configuration";
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidIssuer = "http://localhost:8080/realms/endatix",
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = false,
-                    ValidateIssuerSigningKey = false,
-                };
-                options.MapInboundClaims = true;
-            });
+
+        // Register the JWT authentication provider
 
         LogSetupInfo("JWT authentication configured successfully");
         return this;

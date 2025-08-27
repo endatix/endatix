@@ -11,7 +11,7 @@ internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
     /// <summary>
     /// The default authentication scheme used when no specific provider matches.
     /// </summary>
-    public string DefaultScheme => AuthSchemes.Endatix;
+    public string DefaultScheme => AuthSchemes.EndatixJwt;
 
     /// <inheritdoc />
     public string SelectScheme(string token)
@@ -98,7 +98,7 @@ internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
         return issuer switch
         {
             // Exact match for Endatix tokens
-            "endatix-api" => AuthSchemes.Endatix,
+            "endatix-api" => AuthSchemes.EndatixJwt,
             
             // Pattern match for Keycloak (supports different realms)
             string iss when iss.Contains("localhost:8080/realms/endatix") => AuthSchemes.Keycloak,
