@@ -1,4 +1,5 @@
 using System;
+using Ardalis.GuardClauses;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,23 +16,30 @@ public class KeycloakAuthProvider : IAuthProvider
 {
     public string SchemeName => AuthSchemes.Keycloak;
 
-    public void Configure(AuthenticationBuilder builder, IConfiguration providerConfig, bool isDevelopment = false)
+    public void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
+        var keycloakOptions = providerConfig.Get<KeycloakOptions>();
+        Guard.Against.Null(keycloakOptions);
+
+        if (!keycloakOptions.Enabled)
+        {
+            return;
+        }
+
         builder.AddJwtBearer(AuthSchemes.Keycloak, options =>
            {
-               options.RequireHttpsMetadata = !isDevelopment;
-               options.Audience = "account";
-               options.MetadataAddress = "http://localhost:8080/realms/endatix/.well-known/openid-configuration";
+               options.RequireHttpsMetadata = !isDevelopment ? false : keycloakOptions.RequireHttpsMetadata;
+               options.Audience = keycloakOptions.Audience;
+               options.MetadataAddress = keycloakOptions.MetadataAddress;
+               options.MapInboundClaims = keycloakOptions.MapInboundClaims;
                options.TokenValidationParameters = new TokenValidationParameters
                {
-                   ValidIssuer = "http://localhost:8080/realms/endatix",
-                   ValidateIssuer = false,
-                   ValidateAudience = false,
-                   ValidateLifetime = false,
-                   ValidateIssuerSigningKey = false,
+                   ValidIssuer = keycloakOptions.ValidIssuer,
+                   ValidateIssuer = keycloakOptions.ValidateIssuer,
+                   ValidateAudience = keycloakOptions.ValidateAudience,
+                   ValidateLifetime = keycloakOptions.ValidateLifetime,
+                   ValidateIssuerSigningKey = keycloakOptions.ValidateIssuerSigningKey,
                };
-               options.MapInboundClaims = true;
            });
-
     }
 }

@@ -120,6 +120,12 @@ public static class IdentityServiceCollectionExtensions
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
 
+        // Register Auth Options
+        services.AddOptions<AuthOptions>()
+                .BindConfiguration(AuthOptions.SECTION_NAME)
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+
         // Register token service
         services.AddScoped<IUserTokenService, JwtTokenService>();
 

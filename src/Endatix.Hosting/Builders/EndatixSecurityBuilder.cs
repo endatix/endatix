@@ -6,7 +6,6 @@ using Ardalis.GuardClauses;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 
@@ -143,14 +142,25 @@ public class EndatixSecurityBuilder
 
         // Register JWT-specific services from Endatix.Infrastructure
         services.AddEndatixJwtServices(configuration);
-        services.AddTransient<IClaimsTransformation, JwtClaimsTransformer>();
+        services.AddTransient<Microsoft.AspNetCore.Authentication.IClaimsTransformation, JwtClaimsTransformer>();
 
         var isDevelopment = appEnvironment?.IsDevelopment() ?? false;
 
-        var authenticationBuilder = services
-            .AddAuthentication("MultiScheme");
+        var authOptions = configuration.GetSection(AuthOptions.SECTION_NAME)
+        .Get<AuthOptions>() ?? new AuthOptions();
+        var registry = new AuthProviderRegistry();
+        services.AddSingleton(registry);
 
-        authenticationBuilder.AddPolicyScheme("MultiScheme", "Multi Scheme", options =>
+        // Register built-in providers
+        registry.RegisterProvider<EndatixJwtOptions>(new EndatixJwtAuthProvider());
+        registry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider());
+
+        var authenticationBuilder = services.AddAuthentication(options =>
+        {
+            options.DefaultScheme = authOptions.DefaultScheme;
+        });
+
+        authenticationBuilder.AddPolicyScheme("MultiJwt", "Multi JWT Scheme", options =>
         {
             options.ForwardDefaultSelector = context =>
             {
@@ -162,7 +172,8 @@ public class EndatixSecurityBuilder
                     var authSchemeSelector = context.RequestServices.GetService<IAuthSchemeSelector>();
                     if (authSchemeSelector != null)
                     {
-                        return authSchemeSelector.SelectScheme(token);
+                        var selectedScheme = authSchemeSelector.SelectScheme(token);
+                        return selectedScheme;
                     }
                 }
 
@@ -170,17 +181,20 @@ public class EndatixSecurityBuilder
             };
         });
 
-        // Register the JWT authentication provider
-        services.AddTransient<IAuthProvider, EndatixJwtAuthProvider>();
-        services.AddTransient<IAuthProvider, KeycloakAuthProvider>();
-
-        // Configure the authentication providers
-        var authProviders = services.BuildServiceProvider().GetServices<IAuthProvider>();
-        foreach (var authProvider in authProviders)
+        foreach (var providerRecord in registry.GetProviders())
         {
-            authProvider.Configure(authenticationBuilder, _parentBuilder.Configuration, isDevelopment);
-        }
 
+            var provider = providerRecord.Provider;
+            var configType = providerRecord.ConfigType;
+
+            var configSection = configuration.GetSection($"Endatix:Auth:Providers:{configType.Name}");
+            var config = configSection.Get(configType) as AuthProviderOptions;
+
+            if (config?.Enabled == true)
+            {
+                provider.Configure(authenticationBuilder, configSection, isDevelopment);
+            }
+        }
 
         // Register the JWT authentication provider
 

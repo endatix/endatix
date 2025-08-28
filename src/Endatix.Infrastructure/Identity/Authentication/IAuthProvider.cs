@@ -14,7 +14,7 @@ public interface IAuthProvider
 
     /// <summary>
     /// Called at startup to configure authentication for this provider.
-    /// Implementations should read their config from the given section.
+    /// The configuration section passed is specific to this provider.
     /// </summary>
-    void Configure(AuthenticationBuilder builder, IConfiguration providerConfig, bool isDevelopment = false);
+    void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false);
 }
