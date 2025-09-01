@@ -5,6 +5,7 @@ namespace Endatix.Infrastructure.Identity;
 /// <summary>
 /// Configuration options for JWT (JSON Web Token) Bearer token used for authentication and authorization
 /// </summary>
+[Obsolete("Use EndatixJwtOptions instead. Will be removed in the future.")]
 public class JwtOptions
 {
     /// <summary>
