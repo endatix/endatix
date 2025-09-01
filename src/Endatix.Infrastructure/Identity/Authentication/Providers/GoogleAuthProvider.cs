@@ -8,9 +8,8 @@ namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 
 public class GoogleAuthProvider : IAuthProvider
 {
-    private string? _cachedIssuer;
-    public const string GOOGLE_SCHEME_NAME = "Google";
-    public string SchemeName => GOOGLE_SCHEME_NAME;
+    private string? _cachedIssuer;  
+    public string SchemeName => "Google";
 
     /// <inheritdoc />
     public bool CanHandle(string issuer, string rawToken)
@@ -35,7 +34,7 @@ public class GoogleAuthProvider : IAuthProvider
 
         _cachedIssuer = googleIssuer;
 
-        builder.AddJwtBearer(GOOGLE_SCHEME_NAME, options =>
+        builder.AddJwtBearer(SchemeName, options =>
                    {
                        options.Authority = googleIssuer;
                        options.RequireHttpsMetadata = true;

@@ -13,6 +13,12 @@ public interface IAuthProvider
     string SchemeName { get; }
 
     /// <summary>
+    /// Gets the configuration section path for this provider.
+    /// Defaults to "Endatix:Auth:Providers:{SchemeName}"
+    /// </summary>
+    string ConfigurationSectionPath => $"Endatix:Auth:Providers:{SchemeName}";
+
+    /// <summary>
     /// Checks if the provider can handle the given token.
     /// </summary>
     /// <param name="issuer">The issuer of the token.</param>

@@ -155,7 +155,7 @@ public class EndatixSecurityBuilder
         registry.RegisterProvider<EndatixJwtOptions>(new EndatixJwtAuthProvider());
         registry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider());
         registry.RegisterProvider<GoogleOptions>(new GoogleAuthProvider());
-        
+
         var authenticationBuilder = services.AddAuthentication(options =>
         {
             options.DefaultScheme = authOptions.DefaultScheme;
@@ -188,7 +188,7 @@ public class EndatixSecurityBuilder
             var provider = providerRecord.Provider;
             var configType = providerRecord.ConfigType;
 
-            var configSection = configuration.GetSection($"Endatix:Auth:Providers:{configType.Name}");
+            var configSection = configuration.GetSection(provider.ConfigurationSectionPath);
             var config = configSection.Get(configType) as AuthProviderOptions;
 
             if (config?.Enabled == true)

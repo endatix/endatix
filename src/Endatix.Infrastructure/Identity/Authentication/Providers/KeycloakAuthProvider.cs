@@ -15,8 +15,7 @@ namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 public class KeycloakAuthProvider : IAuthProvider
 {
     private string? _cachedIssuer;
-
-    public string SchemeName => AuthSchemes.Keycloak;
+    public string SchemeName => "Keycloak";
 
     /// <inheritdoc />
     public bool CanHandle(string issuer, string rawToken)
@@ -40,7 +39,7 @@ public class KeycloakAuthProvider : IAuthProvider
 
         _cachedIssuer = keycloakIssuer;
 
-        builder.AddJwtBearer(AuthSchemes.Keycloak, options =>
+        builder.AddJwtBearer(SchemeName, options =>
            {
                options.RequireHttpsMetadata = !isDevelopment ? false : keycloakOptions.RequireHttpsMetadata;
                options.Audience = keycloakOptions.Audience;
