@@ -103,6 +103,7 @@ internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
             // Pattern match for Keycloak (supports different realms)
             string iss when iss.Contains("localhost:8080/realms/endatix") => AuthSchemes.Keycloak,
             
+            string iss when iss.Contains("accounts.google.com") => "Google",
             // Future providers can be added here or via plugin system:
             // string iss when iss.Contains("auth0.com") => AuthSchemes.Auth0,
             // string iss when iss.Contains("login.microsoftonline.com") => AuthSchemes.AzureAD,

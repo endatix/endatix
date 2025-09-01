@@ -154,7 +154,8 @@ public class EndatixSecurityBuilder
         // Register built-in providers
         registry.RegisterProvider<EndatixJwtOptions>(new EndatixJwtAuthProvider());
         registry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider());
-
+        registry.RegisterProvider<GoogleOptions>(new GoogleAuthProvider());
+        
         var authenticationBuilder = services.AddAuthentication(options =>
         {
             options.DefaultScheme = authOptions.DefaultScheme;
