@@ -7,6 +7,7 @@ using Endatix.Infrastructure.Identity.Authentication;
 /// </summary>
 public class EndatixJwtOptions : JwtAuthProviderOptions
 {
+    private const string DEFAULT_ISSUER = "endatix-api";
     /// <summary>
     /// The key used to sign the JWT token
     /// </summary>
@@ -27,7 +28,7 @@ public class EndatixJwtOptions : JwtAuthProviderOptions
     public EndatixJwtOptions()
     {
         SchemeName = AuthSchemes.EndatixJwt;
-        ValidIssuer = "endatix-api";
+        Issuer = DEFAULT_ISSUER;
         ValidAudiences = ["endatix-hub"];
     }
 }

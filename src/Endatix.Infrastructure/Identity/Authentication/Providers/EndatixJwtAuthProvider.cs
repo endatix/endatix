@@ -15,8 +15,16 @@ namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 /// </summary>
 public class EndatixJwtAuthProvider : IAuthProvider
 {
+    private string? _cachedIssuer;
     public string SchemeName => AuthSchemes.EndatixJwt;
 
+    /// <inheritdoc />
+    public bool CanHandle(string issuer, string rawToken)
+    {
+        return issuer == _cachedIssuer;
+    }
+
+    /// <inheritdoc />
     public void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
         var obsoleteJwtOptions = providerConfig.GetSection(JwtOptions.SECTION_NAME).Get<JwtOptions>();
@@ -28,6 +36,11 @@ public class EndatixJwtAuthProvider : IAuthProvider
         var jwtOptions = providerConfig.Get<EndatixJwtOptions>();
         Guard.Against.Null(jwtOptions);
 
+        var endatixIssuer = jwtOptions.Issuer;
+        Guard.Against.NullOrEmpty(endatixIssuer);
+
+        _cachedIssuer = endatixIssuer;
+
         builder.AddJwtBearer(AuthSchemes.EndatixJwt, options =>
             {
                 // Apply default configuration
@@ -36,7 +49,7 @@ public class EndatixJwtAuthProvider : IAuthProvider
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
-                    ValidIssuer = jwtOptions.ValidIssuer,
+                    ValidIssuer = endatixIssuer,
                     ValidAudiences = jwtOptions.ValidAudiences,
                     ValidateIssuer = jwtOptions.ValidateIssuer,
                     ValidateAudience = jwtOptions.ValidateAudience,

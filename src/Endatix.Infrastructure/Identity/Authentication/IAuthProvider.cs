@@ -13,6 +13,15 @@ public interface IAuthProvider
     string SchemeName { get; }
 
     /// <summary>
+    /// Checks if the provider can handle the given token.
+    /// </summary>
+    /// <param name="issuer">The issuer of the token.</param>
+    /// <param name="rawToken">The raw token string (without "Bearer " prefix).</param>
+    /// <returns>True if the provider can handle the given token, false otherwise.</returns>
+    bool CanHandle(string issuer, string rawToken);
+
+
+    /// <summary>
     /// Called at startup to configure authentication for this provider.
     /// The configuration section passed is specific to this provider.
     /// </summary>

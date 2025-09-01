@@ -14,8 +14,17 @@ namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 /// </summary>
 public class KeycloakAuthProvider : IAuthProvider
 {
+    private string? _cachedIssuer;
+
     public string SchemeName => AuthSchemes.Keycloak;
 
+    /// <inheritdoc />
+    public bool CanHandle(string issuer, string rawToken)
+    {
+        return issuer == _cachedIssuer;
+    }
+
+    /// <inheritdoc />
     public void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
         var keycloakOptions = providerConfig.Get<KeycloakOptions>();
@@ -26,6 +35,11 @@ public class KeycloakAuthProvider : IAuthProvider
             return;
         }
 
+        var keycloakIssuer = keycloakOptions.Issuer;
+        Guard.Against.NullOrEmpty(keycloakIssuer);
+
+        _cachedIssuer = keycloakIssuer;
+
         builder.AddJwtBearer(AuthSchemes.Keycloak, options =>
            {
                options.RequireHttpsMetadata = !isDevelopment ? false : keycloakOptions.RequireHttpsMetadata;
@@ -34,7 +48,7 @@ public class KeycloakAuthProvider : IAuthProvider
                options.MapInboundClaims = keycloakOptions.MapInboundClaims;
                options.TokenValidationParameters = new TokenValidationParameters
                {
-                   ValidIssuer = keycloakOptions.ValidIssuer,
+                   ValidIssuer = keycloakIssuer,
                    ValidateIssuer = keycloakOptions.ValidateIssuer,
                    ValidateAudience = keycloakOptions.ValidateAudience,
                    ValidateLifetime = keycloakOptions.ValidateLifetime,

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Endatix.Infrastructure.Identity.Authentication;
 
 /// <summary>
@@ -8,7 +10,8 @@ public abstract class JwtAuthProviderOptions : AuthProviderOptions
     /// <summary>
     /// Valid issuer for the JWT token
     /// </summary>
-    public string? ValidIssuer { get; set; }
+    [Required]
+    public string Issuer { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether to validate the issuer

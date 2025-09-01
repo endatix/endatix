@@ -8,6 +8,14 @@ namespace Endatix.Infrastructure.Identity.Authentication;
 /// </summary>
 internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
 {
+
+    private readonly AuthProviderRegistry _providerRegistry;
+
+    public DefaultAuthSchemeSelector(AuthProviderRegistry providerRegistry)
+    {
+        _providerRegistry = providerRegistry;
+    }
+
     /// <summary>
     /// The default authentication scheme used when no specific provider matches.
     /// </summary>
@@ -27,9 +35,8 @@ internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
             return DefaultScheme;
         }
 
-        // TODO: Replace with plugin-based provider registry in the future
-        // This will become: return _providerRegistry.SelectScheme(issuer) ?? DefaultScheme;
-        return SelectSchemeByIssuer(issuer);
+        // Use dynamic provider selection
+        return _providerRegistry.SelectScheme(issuer, token) ?? DefaultScheme;
     }
 
     /// <summary>
@@ -43,8 +50,8 @@ internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
         try
         {
             using var doc = ParseJwtPayload(token);
-            return doc?.RootElement.TryGetProperty("iss", out var iss) == true 
-                ? iss.GetString() 
+            return doc?.RootElement.TryGetProperty("iss", out var iss) == true
+                ? iss.GetString()
                 : null;
         }
         catch
@@ -85,31 +92,4 @@ internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
             return null;
         }
     }
-
-    /// <summary>
-    /// Selects authentication scheme based on issuer patterns.
-    /// This method will be replaced by a plugin-based provider registry.
-    /// </summary>
-    /// <param name="issuer">The JWT issuer claim</param>
-    /// <returns>The authentication scheme name</returns>
-    private string SelectSchemeByIssuer(string issuer)
-    {
-        // Current hardcoded routing logic - future: move to provider registry
-        return issuer switch
-        {
-            // Exact match for Endatix tokens
-            "endatix-api" => AuthSchemes.EndatixJwt,
-            
-            // Pattern match for Keycloak (supports different realms)
-            string iss when iss.Contains("localhost:8080/realms/endatix") => AuthSchemes.Keycloak,
-            
-            string iss when iss.Contains("accounts.google.com") => "Google",
-            // Future providers can be added here or via plugin system:
-            // string iss when iss.Contains("auth0.com") => AuthSchemes.Auth0,
-            // string iss when iss.Contains("login.microsoftonline.com") => AuthSchemes.AzureAD,
-            
-            // Default fallback
-            _ => DefaultScheme
-        };
-    }
-} 
+}

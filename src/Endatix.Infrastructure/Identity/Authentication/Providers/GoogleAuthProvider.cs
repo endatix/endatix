@@ -8,9 +8,18 @@ namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 
 public class GoogleAuthProvider : IAuthProvider
 {
-    public const string GOOGLE_ID = "Google";
-    public string SchemeName => GOOGLE_ID;
+    private string? _cachedIssuer;
+    public const string GOOGLE_SCHEME_NAME = "Google";
+    public string SchemeName => GOOGLE_SCHEME_NAME;
 
+    /// <inheritdoc />
+    public bool CanHandle(string issuer, string rawToken)
+    {
+        return issuer == _cachedIssuer;
+
+    }
+
+    /// <inheritdoc />
     public void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
         var googleOptions = providerConfig.Get<GoogleOptions>();
@@ -21,14 +30,19 @@ public class GoogleAuthProvider : IAuthProvider
             return;
         }
 
-        builder.AddJwtBearer("Google", options =>
+        var googleIssuer = googleOptions.Issuer;
+        Guard.Against.NullOrEmpty(googleIssuer, nameof(GoogleOptions.Issuer));
+
+        _cachedIssuer = googleIssuer;
+
+        builder.AddJwtBearer(GOOGLE_SCHEME_NAME, options =>
                    {
-                       options.Authority = googleOptions.RealmUrl;
+                       options.Authority = googleIssuer;
                        options.RequireHttpsMetadata = true;
                        options.TokenValidationParameters = new TokenValidationParameters
                        {
                            ValidateIssuer = true,
-                           ValidIssuers = new[] { googleOptions.RealmUrl },
+                           ValidIssuers = new[] { googleOptions.Issuer },
                            ValidateAudience = true,
                            ValidAudience = googleOptions.Audience,
                            ValidateLifetime = true,
@@ -36,5 +50,6 @@ public class GoogleAuthProvider : IAuthProvider
                            NameClaimType = "email",
                        };
                    });
+
     }
 }

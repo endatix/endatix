@@ -168,12 +168,12 @@ public class EndatixSecurityBuilder
                 var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
                 if (authHeader?.StartsWith("Bearer ") == true)
                 {
-                    var token = authHeader["Bearer ".Length..].Trim();
+                    var rawToken = authHeader["Bearer ".Length..].Trim();
 
                     var authSchemeSelector = context.RequestServices.GetService<IAuthSchemeSelector>();
                     if (authSchemeSelector != null)
                     {
-                        var selectedScheme = authSchemeSelector.SelectScheme(token);
+                        var selectedScheme = authSchemeSelector.SelectScheme(rawToken);
                         return selectedScheme;
                     }
                 }
