@@ -20,32 +20,35 @@ internal sealed class JwtTokenService : IUserTokenService
     private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
 
     private readonly JwtOptions _jwtOptions;
+    private readonly EndatixJwtOptions _endatixJwtOptions;
 
     /// <summary>
     /// Initializes a new instance of the JwtTokenService class with the specified JWT options.
     /// </summary>
-    /// <param name="jwtOptions">The JWT options.</param>
-    public JwtTokenService(IOptions<JwtOptions> jwtOptions)
+    /// <param name="jwtOptions">The obsolete JWT options. Will be removed in the future.</param>
+    /// <param name="endatixJwtOptions">The EndatixJwt options.</param>
+    public JwtTokenService(IOptions<JwtOptions> jwtOptions, IOptions<EndatixJwtOptions> endatixJwtOptions)
     {
         _jwtOptions = jwtOptions.Value;
+        _endatixJwtOptions = endatixJwtOptions.Value;
 
-        // Validate JWT options to ensure they are correctly configured
-        Guard.Against.NullOrEmpty(_jwtOptions.SigningKey, nameof(_jwtOptions.SigningKey), "Signing key cannot be empty. Please check your appSettings.");
-        Guard.Against.NullOrEmpty(_jwtOptions.Issuer, nameof(_jwtOptions.Issuer), "Issuer cannot be empty. Please check your appSettings");
-        Guard.Against.NullOrEmpty(_jwtOptions.Audiences, nameof(_jwtOptions.Audiences), "You need at least one audience in your appSettings.");
-        Guard.Against.NegativeOrZero(_jwtOptions.AccessExpiryInMinutes, nameof(_jwtOptions.AccessExpiryInMinutes), "Access Token expiration must be positive number representing minutes for access token lifetime");
-        Guard.Against.NegativeOrZero(_jwtOptions.RefreshExpiryInDays, nameof(_jwtOptions.RefreshExpiryInDays), "Refresh Token expiration must be positive number representing days for refresh token lifetime");
+        // Validate EndatixJwt Options options to ensure they are correctly configured
+        Guard.Against.NullOrEmpty(_endatixJwtOptions.SigningKey, nameof(_endatixJwtOptions.SigningKey), "Signing key cannot be empty. Please check your appSettings.");
+        Guard.Against.NullOrEmpty(_endatixJwtOptions.Issuer, nameof(_endatixJwtOptions.Issuer), "Issuer cannot be empty. Please check your appSettings");
+        Guard.Against.NullOrEmpty(_endatixJwtOptions.Audiences, nameof(_endatixJwtOptions.Audiences), "You need at least one audience in your appSettings.");
+        Guard.Against.NegativeOrZero(_endatixJwtOptions.AccessExpiryInMinutes, nameof(_endatixJwtOptions.AccessExpiryInMinutes), "Access Token expiration must be positive number representing minutes for access token lifetime");
+        Guard.Against.NegativeOrZero(_endatixJwtOptions.RefreshExpiryInDays, nameof(_endatixJwtOptions.RefreshExpiryInDays), "Refresh Token expiration must be positive number representing days for refresh token lifetime");
     }
 
     /// <inheritdoc />
     public TokenDto IssueAccessToken(User forUser, string? forAudience = null)
     {
-        var secret = _jwtOptions.SigningKey;
+        var secret = _endatixJwtOptions.SigningKey;
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
 
         if (string.IsNullOrEmpty(forAudience))
         {
-            forAudience = _jwtOptions.Audiences.First();
+            forAudience = _endatixJwtOptions.Audiences.First();
         }
 
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
@@ -61,9 +64,9 @@ internal sealed class JwtTokenService : IUserTokenService
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = subject,
-            Expires = DateTime.UtcNow.AddMinutes(_jwtOptions.AccessExpiryInMinutes),
+            Expires = DateTime.UtcNow.AddMinutes(_endatixJwtOptions.AccessExpiryInMinutes),
             SigningCredentials = credentials,
-            Issuer = _jwtOptions.Issuer,
+            Issuer = _endatixJwtOptions.Issuer,
             Audience = forAudience
         };
 
@@ -88,15 +91,15 @@ internal sealed class JwtTokenService : IUserTokenService
             {
                 return Result.Success(keycloakUserId);
             }
-            
+
             return Result.Invalid(new ValidationError("Invalid user ID"));
         }
 
         var validationParameters = new TokenValidationParameters
         {
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey)),
-            ValidIssuer = _jwtOptions.Issuer,
-            ValidAudiences = _jwtOptions.Audiences,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_endatixJwtOptions.SigningKey)),
+            ValidIssuer = _endatixJwtOptions.Issuer,
+            ValidAudiences = _endatixJwtOptions.Audiences,
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = validateLifetime,

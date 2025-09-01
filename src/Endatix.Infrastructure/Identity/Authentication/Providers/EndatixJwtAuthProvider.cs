@@ -50,7 +50,7 @@ public class EndatixJwtAuthProvider : IAuthProvider
                 {
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
                     ValidIssuer = endatixIssuer,
-                    ValidAudiences = jwtOptions.ValidAudiences,
+                    ValidAudiences = jwtOptions.Audiences,
                     ValidateIssuer = jwtOptions.ValidateIssuer,
                     ValidateAudience = jwtOptions.ValidateAudience,
                     ValidateLifetime = jwtOptions.ValidateLifetime,

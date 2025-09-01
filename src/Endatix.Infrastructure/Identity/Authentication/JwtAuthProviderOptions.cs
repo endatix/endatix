@@ -21,7 +21,7 @@ public abstract class JwtAuthProviderOptions : AuthProviderOptions
     /// <summary>
     /// Valid audiences for the JWT token
     /// </summary>
-    public IList<string> ValidAudiences { get; set; } = [];
+    public IList<string> Audiences { get; set; } = [];
 
     /// <summary>
     /// Whether to validate the audience

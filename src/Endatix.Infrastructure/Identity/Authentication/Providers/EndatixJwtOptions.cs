@@ -29,6 +29,6 @@ public class EndatixJwtOptions : JwtAuthProviderOptions
     {
         SchemeName = AuthSchemes.EndatixJwt;
         Issuer = DEFAULT_ISSUER;
-        ValidAudiences = ["endatix-hub"];
+        Audiences = ["endatix-hub"];
     }
 }
