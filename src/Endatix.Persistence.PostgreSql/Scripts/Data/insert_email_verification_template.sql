@@ -1,5 +1,8 @@
+-- Delete existing email verification template if it exists
+DELETE FROM public."EmailTemplates" WHERE "Id" = 1;
+
 -- Insert the email verification template
-INSERT INTO EmailTemplates (Id, Name, Subject, HtmlContent, PlainTextContent, FromAddress, CreatedAt, ModifiedAt, IsDeleted)
+INSERT INTO public."EmailTemplates" ("Id", "Name", "Subject", "HtmlContent", "PlainTextContent", "FromAddress", "CreatedAt", "ModifiedAt", "IsDeleted")
 VALUES (
     1,
     'email-verification',
@@ -57,7 +60,7 @@ If you didn’t create an Endatix account, you can safely ignore this email.
 
 This is an automated message. Please do not reply to this email.',
     'noreply@endatix.com',
-    GETUTCDATE(),
-    GETUTCDATE(),
-    0
+    NOW(),
+    NOW(),
+    FALSE
 );

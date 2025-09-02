@@ -37,7 +37,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 column: "Name",
                 unique: true);
 
-            var script = migrationBuilder.ReadEmbeddedSqlScript("Data/insert-email-verification-template.sql");
+            var script = migrationBuilder.ReadEmbeddedSqlScript("Data/insert_email_verification_template.sql");
             migrationBuilder.Sql(script);
         }
 

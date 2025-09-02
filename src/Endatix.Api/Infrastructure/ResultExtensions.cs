@@ -11,7 +11,10 @@ namespace Endatix.Api.Infrastructure;
 public static partial class ResultExtensions
 {
     private const string DEFAULT_NOT_FOUND_TITLE = "Resource not found.";
+
+    private const string DEFAULT_UNEXPECTED_ERROR_TITLE = "An unexpected error occurred.";
     private const string DEFAULT_BAD_REQUEST_TITLE = "There was a problem with your request.";
+
     /// <summary>
     /// Converts an IResult from an operation to a NotFound HTTP IResult with ProblemDetails.
     /// </summary>
@@ -84,19 +87,35 @@ public static partial class ResultExtensions
             _ => StatusCodes.Status500InternalServerError
         };
 
-        var details = new StringBuilder("Next error(s) occurred:");
+        var problemResult = TypedResults.Problem(
+            title: title ?? DEFAULT_UNEXPECTED_ERROR_TITLE,
+            statusCode: status);
+
+        var details = new StringBuilder();
 
         foreach (var error in result.Errors)
         {
-            details.Append("* ").Append(error).AppendLine();
+            details.Append(error).AppendLine();
         }
 
-        foreach (var error in result.ValidationErrors)
+        if (result.IsInvalid())
         {
-            details.Append("* ").Append(error.ErrorMessage).AppendLine();
+            problemResult.ProblemDetails.Title = title ?? DEFAULT_BAD_REQUEST_TITLE;
+            foreach (var error in result.ValidationErrors)
+            {
+                details.Append(error.ErrorMessage).AppendLine();
+            }
+
+            var errorCode = result.ValidationErrors.FirstOrDefault()?.ErrorCode;
+            if (errorCode != null)
+            {
+                problemResult.ProblemDetails.Extensions.Add("errorCode", errorCode);
+            }
         }
 
-        return TypedResults.Problem(title ?? "Something went wrong.", details.ToString(), status);
+        problemResult.ProblemDetails.Detail = details.ToString();
+
+        return problemResult;
     }
 
     /// <summary>
@@ -142,7 +161,7 @@ public static partial class ResultExtensions
 
         return TypedResults.UnprocessableEntity(new ProblemDetails
         {
-            Title = "Something went wrong.",
+            Title = DEFAULT_UNEXPECTED_ERROR_TITLE,
             Detail = details.ToString()
         });
     }
@@ -206,7 +225,7 @@ public static partial class ResultExtensions
 
             return TypedResults.Problem(new ProblemDetails()
             {
-                Title = "Something went wrong.",
+                Title = DEFAULT_UNEXPECTED_ERROR_TITLE,
                 Detail = details.ToString(),
                 Status = StatusCodes.Status500InternalServerError
             });

@@ -64,9 +64,9 @@ public class LoginTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var problemResult = response!.Result as BadRequest<Errors.ProblemDetails>;
+        var problemResult = response!.Result as ProblemHttpResult;
         problemResult.Should().NotBeNull();
         problemResult?.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
-        problemResult?.Value?.Detail.Should().Be("The supplied credentials are invalid!");
+        problemResult?.ProblemDetails.Detail.Should().Contain("The supplied credentials are invalid!");
     }
 }
