@@ -96,7 +96,7 @@ internal sealed class JwtTokenService : IUserTokenService
         if (selectedScheme != AuthSchemes.EndatixJwt)
         {
             _logger.LogWarning("Attempted to validate access token with scheme: {selectedScheme}. Only Endatix JWT tokens are supported.", selectedScheme);
-            return Result.Invalid(new ValidationError($"Token validation not supported for scheme: {selectedScheme}. Only Endatix JWT tokens are supported."));
+            return Result.Invalid(new ValidationError($"Token validation not supported for scheme: {selectedScheme}."));
         }
 
         var validationParameters = new TokenValidationParameters
