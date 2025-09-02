@@ -17,8 +17,7 @@ public class JwtOptions
     /// The key used to sign the JWT token.
     /// This is required and must be set in the configuration.
     /// </summary>
-    [Required]
-    public string SigningKey { get; set; }
+    public string SigningKey { get; set; } = string.Empty;
 
     /// <summary>
     /// The expiration time of the JWT access token in minutes.

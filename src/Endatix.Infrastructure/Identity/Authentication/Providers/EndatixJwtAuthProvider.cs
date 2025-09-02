@@ -1,4 +1,3 @@
-using System;
 using System.Text;
 using Ardalis.GuardClauses;
 using Microsoft.AspNetCore.Authentication;
@@ -27,16 +26,10 @@ public class EndatixJwtAuthProvider : IAuthProvider
     /// <inheritdoc />
     public void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
-        var obsoleteJwtOptions = providerConfig.GetSection(JwtOptions.SECTION_NAME).Get<JwtOptions>();
-        if (obsoleteJwtOptions != null)
-        {
-            throw new ArgumentException("JWT settings are no longer supported. Please use EndatixJwtOptions instead.", nameof(providerConfig));
-        }
+        var endatixJwtOptions = providerConfig.Get<EndatixJwtOptions>();
+        Guard.Against.Null(endatixJwtOptions);
 
-        var jwtOptions = providerConfig.Get<EndatixJwtOptions>();
-        Guard.Against.Null(jwtOptions);
-
-        var endatixIssuer = jwtOptions.Issuer;
+        var endatixIssuer = endatixJwtOptions.Issuer;
         Guard.Against.NullOrEmpty(endatixIssuer);
 
         _cachedIssuer = endatixIssuer;
@@ -45,17 +38,17 @@ public class EndatixJwtAuthProvider : IAuthProvider
             {
                 // Apply default configuration
                 options.RequireHttpsMetadata = !isDevelopment;
-                options.MapInboundClaims = jwtOptions.MapInboundClaims;
+                options.MapInboundClaims = endatixJwtOptions.MapInboundClaims;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(endatixJwtOptions.SigningKey)),
                     ValidIssuer = endatixIssuer,
-                    ValidAudiences = jwtOptions.Audiences,
-                    ValidateIssuer = jwtOptions.ValidateIssuer,
-                    ValidateAudience = jwtOptions.ValidateAudience,
-                    ValidateLifetime = jwtOptions.ValidateLifetime,
-                    ValidateIssuerSigningKey = jwtOptions.ValidateIssuerSigningKey,
-                    ClockSkew = TimeSpan.FromSeconds(jwtOptions.ClockSkewSeconds)
+                    ValidAudiences = endatixJwtOptions.Audiences,
+                    ValidateIssuer = endatixJwtOptions.ValidateIssuer,
+                    ValidateAudience = endatixJwtOptions.ValidateAudience,
+                    ValidateLifetime = endatixJwtOptions.ValidateLifetime,
+                    ValidateIssuerSigningKey = endatixJwtOptions.ValidateIssuerSigningKey,
+                    ClockSkew = TimeSpan.FromSeconds(endatixJwtOptions.ClockSkewSeconds)
                 };
 
 

@@ -1,4 +1,8 @@
 using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 using Xunit;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authentication;
@@ -6,20 +10,48 @@ namespace Endatix.Infrastructure.Tests.Identity.Authentication;
 public class DefaultAuthSchemeSelectorTests
 {
     private readonly IAuthSchemeSelector _selector;
+    private readonly AuthProviderRegistry _providerRegistry;
 
     public DefaultAuthSchemeSelectorTests()
     {
-        _selector = new DefaultAuthSchemeSelector();
+        _providerRegistry = new AuthProviderRegistry();
+        SetupMockProviders();
+        _selector = new DefaultAuthSchemeSelector(_providerRegistry);
+    }
+
+    private void SetupMockProviders()
+    {
+        // Create mock providers
+        var endatixProvider = Substitute.For<IAuthProvider>();
+        endatixProvider.SchemeName.Returns(AuthSchemes.EndatixJwt);
+        endatixProvider.CanHandle("endatix-api", Arg.Any<string>()).Returns(true);
+        endatixProvider.CanHandle(Arg.Is<string>(s => s != "endatix-api"), Arg.Any<string>()).Returns(false);
+
+        var keycloakProvider = Substitute.For<IAuthProvider>();
+        keycloakProvider.SchemeName.Returns("Keycloak");
+        keycloakProvider.CanHandle("http://localhost:8080/realms/endatix", Arg.Any<string>()).Returns(true);
+        keycloakProvider.CanHandle(Arg.Is<string>(s => s != "http://localhost:8080/realms/endatix"), Arg.Any<string>()).Returns(false);
+
+        // Manually add providers to registry (simulating registration)
+        var endatixRegistration = new ProviderRegistration(endatixProvider, typeof(object), "test");
+        var keycloakRegistration = new ProviderRegistration(keycloakProvider, typeof(object), "test");
+        
+        // Use reflection to add providers to the private _providers list
+        var providersField = typeof(AuthProviderRegistry).GetField("_providers", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var providersList = (List<ProviderRegistration>)providersField!.GetValue(_providerRegistry)!;
+        providersList.Add(endatixRegistration);
+        providersList.Add(keycloakRegistration);
     }
 
     [Fact]
-    public void DefaultScheme_ShouldReturnEndatix()
+    public void DefaultScheme_ShouldReturnEndatixJwt()
     {
         // Act
         var defaultScheme = _selector.DefaultScheme;
 
         // Assert
-        Assert.Equal("Endatix", defaultScheme);
+        Assert.Equal(AuthSchemes.EndatixJwt, defaultScheme);
     }
 
     [Theory]
@@ -37,7 +69,7 @@ public class DefaultAuthSchemeSelectorTests
     }
 
     [Fact]
-    public void SelectScheme_ShouldReturnEndatix_ForEndatixToken()
+    public void SelectScheme_ShouldReturnEndatixJwt_ForEndatixToken()
     {
         // Arrange
         var token = CreateJwtToken(new { iss = "endatix-api", aud = "endatix-hub" });
@@ -46,7 +78,7 @@ public class DefaultAuthSchemeSelectorTests
         var scheme = _selector.SelectScheme(token);
 
         // Assert
-        Assert.Equal("Endatix", scheme);
+        Assert.Equal(AuthSchemes.EndatixJwt, scheme);
     }
 
     [Fact]
@@ -108,7 +140,7 @@ public class DefaultAuthSchemeSelectorTests
         // Act & Assert - Multiple calls should return consistent results
         for (int i = 0; i < 10; i++)
         {
-            Assert.Equal("Endatix", _selector.SelectScheme(endatixToken));
+            Assert.Equal(AuthSchemes.EndatixJwt, _selector.SelectScheme(endatixToken));
             Assert.Equal("Keycloak", _selector.SelectScheme(keycloakToken));
         }
     }
@@ -119,10 +151,10 @@ public class DefaultAuthSchemeSelectorTests
         // Arrange
         var tokens = new[]
         {
-            (CreateJwtToken(new { iss = "endatix-api" }), "Endatix"),
+            (CreateJwtToken(new { iss = "endatix-api" }), AuthSchemes.EndatixJwt),
             (CreateJwtToken(new { iss = "http://localhost:8080/realms/endatix" }), "Keycloak"),
-            (CreateJwtToken(new { iss = "unknown-issuer" }), "Endatix"), // Default
-            (CreateJwtToken(new { aud = "test" }), "Endatix") // No issuer -> Default
+            (CreateJwtToken(new { iss = "unknown-issuer" }), AuthSchemes.EndatixJwt), // Default
+            (CreateJwtToken(new { aud = "test" }), AuthSchemes.EndatixJwt) // No issuer -> Default
         };
 
         // Act & Assert
@@ -137,11 +169,11 @@ public class DefaultAuthSchemeSelectorTests
     public void SelectScheme_ShouldHandleEdgeCases()
     {
         // Arrange & Act & Assert
-        Assert.Equal("Endatix", _selector.SelectScheme(""));
-        Assert.Equal("Endatix", _selector.SelectScheme("   "));
-        Assert.Equal("Endatix", _selector.SelectScheme("not.a.jwt"));
-        Assert.Equal("Endatix", _selector.SelectScheme("a.b"));
-        Assert.Equal("Endatix", _selector.SelectScheme("a.b.c.d.e")); // Too many parts
+        Assert.Equal(AuthSchemes.EndatixJwt, _selector.SelectScheme(""));
+        Assert.Equal(AuthSchemes.EndatixJwt, _selector.SelectScheme("   "));
+        Assert.Equal(AuthSchemes.EndatixJwt, _selector.SelectScheme("not.a.jwt"));
+        Assert.Equal(AuthSchemes.EndatixJwt, _selector.SelectScheme("a.b"));
+        Assert.Equal(AuthSchemes.EndatixJwt, _selector.SelectScheme("a.b.c.d.e")); // Too many parts
     }
 
     private static string CreateJwtToken(object payload)

@@ -91,11 +91,6 @@ public static class IdentityServiceCollectionExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<JwtOptions>()
-               .BindConfiguration(JwtOptions.SECTION_NAME)
-               .ValidateDataAnnotations()
-               .ValidateOnStart();
-
         // Register Auth Options
         services.AddOptions<AuthOptions>()
                 .BindConfiguration(AuthOptions.SECTION_NAME)
