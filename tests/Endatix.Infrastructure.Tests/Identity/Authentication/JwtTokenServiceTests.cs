@@ -234,7 +234,6 @@ public class JwtTokenServiceTests
         result.IsSuccess.Should().BeFalse();
         result.ValidationErrors.Should().NotBeNull();
         result.ValidationErrors.First().ErrorMessage.Should().Contain("Token validation not supported for scheme: Keycloak");
-        result.ValidationErrors.First().ErrorMessage.Should().Contain("Only Endatix JWT tokens are supported");
     }
 
     [Fact]

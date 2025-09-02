@@ -17,7 +17,7 @@ public class InfrastructureSecurityBuilder
 {
     private readonly InfrastructureBuilder _parentBuilder;
     private readonly ILogger _logger;
-    private readonly AuthProviderRegistry _authProviderRegistry;
+    internal readonly AuthProviderRegistry _authProviderRegistry;
     private AuthenticationBuilder? _authenticationBuilder;
 
     /// <summary>
