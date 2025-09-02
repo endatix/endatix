@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 
@@ -32,4 +33,10 @@ public interface IAuthProvider
     /// The configuration section passed is specific to this provider.
     /// </summary>
     void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false);
+
+    /// <summary>
+    /// Register any additional services required by this provider.
+    /// Called during service registration phase.
+    /// </summary>
+    void RegisterServices(IServiceCollection services, IConfiguration configuration) { }
 }
