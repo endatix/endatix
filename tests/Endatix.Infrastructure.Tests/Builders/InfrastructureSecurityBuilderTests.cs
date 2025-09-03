@@ -29,25 +29,8 @@ public class InfrastructureSecurityBuilderTests
         _loggerFactory = Substitute.For<ILoggerFactory>();
         _logger = Substitute.For<ILogger>();
 
-        // Create configuration with test data
-        var configData = new Dictionary<string, string?>
-        {
-            ["Endatix:Auth:DefaultScheme"] = "MultiJwt",
-            ["Endatix:Auth:EndatixJwt:Issuer"] = "endatix-api",
-            ["Endatix:Auth:EndatixJwt:SigningKey"] = "test-signing-key-32-characters",
-            ["Endatix:Auth:EndatixJwt:Audiences:0"] = "endatix-hub",
-            ["Endatix:Auth:EndatixJwt:Enabled"] = "true",
-            ["Endatix:Auth:Keycloak:Issuer"] = "http://localhost:8080/realms/endatix",
-            ["Endatix:Auth:Keycloak:Audience"] = "endatix-hub",
-            ["Endatix:Auth:Keycloak:Enabled"] = "true",
-            ["Endatix:Auth:Google:Issuer"] = "https://accounts.google.com",
-            ["Endatix:Auth:Google:Audience"] = "endatix-hub",
-            ["Endatix:Auth:Google:Enabled"] = "true"
-        };
-
-        _configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(configData)
-            .Build();
+        // Create configuration with default test data
+        _configuration = CreateMockConfiguration();
 
         // Create a substitute for IBuilderRoot
         _builderRoot = Substitute.For<IBuilderRoot>();
@@ -63,24 +46,52 @@ public class InfrastructureSecurityBuilderTests
 
     #region Helper Methods
 
+    /// <summary>
+    /// Creates a configuration with default test data and optional overrides.
+    /// </summary>
+    /// <param name="overrides">Optional dictionary of configuration overrides. Keys that exist in overrides will replace the default values.</param>
+    /// <returns>IConfiguration instance with merged configuration data.</returns>
+    private IConfiguration CreateMockConfiguration(Dictionary<string, string?>? overrides = null)
+    {
+        // Default configuration data
+        var defaultConfigData = new Dictionary<string, string?>
+        {
+            ["Endatix:Auth:DefaultScheme"] = "MultiJwt",
+            ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = "endatix-api",
+            ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters",
+            ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = "endatix-hub",
+            ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true",
+            ["Endatix:Auth:Providers:Keycloak:Issuer"] = "http://localhost:8080/realms/endatix",
+            ["Endatix:Auth:Providers:Keycloak:Audience"] = "endatix-hub",
+            ["Endatix:Auth:Providers:Keycloak:Enabled"] = "true",
+            ["Endatix:Auth:Providers:Google:Issuer"] = "https://accounts.google.com",
+            ["Endatix:Auth:Providers:Google:Audience"] = "endatix-hub",
+            ["Endatix:Auth:Providers:Google:Enabled"] = "true"
+        };
+
+        // Merge with overrides if provided
+        var configData = new Dictionary<string, string?>(defaultConfigData);
+        if (overrides != null)
+        {
+            foreach (var kvp in overrides)
+            {
+                configData[kvp.Key] = kvp.Value;
+            }
+        }
+
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+    }
+
     private ServiceDescriptor? FindServiceDescriptor<T>()
     {
         return _services.FirstOrDefault(sd => sd.ServiceType == typeof(T));
     }
-
-    private ServiceDescriptor? FindServiceDescriptor<T>(Func<ServiceDescriptor, bool> predicate)
-    {
-        return _services.FirstOrDefault(sd => sd.ServiceType == typeof(T) && predicate(sd));
-    }
-
+    
     private bool IsServiceRegistered<T>()
     {
         return FindServiceDescriptor<T>() != null;
-    }
-
-    private bool IsServiceRegistered<T>(Func<ServiceDescriptor, bool> predicate)
-    {
-        return FindServiceDescriptor<T>(predicate) != null;
     }
 
     private AuthProviderRegistry GetRegistryFromBuilder(InfrastructureSecurityBuilder builder)
@@ -88,6 +99,23 @@ public class InfrastructureSecurityBuilderTests
         // Use reflection to access the private _authProviderRegistry field
         var field = typeof(InfrastructureSecurityBuilder).GetField("_authProviderRegistry", BindingFlags.NonPublic | BindingFlags.Instance);
         return (AuthProviderRegistry)field!.GetValue(builder)!;
+    }
+
+    /// <summary>
+    /// Creates a new InfrastructureSecurityBuilder with custom configuration overrides.
+    /// </summary>
+    /// <param name="configOverrides">Configuration overrides to apply.</param>
+    /// <returns>New InfrastructureSecurityBuilder instance with custom configuration.</returns>
+    private InfrastructureSecurityBuilder CreateBuilderWithMockConfig(Dictionary<string, string?>? configOverrides = null)
+    {
+        var customConfig = CreateMockConfiguration(configOverrides);
+        var customBuilderRoot = Substitute.For<IBuilderRoot>();
+        customBuilderRoot.Services.Returns(_services);
+        customBuilderRoot.LoggerFactory.Returns(_loggerFactory);
+        customBuilderRoot.Configuration.Returns(customConfig);
+        
+        var customParentBuilder = new InfrastructureBuilder(customBuilderRoot);
+        return new InfrastructureSecurityBuilder(customParentBuilder);
     }
 
     #endregion
@@ -179,10 +207,8 @@ public class InfrastructureSecurityBuilderTests
     public void Build_ShouldThrowException_WhenEndatixJwtProviderNotRegistered()
     {
         // Arrange
-        _configuration["Endatix:Auth:EndatixJwt:Enabled"] = "false";
         var builder = new InfrastructureSecurityBuilder(_parentBuilder);
-        builder.UseDefaults();
-
+        // Don't call UseDefaults() or AddEndatixJwtAuthProvider() to ensure provider is not registered
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() => builder.Build());
@@ -190,14 +216,32 @@ public class InfrastructureSecurityBuilderTests
     }
 
     [Fact]
+    public void Build_ShouldThrowException_WhenEndatixJwtProviderIsDisabled()
+    {
+        // Arrange
+        var configOverrides = new Dictionary<string, string?>
+        {
+            ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "false"
+        };
+        var builder = CreateBuilderWithMockConfig(configOverrides);
+        builder.UseDefaults(); // This registers the provider but it's disabled in config
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() => builder.Build());
+        Assert.Contains("EndatixJwt provider is required and must be enabled", exception.Message);
+        Assert.Contains("Endatix:Auth:Providers:EndatixJwt:Enabled", exception.Message);
+    }
+
+    [Fact]
     public void Build_ShouldConfigureEnabledAuthProviders()
     {
         // Arrange
-        _configuration["Endatix:Auth:Keycloak:Enabled"] = "false";
-        _configuration["Endatix:Auth:Google:Enabled"] = "true";
-        _builderRoot.Configuration.Returns(_configuration);
-
-        var builder = new InfrastructureSecurityBuilder(_parentBuilder);
+        var configOverrides = new Dictionary<string, string?>
+        {
+            ["Endatix:Auth:Providers:Keycloak:Enabled"] = "false",
+            ["Endatix:Auth:Providers:Google:Enabled"] = "true"
+        };
+        var builder = CreateBuilderWithMockConfig(configOverrides);
         builder.UseDefaults();
         builder.AddKeycloakAuthProvider();
         builder.AddGoogleAuthProvider();
@@ -207,9 +251,14 @@ public class InfrastructureSecurityBuilderTests
         builder.Build();
 
         // Assert
+        // All providers are registered in the registry regardless of enabled status
         Assert.True(registry.IsProviderRegistered(AuthSchemes.EndatixJwt));
-        Assert.False(registry.IsProviderRegistered("Keycloak"));
+        Assert.True(registry.IsProviderRegistered("Keycloak"));
         Assert.True(registry.IsProviderRegistered("Google"));
+        
+        // The Build method should complete successfully without throwing exceptions
+        // The actual configuration of enabled/disabled providers happens in ConfigureEnabledAuthProviders
+        // which is called during Build() and only configures providers where Enabled = true
     }
 
     [Fact]

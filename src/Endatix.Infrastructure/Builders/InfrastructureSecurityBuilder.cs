@@ -135,18 +135,12 @@ public class InfrastructureSecurityBuilder
     /// <returns>The parent infrastructure builder.</returns>
     public InfrastructureBuilder Build()
     {
-        // Validate that EndatixJwt provider is registered (required)
-        if (!_authProviderRegistry.IsProviderRegistered(AuthSchemes.EndatixJwt))
-        {
-            throw new InvalidOperationException(
-                "EndatixJwt provider is required. Call AddEndatixJwtAuthProvider() in your authentication configuration.");
-        }
-
-        // Register the registry and scheme selector
         Services.AddSingleton(_authProviderRegistry);
-        Services.AddScoped<IAuthSchemeSelector, DefaultAuthSchemeSelector>();
-
+        EnsureEndatixJwtAuthProviderIsEnabled();
         ConfigureEnabledAuthProviders();
+
+        // Register the scheme selector - based of number of providers, we can also add different implementations for this interface
+        Services.AddScoped<IAuthSchemeSelector, DefaultAuthSchemeSelector>();
 
         LogSetupInfo("Authentication configuration completed");
 
@@ -225,6 +219,31 @@ public class InfrastructureSecurityBuilder
                 registration.Provider.Configure(_authenticationBuilder, configSection, isDevelopment);
                 LogSetupInfo($"Configured {registration.Provider.SchemeName} auth provider");
             }
+        }
+    }
+
+    /// <summary>
+    /// Ensures that the EndatixJwt provider is enabled in configuration.
+    /// This provider is required for token issuance and must be enabled.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when EndatixJwt provider is disabled.</exception>
+    private void EnsureEndatixJwtAuthProviderIsEnabled()
+    {
+        var endatixJwtRegistration = _authProviderRegistry
+            .GetProviderRegistrations()
+            .FirstOrDefault(reg => reg.Provider.SchemeName == AuthSchemes.EndatixJwt) ??
+            throw new InvalidOperationException(
+                "EndatixJwt provider is required. Call AddEndatixJwtAuthProvider() in your authentication configuration.");
+
+
+        var configSection = Configuration.GetSection(endatixJwtRegistration.ConfigurationSectionPath);
+
+        if (configSection.Get(endatixJwtRegistration.ConfigType) is not AuthProviderOptions config || !config.Enabled)
+        {
+            throw new InvalidOperationException(
+                $"EndatixJwt provider is required and must be enabled. " +
+                $"Please set 'Endatix:Auth:Providers:EndatixJwt:Enabled' to 'true' in your configuration. " +
+                $"This provider is required for token issuance and authentication.");
         }
     }
 
