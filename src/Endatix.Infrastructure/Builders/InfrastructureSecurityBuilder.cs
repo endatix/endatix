@@ -249,7 +249,7 @@ public class InfrastructureSecurityBuilder
             throw new InvalidOperationException(
                 $"EndatixJwt provider is required and must be enabled. " +
                 $"Please set 'Endatix:Auth:Providers:EndatixJwt:Enabled' to 'true' in your configuration. " +
-                $"This provider is required for token issuance and authentication.");
+                $"This provider is required for issuing Endatix JWT tokens and authentication.");
         }
     }
 
