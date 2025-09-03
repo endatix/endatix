@@ -32,7 +32,11 @@ public interface IAuthProvider
     /// Called at startup to configure authentication for this provider.
     /// The configuration section passed is specific to this provider.
     /// </summary>
-    void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false);
+    /// <param name="builder">The authentication builder</param>
+    /// <param name="providerConfig">Provider-specific configuration section</param>
+    /// <param name="isDevelopment">Whether running in development mode</param>
+    /// <returns>True if the provider was successfully configured and enabled, false otherwise</returns>
+    bool Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false);
 
     /// <summary>
     /// Register any additional services required by this provider.

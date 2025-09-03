@@ -61,6 +61,11 @@ public class AuthProviderRegistryTests
         _registry.RegisterProvider<TConfig>(provider, _services, _configuration);
     }
 
+    private void ActivateProvider(IAuthProvider provider)
+    {
+        _registry.AddActiveProvider(provider);
+    }
+
     #endregion
 
     [Fact]
@@ -71,7 +76,7 @@ public class AuthProviderRegistryTests
 
         // Assert
         Assert.NotNull(registry);
-        Assert.Empty(registry.GetProviderRegistrations());
+        Assert.Empty(registry.GetRequestedRegistrations());
     }
 
     [Fact]
@@ -84,8 +89,8 @@ public class AuthProviderRegistryTests
         RegisterProvider<EndatixJwtOptions>(provider);
 
         // Assert
-        Assert.True(_registry.IsProviderRegistered("TestProvider"));
-        var registrations = _registry.GetProviderRegistrations().ToList();
+        Assert.True(_registry.IsProviderRegistrationRequested("TestProvider"));
+        var registrations = _registry.GetRequestedRegistrations().ToList();
         Assert.Single(registrations);
         Assert.Equal("TestProvider", registrations[0].Provider.SchemeName);
     }
@@ -102,9 +107,9 @@ public class AuthProviderRegistryTests
         RegisterProvider<KeycloakOptions>(provider2);
 
         // Assert
-        Assert.True(_registry.IsProviderRegistered("Provider1"));
-        Assert.True(_registry.IsProviderRegistered("Provider2"));
-        Assert.Equal(2, _registry.GetProviderRegistrations().Count());
+        Assert.True(_registry.IsProviderRegistrationRequested("Provider1"));
+        Assert.True(_registry.IsProviderRegistrationRequested("Provider2"));
+        Assert.Equal(2, _registry.GetRequestedRegistrations().Count());
     }
 
     [Fact]
@@ -209,7 +214,7 @@ public class AuthProviderRegistryTests
         RegisterProvider<EndatixJwtOptions>(provider);
 
         // Assert
-        var registration = _registry.GetProviderRegistrations().First();
+        var registration = _registry.GetRequestedRegistrations().First();
         Assert.Equal(configPath, registration.ConfigurationSectionPath);
     }
 
@@ -223,73 +228,103 @@ public class AuthProviderRegistryTests
         RegisterProvider<KeycloakOptions>(provider);
 
         // Assert
-        var registration = _registry.GetProviderRegistrations().First();
+        var registration = _registry.GetRequestedRegistrations().First();
         Assert.Equal(typeof(KeycloakOptions), registration.ConfigType);
     }
 
     [Fact]
-    public void IsProviderRegistered_ShouldReturnFalse_WhenNoProvidersRegistered()
+    public void IsProviderRegistrationRequested_ShouldReturnFalse_WhenNoProvidersRegistered()
     {
         // Act
-        var result = _registry.IsProviderRegistered("NonExistentProvider");
+        var result = _registry.IsProviderRegistrationRequested("NonExistentProvider");
 
         // Assert
         Assert.False(result);
     }
 
     [Fact]
-    public void IsProviderRegistered_ShouldReturnTrue_WhenProviderExists()
+    public void IsProviderRegistrationRequested_ShouldReturnTrue_WhenProviderExists()
     {
         // Arrange
         var provider = CreateMockProvider("TestProvider", "Endatix:Auth:TestProvider");
         RegisterProvider<EndatixJwtOptions>(provider);
 
         // Act
-        var result = _registry.IsProviderRegistered("TestProvider");
+        var result = _registry.IsProviderRegistrationRequested("TestProvider");
 
         // Assert
         Assert.True(result);
     }
 
     [Fact]
-    public void IsProviderRegistered_ShouldReturnFalse_WhenProviderDoesNotExist()
+    public void IsProviderRegistrationRequested_ShouldReturnFalse_WhenProviderDoesNotExist()
     {
         // Arrange
         var provider = CreateMockProvider("TestProvider", "Endatix:Auth:TestProvider");
         RegisterProvider<EndatixJwtOptions>(provider);
 
         // Act
-        var result = _registry.IsProviderRegistered("NonExistentProvider");
+        var result = _registry.IsProviderRegistrationRequested("NonExistentProvider");
 
         // Assert
         Assert.False(result);
     }
 
     [Fact]
-    public void IsProviderRegistered_ShouldBeCaseSensitive()
+    public void IsProviderRegistrationRequested_ShouldBeCaseSensitive()
     {
         // Arrange
         var provider = CreateMockProvider("TestProvider", "Endatix:Auth:TestProvider");
         RegisterProvider<EndatixJwtOptions>(provider);
 
         // Act & Assert
-        Assert.True(_registry.IsProviderRegistered("TestProvider"));
-        Assert.False(_registry.IsProviderRegistered("testprovider"));
-        Assert.False(_registry.IsProviderRegistered("TESTPROVIDER"));
+        Assert.True(_registry.IsProviderRegistrationRequested("TestProvider"));
+        Assert.False(_registry.IsProviderRegistrationRequested("testprovider"));
+        Assert.False(_registry.IsProviderRegistrationRequested("TESTPROVIDER"));
     }
 
     [Fact]
-    public void GetProviderRegistrations_ShouldReturnEmptyCollection_WhenNoProvidersRegistered()
+    public void AddActiveProvider_ShouldThrow_WhenAddingDuplicateActiveProvider()
+    {
+        // Arrange
+        var registry = new AuthProviderRegistry();
+        var provider = new EndatixJwtAuthProvider();
+        registry.RegisterProvider<EndatixJwtOptions>(provider, _services, _configuration);
+        registry.AddActiveProvider(provider);
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+           registry.AddActiveProvider(provider));
+
+        Assert.Contains("already active & configured", exception.Message);
+    }
+
+    [Fact]
+    public void AddActiveProvider_ShouldThrow_WhenAddingProviderThatWasNotRequested()
+    {
+        // Arrange
+        var registry = new AuthProviderRegistry();
+        var provider = new EndatixJwtAuthProvider();
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+           registry.AddActiveProvider(provider));
+
+        Assert.Contains("Only providers that have been registered via RegisterProvider() can be activated.", exception.Message);
+    }
+
+    [Fact]
+    public void GetRequestedRegistrations_ShouldReturnEmptyCollection_WhenNoProvidersRegistered()
     {
         // Act
-        var registrations = _registry.GetProviderRegistrations();
+        var registrations = _registry.GetRequestedRegistrations();
 
         // Assert
         Assert.Empty(registrations);
     }
 
     [Fact]
-    public void GetProviderRegistrations_ShouldReturnAllRegisteredProviders()
+    public void GetRequestedRegistrations_ShouldReturnAllRegisteredProviders()
     {
         // Arrange
         var provider1 = CreateMockProvider("Provider1", "Endatix:Auth:Provider1");
@@ -301,7 +336,7 @@ public class AuthProviderRegistryTests
         RegisterProvider<GoogleOptions>(provider3);
 
         // Act
-        var registrations = _registry.GetProviderRegistrations().ToList();
+        var registrations = _registry.GetRequestedRegistrations().ToList();
 
         // Assert
         Assert.Equal(3, registrations.Count);
@@ -311,14 +346,14 @@ public class AuthProviderRegistryTests
     }
 
     [Fact]
-    public void GetProviderRegistrations_ShouldReturnReadOnlyCollection()
+    public void GetRequestedRegistrations_ShouldReturnReadOnlyCollection()
     {
         // Arrange
         var provider = CreateMockProvider("TestProvider", "Endatix:Auth:TestProvider");
         RegisterProvider<EndatixJwtOptions>(provider);
 
         // Act
-        var registrations = _registry.GetProviderRegistrations();
+        var registrations = _registry.GetRequestedRegistrations();
 
         // Assert
         Assert.True(registrations is IReadOnlyCollection<ProviderRegistration>);
@@ -346,6 +381,7 @@ public class AuthProviderRegistryTests
         var provider = CreateMockProvider("TestProvider", "Endatix:Auth:TestProvider");
         provider.CanHandle("test-issuer", "token").Returns(true);
         RegisterProvider<EndatixJwtOptions>(provider);
+        ActivateProvider(provider);
 
         // Act
         var result = _registry.SelectScheme("test-issuer", "token");
@@ -366,6 +402,8 @@ public class AuthProviderRegistryTests
 
         RegisterProvider<EndatixJwtOptions>(provider1);
         RegisterProvider<KeycloakOptions>(provider2);
+        ActivateProvider(provider1);
+        ActivateProvider(provider2);
 
         // Act
         var result = _registry.SelectScheme("test-issuer", "token");
@@ -390,6 +428,7 @@ public class AuthProviderRegistryTests
         // Arrange
         var provider = CreateMockProvider("TestProvider", "Endatix:Auth:TestProvider");
         RegisterProvider<EndatixJwtOptions>(provider);
+        ActivateProvider(provider);
 
         // Act
         _registry.SelectScheme("test-issuer", "test-token");
@@ -408,11 +447,15 @@ public class AuthProviderRegistryTests
         // Act
         _registry.RegisterProvider<EndatixJwtOptions>(endatixProvider, _services, _configuration);
         _registry.RegisterProvider<KeycloakOptions>(keycloakProvider, _services, _configuration);
+        ActivateProvider(endatixProvider);
+        ActivateProvider(keycloakProvider);
 
         // Assert
-        Assert.True(_registry.IsProviderRegistered(AuthSchemes.EndatixJwt));
-        Assert.True(_registry.IsProviderRegistered("Keycloak"));
-        Assert.Equal(2, _registry.GetProviderRegistrations().Count());
+        Assert.True(_registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(_registry.IsProviderRegistrationRequested("Keycloak"));
+        Assert.True(_registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.True(_registry.IsProviderActive("Keycloak"));
+        Assert.Equal(2, _registry.GetRequestedRegistrations().Count());
     }
 
     [Fact]
@@ -424,6 +467,8 @@ public class AuthProviderRegistryTests
 
         _registry.RegisterProvider<EndatixJwtOptions>(endatixProvider, _services, _configuration);
         _registry.RegisterProvider<KeycloakOptions>(keycloakProvider, _services, _configuration);
+        ActivateProvider(endatixProvider);
+        ActivateProvider(keycloakProvider);
 
         // Act & Assert
         // Note: Real providers need to be configured with their issuers first
@@ -431,8 +476,10 @@ public class AuthProviderRegistryTests
         // Since we're using test configuration, the providers should work correctly
 
         // Test that providers are registered
-        Assert.True(_registry.IsProviderRegistered(AuthSchemes.EndatixJwt));
-        Assert.True(_registry.IsProviderRegistered("Keycloak"));
+        Assert.True(_registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(_registry.IsProviderRegistrationRequested("Keycloak"));
+        Assert.True(_registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.True(_registry.IsProviderActive("Keycloak"));
 
         // Test scheme selection (this will depend on the provider's CanHandle implementation)
         var endatixResult = _registry.SelectScheme("endatix-api", "token");
@@ -440,7 +487,7 @@ public class AuthProviderRegistryTests
 
         // The actual result depends on how the providers are configured
         // We'll just verify that the registry can handle the selection
-        Assert.NotNull(_registry.GetProviderRegistrations());
+        Assert.NotNull(_registry.GetRequestedRegistrations());
     }
 
     [Fact]
@@ -455,20 +502,27 @@ public class AuthProviderRegistryTests
         _registry.RegisterProvider<EndatixJwtOptions>(endatixProvider, _services, _configuration);
         _registry.RegisterProvider<KeycloakOptions>(keycloakProvider, _services, _configuration);
         _registry.RegisterProvider<GoogleOptions>(googleProvider, _services, _configuration);
+        ActivateProvider(endatixProvider);
+        ActivateProvider(keycloakProvider);
+        ActivateProvider(googleProvider);
 
         // Assert
-        Assert.Equal(3, _registry.GetProviderRegistrations().Count());
-        Assert.True(_registry.IsProviderRegistered(AuthSchemes.EndatixJwt));
-        Assert.True(_registry.IsProviderRegistered("Keycloak"));
-        Assert.True(_registry.IsProviderRegistered("Google"));
+        Assert.Equal(3, _registry.GetRequestedRegistrations().Count());
+        Assert.True(_registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(_registry.IsProviderRegistrationRequested("Keycloak"));
+        Assert.True(_registry.IsProviderRegistrationRequested("Google"));
+        Assert.True(_registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.True(_registry.IsProviderActive("Keycloak"));
+        Assert.True(_registry.IsProviderActive("Google"));
 
         // Test that the registry can handle scheme selection
         // Note: The actual scheme selection depends on provider configuration
-        var registrations = _registry.GetProviderRegistrations().ToList();
+        var registrations = _registry.GetRequestedRegistrations().ToList();
         Assert.Equal(3, registrations.Count);
         Assert.Contains(registrations, r => r.Provider.SchemeName == AuthSchemes.EndatixJwt);
         Assert.Contains(registrations, r => r.Provider.SchemeName == "Keycloak");
         Assert.Contains(registrations, r => r.Provider.SchemeName == "Google");
+        Assert.Equal(3, _registry.GetActiveProviders().Count());
     }
 
     [Fact]
@@ -503,6 +557,7 @@ public class AuthProviderRegistryTests
         // Arrange
         var provider = CreateMockProvider("TestProvider", "Endatix:Auth:TestProvider");
         RegisterProvider<EndatixJwtOptions>(provider);
+        ActivateProvider(provider);
 
         // Act & Assert
         // Should not throw, but return null since provider can't handle null parameters
@@ -511,7 +566,7 @@ public class AuthProviderRegistryTests
     }
 
     [Fact]
-    public void GetProviderRegistrations_ShouldReturnConsistentResults()
+    public void GetRequestedRegistrations_ShouldReturnConsistentResults()
     {
         // Arrange
         var provider1 = CreateMockProvider("Provider1", "Endatix:Auth:Provider1");
@@ -521,8 +576,8 @@ public class AuthProviderRegistryTests
         RegisterProvider<KeycloakOptions>(provider2);
 
         // Act
-        var registrations1 = _registry.GetProviderRegistrations().ToList();
-        var registrations2 = _registry.GetProviderRegistrations().ToList();
+        var registrations1 = _registry.GetRequestedRegistrations().ToList();
+        var registrations2 = _registry.GetRequestedRegistrations().ToList();
 
         // Assert
         Assert.Equal(registrations1.Count, registrations2.Count);

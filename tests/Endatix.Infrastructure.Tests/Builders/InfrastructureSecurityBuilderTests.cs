@@ -88,7 +88,7 @@ public class InfrastructureSecurityBuilderTests
     {
         return _services.FirstOrDefault(sd => sd.ServiceType == typeof(T));
     }
-    
+
     private bool IsServiceRegistered<T>()
     {
         return FindServiceDescriptor<T>() != null;
@@ -113,7 +113,7 @@ public class InfrastructureSecurityBuilderTests
         customBuilderRoot.Services.Returns(_services);
         customBuilderRoot.LoggerFactory.Returns(_loggerFactory);
         customBuilderRoot.Configuration.Returns(customConfig);
-        
+
         var customParentBuilder = new InfrastructureBuilder(customBuilderRoot);
         return new InfrastructureSecurityBuilder(customParentBuilder);
     }
@@ -130,7 +130,7 @@ public class InfrastructureSecurityBuilderTests
         Assert.NotNull(builder);
         var registry = GetRegistryFromBuilder(builder);
         Assert.NotNull(registry);
-        Assert.Empty(registry.GetProviderRegistrations());
+        Assert.Empty(registry.GetRequestedRegistrations());
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public class InfrastructureSecurityBuilderTests
 
         // Assert
         Assert.Same(builder, result);
-        Assert.True(registry.IsProviderRegistered(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public class InfrastructureSecurityBuilderTests
         // Assert
         Assert.Same(builder, result);
         var registry = GetRegistryFromBuilder(builder);
-        Assert.True(registry.IsProviderRegistered("CustomProvider"));
+        Assert.True(registry.IsProviderRegistrationRequested("CustomProvider"));
     }
 
     [Fact]
@@ -233,6 +233,64 @@ public class InfrastructureSecurityBuilderTests
     }
 
     [Fact]
+    public void Build_ShouldDistinguishBetweenRequestedAndActiveProviders()
+    {
+        // Arrange
+        var configOverrides = new Dictionary<string, string?>
+        {
+            ["Endatix:Auth:Providers:Keycloak:Enabled"] = "false",
+            ["Endatix:Auth:Providers:Google:Enabled"] = "true"
+        };
+        var builder = CreateBuilderWithMockConfig(configOverrides);
+        builder.UseDefaults();
+        builder.AddKeycloakAuthProvider();
+        builder.AddGoogleAuthProvider();
+        var registry = GetRegistryFromBuilder(builder);
+
+        // Act
+        builder.Build();
+
+        // Assert - All providers are registered (requested) regardless of enabled status
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
+        Assert.True(registry.IsProviderRegistrationRequested("Google"));
+        Assert.Equal(3, registry.GetRequestedRegistrations().Count());
+
+        // But only enabled providers are active
+        Assert.True(registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.False(registry.IsProviderActive("Keycloak")); // Disabled
+        Assert.True(registry.IsProviderActive("Google"));    // Enabled
+        Assert.Equal(2, registry.GetActiveProviders().Count());
+    }
+
+    [Fact]
+public void Registry_ShouldOnlySelectFromActiveProviders()
+{
+    // Arrange
+    var configOverrides = new Dictionary<string, string?>
+    {
+        ["Endatix:Auth:Providers:Keycloak:Enabled"] = "false",
+        ["Endatix:Auth:Providers:Google:Enabled"] = "true"
+    };
+    var builder = CreateBuilderWithMockConfig(configOverrides);
+    builder.UseDefaults();
+    builder.AddKeycloakAuthProvider();
+    builder.AddGoogleAuthProvider();
+    var registry = GetRegistryFromBuilder(builder);
+
+    // Act
+    builder.Build();
+
+    // Assert - SelectScheme should only consider active providers
+    // This test assumes the providers have different issuers configured
+    var activeProviders = registry.GetActiveProviders().ToList();
+    Assert.Equal(2, activeProviders.Count);
+    Assert.Contains(activeProviders, p => p.SchemeName == AuthSchemes.EndatixJwt);
+    Assert.Contains(activeProviders, p => p.SchemeName == "Google");
+    Assert.DoesNotContain(activeProviders, p => p.SchemeName == "Keycloak");
+}
+
+    [Fact]
     public void Build_ShouldConfigureEnabledAuthProviders()
     {
         // Arrange
@@ -252,13 +310,15 @@ public class InfrastructureSecurityBuilderTests
 
         // Assert
         // All providers are registered in the registry regardless of enabled status
-        Assert.True(registry.IsProviderRegistered(AuthSchemes.EndatixJwt));
-        Assert.True(registry.IsProviderRegistered("Keycloak"));
-        Assert.True(registry.IsProviderRegistered("Google"));
-        
-        // The Build method should complete successfully without throwing exceptions
-        // The actual configuration of enabled/disabled providers happens in ConfigureEnabledAuthProviders
-        // which is called during Build() and only configures providers where Enabled = true
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
+        Assert.True(registry.IsProviderRegistrationRequested("Google"));
+
+        // But only enabled providers are active
+        Assert.True(registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.False(registry.IsProviderActive("Keycloak")); // Disabled
+        Assert.True(registry.IsProviderActive("Google"));    // Enabled
+        Assert.Equal(2, registry.GetActiveProviders().Count());
     }
 
     [Fact]
@@ -279,9 +339,9 @@ public class InfrastructureSecurityBuilderTests
         // Assert
         Assert.Same(_parentBuilder, result);
         var registry = GetRegistryFromBuilder(builder);
-        Assert.True(registry.IsProviderRegistered(AuthSchemes.EndatixJwt));
-        Assert.True(registry.IsProviderRegistered("Keycloak"));
-        Assert.True(registry.IsProviderRegistered("Google"));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
+        Assert.True(registry.IsProviderRegistrationRequested("Google"));
     }
 
     [Fact]
@@ -296,7 +356,7 @@ public class InfrastructureSecurityBuilderTests
 
         // Assert
         Assert.NotNull(registry);
-        Assert.True(registry.IsProviderRegistered(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
     }
 
     [Fact]
@@ -313,10 +373,10 @@ public class InfrastructureSecurityBuilderTests
 
         // Assert
         var registry = GetRegistryFromBuilder(builder);
-        Assert.Equal(3, registry.GetProviderRegistrations().Count());
-        Assert.True(registry.IsProviderRegistered(AuthSchemes.EndatixJwt));
-        Assert.True(registry.IsProviderRegistered("Keycloak"));
-        Assert.True(registry.IsProviderRegistered("Google"));
+        Assert.Equal(3, registry.GetRequestedRegistrations().Count());
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
+        Assert.True(registry.IsProviderRegistrationRequested("Google"));
     }
 
     [Fact]
@@ -369,6 +429,6 @@ public class InfrastructureSecurityBuilderTests
 
         // Verify EndatixJwt provider is registered
         var registry = GetRegistryFromBuilder(builder);
-        Assert.True(registry.IsProviderRegistered(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
     }
 }

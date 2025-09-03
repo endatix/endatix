@@ -209,14 +209,20 @@ public class InfrastructureSecurityBuilder
 
         var isDevelopment = _parentBuilder.AppEnvironment?.IsDevelopment() ?? false;
 
-        foreach (var registration in _authProviderRegistry.GetProviderRegistrations())
+        foreach (var registration in _authProviderRegistry.GetRequestedRegistrations())
         {
             var configSection = Configuration.GetSection(registration.ConfigurationSectionPath);
             var config = configSection.Get(registration.ConfigType) as AuthProviderOptions;
 
-            if (config?.Enabled == true)
+            if (config?.Enabled is not true)
             {
-                registration.Provider.Configure(_authenticationBuilder, configSection, isDevelopment);
+                continue;
+            }
+
+            var isConfigured = registration.Provider.Configure(_authenticationBuilder, configSection, isDevelopment);
+            if (isConfigured)
+            {
+                _authProviderRegistry.AddActiveProvider(registration.Provider);
                 LogSetupInfo($"Configured {registration.Provider.SchemeName} auth provider");
             }
         }
@@ -230,7 +236,7 @@ public class InfrastructureSecurityBuilder
     private void EnsureEndatixJwtAuthProviderIsEnabled()
     {
         var endatixJwtRegistration = _authProviderRegistry
-            .GetProviderRegistrations()
+            .GetRequestedRegistrations()
             .FirstOrDefault(reg => reg.Provider.SchemeName == AuthSchemes.EndatixJwt) ??
             throw new InvalidOperationException(
                 "EndatixJwt provider is required. Call AddEndatixJwtAuthProvider() in your authentication configuration.");

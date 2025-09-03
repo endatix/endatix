@@ -8,7 +8,7 @@ namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 
 public class GoogleAuthProvider : IAuthProvider
 {
-    private string? _cachedIssuer;  
+    private string? _cachedIssuer;
     public string SchemeName => "Google";
 
     /// <inheritdoc />
@@ -19,14 +19,14 @@ public class GoogleAuthProvider : IAuthProvider
     }
 
     /// <inheritdoc />
-    public void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
+    public bool Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
         var googleOptions = providerConfig.Get<GoogleOptions>();
         Guard.Against.Null(googleOptions);
 
         if (!googleOptions.Enabled)
         {
-            return;
+            return false;
         }
 
         var googleIssuer = googleOptions.Issuer;
@@ -35,20 +35,21 @@ public class GoogleAuthProvider : IAuthProvider
         _cachedIssuer = googleIssuer;
 
         builder.AddJwtBearer(SchemeName, options =>
-                   {
-                       options.Authority = googleIssuer;
-                       options.RequireHttpsMetadata = true;
-                       options.TokenValidationParameters = new TokenValidationParameters
-                       {
-                           ValidateIssuer = true,
-                           ValidIssuers = new[] { googleOptions.Issuer },
-                           ValidateAudience = true,
-                           ValidAudience = googleOptions.Audience,
-                           ValidateLifetime = true,
-                           ClockSkew = TimeSpan.FromMinutes(2),
-                           NameClaimType = "email",
-                       };
-                   });
+            {
+                options.Authority = googleIssuer;
+                options.RequireHttpsMetadata = true;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuers = new[] { googleOptions.Issuer },
+                    ValidateAudience = true,
+                    ValidAudience = googleOptions.Audience,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromMinutes(2),
+                    NameClaimType = "email",
+                };
+            });
 
+        return true;
     }
 }

@@ -32,16 +32,29 @@ public class DefaultAuthSchemeSelectorTests
         keycloakProvider.CanHandle("http://localhost:8080/realms/endatix", Arg.Any<string>()).Returns(true);
         keycloakProvider.CanHandle(Arg.Is<string>(s => s != "http://localhost:8080/realms/endatix"), Arg.Any<string>()).Returns(false);
 
-        // Manually add providers to registry (simulating registration)
-        var endatixRegistration = new ProviderRegistration(endatixProvider, typeof(object), "test");
-        var keycloakRegistration = new ProviderRegistration(keycloakProvider, typeof(object), "test");
-        
-        // Use reflection to add providers to the private _providers list
-        var providersField = typeof(AuthProviderRegistry).GetField("_providers", 
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var providersList = (List<ProviderRegistration>)providersField!.GetValue(_providerRegistry)!;
-        providersList.Add(endatixRegistration);
-        providersList.Add(keycloakRegistration);
+        // Register providers using the public API
+        var services = new ServiceCollection();
+        var configuration = CreateTestConfiguration();
+
+        _providerRegistry.RegisterProvider<EndatixJwtOptions>(endatixProvider, services, configuration);
+        _providerRegistry.RegisterProvider<KeycloakOptions>(keycloakProvider, services, configuration);
+
+        // Add them as active providers (simulating successful configuration)
+        _providerRegistry.AddActiveProvider(endatixProvider);
+        _providerRegistry.AddActiveProvider(keycloakProvider);
+    }
+
+    private static IConfiguration CreateTestConfiguration()
+    {
+        var configData = new Dictionary<string, string?>
+        {
+            ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true",
+            ["Endatix:Auth:Providers:Keycloak:Enabled"] = "true"
+        };
+
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
     }
 
     [Fact]
@@ -85,11 +98,11 @@ public class DefaultAuthSchemeSelectorTests
     public void SelectScheme_ShouldReturnKeycloak_ForKeycloakToken()
     {
         // Arrange
-        var token = CreateJwtToken(new 
-        { 
-            iss = "http://localhost:8080/realms/endatix", 
+        var token = CreateJwtToken(new
+        {
+            iss = "http://localhost:8080/realms/endatix",
             aud = "account",
-            sub = "user123" 
+            sub = "user123"
         });
 
         // Act
@@ -103,11 +116,11 @@ public class DefaultAuthSchemeSelectorTests
     public void SelectScheme_ShouldReturnDefaultScheme_ForUnknownIssuer()
     {
         // Arrange
-        var token = CreateJwtToken(new 
-        { 
-            iss = "https://unknown-provider.example.com", 
+        var token = CreateJwtToken(new
+        {
+            iss = "https://unknown-provider.example.com",
             aud = "unknown-audience",
-            sub = "user123" 
+            sub = "user123"
         });
 
         // Act
@@ -179,18 +192,18 @@ public class DefaultAuthSchemeSelectorTests
     private static string CreateJwtToken(object payload)
     {
         var header = new { alg = "HS256", typ = "JWT" };
-        
+
         var headerJson = System.Text.Json.JsonSerializer.Serialize(header);
         var payloadJson = System.Text.Json.JsonSerializer.Serialize(payload);
-        
+
         var headerBase64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(headerJson))
             .Replace('+', '-').Replace('/', '_').TrimEnd('=');
         var payloadBase64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(payloadJson))
             .Replace('+', '-').Replace('/', '_').TrimEnd('=');
-        
+
         // Use dummy signature for testing (not validated anyway)
         var signature = "dummy-signature";
-        
+
         return $"{headerBase64}.{payloadBase64}.{signature}";
     }
-} 
+}

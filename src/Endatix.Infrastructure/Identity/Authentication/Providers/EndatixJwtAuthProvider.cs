@@ -24,13 +24,18 @@ public class EndatixJwtAuthProvider : IAuthProvider
     }
 
     /// <inheritdoc />
-    public void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
+    public bool Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
         var endatixJwtOptions = providerConfig.Get<EndatixJwtOptions>();
         Guard.Against.Null(endatixJwtOptions);
 
         var endatixIssuer = endatixJwtOptions.Issuer;
         Guard.Against.NullOrEmpty(endatixIssuer);
+
+        if (!endatixJwtOptions.Enabled)
+        {
+            return false;
+        }
 
         _cachedIssuer = endatixIssuer;
 
@@ -56,5 +61,7 @@ public class EndatixJwtAuthProvider : IAuthProvider
                 // TODO: assess if this is needed as JWT options are now only Endatix JWT specific and not shared with other providers
                 // configure?.Invoke(options);
             });
+
+        return true;
     }
 }

@@ -24,14 +24,14 @@ public class KeycloakAuthProvider : IAuthProvider
     }
 
     /// <inheritdoc />
-    public void Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
+    public bool Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
         var keycloakOptions = providerConfig.Get<KeycloakOptions>();
         Guard.Against.Null(keycloakOptions);
 
         if (!keycloakOptions.Enabled)
         {
-            return;
+            return false;
         }
 
         var keycloakIssuer = keycloakOptions.Issuer;
@@ -54,5 +54,7 @@ public class KeycloakAuthProvider : IAuthProvider
                    ValidateIssuerSigningKey = keycloakOptions.ValidateIssuerSigningKey,
                };
            });
+
+        return true;
     }
 }
