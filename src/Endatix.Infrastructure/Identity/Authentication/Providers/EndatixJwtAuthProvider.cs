@@ -26,16 +26,19 @@ public class EndatixJwtAuthProvider : IAuthProvider
     /// <inheritdoc />
     public bool Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
+        Guard.Against.Null(builder);
+        Guard.Against.Null(providerConfig);
+
         var endatixJwtOptions = providerConfig.Get<EndatixJwtOptions>();
         Guard.Against.Null(endatixJwtOptions);
-
-        var endatixIssuer = endatixJwtOptions.Issuer;
-        Guard.Against.NullOrEmpty(endatixIssuer);
 
         if (!endatixJwtOptions.Enabled)
         {
             return false;
         }
+
+        var endatixIssuer = endatixJwtOptions.Issuer;
+        Guard.Against.NullOrWhiteSpace(endatixIssuer);
 
         _cachedIssuer = endatixIssuer;
 

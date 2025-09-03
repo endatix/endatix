@@ -21,6 +21,9 @@ public class GoogleAuthProvider : IAuthProvider
     /// <inheritdoc />
     public bool Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
+        Guard.Against.Null(builder);
+        Guard.Against.Null(providerConfig);
+
         var googleOptions = providerConfig.Get<GoogleOptions>();
         Guard.Against.Null(googleOptions);
 
@@ -30,7 +33,7 @@ public class GoogleAuthProvider : IAuthProvider
         }
 
         var googleIssuer = googleOptions.Issuer;
-        Guard.Against.NullOrEmpty(googleIssuer, nameof(GoogleOptions.Issuer));
+        Guard.Against.NullOrWhiteSpace(googleIssuer, nameof(GoogleOptions.Issuer));
 
         _cachedIssuer = googleIssuer;
 

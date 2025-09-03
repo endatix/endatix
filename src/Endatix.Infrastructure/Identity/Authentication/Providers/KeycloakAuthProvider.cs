@@ -26,6 +26,9 @@ public class KeycloakAuthProvider : IAuthProvider
     /// <inheritdoc />
     public bool Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
+        Guard.Against.Null(builder);
+        Guard.Against.Null(providerConfig);
+
         var keycloakOptions = providerConfig.Get<KeycloakOptions>();
         Guard.Against.Null(keycloakOptions);
 
@@ -35,7 +38,7 @@ public class KeycloakAuthProvider : IAuthProvider
         }
 
         var keycloakIssuer = keycloakOptions.Issuer;
-        Guard.Against.NullOrEmpty(keycloakIssuer);
+        Guard.Against.NullOrWhiteSpace(keycloakIssuer);
 
         _cachedIssuer = keycloakIssuer;
 
