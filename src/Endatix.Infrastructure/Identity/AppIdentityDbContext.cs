@@ -20,14 +20,20 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
         _idGenerator = idGenerator;
     }
 
+    public DbSet<Permission> Permissions { get; set; }
+    public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
+        builder.ApplyConfigurationsFromAssembly(typeof(AppIdentityDbContext).Assembly);
+        
         builder.HasDefaultSchema("identity");
 
+
+        builder.Entity<AppUser>().ToTable("Users");
         builder.Entity<AppUser>()
                .Property(e => e.Id)
                .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
@@ -35,7 +41,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 
         builder.Entity<AppRole>()
                .Property(e => e.Id)
-                .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
+               .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
                .ValueGeneratedNever();
 
         builder.Entity<EmailVerificationToken>(entity =>
