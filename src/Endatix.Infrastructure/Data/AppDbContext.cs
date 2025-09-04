@@ -51,8 +51,8 @@ public class AppDbContext : DbContext, ITenantDbContext
     {
         base.OnModelCreating(builder);
         builder.ApplyEndatixQueryFilters(this);
-        builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
-        
+        builder.ApplyConfigurationsFor<AppDbContext>(Endatix.Infrastructure.AssemblyReference.Assembly);
+
         builder.Entity<SubmissionExportRow>()
             .HasNoKey()
             .ToTable(t => t.ExcludeFromMigrations());

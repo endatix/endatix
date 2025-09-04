@@ -1,9 +1,11 @@
 using Endatix.Core.Entities.Identity;
+using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Endatix.Infrastructure.Data.Config.AppIdentity;
 
+[ApplyConfigurationFor<AppIdentityDbContext>()]
 public class PermissionConfiguration : IEntityTypeConfiguration<Permission>
 {
     public void Configure(EntityTypeBuilder<Permission> builder)

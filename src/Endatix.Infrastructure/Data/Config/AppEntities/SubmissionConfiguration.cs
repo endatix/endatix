@@ -2,8 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Entities;
 
-namespace Endatix.ApplicationCore.Infrastructure.Data.Config;
+namespace Endatix.ApplicationCore.Infrastructure.Data.Config.AppEntities;
 
+[ApplyConfigurationFor<AppDbContext>()]
 public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 {
     private const int TOKEN_VALUE_MAX_LENGTH = 64;

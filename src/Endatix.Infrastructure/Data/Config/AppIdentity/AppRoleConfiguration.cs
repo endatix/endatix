@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Endatix.Infrastructure.Data.Config.AppIdentity;
 
+[ApplyConfigurationFor<AppIdentityDbContext>()]
 public class AppRoleConfiguration : IEntityTypeConfiguration<AppRole>
 {
     public void Configure(EntityTypeBuilder<AppRole> builder)

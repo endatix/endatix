@@ -28,8 +28,8 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     {
         base.OnModelCreating(builder);
 
-        builder.ApplyConfigurationsFromAssembly(typeof(AppIdentityDbContext).Assembly);
-        
+        builder.ApplyConfigurationsFor<AppIdentityDbContext>(Endatix.Infrastructure.AssemblyReference.Assembly);
+
         builder.HasDefaultSchema("identity");
 
 
