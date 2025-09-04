@@ -5,6 +5,7 @@ using System.Reflection;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data.Config;
+using Ardalis.GuardClauses;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -64,6 +65,9 @@ public static class DbContextModelBuilderExtensions
     /// <param name="assembly">The assembly containing the configurations.</param>
     public static void ApplyConfigurationsFor<TDbContext>(this ModelBuilder builder, Assembly assembly) where TDbContext : DbContext
     {
+        Guard.Against.Null(builder, nameof(builder));
+        Guard.Against.Null(assembly, nameof(assembly));
+
         var targetAttributeType = typeof(ApplyConfigurationForAttribute<>).MakeGenericType(typeof(TDbContext));
 
         var configurationTypes = assembly.GetTypes()
