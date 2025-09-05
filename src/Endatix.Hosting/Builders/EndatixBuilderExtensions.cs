@@ -45,7 +45,6 @@ internal static class EndatixBuilderExtensions
         {
             EndatixApiBuilder api => api.Build(),
             EndatixPersistenceBuilder persistence => persistence.Build(),
-            EndatixSecurityBuilder security => security.Build(),
             EndatixInfrastructureBuilder infrastructure => infrastructure.Build(),
             EndatixLoggingBuilder logging => logging.Build(),
             EndatixBuilder main => main,

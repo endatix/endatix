@@ -9,12 +9,13 @@ public interface IAuthSchemeSelector
     /// <summary>
     /// Selects the appropriate authentication scheme for the given JWT token.
     /// </summary>
-    /// <param name="token">The JWT token string (without "Bearer " prefix)</param>
+    /// <param name="rawToken">The JWT token string (without "Bearer " prefix)</param>
     /// <returns>The authentication scheme name, or default scheme if no match found</returns>
-    string SelectScheme(string token);
+    string SelectScheme(string rawToken);
 
     /// <summary>
-    /// Gets the default authentication scheme used when no specific provider is matched.
+    /// Gets the default authentication scheme used when no specific p
+    /// rovider is matched.
     /// </summary>
     string DefaultScheme { get; }
 } 

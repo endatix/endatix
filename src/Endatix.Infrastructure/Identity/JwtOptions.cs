@@ -5,6 +5,7 @@ namespace Endatix.Infrastructure.Identity;
 /// <summary>
 /// Configuration options for JWT (JSON Web Token) Bearer token used for authentication and authorization
 /// </summary>
+[Obsolete("Use EndatixJwtOptions instead. Will be removed in the future.")]
 public class JwtOptions
 {
     /// <summary>
@@ -16,8 +17,7 @@ public class JwtOptions
     /// The key used to sign the JWT token.
     /// This is required and must be set in the configuration.
     /// </summary>
-    [Required]
-    public string SigningKey { get; set; }
+    public string SigningKey { get; set; } = string.Empty;
 
     /// <summary>
     /// The expiration time of the JWT access token in minutes.

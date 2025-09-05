@@ -1,5 +1,6 @@
 ﻿using Ardalis.GuardClauses;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using Endatix.Core.Abstractions;
 using Endatix.Core.UseCases.Identity;
 using Microsoft.IdentityModel.Tokens;
@@ -9,6 +10,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Entities.Identity;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 
@@ -19,33 +21,48 @@ internal sealed class JwtTokenService : IUserTokenService
 {
     private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
 
-    private readonly JwtOptions _jwtOptions;
+    private readonly EndatixJwtOptions _endatixJwtOptions;
+    private readonly IAuthSchemeSelector _authSchemeSelector;
+    private readonly ILogger<JwtTokenService> _logger;
 
     /// <summary>
     /// Initializes a new instance of the JwtTokenService class with the specified JWT options.
     /// </summary>
-    /// <param name="jwtOptions">The JWT options.</param>
-    public JwtTokenService(IOptions<JwtOptions> jwtOptions)
+    /// <param name="endatixJwtOptions">The EndatixJwt options.</param>
+    /// <param name="configuration">The configuration to check for JwtOptions presence.</param>
+    /// <param name="logger"></param>
+    /// <param name="authSchemeSelector"></param>
+    public JwtTokenService(IOptions<EndatixJwtOptions> endatixJwtOptions, IConfiguration configuration, ILogger<JwtTokenService> logger, IAuthSchemeSelector authSchemeSelector)
     {
-        _jwtOptions = jwtOptions.Value;
+        _endatixJwtOptions = endatixJwtOptions.Value;
+        _authSchemeSelector = authSchemeSelector;
+        _logger = logger;
 
-        // Validate JWT options to ensure they are correctly configured
-        Guard.Against.NullOrEmpty(_jwtOptions.SigningKey, nameof(_jwtOptions.SigningKey), "Signing key cannot be empty. Please check your appSettings.");
-        Guard.Against.NullOrEmpty(_jwtOptions.Issuer, nameof(_jwtOptions.Issuer), "Issuer cannot be empty. Please check your appSettings");
-        Guard.Against.NullOrEmpty(_jwtOptions.Audiences, nameof(_jwtOptions.Audiences), "You need at least one audience in your appSettings.");
-        Guard.Against.NegativeOrZero(_jwtOptions.AccessExpiryInMinutes, nameof(_jwtOptions.AccessExpiryInMinutes), "Access Token expiration must be positive number representing minutes for access token lifetime");
-        Guard.Against.NegativeOrZero(_jwtOptions.RefreshExpiryInDays, nameof(_jwtOptions.RefreshExpiryInDays), "Refresh Token expiration must be positive number representing days for refresh token lifetime");
+        // Check if JwtOptions section actually exists in configuration and migrate if needed
+        var jwtOptionsSection = configuration.GetSection(JwtOptions.SECTION_NAME);
+        if (jwtOptionsSection.Exists() && jwtOptionsSection.Get<JwtOptions>() is JwtOptions legacyJwtOptions)
+        {
+            logger.LogWarning("JwtOptions are depreciated. Move the configuration to Endatix:Auth:EndatixJwt. Applying mapping of old values to EndatixJwtOptions.");
+            _endatixJwtOptions = JwtOptionsMapper.Map(legacyJwtOptions, _endatixJwtOptions);
+        }
+
+        // Validate EndatixJwt Options options to ensure they are correctly configured
+        Guard.Against.NullOrEmpty(_endatixJwtOptions.SigningKey, nameof(_endatixJwtOptions.SigningKey), "Signing key cannot be empty. Please check your appSettings.");
+        Guard.Against.NullOrEmpty(_endatixJwtOptions.Issuer, nameof(_endatixJwtOptions.Issuer), "Issuer cannot be empty. Please check your appSettings");
+        Guard.Against.NullOrEmpty(_endatixJwtOptions.Audiences, nameof(_endatixJwtOptions.Audiences), "You need at least one audience in your appSettings.");
+        Guard.Against.NegativeOrZero(_endatixJwtOptions.AccessExpiryInMinutes, nameof(_endatixJwtOptions.AccessExpiryInMinutes), "Access Token expiration must be positive number representing minutes for access token lifetime");
+        Guard.Against.NegativeOrZero(_endatixJwtOptions.RefreshExpiryInDays, nameof(_endatixJwtOptions.RefreshExpiryInDays), "Refresh Token expiration must be positive number representing days for refresh token lifetime");
     }
 
     /// <inheritdoc />
     public TokenDto IssueAccessToken(User forUser, string? forAudience = null)
     {
-        var secret = _jwtOptions.SigningKey;
+        var secret = _endatixJwtOptions.SigningKey;
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
 
         if (string.IsNullOrEmpty(forAudience))
         {
-            forAudience = _jwtOptions.Audiences.First();
+            forAudience = _endatixJwtOptions.Audiences.First();
         }
 
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
@@ -61,9 +78,9 @@ internal sealed class JwtTokenService : IUserTokenService
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = subject,
-            Expires = DateTime.UtcNow.AddMinutes(_jwtOptions.AccessExpiryInMinutes),
+            Expires = DateTime.UtcNow.AddMinutes(_endatixJwtOptions.AccessExpiryInMinutes),
             SigningCredentials = credentials,
-            Issuer = _jwtOptions.Issuer,
+            Issuer = _endatixJwtOptions.Issuer,
             Audience = forAudience
         };
 
@@ -75,28 +92,18 @@ internal sealed class JwtTokenService : IUserTokenService
 
     public async Task<Result<long>> ValidateAccessTokenAsync(string accessToken, bool validateLifetime = true)
     {
-        var handler = new JwtSecurityTokenHandler();
-        var jsonToken = handler.ReadJwtToken(accessToken);
-        var issuer = jsonToken.Issuer;
-
-        if (issuer.Contains("localhost:8080/realms/endatix"))
+        var selectedScheme = _authSchemeSelector.SelectScheme(accessToken);
+        if (selectedScheme != AuthSchemes.EndatixJwt)
         {
-            // This means the token is from Keycloak - skip complete TokenValidation for now
-            // TODO: Implement proper Keycloak validation using JWKS token inspection and validation
-            var userIdClaim = jsonToken.Subject;
-            if (long.TryParse(userIdClaim, out var keycloakUserId))
-            {
-                return Result.Success(keycloakUserId);
-            }
-            
-            return Result.Invalid(new ValidationError("Invalid user ID"));
+            _logger.LogWarning("Attempted to validate access token with scheme: {selectedScheme}. Only Endatix JWT tokens are supported.", selectedScheme);
+            return Result.Invalid(new ValidationError($"Token validation not supported for scheme: {selectedScheme}."));
         }
 
         var validationParameters = new TokenValidationParameters
         {
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey)),
-            ValidIssuer = _jwtOptions.Issuer,
-            ValidAudiences = _jwtOptions.Audiences,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_endatixJwtOptions.SigningKey)),
+            ValidIssuer = _endatixJwtOptions.Issuer,
+            ValidAudiences = _endatixJwtOptions.Audiences,
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = validateLifetime,
@@ -123,7 +130,7 @@ internal sealed class JwtTokenService : IUserTokenService
     public TokenDto IssueRefreshToken()
     {
         var token = Guid.NewGuid().ToString("N");
-        var expireAt = DateTime.UtcNow.AddDays(_jwtOptions.RefreshExpiryInDays);
+        var expireAt = DateTime.UtcNow.AddDays(_endatixJwtOptions.RefreshExpiryInDays);
 
         return new TokenDto(token, expireAt);
     }
