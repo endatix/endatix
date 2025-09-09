@@ -33,7 +33,7 @@ public class CreateSubmissionCommandTests
         int? currentPage = 3;
         bool? isComplete = true;
         var reCaptchaToken = "test-token";
-        long? submittedBy = 123;
+        var submittedBy = "123";
         // Act
         var command = new CreateSubmissionCommand(formId, jsonData, metadata, currentPage, isComplete, reCaptchaToken, submittedBy);
 

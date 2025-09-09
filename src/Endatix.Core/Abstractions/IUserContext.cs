@@ -25,5 +25,5 @@ public interface IUserContext
     /// <summary>
     /// Gets the current user's ID, or null if not authenticated.
     /// </summary>
-    long? GetCurrentUserId();
+    string? GetCurrentUserId();
 }

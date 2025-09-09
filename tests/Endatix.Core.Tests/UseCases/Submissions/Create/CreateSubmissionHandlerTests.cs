@@ -69,7 +69,7 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
             ReCaptchaToken: "test-token",
-            SubmittedBy: 123
+            SubmittedBy: "123"
         );
 
         _recaptchaService.ValidateReCaptchaAsync(
@@ -153,7 +153,7 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
             ReCaptchaToken: "test-token",
-            SubmittedBy: 123
+            SubmittedBy: "123"
         );
 
         _recaptchaService.ValidateReCaptchaAsync(
@@ -235,7 +235,7 @@ public class CreateSubmissionHandlerTests
             CurrentPage: null,
             Metadata: null,
             ReCaptchaToken: "test-token",
-            SubmittedBy: 456
+            SubmittedBy: "456"
         );
 
         _recaptchaService.ValidateReCaptchaAsync(
@@ -266,7 +266,7 @@ public class CreateSubmissionHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", 789);
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "789");
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -304,7 +304,7 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
             ReCaptchaToken: "test-token",
-            SubmittedBy: userId
+            SubmittedBy: userId.ToString()
         );
 
         _recaptchaService.ValidateReCaptchaAsync(
@@ -333,7 +333,7 @@ public class CreateSubmissionHandlerTests
                 s.IsComplete == request.IsComplete &&
                 s.CurrentPage == request.CurrentPage &&
                 s.Metadata == request.Metadata &&
-                s.SubmittedBy == userId
+                s.SubmittedBy == userId.ToString()
             ),
             Arg.Any<CancellationToken>()
         );
