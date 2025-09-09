@@ -48,6 +48,12 @@ public class AppUserRegistrationService(
     /// <inheritdoc />
     public async Task<Result<User>> RegisterUserAsync(string email, string password, CancellationToken cancellationToken)
     {
+        return await RegisterUserAsync(email, password, tenantId: 0, isEmailConfirmed: false, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<User>> RegisterUserAsync(string email, string password, long tenantId, bool isEmailConfirmed, CancellationToken cancellationToken)
+    {
         if (!userManager.SupportsUserEmail)
         {
             throw new NotSupportedException($"Registration logic requires a user store with email support. Please check your email settings");
@@ -60,8 +66,8 @@ public class AppUserRegistrationService(
 
         var newUser = new AppUser
         {
-            TenantId = 0,           // TODO: This must be 0 for a user that still does not have a tenant. It must be 1 for the initial user seeding so there is a need for a fix in the seeding.
-            EmailConfirmed = false  // Users start as unverified and need email verification
+            TenantId = tenantId,
+            EmailConfirmed = isEmailConfirmed
         };
 
         var emailStore = (IUserEmailStore<AppUser>)userStore;
@@ -80,30 +86,37 @@ public class AppUserRegistrationService(
             return Result.Error(resultErrors);
         }
 
-        // Create email verification token and send verification email
-        var tokenResult = await emailVerificationService.CreateVerificationTokenAsync(newUser.Id, cancellationToken);
-        if (tokenResult.IsSuccess)
+        // Create email verification token and send verification email if email is not already confirmed
+        if (!isEmailConfirmed)
         {
-            try
+            var tokenResult = await emailVerificationService.CreateVerificationTokenAsync(newUser.Id, cancellationToken);
+            if (tokenResult.IsSuccess)
             {
-                var emailModel = emailTemplateService.CreateVerificationEmail(
-                    email, 
-                    tokenResult.Value!.Token);
+                try
+                {
+                    var emailModel = emailTemplateService.CreateVerificationEmail(
+                        email, 
+                        tokenResult.Value!.Token);
 
-                await emailSender.SendEmailAsync(emailModel, cancellationToken);
+                    await emailSender.SendEmailAsync(emailModel, cancellationToken);
 
-                logger.LogInformation("Verification email sent successfully to {Email} during registration", email);
+                    logger.LogInformation("Verification email sent successfully to {Email} during registration", email);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to send verification email to {Email} during registration", email);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                logger.LogError(ex, "Failed to send verification email to {Email} during registration", email);
+                // Log token creation failure
+                logger.LogError("Failed to create verification token for user: {Email} (UserId: {UserId}). Errors: {Errors}", 
+                    email, newUser.Id, string.Join(", ", tokenResult.ValidationErrors.Select(e => e.ErrorMessage)));
             }
         }
         else
         {
-            // Log token creation failure
-            logger.LogError("Failed to create verification token for user: {Email} (UserId: {UserId}). Errors: {Errors}", 
-                email, newUser.Id, string.Join(", ", tokenResult.ValidationErrors.Select(e => e.ErrorMessage)));
+            logger.LogInformation("Skipping email verification for {Email} - email is already confirmed", email);
         }
 
         // If token creation or email sending fails, we should still return success but log the error
