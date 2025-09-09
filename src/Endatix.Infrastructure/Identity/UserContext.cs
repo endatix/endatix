@@ -49,13 +49,38 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
     }
 
     /// <inheritdoc/>
-    public long? GetCurrentUserId()
+    public string? GetCurrentUserId()
     {
         var principal = httpContextAccessor.HttpContext?.User;
-        var userIdClaim = principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (long.TryParse(userIdClaim, out var userId))
+        var subClaim = principal?.FindFirst("sub")?.Value;
+        if (!string.IsNullOrWhiteSpace(subClaim))
         {
-            return userId;
+            return subClaim;
+        }
+
+        var userIdClaim = principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrWhiteSpace(userIdClaim))
+        {
+            return userIdClaim;
+        }
+
+        return null;
+    }
+
+    /// <inheritdoc/>
+    public string? GetCurrentUserName()
+    {
+        var principal = httpContextAccessor.HttpContext?.User;
+        var nameClaim = principal?.FindFirst("name")?.Value;
+        if (!string.IsNullOrWhiteSpace(nameClaim))
+        {
+            return nameClaim;
+        }
+
+        var nameFromClaimTypes = principal?.FindFirst(ClaimTypes.Name)?.Value;
+        if (!string.IsNullOrWhiteSpace(nameFromClaimTypes))
+        {
+            return nameFromClaimTypes;
         }
 
         return null;

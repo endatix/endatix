@@ -28,7 +28,7 @@ public sealed class UpdateStatusTests
         const string status = "seen";
 
         var request = new UpdateStatusRequest(submissionId, formId, status);
-        var result = Result.Success(new SubmissionDto(submissionId, false, new Dictionary<string, object>(), formId, 1, null, DateTime.UtcNow, DateTime.UtcNow, null, status, 7));
+        var result = Result.Success(new SubmissionDto(submissionId, false, new Dictionary<string, object>(), formId, 1, null, DateTime.UtcNow, DateTime.UtcNow, null, status, "7"));
 
         _mediator.Send(Arg.Any<UpdateStatusCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

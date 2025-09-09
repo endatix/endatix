@@ -22,6 +22,7 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
             .IsRequired();
 
         builder.Property(s => s.SubmittedBy)
+            .HasMaxLength(64)
             .IsRequired(false);
 
         builder.HasOne(s => s.FormDefinition)

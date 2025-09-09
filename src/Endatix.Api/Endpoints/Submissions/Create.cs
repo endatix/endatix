@@ -31,8 +31,9 @@ public class Create(IMediator mediator, IUserContext userContext) : Endpoint<Cre
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken cancellationToken)
     {
-        var submittedBy = userContext.GetCurrentUserId();
-        
+        var submittedById = userContext.GetCurrentUserId();
+        var submittedByName = userContext.GetCurrentUserName();
+
         var createCommand = new CreateSubmissionCommand(
             FormId: request.FormId,
             JsonData: request.JsonData!,
@@ -40,7 +41,8 @@ public class Create(IMediator mediator, IUserContext userContext) : Endpoint<Cre
             CurrentPage: request.CurrentPage,
             IsComplete: request.IsComplete,
             ReCaptchaToken: request.ReCaptchaToken,
-            SubmittedBy: submittedBy
+            SubmittedById: submittedById,
+            SubmittedByName: submittedByName
         );
 
         var result = await mediator.Send(createCommand, cancellationToken);

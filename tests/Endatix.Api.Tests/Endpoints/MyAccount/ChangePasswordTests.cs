@@ -31,8 +31,8 @@ public class ChangePasswordTests
     {
         // Arrange
         var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
-        var userId = 123L;
-
+        var userId = "123";
+        
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
             .Send(Arg.Any<ChangePasswordCommand>())
@@ -53,8 +53,8 @@ public class ChangePasswordTests
     {
         // Arrange
         var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
-        var userId = 123L;
-
+        var userId = "123";
+        
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
             .Send(Arg.Any<ChangePasswordCommand>())
@@ -79,7 +79,7 @@ public class ChangePasswordTests
     {
         // Arrange
         var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
-        var userId = 123L;
+        var userId = "123";
 
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
@@ -104,8 +104,8 @@ public class ChangePasswordTests
     {
         // Arrange
         var request = new ChangePasswordRequest("currentPass123", "newPass123", "newPass123");
-        var userId = 123L;
-
+        var userId = "123";
+        
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
             .Send(Arg.Any<ChangePasswordCommand>())
@@ -119,7 +119,7 @@ public class ChangePasswordTests
             .Received(1)
             .Send(
                 Arg.Is<ChangePasswordCommand>(cmd =>
-                    cmd.UserId == userId &&
+                    cmd.UserId == long.Parse(userId) &&
                     cmd.CurrentPassword == request.CurrentPassword &&
                     cmd.NewPassword == request.NewPassword),
                 Arg.Any<CancellationToken>()
