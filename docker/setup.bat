@@ -15,68 +15,68 @@ IF %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-REM Check if docker-compose.dev.yml exists in the current directory
-IF NOT EXIST "docker-compose.dev.yml" (
-    echo docker-compose.dev.yml not found in the current directory. Please ensure it is present.
+REM Check if docker-compose.yaml exists in the current directory
+IF NOT EXIST "docker-compose.yaml" (
+    echo docker-compose.yaml not found in the current directory. Please ensure it is present.
     pause
     exit /b 1
 )
 
-echo Docker and Docker Compose are installed, and docker-compose.dev.yml is found.
+echo Docker and Docker Compose are installed, and docker-compose.yaml is found.
 
 REM Create or overwrite the .env file
 echo Creating .env file and setting the necessary environment variables...
-echo # Environment variables for Endatix > .env
+
+REM Set default values for all variables
+set "ENDATIX_API_PORT=8080"
+set "ENDATIX_DB_PASSWORD=DbPa$$w0rD"
+set "ENDATIX_API_IMAGE=endatix-api:latest"
+set "ASPNETCORE_ENVIRONMENT=Development"
+set "ENDATIX_HUB_IMAGE=endatix-hub:latest"
 
 REM Enable delayed expansion for data collection
 setlocal enabledelayedexpansion
 
 REM Prompt for environment variables with default values if nothing is entered
-set /p ASPNETCORE_ENVIRONMENT="Enter ASPNETCORE_ENVIRONMENT (skip to use the default value 'Development'): "
-IF "%ASPNETCORE_ENVIRONMENT%"=="" set "ASPNETCORE_ENVIRONMENT=Development"
+set /p USER_EMAIL="Enter USER_EMAIL - Initial admin user email (skip to use the default value 'admin@endatix.com'): "
+IF "%USER_EMAIL%"=="" set "USER_EMAIL=admin@endatix.com"
 
-set /p SECURITY_JWT_SIGNING_KEY="Enter SECURITY_JWT_SIGNING_KEY (JWT signing key to be used in Endatix API, skip to use the default value): "
-IF "%SECURITY_JWT_SIGNING_KEY%"=="" set "SECURITY_JWT_SIGNING_KEY=L2yGC_Vpd3k#L[<9Zb,h?.HT:n'T/5CTDmBpDskU?NAaT$sLfRU"
+set /p USER_PASSWORD="Enter USER_PASSWORD - Initial admin user password, minimum 8 characters, must include lower and upper case letters, digit and special character (skip to use the default value 'P@ssw0rd'): "
+IF "%USER_PASSWORD%"=="" set "USER_PASSWORD=P@ssw0rd"
 
-set /p SECURITY_DEV_USERS_0_EMAIL="Enter SECURITY_DEV_USERS_0_EMAIL (Test user email for API auth, skip to use the default value 'developer@endatix.com'): "
-IF "%SECURITY_DEV_USERS_0_EMAIL%"=="" set "SECURITY_DEV_USERS_0_EMAIL=developer@endatix.com"
-
-set /p SECURITY_DEV_USERS_0_PASSWORD="Enter SECURITY_DEV_USERS_0_PASSWORD (Test user password for API auth, skip to use the default value 'password'): "
-IF "%SECURITY_DEV_USERS_0_PASSWORD%"=="" set "SECURITY_DEV_USERS_0_PASSWORD=password"
-
-set /p SENDGRID_API_KEY="Enter SENDGRID_API_KEY (SendGrid API key for sending emails, skip for not sending emails): "
-
-set /p SQLSERVER_SA_PASSWORD="Enter SQLSERVER_SA_PASSWORD (SQL Server container admin user password, skip to use the default value 'DbPa$$w0rD'): "
-IF "%SQLSERVER_SA_PASSWORD%"=="" set "SQLSERVER_SA_PASSWORD=DbPa$$w0rD"
-
-REM Escape single quotes inside the variables
-set "ASPNETCORE_ENVIRONMENT=%ASPNETCORE_ENVIRONMENT:'=\'%"
-set "SECURITY_JWT_SIGNING_KEY=%SECURITY_JWT_SIGNING_KEY:'=\'%"
-set "SECURITY_DEV_USERS_0_EMAIL=%SECURITY_DEV_USERS_0_EMAIL:'=\'%"
-set "SECURITY_DEV_USERS_0_PASSWORD=%SECURITY_DEV_USERS_0_PASSWORD:'=\'%"
-IF NOT "%SENDGRID_API_KEY%"=="" (
-    set "SENDGRID_API_KEY=%SENDGRID_API_KEY:'=\'%"
-)
-set "SQLSERVER_SA_PASSWORD=%SQLSERVER_SA_PASSWORD:'=\'%"
-
-REM Write variables to the .env file using delayed expansion for special characters
+REM Create the .env file with the exact structure and values
 (
-    echo ASPNETCORE_ENVIRONMENT='!ASPNETCORE_ENVIRONMENT!'
-    echo SECURITY_JWT_SIGNING_KEY='!SECURITY_JWT_SIGNING_KEY!'
-    echo SECURITY_DEV_USERS_0_EMAIL='!SECURITY_DEV_USERS_0_EMAIL!'
-    echo SECURITY_DEV_USERS_0_PASSWORD='!SECURITY_DEV_USERS_0_PASSWORD!'
-    echo SENDGRID_API_KEY='!SENDGRID_API_KEY!'
-    echo SQLSERVER_SA_PASSWORD='!SQLSERVER_SA_PASSWORD!'
-) >> .env
+    echo # Default container port for endatix-api
+    echo ENDATIX_API_PORT=%ENDATIX_API_PORT%
+    echo.
+    echo # Parameter endatix-db-password
+    echo ENDATIX_DB_PASSWORD=%ENDATIX_DB_PASSWORD%
+    echo.
+    echo # Container image name for endatix-api
+    echo ENDATIX_API_IMAGE=%ENDATIX_API_IMAGE%
+    echo.
+    echo # Parameter aspnetcore-environment
+    echo ASPNETCORE_ENVIRONMENT=%ASPNETCORE_ENVIRONMENT%
+    echo.
+    echo # Parameter user-email
+    echo USER_EMAIL=!USER_EMAIL!
+    echo.
+    echo # Parameter user-password
+    echo USER_PASSWORD=!USER_PASSWORD!
+    echo.
+    echo # Container image name for endatix-hub
+    echo ENDATIX_HUB_IMAGE=%ENDATIX_HUB_IMAGE%
+    echo.
+) > .env
+
+echo .env file created successfully with the provided values.
 
 REM End delayed expansion
 endlocal
 
-echo .env file created successfully with the provided values.
-
-REM Run docker compose with the .env file and docker-compose.dev.yml
+REM Run docker compose with the .env file and docker-compose.yaml
 echo Starting Docker Compose...
-docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.yaml up -d
 
 IF %ERRORLEVEL% NEQ 0 (
     echo Failed to start Docker Compose. Please check the logs for more details.
@@ -87,12 +87,12 @@ IF %ERRORLEVEL% NEQ 0 (
 echo Docker Compose started successfully!
 echo ---------------------------------------------------
 echo Access the Endatix containers at:
-echo             http://localhost:5001/swagger for Endatix API
+echo             http://localhost:%ENDATIX_API_PORT% for Endatix API
 echo             http://localhost:3000 for Endatix Hub
 echo.
 echo The initial setup of Endatix Platform is completed.
 echo ---------------------------------------------------
-echo To stop the containers use `docker compose -f docker-compose.dev.yml stop`.
-echo To start again the containers use `docker compose -f docker-compose.dev.yml start`.
-echo To delete the containers use `docker compose -f docker-compose.dev.yml down`.
+echo To stop the containers use `docker compose -f docker-compose.yaml stop`.
+echo To start again the containers use `docker compose -f docker-compose.yaml start`.
+echo To delete the containers use `docker compose -f docker-compose.yaml down`.
 echo.
