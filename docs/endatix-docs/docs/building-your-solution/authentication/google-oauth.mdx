@@ -117,8 +117,8 @@ Based on the [Google provider documentation](https://authjs.dev/getting-started/
 ```bash
 # Google OAuth configuration in your .env file
 AUTH_GOOGLE_ENABLED=true
-AUTH_GOOGLE_ID=your_google_client_id_here
-AUTH_GOOGLE_SECRET=your_google_client_secret_here
+AUTH_GOOGLE_CLIENT_ID=your_google_client_id_here
+AUTH_GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 ```
 
 Here is explanation of the environment variables:
@@ -129,17 +129,17 @@ Here is explanation of the environment variables:
 - Set to `true` to activate Google OAuth authentication
 - Example: `AUTH_GOOGLE_ENABLED=true`
 
-#### AUTH_GOOGLE_ID
+#### AUTH_GOOGLE_CLIENT_ID
 
 - The Google OAuth Client ID from your Google Cloud Console
 - Must match the Client ID configured in Google Cloud Console
-- Example: `AUTH_GOOGLE_ID=123456789-abc.apps.googleusercontent.com`
+- Example: `AUTH_GOOGLE_CLIENT_ID=123456789-abc.apps.googleusercontent.com`
 
-#### AUTH_GOOGLE_SECRET
+#### AUTH_GOOGLE_CLIENT_SECRET
 
 - The Google OAuth Client Secret from your Google Cloud Console
 - Found in Google Cloud Console under APIs & Services → Credentials
-- Example: `AUTH_GOOGLE_SECRET=GOCSPX-abcd1234...`
+- Example: `AUTH_GOOGLE_CLIENT_SECRET=GOCSPX-abcd1234...`
 
 ### 2.2 Register Provider in auth.ts
 
@@ -182,7 +182,7 @@ pnpm dev
 **Google provider not appearing on Endatix Hub login page**
 
 - Verify `AUTH_GOOGLE_ENABLED=true` is set
-- Check `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` are correct
+- Check `AUTH_GOOGLE_CLIENT_ID` and `AUTH_GOOGLE_CLIENT_SECRET` are correct
 - Ensure provider is registered in `auth.ts`
 
 **OAuth error: redirect_uri_mismatch**
