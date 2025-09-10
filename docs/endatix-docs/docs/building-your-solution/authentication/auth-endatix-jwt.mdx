@@ -1,0 +1,88 @@
+---
+title: Endatix JWT Customization
+description: Customize and configure the built-in Endatix JWT authentication provider
+sidebar_position: 2
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Endatix JWT Customization
+
+The built-in Endatix JWT provider offers secure, stateless authentication with full customization options. This guide shows you how to configure and customize JWT authentication for your specific needs.
+
+## Overview
+
+The Endatix JWT provider is automatically included and provides:
+- **Stateless Authentication**: No server-side session storage required
+- **Secure Token Handling**: Server-side only, never exposed to client
+- **Automatic Integration**: Seamless communication between Hub and API
+- **Flexible Configuration**: Customizable token lifetimes and validation
+
+## Basic Configuration
+
+### EndatixAPI Configuration (`appsettings.json`)
+
+<Tabs>
+<TabItem value="development" label="Development">
+
+```json
+// appsettings.Development.json
+{
+  "Endatix": {
+    "Auth": {
+      "Providers": {
+        "EndatixJwt": {
+          "Enabled": true,
+          "SigningKey": "L2yGC_Vpd3k#L[<9Zb,h?.HT:n'T/5CTDmBpDskU?NAaT$sLfRU",
+          "AccessExpiryInMinutes": 900,
+          "RefreshExpiryInDays": 7,
+          "Issuer": "https://localhost:5001"
+        }
+      }
+    }
+  }
+}
+```
+
+</TabItem>
+<TabItem value="production" label="Production">
+
+```json
+// appsettings.json
+{
+  "Endatix": {
+    "Auth": {
+      "Providers": {
+        "EndatixJwt": {
+          "Enabled": true,
+          "SigningKey": "{JWT_SIGNING_KEY_SECRET}",
+          "AccessExpiryInMinutes": 15,
+          "RefreshExpiryInDays": 30,
+          "Issuer": "https://api.yourdomain.com"
+        }
+      }
+    }
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Endatix Hub Configuration
+
+The Endatix JWT provider is automatically registered - no additional setup required. Below is the default configuration in the .env file:
+
+```bash
+# .env
+# You can generate a secure AUTH_SECRET key using `npx auth secret` from the root of the Endatix Hub project
+AUTH_SECRET=QKYuOMS2deIInJt9q6WNmWwuh9QtL7BPKKQfTG/KI48=
+
+# Needed for production deployment to ensure the authentication works correctly under reverse proxy - https://authjs.dev/getting-started/deployment
+AUTH_TRUST_HOST=true
+```
+
+## Next Steps
+
+- [Security Configuration](/docs/configuration/security-configuration) - See the API reference details on the security settings
