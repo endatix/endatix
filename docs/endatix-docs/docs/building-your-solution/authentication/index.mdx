@@ -1,0 +1,130 @@
+---
+title: Authentication
+description: Set up and customize authentication providers for your Endatix application
+sidebar_position: 1
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# Authentication
+
+Endatix provides a flexible authentication system supporting multiple providers. By default, the system users the internal JWT based provider ("Endatix JWT"), which stores the user information in the database. It's easy to add additional authenticaiton providers.
+
+We have a list of providers that we support with ability for you to add custom providers:
+
+- Google OAuth
+- Keycloak
+
+## Authentication Flow
+
+The Endatix Hub is the frontend application that users interact with, while the Endatix API is the backend application that handles the authentication and authorization. Here is how the authentication flow works:
+
+<ThemedImage
+  alt="Login flow diagram"
+  sources={{
+    light: useBaseUrl("/img/diagram/login_flow_diagram_light.png"),
+    dark: useBaseUrl("/img/diagram/login_flow_diagram_dark.png"),
+  }}
+/>
+
+1. **User Authentication**: User signs in via Hub using any configured provider
+2. **Provider Validation**: Provider validates credentials (OAuth/OIDC/JWT)
+3. **Session Creation**: Hub creates secure server-side session
+4. **API Communication**: Hub uses session to authenticate API requests
+5. **Token Management**: JWT tokens handled securely on server-side
+
+:::info
+
+When external authentication provider is used (e.g. Keycloak, Google OAuth), both the Endatix Hub and Endatix API will act as relying party for the external authentication provider and using the issued JWT tokens for authentication.
+
+:::
+
+## Customization Flow
+
+Very high-level, here is how quickly you can set up and customize authentication for your needs. Detailed guides are available below.
+
+<Tabs groupId="solution" queryString>
+  <TabItem value="endatix-api" label="Endatix API">
+
+One line of code to enable custom authentication providers. Just modify the `Program.cs` file to add your custom providers.
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    // Add Google OAuth provider
+    endatix.Infrastructure.Security.AddGoogleAuthProvider();
+
+    // Add Keycloak provider
+    endatix.Infrastructure.Security.AddKeycloakAuthProvider();
+
+    // Built-in JWT provider is included by default
+});
+
+var app = builder.Build();
+app.UseEndatix();
+app.Run();
+```
+
+  </TabItem>
+  <TabItem value="endatix-hub" label="Endatix Hub">
+
+Register providers for the Endatix Hub by modifying the authentication configuration file (`endatix-hub/auth.ts`) is very easy. We use [Auth.js](https://authjs.dev/getting-started/authentication/oauth) for the frontend authentication framework, giving you easy access to 80+ auth providers.
+
+All you need to do is register the providers you want to using the `authRegistry` passing a provider with default or customsettings.
+
+```typescript
+import NextAuth from "next-auth";
+import { authRegistry } from "./features/auth/infrastructure/auth-provider-registry";
+import { createAuthConfig } from "./features/auth/infrastructure/config-factory";
+import {
+  GoogleAuthProvider,
+  KeycloakAuthProvider,
+} from "./features/auth/infrastructure/providers";
+
+// Register authentication providers
+authRegistry.register(new GoogleAuthProvider());
+authRegistry.register(new KeycloakAuthProvider());
+
+// Create NextAuth configuration
+const authConfig = createAuthConfig(authRegistry);
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
+});
+```
+
+  </TabItem>
+</Tabs>
+
+## Provider Setup Guides
+
+Below are the detailed setup guides for each provider. Choose your authentication provider and follow the detailed setup guide:
+
+### [Endatix JWT Customization](./auth-endatix-jwt)
+
+Registered by default, it's avaiable at any time you start the application. Here is a complete guide to customize the built-in JWT provider:
+
+- JWT settings configuration
+- Secure key generation
+- Custom claims and roles
+
+### [Keycloak Setup](./auth-keycloak)
+
+[Keycloak](https://www.keycloak.org) is very powerfult and popular open-srouce option for supporting multiple authentication scenarios. Read the complete guide to setting up Keycloak authentication for your Endatix application:
+
+- Keycloak realm and client configuration
+- OIDC endpoint setup
+- User management and testing
+
+### [Google OAuth Setup](./auth-google-oauth)
+
+[Google OAuth](https://developers.google.com/identity/siwg) is a very popular and easy to use authentication provider. Read the complete guide to setting up Google OAuth authentication for your Endatix application:
+
+- Google Cloud Console configuration
+- Environment variables setup
+- Testing and troubleshooting
