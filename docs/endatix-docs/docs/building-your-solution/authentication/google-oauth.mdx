@@ -1,0 +1,248 @@
+---
+title: Google OAuth Setup
+description: Complete guide to setting up Google OAuth authentication for your Endatix application
+sidebar_position: 3
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# Google OAuth Setup
+
+This guide walks you through setting up Google OAuth authentication for your Endatix application, from creating a Google Cloud project to testing the complete authentication flow between the Endatix API and Endatix Hub.
+
+## Prerequisites
+
+- Google account with access to [Google Cloud Console](https://console.cloud.google.com/)
+- Endatix API and Endatix Hub running locally or deployed
+- Basic understanding of OAuth 2.0 flow
+
+<details>
+<summary>Google Cloud Console Setup (Skip if you have Google OAuth configured)</summary>
+
+### Create or Select Project
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Select an existing project or create a new one:
+   - Click **"Select a project"** → **"New Project"**
+   - Enter project name (e.g., "Endatix Authentication")
+   - Click **"Create"**
+
+### Enable Google+ API
+
+1. In the Google Cloud Console, go to **"APIs & Services"** → **"Library"**
+2. Search for **"Google+ API"**
+3. Click on it and press **"Enable"**
+
+:::tip Alternative APIs
+You can also use the **"Google Identity"** API or **"People API"** instead of Google+ API, depending on your needs.
+:::
+
+### Create OAuth 2.0 Credentials
+
+1. Go to **"APIs & Services"** → **"Credentials"**
+2. Click **"Create Credentials"** → **"OAuth 2.0 Client ID"**
+3. If prompted, configure the OAuth consent screen first:
+   - Choose **"External"** for testing or **"Internal"** for organization use
+   - Fill in required fields:
+     - App name: "Endatix Hub"
+     - User support email: Your email
+     - Developer contact: Your email
+   - Click **"Save and Continue"**
+4. For OAuth Client ID:
+   - Application type: **"Web application"**
+   - Name: "Endatix Hub OAuth"
+   - Authorized redirect URIs:
+     - Development: `http://localhost:3000/api/auth/callback/google`
+     - Production: `https://yourdomain.com/api/auth/callback/google`
+5. Click **"Create"**
+6. Copy the **Client ID** and **Client Secret**
+
+</details>
+
+## Step 1: API Configuration
+
+### 1.1 Update Program.cs
+
+Add Google OAuth provider to your Endatix API:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    // Add Google OAuth provider
+    endatix.Infrastructure.Security.AddGoogleAuthProvider();
+
+    // Other configurations...
+});
+
+var app = builder.Build();
+app.UseEndatix();
+app.Run();
+```
+
+### 1.2 Configure appsettings.json
+
+Add Google OAuth configuration to your `appsettings.json`:
+
+```json
+{
+  "Endatix": {
+    "Auth": {
+      "Providers": {
+        "Google": {
+          "Enabled": true,
+          "Audience": "your_google_client_id_here",
+          "MapInboundClaims": true
+        }
+      }
+    }
+  }
+}
+```
+
+**Configuration Properties:**
+
+- **Enabled**: Enable/disable Google OAuth authentication
+- **Audience**: The Google OAuth Client ID for token validation
+- **MapInboundClaims**: Automatically map Google claims to standard claims
+
+## Step 2: Endatix Hub Configuration
+
+### 2.1 Set Environment Variables
+
+Based on the [Google provider documentation](https://authjs.dev/getting-started/providers/google)
+
+```bash
+# Google OAuth configuration in your .env file
+AUTH_GOOGLE_ENABLED=true
+AUTH_GOOGLE_ID=your_google_client_id_here
+AUTH_GOOGLE_SECRET=your_google_client_secret_here
+```
+
+Here is explanation of the environment variables:
+
+#### AUTH_GOOGLE_ENABLED
+
+- Enable or disable the Google OAuth authentication provider
+- Set to `true` to activate Google OAuth authentication
+- Example: `AUTH_GOOGLE_ENABLED=true`
+
+#### AUTH_GOOGLE_ID
+
+- The Google OAuth Client ID from your Google Cloud Console
+- Must match the Client ID configured in Google Cloud Console
+- Example: `AUTH_GOOGLE_ID=123456789-abc.apps.googleusercontent.com`
+
+#### AUTH_GOOGLE_SECRET
+
+- The Google OAuth Client Secret from your Google Cloud Console
+- Found in Google Cloud Console under APIs & Services → Credentials
+- Example: `AUTH_GOOGLE_SECRET=GOCSPX-abcd1234...`
+
+### 2.2 Register Provider in auth.ts
+
+```typescript
+// Add this code
+import { GoogleAuthProvider } from "./features/auth/infrastructure/providers";
+authRegistry.register(new GoogleAuthProvider());
+
+// Existing code below...
+const authConfig = createAuthConfig(authRegistry);
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
+});
+```
+
+## Step 3: Testing
+
+### 3.1 Start Applications
+
+```bash
+# Start Endatix API (in API project directory)
+dotnet run
+
+# Start Endatix Hub (in the Endatix Hub project directory)
+pnpm dev
+```
+
+### 3.2 Test Login Flow
+
+1. Navigate to `http://localhost:3000`
+2. You should be redirected to the sign in page and see "Sign in with Google" option
+3. Click it and complete Google OAuth authentication using your own credentials
+4. Verify successful login and redirect to dashboard
+
+## Troubleshooting
+
+### Common Issues
+
+**Google provider not appearing on Endatix Hub login page**
+
+- Verify `AUTH_GOOGLE_ENABLED=true` is set
+- Check `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` are correct
+- Ensure provider is registered in `auth.ts`
+
+**OAuth error: redirect_uri_mismatch**
+
+- Check redirect URI in Google Cloud Console matches exactly
+- Include protocol (`http://` or `https://`)
+- Ensure no trailing slashes
+
+**Invalid client error**
+
+- Verify Client ID and Secret are correct
+- Check if Google+ API (or equivalent) is enabled
+- Ensure OAuth consent screen is configured
+
+**CORS issues**
+
+- Add your domain to authorized origins in Google Cloud Console
+- Check CORS configuration in your Endatix API
+
+### Debug Tips
+
+1. **Verify OIDC discovery**:
+
+   ```bash
+   curl https://accounts.google.com/.well-known/openid-configuration
+   ```
+
+2. Endatix Hub:
+
+   **Enable NextAuth debug mode in Endatix Hub**
+
+   ```typescript
+   export default NextAuth({
+     debug: process.env.NODE_ENV === "development",
+     // ... other config
+   });
+   ```
+
+   **Check provider validation**:
+
+   ```bash
+   # Should see in Endatix Hub console:
+   🔐 Provider google validated and activated
+   ```
+
+3. Endatix API:
+   **Check Startup Logs**
+   ```bash
+   # During starting up the API, you should see in the console:
+   [hh:mm:ss DBG] [🔐 Security Setup] Configured Google auth provider
+   ```
+
+## Security Best Practices
+
+- **Use HTTPS in production** - OAuth requires secure connections
+- **Rotate secrets regularly** - Change Client Secret periodically
+- **Restrict redirect URIs** - Only add necessary redirect URIs
+- **Monitor OAuth usage** - Check Google Cloud Console for usage patterns
+- **Use different credentials per environment** - Separate dev/staging/prod
+
+## Additional Resources
+
+- [Official Google OAuth 2.0 Documentation](https://developers.google.com/identity/protocols/oauth2) - Complete Google OAuth setup and configuration

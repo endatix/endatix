@@ -1,0 +1,295 @@
+---
+title: Keycloak Setup
+description: Complete guide to setting up Keycloak authentication for your Endatix application
+sidebar_position: 2
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Keycloak Setup
+
+This guide walks you through setting up Keycloak authentication for your Endatix application, from configuring your Keycloak realm to testing the complete authentication flow between the Endatix API and Endatix Hub.
+
+## Prerequisites
+
+- Running Keycloak server (local or remote) with OpenID Connect support
+- Admin access to Keycloak realm
+- Endatix API and Endatix Hub running locally or deployed
+
+Endatix supports **OpenID Connect (OIDC)** authentication flow with Keycloak, allowing seamless integration with your existing identity provider.
+
+<details>
+<summary>Keycloak Server Setup (Skip if you have Keycloak configured)</summary>
+
+### Quick Setup with Docker
+
+For development and testing, you can quickly set up Keycloak using Docker:
+
+```bash
+# Run Keycloak with Docker
+# latest version and instructions from https://www.keycloak.org/getting-started/getting-started-docker
+docker run -p 127.0.0.1:8080:8080 \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  quay.io/keycloak/keycloak:26.3.3 start-dev
+
+# Access Keycloak Admin Console
+# URL: http://127.0.0.1:8080
+# Username: admin
+# Password: admin
+```
+
+### Create Test Realm
+
+1. Access Keycloak Admin Console at `http://127.0.0.1:8080`
+2. Create a new realm:
+   - Click **"Create Realm"**
+   - Realm name: `endatix`
+   - Click **"Create"**
+3. Configure realm settings:
+   - Go to **"Realm Settings"** → **"Login"**
+   - Enable **"Email as username"**
+
+:::tip Fast Track Option
+For the fastest setup, you can also import our pre-configured test realm with users and clients already set up. Reach out to us and we will provide you with the import file and instructions.
+:::
+
+### Configure OAuth Client
+
+1. In your realm, go to **"Clients"** → **"Create client"**
+2. **General Settings**:
+   - Client type: `OpenID Connect`
+   - Client ID: `endatix-hub`
+   - Name: `Endatix Hub`
+   - Click **"Next"**
+
+3. **Capability config**:
+   - Client authentication: `ON` (to get client secret)
+   - Authorization: `OFF` (unless you need fine-grained permissions)
+   - Standard flow: `ON` (Authorization Code Flow)
+   - Direct access grants: `ON` (for API access if needed)
+   - Click **"Next"**
+
+4. **Login settings**:
+   - Root URL: `http://localhost:3000` (development) or your domain
+   - Valid redirect URIs: 
+     - Development: `http://localhost:3000/api/auth/callback/keycloak`
+     - Production: `https://yourdomain.com/api/auth/callback/keycloak`
+   - Web origins: `http://localhost:3000` (or your domain)
+   - Click **"Save"**
+
+### Create Test User
+
+1. Go to **"Users"** → **"Create new user"**
+2. Fill in user details:
+   - Username: `external@endatix.com`
+   - Email: `external@endatix.com`
+   - Email verified: `ON`
+   - First name: `Test`
+   - Last name: `User`
+3. Click **"Create"**
+4. Go to **"Credentials"** tab → **"Set password"**
+5. Set password: `admin@2` and turn off **"Temporary"**
+
+### Get Client Credentials
+
+1. Go to **"Clients"** → **"endatix-hub"** → **"Credentials"**
+2. Copy the **Client Secret** (you'll need this for configuration)
+
+:::info Production Setup
+For production environments, we recommend following the [official Keycloak documentation](https://www.keycloak.org/documentation) for proper server setup, clustering, and security configuration.
+:::
+
+</details>
+
+## Step 1: API Configuration
+
+### 1.1 Update Program.cs
+
+Add Keycloak provider to your Endatix API:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    // Add Keycloak provider
+    endatix.Infrastructure.Security.AddKeycloakAuthProvider();
+    
+    // Other configurations...
+});
+
+var app = builder.Build();
+app.UseEndatix();
+app.Run();
+```
+
+### 1.2 Configure appsettings.json
+
+Add Keycloak configuration to your `appsettings.json`:
+
+```json
+{
+  "Endatix": {
+    "Auth": {
+      "Providers": {
+        "Keycloak": {
+          "Enabled": true,
+          "RequireHttpsMetadata": false,
+          "Audience": "account",
+          "Issuer": "http://localhost:8080/realms/endatix",
+          "MapInboundClaims": true
+        }
+      }
+    }
+  }
+}
+```
+
+**Configuration Properties:**
+- **Enabled**: Enable/disable Keycloak authentication
+- **RequireHttpsMetadata**: Set to `false` for development, `true` for production
+- **Audience**: The audience claim expected in tokens (usually "account")
+- **Issuer**: Your Keycloak realm issuer URL
+- **MapInboundClaims**: Automatically map Keycloak claims to standard claims
+
+## Step 2: Endatix Hub Configuration
+
+### 2.1 Set Environment Variables
+
+Based on the [Keycloak provider documentation](https://authjs.dev/getting-started/providers/keycloak)
+
+```bash
+# Keycloak configuration in your .env file
+AUTH_KEYCLOAK_ENABLED=true
+AUTH_KEYCLOAK_CLIENT_ID=endatix-hub
+AUTH_KEYCLOAK_SECRET=your_client_secret_from_keycloak
+AUTH_KEYCLOAK_ISSUER=http://localhost:8080/realms/endatix
+```
+
+Here is explanation of the environment variables:
+
+#### AUTH_KEYCLOAK_ENABLED
+  - Enable or disable the Keycloak authentication provider
+  - Set to `true` to activate Keycloak authentication
+  - Example: `AUTH_KEYCLOAK_ENABLED=true`
+
+#### AUTH_KEYCLOAK_CLIENT_ID
+  - The client ID from your Keycloak realm configuration
+  - Must match the Client ID configured in Keycloak Admin Console
+  - Example: `AUTH_KEYCLOAK_CLIENT_ID=endatix-hub`
+
+#### AUTH_KEYCLOAK_SECRET
+  - The client secret from your Keycloak realm configuration
+  - Found in Keycloak Admin Console under Clients → [your-client] → Credentials
+  - Example: `AUTH_KEYCLOAK_SECRET=your_client_secret_from_keycloak`
+
+#### AUTH_KEYCLOAK_ISSUER
+  - The complete issuer URL of your Keycloak realm
+  - Format: `http://your-keycloak-server:port/realms/your-realm-name`
+  - Example: `AUTH_KEYCLOAK_ISSUER=http://localhost:8080/realms/endatix`
+
+### 2.2 Register Provider in auth.ts
+
+```typescript
+// Add this code
+import { KeycloakAuthProvider } from "./features/auth/infrastructure/providers";
+authRegistry.register(new KeycloakAuthProvider());
+
+// Existing code below...
+const authConfig = createAuthConfig(authRegistry);
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
+});
+```
+
+## Step 3: Testing
+
+### 3.1 Start Applications
+
+```bash
+# Start Keycloak (if running locally)
+docker run -p 8080:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin \
+  quay.io/keycloak/keycloak:latest start-dev
+
+# Start Endatix API (in API project directory)
+dotnet run
+
+# Start Endatix Hub (in the Endatix Hub project directory)
+pnpm dev
+```
+
+### 3.2 Test Login Flow
+
+1. Navigate to `http://localhost:3000`
+2. You should be redirected to the sign in page and see "Sign in with Keycloak" option
+3. Click it and complete Keycloak authentication using your own credentials
+4. Verify successful login and redirect to dashboard
+
+
+## Troubleshooting
+
+### Common Issues
+
+**Keycloak provider not appearing on Endatix Hub login page**
+- Verify `AUTH_KEYCLOAK_ENABLED=true` is set
+- Check `AUTH_KEYCLOAK_CLIENT_ID` and `AUTH_KEYCLOAK_CLIENT_SECRET` are correct
+- Ensure provider is registered in `auth.ts`
+
+**Invalid redirect URI error**
+- Check redirect URI in Keycloak client matches exactly
+- Include protocol (`http://` or `https://`)
+- Ensure no trailing slashes
+
+**Token validation errors**
+- Verify `AUTH_KEYCLOAK_ISSUER` URL is correct and accessible
+- Check Keycloak server is running and reachable
+- Ensure realm name in issuer URL matches your realm
+
+**CORS issues**
+- Add your domain to **"Web Origins"** in Keycloak client settings
+- Check CORS configuration in your Endatix API
+
+### Debug Tips
+
+1. **Verify OIDC discovery**:
+   ```bash
+   curl http://localhost:8080/realms/master/.well-known/openid-configuration
+   ```
+
+2. Endatix Hub:
+
+   **Enable NextAuth debug mode in Endatix Hub**
+   ```typescript
+   export default NextAuth({
+     debug: process.env.NODE_ENV === 'development',
+     // ... other config
+   });
+   ```
+
+   **Check provider validation**:
+   ```bash
+   # Should see in Endatix Hub console:
+   🔐 Provider keycloak validated and activated
+   ```
+3. Endatix API:
+   **Check Startup Logs**
+   ```bash
+   # During starting up the API, you should see in the console:
+   [hh:mm:ss DBG] [🔐 Security Setup] Configured Keycloak auth provider
+   ```
+
+## Security Best Practices
+
+- **Use HTTPS in production** - OIDC requires secure connections
+- **Rotate client secrets regularly** - Change secrets periodically
+- **Configure session timeouts** - Set appropriate session limits in Keycloak
+- **Enable security events** - Monitor authentication events
+- **Use different realms per environment** - Separate dev/staging/prod
+- **Implement proper logout** - Configure proper logout URLs
+
+## Additional Resources
+
+- [Official Keycloak Documentation](https://www.keycloak.org/documentation) - Complete Keycloak setup and configuration
