@@ -4,7 +4,7 @@ title: "Configuration"
 description: "Learn the main principles and basics of configuration for your Endatix application"
 ---
 
-import DocCardList from '@theme/DocCardList';
+import DocCardList from "@theme/DocCardList";
 
 # Configuration Fundamentals
 
@@ -73,6 +73,7 @@ builder.Host.ConfigureEndatix(endatix => {
 ```
 
 **Advantages**:
+
 - Type safety with compiler checks
 - IntelliSense support in your IDE
 - Immediate validation of configuration options
@@ -86,10 +87,15 @@ Using `appsettings.json` files for configuration:
 {
   "Endatix": {
     "ApplicationName": "My Endatix App",
-    "Jwt": {
-      "SigningKey": "your-secure-key",
-      "AccessExpiryInMinutes": 60,
-      "Issuer": "endatix-api"
+    "Auth":
+      "Providers": {
+        "EndatixJwt": {
+          "SigningKey": "your-secure-key",
+          "AccessExpiryInMinutes": 60,
+          "Issuer": "endatix-api",
+          "Audiences": ["endatix-hub", "endatix-client"]
+        }
+      }
     },
     "Data": {
       "ConnectionString": "Server=...;Database=...;",
@@ -100,6 +106,7 @@ Using `appsettings.json` files for configuration:
 ```
 
 **Advantages**:
+
 - Configuration can be changed without recompiling
 - Environment-specific settings (using `appsettings.Development.json`, etc.)
 - Easier integration with configuration management tools
@@ -109,8 +116,8 @@ Most applications will use a combination of both paradigms, with code-based conf
 
 ## What's Next?
 
-In future documentation updates, we'll provide detailed information on configuring specific aspects of your Endatix application, including security, data persistence, API behavior, and infrastructure components. 
+In future documentation updates, we'll provide detailed information on configuring specific aspects of your Endatix application, including security, data persistence, API behavior, and infrastructure components.
 
-<br/>
+<br />
 
 <DocCardList />
