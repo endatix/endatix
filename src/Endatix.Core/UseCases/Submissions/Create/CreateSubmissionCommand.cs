@@ -21,5 +21,5 @@ public record CreateSubmissionCommand(
     int? CurrentPage,
     bool? IsComplete,
     string? ReCaptchaToken,
-    long? SubmittedBy
+    string? SubmittedBy
 ) : ICommand<Result<Submission>>;

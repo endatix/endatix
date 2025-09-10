@@ -81,7 +81,7 @@ public class CreateTests
     public async Task ExecuteAsync_ShouldMapRequestToCommandCorrectly()
     {
         // Arrange
-        const long userId = 123;
+        const string userId = "123";
         var request = new CreateSubmissionRequest
         {
             FormId = 123,
@@ -130,7 +130,7 @@ public class CreateTests
         };
         var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
 
-        _userContext.GetCurrentUserId().Returns((long?)null);
+        _userContext.GetCurrentUserId().Returns((string?)null);
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
