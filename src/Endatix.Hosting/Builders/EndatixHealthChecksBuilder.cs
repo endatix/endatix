@@ -33,8 +33,12 @@ public class EndatixHealthChecksBuilder
             return this;
         }
 
-        // Add basic self-check
-        AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "self" });
+        // Skip adding Endatix own health check if Aspire ServiceDefaults are being used
+        // Aspire already adds a "self" health check, and it should not be duplicated
+        if (!IsAspireServiceDefaultsPresent())
+        {
+            AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "self" });
+        }
 
         // TODO: Add more health checks
 
@@ -71,6 +75,19 @@ public class EndatixHealthChecksBuilder
     /// Gets the underlying health checks builder for advanced configuration.
     /// </summary>
     public IHealthChecksBuilder Builder { get; }
+
+    /// <summary>
+    /// Checks if Aspire ServiceDefaults are being used by looking for telemetry services.
+    /// This helps avoid conflicts with Aspire's default health checks.
+    /// </summary>
+    /// <returns>True if Aspire ServiceDefaults appear to be present, false otherwise.</returns>
+    private bool IsAspireServiceDefaultsPresent()
+    {
+        // Look for OpenTelemetry services that are typically added by Aspire ServiceDefaults
+        return _parent.Services.Any(s => 
+            s.ServiceType.FullName?.Contains("OpenTelemetry") == true ||
+            s.ServiceType.FullName?.Contains("ServiceDiscovery") == true);
+    }
 
     /// <summary>
     /// Completes configuration and returns to the parent builder.

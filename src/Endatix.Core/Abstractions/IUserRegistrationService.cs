@@ -16,4 +16,15 @@ public interface IUserRegistrationService
     /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
     /// <returns>A a Task with Result of the registered User if successful.</returns>
     Task<Result<User>> RegisterUserAsync(string email, string password, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Registers a new user with the provided email, password, and additional options.
+    /// </summary>
+    /// <param name="email">The email address of the user to be registered.</param>
+    /// <param name="password">The password for the new user account.</param>
+    /// <param name="tenantId">The tenant ID to assign to the user.</param>
+    /// <param name="isEmailConfirmed">Whether the email should be marked as confirmed.</param>
+    /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
+    /// <returns>A a Task with Result of the registered User if successful.</returns>
+    Task<Result<User>> RegisterUserAsync(string email, string password, long tenantId, bool isEmailConfirmed, CancellationToken cancellationToken);
 }
