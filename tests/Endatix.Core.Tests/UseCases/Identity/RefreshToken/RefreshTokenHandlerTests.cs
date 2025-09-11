@@ -40,6 +40,23 @@ public class RefreshTokenHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ExternalAccessTokenScheme_ReturnsInvalidResult()
+    {
+        // Arrange
+        var command = new RefreshTokenCommand("external_access_token", "refresh_token");
+        var validationErrors = new List<ValidationError> { new("Token validation not supported for scheme: Keycloak.") };
+        _tokenService.ValidateAccessTokenAsync(command.AccessToken, false)
+            .Returns(Task.FromResult<Result<long>>(Result.Invalid(validationErrors)));
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsInvalid().Should().BeTrue();
+        result.ValidationErrors.Should().BeEquivalentTo(validationErrors);
+    }
+
+    [Fact]
     public async Task Handle_AccessTokenValidationError_ReturnsErrorResult()
     {
         // Arrange

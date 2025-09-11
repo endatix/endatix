@@ -6,6 +6,9 @@ using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authorization;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
@@ -13,7 +16,18 @@ namespace Endatix.Infrastructure.Tests.Identity.Authentication;
 
 public class JwtTokenServiceTests
 {
-    private readonly JwtOptions _validJwtOptions = new()
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<JwtTokenService> _logger;
+    private readonly IAuthSchemeSelector _authSchemeSelector;
+
+    public JwtTokenServiceTests()
+    {
+        _configuration = Substitute.For<IConfiguration>();
+        _logger = new NullLogger<JwtTokenService>();
+        _authSchemeSelector = Substitute.For<IAuthSchemeSelector>();
+    }
+
+    private readonly EndatixJwtOptions _validJwtOptions = new()
     {
         SigningKey = "validSigningKeyWithAtLeast32Characters",
         Issuer = "validIssuer",
@@ -26,7 +40,7 @@ public class JwtTokenServiceTests
     public void Constructor_NullSigningKey_ThrowsException()
     {
         // Arrange
-        var invalidOptions = new JwtOptions
+        var invalidOptions = new EndatixJwtOptions
         {
             SigningKey = null!,
             Issuer = "validIssuer",
@@ -34,11 +48,11 @@ public class JwtTokenServiceTests
             AccessExpiryInMinutes = 30,
             RefreshExpiryInDays = 7
         };
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(invalidOptions);
 
         // Act
-        var act = () => new JwtTokenService(optionsWrapper);
+        var act = () => new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
@@ -49,7 +63,7 @@ public class JwtTokenServiceTests
     public void Constructor_EmptyIssuer_ThrowsException()
     {
         // Arrange
-        var invalidOptions = new JwtOptions
+        var invalidOptions = new EndatixJwtOptions
         {
             SigningKey = "validSigningKeyWithAtLeast32Characters",
             Issuer = "",
@@ -57,11 +71,11 @@ public class JwtTokenServiceTests
             AccessExpiryInMinutes = 30,
             RefreshExpiryInDays = 7
         };
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(invalidOptions);
 
         // Act
-        var act = () => new JwtTokenService(optionsWrapper);
+        var act = () => new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -72,7 +86,7 @@ public class JwtTokenServiceTests
     public void Constructor_EmptyAudiences_ThrowsException()
     {
         // Arrange
-        var invalidOptions = new JwtOptions
+        var invalidOptions = new EndatixJwtOptions
         {
             SigningKey = "validSigningKeyWithAtLeast32Characters",
             Issuer = "validIssuer",
@@ -80,11 +94,11 @@ public class JwtTokenServiceTests
             AccessExpiryInMinutes = 30,
             RefreshExpiryInDays = 7
         };
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(invalidOptions);
 
         // Act
-        var act = () => new JwtTokenService(optionsWrapper);
+        var act = () => new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -95,7 +109,7 @@ public class JwtTokenServiceTests
     public void Constructor_ZeroAccessExpiryInMinutes_ThrowsException()
     {
         // Arrange
-        var invalidOptions = new JwtOptions
+        var invalidOptions = new EndatixJwtOptions
         {
             SigningKey = "validSigningKeyWithAtLeast32Characters",
             Issuer = "validIssuer",
@@ -103,11 +117,11 @@ public class JwtTokenServiceTests
             AccessExpiryInMinutes = 0,
             RefreshExpiryInDays = 7
         };
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(invalidOptions);
 
         // Act
-        var act = () => new JwtTokenService(optionsWrapper);
+        var act = () => new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -118,7 +132,7 @@ public class JwtTokenServiceTests
     public void Constructor_ZeroRefreshExpiryInDays_ThrowsException()
     {
         // Arrange
-        var invalidOptions = new JwtOptions
+        var invalidOptions = new EndatixJwtOptions
         {
             SigningKey = "validSigningKeyWithAtLeast32Characters",
             Issuer = "validIssuer",
@@ -126,11 +140,11 @@ public class JwtTokenServiceTests
             AccessExpiryInMinutes = 30,
             RefreshExpiryInDays = 0
         };
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(invalidOptions);
 
         // Act
-        var act = () => new JwtTokenService(optionsWrapper);
+        var act = () => new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -141,9 +155,9 @@ public class JwtTokenServiceTests
     public void IssueAccessToken_ValidUser_ReturnsValidToken()
     {
         // Arrange
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(_validJwtOptions);
-        var tokenService = new JwtTokenService(optionsWrapper);
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
         var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", false);
 
         // Act
@@ -169,11 +183,14 @@ public class JwtTokenServiceTests
     public async Task ValidateAccessToken_ValidToken_ReturnsSuccessWithUserId()
     {
         // Arrange
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(_validJwtOptions);
-        var tokenService = new JwtTokenService(optionsWrapper);
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
         var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", false);
         var token = tokenService.IssueAccessToken(user);
+        
+        // Mock the auth scheme selector to return EndatixJwt for valid tokens
+        _authSchemeSelector.SelectScheme(token.Token).Returns(AuthSchemes.EndatixJwt);
 
         // Act
         var result = await tokenService.ValidateAccessTokenAsync(token.Token);
@@ -187,9 +204,10 @@ public class JwtTokenServiceTests
     public async Task ValidateAccessToken_InvalidToken_ReturnsInvalidResult()
     {
         // Arrange
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(_validJwtOptions);
-        var tokenService = new JwtTokenService(optionsWrapper);
+        _authSchemeSelector.SelectScheme("invalidToken").Returns(AuthSchemes.EndatixJwt);
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
 
         // Act
         var result = await tokenService.ValidateAccessTokenAsync("invalidToken");
@@ -197,16 +215,34 @@ public class JwtTokenServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.ValidationErrors.Should().NotBeNull();
-        result.ValidationErrors.First().ErrorMessage.Should().Contain("JWT must have three segments (JWS) or five segments (JWE).");
+        result.ValidationErrors.First().ErrorMessage.Should().Contain("JWT must have three segments");
+    }
+
+    [Fact]
+    public async Task ValidateAccessToken_NonEndatixJwtToken_ReturnsNotSupportedError()
+    {
+        // Arrange
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
+        optionsWrapper.Value.Returns(_validJwtOptions);
+        _authSchemeSelector.SelectScheme("someExternalToken").Returns("Keycloak");
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
+
+        // Act
+        var result = await tokenService.ValidateAccessTokenAsync("someExternalToken");
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ValidationErrors.Should().NotBeNull();
+        result.ValidationErrors.First().ErrorMessage.Should().Contain("Token validation not supported for scheme: Keycloak");
     }
 
     [Fact]
     public void IssueRefreshToken_Always_ReturnsValidToken()
     {
         // Arrange
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(_validJwtOptions);
-        var tokenService = new JwtTokenService(optionsWrapper);
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
 
         // Act
         var result = tokenService.IssueRefreshToken();
@@ -222,9 +258,9 @@ public class JwtTokenServiceTests
     public async Task RevokeTokensAsync_NullUser_ReturnsNotFoundResult()
     {
         // Arrange
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(_validJwtOptions);
-        var tokenService = new JwtTokenService(optionsWrapper);
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
 
         // Act
         var result = await tokenService.RevokeTokensAsync(null!);
@@ -238,9 +274,9 @@ public class JwtTokenServiceTests
     public async Task RevokeTokensAsync_ValidUser_ReturnsSuccessResult()
     {
         // Arrange
-        var optionsWrapper = Substitute.For<IOptions<JwtOptions>>();
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
         optionsWrapper.Value.Returns(_validJwtOptions);
-        var tokenService = new JwtTokenService(optionsWrapper);
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
         var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", false);
 
         // Act

@@ -42,9 +42,9 @@ public class InfrastructureBuilder
     public InfrastructureDataBuilder Data { get; }
 
     /// <summary>
-    /// Gets the identity builder for configuring identity services.
+    /// Gets the security builder for configuring security services.
     /// </summary>
-    public InfrastructureIdentityBuilder Identity { get; }
+    public InfrastructureSecurityBuilder Security { get; }
 
     /// <summary>
     /// Gets the messaging builder for configuring messaging services.
@@ -68,7 +68,7 @@ public class InfrastructureBuilder
         _logger = LoggerFactory.CreateLogger<InfrastructureBuilder>();
 
         Data = new InfrastructureDataBuilder(this);
-        Identity = new InfrastructureIdentityBuilder(this);
+        Security = new InfrastructureSecurityBuilder(this);
         Messaging = new InfrastructureMessagingBuilder(this);
         Integrations = new InfrastructureIntegrationsBuilder(this);
     }
@@ -89,7 +89,7 @@ public class InfrastructureBuilder
 
         Data.UseDefaults();
         Messaging.UseDefaults();
-        Identity.UseDefaults();
+        Security.UseDefaults();
         Integrations.UseDefaults();
 
         LogSetupInfo("Infrastructure configured successfully");
@@ -112,9 +112,10 @@ public class InfrastructureBuilder
     public IBuilderRoot Build()
     {
         // Call Build() on all child builders to ensure their configuration is applied
-        // TODO: Add rest of infrastructure builders once they are implemented
+        Security.Build();
         Messaging.Build();
-
+        
+        LogSetupInfo("Infrastructure build completed");
         return _parentBuilder;
     }
 }

@@ -10,7 +10,7 @@ namespace Endatix.Hosting.Builders;
 
 /// <summary>
 /// Root builder for configuring Endatix services using a fluent builder pattern.
-/// Provides specialized builders for API, persistence, security, infrastructure,
+/// Provides specialized builders for API, persistence, infrastructure,
 /// logging, and health monitoring components.
 /// </summary>
 /// <example>
@@ -51,11 +51,6 @@ public class EndatixBuilder : IBuilderRoot
     /// Builder for database configuration (contexts, migrations, data access).
     /// </summary>
     public EndatixPersistenceBuilder Persistence { get; }
-
-    /// <summary>
-    /// Builder for security configuration (authentication, authorization).
-    /// </summary>
-    public EndatixSecurityBuilder Security { get; }
 
     /// <summary>
     /// Builder for logging configuration.
@@ -109,7 +104,6 @@ public class EndatixBuilder : IBuilderRoot
         Infrastructure = new EndatixInfrastructureBuilder(this);
         Api = new EndatixApiBuilder(this);
         Persistence = new EndatixPersistenceBuilder(this);
-        Security = new EndatixSecurityBuilder(this);
         HealthChecks = new EndatixHealthChecksBuilder(this);
 
         _logger.LogInformation("EndatixBuilder initialized successfully");
@@ -135,9 +129,6 @@ public class EndatixBuilder : IBuilderRoot
 
         Api.UseDefaults();
         _logger.LogInformation("API configuration completed");
-
-        Security.UseDefaults();
-        _logger.LogInformation("Security configuration completed");
 
         // Configure health checks with default settings
         HealthChecks.UseDefaults();

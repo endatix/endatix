@@ -19,9 +19,9 @@ public class EndatixInfrastructureBuilder
     public InfrastructureDataBuilder Data => _infrastructureBuilder.Data;
 
     /// <summary>
-    /// Builder for identity services (authentication, authorization, user management).
+    /// Builder for security services (authentication, authorization, user management).
     /// </summary>
-    public InfrastructureIdentityBuilder Identity => _infrastructureBuilder.Identity;
+    public InfrastructureSecurityBuilder Security => _infrastructureBuilder.Security;
 
     /// <summary>
     /// Builder for messaging services (MediatR, event dispatching, handling pipelines).

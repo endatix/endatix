@@ -17,6 +17,11 @@
       "statusCode": 301
     },
     {
+      "route": "/docs/configuration/settings/jwt-settings",
+      "redirect": "docs/configuration/settings/auth-settings",
+      "statusCode": 301
+    },
+    {
       "route": "/docs/settings/cors-settings",
       "redirect": "/docs/configuration/settings/cors-settings",
       "statusCode": 301
