@@ -26,9 +26,9 @@ echo "Creating .env file and setting the necessary environment variables..."
 ENDATIX_API_PORT="8080"
 # ENDATIX_DB_PASSWORD="DbPa\$\$w0rD"
 ENDATIX_DB_PASSWORD="MyDbPass1234"
-ENDATIX_API_IMAGE="endatix-api:latest"
+ENDATIX_API_IMAGE="endatix/endatix-api:latest"
 ASPNETCORE_ENVIRONMENT="Development"
-ENDATIX_HUB_IMAGE="endatix-hub:latest"
+ENDATIX_HUB_IMAGE="endatix/endatix-hub:latest"
 
 # Prompt for environment variables with default values if nothing is entered
 read -p "Enter USER_EMAIL - Initial admin user email (skip to use the default value 'admin@endatix.com'): " USER_EMAIL

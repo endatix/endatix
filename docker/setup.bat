@@ -30,9 +30,9 @@ echo Creating .env file and setting the necessary environment variables...
 REM Set default values for all variables
 set "ENDATIX_API_PORT=8080"
 set "ENDATIX_DB_PASSWORD=DbPa$$w0rD"
-set "ENDATIX_API_IMAGE=endatix-api:latest"
+set "ENDATIX_API_IMAGE=endatix/endatix-api:latest"
 set "ASPNETCORE_ENVIRONMENT=Development"
-set "ENDATIX_HUB_IMAGE=endatix-hub:latest"
+set "ENDATIX_HUB_IMAGE=endatix/endatix-hub:latest"
 
 REM Enable delayed expansion for data collection
 setlocal enabledelayedexpansion
