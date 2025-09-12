@@ -9,6 +9,7 @@ namespace Endatix.ApplicationCore.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 {
+    private const int IDENTIFIER_MAX_LENGTH = 64;
     private const int TOKEN_VALUE_MAX_LENGTH = 64;
 
     public void Configure(EntityTypeBuilder<Submission> builder)
@@ -25,6 +26,7 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
             .IsRequired();
 
         builder.Property(s => s.SubmittedBy)
+            .HasMaxLength(IDENTIFIER_MAX_LENGTH)
             .IsRequired(false);
 
         builder.HasOne(s => s.FormDefinition)

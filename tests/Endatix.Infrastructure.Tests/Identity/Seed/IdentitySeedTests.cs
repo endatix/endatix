@@ -1,4 +1,6 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Tests;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
@@ -69,7 +71,7 @@ public class IdentitySeedTests
 
         // Assert
         await _userRegistrationService.DidNotReceive()
-            .RegisterUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .RegisterUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -82,13 +84,17 @@ public class IdentitySeedTests
 
         var expectedEmail = "admin@endatix.com";
         var expectedPassword = "P@ssw0rd";
+        
+        // Setup mock return value
+        _userRegistrationService.RegisterUserAsync(expectedEmail, expectedPassword, 1L, true, Arg.Any<CancellationToken>())
+            .Returns(Result<User>.Success(new User(1L, expectedEmail, expectedEmail, true)));
 
         // Act
         await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, nullOptions!, _logger);
 
         // Assert
         await _userRegistrationService.Received(1)
-            .RegisterUserAsync(expectedEmail, expectedPassword, Arg.Any<CancellationToken>());
+            .RegisterUserAsync(expectedEmail, expectedPassword, 1L, true, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -106,12 +112,16 @@ public class IdentitySeedTests
             Email = expectedEmail,
             Password = expectedPassword
         };
+        
+        // Setup mock return value
+        _userRegistrationService.RegisterUserAsync(expectedEmail, expectedPassword, 1L, true, Arg.Any<CancellationToken>())
+            .Returns(Result<User>.Success(new User(1L, expectedEmail, expectedEmail, true)));
 
         // Act
         await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _dataOptions, _logger);
 
         // Assert
         await _userRegistrationService.Received(1)
-            .RegisterUserAsync(expectedEmail, expectedPassword, Arg.Any<CancellationToken>());
+            .RegisterUserAsync(expectedEmail, expectedPassword, 1L, true, Arg.Any<CancellationToken>());
     }
 }

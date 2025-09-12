@@ -18,7 +18,7 @@ public class SubmissionMapper
         CreatedAt = submission.CreatedAt,
         ModifiedAt = submission.ModifiedAt,
         Status = submission.Status.Code,
-        SubmittedBy = submission.SubmittedBy?.ToString()
+        SubmittedBy = submission.SubmittedBy
     };
 
     public static SubmissionDetailsModel MapToSubmissionDetails(Submission submission)

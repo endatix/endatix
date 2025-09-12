@@ -1,0 +1,83 @@
+name: "endatix-app"
+services:
+  docker-env-dashboard:
+    image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest"
+    expose:
+      - "18888"
+      - "18889"
+    networks:
+      - "endatix-net"
+    restart: "always"
+  endatix-db:
+    image: "docker.io/library/postgres:17.5"
+    container_name: "endatix-db"
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "${ENDATIX_DB_PASSWORD}"
+    expose:
+      - "5432"
+    volumes:
+      - type: "volume"
+        target: "/var/lib/postgresql/data"
+        source: "endatix.saas.apphost-ae075cb714-endatix-db-data"
+        read_only: false
+    networks:
+      - "endatix-net"
+  endatix-api:
+    image: "${ENDATIX_API_IMAGE}"
+    container_name: "endatix-api"
+    environment:
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      HTTP_PORTS: "${ENDATIX_API_PORT}"
+      ConnectionStrings__DefaultConnection: "Host=endatix-db;Port=5432;Username=postgres;Password=${ENDATIX_DB_PASSWORD};Database=main-db"
+      ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT}"
+      ConnectionStrings__DefaultConnection_DbProvider: "postgresql"
+      Endatix__Jwt__SigningKey: "s9BZnoA7yCxS/FfMr+D7EndSpO+Z+KFIv+NEkEGnXAg="
+      Endatix__Data__EnableAutoMigrations: "true"
+      Endatix__Data__SeedSampleData: "true"
+      Endatix__Data__InitialUser__Email: "${USER_EMAIL}"
+      Endatix__Data__InitialUser__Password: "${USER_PASSWORD}"
+      Endatix__Cors__DefaultPolicyName: "AllowAll"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://docker-env-dashboard:18889"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+      OTEL_SERVICE_NAME: "endatix-api"
+    ports:
+      - "${ENDATIX_API_PORT}:${ENDATIX_API_PORT}"
+    depends_on:
+      endatix-db:
+        condition: "service_started"
+    networks:
+      - "endatix-net"
+    restart: "unless-stopped"
+  endatix-hub:
+    image: "${ENDATIX_HUB_IMAGE}"
+    container_name: "endatix-hub"
+    environment:
+      NODE_ENV: "production"
+      PORT: "8000"
+      ENDATIX_BASE_URL: "http://endatix-api:${ENDATIX_API_PORT}"
+      SESSION_SECRET: "xtzqXxJOQwzw5fEhxEYE3k0dVFMQhst4YL1/fLoTRSk="
+      NEXT_OTEL_VERBOSE: "0"
+      AUTH_SECRET: "2Sg0gWRAdGvJRC45dlcQd8wHv+DKQWrsHlJwqFMvSAg="
+      services__endatix-api__http__0: "http://endatix-api:${ENDATIX_API_PORT}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://docker-env-dashboard:18889"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+      OTEL_SERVICE_NAME: "endatix-hub"
+    ports:
+      - "3000:8000"
+    depends_on:
+      endatix-api:
+        condition: "service_started"
+    networks:
+      - "endatix-net"
+networks:
+  endatix-net:
+    driver: "bridge"
+volumes:
+  endatix.saas.apphost-ae075cb714-endatix-db-data:
+    driver: "local"

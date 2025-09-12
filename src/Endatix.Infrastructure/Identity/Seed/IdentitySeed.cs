@@ -60,9 +60,26 @@ namespace Endatix.Infrastructure.Identity.Seed
                 password = DEFAULT_ADMIN_PASSWORD;
             }
 
-            await userRegistrationService.RegisterUserAsync(email, password, CancellationToken.None);
-            logger.LogInformation($"👤 Initial user {email} created successfully! Please use it to authenticate.");
-            logger.LogInformation($"🔐 The default password is {DEFAULT_ADMIN_PASSWORD}. Please change it after logging in.");
+            var registerUserResult = await userRegistrationService.RegisterUserAsync(
+                email, 
+                password, 
+                tenantId: DEFAULT_ADMIN_TENANT_ID,  // Set to 1 for the initial admin user
+                isEmailConfirmed: true,             // Initial user should have confirmed email
+                CancellationToken.None);
+
+            if (registerUserResult.IsSuccess)
+            {
+                logger.LogInformation("👤 Initial user {Email} created successfully! Please use it to authenticate.", email);
+                logger.LogInformation("🔐 The default password is {Password}. Please change it after logging in.", password);
+            }
+            else
+            {
+                logger.LogError(
+                    "❌ Failed to register initial user {Email}. Errors: {Errors}. ValidationErrors: {ValidationErrors}",
+                    email,
+                    string.Join(", ", registerUserResult.Errors!),
+                    string.Join(", ", registerUserResult.ValidationErrors!));
+            }
         }
     }
 }

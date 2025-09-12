@@ -1,8 +1,16 @@
-# Endatix Platform Docker Setup
+---
+sidebar_position: 2
+title: Running with Docker
+description: Deploy and run Endatix Platform using Docker containers for development and testing environments
+---
 
-Welcome to Endatix Platform! This guide will help you quickly set up and run Endatix using Docker containers for **development and testing purposes**. The setup script handles everything automatically - just run it and you're ready to go.
+# Running with Docker
 
-> ⚠️ **Important**: This is a development setup not suitable for production use. It uses HTTP (not HTTPS), default passwords, and simplified configuration. For production deployments, please contact Endatix for guidance on secure, scalable setups.
+This guide will help you quickly set up and run Endatix using Docker containers for **development and testing purposes**. The setup script handles everything automatically - just run it and you're ready to go.
+
+:::warning
+**Important:** This is a development setup not suitable for production use. It uses HTTP (not HTTPS), default passwords, and simplified configuration. For production deployments, please contact Endatix for guidance on secure, scalable setups.
+:::
 
 ## What is Endatix?
 
@@ -29,10 +37,6 @@ Tested with Docker version 28.3.2 and Docker Compose v2.38.2.
 You need these files to get Endatix running:
 - `setup.bat` (Windows) or `setup.sh` (Linux/macOS)  
 - `docker-compose.yaml`
-
-**If you already have this README**, these files are likely in the same folder. You can skip to Step 2.
-
-**If you need to download them:**
 
 **Option A: Direct Download**
 - **Windows**: [setup.bat](https://raw.githubusercontent.com/endatix/endatix/main/docker/setup.bat) + [docker-compose.yaml](https://raw.githubusercontent.com/endatix/endatix/main/docker/docker-compose.yaml)
@@ -77,7 +81,9 @@ The script will prompt you for:
 - **Admin Email**: Default is `admin@endatix.com`
 - **Admin Password**: Default is `P@ssw0rd`
 
-> 💡 **Note**: For testing purposes, you can use the defaults. Change these credentials before any production use.
+:::info
+**Note:** For testing purposes, you can use the defaults. Change these credentials before any production use.
+:::
 
 Press Enter to use defaults, or type your own values.
 
@@ -97,7 +103,9 @@ Once setup is complete, open your browser and visit:
 
 Sign in using the admin credentials you set during setup.
 
-> 🔓 **Security Note**: This setup uses HTTP connections for simplicity. Production environments require HTTPS, secure passwords, and additional security measures.
+:::warning
+**Security Note:** This setup uses HTTP connections for simplicity. Production environments require HTTPS, secure passwords, and additional security measures.
+:::
 
 ---
 
@@ -125,7 +133,7 @@ docker compose -f docker-compose.yaml logs
 
 ---
 
-## Need Help?
+## Troubleshooting
 
 If you encounter issues:
 1. Ensure Docker Desktop is running
