@@ -2,8 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Entities;
 
-namespace Endatix.Infrastructure.Data.Config;
+namespace Endatix.Infrastructure.Data.Config.AppEntities;
 
+[ApplyConfigurationFor<AppDbContext>()]
 public class FormTemplateConfiguration : IEntityTypeConfiguration<FormTemplate>
 {
     public void Configure(EntityTypeBuilder<FormTemplate> builder)
