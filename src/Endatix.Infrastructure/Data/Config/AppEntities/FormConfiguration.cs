@@ -2,8 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Entities;
 
-namespace Endatix.Infrastructure.Data.Config;
+namespace Endatix.Infrastructure.Data.Config.AppEntities;
 
+[ApplyConfigurationFor<AppDbContext>()]
 public class FormConfiguration : IEntityTypeConfiguration<Form>
 {
     public void Configure(EntityTypeBuilder<Form> builder)
@@ -28,7 +29,7 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
             .HasForeignKey<Form>(f => f.ActiveDefinitionId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
-            
+
         builder.HasOne(f => f.Theme)
             .WithMany(t => t.Forms)
             .HasForeignKey(f => f.ThemeId)

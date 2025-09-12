@@ -2,11 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Entities;
 
-namespace Endatix.Infrastructure.Data.Config;
+namespace Endatix.Infrastructure.Data.Config.AppEntities;
 
-/// <summary>
-/// Configuration for the EmailTemplate entity.
-/// </summary>
+[ApplyConfigurationFor<AppDbContext>()]
 public class EmailTemplateConfiguration : IEntityTypeConfiguration<EmailTemplate>
 {
     /// <inheritdoc />
@@ -37,4 +35,4 @@ public class EmailTemplateConfiguration : IEntityTypeConfiguration<EmailTemplate
         builder.HasIndex(e => e.Name)
             .IsUnique();
     }
-} 
+}

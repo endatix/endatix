@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data.Config;
+using Endatix.Infrastructure.Data;
 
-namespace Endatix.ApplicationCore.Infrastructure.Data.Config;
+namespace Endatix.ApplicationCore.Infrastructure.Data.Config.AppEntities;
 
+[ApplyConfigurationFor<AppDbContext>()]
 public class SubmissionVersionConfiguration : IEntityTypeConfiguration<SubmissionVersion>
 {
     public void Configure(EntityTypeBuilder<SubmissionVersion> builder)
