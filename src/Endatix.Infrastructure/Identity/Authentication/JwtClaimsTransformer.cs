@@ -65,11 +65,12 @@ public sealed class JwtClaimsTransformer(
 
     private static long? ExtractUserId(ClaimsPrincipal principal)
     {
-        var userIdClaim = principal.FindFirstValue(ClaimNames.UserId) ??
-                         principal.FindFirstValue(JwtRegisteredClaimNames.Sub) ??
-                         principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        // Priority order: sub (JWT standard) -> NameIdentifier (ASP.NET standard) -> custom user_id (legacy)
+        var userIdClaim = principal.FindFirst(ClaimNames.UserId) ??
+                         principal.FindFirst(ClaimTypes.NameIdentifier) ??
+                         principal.FindFirst("sub");
 
-        return long.TryParse(userIdClaim, out var userId) ? userId : null;
+        return long.TryParse(userIdClaim?.Value, out var userId) ? userId : null;
     }
 
     private static void EnsureTenantClaim(ClaimsIdentity identity)
