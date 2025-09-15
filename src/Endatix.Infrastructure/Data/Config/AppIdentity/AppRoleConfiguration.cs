@@ -28,6 +28,8 @@ public class AppRoleConfiguration : IEntityTypeConfiguration<AppRole>
             .HasForeignKey(rp => rp.RoleId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Ignore(r => r.EffectivePermissions);
+
         builder.HasIndex(r => r.TenantId);
         builder.HasIndex(r => new { r.TenantId, r.Name })
             .IsUnique();
