@@ -595,7 +595,7 @@ internal sealed class PermissionService : IPermissionService
             // Optimized query: Join RolePermissions + Permissions with projection
             // Only selects permission names (not full entities) for better performance
             var permissions = await _identityContext.RolePermissions
-                .Where(rp => rp.RoleId == roleId && rp.IsEffective)
+                .Where(rp => rp.RoleId == roleId && rp.IsActive && (rp.ExpiresAt == null || rp.ExpiresAt > DateTime.UtcNow))
                 .Join(_identityContext.Permissions,
                       rp => rp.PermissionId,
                       p => p.Id,
@@ -623,7 +623,7 @@ internal sealed class PermissionService : IPermissionService
         try
         {
             var permissions = await _identityContext.RolePermissions
-                .Where(rp => rp.RoleId == roleId && rp.IsEffective)
+                .Where(rp => rp.RoleId == roleId && rp.IsActive && (rp.ExpiresAt == null || rp.ExpiresAt > DateTime.UtcNow))
                 .Include(rp => rp.Permission)
                 .Select(rp => rp.Permission.Name)
                 .ToArrayAsync();
@@ -652,7 +652,7 @@ internal sealed class PermissionService : IPermissionService
             }
 
             var permissionsByRole = await _identityContext.RolePermissions
-                .Where(rp => roleIdArray.Contains(rp.RoleId) && rp.IsEffective)
+                .Where(rp => roleIdArray.Contains(rp.RoleId) && rp.IsActive && (rp.ExpiresAt == null || rp.ExpiresAt > DateTime.UtcNow))
                 .Join(_identityContext.Permissions,
                       rp => rp.PermissionId,
                       p => p.Id,

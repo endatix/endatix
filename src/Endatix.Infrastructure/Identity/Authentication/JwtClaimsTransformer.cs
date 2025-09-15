@@ -107,8 +107,7 @@ public sealed class JwtClaimsTransformer(
 
         // Add only essential permission claims
         // TODO: We need to review this and see if we can add all permissions 
-        var usedPermissions = GetUsedPermissions();
-        foreach (var permission in claimsData.Permissions.Where(p => usedPermissions.Contains(p)))
+        foreach (var permission in claimsData.Permissions)
         {
             identity.AddClaim(new Claim(ClaimNames.Permission, permission));
         }
