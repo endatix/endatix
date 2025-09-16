@@ -18,7 +18,7 @@ public class GetById(IMediator mediator) : Endpoint<GetFormTemplateByIdRequest, 
     public override void Configure()
     {
         Get("form-templates/{formTemplateId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Templates.View);
         Summary(s =>
         {
             s.Summary = "Get a form template by ID";

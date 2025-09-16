@@ -18,7 +18,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateSubmissionRequest, Resu
     public override void Configure()
     {
         Put("forms/{formId}/submissions/{submissionId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Submissions.Edit);
         Summary(s =>
         {
             s.Summary = "Update a form submission";

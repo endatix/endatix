@@ -18,7 +18,7 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
     public override void Configure()
     {
         Get("form-templates");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Templates.View);
         Summary(s =>
         {
             s.Summary = "List form templates";

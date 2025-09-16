@@ -7,7 +7,6 @@ public class UserInfo : EndpointWithoutRequest<UserInfoResponse>
     public override void Configure()
     {
         Get("/my-account/user-info");
-        AllowAnonymous();
         Summary(s =>
         {
             s.Summary = "Get current user information";

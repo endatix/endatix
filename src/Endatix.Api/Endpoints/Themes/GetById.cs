@@ -18,7 +18,7 @@ public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<T
     public override void Configure()
     {
         Get("themes/{themeId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Themes.View);
         Summary(s =>
         {
             s.Summary = "Get a theme by ID";

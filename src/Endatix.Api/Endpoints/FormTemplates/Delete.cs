@@ -18,7 +18,7 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormTemplateRequest, Re
     public override void Configure()
     {
         Delete("form-templates/{formTemplateId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Templates.Delete);
         Summary(s =>
         {
             s.Summary = "Delete a form template";

@@ -16,7 +16,7 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
     public override void Configure()
     {
         Get("forms/{formId}/submissions");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Submissions.View);
         Summary(s =>
         {
             s.Summary = "Get a list of Submissions for a given form";
