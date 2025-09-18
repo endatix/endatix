@@ -76,4 +76,9 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
     {
         return !string.IsNullOrEmpty(SubmittedBy) && SubmittedBy.Equals(userId, StringComparison.OrdinalIgnoreCase);
     }
+
+    public override void Delete()
+    {
+        base.Delete();
+    }
 }
