@@ -1,9 +1,10 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-public partial class Submission : TenantEntity, IAggregateRoot
+public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
 {
     private Submission() { } // For EF Core
 
@@ -69,5 +70,10 @@ public partial class Submission : TenantEntity, IAggregateRoot
             IsComplete = true;
             CompletedAt = DateTime.UtcNow;
         }
+    }
+
+    public bool IsOwnedBy(string userId)
+    {
+        return !string.IsNullOrEmpty(SubmittedBy) && SubmittedBy.Equals(userId, StringComparison.OrdinalIgnoreCase);
     }
 }
