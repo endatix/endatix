@@ -72,7 +72,7 @@ public class PermissionsHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_NoEndpointMetadata_FailsAuthorization()
+    public async Task HandleAsync_NoEndpointMetadata_DoesNothing()
     {
         // Arrange
         var httpContext = Substitute.For<HttpContext>();
@@ -85,7 +85,8 @@ public class PermissionsHandlerTests
         await _handler.HandleAsync(context);
 
         // Assert
-        context.HasFailed.Should().BeTrue();
+        context.HasSucceeded.Should().BeFalse();
+        context.HasFailed.Should().BeFalse();
     }
 
     private AuthorizationHandlerContext CreateAuthorizationContext(bool isAdmin = false)
