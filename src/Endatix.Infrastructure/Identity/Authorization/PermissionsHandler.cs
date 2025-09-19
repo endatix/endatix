@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
+using Endatix.Core.Entities.Identity;
 using Endatix.Infrastructure.Data;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
@@ -18,15 +19,15 @@ public class PermissionsHandler : IAuthorizationHandler
     private readonly AppDbContext _dbContext;
     private readonly IUserContext _userContext;
 
-    private record EntityMetadata(Type EntityType, string PermissionCategory);
+    private record EntityMetadata(Type EntityType, PermissionCategory PermissionCategory);
 
     private readonly Dictionary<string, EntityMetadata> _urlSegmentToEntityMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["forms"] = new(typeof(Form), "forms"),
-        ["submissions"] = new(typeof(Submission), "submissions"),
-        ["form-templates"] = new(typeof(FormTemplate), "templates"),
-        ["themes"] = new(typeof(Theme), "themes"),
-        ["questions"] = new(typeof(CustomQuestion), "questions")
+        ["forms"] = new(typeof(Form), PermissionCategory.Forms),
+        ["submissions"] = new(typeof(Submission), PermissionCategory.Submissions),
+        ["form-templates"] = new(typeof(FormTemplate), PermissionCategory.Templates),
+        ["themes"] = new(typeof(Theme), PermissionCategory.Themes),
+        ["questions"] = new(typeof(CustomQuestion), PermissionCategory.Questions)
     };
 
     private static readonly MemoryCacheEntryOptions OwnershipCacheOptions = new()
@@ -139,7 +140,7 @@ public class PermissionsHandler : IAuthorizationHandler
         }
 
         var ownershipPermissions = endpointPermissions.Where(p =>
-            p.StartsWith(entityMetadata.PermissionCategory, StringComparison.OrdinalIgnoreCase) &&
+            p.StartsWith(entityMetadata.PermissionCategory.Code, StringComparison.OrdinalIgnoreCase) &&
             p.EndsWith(".owned", StringComparison.OrdinalIgnoreCase));
 
         if (!ownershipPermissions.Any(op => userPermissions.Contains(op)))
