@@ -69,6 +69,11 @@ public class PermissionsHandler : IAuthorizationHandler
         }
 
         var endpointPermissions = GetEndpointPermissions(httpContext);
+        if (!endpointPermissions.Any())
+        {
+            return;
+        }
+
         var userPermissions = context.User.FindAll(ClaimNames.Permission).Select(c => c.Value);
 
         var hasDirectPermission = CheckDirectPermissions(endpointPermissions, userPermissions);
