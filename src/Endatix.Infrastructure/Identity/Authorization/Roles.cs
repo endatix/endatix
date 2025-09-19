@@ -92,7 +92,8 @@ public static class Roles
             Actions.Submissions.ViewPublicForm,
             Actions.Submissions.Create,
             Actions.Submissions.ViewOwned,
-            Actions.Submissions.EditOwned
+            Actions.Submissions.EditOwned,
+            Actions.Submissions.DeleteOwned
         ],
         
         [Viewer] = [

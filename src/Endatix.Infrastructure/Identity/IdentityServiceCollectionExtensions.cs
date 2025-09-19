@@ -86,8 +86,7 @@ public static class IdentityServiceCollectionExtensions
 
         services.AddHttpContextAccessor();
         services.AddMemoryCache(); // For entity ownership caching
-        services.AddScoped<IAuthorizationHandler, AdminHandler>();
-        services.AddScoped<IAuthorizationHandler, EntityOwnershipHandler>();
+        services.AddScoped<IAuthorizationHandler, PermissionsHandler>();
 
         // Register security related domain services
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
