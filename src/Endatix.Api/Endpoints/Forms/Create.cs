@@ -18,7 +18,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
     public override void Configure()
     {
         Post("forms");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.Create);
         Summary(s =>
         {
             s.Summary = "Create a new form";

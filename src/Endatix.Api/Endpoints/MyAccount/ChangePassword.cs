@@ -20,7 +20,6 @@ public class ChangePassword(IMediator mediator, IUserContext userContext) : Endp
     public override void Configure()
     {
         Post("my-account/change-password");
-        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Changes a user's password";

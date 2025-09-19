@@ -18,7 +18,7 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumer
     public override void Configure()
     {
         Get("themes");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Themes.View);
         Summary(s =>
         {
             s.Summary = "List themes";

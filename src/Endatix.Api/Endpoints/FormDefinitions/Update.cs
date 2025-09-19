@@ -18,7 +18,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormDefinitionRequest, 
     public override void Configure()
     {
         Put("forms/{formId}/definitions/{definitionId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.Edit);
         Summary(s =>
         {
             s.Summary = "Update a form definition";
