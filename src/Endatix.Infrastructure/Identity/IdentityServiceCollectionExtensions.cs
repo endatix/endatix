@@ -14,6 +14,7 @@ using Endatix.Infrastructure.Features.Account;
 using Endatix.Core.Abstractions.Account;
 using Microsoft.AspNetCore.Authentication;
 using Endatix.Infrastructure.Identity.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Endatix.Infrastructure.Identity;
 
