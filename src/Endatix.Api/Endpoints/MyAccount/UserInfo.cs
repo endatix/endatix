@@ -19,11 +19,15 @@ public class UserInfo : EndpointWithoutRequest<UserInfoResponse>
 
     public override Task<UserInfoResponse> ExecuteAsync(CancellationToken cancellationToken)
     {
-        var claimsDictionary = User?.Claims?
-            .DistinctBy(c => c.Type)
-            .ToDictionary(c => c.Type, c => c.Value);
+        // Group claims by type to handle multiple values (like permissions)
+        var claimsGrouped = User?.Claims?
+            .GroupBy(c => c.Type)
+            .ToDictionary(
+                g => g.Key, 
+                g => g.Count() == 1 ? g.First().Value : string.Join(", ", g.Select(c => c.Value))
+            );
 
-        var response = new UserInfoResponse { Claims = claimsDictionary };
+        var response = new UserInfoResponse { Claims = claimsGrouped };
 
         return Task.FromResult(response);
     }
