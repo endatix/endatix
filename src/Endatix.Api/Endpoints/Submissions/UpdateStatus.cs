@@ -18,7 +18,7 @@ public class UpdateStatus(IMediator mediator) : Endpoint<UpdateStatusRequest, Re
     public override void Configure()
     {
         Post("forms/{formId}/submissions/{submissionId}/status");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Submissions.Edit);
         Summary(s =>
         {
             s.Summary = "Update submission status";

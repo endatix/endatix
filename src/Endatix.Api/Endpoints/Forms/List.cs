@@ -18,7 +18,7 @@ public class List(IMediator mediator) : Endpoint<FormsListRequest, Results<Ok<IE
     public override void Configure()
     {
         Get("forms");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.View);
         Summary(s =>
         {
             s.Summary = "List forms";

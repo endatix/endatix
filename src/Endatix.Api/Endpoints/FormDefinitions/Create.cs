@@ -18,7 +18,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormDefinitionRequest, 
     public override void Configure()
     {
         Post("forms/{formId}/definitions");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.Edit);
         Summary(s =>
         {
             s.Summary = "Create a new form definition";

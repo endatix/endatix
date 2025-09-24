@@ -21,7 +21,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateRequest, 
     public override void Configure()
     {
         Patch("themes/{themeId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Themes.Edit);
         Summary(s =>
         {
             s.Summary = "Partially update a theme";

@@ -18,7 +18,7 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormRequest, Results<Ok
     public override void Configure()
     {
         Delete("forms/{formId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.Delete, Actions.Forms.DeleteOwned);
         Summary(s =>
         {
             s.Summary = "Delete a form";

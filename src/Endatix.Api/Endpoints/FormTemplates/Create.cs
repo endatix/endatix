@@ -18,7 +18,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormTemplateRequest, Re
     public override void Configure()
     {
         Post("form-templates");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Templates.Create);
         Summary(s =>
         {
             s.Summary = "Create a new form template";

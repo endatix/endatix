@@ -18,7 +18,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormTempl
     public override void Configure()
     {
         Patch("form-templates/{formTemplateId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Templates.Edit);
         Summary(s =>
         {
             s.Summary = "Partially update a form template";
