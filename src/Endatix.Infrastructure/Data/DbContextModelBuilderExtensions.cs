@@ -4,6 +4,8 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data.Config;
+using Ardalis.GuardClauses;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -19,7 +21,7 @@ public static class DbContextModelBuilderExtensions
     {
         var getTenantIdMethod = dbContext.GetType().GetMethod(nameof(ITenantDbContext.GetTenantId));
         var currentTenantId = Expression.Call(Expression.Constant(dbContext), getTenantIdMethod!);
-        
+
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             var parameter = Expression.Parameter(entityType.ClrType, "e");
@@ -49,6 +51,41 @@ public static class DbContextModelBuilderExtensions
                 var combinedFilter = filters.Aggregate(Expression.AndAlso);
                 var lambda = Expression.Lambda(combinedFilter, parameter);
                 builder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// Applies entity type configurations from the specified assembly, filtered by DbContext type using generic attributes.
+    /// This allows isolating configurations for different DbContexts that share the same assembly.
+    /// </summary>
+    /// <typeparam name="TDbContext">The DbContext type to filter configurations for.</typeparam>
+    /// <param name="builder">The model builder to apply configurations to.</param>
+    /// <param name="assembly">The assembly containing the configurations.</param>
+    public static void ApplyConfigurationsFor<TDbContext>(this ModelBuilder builder, Assembly assembly) where TDbContext : DbContext
+    {
+        Guard.Against.Null(builder, nameof(builder));
+        Guard.Against.Null(assembly, nameof(assembly));
+
+        var targetAttributeType = typeof(ApplyConfigurationForAttribute<>).MakeGenericType(typeof(TDbContext));
+
+        var configurationTypes = assembly.GetTypes()
+            .Where(type =>
+                type.IsClass &&
+                !type.IsAbstract &&
+                type.GetCustomAttributes(targetAttributeType, false).Any() &&
+                type.GetInterfaces()
+                    .Any(i =>
+                        i.IsGenericType &&
+                        i.GetGenericTypeDefinition() == typeof(IEntityTypeConfiguration<>)));
+
+        foreach (var configurationType in configurationTypes)
+        {
+            var configurationInstance = Activator.CreateInstance(configurationType);
+            if (configurationInstance is not null)
+            {
+                builder.ApplyConfiguration((dynamic)configurationInstance);
             }
         }
     }

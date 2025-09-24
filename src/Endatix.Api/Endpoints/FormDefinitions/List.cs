@@ -19,7 +19,7 @@ public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Res
     public override void Configure()
     {
         Get("forms/{formId}/definitions");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.View);
         Summary(s =>
         {
             s.Summary = "List form definitions";

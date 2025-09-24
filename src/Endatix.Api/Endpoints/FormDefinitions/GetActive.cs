@@ -39,6 +39,5 @@ public class GetActive(IMediator mediator) : Endpoint<GetActiveFormDefinitionReq
         return TypedResultsBuilder
             .MapResult(result, FormDefinitionMapper.Map<FormDefinitionModel>)
             .SetTypedResults<Ok<FormDefinitionModel>, BadRequest, NotFound<Errors.ProblemDetails>>();
-        ;
     }
 }

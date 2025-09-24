@@ -25,22 +25,19 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
             return null;
         }
 
-        // Map ClaimsPrincipal to User (customize as needed)
-        var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var email = principal.FindFirst(ClaimTypes.Email)?.Value;
-        var userName = principal.Identity?.Name;
-        var isVerified = principal.FindFirst("email_verified")?.Value == "true";
-        var tenantIdClaim = principal.FindFirst("tenant_id")?.Value;
-
-        if (!long.TryParse(userIdClaim, out var userId))
+        var userId = ExtractUserId(principal);
+        if (userId is null)
         {
             return null;
         }
 
-        long.TryParse(tenantIdClaim, out var tenantId);
+        var tenantId = ExtractTenantId(principal) ?? 0;
+        var email = principal.FindFirst(ClaimTypes.Email)?.Value;
+        var userName = principal.Identity?.Name;
+        var isVerified = principal.FindFirst(ClaimNames.EmailVerified)?.Value == "true";
 
         return new User(
-            id: userId,
+            id: userId.Value,
             tenantId: tenantId,
             userName: userName ?? email ?? $"user-{userId}",
             email: email ?? string.Empty,
@@ -52,18 +49,27 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
     public string? GetCurrentUserId()
     {
         var principal = httpContextAccessor.HttpContext?.User;
-        var subClaim = principal?.FindFirst("sub")?.Value;
-        if (!string.IsNullOrWhiteSpace(subClaim))
+        if (principal?.Identity?.IsAuthenticated != true)
         {
-            return subClaim;
+            return null;
         }
 
-        var userIdClaim = principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!string.IsNullOrWhiteSpace(userIdClaim))
-        {
-            return userIdClaim;
-        }
+        return ExtractUserId(principal)?.ToString();
+    }
 
-        return null;
+    private static long? ExtractUserId(ClaimsPrincipal principal)
+    {
+        // Priority order: sub (JWT standard) -> NameIdentifier (ASP.NET standard) -> custom user_id (legacy)
+        var userIdClaim = principal.FindFirst(ClaimNames.UserId) ?? 
+                         principal.FindFirst(ClaimTypes.NameIdentifier) ??
+                         principal.FindFirst("sub");
+        
+        return long.TryParse(userIdClaim?.Value, out var userId) ? userId : null;
+    }
+
+    private static long? ExtractTenantId(ClaimsPrincipal principal)
+    {
+        var tenantIdClaim = principal.FindFirst(ClaimNames.TenantId);
+        return long.TryParse(tenantIdClaim?.Value, out var tenantId) ? tenantId : null;
     }
 }

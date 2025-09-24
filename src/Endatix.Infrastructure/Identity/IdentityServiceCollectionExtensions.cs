@@ -6,12 +6,15 @@ using Endatix.Framework.Configuration;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
 using Endatix.Infrastructure.Identity.EmailVerification;
+using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Endatix.Infrastructure.Features.Account;
 using Endatix.Core.Abstractions.Account;
 using Microsoft.AspNetCore.Authentication;
+using Endatix.Infrastructure.Identity.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -76,7 +79,14 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, AppUserService>();
         services.AddScoped<IUserContext, UserContext>();
+        services.AddScoped<IPermissionService, PermissionService>();
+
+        // Register claims transformation to enrich JWT with permissions and roles from database
         services.AddTransient<IClaimsTransformation, JwtClaimsTransformer>();
+
+        services.AddHttpContextAccessor();
+        services.AddMemoryCache(); // For entity ownership caching
+        services.AddScoped<IAuthorizationHandler, PermissionsHandler>();
 
         // Register security related domain services
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
