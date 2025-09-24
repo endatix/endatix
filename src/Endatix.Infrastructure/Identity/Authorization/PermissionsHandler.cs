@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Hybrid;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Entities;
-using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Attributes;
 using Endatix.Infrastructure.Data;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
@@ -15,37 +14,26 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 public class PermissionsHandler : IAuthorizationHandler
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly IMemoryCache _cache;
+    private readonly HybridCache _cache;
     private readonly AppDbContext _dbContext;
     private readonly IUserContext _userContext;
+    private readonly IPermissionService _permissionService;
 
-    private record EntityMetadata(Type EntityType, PermissionCategory PermissionCategory);
 
-    private readonly Dictionary<string, EntityMetadata> _urlSegmentToEntityMap = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["forms"] = new(typeof(Form), PermissionCategory.Forms),
-        ["submissions"] = new(typeof(Submission), PermissionCategory.Submissions),
-        ["form-templates"] = new(typeof(FormTemplate), PermissionCategory.Templates),
-        ["themes"] = new(typeof(Theme), PermissionCategory.Themes),
-        ["questions"] = new(typeof(CustomQuestion), PermissionCategory.Questions)
-    };
-
-    private static readonly MemoryCacheEntryOptions OwnershipCacheOptions = new()
-    {
-        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5),
-        SlidingExpiration = TimeSpan.FromMinutes(2)
-    };
+    private static readonly TimeSpan OwnershipCacheExpiration = TimeSpan.FromMinutes(5);
 
     public PermissionsHandler(
         IHttpContextAccessor httpContextAccessor,
-        IMemoryCache cache,
+        HybridCache cache,
         AppDbContext dbContext,
-        IUserContext userContext)
+        IUserContext userContext,
+        IPermissionService permissionService)
     {
         _httpContextAccessor = httpContextAccessor;
         _cache = cache;
         _dbContext = dbContext;
         _userContext = userContext;
+        _permissionService = permissionService;
     }
 
     public async Task HandleAsync(AuthorizationHandlerContext context)
@@ -55,7 +43,7 @@ public class PermissionsHandler : IAuthorizationHandler
             return;
         }
 
-        var isAdmin = CheckIsAdmin(context);
+        var isAdmin = await CheckIsAdminAsync();
         if (isAdmin)
         {
             SucceedAuthorization(context);
@@ -93,11 +81,21 @@ public class PermissionsHandler : IAuthorizationHandler
         context.Fail();
     }
 
-    private bool CheckIsAdmin(AuthorizationHandlerContext context)
+    private async Task<bool> CheckIsAdminAsync()
     {
-        var isAdminClaimValue = context.User.FindFirst(ClaimNames.IsAdmin)?.Value;
-        var isAdmin = !string.IsNullOrEmpty(isAdminClaimValue) && isAdminClaimValue.Equals("true", StringComparison.OrdinalIgnoreCase);
-        return isAdmin;
+        var userId = _userContext.GetCurrentUserId();
+        if (userId == null)
+        {
+            return false;
+        }
+
+        if (!long.TryParse(userId, out var parsedUserId))
+        {
+            return false;
+        }
+
+        var result = await _permissionService.IsUserAdminAsync(parsedUserId);
+        return result.IsSuccess && result.Value;
     }
 
     private void SucceedAuthorization(AuthorizationHandlerContext context)
@@ -138,61 +136,50 @@ public class PermissionsHandler : IAuthorizationHandler
 
     private async Task<bool> CheckOwnershipPermissions(HttpContext httpContext, IEnumerable<string> endpointPermissions, IEnumerable<string> userPermissions)
     {
-        var (entityMetadata, entityId) = ParseEntityFromUrl(httpContext.Request.Path);
-        if (entityMetadata == null || entityId == null)
-        {
-            return false; // No entity in the URL so skip ownership check
-        }
-
-        var ownershipPermissions = endpointPermissions.Where(p =>
-            p.StartsWith(entityMetadata.PermissionCategory.Code, StringComparison.OrdinalIgnoreCase) &&
-            p.EndsWith(".owned", StringComparison.OrdinalIgnoreCase));
-
+        var ownershipPermissions = endpointPermissions.Where(p => p.EndsWith(".owned", StringComparison.OrdinalIgnoreCase)).ToList();
         if (!ownershipPermissions.Any(op => userPermissions.Contains(op)))
         {
-            return false;
+            return false; // The user does not have any of the ownership permissions
+        }
+
+        var endpoint = httpContext.GetEndpoint();
+        var endpointDefinition = endpoint?.Metadata.OfType<FastEndpoints.EndpointDefinition>().FirstOrDefault();
+        var entityEndpointAttribute = endpointDefinition?.EndpointAttributes?.OfType<EntityEndpointAttribute>().FirstOrDefault();
+
+        if (entityEndpointAttribute == null)
+        {
+            throw new InvalidOperationException(
+                $"Endpoint '{endpoint?.DisplayName}' has an ownership permission but is missing the [EntityEndpoint] attribute. " +
+                "Endpoints with ownership permissions must have the [EntityEndpoint] attribute to specify entity type and ID route parameter.");
+        }
+
+        var entityId = httpContext.Request.RouteValues[entityEndpointAttribute.EntityIdRoute]?.ToString();
+        if (entityId == null)
+        {
+            return false; // No entity ID found in route
         }
 
         var userId = _userContext.GetCurrentUserId();
         if (userId == null)
         {
-            return false; // No current user so skip ownership check
+            return false; // No current user
         }
 
-        var isOwner = await UserOwnsEntityCached(userId, entityMetadata.EntityType, entityId);
+        var isOwner = await UserOwnsEntityCached(userId, entityEndpointAttribute.EntityType, entityId);
         return isOwner;
     }
 
-    /// <summary>
-    /// URL parsing to extract entity type and ID
-    /// Algorithm: Use the last numeric segment as ID and the segment before it as type
-    /// </summary>
-    private (EntityMetadata? entityMetadata, string? entityId) ParseEntityFromUrl(string path)
-    {
-        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        for (var i = segments.Length - 1; i > 0; i--)
-        {
-            if (long.TryParse(segments[i], out _))
-            {
-                var entityUrlSegment = segments[i - 1];
-                if (_urlSegmentToEntityMap.TryGetValue(entityUrlSegment, out var metadata))
-                {
-                    return (metadata, segments[i]);
-                }
-            }
-        }
-
-        return (null, null);
-    }
 
     private async Task<bool> UserOwnsEntityCached(string userId, Type entityType, string entityId)
     {
         var cacheKey = $"ownership_{userId}_{entityType.Name}_{entityId}";
-        return await _cache.GetOrCreateAsync(cacheKey, async entry =>
-        {
-            entry.SetOptions(OwnershipCacheOptions);
-            return await UserOwnsEntity(userId, entityType, entityId);
-        });
+        return await _cache.GetOrCreateAsync(
+            cacheKey,
+            async cancel => await UserOwnsEntity(userId, entityType, entityId),
+            options: new HybridCacheEntryOptions
+            {
+                Expiration = OwnershipCacheExpiration
+            });
     }
 
     private async Task<bool> UserOwnsEntity(string userId, Type entityType, string entityId)
@@ -215,7 +202,7 @@ public class PermissionsHandler : IAuthorizationHandler
 
         if (entity is IOwnedEntity ownedEntity)
         {
-            return ownedEntity.IsOwnedBy(userId);
+            return !string.IsNullOrEmpty(ownedEntity.OwnerId) && ownedEntity.OwnerId.Equals(userId, StringComparison.OrdinalIgnoreCase);
         }
 
         return false;

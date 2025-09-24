@@ -4,13 +4,16 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.Delete;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Attributes;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for deleting a submission.
 /// </summary>
-public class Delete(IMediator mediator) : Endpoint<DeleteSubmissionRequest, Results<Ok<string>, BadRequest, NotFound>>
+[EntityEndpoint(entityType: typeof(Submission), entityIdRoute: "submissionId")]
+public class Delete(IMediator mediator) : Endpoint<DeleteSubmissionRequest, Results<Ok<string>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -30,7 +33,7 @@ public class Delete(IMediator mediator) : Endpoint<DeleteSubmissionRequest, Resu
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<string>, BadRequest, NotFound>> ExecuteAsync(DeleteSubmissionRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(DeleteSubmissionRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
             new DeleteSubmissionCommand(request.FormId, request.SubmissionId),
@@ -38,6 +41,6 @@ public class Delete(IMediator mediator) : Endpoint<DeleteSubmissionRequest, Resu
 
         return TypedResultsBuilder
             .MapResult(result, submission => submission.Id.ToString())
-            .SetTypedResults<Ok<string>, BadRequest, NotFound>();
+            .SetTypedResults<Ok<string>, ProblemHttpResult>();
     }
 }

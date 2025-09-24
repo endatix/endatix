@@ -72,10 +72,7 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
         }
     }
 
-    public bool IsOwnedBy(string userId)
-    {
-        return !string.IsNullOrEmpty(SubmittedBy) && SubmittedBy.Equals(userId, StringComparison.OrdinalIgnoreCase);
-    }
+    public string? OwnerId => SubmittedBy;
 
     public override void Delete()
     {

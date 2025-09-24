@@ -6,9 +6,7 @@ namespace Endatix.Core.Abstractions;
 public interface IOwnedEntity
 {
     /// <summary>
-    /// Checks if the entity is owned by the specified user
+    /// Gets the ID of the user who owns this entity
     /// </summary>
-    /// <param name="userId">The user ID to check ownership for</param>
-    /// <returns>True if the user owns this entity, false otherwise</returns>
-    bool IsOwnedBy(string userId);
+    string? OwnerId { get; }
 }
