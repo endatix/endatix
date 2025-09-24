@@ -15,6 +15,7 @@ namespace Endatix.Infrastructure.Identity.Authentication;
 public sealed class JwtClaimsTransformer(
     IPermissionService permissionService,
     HybridCache hybridCache,
+    IUserContext userContext,
     ILogger<JwtClaimsTransformer> logger) : IClaimsTransformation
 {
     private const long DEFAULT_TENANT_ID = 1;
@@ -42,8 +43,8 @@ public sealed class JwtClaimsTransformer(
 
         try
         {
-            // Get user ID from JWT
-            var userId = ExtractUserId(principal);
+            var userId = userContext.GetCurrentUserId();
+
             if (userId is null)
             {
                 return principal;
@@ -53,7 +54,7 @@ public sealed class JwtClaimsTransformer(
             EnsureTenantClaim(primaryIdentity);
 
             // Enrich with permissions and roles from database
-            await EnrichWithUserPermissionsAsync(primaryIdentity, userId.Value);
+            await EnrichWithUserPermissionsAsync(primaryIdentity, long.Parse(userId));
         }
         catch (Exception ex)
         {
@@ -61,16 +62,6 @@ public sealed class JwtClaimsTransformer(
         }
 
         return principal;
-    }
-
-    private static long? ExtractUserId(ClaimsPrincipal principal)
-    {
-        // Priority order: sub (JWT standard) -> NameIdentifier (ASP.NET standard) -> custom user_id (legacy)
-        var userIdClaim = principal.FindFirst(ClaimNames.UserId) ??
-                         principal.FindFirst(ClaimTypes.NameIdentifier) ??
-                         principal.FindFirst("sub");
-
-        return long.TryParse(userIdClaim?.Value, out var userId) ? userId : null;
     }
 
     private static void EnsureTenantClaim(ClaimsIdentity identity)
@@ -144,24 +135,6 @@ public sealed class JwtClaimsTransformer(
             Roles = roleInfo.Roles.ToList(),
             Permissions = roleInfo.Permissions.ToList(),
             IsAdmin = isAdmin
-        };
-    }
-
-    /// <summary>
-    /// Gets the set of permissions that are actually used by endpoints.
-    /// This reduces memory usage by only adding claims that FastEndpoints will check.
-    /// </summary>
-    private static HashSet<string> GetUsedPermissions()
-    {
-        return new HashSet<string>
-        {
-            // Permissions actually used by current endpoints
-            Actions.System.HealthCheck,
-            Actions.Admin.All,
-            Actions.Forms.Create,
-            Actions.Forms.Edit,
-            Actions.Submissions.Submit,
-            // Add more as endpoints are updated from Allow.AllowAll
         };
     }
 

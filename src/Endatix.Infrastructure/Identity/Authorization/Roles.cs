@@ -54,7 +54,7 @@ public static class Roles
             // Admin has all permissions via admin.all
             Actions.Admin.All
         ],
-        
+
         [Scripter] = [
             // Full form management (all forms in tenant)
             Actions.Forms.View,
@@ -82,7 +82,7 @@ public static class Roles
             Actions.Submissions.ViewOwned,
             Actions.Submissions.ExportOwned,
         ],
-        
+
         [Panelist] = [
             // View forms (read-only)
             Actions.Forms.View,
@@ -95,7 +95,7 @@ public static class Roles
             Actions.Submissions.EditOwned,
             Actions.Submissions.DeleteOwned
         ],
-        
+
         [Viewer] = [
             // Read-only access to forms
             Actions.Forms.View,
@@ -113,7 +113,7 @@ public static class Roles
             Actions.Analytics.View,
             Actions.Analytics.ViewOwned
         ],
-        
+
         [Public] = [
             // Public form access only
             Actions.Submissions.ViewPublicForm,

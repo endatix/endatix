@@ -13,8 +13,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Endatix.Infrastructure.Features.Account;
 using Endatix.Core.Abstractions.Account;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization;
 using Endatix.Infrastructure.Identity.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -80,7 +80,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserService, AppUserService>();
         services.AddScoped<IUserContext, UserContext>();
         services.AddScoped<IPermissionService, PermissionService>();
-        
+
         // Register claims transformation to enrich JWT with permissions and roles from database
         services.AddTransient<IClaimsTransformation, JwtClaimsTransformer>();
 
