@@ -1,32 +1,34 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity.Authorization;
-using Endatix.Infrastructure.Identity;
 using NSubstitute;
 using FluentAssertions;
+using Microsoft.Extensions.Caching.Hybrid;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 
 public class PermissionsHandlerTests
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly IMemoryCache _cache;
+    private readonly HybridCache _cache;
     private readonly AppDbContext _dbContext;
     private readonly IUserContext _userContext;
+    private readonly IPermissionService _permissionService;
     private readonly PermissionsHandler _handler;
 
     public PermissionsHandlerTests()
     {
         _httpContextAccessor = Substitute.For<IHttpContextAccessor>();
-        _cache = Substitute.For<IMemoryCache>();
+        _cache = Substitute.For<HybridCache>();
         _dbContext = Substitute.For<AppDbContext>();
         _userContext = Substitute.For<IUserContext>();
+        _permissionService = Substitute.For<IPermissionService>();
 
-        _handler = new PermissionsHandler(_httpContextAccessor, _cache, _dbContext, _userContext);
+        _handler = new PermissionsHandler(_httpContextAccessor, _cache, _dbContext, _userContext, _permissionService);
     }
 
     [Fact]
@@ -47,7 +49,11 @@ public class PermissionsHandlerTests
     public async Task HandleAsync_AdminUser_SucceedsAllRequirements()
     {
         // Arrange
-        var context = CreateAuthorizationContext(isAdmin: true);
+        var userId = "123";
+        _userContext.GetCurrentUserId().Returns(userId);
+        _permissionService.IsUserAdminAsync(123).Returns(Result.Success(true));
+
+        var context = CreateAuthorizationContext();
 
         // Act
         await _handler.HandleAsync(context);
@@ -89,16 +95,9 @@ public class PermissionsHandlerTests
         context.HasFailed.Should().BeFalse();
     }
 
-    private AuthorizationHandlerContext CreateAuthorizationContext(bool isAdmin = false)
+    private AuthorizationHandlerContext CreateAuthorizationContext()
     {
-        var claims = new List<Claim>();
-
-        if (isAdmin)
-        {
-            claims.Add(new Claim(ClaimNames.IsAdmin, "true"));
-        }
-
-        var user = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
+        var user = new ClaimsPrincipal(new ClaimsIdentity([], "test"));
         var requirements = new[] { new TestRequirement() };
         return new AuthorizationHandlerContext(requirements, user, null);
     }
