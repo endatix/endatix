@@ -24,24 +24,25 @@ public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
     public SubmissionsByFormIdSpec(long formId, PagingParameters pagingParams, FilterParameters filterParams)
     {
         Query
-            .Select(s => new SubmissionDto(
-                s.Id,
-                s.IsComplete,
-                new Dictionary<string, object>(),
-                s.FormId,
-                s.FormDefinitionId,
-                s.CurrentPage,
-                s.CompletedAt,
-                s.CreatedAt,
-                s.Metadata,
-                s.Status.Code,
-                s.SubmittedBy
-            ))
             .Where(s => s.FormDefinition.FormId == formId)
-            .Filter(filterParams)
+              .Filter(filterParams)
             .OrderByDescending(s => s.CreatedAt)
             .ThenByDescending(s => s.CompletedAt)
             .Paginate(pagingParams)
             .AsNoTracking();
+
+        Query.Select(s => new SubmissionDto(
+            s.Id,
+            s.IsComplete,
+            new Dictionary<string, object>(),
+            s.FormId,
+            s.FormDefinitionId,
+            s.CurrentPage,
+            s.CompletedAt,
+            s.CreatedAt,
+            s.Metadata,
+            s.Status.Code,
+            s.SubmittedBy
+        ));
     }
 }
