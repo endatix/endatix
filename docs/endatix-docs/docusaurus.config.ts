@@ -1,5 +1,5 @@
 import { themes as prismThemes } from "prism-react-renderer";
-import type { Config } from "@docusaurus/types";
+import type { Config, MarkdownConfig } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 import type * as Redocusaurus from "redocusaurus";
 
@@ -20,7 +20,6 @@ const config: Config = {
   projectName: "docusaurus", // Usually your repo name.
 
   onBrokenLinks: "throw",
-  onBrokenMarkdownLinks: "warn",
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -178,6 +177,10 @@ const config: Config = {
   } satisfies Preset.ThemeConfig,
   markdown: {
     mermaid: true,
+    hooks: {
+      onBrokenMarkdownLinks: "warn",
+      onBrokenMarkdownImages: "throw",
+    },
   },
   themes: ["@docusaurus/theme-mermaid"],
 };
