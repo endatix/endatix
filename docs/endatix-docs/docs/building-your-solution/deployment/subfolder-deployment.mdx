@@ -1,0 +1,107 @@
+---
+title: Deploy API Under Subfolder
+description: Configure Endatix API to work under a subfolder path instead of a separate domain
+sidebar_position: 1
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+
+# Deploy API Under Subfolder
+
+This guide shows you how to configure the Endatix API to work under a subfolder path instead of deploying it to a separate domain. This is particularly useful when you need to:
+
+- Host multiple APIs on the same domain
+- Deploy behind a reverse proxy
+- Integrate with existing infrastructure
+- Use a load balancer
+
+## Example Diagram
+
+<ThemedImage
+  alt="Subfolder deployment diagram"
+  sources={{
+    light: useBaseUrl("/img/diagrams/subfolder_deployment_light.png"),
+    dark: useBaseUrl("/img/diagrams/subfolder_deployment_dark.png"),
+  }}
+/>
+
+This diagram illustrates how the Endatix API can be deployed under a subfolder path (`/your/subfolder/path`) instead of requiring a separate domain. The **Gateway/WAF** component handles routing requests to the API, while the **Edge Location** represents various deployment scenarios including:
+
+- **Web Application Firewalls (WAFs)** - For security and threat protection
+- **Content Delivery Networks (CDNs)** - For global distribution and caching using path based routing rules
+- **Reverse Proxies** - Such as Nginx, Apache, or cloud load balancers
+- **Virtual Private Clouds (VPCs)** - For isolated network environments
+- **Edge Computing** - For reduced latency and improved performance
+
+This approach allows you to consolidate multiple services under a single domain while maintaining security, scalability, and performance benefits.
+
+## Overview
+
+When deploying the API under a subfolder, you need to configure the API to work with the base path. This involves:
+
+1. **API Configuration**: Setting the correct base path and route prefix
+2. **Hub Configuration**: Updating the Hub to point to the API subfolder path
+
+## API Configuration
+
+### Update Program.cs
+
+Configure the base path in your `Program.cs`:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    // Your existing configuration...
+});
+
+var app = builder.Build();
+
+// Set the base path for the API
+app.UsePathBase("/your/subfolder/path");
+
+app.UseEndatix(options =>
+{
+    // Remove the default /api prefix since we're using a custom base path
+    options.ApiOptions.RoutePrefix = null;
+});
+
+app.Run();
+```
+
+## Hub Configuration
+
+### Update Environment Variables
+
+Configure the Hub to point to the API subfolder path:
+
+```bash
+# .env.local
+ENDATIX_BASE_URL=https://your-api-domain.com
+ENDATIX_API_PREFIX=/your/subfolder/path
+```
+
+## Testing the Configuration
+
+### Verify API Endpoints
+
+Test that the API is accessible under the subfolder:
+
+```bash
+# Test API health endpoint (if enabled)
+curl https://your-api-domain.com/your/subfolder/path/health
+
+# Test API endpoints
+curl https://your-api-domain.com/your/subfolder/path/forms
+```
+
+### Verify Hub Integration
+
+1. Navigate to your Hub application
+2. Verify the Hub can communicate with the API at the subfolder path
+3. Test authentication flow
+4. Verify API communication works correctly
