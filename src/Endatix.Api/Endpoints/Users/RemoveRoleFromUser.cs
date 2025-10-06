@@ -5,7 +5,7 @@ using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.UseCases.Identity.RemoveRole;
 using Endatix.Api.Infrastructure;
 
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Users;
 
 /// <summary>
 /// Endpoint for removing a role from a user (admin-only).
@@ -18,7 +18,7 @@ public class RemoveRoleFromUser(IMediator mediator)
     /// </summary>
     public override void Configure()
     {
-        Delete("auth/users/{userId}/roles/{roleName}");
+        Delete("users/{userId}/roles/{roleName}");
         Permissions(Actions.Admin.ManageUsers);
         Summary(s =>
         {

@@ -1,4 +1,4 @@
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Users;
 
 /// <summary>
 /// Request for assigning a role to a user.

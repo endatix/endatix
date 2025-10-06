@@ -5,7 +5,7 @@ using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.UseCases.Identity.AssignRole;
 using Endatix.Api.Infrastructure;
 
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Users;
 
 /// <summary>
 /// Endpoint for assigning a role to a user (admin-only).
@@ -18,7 +18,7 @@ public class AssignRoleToUser(IMediator mediator)
     /// </summary>
     public override void Configure()
     {
-        Post("auth/users/{userId}/roles/{roleName}");
+        Post("users/{userId}/roles");
         Permissions(Actions.Admin.ManageUsers);
         Summary(s =>
         {

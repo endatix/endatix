@@ -1,7 +1,7 @@
 using FastEndpoints;
 using FluentValidation;
 
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Users;
 
 /// <summary>
 /// Validator for the GetUserRolesRequest.

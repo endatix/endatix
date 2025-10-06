@@ -1,4 +1,4 @@
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Users;
 
 /// <summary>
 /// Request for removing a role from a user.

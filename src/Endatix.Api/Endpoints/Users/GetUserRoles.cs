@@ -5,7 +5,7 @@ using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.UseCases.Identity.GetUserRoles;
 using Endatix.Api.Infrastructure;
 
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.Users;
 
 /// <summary>
 /// Endpoint for retrieving roles assigned to a user (admin-only).
@@ -18,7 +18,7 @@ public class GetUserRoles(IMediator mediator)
     /// </summary>
     public override void Configure()
     {
-        Get("auth/users/{userId}/roles");
+        Get("users/{userId}/roles");
         Permissions(Actions.Admin.ManageUsers);
         Summary(s =>
         {
