@@ -3,17 +3,20 @@ using System;
 using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
+namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
 {
     [DbContext(typeof(AppIdentityDbContext))]
-    partial class AppIdentityDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251006121433_ChangeRoleNameIndexForMultiTenancy")]
+    partial class ChangeRoleNameIndexForMultiTenancy
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -119,9 +122,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                     b.Property<long>("Id")
                         .HasColumnType("bigint");
 
-                    b.Property<long?>("AppRoleId")
-                        .HasColumnType("bigint");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -150,8 +150,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AppRoleId");
 
                     b.HasIndex("PermissionId");
 
@@ -400,10 +398,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 
             modelBuilder.Entity("Endatix.Core.Entities.Identity.RolePermission", b =>
                 {
-                    b.HasOne("Endatix.Infrastructure.Identity.AppRole", null)
-                        .WithMany("EffectivePermissions")
-                        .HasForeignKey("AppRoleId");
-
                     b.HasOne("Endatix.Core.Entities.Identity.Permission", "Permission")
                         .WithMany("RolePermissions")
                         .HasForeignKey("PermissionId")
@@ -477,8 +471,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppRole", b =>
                 {
-                    b.Navigation("EffectivePermissions");
-
                     b.Navigation("RolePermissions");
                 });
 #pragma warning restore 612, 618

@@ -43,6 +43,13 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
                .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
                .ValueGeneratedNever();
 
+        // Remove ASP.NET Identity's default RoleNameIndex (globally unique on NormalizedName)
+        // AppRoleConfiguration defines a tenant-scoped replacement
+        builder.Entity<AppRole>()
+               .HasIndex(r => r.NormalizedName)
+               .HasDatabaseName("RoleNameIndex")
+               .IsUnique(false);
+
         RenameIdentityTables(builder);
     }
 

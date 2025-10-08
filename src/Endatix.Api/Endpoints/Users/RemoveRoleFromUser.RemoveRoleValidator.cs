@@ -1,6 +1,6 @@
 using FastEndpoints;
 using FluentValidation;
-using Endatix.Infrastructure.Identity.Authorization;
+using AuthRoles = Endatix.Infrastructure.Identity.Authorization.Roles;
 
 namespace Endatix.Api.Endpoints.Users;
 
@@ -19,7 +19,7 @@ public class RemoveRoleValidator : Validator<RemoveRoleRequest>
 
         RuleFor(x => x.RoleName)
             .NotEmpty()
-            .Must(roleName => Roles.IsValidRole(roleName))
-            .WithMessage(x => $"Invalid role name '{x.RoleName}'. Valid roles are: {string.Join(", ", Roles.AllRoles)}.");
+            .Must(roleName => AuthRoles.IsValidRole(roleName))
+            .WithMessage(x => $"Invalid role name '{x.RoleName}'. Valid roles are: {string.Join(", ", AuthRoles.AllRoles)}.");
     }
 }
