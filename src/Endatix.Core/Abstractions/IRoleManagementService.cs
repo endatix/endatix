@@ -32,4 +32,14 @@ public interface IRoleManagementService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A Result containing the list of role names.</returns>
     Task<Result<IList<string>>> GetUserRolesAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new role with the specified permissions for the current tenant.
+    /// </summary>
+    /// <param name="name">The name of the role.</param>
+    /// <param name="description">The description of the role.</param>
+    /// <param name="permissionNames">The list of permission names to assign to the role.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A Result containing the ID of the created role.</returns>
+    Task<Result<string>> CreateRoleAsync(string name, string? description, List<string> permissionNames, CancellationToken cancellationToken = default);
 }

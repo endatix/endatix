@@ -1,15 +1,22 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using FluentAssertions;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Services;
+using Endatix.Infrastructure.Identity.Repositories;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Abstractions;
+using Endatix.Infrastructure.Data;
 
 namespace Endatix.Infrastructure.Tests.Identity.Services;
 
 public class RoleManagementServiceTests
 {
     private readonly UserManager<AppUser> _userManager;
+    private readonly AppIdentityDbContext _identityDbContext;
+    private readonly ITenantContext _tenantContext;
+    private readonly IRolesRepository _rolesRepository;
     private readonly RoleManagementService _service;
 
     public RoleManagementServiceTests()
@@ -17,7 +24,19 @@ public class RoleManagementServiceTests
         _userManager = Substitute.For<UserManager<AppUser>>(
             Substitute.For<IUserStore<AppUser>>(),
             null, null, null, null, null, null, null, null);
-        _service = new RoleManagementService(_userManager);
+
+        var dbOptions = new DbContextOptionsBuilder<AppIdentityDbContext>()
+            .Options;
+        var valueGeneratorFactory = Substitute.For<EfCoreValueGeneratorFactory>(Substitute.For<IIdGenerator<long>>());
+        var idGenerator = Substitute.For<IIdGenerator<long>>();
+
+        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory, idGenerator);
+
+        _tenantContext = Substitute.For<ITenantContext>();
+
+        _rolesRepository = Substitute.For<IRolesRepository>();
+
+        _service = new RoleManagementService(_userManager, _identityDbContext, _tenantContext, _rolesRepository);
     }
 
     #region AssignRoleToUserAsync Tests

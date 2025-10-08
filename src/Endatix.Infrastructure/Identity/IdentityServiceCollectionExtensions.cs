@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Framework.Configuration;
@@ -15,6 +16,7 @@ using Endatix.Core.Abstractions.Account;
 using Microsoft.AspNetCore.Authentication;
 using Endatix.Infrastructure.Identity.Services;
 using Microsoft.AspNetCore.Authorization;
+using Endatix.Infrastructure.Identity.Repositories;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -95,6 +97,12 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserTokenService, JwtTokenService>();
         services.AddScoped<IRepository<EmailVerificationToken>, EmailVerificationTokenRepository>();
         services.AddScoped<IRoleManagementService, RoleManagementService>();
+
+        // Register Identity repositories
+        services.AddScoped<IRolesRepository, RolesRepository>();
+
+        // Register Identity Unit of Work for identity operations
+        services.AddKeyedScoped<IUnitOfWork, IdentityUnitOfWork>("identity");
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()
