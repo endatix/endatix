@@ -94,6 +94,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserPasswordManageService, UserPasswordManageService>();
         services.AddScoped<IUserTokenService, JwtTokenService>();
         services.AddScoped<IRepository<EmailVerificationToken>, EmailVerificationTokenRepository>();
+        services.AddScoped<IRoleManagementService, RoleManagementService>();
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()
