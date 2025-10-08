@@ -62,4 +62,28 @@ public class RolesRepository : IRolesRepository
             throw;
         }
     }
+
+    public async Task DeleteRoleAsync(AppRole role, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            // Explicitly remove RolePermissions first
+            var rolePermissions = _identityDbContext.RolePermissions.Where(rp => rp.RoleId == role.Id);
+            _identityDbContext.RolePermissions.RemoveRange(rolePermissions);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Then remove role
+            _identityDbContext.Roles.Remove(role);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
+    }
 }

@@ -16,4 +16,13 @@ public interface IRolesRepository
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The created role with generated ID.</returns>
     Task<AppRole> CreateRoleWithPermissionsAsync(AppRole role, List<long> permissionIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a role and its associated permissions asynchronously.
+    /// Handles transaction management internally.
+    /// </summary>
+    /// <param name="role">The role to be deleted.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task DeleteRoleAsync(AppRole role, CancellationToken cancellationToken = default);
 }

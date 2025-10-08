@@ -42,4 +42,12 @@ public interface IRoleManagementService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A Result containing the ID of the created role.</returns>
     Task<Result<string>> CreateRoleAsync(string name, string? description, List<string> permissionNames, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a role for the current tenant.
+    /// </summary>
+    /// <param name="roleName">The name of the role to delete.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A Result indicating success or failure.</returns>
+    Task<Result> DeleteRoleAsync(string roleName, CancellationToken cancellationToken = default);
 }

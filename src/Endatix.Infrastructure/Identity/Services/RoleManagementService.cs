@@ -148,4 +148,43 @@ public class RoleManagementService : IRoleManagementService
 
         return Result<string>.Created(createdRole.Id.ToString());
     }
+
+    /// <inheritdoc/>
+    public async Task<Result> DeleteRoleAsync(string roleName, CancellationToken cancellationToken = default)
+    {
+        var tenantId = _tenantContext.TenantId;
+
+        var role = await _identityDbContext.Roles
+            .FirstOrDefaultAsync(r => r.Name == roleName && r.TenantId == tenantId, cancellationToken);
+
+        if (role == null)
+        {
+            return Result.NotFound($"Role '{roleName}' not found for this tenant.");
+        }
+
+        if (role.IsSystemDefined)
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = nameof(roleName),
+                ErrorMessage = $"Cannot delete system-defined role '{roleName}'."
+            });
+        }
+
+        var isRoleAssignedToUsers = await _identityDbContext.UserRoles
+            .AnyAsync(ur => ur.RoleId == role.Id, cancellationToken);
+
+        if (isRoleAssignedToUsers)
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = nameof(roleName),
+                ErrorMessage = $"Cannot delete role '{roleName}' because it is assigned to one or more users."
+            });
+        }
+
+        await _rolesRepository.DeleteRoleAsync(role, cancellationToken);
+
+        return Result.Success();
+    }
 }
