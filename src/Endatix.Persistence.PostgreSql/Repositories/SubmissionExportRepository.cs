@@ -17,7 +17,16 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
     public IAsyncEnumerable<SubmissionExportRow> GetExportRowsAsync(long formId, CancellationToken cancellationToken)
     {
         return _dbContext.Set<SubmissionExportRow>()
-            .FromSqlRaw("SELECT * FROM export_form_submissions({0})", formId)
+            .FromSqlRaw(@"
+                SELECT
+                    ""FormId"",
+                    ""Id"",
+                    ""IsComplete"",
+                    ""CompletedAt"",
+                    ""CreatedAt"",
+                    ""ModifiedAt"",
+                    ""FlattenedAnswers""::text AS ""AnswersModel""
+                FROM export_form_submissions_nested_loops({0})", formId)
             .AsNoTracking()
             .AsAsyncEnumerable();
     }
