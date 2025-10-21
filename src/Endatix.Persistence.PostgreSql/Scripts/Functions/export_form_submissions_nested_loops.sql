@@ -20,8 +20,20 @@ RETURNS TABLE (
     "ModifiedAt" timestamptz,
     "FlattenedAnswers" jsonb
 ) AS $$
+DECLARE
+    submission_cursor CURSOR FOR
+        SELECT s."Id", s."FormId", s."IsComplete", s."CompletedAt", s."CreatedAt", s."ModifiedAt", s."JsonData"::jsonb
+        FROM "Submissions" s
+        WHERE (target_form_id IS NULL OR s."FormId" = target_form_id)
+        ORDER BY s."FormId", s."Id";
+
+    submission_record RECORD;
+    v_column_specs jsonb;
+    v_simple_questions jsonb;
+    v_all_columns jsonb;
+    v_flat_data jsonb;
 BEGIN
-    RETURN QUERY
+    -- PHASE 1: Calculate column structure once (one-time work per form)
     WITH RECURSIVE
     -- Step 1: Get all relevant form definitions
     form_defs AS (
@@ -256,43 +268,7 @@ BEGIN
           )
     ),
 
-    -- Step 12: Flatten each submission
-    flattened_subs AS (
-        SELECT
-            s."Id",
-            s."FormId",
-            s."IsComplete",
-            s."CompletedAt",
-            s."CreatedAt",
-            s."ModifiedAt",
-            -- Combine simple questions and nested questions
-            COALESCE(
-                (
-                    SELECT jsonb_object_agg(sq.question_name, s."JsonData"::jsonb->sq.question_name)
-                    FROM simple_questions sq
-                    WHERE sq."FormId" = s."FormId"
-                ),
-                '{}'::jsonb
-            ) ||
-            COALESCE(
-                (
-                    SELECT jsonb_object_agg(
-                        cs.column_name,
-                        jsonb_path_query_first(
-                            s."JsonData"::jsonb,
-                            cs.jsonpath_expression::jsonpath
-                        )
-                    )
-                    FROM column_specs cs
-                    WHERE cs."FormId" = s."FormId"
-                ),
-                '{}'::jsonb
-            ) AS flat_data
-        FROM "Submissions" s
-        WHERE (target_form_id IS NULL OR s."FormId" = target_form_id)
-    ),
-
-    -- Step 13: Get all possible columns (including empty ones)
+    -- Step 12: Get all possible columns (including empty ones)
     all_columns AS (
         -- Simple questions
         SELECT DISTINCT
@@ -309,36 +285,96 @@ BEGIN
         FROM column_specs cs
     ),
 
-    -- Step 14: Final result with ALL columns (including empty ones)
-    final_data AS (
+    -- Step 13: Aggregate metadata for reuse (within CTE scope)
+    column_metadata AS (
         SELECT
-            fs."FormId",
-            fs."Id",
-            fs."IsComplete",
-            fs."CompletedAt",
-            fs."CreatedAt",
-            fs."ModifiedAt",
-            -- Include all columns, even if they have no data
+            target_form_id AS "FormId",
             (
-                SELECT jsonb_object_agg(
-                    ac.col_name,
-                    COALESCE(fs.flat_data->ac.col_name, 'null'::jsonb)
-                )
+                SELECT jsonb_agg(jsonb_build_object(
+                    'column_name', cs.column_name,
+                    'jsonpath_expression', cs.jsonpath_expression
+                ))
+                FROM column_specs cs
+                WHERE cs."FormId" = target_form_id
+            ) AS column_specs,
+            (
+                SELECT jsonb_agg(sq.question_name)
+                FROM simple_questions sq
+                WHERE sq."FormId" = target_form_id
+            ) AS simple_questions,
+            (
+                SELECT jsonb_agg(ac.col_name)
                 FROM all_columns ac
-                WHERE ac."FormId" = fs."FormId"
-            ) AS "FlattenedAnswers"
-        FROM flattened_subs fs
+                WHERE ac."FormId" = target_form_id
+            ) AS all_columns
     )
 
-    SELECT
-        fd."FormId",
-        fd."Id",
-        fd."IsComplete",
-        fd."CompletedAt",
-        fd."CreatedAt",
-        fd."ModifiedAt",
-        COALESCE(fd."FlattenedAnswers", '{}'::jsonb) AS "FlattenedAnswers"
-    FROM final_data fd
-    ORDER BY fd."FormId", fd."Id";
+    -- Store column metadata in variables for reuse
+    SELECT column_specs, simple_questions, all_columns
+    INTO v_column_specs, v_simple_questions, v_all_columns
+    FROM column_metadata;
+
+    -- PHASE 2: Stream submissions one by one
+    OPEN submission_cursor;
+
+    LOOP
+        FETCH submission_cursor INTO submission_record;
+        EXIT WHEN NOT FOUND;
+
+        -- Build flattened data for this submission only
+        v_flat_data := '{}'::jsonb;
+
+        -- Add simple questions
+        IF v_simple_questions IS NOT NULL THEN
+            SELECT v_flat_data || COALESCE(
+                jsonb_object_agg(
+                    question_name,
+                    submission_record."JsonData"->question_name
+                ),
+                '{}'::jsonb
+            )
+            INTO v_flat_data
+            FROM jsonb_array_elements_text(v_simple_questions) AS question_name;
+        END IF;
+
+        -- Add nested loop questions
+        IF v_column_specs IS NOT NULL THEN
+            SELECT v_flat_data || COALESCE(
+                jsonb_object_agg(
+                    col->>'column_name',
+                    jsonb_path_query_first(
+                        submission_record."JsonData",
+                        (col->>'jsonpath_expression')::jsonpath
+                    )
+                ),
+                '{}'::jsonb
+            )
+            INTO v_flat_data
+            FROM jsonb_array_elements(v_column_specs) AS col;
+        END IF;
+
+        -- Ensure all columns are present (fill missing with null)
+        IF v_all_columns IS NOT NULL THEN
+            SELECT jsonb_object_agg(
+                col_name,
+                COALESCE(v_flat_data->col_name, 'null'::jsonb)
+            )
+            INTO v_flat_data
+            FROM jsonb_array_elements_text(v_all_columns) AS col_name;
+        END IF;
+
+        -- Assign to output record and return immediately (stream)
+        "FormId" := submission_record."FormId";
+        "Id" := submission_record."Id";
+        "IsComplete" := submission_record."IsComplete";
+        "CompletedAt" := submission_record."CompletedAt";
+        "CreatedAt" := submission_record."CreatedAt";
+        "ModifiedAt" := submission_record."ModifiedAt";
+        "FlattenedAnswers" := COALESCE(v_flat_data, '{}'::jsonb);
+
+        RETURN NEXT;
+    END LOOP;
+
+    CLOSE submission_cursor;
 END;
 $$ LANGUAGE plpgsql;
