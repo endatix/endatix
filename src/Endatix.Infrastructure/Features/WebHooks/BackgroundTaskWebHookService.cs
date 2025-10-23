@@ -18,12 +18,13 @@ public class BackgroundTaskWebHookService(
     /// <summary>
     /// Initiates the asynchronous processing of a WebHook message by adding it to the background queue.
     /// </summary>
+    /// <param name="tenantId">The tenant ID for which to process the webhook.</param>
     /// <param name="message">The WebHook message to be processed in the background.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task EnqueueWebHookAsync<TPayload>(WebHookMessage<TPayload> message, CancellationToken cancellationToken) where TPayload : notnull
+    public async Task EnqueueWebHookAsync<TPayload>(long tenantId, WebHookMessage<TPayload> message, CancellationToken cancellationToken) where TPayload : notnull
     {
-        var eventSetting = GetEventSetting(message.operation.EventName);
+        var eventSetting = GetEventSetting(tenantId, message.operation.EventName);
         if (!eventSetting.IsEnabled)
         {
             logger.LogTrace("WebHook for {eventName} event is disabled. Skipping processing...", message.operation.EventName);
@@ -47,15 +48,22 @@ public class BackgroundTaskWebHookService(
         }
     }
 
-    private WebHookSettings.EventSetting GetEventSetting(string eventName)
+    private WebHookSettings.EventSetting GetEventSetting(long tenantId, string eventName)
     {
+        if (!_webHookSettings.Tenants.TryGetValue(tenantId, out var tenantConfig))
+        {
+            return new WebHookSettings.EventSetting { EventName = eventName, IsEnabled = false };
+        }
+
+        var tenantEvents = tenantConfig.Events;
+
         return eventName switch
         {
-            WebHooksPlugin.EventNames.FORM_CREATED => _webHookSettings.Events.FormCreated,
-            WebHooksPlugin.EventNames.FORM_UPDATED => _webHookSettings.Events.FormUpdated,
-            WebHooksPlugin.EventNames.FORM_ENABLED_STATE_CHANGED => _webHookSettings.Events.FormEnabledStateChanged,
-            WebHooksPlugin.EventNames.SUBMISSION_COMPLETED => _webHookSettings.Events.SubmissionCompleted,
-            WebHooksPlugin.EventNames.FORM_DELETED => _webHookSettings.Events.FormDeleted,
+            WebHooksPlugin.EventNames.FORM_CREATED => tenantEvents.FormCreated,
+            WebHooksPlugin.EventNames.FORM_UPDATED => tenantEvents.FormUpdated,
+            WebHooksPlugin.EventNames.FORM_ENABLED_STATE_CHANGED => tenantEvents.FormEnabledStateChanged,
+            WebHooksPlugin.EventNames.SUBMISSION_COMPLETED => tenantEvents.SubmissionCompleted,
+            WebHooksPlugin.EventNames.FORM_DELETED => tenantEvents.FormDeleted,
             _ => throw new ArgumentException($"Unknown event name: {eventName}", nameof(eventName))
         };
     }

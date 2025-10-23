@@ -215,7 +215,7 @@ public class WebHookSettingsTests
 
         // Assert
         settings.ServerSettings.Should().NotBeNull();
-        settings.Events.Should().NotBeNull();
+        settings.Tenants.Should().NotBeNull();
     }
 
     [Fact]

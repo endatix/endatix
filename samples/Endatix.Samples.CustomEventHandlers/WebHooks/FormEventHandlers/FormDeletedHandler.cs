@@ -29,6 +29,6 @@ public class FormDeletedHandler(IWebHookService webHookService, ILogger<FormDele
             WebHookOperation.FormDeleted,
             form);
 
-        await webHookService.EnqueueWebHookAsync(message, cancellationToken);
+        await webHookService.EnqueueWebHookAsync(notification.Form.TenantId, message, cancellationToken);
     }
 } 

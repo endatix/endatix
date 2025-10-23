@@ -36,6 +36,6 @@ public class SubmissionCompletedWebHookHandler(IWebHookService webHookService, I
             WebHookOperation.SubmissionCompleted,
             submission);
 
-        await webHookService.EnqueueWebHookAsync(message, cancellationToken);
+        await webHookService.EnqueueWebHookAsync(notification.Submission.TenantId, message, cancellationToken);
     }
 } 
