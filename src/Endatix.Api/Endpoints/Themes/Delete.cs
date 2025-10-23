@@ -18,7 +18,7 @@ public class Delete(IMediator mediator) : Endpoint<DeleteRequest, Results<Ok<str
     public override void Configure()
     {
         Delete("themes/{themeId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Themes.Delete);
         Summary(s =>
         {
             s.Summary = "Delete a theme";

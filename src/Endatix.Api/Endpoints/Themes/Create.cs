@@ -18,7 +18,7 @@ public class Create(IMediator mediator) : Endpoint<CreateRequest, Results<Create
     public override void Configure()
     {
         Post("themes");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Themes.Create);
         Summary(s =>
         {
             s.Summary = "Create a new theme";
