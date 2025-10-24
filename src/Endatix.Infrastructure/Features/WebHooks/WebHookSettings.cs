@@ -16,9 +16,10 @@ public class WebHookSettings : IEndatixSettings
     public HttpServerSettings ServerSettings { get; set; } = new();
 
     /// <summary>
-    /// Represents the collection of WebHook events and their settings.
+    /// Represents the tenant-specific collection of WebHook events and their settings.
+    /// Key is the tenant ID.
     /// </summary>
-    public WebHookEvents Events { get; set; } = new();
+    public Dictionary<long, TenantWebHookConfig> Tenants { get; set; } = new();
 
     /// <summary>
     /// Represents the settings for the HTTP server handling WebHooks.
@@ -69,6 +70,17 @@ public class WebHookSettings : IEndatixSettings
         /// </summary>
         [Range(1, 100)]
         public int MaxQueueSize { get; set; } = DEFAULT_MAX_QUEUE_SIZE;
+    }
+
+    /// <summary>
+    /// Represents a tenant's webhook configuration.
+    /// </summary>
+    public class TenantWebHookConfig
+    {
+        /// <summary>
+        /// The webhook events configuration for this tenant.
+        /// </summary>
+        public WebHookEvents Events { get; set; } = new();
     }
 
     /// <summary>

@@ -33,6 +33,6 @@ public class FormUpdatedWebHookHandler(IWebHookService webHookService, ILogger<F
             WebHookOperation.FormUpdated,
             form);
 
-        await webHookService.EnqueueWebHookAsync(message, cancellationToken);
+        await webHookService.EnqueueWebHookAsync(notification.Form.TenantId, message, cancellationToken);
     }
 } 

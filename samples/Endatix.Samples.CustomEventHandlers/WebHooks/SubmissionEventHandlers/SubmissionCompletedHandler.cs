@@ -32,6 +32,6 @@ internal class SubmissionCompletedHandler(IWebHookService webHookService, ILogge
             WebHookOperation.SubmissionCompleted,
             submission);
 
-        await webHookService.EnqueueWebHookAsync(message, cancellationToken);
+        await webHookService.EnqueueWebHookAsync(notification.Submission.TenantId, message, cancellationToken);
     }
 }

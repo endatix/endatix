@@ -13,17 +13,18 @@ public class BackgroundTaskWebHookServiceTests
     private readonly IBackgroundTasksQueue _backgroundQueue;
     private readonly WebHookServer _webHookServer;
     private readonly IOptions<WebHookSettings> _options;
+    private const long TEST_TENANT_ID = 1;
 
     public BackgroundTaskWebHookServiceTests()
     {
         _logger = Substitute.For<ILogger<BackgroundTaskWebHookService>>();
         _backgroundQueue = Substitute.For<IBackgroundTasksQueue>();
-        
+
         // WebHookServer requires HttpClient and ILogger<WebHookServer> constructor arguments
         var httpClient = Substitute.For<HttpClient>();
         var webHookLogger = Substitute.For<ILogger<WebHookServer>>();
         _webHookServer = Substitute.For<WebHookServer>(httpClient, webHookLogger);
-        
+
         _options = Substitute.For<IOptions<WebHookSettings>>();
     }
 
@@ -38,7 +39,7 @@ public class BackgroundTaskWebHookServiceTests
         var message = CreateTestWebHookMessage("form_created");
 
         // Act
-        await service.EnqueueWebHookAsync(message, CancellationToken.None);
+        await service.EnqueueWebHookAsync(TEST_TENANT_ID, message, CancellationToken.None);
 
         // Assert
         await _backgroundQueue.DidNotReceive().EnqueueAsync(Arg.Any<Func<CancellationToken, ValueTask>>());
@@ -59,7 +60,7 @@ public class BackgroundTaskWebHookServiceTests
         var message = CreateTestWebHookMessage("form_created");
 
         // Act
-        await service.EnqueueWebHookAsync(message, CancellationToken.None);
+        await service.EnqueueWebHookAsync(TEST_TENANT_ID, message, CancellationToken.None);
 
         // Assert
         await _backgroundQueue.Received(2).EnqueueAsync(Arg.Any<Func<CancellationToken, ValueTask>>());
@@ -80,7 +81,7 @@ public class BackgroundTaskWebHookServiceTests
         var message = CreateTestWebHookMessage("form_updated");
 
         // Act
-        await service.EnqueueWebHookAsync(message, CancellationToken.None);
+        await service.EnqueueWebHookAsync(TEST_TENANT_ID, message, CancellationToken.None);
 
         // Assert
         await _backgroundQueue.Received(2).EnqueueAsync(Arg.Any<Func<CancellationToken, ValueTask>>());
@@ -106,7 +107,7 @@ public class BackgroundTaskWebHookServiceTests
         var message = CreateTestWebHookMessage("submission_completed");
 
         // Act
-        await service.EnqueueWebHookAsync(message, CancellationToken.None);
+        await service.EnqueueWebHookAsync(TEST_TENANT_ID, message, CancellationToken.None);
 
         // Assert
         await _backgroundQueue.Received(2).EnqueueAsync(Arg.Any<Func<CancellationToken, ValueTask>>());
@@ -123,7 +124,7 @@ public class BackgroundTaskWebHookServiceTests
         var message = CreateTestWebHookMessage("form_deleted");
 
         // Act
-        await service.EnqueueWebHookAsync(message, CancellationToken.None);
+        await service.EnqueueWebHookAsync(TEST_TENANT_ID, message, CancellationToken.None);
 
         // Assert
         await _backgroundQueue.DidNotReceive().EnqueueAsync(Arg.Any<Func<CancellationToken, ValueTask>>());
@@ -140,7 +141,7 @@ public class BackgroundTaskWebHookServiceTests
         var message = CreateTestWebHookMessage("form_enabled_state_changed");
 
         // Act
-        await service.EnqueueWebHookAsync(message, CancellationToken.None);
+        await service.EnqueueWebHookAsync(TEST_TENANT_ID, message, CancellationToken.None);
 
         // Assert
         await _backgroundQueue.DidNotReceive().EnqueueAsync(Arg.Any<Func<CancellationToken, ValueTask>>());
@@ -172,7 +173,7 @@ public class BackgroundTaskWebHookServiceTests
         var message = CreateTestWebHookMessage("form_created");
 
         // Act
-        await service.EnqueueWebHookAsync(message, CancellationToken.None);
+        await service.EnqueueWebHookAsync(TEST_TENANT_ID, message, CancellationToken.None);
 
         // Assert
         await _backgroundQueue.Received(1).EnqueueAsync(Arg.Any<Func<CancellationToken, ValueTask>>());
@@ -193,7 +194,7 @@ public class BackgroundTaskWebHookServiceTests
         var cancellationToken = new CancellationToken();
 
         // Act
-        await service.EnqueueWebHookAsync(message, cancellationToken);
+        await service.EnqueueWebHookAsync(TEST_TENANT_ID, message, cancellationToken);
 
         // Assert
         await _backgroundQueue.Received(1).EnqueueAsync(Arg.Any<Func<CancellationToken, ValueTask>>());
@@ -218,7 +219,7 @@ public class BackgroundTaskWebHookServiceTests
         var message = CreateTestWebHookMessage(eventName);
 
         // Act
-        await service.EnqueueWebHookAsync(message, CancellationToken.None);
+        await service.EnqueueWebHookAsync(TEST_TENANT_ID, message, CancellationToken.None);
 
         // Assert
         await _backgroundQueue.Received(1).EnqueueAsync(Arg.Any<Func<CancellationToken, ValueTask>>());
@@ -244,128 +245,164 @@ public class BackgroundTaskWebHookServiceTests
     {
         return new WebHookSettings
         {
-            Events = new WebHookSettings.WebHookEvents
+            Tenants = new Dictionary<long, WebHookSettings.TenantWebHookConfig>
             {
-                FormCreated = new WebHookSettings.EventSetting { EventName = "form_created", IsEnabled = false },
-                FormUpdated = new WebHookSettings.EventSetting { EventName = "form_updated", IsEnabled = false },
-                FormEnabledStateChanged = new WebHookSettings.EventSetting { EventName = "form_enabled_state_changed", IsEnabled = false },
-                SubmissionCompleted = new WebHookSettings.EventSetting { EventName = "submission_completed", IsEnabled = false },
-                FormDeleted = new WebHookSettings.EventSetting { EventName = "form_deleted", IsEnabled = false }
+                [TEST_TENANT_ID] = new WebHookSettings.TenantWebHookConfig
+                {
+                    Events = new WebHookSettings.WebHookEvents
+                    {
+                    FormCreated = new WebHookSettings.EventSetting { EventName = "form_created", IsEnabled = false },
+                    FormUpdated = new WebHookSettings.EventSetting { EventName = "form_updated", IsEnabled = false },
+                    FormEnabledStateChanged = new WebHookSettings.EventSetting { EventName = "form_enabled_state_changed", IsEnabled = false },
+                    SubmissionCompleted = new WebHookSettings.EventSetting { EventName = "submission_completed", IsEnabled = false },
+                    FormDeleted = new WebHookSettings.EventSetting { EventName = "form_deleted", IsEnabled = false }
+                    }
+                }
             }
         };
     }
 
     private static WebHookSettings CreateSettingsWithEnabledFormCreated(
-        IEnumerable<WebHookEndpoint>? endpoints = null, 
+        IEnumerable<WebHookEndpoint>? endpoints = null,
         IEnumerable<string>? urls = null)
     {
         return new WebHookSettings
         {
-            Events = new WebHookSettings.WebHookEvents
+            Tenants = new Dictionary<long, WebHookSettings.TenantWebHookConfig>
             {
-                FormCreated = new WebHookSettings.EventSetting 
-                { 
-                    EventName = "form_created", 
-                    IsEnabled = true,
-                    WebHookEndpoints = endpoints,
-                    WebHookUrls = urls
-                },
-                FormUpdated = new WebHookSettings.EventSetting { EventName = "form_updated", IsEnabled = false },
-                FormEnabledStateChanged = new WebHookSettings.EventSetting { EventName = "form_enabled_state_changed", IsEnabled = false },
-                SubmissionCompleted = new WebHookSettings.EventSetting { EventName = "submission_completed", IsEnabled = false },
-                FormDeleted = new WebHookSettings.EventSetting { EventName = "form_deleted", IsEnabled = false }
+                [TEST_TENANT_ID] = new WebHookSettings.TenantWebHookConfig
+                {
+                    Events = new WebHookSettings.WebHookEvents
+                    {
+                    FormCreated = new WebHookSettings.EventSetting
+                    {
+                        EventName = "form_created",
+                        IsEnabled = true,
+                        WebHookEndpoints = endpoints,
+                        WebHookUrls = urls
+                    },
+                    FormUpdated = new WebHookSettings.EventSetting { EventName = "form_updated", IsEnabled = false },
+                    FormEnabledStateChanged = new WebHookSettings.EventSetting { EventName = "form_enabled_state_changed", IsEnabled = false },
+                    SubmissionCompleted = new WebHookSettings.EventSetting { EventName = "submission_completed", IsEnabled = false },
+                    FormDeleted = new WebHookSettings.EventSetting { EventName = "form_deleted", IsEnabled = false }
+                    }
+                }
             }
         };
     }
 
     private static WebHookSettings CreateSettingsWithEnabledFormUpdated(
-        IEnumerable<WebHookEndpoint>? endpoints = null, 
+        IEnumerable<WebHookEndpoint>? endpoints = null,
         IEnumerable<string>? urls = null)
     {
         return new WebHookSettings
         {
-            Events = new WebHookSettings.WebHookEvents
+            Tenants = new Dictionary<long, WebHookSettings.TenantWebHookConfig>
             {
-                FormCreated = new WebHookSettings.EventSetting { EventName = "form_created", IsEnabled = false },
-                FormUpdated = new WebHookSettings.EventSetting 
-                { 
-                    EventName = "form_updated", 
-                    IsEnabled = true,
-                    WebHookEndpoints = endpoints,
-                    WebHookUrls = urls
-                },
-                FormEnabledStateChanged = new WebHookSettings.EventSetting { EventName = "form_enabled_state_changed", IsEnabled = false },
-                SubmissionCompleted = new WebHookSettings.EventSetting { EventName = "submission_completed", IsEnabled = false },
-                FormDeleted = new WebHookSettings.EventSetting { EventName = "form_deleted", IsEnabled = false }
+                [TEST_TENANT_ID] = new WebHookSettings.TenantWebHookConfig
+                {
+                    Events = new WebHookSettings.WebHookEvents
+                    {
+                    FormCreated = new WebHookSettings.EventSetting { EventName = "form_created", IsEnabled = false },
+                    FormUpdated = new WebHookSettings.EventSetting
+                    {
+                        EventName = "form_updated",
+                        IsEnabled = true,
+                        WebHookEndpoints = endpoints,
+                        WebHookUrls = urls
+                    },
+                    FormEnabledStateChanged = new WebHookSettings.EventSetting { EventName = "form_enabled_state_changed", IsEnabled = false },
+                    SubmissionCompleted = new WebHookSettings.EventSetting { EventName = "submission_completed", IsEnabled = false },
+                    FormDeleted = new WebHookSettings.EventSetting { EventName = "form_deleted", IsEnabled = false }
+                    }
+                }
             }
         };
     }
 
     private static WebHookSettings CreateSettingsWithEnabledSubmissionCompleted(
-        IEnumerable<WebHookEndpoint>? endpoints = null, 
+        IEnumerable<WebHookEndpoint>? endpoints = null,
         IEnumerable<string>? urls = null)
     {
         return new WebHookSettings
         {
-            Events = new WebHookSettings.WebHookEvents
+            Tenants = new Dictionary<long, WebHookSettings.TenantWebHookConfig>
             {
-                FormCreated = new WebHookSettings.EventSetting { EventName = "form_created", IsEnabled = false },
-                FormUpdated = new WebHookSettings.EventSetting { EventName = "form_updated", IsEnabled = false },
-                FormEnabledStateChanged = new WebHookSettings.EventSetting { EventName = "form_enabled_state_changed", IsEnabled = false },
-                SubmissionCompleted = new WebHookSettings.EventSetting 
-                { 
-                    EventName = "submission_completed", 
-                    IsEnabled = true,
-                    WebHookEndpoints = endpoints,
-                    WebHookUrls = urls
-                },
-                FormDeleted = new WebHookSettings.EventSetting { EventName = "form_deleted", IsEnabled = false }
+                [TEST_TENANT_ID] = new WebHookSettings.TenantWebHookConfig
+                {
+                    Events = new WebHookSettings.WebHookEvents
+                    {
+                    FormCreated = new WebHookSettings.EventSetting { EventName = "form_created", IsEnabled = false },
+                    FormUpdated = new WebHookSettings.EventSetting { EventName = "form_updated", IsEnabled = false },
+                    FormEnabledStateChanged = new WebHookSettings.EventSetting { EventName = "form_enabled_state_changed", IsEnabled = false },
+                    SubmissionCompleted = new WebHookSettings.EventSetting
+                    {
+                        EventName = "submission_completed",
+                        IsEnabled = true,
+                        WebHookEndpoints = endpoints,
+                        WebHookUrls = urls
+                    },
+                    FormDeleted = new WebHookSettings.EventSetting { EventName = "form_deleted", IsEnabled = false }
+                    }
+                }
             }
         };
     }
 
     private static WebHookSettings CreateSettingsWithEnabledFormDeleted(
-        IEnumerable<WebHookEndpoint>? endpoints = null, 
+        IEnumerable<WebHookEndpoint>? endpoints = null,
         IEnumerable<string>? urls = null)
     {
         return new WebHookSettings
         {
-            Events = new WebHookSettings.WebHookEvents
+            Tenants = new Dictionary<long, WebHookSettings.TenantWebHookConfig>
             {
-                FormCreated = new WebHookSettings.EventSetting { EventName = "form_created", IsEnabled = false },
-                FormUpdated = new WebHookSettings.EventSetting { EventName = "form_updated", IsEnabled = false },
-                FormEnabledStateChanged = new WebHookSettings.EventSetting { EventName = "form_enabled_state_changed", IsEnabled = false },
-                SubmissionCompleted = new WebHookSettings.EventSetting { EventName = "submission_completed", IsEnabled = false },
-                FormDeleted = new WebHookSettings.EventSetting 
-                { 
-                    EventName = "form_deleted", 
-                    IsEnabled = true,
-                    WebHookEndpoints = endpoints,
-                    WebHookUrls = urls
+                [TEST_TENANT_ID] = new WebHookSettings.TenantWebHookConfig
+                {
+                    Events = new WebHookSettings.WebHookEvents
+                    {
+                    FormCreated = new WebHookSettings.EventSetting { EventName = "form_created", IsEnabled = false },
+                    FormUpdated = new WebHookSettings.EventSetting { EventName = "form_updated", IsEnabled = false },
+                    FormEnabledStateChanged = new WebHookSettings.EventSetting { EventName = "form_enabled_state_changed", IsEnabled = false },
+                    SubmissionCompleted = new WebHookSettings.EventSetting { EventName = "submission_completed", IsEnabled = false },
+                    FormDeleted = new WebHookSettings.EventSetting
+                    {
+                        EventName = "form_deleted",
+                        IsEnabled = true,
+                        WebHookEndpoints = endpoints,
+                        WebHookUrls = urls
+                    }
+                    }
                 }
             }
         };
     }
 
     private static WebHookSettings CreateSettingsWithEnabledFormEnabledStateChanged(
-        IEnumerable<WebHookEndpoint>? endpoints = null, 
+        IEnumerable<WebHookEndpoint>? endpoints = null,
         IEnumerable<string>? urls = null)
     {
         return new WebHookSettings
         {
-            Events = new WebHookSettings.WebHookEvents
+            Tenants = new Dictionary<long, WebHookSettings.TenantWebHookConfig>
             {
-                FormCreated = new WebHookSettings.EventSetting { EventName = "form_created", IsEnabled = false },
-                FormUpdated = new WebHookSettings.EventSetting { EventName = "form_updated", IsEnabled = false },
-                FormEnabledStateChanged = new WebHookSettings.EventSetting 
-                { 
-                    EventName = "form_enabled_state_changed", 
-                    IsEnabled = true,
-                    WebHookEndpoints = endpoints,
-                    WebHookUrls = urls
-                },
-                SubmissionCompleted = new WebHookSettings.EventSetting { EventName = "submission_completed", IsEnabled = false },
-                FormDeleted = new WebHookSettings.EventSetting { EventName = "form_deleted", IsEnabled = false }
+                [TEST_TENANT_ID] = new WebHookSettings.TenantWebHookConfig
+                {
+                    Events = new WebHookSettings.WebHookEvents
+                    {
+                    FormCreated = new WebHookSettings.EventSetting { EventName = "form_created", IsEnabled = false },
+                    FormUpdated = new WebHookSettings.EventSetting { EventName = "form_updated", IsEnabled = false },
+                    FormEnabledStateChanged = new WebHookSettings.EventSetting
+                    {
+                        EventName = "form_enabled_state_changed",
+                        IsEnabled = true,
+                        WebHookEndpoints = endpoints,
+                        WebHookUrls = urls
+                    },
+                    SubmissionCompleted = new WebHookSettings.EventSetting { EventName = "submission_completed", IsEnabled = false },
+                    FormDeleted = new WebHookSettings.EventSetting { EventName = "form_deleted", IsEnabled = false }
+                    }
+                }
             }
         };
     }
