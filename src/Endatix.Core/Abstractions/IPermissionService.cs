@@ -58,6 +58,16 @@ public interface IPermissionService
     /// <returns>Complete user role and permission information.</returns>
     Task<Result<UserRoleInfo>> GetUserRoleInfoAsync(long userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Validates whether the current user has the required permission.
+    /// Checks authentication, admin status, and specific permission.
+    /// </summary>
+    /// <param name="userId">The user ID (can be null for anonymous users).</param>
+    /// <param name="requiredPermission">The permission required for access.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Success if access is granted, Unauthorized if not authenticated, Forbidden if lacking permission.</returns>
+    Task<Result> ValidateAccessAsync(string? userId, string requiredPermission, CancellationToken cancellationToken = default);
+
     // Note: Advanced methods like batch operations, cache management, and statistics
     // can be added later when needed. Keeping interface minimal for now.
 }

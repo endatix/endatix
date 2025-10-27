@@ -83,6 +83,8 @@ public static partial class ResultExtensions
         {
             ResultStatus.Invalid => StatusCodes.Status400BadRequest,
             ResultStatus.NotFound => StatusCodes.Status404NotFound,
+            ResultStatus.Unauthorized => StatusCodes.Status401Unauthorized,
+            ResultStatus.Forbidden => StatusCodes.Status403Forbidden,
             ResultStatus.Error => StatusCodes.Status500InternalServerError,
             _ => StatusCodes.Status500InternalServerError
         };
