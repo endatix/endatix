@@ -9,18 +9,20 @@ public partial class Form : TenantEntity, IAggregateRoot
 
     private Form() { } // For EF Core
 
-    public Form(long tenantId, string name, string? description = null, bool isEnabled = false)
+    public Form(long tenantId, string name, string? description = null, bool isEnabled = false, bool isPublic = true)
         : base(tenantId)
     {
         Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
+        IsPublic = isPublic;
     }
 
     public string Name { get; set; }
     public string? Description { get; set; }
     public bool IsEnabled { get; set; }
+    public bool IsPublic { get; set; }
 
     public long? ActiveDefinitionId { get; private set; }
     public FormDefinition? ActiveDefinition { get; private set; }

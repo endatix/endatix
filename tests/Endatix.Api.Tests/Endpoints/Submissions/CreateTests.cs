@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
@@ -39,8 +40,9 @@ public class CreateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
-        badRequestResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]
@@ -109,7 +111,8 @@ public class CreateTests
                 cmd.JsonData == request.JsonData &&
                 cmd.Metadata == request.Metadata &&
                 cmd.ReCaptchaToken == request.ReCaptchaToken &&
-                cmd.SubmittedBy == userId
+                cmd.SubmittedBy == userId &&
+                cmd.RequiredPermission == "submissions.create"
             ),
             Arg.Any<CancellationToken>()
         );
@@ -146,7 +149,8 @@ public class CreateTests
                 cmd.JsonData == request.JsonData &&
                 cmd.Metadata == request.Metadata &&
                 cmd.ReCaptchaToken == request.ReCaptchaToken &&
-                cmd.SubmittedBy == null
+                cmd.SubmittedBy == null &&
+                cmd.RequiredPermission == "submissions.create"
             ),
             Arg.Any<CancellationToken>()
         );
@@ -166,9 +170,10 @@ public class CreateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
-        badRequestResult.Should().NotBeNull();
-        badRequestResult!.Value!.Detail.Should().Be(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED);
-        badRequestResult!.Value!.Extensions["errorCode"].Should().Be(ReCaptchaErrors.ErrorCodes.RECAPTCHA_VERIFICATION_FAILED);
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problemResult!.ProblemDetails.Detail.Should().Contain(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED);
+        problemResult!.ProblemDetails.Extensions["errorCode"].Should().Be(ReCaptchaErrors.ErrorCodes.RECAPTCHA_VERIFICATION_FAILED);
     }
 }

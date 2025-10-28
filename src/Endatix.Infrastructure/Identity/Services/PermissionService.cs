@@ -691,4 +691,34 @@ internal sealed class PermissionService : IPermissionService
             return Result.Error("Failed to check admin status");
         }
     }
+
+    public async Task<Result> ValidateAccessAsync(string? userId, string requiredPermission, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(userId) || !long.TryParse(userId, out var parsedUserId))
+            {
+                return Result.Unauthorized("Authentication required to access this resource.");
+            }
+
+            var isAdminResult = await IsUserAdminAsync(parsedUserId, cancellationToken);
+            if (isAdminResult.IsSuccess && isAdminResult.Value)
+            {
+                return Result.Success();
+            }
+
+            var hasPermissionResult = await HasPermissionAsync(parsedUserId, requiredPermission, cancellationToken);
+            if (hasPermissionResult.IsSuccess && hasPermissionResult.Value)
+            {
+                return Result.Success();
+            }
+
+            return Result.Forbidden($"Permission '{requiredPermission}' required to access this resource.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating access for user {UserId} and permission {Permission}", userId, requiredPermission);
+            return Result.Error("Failed to validate access");
+        }
+    }
 }
