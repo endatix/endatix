@@ -96,7 +96,7 @@ public class AuthServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.ValidationErrors.Should().NotBeNull();
-        result.ValidationErrors.First().ErrorMessage.Should().Contain("User not found");
+        result.ValidationErrors.First().ErrorMessage.Should().Contain(AuthService.INVALID_CREDENTIALS_ERROR_MESSAGE);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class AuthServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.ValidationErrors.Should().NotBeNull();
-        result.ValidationErrors.First().ErrorMessage.Should().Contain("User not found");
+        result.ValidationErrors.First().ErrorMessage.Should().Contain(AuthService.INVALID_CREDENTIALS_ERROR_MESSAGE);
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class AuthServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.ValidationErrors.Should().NotBeNull();
-        result.ValidationErrors.First().ErrorMessage.Should().Contain("The supplied credentials are invalid!");
+        result.ValidationErrors.First().ErrorMessage.Should().Contain(AuthService.INVALID_CREDENTIALS_ERROR_MESSAGE);
     }
 
     [Fact]
