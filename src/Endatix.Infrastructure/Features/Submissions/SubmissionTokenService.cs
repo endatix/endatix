@@ -60,7 +60,14 @@ public class SubmissionTokenService : ISubmissionTokenService
 
         if (submission.IsComplete)
         {
-            return Result.NotFound("Submission completed");
+            var tenantSettings = await _tenantSettingsRepository
+                .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(submission.TenantId), cancellationToken);
+            Guard.Against.Null(tenantSettings, "Tenant settings must be configured.");
+
+            if (!tenantSettings.IsSubmissionTokenValidAfterCompletion)
+            {
+                return Result.NotFound("Submission completed");
+            }
         }
 
         return Result<long>.Success(submission.Id);

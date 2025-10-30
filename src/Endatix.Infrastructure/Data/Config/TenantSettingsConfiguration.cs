@@ -19,6 +19,10 @@ public class TenantSettingsConfiguration : IEntityTypeConfiguration<TenantSettin
         builder.Property(ts => ts.SubmissionTokenExpiryHours)
             .IsRequired(false); // Nullable - null means no expiration
 
+        builder.Property(ts => ts.IsSubmissionTokenValidAfterCompletion)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(ts => ts.ModifiedAt)
             .IsRequired(false);
 

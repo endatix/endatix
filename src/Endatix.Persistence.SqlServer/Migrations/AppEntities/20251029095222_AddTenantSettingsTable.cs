@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
+namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     /// <inheritdoc />
     public partial class AddTenantSettingsTable : Migration
@@ -17,10 +17,10 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 columns: table => new
                 {
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
-                    SubmissionTokenExpiryHours = table.Column<int>(type: "integer", nullable: true),
-                    IsSubmissionTokenValidAfterCompletion = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
-                    SlackSettingsJson = table.Column<string>(type: "text", nullable: true),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    SubmissionTokenExpiryHours = table.Column<int>(type: "int", nullable: true),
+                    IsSubmissionTokenValidAfterCompletion = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    SlackSettingsJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -35,15 +35,15 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
             // Migrate data from Tenants to TenantSettings
             migrationBuilder.Sql(@"
-                INSERT INTO ""TenantSettings"" (""TenantId"", ""SubmissionTokenExpiryHours"", ""IsSubmissionTokenValidAfterCompletion"", ""SlackSettingsJson"", ""ModifiedAt"")
+                INSERT INTO [TenantSettings] ([TenantId], [SubmissionTokenExpiryHours], [IsSubmissionTokenValidAfterCompletion], [SlackSettingsJson], [ModifiedAt])
                 SELECT
-                    ""Id"" as ""TenantId"",
-                    24 as ""SubmissionTokenExpiryHours"",
-                    false as ""IsSubmissionTokenValidAfterCompletion"",
-                    ""SlackSettingsJson"",
-                    NULL as ""ModifiedAt""
-                FROM ""Tenants""
-                WHERE ""IsDeleted"" = false;
+                    [Id] as [TenantId],
+                    24 as [SubmissionTokenExpiryHours],
+                    0 as [IsSubmissionTokenValidAfterCompletion],
+                    [SlackSettingsJson],
+                    NULL as [ModifiedAt]
+                FROM [Tenants]
+                WHERE [IsDeleted] = 0;
             ");
 
             // Drop SlackSettingsJson column from Tenants table
@@ -59,15 +59,15 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             migrationBuilder.AddColumn<string>(
                 name: "SlackSettingsJson",
                 table: "Tenants",
-                type: "text",
+                type: "nvarchar(max)",
                 nullable: true);
 
             // Restore data from TenantSettings to Tenants
             migrationBuilder.Sql(@"
-                UPDATE ""Tenants"" t
-                SET ""SlackSettingsJson"" = ts.""SlackSettingsJson""
-                FROM ""TenantSettings"" ts
-                WHERE t.""Id"" = ts.""TenantId"";
+                UPDATE t
+                SET t.[SlackSettingsJson] = ts.[SlackSettingsJson]
+                FROM [Tenants] t
+                INNER JOIN [TenantSettings] ts ON t.[Id] = ts.[TenantId];
             ");
 
             // Drop TenantSettings table

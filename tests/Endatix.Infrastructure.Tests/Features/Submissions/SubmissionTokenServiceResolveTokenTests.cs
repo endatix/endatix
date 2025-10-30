@@ -79,15 +79,21 @@ public class SubmissionTokenServiceResolveTokenTests
     }
 
     [Fact]
-    public async Task ResolveToken_WhenSubmissionIsComplete_ReturnsNotFound()
+    public async Task ResolveToken_WhenSubmissionIsCompleteAndTokenNotValidAfterCompletion_ReturnsNotFound()
     {
         // Arrange
         var formId = 1L;
         var formDefinitionId = 2L;
         var token = "valid-token";
-        var submission = new Submission(TENANT_ID, "{ }", formId,formDefinitionId, isComplete: true);
+        var submission = new Submission(TENANT_ID, "{ }", formId, formDefinitionId, isComplete: true);
         submission.UpdateToken(new Token(24));
         _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
+
+        // Configure tenant settings to NOT allow token access after completion
+        var tenantSettings = new TenantSettings(TENANT_ID, submissionTokenExpiryHours: 24, isSubmissionTokenValidAfterCompletion: false);
+        _tenantSettingsRepository.FirstOrDefaultAsync(
+            Arg.Any<TenantSettingsByTenantIdSpec>(),
+            Arg.Any<CancellationToken>()).Returns(tenantSettings);
 
         // Act
         var result = await _sut.ResolveTokenAsync(token, CancellationToken.None);
@@ -95,5 +101,31 @@ public class SubmissionTokenServiceResolveTokenTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().Contain("Submission completed");
+    }
+
+    [Fact]
+    public async Task ResolveToken_WhenSubmissionIsCompleteAndTokenValidAfterCompletion_ReturnsSuccess()
+    {
+        // Arrange
+        var formId = 1L;
+        var formDefinitionId = 2L;
+        var submissionId = 1L;
+        var token = "valid-token";
+        var submission = new Submission(TENANT_ID, "{ }", formId, formDefinitionId, isComplete: true) { Id = submissionId };
+        submission.UpdateToken(new Token(24));
+        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
+
+        // Configure tenant settings to allow token access after completion
+        var tenantSettings = new TenantSettings(TENANT_ID, submissionTokenExpiryHours: 24, isSubmissionTokenValidAfterCompletion: true);
+        _tenantSettingsRepository.FirstOrDefaultAsync(
+            Arg.Any<TenantSettingsByTenantIdSpec>(),
+            Arg.Any<CancellationToken>()).Returns(tenantSettings);
+
+        // Act
+        var result = await _sut.ResolveTokenAsync(token, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(submissionId);
     }
 }

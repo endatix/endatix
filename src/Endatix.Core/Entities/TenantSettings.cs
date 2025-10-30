@@ -15,12 +15,13 @@ public class TenantSettings : IAggregateRoot
 
     private TenantSettings() { } // For EF Core
 
-    public TenantSettings(long tenantId, int? submissionTokenExpiryHours = 24, string? slackSettingsJson = null)
+    public TenantSettings(long tenantId, int? submissionTokenExpiryHours = 24, bool isSubmissionTokenValidAfterCompletion = false, string? slackSettingsJson = null)
     {
         Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
 
         TenantId = tenantId;
         SubmissionTokenExpiryHours = submissionTokenExpiryHours;
+        IsSubmissionTokenValidAfterCompletion = isSubmissionTokenValidAfterCompletion;
         SlackSettingsJson = slackSettingsJson;
     }
 
@@ -34,6 +35,13 @@ public class TenantSettings : IAggregateRoot
     /// Null value indicates that tokens never expire.
     /// </summary>
     public int? SubmissionTokenExpiryHours { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether submission tokens remain valid after submission completion.
+    /// When true, tokens can be used to access completed submissions.
+    /// When false (default), tokens become invalid once a submission is marked as complete.
+    /// </summary>
+    public bool IsSubmissionTokenValidAfterCompletion { get; private set; }
 
     public string? SlackSettingsJson
     {
@@ -72,6 +80,15 @@ public class TenantSettings : IAggregateRoot
         }
 
         SubmissionTokenExpiryHours = hours;
+    }
+
+    /// <summary>
+    /// Updates whether submission tokens remain valid after completion.
+    /// </summary>
+    /// <param name="isValid">True to allow token access after completion, false otherwise.</param>
+    public void UpdateSubmissionTokenValidAfterCompletion(bool isValid)
+    {
+        IsSubmissionTokenValidAfterCompletion = isValid;
     }
 
     /// <summary>
