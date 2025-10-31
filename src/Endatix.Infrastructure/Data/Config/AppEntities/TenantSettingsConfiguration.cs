@@ -2,8 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Entities;
 
-namespace Endatix.Infrastructure.Data.Config;
+namespace Endatix.Infrastructure.Data.Config.AppEntities;
 
+[ApplyConfigurationFor<AppDbContext>()]
 public class TenantSettingsConfiguration : IEntityTypeConfiguration<TenantSettings>
 {
     public void Configure(EntityTypeBuilder<TenantSettings> builder)
