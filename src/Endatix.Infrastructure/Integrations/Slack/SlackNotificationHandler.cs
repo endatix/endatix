@@ -3,6 +3,7 @@ using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Specifications;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -14,7 +15,7 @@ public class SlackNotificationHandler : INotificationHandler<SubmissionCompleted
 {
     private readonly ILogger<SlackNotificationHandler> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IRepository<Tenant> _tenantRepository;
+    private readonly IRepository<TenantSettings> _tenantSettingsRepository;
     private readonly IRepository<Form> _formRepository;
 
     //TODO: The Slack message template should be configurable through the Hub's UI
@@ -27,12 +28,12 @@ public class SlackNotificationHandler : INotificationHandler<SubmissionCompleted
     public SlackNotificationHandler(
         ILogger<SlackNotificationHandler> logger,
         IHttpClientFactory httpClientFactory,
-        IRepository<Tenant> tenantRepository,
+        IRepository<TenantSettings> tenantSettingsRepository,
         IRepository<Form> formRepository)
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
-        _tenantRepository = tenantRepository;
+        _tenantSettingsRepository = tenantSettingsRepository;
         _formRepository = formRepository;
     }
 
@@ -44,16 +45,17 @@ public class SlackNotificationHandler : INotificationHandler<SubmissionCompleted
             return;
         }
 
-        var tenant = await _tenantRepository.GetByIdAsync(notification.Submission.TenantId, cancellationToken);
-        Guard.Against.Null(tenant, nameof(tenant));
+        var tenantSettings = await _tenantSettingsRepository.FirstOrDefaultAsync(
+            new TenantSettingsByTenantIdSpec(notification.Submission.TenantId), cancellationToken);
+        Guard.Against.Null(tenantSettings, "Tenant settings must be configured.");
 
         var form = await _formRepository.GetByIdAsync(notification.Submission.FormId, cancellationToken);
 
-        var slackSettings = tenant.SlackSettings;
+        var slackSettings = tenantSettings.SlackSettings;
         Guard.Against.Null(slackSettings.Active, nameof(slackSettings.Active), "Slack settings must specify whether the integration is active.");
         if (!slackSettings.Active!.Value)
         {
-            _logger.LogInformation($"Slack notifications are not active for tenant {tenant.Name} with ID {tenant.Id}");
+            _logger.LogInformation($"Slack notifications are not active for tenant with ID {notification.Submission.TenantId}");
             return;
         }
 
