@@ -51,12 +51,12 @@ public sealed class User : TenantEntity, IAggregateRoot
     /// <summary>
     /// The user's chosen username for the application.
     /// </summary>
-    public string UserName { get; private set; }
+    public string UserName { get; private set; } = null!;
 
     /// <summary>
     /// The user's email address.
     /// </summary>
-    public string Email { get; private set; }
+    public string Email { get; private set; } = null!;
 
     /// <summary>
     /// Indicates whether the user's account is verified, typically through email confirmation.
