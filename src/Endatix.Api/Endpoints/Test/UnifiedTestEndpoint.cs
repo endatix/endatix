@@ -101,7 +101,7 @@ public class UnifiedTestEndpoint : Endpoint<UnifiedTestRequest, UnifiedTestRespo
             response.Error = ex.ToString();
         }
 
-        await SendOkAsync(response, ct);
+        await Send.OkAsync(response, ct);
     }
 
     private async Task SeedTestDataAsync()
