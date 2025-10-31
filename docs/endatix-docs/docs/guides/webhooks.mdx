@@ -42,6 +42,7 @@ Add the following NuGet packages to your project:
 Create handlers for the events you want to process. Here's an example of a `FormCreated` event handler:
 
 ```csharp
+using Endatix.Core.Abstractions;
 using Endatix.Core.Events;
 using Endatix.Core.Features.WebHooks;
 using MediatR;
@@ -49,7 +50,7 @@ using Microsoft.Extensions.Logging;
 
 namespace YourCompany.Endatix.WebHooks.FormEventHandlers;
 
-public class FormCreatedHandler(IWebHookService webHookService, ILogger<FormCreatedHandler> logger) : INotificationHandler<FormCreatedEvent>
+public class FormCreatedHandler(IWebHookService webHookService, ILogger<FormCreatedHandler> logger, IIdGenerator<long> idGenerator) : INotificationHandler<FormCreatedEvent>
 {
     public async Task Handle(FormCreatedEvent notification, CancellationToken cancellationToken)
     {
@@ -57,23 +58,23 @@ public class FormCreatedHandler(IWebHookService webHookService, ILogger<FormCrea
 
         var form = new
         {
-            notification.Form.Id,
-            notification.Form.TenantId,
-            notification.Form.Name,
-            notification.Form.Description,
-            notification.Form.IsEnabled,
-            notification.Form.ActiveDefinitionId,
-            notification.Form.ThemeId,
-            notification.Form.CreatedAt,
-            notification.Form.ModifiedAt,
+            formId = notification.Form.Id,
+            tenantId = notification.Form.TenantId,
+            name = notification.Form.Name,
+            description = notification.Form.Description,
+            isEnabled = notification.Form.IsEnabled,
+            activeDefinitionId = notification.Form.ActiveDefinitionId,
+            themeId = notification.Form.ThemeId,
+            createdAt = notification.Form.CreatedAt,
+            modifiedAt = notification.Form.ModifiedAt,
         };
 
         var message = new WebHookMessage<object>(
-            notification.Form.Id,
+            idGenerator.CreateId(),
             WebHookOperation.FormCreated,
             form);
 
-        await webHookService.EnqueueWebHookAsync(message, cancellationToken);
+        await webHookService.EnqueueWebHookAsync(notification.Form.TenantId, message, cancellationToken);
     }
 }
 ```
@@ -320,10 +321,10 @@ You can also mix both approaches in the same event configuration:
 
 Each webhook message contains:
 
-- `Id`: The ID of the entity that triggered the event
+- `Id`: Unique Snowflake-generated webhook message id
 - `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_deleted`, `submission_completed`)
 - `Action`: The action that triggered the event (e.g., `created`, `updated`, `deleted`)
-- `Payload`: The event data specific to the operation, containing the complete entity data
+- `Payload`: The event data specific to the operation, containing the complete entity data. It includes explicit entity identifier fields, such as `formId` for form events and `submissionId` for submission events
 
 ## Best Practices
 

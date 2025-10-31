@@ -1,51 +1,52 @@
 <Project>
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <AspNetVersion>9.0.0</AspNetVersion>
-    <EFCoreVersion>9.0.4</EFCoreVersion>
+    <AspNetVersion>9.0.9</AspNetVersion>
+    <EFCoreVersion>9.0.9</EFCoreVersion>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Ardalis.EFCore.Extensions" Version="6.0.0" />
     <PackageVersion Include="Ardalis.GuardClauses" Version="5.0.0" />
-    <PackageVersion Include="Ardalis.Specification" Version="8.0.0" />
-    <PackageVersion Include="Ardalis.Specification.EntityFrameworkCore" Version="8.0.0" />
-    <PackageVersion Include="CsvHelper" Version="33.0.1" />
+    <PackageVersion Include="Ardalis.Specification" Version="9.3.1" />
+    <PackageVersion Include="Ardalis.Specification.EntityFrameworkCore" Version="9.3.1" />
+    <PackageVersion Include="CsvHelper" Version="33.1.0" />
     <PackageVersion Include="Endatix.Api.Host" Version="0.1.0" />
-    <PackageVersion Include="FastEndpoints" Version="5.31.0.17-beta" />
-    <PackageVersion Include="FastEndpoints.Security" Version="5.31.0.17-beta" />
-    <PackageVersion Include="FastEndpoints.Swagger" Version="5.31.0.17-beta" />
-    <PackageVersion Include="FastEndpoints.Testing" Version="5.31.0.17-beta" />
+    <PackageVersion Include="FastEndpoints" Version="7.0.1" />
+    <PackageVersion Include="FastEndpoints.Security" Version="7.0.1" />
+    <PackageVersion Include="FastEndpoints.Swagger" Version="7.0.1" />
+    <PackageVersion Include="FastEndpoints.Testing" Version="7.0.1" />
     <PackageVersion Include="FluentAssertions" Version="6.12.2" />
-    <PackageVersion Include="FluentValidation" Version="11.11.0" />
+    <PackageVersion Include="FluentValidation" Version="12.0.0" />
     <PackageVersion Include="IdGen" Version="3.0.7" />
     <PackageVersion Include="MediatR" Version="12.4.1" />
-    <PackageVersion Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.22.0" />
+    <PackageVersion Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.23.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="9.9.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="$(AspNetVersion)" />
-    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="$(AspNetVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="9.9.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(EFCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(EFCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EFCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="$(EFCoreVersion)" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(EFCoreVersion)" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="SendGrid" Version="9.29.3" />
     <PackageVersion Include="SendGrid.Extensions.DependencyInjection" Version="1.0.1" />
-    <PackageVersion Include="Serilog.AspNetCore" Version="8.0.3" />
-    <PackageVersion Include="coverlet.collector" Version="6.0.2" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="9.0.0" />
     <PackageVersion Include="Serilog.Sinks.ApplicationInsights" Version="4.0.0" />
     <PackageVersion Include="serilog.sinks.async" Version="2.1.0" />
-    <PackageVersion Include="xunit" Version="2.9.2" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
-    <PackageVersion Include="AspNetCore.HealthChecks.Uris" Version="7.0.0" />
-    <PackageVersion Include="AspNetCore.HealthChecks.System" Version="7.0.0" />
+    <PackageVersion Include="xunit.v3" Version="3.0.1" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageVersion Include="AspNetCore.HealthChecks.Uris" Version="9.0.0" />
+    <PackageVersion Include="AspNetCore.HealthChecks.System" Version="9.0.0" />
+    
   </ItemGroup>
 </Project>

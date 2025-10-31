@@ -38,7 +38,7 @@ public class GetSubmissionFiles(IMediator mediator) : Endpoint<GetSubmissionFile
 
             if (!result.IsSuccess || result.Value is null)
             {
-                await SendNotFoundAsync();
+                await Send.NotFoundAsync();
                 return;
             }
 
@@ -51,7 +51,7 @@ public class GetSubmissionFiles(IMediator mediator) : Endpoint<GetSubmissionFile
                 emptyZipStream.Position = 0;
                 HttpContext.Response.Headers["X-Endatix-Empty-File"] = "true";
                 HttpContext.Response.ContentType = "application/zip";
-                await SendStreamAsync(emptyZipStream, contentType: "application/zip");
+                await Send.StreamAsync(emptyZipStream, contentType: "application/zip");
                 return;
             }
 
@@ -80,7 +80,7 @@ public class GetSubmissionFiles(IMediator mediator) : Endpoint<GetSubmissionFile
         catch (Exception ex)
         {
             ValidationFailures.Add(new ValidationFailure("error", ex.Message));
-            await SendErrorsAsync(500, cancellationToken);
+            await Send.ErrorsAsync(500, cancellationToken);
         }
     }
 }
