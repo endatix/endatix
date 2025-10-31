@@ -70,8 +70,6 @@ internal sealed class JwtTokenService : IUserTokenService
                 new Claim(JwtRegisteredClaimNames.Sub, forUser.Id.ToString()),
                 new Claim(ClaimTypes.NameIdentifier, forUser.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, forUser.Email.ToString()),
-                new Claim(ClaimTypes.Role, RoleNames.ADMIN),
-                new Claim(ClaimNames.Permission, Allow.AllowAll),
                 new Claim(ClaimNames.TenantId, forUser.TenantId.ToString())
             ]);
 

@@ -14,7 +14,7 @@ public class GetActiveFormDefinitionQueryTests
         var formId = -1;
 
         // Act
-        Action act = () => new GetActiveFormDefinitionQuery(formId);
+        Action act = () => new GetActiveFormDefinitionQuery(formId, null, "forms.view");
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -26,11 +26,15 @@ public class GetActiveFormDefinitionQueryTests
     {
         // Arrange
         var formId = 1;
+        var userId = "123";
+        var requiredPermission = "forms.view";
 
         // Act
-        var query = new GetActiveFormDefinitionQuery(formId);
+        var query = new GetActiveFormDefinitionQuery(formId, userId, requiredPermission);
 
         // Assert
         query.FormId.Should().Be(formId);
+        query.UserId.Should().Be(userId);
+        query.RequiredPermission.Should().Be(requiredPermission);
     }
 }

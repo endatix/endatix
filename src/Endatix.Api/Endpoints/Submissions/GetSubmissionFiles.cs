@@ -17,7 +17,7 @@ public class GetSubmissionFiles(IMediator mediator) : Endpoint<GetSubmissionFile
     public override void Configure()
     {
         Post("forms/{formId}/submissions/{submissionId}/files");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Submissions.View);
         Summary(s =>
         {
             s.Summary = "Download files for a submission";

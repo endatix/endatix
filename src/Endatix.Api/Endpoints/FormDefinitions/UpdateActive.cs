@@ -18,7 +18,7 @@ public class UpdateActive(IMediator mediator) : Endpoint<UpdateActiveFormDefinit
     public override void Configure()
     {
         Put("forms/{formId}/definition");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.Edit);
         Summary(s =>
         {
             s.Summary = "Update the active form definition";

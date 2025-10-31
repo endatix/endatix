@@ -18,7 +18,7 @@ public class PartialUpdateActive(IMediator mediator) : Endpoint<PartialUpdateAct
     public override void Configure()
     {
         Patch("forms/{formId}/definition");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.Edit);
         Summary(s =>
         {
             s.Summary = "Partially update the active form definition";

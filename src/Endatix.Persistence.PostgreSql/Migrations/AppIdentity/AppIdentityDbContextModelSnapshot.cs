@@ -68,6 +68,98 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                     b.ToTable("EmailVerificationTokens", "identity");
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.Identity.Permission", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSystemDefined")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Permissions", "identity");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Identity.RolePermission", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("AppRoleId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("GrantedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("PermissionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("RoleId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppRoleId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("RolePermissions", "identity");
+                });
+
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppRole", b =>
                 {
                     b.Property<long>("Id")
@@ -78,7 +170,18 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                         .HasColumnType("text");
 
                     b.Property<string>("Description")
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsSystemDefined")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Name")
                         .HasMaxLength(256)
@@ -88,13 +191,26 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("IsActive");
+
                     b.HasIndex("NormalizedName")
-                        .IsUnique()
                         .HasDatabaseName("RoleNameIndex");
 
-                    b.ToTable("AspNetRoles", "identity");
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Roles_TenantId_NormalizedName");
+
+                    b.ToTable("Roles", "identity");
                 });
 
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppUser", b =>
@@ -167,7 +283,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
-                    b.ToTable("AspNetUsers", "identity");
+                    b.ToTable("Users", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<long>", b =>
@@ -191,7 +307,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("AspNetRoleClaims", "identity");
+                    b.ToTable("RoleClaims", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<long>", b =>
@@ -215,7 +331,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserClaims", "identity");
+                    b.ToTable("UserClaims", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<long>", b =>
@@ -236,7 +352,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserLogins", "identity");
+                    b.ToTable("UserLogins", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<long>", b =>
@@ -251,7 +367,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("AspNetUserRoles", "identity");
+                    b.ToTable("UserRoles", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<long>", b =>
@@ -270,7 +386,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 
                     b.HasKey("UserId", "LoginProvider", "Name");
 
-                    b.ToTable("AspNetUserTokens", "identity");
+                    b.ToTable("UserTokens", "identity");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Identity.EmailVerificationToken", b =>
@@ -280,6 +396,27 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Identity.RolePermission", b =>
+                {
+                    b.HasOne("Endatix.Infrastructure.Identity.AppRole", null)
+                        .WithMany("EffectivePermissions")
+                        .HasForeignKey("AppRoleId");
+
+                    b.HasOne("Endatix.Core.Entities.Identity.Permission", "Permission")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Endatix.Infrastructure.Identity.AppRole", null)
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<long>", b =>
@@ -331,6 +468,18 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Identity.Permission", b =>
+                {
+                    b.Navigation("RolePermissions");
+                });
+
+            modelBuilder.Entity("Endatix.Infrastructure.Identity.AppRole", b =>
+                {
+                    b.Navigation("EffectivePermissions");
+
+                    b.Navigation("RolePermissions");
                 });
 #pragma warning restore 612, 618
         }

@@ -18,7 +18,7 @@ public class GetById(IMediator mediator) : Endpoint<GetFormDefinitionByIdRequest
     public override void Configure()
     {
         Get("forms/{formId}/definitions/{definitionId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.View);
         Summary(s =>
         {
             s.Summary = "Get a form definition by ID";

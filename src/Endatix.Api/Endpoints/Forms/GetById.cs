@@ -18,7 +18,7 @@ public class GetById(IMediator mediator) : Endpoint<GetFormByIdRequest, Results<
     public override void Configure()
     {
         Get("forms/{formId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.View);
         Summary(s =>
         {
             s.Summary = "Get a form by ID";

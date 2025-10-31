@@ -24,4 +24,16 @@ public static class ClaimNames
     /// Represents a claim for the user's tenant identifier.
     /// </summary>
     public const string TenantId = "tenant_id";
+
+    /// <summary>
+    /// Represents a claim for the user's unique identifier.
+    /// Uses standard JWT 'sub' (subject) claim for better interoperability.
+    /// </summary>
+    public const string UserId = "sub";
+
+    /// <summary>
+    /// Represents a claim indicating whether the user is an administrator.
+    /// When true, the user bypasses all permission checks for performance.
+    /// </summary>
+    public const string IsAdmin = "is_admin";
 }

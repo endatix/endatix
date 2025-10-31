@@ -21,7 +21,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateRequest, Results<Ok<Upd
     public override void Configure()
     {
         Put("themes/{themeId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Themes.Edit);
         Summary(s =>
         {
             s.Summary = "Update a theme";
