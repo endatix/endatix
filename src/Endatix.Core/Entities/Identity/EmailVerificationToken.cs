@@ -29,7 +29,7 @@ public class EmailVerificationToken : BaseEntity, IAggregateRoot
     /// <summary>
     /// The verification token value.
     /// </summary>
-    public string Token { get; private set; }
+    public string Token { get; private set; } = null!;
 
     /// <summary>
     /// When the token expires.

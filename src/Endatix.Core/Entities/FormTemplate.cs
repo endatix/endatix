@@ -20,7 +20,7 @@ public partial class FormTemplate : TenantEntity, IAggregateRoot
         IsEnabled = isEnabled;
     }
 
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
     public string? Description { get; set; }
     public string JsonData { get; set; } = EndatixConfig.Configuration.DefaultFormDefinitionJson;
     public bool IsEnabled { get; set; }

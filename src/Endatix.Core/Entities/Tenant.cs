@@ -21,7 +21,7 @@ namespace Endatix.Core.Entities
             Description = description;
         }
 
-        public string Name { get; private set; }
+        public string Name { get; private set; } = null!;
         public string? Description { get; private set; }
 
         public IReadOnlyCollection<Form> Forms => _forms.AsReadOnly();

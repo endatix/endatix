@@ -19,14 +19,14 @@ public class CustomQuestion : TenantEntity, IAggregateRoot
         JsonData = jsonData;
     }
 
-    public string Name { get; private set; }
+    public string Name { get; private set; } = null!;
     public string? Description { get; private set; }
 
     /// <summary>
     /// The JSON data representing the custom question properties.
     /// Uses JSONB in PostgreSQL and NVARCHAR(MAX) in SQL Server.
     /// </summary>
-    public string JsonData { get; private set; }
+    public string JsonData { get; private set; } = null!;
 
     /// <summary>
     /// Updates the custom question's name

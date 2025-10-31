@@ -18,7 +18,7 @@ public partial class Form : TenantEntity, IAggregateRoot
         IsEnabled = isEnabled;
     }
 
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
     public string? Description { get; set; }
     public bool IsEnabled { get; set; }
 
