@@ -42,6 +42,8 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<EmailTemplate> EmailTemplates { get; set; }
 
+    public DbSet<TenantSettings> TenantSettings { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         base.OnConfiguring(optionsBuilder);

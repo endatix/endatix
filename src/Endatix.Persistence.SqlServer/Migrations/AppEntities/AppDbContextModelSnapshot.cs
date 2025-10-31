@@ -388,12 +388,33 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("SlackSettingsJson")
-                        .HasColumnType("nvarchar(max)");
-
                     b.HasKey("Id");
 
                     b.ToTable("Tenants", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.TenantSettings", b =>
+                {
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsSubmissionTokenValidAfterCompletion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SlackSettingsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("SubmissionTokenExpiryHours")
+                        .HasColumnType("int");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("TenantSettings", (string)null);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Theme", b =>
@@ -536,7 +557,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                             b1.Property<long>("SubmissionId")
                                 .HasColumnType("bigint");
 
-                            b1.Property<DateTime>("ExpiresAt")
+                            b1.Property<DateTime?>("ExpiresAt")
                                 .HasColumnType("datetime2");
 
                             b1.Property<string>("Value")
@@ -575,6 +596,17 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Navigation("Submission");
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.TenantSettings", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
+                        .WithOne("Settings")
+                        .HasForeignKey("Endatix.Core.Entities.TenantSettings", "TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.Theme", b =>
                 {
                     b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
@@ -601,6 +633,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Navigation("FormDefinitions");
 
                     b.Navigation("Forms");
+
+                    b.Navigation("Settings");
 
                     b.Navigation("Submissions");
                 });

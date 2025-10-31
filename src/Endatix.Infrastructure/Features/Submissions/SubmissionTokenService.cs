@@ -4,45 +4,47 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Features.Submissions;
 
 public class SubmissionTokenService : ISubmissionTokenService
 {
-    private readonly IRepository<Submission> _repository;
-    private readonly SubmissionOptions _options;
+    private readonly IRepository<Submission> _submissionRepository;
+    private readonly IRepository<TenantSettings> _tenantSettingsRepository;
 
-    public SubmissionTokenService(IRepository<Submission> repository, IOptions<SubmissionOptions> options)
+    public SubmissionTokenService(
+        IRepository<Submission> submissionRepository,
+        IRepository<TenantSettings> tenantSettingsRepository)
     {
-        Guard.Against.Null(repository);
-        Guard.Against.Null(options.Value);
-        Guard.Against.NegativeOrZero(options.Value.TokenExpiryInHours);
+        Guard.Against.Null(submissionRepository);
+        Guard.Against.Null(tenantSettingsRepository);
 
-        _repository = repository;
-        _options = options.Value;
+        _submissionRepository = submissionRepository;
+        _tenantSettingsRepository = tenantSettingsRepository;
     }
 
     public async Task<Result<string>> ObtainTokenAsync(long submissionId, CancellationToken cancellationToken)
     {
         Guard.Against.NegativeOrZero(submissionId);
 
-        var submission = await _repository.GetByIdAsync(submissionId, cancellationToken);
+        var submission = await _submissionRepository.GetByIdAsync(submissionId, cancellationToken);
         if (submission == null)
         {
             return Result.NotFound("Submission not found");
         }
 
+        var tokenExpiryHours = await GetTokenExpiryHoursAsync(submission.TenantId, cancellationToken);
+
         if (submission.Token == null)
         {
-            submission.UpdateToken(new Token(_options.TokenExpiryInHours));
+            submission.UpdateToken(new Token(tokenExpiryHours));
         }
         else
         {
-            submission.Token.Extend(_options.TokenExpiryInHours);
+            submission.Token.Extend(tokenExpiryHours);
         }
 
-        await _repository.SaveChangesAsync(cancellationToken);
+        await _submissionRepository.SaveChangesAsync(cancellationToken);
         return Result<string>.Success(submission!.Token!.Value);
     }
 
@@ -50,7 +52,7 @@ public class SubmissionTokenService : ISubmissionTokenService
     {
         Guard.Against.NullOrEmpty(token);
 
-        var submission = await _repository.FirstOrDefaultAsync(new SubmissionByTokenSpec(token), cancellationToken);
+        var submission = await _submissionRepository.FirstOrDefaultAsync(new SubmissionByTokenSpec(token), cancellationToken);
         if (submission == null || submission.Token!.IsExpired)
         {
             return Result.NotFound("Invalid or expired token");
@@ -58,9 +60,25 @@ public class SubmissionTokenService : ISubmissionTokenService
 
         if (submission.IsComplete)
         {
-            return Result.NotFound("Submission completed");
+            var tenantSettings = await _tenantSettingsRepository
+                .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(submission.TenantId), cancellationToken);
+            Guard.Against.Null(tenantSettings, "Tenant settings must be configured.");
+
+            if (!tenantSettings.IsSubmissionTokenValidAfterCompletion)
+            {
+                return Result.NotFound("Submission completed");
+            }
         }
 
         return Result<long>.Success(submission.Id);
+    }
+
+    private async Task<int?> GetTokenExpiryHoursAsync(long tenantId, CancellationToken cancellationToken)
+    {
+        var tenantSettings = await _tenantSettingsRepository
+            .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(tenantId), cancellationToken);
+        Guard.Against.Null(tenantSettings, "Tenant settings must be configured.");
+
+        return tenantSettings.SubmissionTokenExpiryHours;
     }
 }
