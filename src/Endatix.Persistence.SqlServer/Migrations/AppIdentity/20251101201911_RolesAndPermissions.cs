@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
+namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 {
     /// <inheritdoc />
     public partial class RolesAndPermissions : Migration
@@ -73,6 +73,11 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
 
             migrationBuilder.DropPrimaryKey(
                 name: "PK_AspNetRoles",
+                schema: "identity",
+                table: "AspNetRoles");
+
+            migrationBuilder.DropIndex(
+                name: "RoleNameIndex",
                 schema: "identity",
                 table: "AspNetRoles");
 
@@ -151,18 +156,18 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                 name: "Description",
                 schema: "identity",
                 table: "Roles",
-                type: "character varying(500)",
+                type: "nvarchar(500)",
                 maxLength: 500,
                 nullable: true,
                 oldClrType: typeof(string),
-                oldType: "text",
+                oldType: "nvarchar(max)",
                 oldNullable: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "IsActive",
                 schema: "identity",
                 table: "Roles",
-                type: "boolean",
+                type: "bit",
                 nullable: false,
                 defaultValue: true);
 
@@ -170,7 +175,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                 name: "IsSystemDefined",
                 schema: "identity",
                 table: "Roles",
-                type: "boolean",
+                type: "bit",
                 nullable: false,
                 defaultValue: false);
 
@@ -230,15 +235,15 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
-                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    Category = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    IsSystemDefined = table.Column<bool>(type: "boolean", nullable: false),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false)
+                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Category = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    IsSystemDefined = table.Column<bool>(type: "bit", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -253,14 +258,13 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     RoleId = table.Column<long>(type: "bigint", nullable: false),
                     PermissionId = table.Column<long>(type: "bigint", nullable: false),
-                    GrantedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    AppRoleId = table.Column<long>(type: "bigint", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false)
+                    GrantedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -273,12 +277,6 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_RolePermissions_Roles_AppRoleId",
-                        column: x => x.AppRoleId,
-                        principalSchema: "identity",
-                        principalTable: "Roles",
-                        principalColumn: "Id");
-                    table.ForeignKey(
                         name: "FK_RolePermissions_Roles_RoleId",
                         column: x => x.RoleId,
                         principalSchema: "identity",
@@ -288,23 +286,12 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Roles_IsActive",
+                name: "IX_AppRole_NormalizedName_TenantId",
                 schema: "identity",
                 table: "Roles",
-                column: "IsActive");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Roles_TenantId",
-                schema: "identity",
-                table: "Roles",
-                column: "TenantId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Roles_TenantId_Name",
-                schema: "identity",
-                table: "Roles",
-                columns: new[] { "TenantId", "Name" },
-                unique: true);
+                columns: new[] { "NormalizedName", "TenantId" },
+                unique: true,
+                filter: "[NormalizedName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Permissions_Category",
@@ -318,12 +305,6 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                 table: "Permissions",
                 column: "Name",
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_RolePermissions_AppRoleId",
-                schema: "identity",
-                table: "RolePermissions",
-                column: "AppRoleId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RolePermissions_PermissionId",
@@ -485,17 +466,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                 table: "Roles");
 
             migrationBuilder.DropIndex(
-                name: "IX_Roles_IsActive",
-                schema: "identity",
-                table: "Roles");
-
-            migrationBuilder.DropIndex(
-                name: "IX_Roles_TenantId",
-                schema: "identity",
-                table: "Roles");
-
-            migrationBuilder.DropIndex(
-                name: "IX_Roles_TenantId_Name",
+                name: "IX_AppRole_NormalizedName_TenantId",
                 schema: "identity",
                 table: "Roles");
 
@@ -589,10 +560,10 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                 name: "Description",
                 schema: "identity",
                 table: "AspNetRoles",
-                type: "text",
+                type: "nvarchar(max)",
                 nullable: true,
                 oldClrType: typeof(string),
-                oldType: "character varying(500)",
+                oldType: "nvarchar(500)",
                 oldMaxLength: 500,
                 oldNullable: true);
 
@@ -637,6 +608,14 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                 schema: "identity",
                 table: "AspNetRoleClaims",
                 column: "Id");
+
+            migrationBuilder.CreateIndex(
+                name: "RoleNameIndex",
+                schema: "identity",
+                table: "AspNetRoles",
+                column: "NormalizedName",
+                unique: true,
+                filter: "[NormalizedName] IS NOT NULL");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_AspNetRoleClaims_AspNetRoles_RoleId",

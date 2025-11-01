@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
 {
     [DbContext(typeof(AppIdentityDbContext))]
-    [Migration("20251006121433_ChangeRoleNameIndexForMultiTenancy")]
-    partial class ChangeRoleNameIndexForMultiTenancy
+    [Migration("20251101202045_RolesAndPermissions")]
+    partial class RolesAndPermissions
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -21,7 +21,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "9.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -194,19 +194,9 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IsActive");
-
-                    b.HasIndex("NormalizedName")
-                        .HasDatabaseName("RoleNameIndex");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("TenantId", "Name")
-                        .IsUnique();
-
-                    b.HasIndex("TenantId", "NormalizedName")
+                    b.HasIndex("NormalizedName", "TenantId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Roles_TenantId_NormalizedName");
+                        .HasDatabaseName("IX_AppRole_NormalizedName_TenantId");
 
                     b.ToTable("Roles", "identity");
                 });

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 {
     [DbContext(typeof(AppIdentityDbContext))]
-    [Migration("20250904143335_RolesAndPermissions")]
+    [Migration("20251101201911_RolesAndPermissions")]
     partial class RolesAndPermissions
     {
         /// <inheritdoc />
@@ -21,7 +21,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "9.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -122,9 +122,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
                     b.Property<long>("Id")
                         .HasColumnType("bigint");
 
-                    b.Property<long?>("AppRoleId")
-                        .HasColumnType("bigint");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -153,8 +150,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AppRoleId");
 
                     b.HasIndex("PermissionId");
 
@@ -199,18 +194,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IsActive");
-
-                    b.HasIndex("NormalizedName")
+                    b.HasIndex("NormalizedName", "TenantId")
                         .IsUnique()
-                        .HasDatabaseName("RoleNameIndex")
+                        .HasDatabaseName("IX_AppRole_NormalizedName_TenantId")
                         .HasFilter("[NormalizedName] IS NOT NULL");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("TenantId", "Name")
-                        .IsUnique()
-                        .HasFilter("[Name] IS NOT NULL");
 
                     b.ToTable("Roles", "identity");
                 });
@@ -403,10 +390,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 
             modelBuilder.Entity("Endatix.Core.Entities.Identity.RolePermission", b =>
                 {
-                    b.HasOne("Endatix.Infrastructure.Identity.AppRole", null)
-                        .WithMany("EffectivePermissions")
-                        .HasForeignKey("AppRoleId");
-
                     b.HasOne("Endatix.Core.Entities.Identity.Permission", "Permission")
                         .WithMany("RolePermissions")
                         .HasForeignKey("PermissionId")
@@ -480,8 +463,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppRole", b =>
                 {
-                    b.Navigation("EffectivePermissions");
-
                     b.Navigation("RolePermissions");
                 });
 #pragma warning restore 612, 618
