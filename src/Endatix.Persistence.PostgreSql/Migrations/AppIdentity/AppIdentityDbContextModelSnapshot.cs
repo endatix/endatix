@@ -18,7 +18,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "9.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -119,9 +119,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                     b.Property<long>("Id")
                         .HasColumnType("bigint");
 
-                    b.Property<long?>("AppRoleId")
-                        .HasColumnType("bigint");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -150,8 +147,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AppRoleId");
 
                     b.HasIndex("PermissionId");
 
@@ -196,19 +191,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IsActive");
-
-                    b.HasIndex("NormalizedName")
-                        .HasDatabaseName("RoleNameIndex");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("TenantId", "Name")
-                        .IsUnique();
-
-                    b.HasIndex("TenantId", "NormalizedName")
+                    b.HasIndex("NormalizedName", "TenantId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Roles_TenantId_NormalizedName");
+                        .HasDatabaseName("IX_AppRole_NormalizedName_TenantId");
 
                     b.ToTable("Roles", "identity");
                 });
@@ -400,10 +385,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 
             modelBuilder.Entity("Endatix.Core.Entities.Identity.RolePermission", b =>
                 {
-                    b.HasOne("Endatix.Infrastructure.Identity.AppRole", null)
-                        .WithMany("EffectivePermissions")
-                        .HasForeignKey("AppRoleId");
-
                     b.HasOne("Endatix.Core.Entities.Identity.Permission", "Permission")
                         .WithMany("RolePermissions")
                         .HasForeignKey("PermissionId")
@@ -477,8 +458,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
 
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppRole", b =>
                 {
-                    b.Navigation("EffectivePermissions");
-
                     b.Navigation("RolePermissions");
                 });
 #pragma warning restore 612, 618

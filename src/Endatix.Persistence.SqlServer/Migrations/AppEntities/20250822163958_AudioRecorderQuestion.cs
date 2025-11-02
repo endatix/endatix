@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
+namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     /// <inheritdoc />
     public partial class AudioRecorderQuestion : Migration
