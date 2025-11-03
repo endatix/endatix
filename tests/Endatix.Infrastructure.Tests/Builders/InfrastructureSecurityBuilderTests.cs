@@ -3,13 +3,12 @@ using Endatix.Core.Abstractions.Account;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Identity.Authentication;
-using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NSubstitute;
 using System.Reflection;
 
 namespace Endatix.Infrastructure.Tests.Builders;
@@ -92,6 +91,12 @@ public class InfrastructureSecurityBuilderTests
     private bool IsServiceRegistered<T>()
     {
         return FindServiceDescriptor<T>() != null;
+    }
+
+    private ServiceLifetime? GetServiceLifetime<T>()
+    {
+        var descriptor = FindServiceDescriptor<T>();
+        return descriptor?.Lifetime;
     }
 
     private AuthProviderRegistry GetRegistryFromBuilder(InfrastructureSecurityBuilder builder)
@@ -421,14 +426,67 @@ public class InfrastructureSecurityBuilderTests
         Assert.True(IsServiceRegistered<IAuthorizationService>());
         Assert.True(IsServiceRegistered<IUserTokenService>());
         Assert.True(IsServiceRegistered<IUserContext>());
+
+        // Verify authorization services are registered with correct lifetimes
         Assert.True(IsServiceRegistered<IClaimsTransformation>());
+        // Verify our specific JwtClaimsTransformer is registered as Scoped
+        var jwtClaimsTransformerDescriptor = _services
+            .Where(sd => sd.ServiceType == typeof(IClaimsTransformation) &&
+                         sd.ImplementationType == typeof(JwtClaimsTransformer))
+            .FirstOrDefault();
+        Assert.NotNull(jwtClaimsTransformerDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, jwtClaimsTransformerDescriptor.Lifetime);
+
+        Assert.True(IsServiceRegistered<IPermissionService>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IPermissionService>());
+        Assert.True(IsServiceRegistered<IAuthorizationHandler>());
+        // Verify our PermissionsHandler is registered as Scoped
+        // Note: AddAuthorization() also registers a default PassThroughAuthorizationHandler as Transient
+        var permissionsHandlerDescriptor = _services
+            .Where(sd => sd.ServiceType == typeof(IAuthorizationHandler) &&
+                         sd.ImplementationType == typeof(PermissionsHandler))
+            .FirstOrDefault();
+        Assert.NotNull(permissionsHandlerDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, permissionsHandlerDescriptor.Lifetime);
+
+        // Verify identity services
         Assert.True(IsServiceRegistered<IUserRegistrationService>());
         Assert.True(IsServiceRegistered<IEmailVerificationService>());
         Assert.True(IsServiceRegistered<IUserPasswordManageService>());
-        Assert.True(IsServiceRegistered<IUserTokenService>());
 
         // Verify EndatixJwt provider is registered
         var registry = GetRegistryFromBuilder(builder);
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+    }
+
+    [Fact]
+    public void UseDefaults_ShouldRegisterAuthorizationServicesWithCorrectLifetimes()
+    {
+        // Arrange
+        var builder = new InfrastructureSecurityBuilder(_parentBuilder);
+
+        // Act
+        builder.UseDefaults().Build();
+
+        // Assert - Verify authorization services are registered with Scoped lifetime
+        // IClaimsTransformation should be Scoped (changed from Transient)
+        // Note: There might be multiple registrations, so we need to find the LAST one (which wins)
+        var claimsTransformationDescriptors = _services.Where(sd => sd.ServiceType == typeof(IClaimsTransformation)).ToList();
+        var claimsTransformationDescriptor = claimsTransformationDescriptors.LastOrDefault();
+        Assert.NotNull(claimsTransformationDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, claimsTransformationDescriptor.Lifetime);
+        Assert.Equal(typeof(JwtClaimsTransformer), claimsTransformationDescriptor.ImplementationType);
+
+        // IPermissionService should be Scoped
+        var permissionServiceDescriptor = FindServiceDescriptor<IPermissionService>();
+        Assert.NotNull(permissionServiceDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, permissionServiceDescriptor.Lifetime);
+
+        // IAuthorizationHandler (PermissionsHandler) should be Scoped
+        // Note: Multiple handlers can be registered, but they should all be Scoped
+        var authorizationHandlerDescriptors = _services.Where(sd => sd.ServiceType == typeof(IAuthorizationHandler)).ToList();
+        var permissionsHandlerDescriptor = authorizationHandlerDescriptors.FirstOrDefault(sd => sd.ImplementationType == typeof(PermissionsHandler));
+        Assert.NotNull(permissionsHandlerDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, permissionsHandlerDescriptor.Lifetime);
     }
 }
