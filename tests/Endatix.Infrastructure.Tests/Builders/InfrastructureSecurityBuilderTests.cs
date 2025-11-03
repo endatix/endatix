@@ -56,7 +56,7 @@ public class InfrastructureSecurityBuilderTests
         // Default configuration data
         var defaultConfigData = new Dictionary<string, string?>
         {
-            ["Endatix:Auth:DefaultScheme"] = "MultiJwt",
+            ["Endatix:Auth:DefaultScheme"] = InfrastructureSecurityBuilder.MULTI_JWT_SCHEME_NAME,
             ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = "endatix-api",
             ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters",
             ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = "endatix-hub",
@@ -264,31 +264,31 @@ public class InfrastructureSecurityBuilderTests
     }
 
     [Fact]
-public void Registry_ShouldOnlySelectFromActiveProviders()
-{
-    // Arrange
-    var configOverrides = new Dictionary<string, string?>
+    public void Registry_ShouldOnlySelectFromActiveProviders()
     {
-        ["Endatix:Auth:Providers:Keycloak:Enabled"] = "false",
-        ["Endatix:Auth:Providers:Google:Enabled"] = "true"
-    };
-    var builder = CreateBuilderWithMockConfig(configOverrides);
-    builder.UseDefaults();
-    builder.AddKeycloakAuthProvider();
-    builder.AddGoogleAuthProvider();
-    var registry = GetRegistryFromBuilder(builder);
+        // Arrange
+        var configOverrides = new Dictionary<string, string?>
+        {
+            ["Endatix:Auth:Providers:Keycloak:Enabled"] = "false",
+            ["Endatix:Auth:Providers:Google:Enabled"] = "true"
+        };
+        var builder = CreateBuilderWithMockConfig(configOverrides);
+        builder.UseDefaults();
+        builder.AddKeycloakAuthProvider();
+        builder.AddGoogleAuthProvider();
+        var registry = GetRegistryFromBuilder(builder);
 
-    // Act
-    builder.Build();
+        // Act
+        builder.Build();
 
-    // Assert - SelectScheme should only consider active providers
-    // This test assumes the providers have different issuers configured
-    var activeProviders = registry.GetActiveProviders().ToList();
-    Assert.Equal(2, activeProviders.Count);
-    Assert.Contains(activeProviders, p => p.SchemeName == AuthSchemes.EndatixJwt);
-    Assert.Contains(activeProviders, p => p.SchemeName == "Google");
-    Assert.DoesNotContain(activeProviders, p => p.SchemeName == "Keycloak");
-}
+        // Assert - SelectScheme should only consider active providers
+        // This test assumes the providers have different issuers configured
+        var activeProviders = registry.GetActiveProviders().ToList();
+        Assert.Equal(2, activeProviders.Count);
+        Assert.Contains(activeProviders, p => p.SchemeName == AuthSchemes.EndatixJwt);
+        Assert.Contains(activeProviders, p => p.SchemeName == "Google");
+        Assert.DoesNotContain(activeProviders, p => p.SchemeName == "Keycloak");
+    }
 
     [Fact]
     public void Build_ShouldConfigureEnabledAuthProviders()

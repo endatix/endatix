@@ -1,7 +1,10 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -15,6 +18,10 @@ namespace Endatix.Infrastructure.Builders;
 /// </summary>
 public class InfrastructureSecurityBuilder
 {
+    /// <summary>
+    /// The name of the multi-JWT scheme used tp support multiple JWT based authentication providers
+    /// </summary>
+    public static readonly string MULTI_JWT_SCHEME_NAME = "MultiJwt";
     private readonly InfrastructureBuilder _parentBuilder;
     private readonly ILogger _logger;
     internal readonly AuthProviderRegistry _authProviderRegistry;
@@ -164,7 +171,7 @@ public class InfrastructureSecurityBuilder
        });
 
         // Multi-JWT policy scheme
-        _authenticationBuilder.AddPolicyScheme("MultiJwt", "Multi JWT Scheme", options =>
+        _authenticationBuilder.AddPolicyScheme(MULTI_JWT_SCHEME_NAME, "Multi JWT Scheme", options =>
        {
            options.ForwardDefaultSelector = context =>
            {
@@ -194,11 +201,21 @@ public class InfrastructureSecurityBuilder
 
         Services.AddAuthorization(options =>
         {
-            var defaultPolicy = new AuthorizationPolicyBuilder("MultiJwt")
+            var defaultPolicy = new AuthorizationPolicyBuilder(MULTI_JWT_SCHEME_NAME)
                 .RequireAuthenticatedUser()
                 .Build();
             options.DefaultPolicy = defaultPolicy;
         });
+
+        // Register claims transformation to enrich JWT with permissions and roles from database
+        Services.AddTransient<IClaimsTransformation, JwtClaimsTransformer>();
+
+        // Register HttpContextAccessor for authorization handlers
+        Services.AddHttpContextAccessor();
+
+        // Register authorization related services
+        Services.AddScoped<IPermissionService, PermissionService>();
+        Services.AddScoped<IAuthorizationHandler, PermissionsHandler>();
 
         return this;
     }
