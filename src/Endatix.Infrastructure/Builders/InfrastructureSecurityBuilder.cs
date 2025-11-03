@@ -208,10 +208,7 @@ public class InfrastructureSecurityBuilder
         });
 
         // Register claims transformation to enrich JWT with permissions and roles from database
-        Services.AddTransient<IClaimsTransformation, JwtClaimsTransformer>();
-
-        // Register HttpContextAccessor for authorization handlers
-        Services.AddHttpContextAccessor();
+        Services.AddScoped<IClaimsTransformation, JwtClaimsTransformer>();
 
         // Register authorization related services
         Services.AddScoped<IPermissionService, PermissionService>();
