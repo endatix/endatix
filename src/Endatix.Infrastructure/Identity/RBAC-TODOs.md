@@ -4,8 +4,13 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 
 ## TODOs
 
+- [x] Fix migration issue with AppRoleId column
+- [ ] Add seeding of Admin, Creator roles
+- [ ] Add Platform vs Tenant Admin roles basic isolation logic
+- [ ] Add fast access.authenticated permission basic authentication level authorization
+- [ ] Add cache invalidation on user login and roles/user related changes (where relevant)
+- [ ] Remove UnifiedTestEndpoint
 - [ ] Wire `PermissionCategory` to Permission entity as a value object
-- [ ] Fix migration issue with AppRoleId column
 - [ ] Clean up `IPermissionService` public interface and API once we are closer to production. At this point we will really know what we will need and what not to expose to the client.
 
 ## Questions/Suggestions
@@ -15,5 +20,3 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 - Shall we store the tenantId in the cache key or userId is sufficient?
 - Review if the Cache Invalidation cannot be separated from the PermissionService?
 - Discuss if we need hierarchical roles and permissions at this stage?
-- IsAdmin - what's the logic we need to implement as well as the scope?
-- `EnrichWithUserPermissionsAsync` - do we need to add a claim for "IsViewer" e.g. fast frontend acccess. Also let's review strategy to add all vs selected permission sets to the ClaimsIdentity
