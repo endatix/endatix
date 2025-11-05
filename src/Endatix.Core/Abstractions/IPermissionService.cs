@@ -30,7 +30,7 @@ public interface IPermissionService
     Task<Result<bool>> HasPermissionAsync(long userId, string permission, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Checks if a user is an administrator.
+    /// Checks if a user is an tenant-level administrator.
     /// This is a high-performance method that checks admin status with minimal overhead.
     /// Used internally for admin bypass optimizations.
     /// </summary>
@@ -38,6 +38,15 @@ public interface IPermissionService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if user is an admin, false otherwise.</returns>
     Task<Result<bool>> IsUserAdminAsync(long userId, CancellationToken cancellationToken = default);
+
+
+    /// <summary>
+    /// Checks if user is a platform-level administrator (cross-tenant access).
+    /// </summary>
+    /// <param name="userId">The user ID to check.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if user is a platform admin, false otherwise.</returns>
+    Task<Result<bool>> IsUserPlatformAdminAsync(long userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Batch permission check for multiple permissions at once.
@@ -68,8 +77,13 @@ public interface IPermissionService
     /// <returns>Success if access is granted, Unauthorized if not authenticated, Forbidden if lacking permission.</returns>
     Task<Result> ValidateAccessAsync(string? userId, string requiredPermission, CancellationToken cancellationToken = default);
 
-    // Note: Advanced methods like batch operations, cache management, and statistics
-    // can be added later when needed. Keeping interface minimal for now.
+    /// <summary>
+    /// Invalidates the user permission cache.
+    /// </summary>
+    /// <param name="userId">The user ID to invalidate the cache for.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task InvalidateUserPermissionCacheAsync(long userId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -85,12 +99,12 @@ public sealed class UserRoleInfo
     public bool IsAdmin { get; init; }
     public DateTime CachedAt { get; init; }
     public TimeSpan CacheExpiresIn { get; init; }
-    
+
     /// <summary>
     /// ETag for cache validation in HTTP responses.
     /// </summary>
     public string ETag { get; init; } = string.Empty;
-    
+
     /// <summary>
     /// Indicates if this data came from cache or was freshly computed.
     /// </summary>

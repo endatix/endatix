@@ -69,6 +69,7 @@ internal sealed class JwtTokenService : IUserTokenService
         var subject = new ClaimsIdentity(claims: [
                 new Claim(JwtRegisteredClaimNames.Sub, forUser.Id.ToString()),
                 new Claim(ClaimTypes.NameIdentifier, forUser.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, forUser.Email.ToString()),
                 new Claim(ClaimNames.TenantId, forUser.TenantId.ToString())
             ]);

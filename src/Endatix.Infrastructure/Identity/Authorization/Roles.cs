@@ -8,17 +8,23 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// </summary>
 public static class Roles
 {
-    // Role constants
+    // Tenant-level Role constants
+    /// <summary>
+    /// System administrator with full access to all features and settings. Only used for tenant-level operations.
+    /// </summary>
     public const string Admin = "Admin";
     public const string Scripter = "Scripter";  // Form creators and managers
     public const string Panelist = "Panelist"; // Submission managers and data collectors
     public const string Viewer = "Viewer";     // Read-only access to data
     public const string Public = "Public";     // Anonymous/unauthenticated users
 
+    // Platform-level Role constants
+    public const string PlatformAdmin = "PlatformAdmin";
+
     /// <summary>
     /// All defined role names for validation and enumeration
     /// </summary>
-    public static readonly string[] AllRoles = [Admin, Scripter, Panelist, Viewer, Public];
+    public static readonly string[] AllRoles = [Admin, Scripter, Panelist, Viewer, Public, PlatformAdmin];
 
     /// <summary>
     /// Role descriptions for UI and documentation
@@ -29,7 +35,8 @@ public static class Roles
         [Scripter] = "Form designer who can create, edit, and manage forms and templates",
         [Panelist] = "Data collector who can manage submissions and view analytics",
         [Viewer] = "Read-only user who can view forms, submissions, and basic analytics",
-        [Public] = "Anonymous user who can only access public forms and submit responses"
+        [Public] = "Anonymous user who can only access public forms and submit responses",
+        [PlatformAdmin] = "Platform administrator with full access to all features and settings"
     };
 
     /// <summary>
@@ -41,7 +48,8 @@ public static class Roles
         [Viewer] = 1,
         [Panelist] = 2,
         [Scripter] = 3,
-        [Admin] = 4
+        [Admin] = 4,
+        [PlatformAdmin] = 5
     };
 
     /// <summary>

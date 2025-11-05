@@ -2,8 +2,41 @@ using Endatix.Core.Entities.Identity;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
+
 /// <summary>
-/// Defines basic set of actions in the Endatix system to define the permission system.
+/// Access-level permissions (not action based permissions)
+/// </summary>
+public static class Access
+{
+    /// <summary>
+    /// User is authenticated (signed in). Basic authentication level authorization.
+    /// </summary>
+    public const string Authenticated = "access.authenticated";
+
+    public static class Apps
+    {
+        public const string Hub = "access.apps.hub";
+    }
+}
+
+/// <summary>
+/// Platform-level permissions for cross-tenant operations (Phase 2).
+/// </summary>
+public static class Platform
+{
+    /// <summary>
+    /// Platform administrator - can access all tenants and manage platform settings.
+    /// </summary>
+    public const string Admin = "platform.admin";
+
+    /// <summary>
+    /// View platform-level metrics and analytics across all tenants.
+    /// </summary>
+    public const string ViewMetrics = "platform.metrics.view";
+}
+
+/// <summary>
+/// Defines basic set of tenant level actions in the Endatix system to define the permission system.
 /// Action names follow the pattern: {category}.{action}[.scope]
 /// </summary>
 public static class Actions
@@ -30,7 +63,7 @@ public static class Actions
         public const string Edit = "forms.edit";
         public const string Delete = "forms.delete";
         public const string Publish = "forms.publish";
-        
+
         // Ownership-based permissions
         public const string ViewOwned = "forms.view.owned";
         public const string EditOwned = "forms.edit.owned";
@@ -48,12 +81,12 @@ public static class Actions
         public const string Edit = "submissions.edit";
         public const string Delete = "submissions.delete";
         public const string Export = "submissions.export";
-        
+
         // Public submission permissions (for anonymous/public users)
         public const string Submit = "submissions.submit";
         public const string UpdatePartial = "submissions.update.partial";
         public const string ViewPublicForm = "submissions.view.public.form";
-        
+
         // Ownership-based permissions
         public const string ViewOwned = "submissions.view.owned";
         public const string EditOwned = "submissions.edit.owned";
@@ -70,7 +103,7 @@ public static class Actions
         public const string Create = "templates.create";
         public const string Edit = "templates.edit";
         public const string Delete = "templates.delete";
-        
+
         // Ownership-based permissions
         public const string ViewOwned = "templates.view.owned";
         public const string EditOwned = "templates.edit.owned";
@@ -86,7 +119,7 @@ public static class Actions
         public const string Create = "themes.create";
         public const string Edit = "themes.edit";
         public const string Delete = "themes.delete";
-        
+
         // Ownership-based permissions
         public const string ViewOwned = "themes.view.owned";
         public const string EditOwned = "themes.edit.owned";
@@ -102,7 +135,7 @@ public static class Actions
         public const string Create = "questions.create";
         public const string Edit = "questions.edit";
         public const string Delete = "questions.delete";
-        
+
         // Ownership-based permissions
         public const string ViewOwned = "questions.view.owned";
         public const string EditOwned = "questions.edit.owned";
@@ -118,7 +151,7 @@ public static class Actions
         public const string ViewAdvanced = "analytics.view.advanced";
         public const string Export = "analytics.export";
         public const string ViewRealtime = "analytics.realtime.view";
-        
+
         // Ownership-based permissions
         public const string ViewOwned = "analytics.view.owned";
         public const string ExportOwned = "analytics.export.owned";
@@ -230,7 +263,7 @@ public static class Actions
     public static IEnumerable<string> GetAllPermissions()
     {
         var permissions = new List<string>();
-        
+
         // Use reflection to get all const string fields from nested classes
         var permissionClasses = typeof(Actions).GetNestedTypes()
             .Where(t => t.IsClass && t.IsSealed);

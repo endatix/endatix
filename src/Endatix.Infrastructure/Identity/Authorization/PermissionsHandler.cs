@@ -20,7 +20,7 @@ public class PermissionsHandler : IAuthorizationHandler
     private readonly IPermissionService _permissionService;
 
 
-    private static readonly TimeSpan OwnershipCacheExpiration = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan _ownershipCacheExpiration = TimeSpan.FromMinutes(5);
 
     public PermissionsHandler(
         IHttpContextAccessor httpContextAccessor,
@@ -146,7 +146,7 @@ public class PermissionsHandler : IAuthorizationHandler
         var endpointDefinition = endpoint?.Metadata.OfType<FastEndpoints.EndpointDefinition>().FirstOrDefault();
         var entityEndpointAttribute = endpointDefinition?.EndpointAttributes?.OfType<EntityEndpointAttribute>().FirstOrDefault();
 
-        if (entityEndpointAttribute == null)
+        if (entityEndpointAttribute is null)
         {
             throw new InvalidOperationException(
                 $"Endpoint '{endpoint?.DisplayName}' has an ownership permission but is missing the [EntityEndpoint] attribute. " +
@@ -178,7 +178,7 @@ public class PermissionsHandler : IAuthorizationHandler
             async cancel => await UserOwnsEntity(userId, entityType, entityId),
             options: new HybridCacheEntryOptions
             {
-                Expiration = OwnershipCacheExpiration
+                Expiration = _ownershipCacheExpiration
             });
     }
 

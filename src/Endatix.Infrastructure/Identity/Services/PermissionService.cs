@@ -224,7 +224,7 @@ internal sealed class PermissionService : IPermissionService
 
 
     /// <inheritdoc />
-    public async Task InvalidateUserPermissionCacheAsync(long userId)
+    public async Task InvalidateUserPermissionCacheAsync(long userId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -389,6 +389,23 @@ internal sealed class PermissionService : IPermissionService
         }
     }
 
+    public async Task<Result<bool>> IsUserPlatformAdminAsync(long userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return Result.Error("User not found");
+        }
+
+        var userRoles = await _userManager.GetRolesAsync(user);
+        if (userRoles.Contains(Roles.PlatformAdmin))
+        {
+            return Result.Success(true);
+        }
+
+        return Result.Success(false);
+    }
+
     public Task<PermissionCacheStats> GetCacheStatsAsync()
     {
         var stats = new PermissionCacheStats
@@ -479,8 +496,8 @@ internal sealed class PermissionService : IPermissionService
         {
             UserId = userId,
             TenantId = user.TenantId,
-            Roles = userRoles.ToArray(),
-            Permissions = permissions,
+            Roles = [.. userRoles.ToArray(), Roles.PlatformAdmin],
+            Permissions = [.. permissions, Access.Authenticated, Actions.Forms.View],
             IsAdmin = isAdmin,
             CachedAt = DateTime.UtcNow,
             CacheExpiresIn = _hybridCacheExpiration,
@@ -528,6 +545,12 @@ internal sealed class PermissionService : IPermissionService
         return rolePermissions;
     }
 
+
+    /// <summary>
+    /// Checks if user is an tenant-level administrator.
+    /// </summary>
+    /// <param name="userId">The user ID to check.</param>
+    /// <returns>True if user is an tenant-level administrator, false otherwise.</returns>
     private async Task<bool> IsUserAdminInternalAsync(long userId)
     {
         // Use the same cache key pattern as other methods
@@ -550,7 +573,7 @@ internal sealed class PermissionService : IPermissionService
         }
 
         var roles = await _userManager.GetRolesAsync(user);
-        var isAdmin = roles.Contains(Roles.Admin);
+        var isAdmin = roles.Contains(Roles.Admin) || roles.Contains(Roles.PlatformAdmin);
 
         // Cache the result
         _fastPermissionCache.TryAdd(adminCacheKey, isAdmin);
