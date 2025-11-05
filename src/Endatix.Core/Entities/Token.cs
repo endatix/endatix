@@ -7,7 +7,7 @@ public class Token
 {
     private const int TOKEN_SIZE_BYTES = 32; // 256 bits
 
-    public string Value { get; private set; }
+    public string Value { get; private set; } = null!;
     public DateTime? ExpiresAt { get; private set; }
 
     public bool IsExpired => ExpiresAt.HasValue && DateTime.UtcNow > ExpiresAt.Value;
