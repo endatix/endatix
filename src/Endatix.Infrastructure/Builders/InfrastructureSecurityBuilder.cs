@@ -222,7 +222,7 @@ public class InfrastructureSecurityBuilder
 
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();
-        Services.AddScoped<IAuthorizationHandler, PermissionsHandler>();
+        Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
 
 
         return this;
