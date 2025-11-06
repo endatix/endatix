@@ -69,7 +69,6 @@ public class GetTenantSettingsHandler(
 
     /// <summary>
     /// Masks a value by replacing every character with *.
-    /// Example: "xoxb-1234567890-1234567890123-abcdefghijklmnopqrstuvwx" -> "**************************************************"
     /// </summary>
     private static string? MaskValue(string? value)
     {
