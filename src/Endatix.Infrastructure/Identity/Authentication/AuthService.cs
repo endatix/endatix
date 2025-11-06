@@ -14,6 +14,8 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
     private readonly UserManager<AppUser> _userManager = userManager;
     private readonly IPasswordHasher<AppUser> _passwordHasher = passwordHasher;
 
+    public static readonly string INVALID_CREDENTIALS_ERROR_MESSAGE = "The supplied credentials are invalid";
+
     /// <inheritdoc/>
     public async Task<Result<User>> ValidateCredentials(string email, string password, CancellationToken cancellationToken)
     {
@@ -24,13 +26,13 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
 
         if (user is null || !user.EmailConfirmed)
         {
-            return Result.Invalid(new ValidationError("User not found"));
+            return Result.Invalid(new ValidationError(INVALID_CREDENTIALS_ERROR_MESSAGE));
         }
 
         var userVerified = await _userManager.CheckPasswordAsync(user, password);
         if (!userVerified)
         {
-            return Result.Invalid(new ValidationError("The supplied credentials are invalid!"));
+            return Result.Invalid(new ValidationError(INVALID_CREDENTIALS_ERROR_MESSAGE));
         }
 
         return Result.Success(user.ToUserEntity());

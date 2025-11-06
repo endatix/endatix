@@ -14,5 +14,5 @@ public abstract class TenantEntity : BaseEntity, ITenantOwned
     protected TenantEntity() { } // For EF Core
 
     public long TenantId { get; private set; }
-    public Tenant Tenant { get; private set; }
+    public Tenant Tenant { get; private set; } = null!;
 }
