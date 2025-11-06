@@ -24,4 +24,9 @@ public class CreateFormRequest
     /// The JSON data of the active form definition.
     /// </summary>
     public string? FormDefinitionJsonData { get; set; }
+
+    /// <summary>
+    /// The JSON data containing webhook configuration settings for this form.
+    /// </summary>
+    public string? WebHookSettingsJson { get; set; }
 }

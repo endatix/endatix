@@ -18,7 +18,7 @@ public class CreateFormHandler(
     {
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
-        var newForm = new Form(tenantContext.TenantId, request.Name, request.Description, request.IsEnabled);
+        var newForm = new Form(tenantContext.TenantId, request.Name, request.Description, request.IsEnabled, request.WebHookSettingsJson);
         var newFormDefinition = new FormDefinition(tenantContext.TenantId, isDraft: true, jsonData: request.FormDefinitionJsonData);
 
         var form = await formsRepository.CreateFormWithDefinitionAsync(newForm, newFormDefinition, cancellationToken);

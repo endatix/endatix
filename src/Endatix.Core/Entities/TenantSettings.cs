@@ -12,10 +12,12 @@ public class TenantSettings : IAggregateRoot
 {
     private string? _slackSettingsJson;
     private SlackSettings? _slackSettings;
+    private string? _webHookSettingsJson;
+    private WebHookConfiguration? _webHookSettings;
 
     private TenantSettings() { } // For EF Core
 
-    public TenantSettings(long tenantId, int? submissionTokenExpiryHours = 24, bool isSubmissionTokenValidAfterCompletion = false, string? slackSettingsJson = null)
+    public TenantSettings(long tenantId, int? submissionTokenExpiryHours = 24, bool isSubmissionTokenValidAfterCompletion = false, string? slackSettingsJson = null, string? webHookSettingsJson = null)
     {
         Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
 
@@ -23,6 +25,7 @@ public class TenantSettings : IAggregateRoot
         SubmissionTokenExpiryHours = submissionTokenExpiryHours;
         IsSubmissionTokenValidAfterCompletion = isSubmissionTokenValidAfterCompletion;
         SlackSettingsJson = slackSettingsJson;
+        WebHookSettingsJson = webHookSettingsJson;
     }
 
     /// <summary>
@@ -57,6 +60,22 @@ public class TenantSettings : IAggregateRoot
     public SlackSettings SlackSettings
     {
         get => _slackSettings ??= DeserializeSlackSettings();
+    }
+
+    public string? WebHookSettingsJson
+    {
+        get => _webHookSettingsJson;
+        private set
+        {
+            _webHookSettingsJson = value;
+            _webHookSettings = null; // Clear cached settings
+        }
+    }
+
+    [NotMapped]
+    public WebHookConfiguration WebHookSettings
+    {
+        get => _webHookSettings ??= DeserializeWebHookSettings();
     }
 
     /// <summary>
@@ -100,6 +119,15 @@ public class TenantSettings : IAggregateRoot
         SlackSettingsJson = JsonSerializer.Serialize(settings);
     }
 
+    /// <summary>
+    /// Updates the webhook configuration settings.
+    /// </summary>
+    public void UpdateWebHookSettings(WebHookConfiguration settings)
+    {
+        _webHookSettings = settings;
+        WebHookSettingsJson = JsonSerializer.Serialize(settings);
+    }
+
     private SlackSettings DeserializeSlackSettings()
     {
         if (string.IsNullOrEmpty(SlackSettingsJson))
@@ -109,5 +137,16 @@ public class TenantSettings : IAggregateRoot
 
         return JsonSerializer.Deserialize<SlackSettings>(SlackSettingsJson) ??
                new SlackSettings { Active = false };
+    }
+
+    private WebHookConfiguration DeserializeWebHookSettings()
+    {
+        if (string.IsNullOrEmpty(WebHookSettingsJson))
+        {
+            return new WebHookConfiguration();
+        }
+
+        return JsonSerializer.Deserialize<WebHookConfiguration>(WebHookSettingsJson) ??
+               new WebHookConfiguration();
     }
 }

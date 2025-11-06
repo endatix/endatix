@@ -23,6 +23,15 @@ public class UpdateFormHandler(
         form.Name = request.Name;
         form.Description = request.Description;
         form.IsEnabled = request.IsEnabled;
+
+        // Update webhook settings:
+        // - null or empty string will clear the webhook settings
+        // - valid JSON string will set the webhook settings
+        var webHookConfig = string.IsNullOrEmpty(request.WebHookSettingsJson)
+            ? null
+            : System.Text.Json.JsonSerializer.Deserialize<WebHookConfiguration>(request.WebHookSettingsJson);
+        form.UpdateWebHookSettings(webHookConfig);
+
         await repository.UpdateAsync(form, cancellationToken);
 
         await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);

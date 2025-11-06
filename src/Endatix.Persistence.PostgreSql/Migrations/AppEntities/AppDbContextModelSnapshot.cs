@@ -146,6 +146,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<long?>("ThemeId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("WebHookSettingsJson")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ActiveDefinitionId")
@@ -407,6 +410,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.Property<int?>("SubmissionTokenExpiryHours")
                         .HasColumnType("integer");
+
+                    b.Property<string>("WebHookSettingsJson")
+                        .HasColumnType("text");
 
                     b.HasKey("TenantId");
 

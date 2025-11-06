@@ -75,11 +75,72 @@ public class CreateFormHandlerTests
         await _handler.Handle(request, CancellationToken.None);
 
         // Assert
-        await _mediator.Received(1).Publish(Arg.Is<FormCreatedEvent>(e => 
-            e.Form.Id == createdForm.Id && 
-            e.Form.Name == createdForm.Name && 
-            e.Form.Description == createdForm.Description && 
-            e.Form.IsEnabled == createdForm.IsEnabled), 
+        await _mediator.Received(1).Publish(Arg.Is<FormCreatedEvent>(e =>
+            e.Form.Id == createdForm.Id &&
+            e.Form.Name == createdForm.Name &&
+            e.Form.Description == createdForm.Description &&
+            e.Form.IsEnabled == createdForm.IsEnabled),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithWebHookSettings_CreatesFormWithWebHookConfiguration()
+    {
+        // Arrange
+        var webHookJson = """
+        {
+            "Events": {
+                "SubmissionCompleted": {
+                    "IsEnabled": true,
+                    "WebHookEndpoints": [
+                        {
+                            "Url": "https://api.example.com/webhook"
+                        }
+                    ]
+                }
+            }
+        }
+        """;
+        var request = new CreateFormCommand("Form Name", "Description", true, SampleData.FORM_DEFINITION_JSON_DATA_1, webHookJson);
+
+        Form? capturedForm = null;
+        _repository.CreateFormWithDefinitionAsync(
+            Arg.Do<Form>(f => capturedForm = f),
+            Arg.Any<FormDefinition>(),
+            Arg.Any<CancellationToken>())
+                   .Returns(callInfo => callInfo.Arg<Form>());
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        capturedForm.Should().NotBeNull();
+        capturedForm!.WebHookSettingsJson.Should().Be(webHookJson);
+        capturedForm.WebHookSettings.Should().NotBeNull();
+        capturedForm.WebHookSettings.Events.Should().ContainKey("SubmissionCompleted");
+    }
+
+    [Fact]
+    public async Task Handle_WithoutWebHookSettings_CreatesFormWithNullWebHookConfiguration()
+    {
+        // Arrange
+        var request = new CreateFormCommand("Form Name", "Description", true, SampleData.FORM_DEFINITION_JSON_DATA_1);
+
+        Form? capturedForm = null;
+        _repository.CreateFormWithDefinitionAsync(
+            Arg.Do<Form>(f => capturedForm = f),
+            Arg.Any<FormDefinition>(),
+            Arg.Any<CancellationToken>())
+                   .Returns(callInfo => callInfo.Arg<Form>());
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        capturedForm.Should().NotBeNull();
+        capturedForm!.WebHookSettingsJson.Should().BeNull();
+        capturedForm.WebHookSettings.Events.Should().BeEmpty();
     }
 }

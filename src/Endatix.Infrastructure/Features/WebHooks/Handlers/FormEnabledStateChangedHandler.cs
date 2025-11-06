@@ -33,6 +33,6 @@ public class FormEnabledStateChangedWebHookHandler(IWebHookService webHookServic
             WebHookOperation.FormEnabledStateChanged,
             form);
 
-        await webHookService.EnqueueWebHookAsync(notification.Form.TenantId, message, cancellationToken);
+        await webHookService.EnqueueWebHookAsync(notification.Form.TenantId, message, cancellationToken, notification.Form.Id);
     }
 } 

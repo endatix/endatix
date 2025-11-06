@@ -14,8 +14,9 @@ public record UpdateFormCommand : ICommand<Result<Form>>
     public string Name { get; init; }
     public string? Description { get; init; }
     public bool IsEnabled { get; init; }
+    public string? WebHookSettingsJson { get; init; }
 
-    public UpdateFormCommand(long formId, string name, string? description, bool isEnabled)
+    public UpdateFormCommand(long formId, string name, string? description, bool isEnabled, string? webHookSettingsJson = null)
     {
         Guard.Against.NegativeOrZero(formId);
         Guard.Against.NullOrWhiteSpace(name);
@@ -24,5 +25,6 @@ public record UpdateFormCommand : ICommand<Result<Form>>
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
+        WebHookSettingsJson = webHookSettingsJson;
     }
 }
