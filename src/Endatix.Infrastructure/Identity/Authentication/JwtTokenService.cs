@@ -68,9 +68,9 @@ internal sealed class JwtTokenService : IUserTokenService
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
         var subject = new ClaimsIdentity(claims: [
                 new Claim(JwtRegisteredClaimNames.Sub, forUser.Id.ToString()),
-                new Claim(ClaimTypes.NameIdentifier, forUser.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, forUser.Email.ToString()),
+                new Claim(JwtRegisteredClaimNames.EmailVerified, forUser.IsVerified.ToString()),
                 new Claim(ClaimNames.TenantId, forUser.TenantId.ToString())
             ]);
 

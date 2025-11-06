@@ -23,5 +23,5 @@ public abstract class AuthProviderOptions
     /// <summary>
     /// Whether to map inbound claims from the provider
     /// </summary>
-    public bool MapInboundClaims { get; set; } = true;
+    public bool MapInboundClaims { get; set; } = false;
 }

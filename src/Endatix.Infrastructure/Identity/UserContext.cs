@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
+using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Infrastructure.Identity;
@@ -31,8 +32,8 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
             return null;
         }
 
-        var tenantId = ExtractTenantId(principal) ?? 0;
-        var email = principal.FindFirst(ClaimTypes.Email)?.Value;
+        var tenantId = ExtractTenantId(principal) ?? AuthConstants.DEFAULT_TENANT_ID;
+        var email = principal.FindFirst(ClaimNames.Email)?.Value;
         var userName = principal.Identity?.Name;
         var isVerified = principal.FindFirst(ClaimNames.EmailVerified)?.Value == "true";
 
@@ -49,27 +50,33 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
     public string? GetCurrentUserId()
     {
         var principal = httpContextAccessor.HttpContext?.User;
-        if (principal?.Identity?.IsAuthenticated != true)
+        if (principal is null)
         {
             return null;
         }
 
-        return ExtractUserId(principal)?.ToString();
+        return principal.GetUserId();
     }
 
     private static long? ExtractUserId(ClaimsPrincipal principal)
     {
-        // Priority order: sub (JWT standard) -> NameIdentifier (ASP.NET standard) -> custom user_id (legacy)
-        var userIdClaim = principal.FindFirst(ClaimNames.UserId) ?? 
-                         principal.FindFirst(ClaimTypes.NameIdentifier) ??
-                         principal.FindFirst("sub");
-        
-        return long.TryParse(userIdClaim?.Value, out var userId) ? userId : null;
+        var userId = principal.GetUserId();
+        if (long.TryParse(userId, out var userIdLong))
+        {
+            return userIdLong;
+        }
+
+        return null;
     }
 
     private static long? ExtractTenantId(ClaimsPrincipal principal)
     {
-        var tenantIdClaim = principal.FindFirst(ClaimNames.TenantId);
-        return long.TryParse(tenantIdClaim?.Value, out var tenantId) ? tenantId : null;
+        var tenantId = principal.GetTenantId();
+        if (long.TryParse(tenantId, out var tenantIdParsed))
+        {
+            return tenantIdParsed;
+        }
+
+        return null;
     }
 }

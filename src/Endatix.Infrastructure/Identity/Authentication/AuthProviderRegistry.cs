@@ -13,7 +13,7 @@ public record ProviderRegistration(IAuthProvider Provider, Type ConfigType, stri
 /// <summary>
 /// Registry for authentication providers.
 /// </summary>
-public class AuthProviderRegistry
+public sealed class AuthProviderRegistry
 {
     private readonly List<ProviderRegistration> _requestedRegistrations = new();
     private readonly List<IAuthProvider> _activeProviders = new();
