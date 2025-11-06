@@ -21,6 +21,13 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 table: "Forms",
                 type: "text",
                 nullable: true);
+
+            // Set default webhook settings for tenant 1
+            migrationBuilder.Sql(@"
+                UPDATE ""TenantSettings""
+                SET ""WebHookSettingsJson"" = '{""Events"":{""FormCreated"":{""IsEnabled"":false,""WebHookEndpoints"":[]},""FormUpdated"":{""IsEnabled"":false,""WebHookEndpoints"":[]},""FormEnabledStateChanged"":{""IsEnabled"":false,""WebHookEndpoints"":[]},""FormDeleted"":{""IsEnabled"":false,""WebHookEndpoints"":[]},""SubmissionCompleted"":{""IsEnabled"":false,""WebHookEndpoints"":[]}}}'
+                WHERE ""TenantId"" = 1;
+            ");
         }
 
         /// <inheritdoc />
