@@ -1,4 +1,6 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Infrastructure;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Multitenancy;
@@ -86,6 +88,7 @@ public class InfrastructureBuilder
         Services.AddWebHookProcessing();
         Services.AddMultitenancyConfiguration();
         Services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
+        Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
         Data.UseDefaults();
         Messaging.UseDefaults();
