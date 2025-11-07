@@ -36,7 +36,7 @@ This API project is the core of the <a href="https://endatix.com" target="_blank
 * **Webhooks** (Support for *submission completed*, *form created*, *form updated*, and *form deleted* events)
 * **reCAPTCHA support**
 * **Email Notifications** (Sendgrid and Mailgun connectors)
-* **Database-stored Custom Question Types** (SurveyJS specialized or composite custom question code can be added at runtime)
+* **Database-stored Custom Question Types** (SurveyJS <a href="https://surveyjs.io/form-library/documentation/customize-question-types/create-specialized-question-types" target="_blank">specialized</a> or <a href="https://surveyjs.io/form-library/documentation/customize-question-types/create-composite-question-types" target="_blank">composite</a> custom question code can be added at runtime)
 * **Multitenancy** (ORM-enforced tenant isolation)
 * **Basic Authentication**
 * **Role Based Access Control**
