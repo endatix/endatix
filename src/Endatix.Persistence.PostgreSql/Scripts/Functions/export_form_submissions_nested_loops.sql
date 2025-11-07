@@ -10,16 +10,10 @@
 -- Database: PostgreSQL
 -- =============================================
 
-CREATE OR REPLACE FUNCTION export_form_submissions_nested_loops(target_form_id bigint DEFAULT NULL)
-RETURNS TABLE (
-    "FormId" bigint,
-    "Id" bigint,
-    "IsComplete" boolean,
-    "CompletedAt" timestamptz,
-    "CreatedAt" timestamptz,
-    "ModifiedAt" timestamptz,
-    "FlattenedAnswers" jsonb
-) AS $$
+CREATE OR REPLACE FUNCTION public.export_form_submissions_nested_loops(target_form_id bigint DEFAULT NULL::bigint)
+ RETURNS TABLE("FormId" bigint, "Id" bigint, "IsComplete" boolean, "CompletedAt" timestamp with time zone, "CreatedAt" timestamp with time zone, "ModifiedAt" timestamp with time zone, "FlattenedAnswers" jsonb)
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     submission_cursor CURSOR FOR
         SELECT s."Id", s."FormId", s."IsComplete", s."CompletedAt", s."CreatedAt", s."ModifiedAt", s."JsonData"::jsonb
@@ -28,9 +22,10 @@ DECLARE
         ORDER BY s."FormId", s."Id";
 
     submission_record RECORD;
-    v_column_specs jsonb;
-    v_simple_questions jsonb;
-    v_all_columns jsonb;
+    v_column_specs jsonb; -- Nested loop columns
+    v_simple_questions jsonb; -- Simple columns (text, number, etc.)
+    v_exploded_specs jsonb; -- NEW: Top-level checkbox/radiogroup columns
+    v_all_columns jsonb; -- All column names
     v_flat_data jsonb;
 BEGIN
     -- PHASE 1: Calculate column structure once (one-time work per form)
@@ -82,7 +77,7 @@ BEGIN
           AND ae.elem ? 'valuePropertyName'
     ),
 
-    -- Step 4: Identify dynamic panels and their nesting structure
+    -- Step 4-10 (Unchanged): Dynamic panel and nested loop column calculations
     dynamic_panels_tree AS (
         SELECT
             ae."FormId",
@@ -96,11 +91,10 @@ BEGIN
         FROM all_elements ae
         JOIN driving_checkboxes dc
           ON dc."FormId" = ae."FormId"
-         AND dc.checkbox_name = ae.elem->>'valueName'
+          AND dc.checkbox_name = ae.elem->>'valueName'
         WHERE ae.elem->>'type' = 'paneldynamic'
     ),
 
-    -- Step 5: Build panel hierarchy paths
     panel_paths AS (
         SELECT
             dpt."FormId",
@@ -112,11 +106,10 @@ BEGIN
             dpt.template_elements,
             dpt.depth
         FROM dynamic_panels_tree dpt
-        WHERE dpt.parent_value_name IS NULL  -- Top-level panels
+        WHERE dpt.parent_value_name IS NULL
 
         UNION ALL
 
-        -- Add nested panels
         SELECT
             dpt."FormId",
             dpt.panel_name,
@@ -129,10 +122,9 @@ BEGIN
         FROM panel_paths pp
         JOIN dynamic_panels_tree dpt
           ON dpt."FormId" = pp."FormId"
-         AND dpt.parent_value_name = pp.value_name
+          AND dpt.parent_value_name = pp.value_name
     ),
 
-    -- Step 6: Extract questions from each panel level
     panel_level_questions AS (
         SELECT
             pp."FormId",
@@ -145,7 +137,6 @@ BEGIN
              jsonb_array_elements(pp.template_elements) AS q
         WHERE q->>'type' NOT IN ('paneldynamic', 'html')
           AND q->>'name' IS NOT NULL
-          -- Exclude driving checkboxes
           AND NOT EXISTS (
               SELECT 1 FROM driving_checkboxes dc
               WHERE dc."FormId" = pp."FormId"
@@ -153,7 +144,6 @@ BEGIN
           )
     ),
 
-    -- Step 7: Normalize choices (handle string vs object format)
     normalized_panel_choices AS (
         SELECT
             plq."FormId",
@@ -185,8 +175,6 @@ BEGIN
              jsonb_array_elements(npc.level_choices) AS choice
     ),
 
-    -- Step 8: Build Cartesian product using recursive CTE
-    -- Start with level 1 choices
     cartesian_base AS (
         SELECT
             ce."FormId",
@@ -206,7 +194,6 @@ BEGIN
 
         UNION ALL
 
-        -- Add next level choices
         SELECT
             ce."FormId",
             ce.loop_path,
@@ -219,13 +206,12 @@ BEGIN
         FROM cartesian_recursive cr
         JOIN choices_expanded ce
           ON ce."FormId" = cr."FormId"
-         AND ce.loop_path = cr.loop_path
-         AND ce.property_path = cr.property_path
-         AND ce.question_name = cr.question_name
-         AND ce.level_idx = cr.current_level + 1
+          AND ce.loop_path = cr.loop_path
+          AND ce.property_path = cr.property_path
+          AND ce.question_name = cr.question_name
+          AND ce.level_idx = cr.current_level + 1
     ),
 
-    -- Step 9: Get complete paths (all levels filled)
     complete_paths AS (
         SELECT
             cr."FormId",
@@ -238,8 +224,7 @@ BEGIN
         WHERE cr.current_level = cr.max_levels
     ),
 
-    -- Step 10: Build column names and JSONPath expressions
-    column_specs AS (
+    column_specs_nested AS (
         SELECT
             cp."FormId",
             (build_column_path_with_jsonpath(
@@ -251,15 +236,51 @@ BEGIN
             )).*
         FROM complete_paths cp
     ),
+    -- END Unchanged Steps (4-10)
 
-    -- Step 11: Get simple (non-panel) questions
+    -- Step 11-A: Identify top-level checkbox questions for explosion
+    exploded_simple_choices AS (
+        SELECT
+            ae."FormId",
+            ae.elem->>'name' AS question_name,
+            CASE
+                -- Normalize choice: ensure we get the 'value' property
+                WHEN jsonb_typeof(choice) = 'string' THEN jsonb_build_object('value', choice)
+                WHEN jsonb_typeof(choice) = 'object' THEN jsonb_build_object('value', COALESCE(choice->>'value', choice->>'text'))
+            END AS choice_obj
+        FROM all_elements ae,
+             jsonb_array_elements(ae.elem->'choices') AS choice
+        WHERE ae.depth = 0 -- Top level
+          AND ae.elem->>'type' IN ('checkbox')
+          AND ae.elem->>'name' IS NOT NULL
+          -- Exclude driving checkboxes (those that define a dynamic panel)
+          AND NOT EXISTS (
+              SELECT 1 FROM driving_checkboxes dc
+              WHERE dc."FormId" = ae."FormId"
+                AND dc.checkbox_name = ae.elem->>'name'
+                AND dc.value_property_name IS NOT NULL -- The check to ensure it drives a panel
+          )
+    ),
+
+    -- Step 11-B: Build column specs for the simple exploded columns
+    exploded_column_specs AS (
+        SELECT
+            esc."FormId",
+            esc.question_name AS source_question_name,
+            (esc.question_name || '_' || (esc.choice_obj->>'value')) AS column_name,
+            esc.choice_obj->>'value' AS choice_value
+        FROM exploded_simple_choices esc
+    ),
+
+    -- Step 11: Get simple (non-panel) questions. Exclude exploded types.
     simple_questions AS (
         SELECT DISTINCT
             ae."FormId",
             ae.elem->>'name' AS question_name
         FROM all_elements ae
-        WHERE ae.depth = 0  -- Top level only
-          AND ae.elem->>'type' NOT IN ('paneldynamic', 'panel', 'html')
+        WHERE ae.depth = 0
+          -- Exclude types handled elsewhere (nested, html, panel, and now: checkbox)
+          AND ae.elem->>'type' NOT IN ('paneldynamic', 'panel', 'html', 'checkbox')
           AND ae.elem->>'name' IS NOT NULL
           AND NOT EXISTS (
               SELECT 1 FROM driving_checkboxes dc
@@ -268,24 +289,19 @@ BEGIN
           )
     ),
 
-    -- Step 12: Get all possible columns (including empty ones)
+    -- Step 12: Get all possible columns (combined)
     all_columns AS (
-        -- Simple questions
-        SELECT DISTINCT
-            sq."FormId",
-            sq.question_name AS col_name
-        FROM simple_questions sq
-
+        -- Simple columns (text, number, etc.)
+        SELECT DISTINCT sq."FormId", sq.question_name AS col_name FROM simple_questions sq
         UNION
-
-        -- All Cartesian product columns
-        SELECT DISTINCT
-            cs."FormId",
-            cs.column_name AS col_name
-        FROM column_specs cs
+        -- Nested loop columns
+        SELECT DISTINCT cs."FormId", cs.column_name AS col_name FROM column_specs_nested cs
+        UNION
+        -- Exploded simple columns
+        SELECT DISTINCT ecs."FormId", ecs.column_name AS col_name FROM exploded_column_specs ecs
     ),
 
-    -- Step 13: Aggregate metadata for reuse (within CTE scope)
+    -- Step 13: Aggregate metadata for reuse
     column_metadata AS (
         SELECT
             target_form_id AS "FormId",
@@ -294,7 +310,7 @@ BEGIN
                     'column_name', cs.column_name,
                     'jsonpath_expression', cs.jsonpath_expression
                 ))
-                FROM column_specs cs
+                FROM column_specs_nested cs
                 WHERE cs."FormId" = target_form_id
             ) AS column_specs,
             (
@@ -303,6 +319,15 @@ BEGIN
                 WHERE sq."FormId" = target_form_id
             ) AS simple_questions,
             (
+                SELECT jsonb_agg(jsonb_build_object(
+                    'column_name', ecs.column_name,
+                    'source_question', ecs.source_question_name,
+                    'choice_value', ecs.choice_value
+                ))
+                FROM exploded_column_specs ecs
+                WHERE ecs."FormId" = target_form_id
+            ) AS exploded_specs,
+            (
                 SELECT jsonb_agg(ac.col_name)
                 FROM all_columns ac
                 WHERE ac."FormId" = target_form_id
@@ -310,8 +335,8 @@ BEGIN
     )
 
     -- Store column metadata in variables for reuse
-    SELECT column_specs, simple_questions, all_columns
-    INTO v_column_specs, v_simple_questions, v_all_columns
+    SELECT column_specs, simple_questions, exploded_specs, all_columns
+    INTO v_column_specs, v_simple_questions, v_exploded_specs, v_all_columns
     FROM column_metadata;
 
     -- PHASE 2: Stream submissions one by one
@@ -324,7 +349,7 @@ BEGIN
         -- Build flattened data for this submission only
         v_flat_data := '{}'::jsonb;
 
-        -- Add simple questions
+        -- 2.1: Add simple questions
         IF v_simple_questions IS NOT NULL THEN
             SELECT v_flat_data || COALESCE(
                 jsonb_object_agg(
@@ -337,7 +362,26 @@ BEGIN
             FROM jsonb_array_elements_text(v_simple_questions) AS question_name;
         END IF;
 
-        -- Add nested loop questions
+        -- 2.2: Add exploded simple questions (0 or 1)
+        IF v_exploded_specs IS NOT NULL THEN
+            SELECT v_flat_data || COALESCE(
+                jsonb_object_agg(
+                    spec->>'column_name',
+                    CASE
+                        -- Case 1: Checkbox (answer is an array)
+                        WHEN jsonb_typeof(submission_record."JsonData"->(spec->>'source_question')) = 'array'
+                             AND submission_record."JsonData"->(spec->>'source_question') @> to_jsonb(spec->>'choice_value')
+                             THEN to_jsonb(1) -- Match found, set to 1
+                        ELSE to_jsonb(0) -- No match, set to 0
+                    END
+                ),
+                '{}'::jsonb
+            )
+            INTO v_flat_data
+            FROM jsonb_array_elements(v_exploded_specs) AS spec;
+        END IF;
+
+        -- 2.3: Add nested loop questions (using JSONPath)
         IF v_column_specs IS NOT NULL THEN
             SELECT v_flat_data || COALESCE(
                 jsonb_object_agg(
@@ -353,7 +397,7 @@ BEGIN
             FROM jsonb_array_elements(v_column_specs) AS col;
         END IF;
 
-        -- Ensure all columns are present (fill missing with null)
+        -- 2.4: Ensure all columns are present (fill missing with null)
         IF v_all_columns IS NOT NULL THEN
             SELECT jsonb_object_agg(
                 col_name,
