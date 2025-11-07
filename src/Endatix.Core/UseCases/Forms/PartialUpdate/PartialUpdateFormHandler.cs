@@ -35,13 +35,26 @@ public class PartialUpdateFormHandler(
             form.SetTheme(theme);
         }
 
-        // Update webhook settings:
-        // - null or empty string will clear the webhook settings
-        // - valid JSON string will set the webhook settings
-        var webHookConfig = string.IsNullOrEmpty(request.WebHookSettingsJson)
-            ? null
-            : System.Text.Json.JsonSerializer.Deserialize<WebHookConfiguration>(request.WebHookSettingsJson);
-        form.UpdateWebHookSettings(webHookConfig);
+        if (request.WebHookSettingsJson != null)
+        {
+            WebHookConfiguration? webHookConfig;
+
+            if (request.WebHookSettingsJson.Trim() == string.Empty)
+            {
+                webHookConfig = null;
+            }
+            else
+            {
+                webHookConfig = System.Text.Json.JsonSerializer.Deserialize<WebHookConfiguration>(request.WebHookSettingsJson);
+
+                if (webHookConfig?.Events == null || webHookConfig.Events.Count == 0)
+                {
+                    webHookConfig = null;
+                }
+            }
+
+            form.UpdateWebHookSettings(webHookConfig);
+        }
 
         await repository.UpdateAsync(form, cancellationToken);
 

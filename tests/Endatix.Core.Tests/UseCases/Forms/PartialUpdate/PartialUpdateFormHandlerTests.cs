@@ -252,4 +252,76 @@ public class PartialUpdateFormHandlerTests
         form.WebHookSettings.Events.Should().ContainKey("FormUpdated");
         form.WebHookSettings.Events["FormUpdated"].IsEnabled.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Handle_WithNullWebHookSettingsJson_PreservesExistingWebHookSettings()
+    {
+        // Arrange
+        var webHookConfig = new WebHookConfiguration
+        {
+            Events = new Dictionary<string, WebHookEventConfig>
+            {
+                ["SubmissionCompleted"] = new WebHookEventConfig
+                {
+                    IsEnabled = true,
+                    WebHookEndpoints = new List<WebHookEndpointConfig>
+                    {
+                        new WebHookEndpointConfig { Url = "https://api.example.com/webhook" }
+                    }
+                }
+            }
+        };
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        form.UpdateWebHookSettings(webHookConfig);
+
+        // Create request with only Name updated, WebHookSettingsJson is null
+        var request = new PartialUpdateFormCommand(1, SampleData.FORM_NAME_2, null, null, null, null);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+                   .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Ok);
+        form.Name.Should().Be(SampleData.FORM_NAME_2); // Name was updated
+        form.WebHookSettingsJson.Should().NotBeNull(); // Webhook settings preserved
+        form.WebHookSettings.Events.Should().ContainKey("SubmissionCompleted"); // Original webhook still exists
+        form.WebHookSettings.Events["SubmissionCompleted"].IsEnabled.Should().BeTrue();
+        form.WebHookSettings.Events["SubmissionCompleted"].WebHookEndpoints.Should().HaveCount(1);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{ }")]
+    [InlineData("{  }")]
+    [InlineData("{\n}")]
+    [InlineData("{ \n }")]
+    public async Task Handle_WithEmptyJsonObject_ClearsWebHookConfiguration(string emptyJson)
+    {
+        // Arrange
+        var webHookConfig = new WebHookConfiguration
+        {
+            Events = new Dictionary<string, WebHookEventConfig>
+            {
+                ["SubmissionCompleted"] = new WebHookEventConfig { IsEnabled = true }
+            }
+        };
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        form.UpdateWebHookSettings(webHookConfig);
+
+        var request = new PartialUpdateFormCommand(1, null, null, null, null, emptyJson);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+                   .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Ok);
+        form.WebHookSettingsJson.Should().BeNull(); // Cleared by empty JSON object
+        form.WebHookSettings.Events.Should().BeEmpty();
+    }
 }

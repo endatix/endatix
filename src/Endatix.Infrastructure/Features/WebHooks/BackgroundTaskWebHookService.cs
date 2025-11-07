@@ -2,6 +2,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
+using Endatix.Infrastructure.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Features.WebHooks;
@@ -62,7 +63,7 @@ public class BackgroundTaskWebHookService(
         {
             // Convert snake_case event name to PascalCase for dictionary lookup
             // e.g., "form_created" -> "FormCreated"
-            var pascalCaseEventName = ConvertToPascalCase(eventName);
+            var pascalCaseEventName = StringUtils.ToPascalCase(eventName);
 
             if (config.Events.TryGetValue(pascalCaseEventName, out var eventConfig))
             {
@@ -72,22 +73,6 @@ public class BackgroundTaskWebHookService(
 
         logger.LogTrace("No webhook configuration found for event {eventName}, tenant {tenantId}, form {formId}", eventName, tenantId, formId);
         return null;
-    }
-
-    /// <summary>
-    /// Converts snake_case event names to PascalCase for dictionary lookup.
-    /// e.g., "form_created" -> "FormCreated", "submission_completed" -> "SubmissionCompleted"
-    /// </summary>
-    private static string ConvertToPascalCase(string snakeCaseString)
-    {
-        if (string.IsNullOrEmpty(snakeCaseString))
-            return snakeCaseString;
-
-        var parts = snakeCaseString.Split('_');
-        var result = string.Concat(parts.Select(part =>
-            char.ToUpperInvariant(part[0]) + part.Substring(1).ToLowerInvariant()));
-
-        return result;
     }
 
     private async Task<WebHookConfiguration?> GetConfigAsync(long tenantId, long? formId, CancellationToken cancellationToken)
