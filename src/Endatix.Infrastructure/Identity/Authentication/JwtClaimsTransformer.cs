@@ -97,7 +97,7 @@ public sealed class JwtClaimsTransformer(
     /// <returns>The user claims data.</returns>
     private async Task<UserClaimsData?> GetUserClaimsDataAsync(long userId, CancellationToken cancellationToken = default)
     {
-        var userRoleInfoResult = await permissionService.GetUserRoleInfoAsync(userId, cancellationToken);
+        var userRoleInfoResult = await permissionService.GetUserPermissionsInfoAsync(userId, cancellationToken);
         if (!userRoleInfoResult.IsSuccess)
         {
             return null;

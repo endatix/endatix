@@ -35,7 +35,7 @@ public class Me(IUserContext userContext, IPermissionService permissionService)
         }
 
         // Get user roles and permissions from PermissionService
-        var roleInfoResult = await permissionService.GetUserRoleInfoAsync(parsedUserId, cancellationToken);
+        var roleInfoResult = await permissionService.GetUserPermissionsInfoAsync(parsedUserId, cancellationToken);
         if (!roleInfoResult.IsSuccess)
         {
             return TypedResults.Unauthorized();

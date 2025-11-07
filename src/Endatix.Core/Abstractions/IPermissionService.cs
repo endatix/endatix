@@ -1,23 +1,12 @@
-using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Abstractions;
 
 /// <summary>
-/// Service contract for permission resolution and caching.
-/// Provides efficient permission checking with multi-level caching strategy.
+/// Service contract for permission required data resolution and authorization logic.
 /// </summary>
 public interface IPermissionService
 {
-    /// <summary>
-    /// Gets all effective permissions for a user (with caching).
-    /// Admin users bypass database calls and return all permissions.
-    /// </summary>
-    /// <param name="userId">The user ID to get permissions for.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Collection of permission names the user has.</returns>
-    Task<Result<IEnumerable<string>>> GetUserPermissionsAsync(long userId, CancellationToken cancellationToken = default);
-
     /// <summary>
     /// Checks if a user has a specific permission (with caching).
     /// Optimized for single permission checks with fast cache lookup.
@@ -28,6 +17,16 @@ public interface IPermissionService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if user has the permission, false otherwise.</returns>
     Task<Result<bool>> HasPermissionAsync(long userId, string permission, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Batch permission check for multiple permissions at once.
+    /// More efficient than multiple individual calls.
+    /// </summary>
+    /// <param name="userId">The user ID to check.</param>
+    /// <param name="permissions">Collection of permissions to check.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Dictionary mapping permission names to boolean results.</returns>
+    Task<Result<Dictionary<string, bool>>> HasPermissionsAsync(long userId, IEnumerable<string> permissions, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Checks if a user is an tenant-level administrator.
@@ -49,23 +48,13 @@ public interface IPermissionService
     Task<Result<bool>> IsUserPlatformAdminAsync(long userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Batch permission check for multiple permissions at once.
-    /// More efficient than multiple individual calls.
-    /// </summary>
-    /// <param name="userId">The user ID to check.</param>
-    /// <param name="permissions">Collection of permissions to check.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Dictionary mapping permission names to boolean results.</returns>
-    Task<Result<Dictionary<string, bool>>> HasPermissionsAsync(long userId, IEnumerable<string> permissions, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Gets comprehensive user role and permission information for API responses.
     /// Includes caching metadata for client-side cache management.
     /// </summary>
     /// <param name="userId">The user ID to get role info for.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Complete user role and permission information.</returns>
-    Task<Result<UserRoleInfo>> GetUserRoleInfoAsync(long userId, CancellationToken cancellationToken = default);
+    Task<Result<UserPermissionsInfo>> GetUserPermissionsInfoAsync(long userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Validates whether the current user has the required permission.
@@ -90,7 +79,7 @@ public interface IPermissionService
 /// User role and permission information for API responses.
 /// Optimized for JSON serialization and client-side caching.
 /// </summary>
-public sealed class UserRoleInfo
+public sealed class UserPermissionsInfo
 {
     public long UserId { get; init; }
     public long TenantId { get; init; }

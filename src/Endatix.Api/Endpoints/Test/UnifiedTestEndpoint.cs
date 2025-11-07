@@ -381,7 +381,7 @@ public class UnifiedTestEndpoint : Endpoint<UnifiedTestRequest, UnifiedTestRespo
             result.CanManageUsers = usersResult.IsSuccess && usersResult.Value;
 
             // Get user role info
-            var roleInfoResult = await _permissionService.GetUserRoleInfoAsync(userId);
+            var roleInfoResult = await _permissionService.GetUserPermissionsInfoAsync(userId);
             if (roleInfoResult.IsSuccess)
             {
                 result.UserRoles = roleInfoResult.Value.Roles.ToList();
