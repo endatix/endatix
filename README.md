@@ -27,12 +27,13 @@ This API project is the core of the <a href="https://endatix.com" target="_blank
 ## Features
 
 * **Form Versioning** (Allows a form to be modified after it has started collecting submissions)
-* **Form Access Control** (Forms can be publically accessible or password protected) 
-* **Form Lifecycle Management** (draft vs. published mode)
+* **Form Access Control** (Forms can be publically accessible or password-protected) 
+* **Form Lifecycle Management** (draft vs. published state)
 * **Form Templates**
 * **Themes** (Based on the <a href="https://surveyjs.io/form-library/documentation/manage-default-themes-and-styles" target="_blank">SurveyJS Theme format</a>)
 * **Partial Submissions** (Users can resume incomplete submissions)
 * **Submission metadata** (Including completion status, date/time started, and date/time completed)
+* **Webhooks** (Support for *submission completed*, *form created*, *form updated*, and *form deleted* events)
 * **reCAPTCHA support**
 * **Email Notifications** (Sendgrid and Mailgun connectors)
 * **Database-stored Custom Question Types** (SurveyJS specialized or composite custom question code can be added at runtime)
