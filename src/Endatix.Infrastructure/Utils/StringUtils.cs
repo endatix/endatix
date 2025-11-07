@@ -58,4 +58,27 @@ public static class StringUtils
 
         return new string(buffer[start..pos]);
     }
+
+    /// <summary>
+    /// Converts a snake_case string to PascalCase.
+    /// </summary>
+    /// <param name="input">The snake_case string to convert.</param>
+    /// <returns>The PascalCase string.</returns>
+    /// <example>
+    /// "form_created" -> "FormCreated"
+    /// "submission_completed" -> "SubmissionCompleted"
+    /// </example>
+    public static string ToPascalCase(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return input;
+        }
+
+        var parts = input.Split('_');
+        var result = string.Concat(parts.Select(part =>
+            char.ToUpperInvariant(part[0]) + part[1..].ToLowerInvariant()));
+
+        return result;
+    }
 }

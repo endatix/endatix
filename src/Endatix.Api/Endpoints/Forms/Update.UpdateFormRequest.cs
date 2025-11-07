@@ -24,4 +24,9 @@ public class UpdateFormRequest
     /// Indicates if the form is enabled.
     /// </summary>
     public bool? IsEnabled { get; set; }
+
+    /// <summary>
+    /// The JSON data containing webhook configuration settings for this form.
+    /// </summary>
+    public string? WebHookSettingsJson { get; set; }
 }

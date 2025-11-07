@@ -22,7 +22,8 @@ public class FormMapper
         IsEnabled = form.IsEnabled,
         ThemeId = form.ThemeId?.ToString(),
         CreatedAt = form.CreatedAt,
-        ModifiedAt = form.ModifiedAt
+        ModifiedAt = form.ModifiedAt,
+        WebHookSettingsJson = form.WebHookSettingsJson
     };
 
     /// <summary>
@@ -61,6 +62,7 @@ public static class FormMapperExtensions
         ThemeId = formDto.ThemeId,
         CreatedAt = formDto.CreatedAt,
         ModifiedAt = formDto.ModifiedAt,
-        SubmissionsCount = formDto.SubmissionsCount
+        SubmissionsCount = formDto.SubmissionsCount,
+        WebHookSettingsJson = formDto.WebHookSettingsJson
     };
 }

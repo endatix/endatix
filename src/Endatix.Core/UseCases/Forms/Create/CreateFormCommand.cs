@@ -14,8 +14,9 @@ public record CreateFormCommand : ICommand<Result<Form>>
     public string? Description { get; init; }
     public bool IsEnabled { get; init; }
     public string FormDefinitionJsonData { get; init; }
+    public string? WebHookSettingsJson { get; init; }
 
-    public CreateFormCommand(string name, string? description, bool isEnabled, string formDefinitionJsonData)
+    public CreateFormCommand(string name, string? description, bool isEnabled, string formDefinitionJsonData, string? webHookSettingsJson = null)
     {
         Guard.Against.NullOrWhiteSpace(name);
         Guard.Against.NullOrWhiteSpace(formDefinitionJsonData);
@@ -24,5 +25,6 @@ public record CreateFormCommand : ICommand<Result<Form>>
         Description = description;
         IsEnabled = isEnabled;
         FormDefinitionJsonData = formDefinitionJsonData;
+        WebHookSettingsJson = webHookSettingsJson;
     }
 }

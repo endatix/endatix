@@ -44,4 +44,9 @@ public record FormDto
     /// The total number of submissions for the form
     /// </summary>
     public int? SubmissionsCount { get; init; }
+
+    /// <summary>
+    /// The JSON data containing webhook configuration settings for this form.
+    /// </summary>
+    public string? WebHookSettingsJson { get; init; }
 }
