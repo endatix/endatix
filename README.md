@@ -30,7 +30,7 @@ This API project is the core of the [Endatix Hub](https://endatix.com) form mana
 * **Form Access Control** (Forms can be publically accessible or password-protected) 
 * **Form Lifecycle Management** (draft vs. published state)
 * **Form Templates**
-* **Themes** (Based on the [SurveyJS Themes and Styles](https://surveyjs.io/form-library/documentation/manage-default-themes-and-styles))
+* **Themes** (Based on SurveyJS [Themes and Styles](https://surveyjs.io/form-library/documentation/manage-default-themes-and-styles))
 * **Partial Submissions** (Users can resume incomplete submissions)
 * **Submission metadata** (Including completion status, date/time started, and date/time completed)
 * **Webhooks** (Support for *submission completed*, *form created*, *form updated*, and *form deleted* events)
@@ -51,7 +51,7 @@ This API project is the core of the [Endatix Hub](https://endatix.com) form mana
 
 ## Supported Environments
 
-<img width="640" alt="image" src="assets/images/environments.png"><br>
+<img width="480" alt="image" src="assets/images/environments.png"><br>
 
 Endatix runs on any server or workstation that supports [.NET 9.0 (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0), including **Linux**, **Windows**, and **macOS**.
 
