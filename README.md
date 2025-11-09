@@ -51,7 +51,10 @@ This API project is the core of the [Endatix Hub](https://endatix.com) form mana
 
 ## Supported Environments
 
-Endatix runs on any server or workstation that supports [.NET 9.0 (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0), including **Linux**, **Windows**, and **macOS**.  
+<img width="640" alt="image" src="assets/images/environments.png"><br>
+
+Endatix runs on any server or workstation that supports [.NET 9.0 (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0), including **Linux**, **Windows**, and **macOS**.
+
 It can be deployed to on-premise servers, cloud environments such as **Azure**, **AWS**, or **Google Cloud**, and also runs in [**Docker Containers**](https://hub.docker.com/u/endatix) for simplified setup and scaling.
 
 ## Installation
