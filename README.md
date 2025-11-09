@@ -6,11 +6,11 @@
 
 ## What is Endatix?
 
-Endatix is a free form management backend API designed to integrate with the <a href="https://github.com/surveyjs/survey-library" target="_blank">SurveyJS</a> frontend library.
+Endatix is a free form management backend API designed to integrate with the [SurveyJS](https://github.com/surveyjs/survey-library) frontend library.
 
-It provides REST API endpoints for CRUD operations and the management of forms, templates, submissions, themes, custom form fields, and more. It can be used to build self-hosted or SaaS solutions that focus on collecting information from <a href="https://en.wikipedia.org/wiki/Human" target="_blank">humans</a> in industries such as market research, legal, insurance, finance, education, healthcare, and more.
+It provides REST API endpoints for CRUD operations and the management of forms, templates, submissions, themes, custom form fields, and more. It can be used to build self-hosted or SaaS solutions that focus on collecting information from [humans](https://en.wikipedia.org/wiki/Human) in industries such as market research, legal, insurance, finance, education, healthcare, and more.
 
-This API project is the core of the <a href="https://endatix.com" target="_blank">Endatix Hub</a> form management system for business users, offering a complete UI, seamless integration with the <a href="https://github.com/surveyjs/survey-creator" target="_blank">SurveyJS Creator</a> form-building tool, and an <a href="https://www.youtube.com/watch?v=aX_Hm4WYsEE" target="_blank">AI assistant</a>.
+This API project is the core of the [Endatix Hub](https://endatix.com) form management system for business users, offering a complete UI, seamless integration with the [SurveyJS Creator](https://github.com/surveyjs/survey-creator) form-building tool, and an [AI assistant](https://www.youtube.com/watch?v=aX_Hm4WYsEE).
 
 ## Table of Contents
 - [Features](#features)
@@ -30,17 +30,17 @@ This API project is the core of the <a href="https://endatix.com" target="_blank
 * **Form Access Control** (Forms can be publically accessible or password-protected) 
 * **Form Lifecycle Management** (draft vs. published state)
 * **Form Templates**
-* **Themes** (Based on the <a href="https://surveyjs.io/form-library/documentation/manage-default-themes-and-styles" target="_blank">SurveyJS Theme format</a>)
+* **Themes** (Based on the [SurveyJS Themes and Styles](https://surveyjs.io/form-library/documentation/manage-default-themes-and-styles))
 * **Partial Submissions** (Users can resume incomplete submissions)
 * **Submission metadata** (Including completion status, date/time started, and date/time completed)
 * **Webhooks** (Support for *submission completed*, *form created*, *form updated*, and *form deleted* events)
 * **reCAPTCHA support**
 * **Email Notifications** (Sendgrid and Mailgun connectors)
-* **Database-stored Custom Question Types** (SurveyJS <a href="https://surveyjs.io/form-library/documentation/customize-question-types/create-specialized-question-types" target="_blank">specialized</a> or <a href="https://surveyjs.io/form-library/documentation/customize-question-types/create-composite-question-types" target="_blank">composite</a> custom question code can be added at runtime)
+* **Database-stored Custom Question Types** (SurveyJS [specialized](https://surveyjs.io/form-library/documentation/customize-question-types/create-specialized-question-types) or [composite](https://surveyjs.io/form-library/documentation/customize-question-types/create-composite-question-types) custom question code can be added at runtime)
 * **Multitenancy** (ORM-enforced tenant isolation)
 * **Basic Authentication**
 * **Role Based Access Control**
-* **Single-Sign-On** (Supports Keycloak and other <a href="https://oauth.net/2/" target="_blank">OAuth 2.0</a> implementations)
+* **Single-Sign-On** (Supports Keycloak and other [OAuth 2.0](https://oauth.net/2/) implementations)
 
 ## Tech Stack
 
@@ -51,12 +51,12 @@ This API project is the core of the <a href="https://endatix.com" target="_blank
 
 ## Supported Environments
 
-Endatix runs on any server or workstation that supports <a href="https://dotnet.microsoft.com/en-us/download/dotnet/9.0" target="_blank">.NET 9.0 (formerly .NET Core)</a>, including **Linux**, **Windows**, and **macOS**.  
-It can be deployed to on-premise servers, cloud environments such as **Azure**, **AWS**, or **Google Cloud**, and also runs in <a href="https://hub.docker.com/u/endatix" target="_blank">**Docker containers**</a> for simplified setup and scaling.
+Endatix runs on any server or workstation that supports [.NET 9.0 (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0), including **Linux**, **Windows**, and **macOS**.  
+It can be deployed to on-premise servers, cloud environments such as **Azure**, **AWS**, or **Google Cloud**, and also runs in [**Docker Containers**](https://hub.docker.com/u/endatix) for simplified setup and scaling.
 
 ## Installation
 
-To set up the Endatix API ensure you have <a href="https://dotnet.microsoft.com/en-us/download/dotnet/9.0" target="_blank">.NET 9.0 SDK or Runtime (formerly .NET Core)</a> installed and follow these steps:
+To set up the Endatix API ensure you have [.NET 9.0 SDK or Runtime (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) installed and follow these steps:
 
 ```bash
 # Clone the repository
@@ -71,7 +71,7 @@ dotnet build
 
 ## Usage
 
-The following React example provides a very basic demonstration of loading a SurveyJS form and saving a submission through the Endatix API. For a complete API reference and implementation guides visit our <a href="https://docs.endatix.com" target="_blank">documentation portal</a>.
+The following React example provides a very basic demonstration of loading a SurveyJS form and saving a submission through the Endatix API. For a complete API reference and implementation guides visit our [documentation portal](https://docs.endatix.com).
 
 ```TypeScript
 import React, { useEffect, useState } from "react";
