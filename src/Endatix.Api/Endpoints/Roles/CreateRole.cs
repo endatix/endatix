@@ -19,7 +19,7 @@ public class CreateRole(IMediator mediator)
     public override void Configure()
     {
         Post("roles");
-        Permissions(Actions.Admin.ManageRoles);
+        Permissions(Actions.Tenant.ManageRoles);
         Summary(s =>
         {
             s.Summary = "Create a new role with permissions";

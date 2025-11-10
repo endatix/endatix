@@ -19,7 +19,7 @@ public class GetUserRoles(IMediator mediator)
     public override void Configure()
     {
         Get("users/{userId}/roles");
-        Permissions(Actions.Admin.ManageUsers);
+        Permissions(Actions.Tenant.ViewUsers);
         Summary(s =>
         {
             s.Summary = "Get roles assigned to a user";

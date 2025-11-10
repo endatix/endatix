@@ -139,7 +139,7 @@ internal sealed class PermissionService : IPermissionService
 
         var permissionInfo = permissionsInfoResult.Value;
 
-        return Result.Success(permissionInfo.Roles.Contains(Roles.PlatformAdmin));
+        return Result.Success(permissionInfo.Roles.Contains(SystemRole.PlatformAdmin.Name));
     }
 
     /// <inheritdoc />
@@ -180,7 +180,7 @@ internal sealed class PermissionService : IPermissionService
                     UserId = userId,
                     TenantId = _tenantContext.TenantId,
                     Roles = Array.Empty<string>(),
-                    Permissions = [Access.Authenticated],
+                    Permissions = [Actions.Access.Authenticated],
                     IsAdmin = false,
                     CachedAt = utcNow,
                     CacheExpiresIn = _hybridCacheExpiration,
@@ -217,8 +217,8 @@ internal sealed class PermissionService : IPermissionService
                 UserId = userId,
                 TenantId = user.TenantId,
                 Roles = assignedRoles,
-                Permissions = [Access.Authenticated, .. assignedPermissions],
-                IsAdmin = assignedRoles.Contains(Roles.Admin) || assignedRoles.Contains(Roles.PlatformAdmin),
+                Permissions = [Actions.Access.Authenticated, .. assignedPermissions],
+                IsAdmin = assignedRoles.Contains(SystemRole.Admin.Name) || assignedRoles.Contains(SystemRole.PlatformAdmin.Name),
                 CachedAt = DateTime.UtcNow,
                 CacheExpiresIn = _hybridCacheExpiration,
                 ETag = GenerateETag(userId, assignedRoles, assignedPermissions),
@@ -233,7 +233,7 @@ internal sealed class PermissionService : IPermissionService
                 UserId = userId,
                 TenantId = _tenantContext.TenantId,
                 Roles = Array.Empty<string>(),
-                Permissions = [Access.Authenticated],
+                Permissions = [Actions.Access.Authenticated],
                 IsAdmin = false,
                 CachedAt = utcNow,
                 CacheExpiresIn = _hybridCacheExpiration,

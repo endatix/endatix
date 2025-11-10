@@ -26,7 +26,7 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
     public static readonly PermissionCategory Questions = new("Questions", "questions");
     public static readonly PermissionCategory Analytics = new("Analytics", "analytics");
     public static readonly PermissionCategory Tenant = new("Tenant Management", "tenant");
-    public static readonly PermissionCategory System = new("System", "system");
+    public static readonly PermissionCategory Platform = new("Platform Management", "platform");
 
     public string Name { get; }
     public string Code { get; }
@@ -65,7 +65,7 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
             "questions" => Questions,
             "analytics" => Analytics,
             "tenant" => Tenant,
-            "system" => System,
+            "platform" => Platform,
             _ => throw new ArgumentException($"Invalid category code: {code}", nameof(code))
         };
 
@@ -88,7 +88,7 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
             Questions,
             Analytics,
             Tenant,
-            System
+            Platform
         };
     }
 

@@ -19,7 +19,7 @@ public class DeleteRole(IMediator mediator)
     public override void Configure()
     {
         Delete("roles/{roleName}");
-        Permissions(Actions.Admin.ManageRoles);
+        Permissions(Actions.Tenant.ManageRoles);
         Summary(s =>
         {
             s.Summary = "Delete a role";

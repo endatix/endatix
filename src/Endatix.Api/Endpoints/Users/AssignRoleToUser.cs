@@ -19,7 +19,7 @@ public class AssignRoleToUser(IMediator mediator)
     public override void Configure()
     {
         Post("users/{userId}/roles");
-        Permissions(Actions.Admin.ManageUsers);
+        Permissions(Actions.Tenant.ManageUsers);
         Summary(s =>
         {
             s.Summary = "Assign a role to a user";
