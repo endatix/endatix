@@ -1,4 +1,4 @@
-using System.Collections;
+using System.Security.Claims;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Attributes;
@@ -22,7 +22,6 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly HybridCache _cache;
     private readonly AppDbContext _dbContext;
-    private readonly IUserContext _userContext;
     private readonly IPermissionService _permissionService;
 
     private static readonly TimeSpan _ownershipCacheExpiration = TimeSpan.FromMinutes(5);
@@ -31,18 +30,16 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
         IHttpContextAccessor httpContextAccessor,
         HybridCache cache,
         AppDbContext dbContext,
-        IUserContext userContext,
         IPermissionService permissionService)
     {
         _httpContextAccessor = httpContextAccessor;
         _cache = cache;
         _dbContext = dbContext;
-        _userContext = userContext;
         _permissionService = permissionService;
     }
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, AssertionRequirement requirement)
     {
-        if (await CheckIsAdminAsync())
+        if (await CheckIsAdminAsync(context.User))
         {
             context.Succeed(requirement);
             return;
@@ -65,7 +62,8 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
             return;
         }
 
-        var isOwner = await HandleOwnerRequirementsAsync(endpointDefinition);
+        var userId = context.User?.GetUserId();
+        var isOwner = await HandleOwnerRequirementsAsync(endpointDefinition, userId);
         if (isOwner)
         {
             context.Succeed(requirement);
@@ -112,9 +110,10 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
     /// Handles the ownership requirements for the given endpoint definition.
     /// </summary>
     /// <param name="endpointDefinition">The endpoint definition to handle the owner requirements for</param>
+    /// <param name="userId">The ID of the user to check the ownership requirements for</param>
     /// <returns>True if the owner requirements are met, false otherwise</returns>
     /// <exception cref="InvalidOperationException">Thrown if the endpoint is missing the [EntityEndpoint] attribute</exception>
-    private async Task<bool> HandleOwnerRequirementsAsync(EndpointDefinition endpointDefinition)
+    private async Task<bool> HandleOwnerRequirementsAsync(EndpointDefinition endpointDefinition, string? userId)
     {
         Guard.Against.Null(endpointDefinition);
         var entityEndpointAttribute = endpointDefinition.EndpointAttributes?.OfType<EntityEndpointAttribute>().FirstOrDefault();
@@ -133,10 +132,9 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
             return false; // No entity ID found in route
         }
 
-        var userId = _userContext.GetCurrentUserId();
-        if (userId == null)
+        if (userId is null || string.IsNullOrEmpty(userId))
         {
-            return false; // No current user
+            return false;
         }
 
         var isOwner = await UserOwnsEntityCached(userId, entityEndpointAttribute.EntityType, entityId);
@@ -144,24 +142,26 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
     }
 
     /// <summary>
-    /// Checks if the current user is an admin
+    /// Checks if the current user is an admin using either claims or permission service as a fallback.
     /// </summary>
+    /// <param name="principal">The claims principal to check.</param>
     /// <returns>True if the current user is a Tenant or Platform Admin, false otherwise</returns>
-    private async Task<bool> CheckIsAdminAsync()
+    private async Task<bool> CheckIsAdminAsync(ClaimsPrincipal principal)
     {
-        var userId = _userContext.GetCurrentUserId();
-        if (userId == null)
+        var claimCheckResult = principal.IsAdmin();
+        if (claimCheckResult.IsSuccess && claimCheckResult.Value)
+        {
+            return true;
+        }
+
+        var userId = principal.GetUserId();
+        if (userId is null || !long.TryParse(userId, out var parsedUserId))
         {
             return false;
         }
 
-        if (!long.TryParse(userId, out var parsedUserId))
-        {
-            return false;
-        }
-
-        var result = await _permissionService.IsUserAdminAsync(parsedUserId);
-        return result.IsSuccess && result.Value;
+        var permissionCheckResult = await _permissionService.IsUserAdminAsync(parsedUserId);
+        return permissionCheckResult.IsSuccess && permissionCheckResult.Value;
     }
 
     private async Task<bool> UserOwnsEntityCached(string userId, Type entityType, string entityId)

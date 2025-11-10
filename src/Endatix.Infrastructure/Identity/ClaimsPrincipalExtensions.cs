@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -60,5 +61,21 @@ public static class ClaimsPrincipalExtensions
         }
 
         return identity.FindFirst(ClaimNames.TenantId)?.Value;
+    }
+
+
+    /// <summary>
+    /// Checks if the claims principal is an admin.
+    /// </summary>
+    /// <param name="principal">The claims principal to check.</param>
+    /// <returns>True if the claims principal is an admin, false otherwise. Returns an error result if the claims principal is not hydrated, in which case, the caller mut check with the Authorization Info Source directly.</returns>
+    public static Result<bool> IsAdmin(this ClaimsPrincipal principal)
+    {
+        if (principal.IsHydrated())
+        {
+            return Result.Success(principal.HasClaim(ClaimNames.IsAdmin, true.ToString()));
+        }
+
+        return Result.Error("Claims principal is not hydrated");
     }
 }
