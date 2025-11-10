@@ -36,7 +36,7 @@ public class GetActive(IMediator mediator, IUserContext userContext) : Endpoint<
         var userId = userContext.GetCurrentUserId();
 
         var result = await mediator.Send(
-            new GetActiveFormDefinitionQuery(request.FormId, userId, Actions.Forms.View),
+            new GetActiveFormDefinitionQuery(request.FormId, userId, Actions.Access.Authenticated),
             cancellationToken);
 
         return TypedResultsBuilder

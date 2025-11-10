@@ -3,7 +3,7 @@ using Endatix.Core.Abstractions.Account;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Identity.Authentication;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -444,7 +444,7 @@ public class InfrastructureSecurityBuilderTests
         // Note: AddAuthorization() also registers a default PassThroughAuthorizationHandler as Transient
         var permissionsHandlerDescriptor = _services
             .Where(sd => sd.ServiceType == typeof(IAuthorizationHandler) &&
-                         sd.ImplementationType == typeof(PermissionsHandler))
+                         sd.ImplementationType == typeof(AssertionPermissionsHandler))
             .FirstOrDefault();
         Assert.NotNull(permissionsHandlerDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, permissionsHandlerDescriptor.Lifetime);
@@ -485,7 +485,7 @@ public class InfrastructureSecurityBuilderTests
         // IAuthorizationHandler (PermissionsHandler) should be Scoped
         // Note: Multiple handlers can be registered, but they should all be Scoped
         var authorizationHandlerDescriptors = _services.Where(sd => sd.ServiceType == typeof(IAuthorizationHandler)).ToList();
-        var permissionsHandlerDescriptor = authorizationHandlerDescriptors.FirstOrDefault(sd => sd.ImplementationType == typeof(PermissionsHandler));
+        var permissionsHandlerDescriptor = authorizationHandlerDescriptors.FirstOrDefault(sd => sd.ImplementationType == typeof(AssertionPermissionsHandler));
         Assert.NotNull(permissionsHandlerDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, permissionsHandlerDescriptor.Lifetime);
     }

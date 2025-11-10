@@ -11,6 +11,7 @@ public class LoginHandlerTests
 {
     private readonly IAuthService _authService;
     private readonly IUserTokenService _tokenService;
+    private readonly IPermissionService _permissionService;
     private readonly IMediator _mediator;
     private readonly LoginHandler _handler;
 
@@ -19,7 +20,8 @@ public class LoginHandlerTests
         _authService = Substitute.For<IAuthService>();
         _tokenService = Substitute.For<IUserTokenService>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new LoginHandler(_authService, _tokenService, _mediator);
+        _permissionService = Substitute.For<IPermissionService>();
+        _handler = new LoginHandler(_authService, _tokenService, _permissionService, _mediator);
     }
 
     [Fact]

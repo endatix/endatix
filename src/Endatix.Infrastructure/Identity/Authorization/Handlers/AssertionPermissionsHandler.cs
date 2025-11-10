@@ -39,7 +39,13 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
     }
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, AssertionRequirement requirement)
     {
-        if (await CheckIsAdminAsync(context.User))
+        var currentUser = context.User;
+        if (currentUser is null)
+        {
+            return;
+        }
+
+        if (await CheckIsAdminAsync(currentUser))
         {
             context.Succeed(requirement);
             return;
