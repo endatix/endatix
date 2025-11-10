@@ -10,11 +10,11 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 - [x] Add access.apps.hub to the backend permissions
 - [x] Add auth/me endpoint to return permissions
 - [x] Remove UserInfo endpoint
-- [ ] Add seeding of Admin, Creator roles
+- [x] Add seeding of Admin, Creator roles
 - [ ] Remove UnifiedTestEndpoint
-- [ ] Add cache invalidation on user login and roles/user related changes (where relevant)
-- [ ] Clean up `IPermissionService` public interface and API once we are closer to production. At this point we will really know what we will need and what not to expose to the client.
-- [ ] Refactor PermissionService, AssertionPermissionsHandler, & JwtClaimsTransformer to optimize DB query logic
+- [x] Add cache invalidation on user login and roles/user related changes (where relevant)
+- [x] Clean up `IPermissionService` public interface and API once we are closer to production. At this point we will really know what we will need and what not to expose to the client.
+- [x] Refactor PermissionService, AssertionPermissionsHandler, & JwtClaimsTransformer to optimize DB query logic
 - [ ] Use context.User to get UserId instead of using IUserContext
 
 
