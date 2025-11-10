@@ -7,14 +7,27 @@ namespace Endatix.Infrastructure.Identity.Authorization.Handlers;
 /// Handles authorization for TenantAdminRequirement.
 /// Verifies user has Admin role within their tenant scope.
 /// </summary>
-public sealed class TenantAdminHandler(IUserContext userContext, IPermissionService permissionService) : AuthorizationHandler<TenantAdminRequirement>
+public sealed class TenantAdminHandler(IPermissionService permissionService) : AuthorizationHandler<TenantAdminRequirement>
 {
     protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context,
         TenantAdminRequirement requirement)
     {
-        var userId = userContext.GetCurrentUserId();
-        if (userId == null || !long.TryParse(userId, out var parsedUserId))
+        var currentUser = context.User;
+        if (currentUser is null)
+        {
+            return;
+        }
+
+        var claimCheckResult = currentUser.IsAdmin();
+        if (claimCheckResult.IsSuccess && claimCheckResult.Value)
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
+        var userId = currentUser.GetUserId();
+        if (userId is null || !long.TryParse(userId, out var parsedUserId))
         {
             return;
         }
@@ -23,12 +36,9 @@ public sealed class TenantAdminHandler(IUserContext userContext, IPermissionServ
         if (result.IsSuccess && result.Value)
         {
             context.Succeed(requirement);
+            return;
         }
 
-        var platformAdminResult = await permissionService.IsUserPlatformAdminAsync(parsedUserId);
-        if (platformAdminResult.IsSuccess && platformAdminResult.Value)
-        {
-            context.Succeed(requirement);
-        }
+        return;
     }
 }
