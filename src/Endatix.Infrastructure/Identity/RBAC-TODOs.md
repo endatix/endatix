@@ -15,7 +15,7 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 - [x] Add cache invalidation on user login and roles/user related changes (where relevant)
 - [x] Clean up `IPermissionService` public interface and API once we are closer to production. At this point we will really know what we will need and what not to expose to the client.
 - [x] Refactor PermissionService, AssertionPermissionsHandler, & JwtClaimsTransformer to optimize DB query logic
-- [ ] Use context.User to get UserId instead of using IUserContext
+- [x] Use context.User to get UserId instead of using IUserContext
 
 
 ## Pretty Level TODOs
