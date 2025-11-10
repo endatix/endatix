@@ -47,7 +47,6 @@ This API project is the core of the [Endatix Hub](https://endatix.com) form mana
 * .NET 9.0 (formerly .NET Core)
 * Entity Framework Core
 * PostgreSQL, MS SQL, or Azure SQL
-* Node v20.12.2
 
 ## Supported Environments
 
