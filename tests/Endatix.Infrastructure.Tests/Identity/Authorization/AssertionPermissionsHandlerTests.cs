@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
-using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Data;
 using Microsoft.Extensions.Caching.Hybrid;
 using Endatix.Core.Infrastructure.Result;

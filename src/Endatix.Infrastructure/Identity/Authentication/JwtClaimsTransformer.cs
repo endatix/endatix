@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.IdentityModel.JsonWebTokens;

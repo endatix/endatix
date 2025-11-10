@@ -1,6 +1,6 @@
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Core.Abstractions;
+namespace Endatix.Core.Abstractions.Authorization;
 
 /// <summary>
 /// Service contract for permission required data resolution and authorization logic.
@@ -98,19 +98,4 @@ public sealed class UserPermissionsInfo
     /// Indicates if this data came from cache or was freshly computed.
     /// </summary>
     public bool FromCache { get; init; }
-}
-
-/// <summary>
-/// Permission cache performance statistics.
-/// </summary>
-public sealed class PermissionCacheStats
-{
-    public long TotalRequests { get; init; }
-    public long CacheHits { get; init; }
-    public long CacheMisses { get; init; }
-    public double HitRate => TotalRequests > 0 ? (double)CacheHits / TotalRequests : 0;
-    public long ActiveUsers { get; init; }
-    public long CachedRoles { get; init; }
-    public TimeSpan AverageResponseTime { get; init; }
-    public DateTime LastCacheInvalidation { get; init; }
 }

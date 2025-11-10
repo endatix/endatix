@@ -7,6 +7,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Infrastructure.Identity.Services;
 

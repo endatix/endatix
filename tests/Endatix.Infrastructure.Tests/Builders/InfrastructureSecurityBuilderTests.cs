@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Account;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Identity.Authentication;

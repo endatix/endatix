@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Attributes;
 using Endatix.Infrastructure.Data;
 using FastEndpoints;

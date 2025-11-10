@@ -1,5 +1,4 @@
 using MediatR;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -10,6 +9,7 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Features.ReCaptcha;
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 

@@ -1,4 +1,4 @@
-using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Microsoft.AspNetCore.Authorization;
 
 namespace Endatix.Infrastructure.Identity.Authorization.Handlers;
