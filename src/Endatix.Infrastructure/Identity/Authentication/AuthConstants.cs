@@ -18,4 +18,9 @@ public static class AuthConstants
     /// The default tenant ID to use for authentication if not specified in the claims
     /// </summary>
     public const long DEFAULT_TENANT_ID = 0;
+
+    /// <summary>
+    /// The default tenant ID to use for the admin user
+    /// </summary>
+    public const long DEFAULT_ADMIN_TENANT_ID = 1;
 }

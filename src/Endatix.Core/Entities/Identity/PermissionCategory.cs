@@ -18,15 +18,15 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
     }
 
     // System-defined categories
-    public static readonly PermissionCategory Admin = new("Administration", "admin");
+    public static readonly PermissionCategory Access = new("Access", "access");
+    public static readonly PermissionCategory Platform = new("Platform Management", "platform");
+    public static readonly PermissionCategory Tenant = new("Tenant Management", "tenant");
     public static readonly PermissionCategory Forms = new("Forms", "forms");
-    public static readonly PermissionCategory Submissions = new("Submissions", "submissions");
     public static readonly PermissionCategory Templates = new("Templates", "templates");
     public static readonly PermissionCategory Themes = new("Themes", "themes");
+    public static readonly PermissionCategory Submissions = new("Submissions", "submissions");
     public static readonly PermissionCategory Questions = new("Questions", "questions");
-    public static readonly PermissionCategory Analytics = new("Analytics", "analytics");
-    public static readonly PermissionCategory Tenant = new("Tenant Management", "tenant");
-    public static readonly PermissionCategory Platform = new("Platform Management", "platform");
+    public static readonly PermissionCategory Custom = new("Custom", "custom");
 
     public string Name { get; }
     public string Code { get; }
@@ -57,15 +57,15 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
 
         var category = code.ToLowerInvariant() switch
         {
-            "admin" => Admin,
+            "access" => Access,
+            "platform" => Platform,
+            "tenant" => Tenant,
             "forms" => Forms,
-            "submissions" => Submissions,
             "templates" => Templates,
             "themes" => Themes,
+            "submissions" => Submissions,
             "questions" => Questions,
-            "analytics" => Analytics,
-            "tenant" => Tenant,
-            "platform" => Platform,
+            "custom" => Custom,
             _ => throw new ArgumentException($"Invalid category code: {code}", nameof(code))
         };
 
@@ -80,15 +80,15 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
     {
         return new[]
         {
-            Admin,
+            Access,
+            Platform,
+            Tenant,
             Forms,
-            Submissions,
             Templates,
             Themes,
+            Submissions,
             Questions,
-            Analytics,
-            Tenant,
-            Platform
+            Custom,
         };
     }
 

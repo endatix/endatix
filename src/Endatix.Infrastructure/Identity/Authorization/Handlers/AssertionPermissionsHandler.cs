@@ -59,8 +59,8 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
             return;
         }
 
-        var ownerPermissions = GetEndpointOwnerPermissions(allowedPermissions);
-        if (!ownerPermissions.Any())
+        var endpointOwnerPermissions = GetEndpointOwnerPermissions(allowedPermissions);
+        if (!endpointOwnerPermissions.Any())
         {
             return;
         }

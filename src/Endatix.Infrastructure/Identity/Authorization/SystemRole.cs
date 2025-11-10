@@ -9,7 +9,7 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// </summary>
 public sealed record SystemRole
 {
-    private SystemRole(string name, string description, bool isSystemDefined, bool hasHubAccess, string[] permissions)
+    private SystemRole(string name, string description, bool isSystemDefined, bool hasHubAccess, string[] permissions, bool isPersisted = true)
     {
         Guard.Against.NullOrWhiteSpace(name, nameof(name));
         Guard.Against.NullOrWhiteSpace(description, nameof(description));
@@ -20,11 +20,13 @@ public sealed record SystemRole
         IsSystemDefined = isSystemDefined;
         HasHubAccess = hasHubAccess;
         Permissions = permissions;
+        IsPersisted = isPersisted;
     }
 
     public string Name { get; }
     public string Description { get; }
     public bool IsSystemDefined { get; }
+    public bool IsPersisted { get; }
     public bool HasHubAccess { get; }
     public string[] Permissions { get; }
 
@@ -68,21 +70,24 @@ public sealed record SystemRole
         description: "Read-only user who can view forms, submissions, and basic analytics.",
         isSystemDefined: true,
         hasHubAccess: true,
-        permissions: [Actions.Access.Authenticated]);
+        permissions: [Actions.Access.Authenticated],
+        isPersisted: false);
 
     public static readonly SystemRole Public = new(
         name: "Public",
         description: "Anonymous user who can only access public forms and submit responses.",
         isSystemDefined: true,
         hasHubAccess: true,
-        permissions: []);
+        permissions: [],
+        isPersisted: false);
 
     public static readonly SystemRole PlatformAdmin = new(
         name: "PlatformAdmin",
         description: "Platform administrator with full access to all features and settings of the platform.",
         isSystemDefined: true,
         hasHubAccess: true,
-        permissions: []);
+        permissions: [],
+        isPersisted: true);
 
     public static readonly SystemRole[] AllSystemRoles = [
         Admin,

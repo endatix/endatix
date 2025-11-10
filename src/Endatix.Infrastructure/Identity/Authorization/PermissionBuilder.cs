@@ -110,4 +110,21 @@ public static class PermissionBuilder
     {
         return PermissionCategory.GetAll(); // All categories in current implementation are system-defined
     }
+
+    /// <summary>
+    /// Gets the permission category from a permission name
+    /// If the category code is not found, returns the custom category
+    /// </summary>
+    /// <param name="permission">The name of the permission</param>
+    /// <returns>The permission category</returns>
+    public static PermissionCategory GetPermissionCategory(string permission)
+    {
+        var categoryCode = permission.Split('.')[0];
+        if (string.IsNullOrEmpty(categoryCode))
+        {
+            return PermissionCategory.Custom;
+        }
+
+        return PermissionCategory.FromCode(categoryCode);
+    }
 }

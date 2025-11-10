@@ -70,7 +70,7 @@ internal sealed class JwtTokenService : IUserTokenService
                 new Claim(JwtRegisteredClaimNames.Sub, forUser.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, forUser.Email.ToString()),
-                new Claim(JwtRegisteredClaimNames.EmailVerified, forUser.IsVerified.ToString()),
+                new Claim(JwtRegisteredClaimNames.EmailVerified, forUser.IsVerified? "true" : "false"),
                 new Claim(ClaimNames.TenantId, forUser.TenantId.ToString())
             ]);
 
