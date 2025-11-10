@@ -85,7 +85,7 @@ internal sealed class PermissionService : IPermissionService
     {
         try
         {
-            var cacheKey = $"usr_rbac:{userId}:{_tenantContext.TenantId}";
+            var cacheKey = GetUserPermissionsCacheKey(userId, _tenantContext.TenantId);
 
             var permissionsInfo = await _hybridCache.GetOrCreateAsync(
                 cacheKey,
@@ -108,7 +108,7 @@ internal sealed class PermissionService : IPermissionService
     public async Task InvalidateUserPermissionCacheAsync(long userId, CancellationToken cancellationToken = default)
     {
         var tenantId = _tenantContext.TenantId;
-        var userPermissionKey = $"usr_rbac:{userId}:{tenantId}";
+        var userPermissionKey = GetUserPermissionsCacheKey(userId, tenantId);
 
         await _hybridCache.RemoveAsync(userPermissionKey);
     }
@@ -168,7 +168,7 @@ internal sealed class PermissionService : IPermissionService
 
     private async Task<UserPermissionsInfo> GetUserPermissionsInfoInternalAsync(long userId, CancellationToken cancellationToken = default)
     {
-        var utcNow = _dateTimeProvider.Now.DateTime;
+        var utcNow = _dateTimeProvider.Now.UtcDateTime;
 
         try
         {
@@ -203,7 +203,6 @@ internal sealed class PermissionService : IPermissionService
 
 
             var assignedRoles = userRoles
-                .Where(r => string.IsNullOrEmpty(r.Name))
                 .Select(r => r.Name!)
                 .ToArray() ?? Array.Empty<string>();
 
@@ -257,4 +256,6 @@ internal sealed class PermissionService : IPermissionService
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(content));
         return Convert.ToBase64String(hash)[..8]; // Short ETag
     }
+
+    private static string GetUserPermissionsCacheKey(long userId, long tenantId) => $"usr_rbac:{userId}:{tenantId}";
 }
