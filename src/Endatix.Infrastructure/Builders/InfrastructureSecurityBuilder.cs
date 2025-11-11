@@ -4,6 +4,7 @@ using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -205,6 +206,12 @@ public class InfrastructureSecurityBuilder
                 .RequireAuthenticatedUser()
                 .Build();
             options.DefaultPolicy = defaultPolicy;
+
+            options.AddPolicy("TenantAdmin", policy =>
+                policy.Requirements.Add(new TenantAdminRequirement()));
+
+            options.AddPolicy("PlatformAdmin", policy =>
+                policy.Requirements.Add(new PlatformAdminRequirement()));
         });
 
         // Register claims transformation to enrich JWT with permissions and roles from database
@@ -212,7 +219,11 @@ public class InfrastructureSecurityBuilder
 
         // Register authorization related services
         Services.AddScoped<IPermissionService, PermissionService>();
-        Services.AddScoped<IAuthorizationHandler, PermissionsHandler>();
+
+        Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
+        Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();
+        Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
+
 
         return this;
     }

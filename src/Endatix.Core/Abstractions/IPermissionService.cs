@@ -1,23 +1,12 @@
-using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Abstractions;
 
 /// <summary>
-/// Service contract for permission resolution and caching.
-/// Provides efficient permission checking with multi-level caching strategy.
+/// Service contract for permission required data resolution and authorization logic.
 /// </summary>
 public interface IPermissionService
 {
-    /// <summary>
-    /// Gets all effective permissions for a user (with caching).
-    /// Admin users bypass database calls and return all permissions.
-    /// </summary>
-    /// <param name="userId">The user ID to get permissions for.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Collection of permission names the user has.</returns>
-    Task<Result<IEnumerable<string>>> GetUserPermissionsAsync(long userId, CancellationToken cancellationToken = default);
-
     /// <summary>
     /// Checks if a user has a specific permission (with caching).
     /// Optimized for single permission checks with fast cache lookup.
@@ -30,16 +19,6 @@ public interface IPermissionService
     Task<Result<bool>> HasPermissionAsync(long userId, string permission, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Checks if a user is an administrator.
-    /// This is a high-performance method that checks admin status with minimal overhead.
-    /// Used internally for admin bypass optimizations.
-    /// </summary>
-    /// <param name="userId">The user ID to check.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if user is an admin, false otherwise.</returns>
-    Task<Result<bool>> IsUserAdminAsync(long userId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Batch permission check for multiple permissions at once.
     /// More efficient than multiple individual calls.
     /// </summary>
@@ -50,13 +29,32 @@ public interface IPermissionService
     Task<Result<Dictionary<string, bool>>> HasPermissionsAsync(long userId, IEnumerable<string> permissions, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Checks if a user is an tenant-level administrator.
+    /// This is a high-performance method that checks admin status with minimal overhead.
+    /// Used internally for admin bypass optimizations.
+    /// </summary>
+    /// <param name="userId">The user ID to check.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if user is an admin, false otherwise.</returns>
+    Task<Result<bool>> IsUserAdminAsync(long userId, CancellationToken cancellationToken = default);
+
+
+    /// <summary>
+    /// Checks if user is a platform-level administrator (cross-tenant access).
+    /// </summary>
+    /// <param name="userId">The user ID to check.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if user is a platform admin, false otherwise.</returns>
+    Task<Result<bool>> IsUserPlatformAdminAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets comprehensive user role and permission information for API responses.
     /// Includes caching metadata for client-side cache management.
     /// </summary>
     /// <param name="userId">The user ID to get role info for.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Complete user role and permission information.</returns>
-    Task<Result<UserRoleInfo>> GetUserRoleInfoAsync(long userId, CancellationToken cancellationToken = default);
+    Task<Result<UserPermissionsInfo>> GetUserPermissionsInfoAsync(long userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Validates whether the current user has the required permission.
@@ -68,15 +66,20 @@ public interface IPermissionService
     /// <returns>Success if access is granted, Unauthorized if not authenticated, Forbidden if lacking permission.</returns>
     Task<Result> ValidateAccessAsync(string? userId, string requiredPermission, CancellationToken cancellationToken = default);
 
-    // Note: Advanced methods like batch operations, cache management, and statistics
-    // can be added later when needed. Keeping interface minimal for now.
+    /// <summary>
+    /// Invalidates the user permission cache.
+    /// </summary>
+    /// <param name="userId">The user ID to invalidate the cache for.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task InvalidateUserPermissionCacheAsync(long userId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
 /// User role and permission information for API responses.
 /// Optimized for JSON serialization and client-side caching.
 /// </summary>
-public sealed class UserRoleInfo
+public sealed class UserPermissionsInfo
 {
     public long UserId { get; init; }
     public long TenantId { get; init; }
@@ -85,12 +88,12 @@ public sealed class UserRoleInfo
     public bool IsAdmin { get; init; }
     public DateTime CachedAt { get; init; }
     public TimeSpan CacheExpiresIn { get; init; }
-    
+
     /// <summary>
     /// ETag for cache validation in HTTP responses.
     /// </summary>
     public string ETag { get; init; } = string.Empty;
-    
+
     /// <summary>
     /// Indicates if this data came from cache or was freshly computed.
     /// </summary>

@@ -30,7 +30,7 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_FormDefinitionNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var request = new GetActiveFormDefinitionQuery(1, null, "forms.view");
+        var request = new GetActiveFormDefinitionQuery(1, null, "access.authenticated");
         _formsRepository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
                    .Returns(Task.FromResult<Form?>(null));
 
@@ -54,7 +54,7 @@ public class GetActiveFormDefinitionHandlerTests
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
-        var request = new GetActiveFormDefinitionQuery(1, null, "forms.view");
+        var request = new GetActiveFormDefinitionQuery(1, null, "access.authenticated");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -94,7 +94,7 @@ public class GetActiveFormDefinitionHandlerTests
             new(SampleData.TENANT_ID, "Question 2", "{ \"type\": \"number\" }", "Description 2")
         };
 
-        var request = new GetActiveFormDefinitionQuery(1, null, "forms.view");
+        var request = new GetActiveFormDefinitionQuery(1, null, "access.authenticated");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -132,7 +132,7 @@ public class GetActiveFormDefinitionHandlerTests
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
         formWithActiveDefinition.SetTheme(theme);
 
-        var request = new GetActiveFormDefinitionQuery(1, null, "forms.view");
+        var request = new GetActiveFormDefinitionQuery(1, null, "access.authenticated");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -168,14 +168,14 @@ public class GetActiveFormDefinitionHandlerTests
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
-        var request = new GetActiveFormDefinitionQuery(1, null, "forms.view");
+        var request = new GetActiveFormDefinitionQuery(1, null, "access.authenticated");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             CancellationToken.None
         ).Returns(formWithActiveDefinition);
 
-        _permissionService.ValidateAccessAsync(null, "forms.view", Arg.Any<CancellationToken>())
+        _permissionService.ValidateAccessAsync(null, "access.authenticated", Arg.Any<CancellationToken>())
             .Returns(Result.Unauthorized("Authentication required to access this resource."));
 
         // Act
@@ -197,15 +197,15 @@ public class GetActiveFormDefinitionHandlerTests
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
-        var request = new GetActiveFormDefinitionQuery(1, "123", "forms.view");
+        var request = new GetActiveFormDefinitionQuery(1, "123", "access.authenticated");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             CancellationToken.None
         ).Returns(formWithActiveDefinition);
 
-        _permissionService.ValidateAccessAsync("123", "forms.view", Arg.Any<CancellationToken>())
-            .Returns(Result.Forbidden("Permission 'forms.view' required to access this resource."));
+        _permissionService.ValidateAccessAsync("123", "access.authenticated", Arg.Any<CancellationToken>())
+            .Returns(Result.Forbidden("Permission 'access.authenticated' required to access this resource."));
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -226,7 +226,7 @@ public class GetActiveFormDefinitionHandlerTests
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
-        var request = new GetActiveFormDefinitionQuery(1, "123", "forms.view");
+        var request = new GetActiveFormDefinitionQuery(1, "123", "access.authenticated");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -238,7 +238,7 @@ public class GetActiveFormDefinitionHandlerTests
             Arg.Any<CancellationToken>()
         ).Returns(new List<CustomQuestion>());
 
-        _permissionService.ValidateAccessAsync("123", "forms.view", Arg.Any<CancellationToken>())
+        _permissionService.ValidateAccessAsync("123", "access.authenticated", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
         // Act
@@ -262,7 +262,7 @@ public class GetActiveFormDefinitionHandlerTests
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
-        var request = new GetActiveFormDefinitionQuery(1, null, "forms.view");
+        var request = new GetActiveFormDefinitionQuery(1, null, "access.authenticated");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),

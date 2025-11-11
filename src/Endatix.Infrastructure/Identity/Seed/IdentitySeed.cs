@@ -1,6 +1,7 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 
@@ -11,7 +12,6 @@ namespace Endatix.Infrastructure.Identity.Seed
     /// </summary>
     public static class IdentitySeed
     {
-        private const long DEFAULT_ADMIN_TENANT_ID = 1;
         private const string DEFAULT_ADMIN_EMAIL = "admin@endatix.com";
         private const string DEFAULT_ADMIN_PASSWORD = "P@ssw0rd";
 
@@ -61,9 +61,9 @@ namespace Endatix.Infrastructure.Identity.Seed
             }
 
             var registerUserResult = await userRegistrationService.RegisterUserAsync(
-                email, 
-                password, 
-                tenantId: DEFAULT_ADMIN_TENANT_ID,  // Set to 1 for the initial admin user
+                email,
+                password,
+                tenantId: AuthConstants.DEFAULT_ADMIN_TENANT_ID,
                 isEmailConfirmed: true,             // Initial user should have confirmed email
                 CancellationToken.None);
 
