@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -11,8 +13,8 @@ namespace Endatix.Infrastructure.Identity.Authentication;
 /// Transforms JWT claims by enriching them with user permissions and roles from the database.
 /// This enables FastEndpoints' built-in authorization to work with our RBAC system.
 /// </summary>
-public sealed class JwtClaimsTransformer(
-    IPermissionService permissionService,
+internal sealed class JwtClaimsTransformer(
+    IAuthorizationProvider authorizationProvider,
     IDateTimeProvider dateTimeProvider,
     HybridCache hybridCache) : IClaimsTransformation
 {
@@ -26,63 +28,71 @@ public sealed class JwtClaimsTransformer(
             return principal;
         }
 
-        var userId = principal.GetUserId();
-        if (userId is null)
+        var authorizationData = await GetAuthorizationDataAsync(principal);
+        if (authorizationData is not null)
         {
-            return principal;
+            HydrateClaimsWithAuthorizationData(identity, authorizationData);
         }
-
-        if (!long.TryParse(userId, out var endatixUserId))
-        {
-            return principal;
-        }
-
-        await HydrateClaimsWithAuthorization(identity, endatixUserId);
 
         return principal;
     }
 
 
     /// <summary>
-    /// Hydrates the claims identity with the user's roles and permissions from the database.
+    /// Gets the authorization data for the claims principal.
     /// </summary>
-    /// <param name="identity">The claims identity to hydrate.</param>
-    /// <param name="userId">The user ID to hydrate the claims for.</param>
+    /// <param name="principal">The claims principal.</param>
     /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
-    private async Task HydrateClaimsWithAuthorization(ClaimsIdentity identity, long userId, CancellationToken cancellationToken = default)
+    private async Task<AuthorizationData?> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
     {
-        var claimIdentityId = identity.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}";
-        var cacheExpiration = ComputeCacheExpiration(identity);
+        var userId = principal.GetUserId();
+        if (userId is null)
+        {
+            return null;
+        }
+
+        var claimIdentityId = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}";
+        var cacheExpiration = ComputeCacheExpiration(principal);
         var cacheKey = $"usr_cache:{claimIdentityId}";
 
-        var claimsData = await hybridCache.GetOrCreateAsync(
+        var authorizationData = await hybridCache.GetOrCreateAsync(
             cacheKey,
-            async _ => await GetUserClaimsDataAsync(userId, cancellationToken),
+            async _ => await authorizationProvider.GetAuthorizationDataAsync(principal, cancellationToken),
             new HybridCacheEntryOptions
             {
                 Expiration = cacheExpiration,
                 LocalCacheExpiration = cacheExpiration
             },
-            tags: ["claims_hydrated"],
+            tags: ["auth_data"],
             cancellationToken
         );
 
-        if (claimsData is null)
+        return authorizationData;
+    }
+
+    /// <summary>
+    /// Hydrates the claims identity with the user's roles and permissions from the database.
+    /// </summary>
+    /// <param name="identity"></param>
+    /// <param name="authorizationData"></param>
+    private void HydrateClaimsWithAuthorizationData(ClaimsIdentity identity, AuthorizationData authorizationData)
+    {
+        if (authorizationData is null)
         {
             return;
         }
 
-        foreach (var role in claimsData.Roles)
+        foreach (var role in authorizationData.Roles)
         {
             identity.AddClaim(new Claim(ClaimTypes.Role, role));
         }
 
-        foreach (var permission in claimsData.Permissions)
+        foreach (var permission in authorizationData.Permissions)
         {
             identity.AddClaim(new Claim(ClaimNames.Permission, permission));
         }
 
-        if (claimsData.IsAdmin)
+        if (authorizationData.IsAdmin)
         {
             identity.AddClaim(new Claim(ClaimNames.IsAdmin, "true"));
         }
@@ -91,38 +101,14 @@ public sealed class JwtClaimsTransformer(
     }
 
     /// <summary>
-    /// Gets the user claims data from the database.
-    /// </summary>
-    /// <param name="userId">The user ID to get the claims data for.</param>
-    /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
-    /// <returns>The user claims data.</returns>
-    private async Task<UserClaimsData?> GetUserClaimsDataAsync(long userId, CancellationToken cancellationToken = default)
-    {
-        var userRoleInfoResult = await permissionService.GetUserPermissionsInfoAsync(userId, cancellationToken);
-        if (!userRoleInfoResult.IsSuccess)
-        {
-            return null;
-        }
-
-        var roleInfo = userRoleInfoResult.Value;
-
-        return new UserClaimsData
-        {
-            Roles = roleInfo.Roles,
-            Permissions = roleInfo.Permissions,
-            IsAdmin = roleInfo.IsAdmin
-        };
-    }
-
-    /// <summary>
     /// Computes the cache expiration time for the claims principal authorization hydrated claims.
     /// </summary>
-    /// <param name="identity">The claims identity to compute the cache expiration for.</param>
+    /// <param name="principal">The claims identity to compute the cache expiration for.</param>
     /// <returns>The cache expiration time.</returns>
-    private TimeSpan ComputeCacheExpiration(ClaimsIdentity identity)
+    private TimeSpan ComputeCacheExpiration(ClaimsPrincipal principal)
     {
 
-        var claimExpiry = identity.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
+        var claimExpiry = principal.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
         if (claimExpiry != null && long.TryParse(claimExpiry, out var expirySeconds))
         {
             var expirationDateTime = DateTimeOffset.FromUnixTimeSeconds(expirySeconds);
@@ -131,12 +117,5 @@ public sealed class JwtClaimsTransformer(
         }
 
         return _fallbackCacheExpiration;
-    }
-
-    private sealed record UserClaimsData
-    {
-        public IEnumerable<string> Roles { get; init; } = Enumerable.Empty<string>();
-        public IEnumerable<string> Permissions { get; init; } = Enumerable.Empty<string>();
-        public bool IsAdmin { get; init; }
     }
 }

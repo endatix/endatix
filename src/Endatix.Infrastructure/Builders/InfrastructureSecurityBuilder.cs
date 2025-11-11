@@ -224,6 +224,7 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
 
+        Services.AddScoped<IAuthorizationProvider, EndatixAuthorizationProvider>();
 
         return this;
     }

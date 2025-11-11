@@ -1,4 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
@@ -7,5 +9,5 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// </summary>
 public interface IAuthorizationProvider
 {
-    void Configure(AuthorizationOptions options);
+    Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default);
 }

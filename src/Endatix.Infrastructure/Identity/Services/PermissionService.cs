@@ -82,7 +82,7 @@ internal sealed class PermissionService : IPermissionService
     }
 
     /// <inheritdoc />
-    public async Task<Result<UserPermissionsInfo>> GetUserPermissionsInfoAsync(long userId, CancellationToken cancellationToken = default)
+    public async Task<Result<AuthorizationData>> GetUserPermissionsInfoAsync(long userId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -167,7 +167,7 @@ internal sealed class PermissionService : IPermissionService
     }
 
 
-    private async Task<UserPermissionsInfo> GetUserPermissionsInfoInternalAsync(long userId, CancellationToken cancellationToken = default)
+    private async Task<AuthorizationData> GetUserPermissionsInfoInternalAsync(long userId, CancellationToken cancellationToken = default)
     {
         var utcNow = _dateTimeProvider.Now.UtcDateTime;
 
@@ -176,7 +176,7 @@ internal sealed class PermissionService : IPermissionService
             var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null)
             {
-                return new UserPermissionsInfo
+                return new AuthorizationData
                 {
                     UserId = userId,
                     TenantId = _tenantContext.TenantId,
@@ -212,7 +212,7 @@ internal sealed class PermissionService : IPermissionService
                 .Distinct()
                 .ToArray();
 
-            return new UserPermissionsInfo
+            return new AuthorizationData
             {
                 UserId = userId,
                 TenantId = user.TenantId,
@@ -228,7 +228,7 @@ internal sealed class PermissionService : IPermissionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting user permissions info for user {UserId}", userId);
-            return new UserPermissionsInfo
+            return new AuthorizationData
             {
                 UserId = userId,
                 TenantId = _tenantContext.TenantId,

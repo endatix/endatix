@@ -54,7 +54,7 @@ public interface IPermissionService
     /// <param name="userId">The user ID to get role info for.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Complete user role and permission information.</returns>
-    Task<Result<UserPermissionsInfo>> GetUserPermissionsInfoAsync(long userId, CancellationToken cancellationToken = default);
+    Task<Result<AuthorizationData>> GetUserPermissionsInfoAsync(long userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Validates whether the current user has the required permission.
@@ -73,29 +73,4 @@ public interface IPermissionService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task InvalidateUserPermissionCacheAsync(long userId, CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// User role and permission information for API responses.
-/// Optimized for JSON serialization and client-side caching.
-/// </summary>
-public sealed class UserPermissionsInfo
-{
-    public long UserId { get; init; }
-    public long TenantId { get; init; }
-    public string[] Roles { get; init; } = [];
-    public string[] Permissions { get; init; } = [];
-    public bool IsAdmin { get; init; }
-    public DateTime CachedAt { get; init; }
-    public TimeSpan CacheExpiresIn { get; init; }
-
-    /// <summary>
-    /// ETag for cache validation in HTTP responses.
-    /// </summary>
-    public string ETag { get; init; } = string.Empty;
-
-    /// <summary>
-    /// Indicates if this data came from cache or was freshly computed.
-    /// </summary>
-    public bool FromCache { get; init; }
 }

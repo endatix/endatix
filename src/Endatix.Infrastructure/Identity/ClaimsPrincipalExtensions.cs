@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Endatix.Core.Infrastructure.Result;
 
@@ -63,6 +64,21 @@ public static class ClaimsPrincipalExtensions
         return identity.FindFirst(ClaimNames.TenantId)?.Value;
     }
 
+
+    /// <summary>
+    /// Gets the issuer from the claims principal.
+    /// </summary>
+    /// <param name="principal">The claims principal to get the issuer from.</param>
+    /// <returns>The issuer as a string, or null if not authenticated or the issuer claim is not found.</returns>
+    public static string? GetIssuer(this ClaimsPrincipal principal)
+    {
+        if (principal?.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
+        {
+            return null;
+        }
+
+        return identity.FindFirst(JwtRegisteredClaimNames.Iss)?.Value;
+    }
 
     /// <summary>
     /// Checks if the claims principal is an admin.
