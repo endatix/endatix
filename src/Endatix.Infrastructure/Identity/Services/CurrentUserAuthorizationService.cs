@@ -6,6 +6,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.Abstractions.Authorization;
 using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 
 namespace Endatix.Infrastructure.Identity.Services;
 
@@ -43,13 +44,19 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         var currentPrincipal = _httpContextAccessor.HttpContext?.User;
         if (currentPrincipal is null)
         {
-            return Result.Success(AuthorizationData.ForAnonymousUser(_tenantContext.TenantId));
+            return Result.Error("No current user found");
         }
 
         var userId = currentPrincipal.GetUserId();
         if (userId is null || !long.TryParse(userId, out var parsedUserId))
         {
             return Result.Success(AuthorizationData.ForAnonymousUser(_tenantContext.TenantId));
+        }
+
+        var authorizationDataResult = ExtractAuthorizationDataFromClaims(currentPrincipal);
+        if (authorizationDataResult.IsSuccess)
+        {
+            return authorizationDataResult;
         }
 
         try
@@ -178,5 +185,42 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         await _hybridCache.RemoveAsync(authorizationDataKey);
     }
 
+
+    /// <summary>
+    /// Extracts the authorization data from the claims principal.
+    /// </summary>
+    /// <param name="principal">The claims principal to get the hydrated authorization data from.</param>
+    /// <returns>The hydrated authorization data if successful, otherwise a not found result.</returns>
+    private Result<AuthorizationData> ExtractAuthorizationDataFromClaims(ClaimsPrincipal principal)
+    {
+        if (!principal.IsHydrated())
+        {
+            return Result.NotFound("Claims principal is not hydrated");
+        }
+
+        var userId = principal.GetUserId();
+        if (userId is null)
+        {
+            return Result.Error("User ID is not found");
+        }
+
+        var tenantId = principal.GetTenantId();
+        if (tenantId is null || !long.TryParse(tenantId, out var parsedTenantId))
+        {
+            return Result.Error("Tenant ID is not found");
+        }
+
+        var authorizationData = AuthorizationData.ForAuthenticatedUser(
+         userId: userId,
+         tenantId: parsedTenantId,
+         roles: principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray(),
+         permissions: principal.FindAll(ClaimNames.Permission).Select(c => c.Value).Distinct().ToArray(),
+         isAdmin: principal.IsAdmin(),
+         cachedAt: DateTime.UtcNow,
+         cacheExpiresIn: TimeSpan.Zero,
+         eTag: string.Empty);
+
+        return Result.Success(authorizationData);
+    }
     private static string GetAuthorizationDataCacheKey(string userId, long tenantId) => $"usr_rbac:{userId}:{tenantId}";
 }

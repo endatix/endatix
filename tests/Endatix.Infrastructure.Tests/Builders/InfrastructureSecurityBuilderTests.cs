@@ -433,7 +433,7 @@ public class InfrastructureSecurityBuilderTests
         // Verify our specific JwtClaimsTransformer is registered as Scoped
         var jwtClaimsTransformerDescriptor = _services
             .Where(sd => sd.ServiceType == typeof(IClaimsTransformation) &&
-                         sd.ImplementationType == typeof(JwtClaimsTransformer))
+                         sd.ImplementationType == typeof(ClaimsTransformer))
             .FirstOrDefault();
         Assert.NotNull(jwtClaimsTransformerDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, jwtClaimsTransformerDescriptor.Lifetime);
@@ -476,7 +476,7 @@ public class InfrastructureSecurityBuilderTests
         var claimsTransformationDescriptor = claimsTransformationDescriptors.LastOrDefault();
         Assert.NotNull(claimsTransformationDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, claimsTransformationDescriptor.Lifetime);
-        Assert.Equal(typeof(JwtClaimsTransformer), claimsTransformationDescriptor.ImplementationType);
+        Assert.Equal(typeof(ClaimsTransformer), claimsTransformationDescriptor.ImplementationType);
 
         // IPermissionService should be Scoped
         var permissionServiceDescriptor = FindServiceDescriptor<ICurrentUserAuthorizationService>();

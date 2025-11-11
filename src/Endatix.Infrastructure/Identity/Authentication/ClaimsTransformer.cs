@@ -10,10 +10,10 @@ using Microsoft.IdentityModel.JsonWebTokens;
 namespace Endatix.Infrastructure.Identity.Authentication;
 
 /// <summary>
-/// Transforms JWT claims by enriching them with user permissions and roles from the database.
+/// Transforms claims principal by enriching them with user permissions and roles from the database.
 /// This enables FastEndpoints' built-in authorization to work with our RBAC system.
 /// </summary>
-internal sealed class JwtClaimsTransformer(
+internal sealed class ClaimsTransformer(
     IEnumerable<IAuthorizationProvider> authorizationProviders,
     IDateTimeProvider dateTimeProvider,
     HybridCache hybridCache) : IClaimsTransformation

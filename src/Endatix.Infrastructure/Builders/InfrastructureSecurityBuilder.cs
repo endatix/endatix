@@ -217,7 +217,7 @@ public class InfrastructureSecurityBuilder
         });
 
         // Register claims transformation to enrich JWT with permissions and roles from database
-        Services.AddScoped<IClaimsTransformation, JwtClaimsTransformer>();
+        Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
 
         // Register authorization related services
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
