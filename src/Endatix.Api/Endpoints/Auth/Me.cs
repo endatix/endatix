@@ -10,8 +10,8 @@ namespace Endatix.Api.Endpoints.Auth;
 /// Endpoint for getting current user information including roles and permissions.
 /// Used by clients (e.g., Next.js Hub) to fetch fresh permission data without re-authentication.
 /// </summary>
-public class Me(IUserContext userContext, IPermissionService permissionService)
-    : EndpointWithoutRequest<Results<Ok<UserInfoResponse>, UnauthorizedHttpResult>>
+public class Me(IPermissionService permissionService)
+    : EndpointWithoutRequest<Results<Ok<AuthorizationData>, UnauthorizedHttpResult>>
 {
     public override void Configure()
     {
@@ -26,56 +26,17 @@ public class Me(IUserContext userContext, IPermissionService permissionService)
         });
     }
 
-    public override async Task<Results<Ok<UserInfoResponse>, UnauthorizedHttpResult>> ExecuteAsync(
+    public override async Task<Results<Ok<AuthorizationData>, UnauthorizedHttpResult>> ExecuteAsync(
         CancellationToken cancellationToken)
     {
-        var userId = userContext.GetCurrentUserId();
-        if (userId == null || !long.TryParse(userId, out var parsedUserId))
-        {
-            return TypedResults.Unauthorized();
-        }
-
         // Get user roles and permissions from PermissionService
-        var roleInfoResult = await permissionService.GetUserPermissionsInfoAsync(parsedUserId, cancellationToken);
-        if (!roleInfoResult.IsSuccess)
+        var authorizationDataResult = await permissionService.GetCurrentUserPermissionsInfoAsync(cancellationToken);
+        if (!authorizationDataResult.IsSuccess)
         {
             return TypedResults.Unauthorized();
         }
 
-        var roleInfo = roleInfoResult.Value;
-        var currentUser = userContext.GetCurrentUser();
 
-        var response = new UserInfoResponse
-        {
-            UserId = parsedUserId,
-            Email = currentUser?.Email ?? string.Empty,
-            TenantId = roleInfo.TenantId,
-            Roles = roleInfo.Roles,
-            Permissions = roleInfo.Permissions,
-            IsAdmin = roleInfo.IsAdmin,
-            EmailVerified = currentUser?.IsVerified ?? false,
-            CachedAt = roleInfo.CachedAt,
-            CacheExpiresAt = roleInfo.CachedAt.Add(roleInfo.CacheExpiresIn),
-            ETag = roleInfo.ETag
-        };
-
-        return TypedResults.Ok(response);
+        return TypedResults.Ok(authorizationDataResult.Value);
     }
-}
-
-/// <summary>
-/// Response DTO for auth/me endpoint.
-/// </summary>
-public class UserInfoResponse
-{
-    public long UserId { get; set; }
-    public string Email { get; set; } = string.Empty;
-    public long TenantId { get; set; }
-    public string[] Roles { get; set; } = [];
-    public string[] Permissions { get; set; } = [];
-    public bool IsAdmin { get; set; }
-    public bool EmailVerified { get; set; }
-    public DateTime CachedAt { get; set; }
-    public DateTime CacheExpiresAt { get; set; }
-    public string ETag { get; set; } = string.Empty;
 }

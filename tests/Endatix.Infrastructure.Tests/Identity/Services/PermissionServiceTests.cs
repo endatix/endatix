@@ -6,11 +6,13 @@ using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Services;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Abstractions;
+using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Infrastructure.Tests.Identity.Services;
 
 public class PermissionServiceTests
 {
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly UserManager<AppUser> _userManager;
     private readonly AppIdentityDbContext _identityDbContext;
     private readonly HybridCache _hybridCache;
@@ -21,6 +23,7 @@ public class PermissionServiceTests
 
     public PermissionServiceTests()
     {
+        _httpContextAccessor = Substitute.For<IHttpContextAccessor>();
         _userManager = Substitute.For<UserManager<AppUser>>(
             Substitute.For<IUserStore<AppUser>>(),
             null, null, null, null, null, null, null, null);
@@ -32,7 +35,8 @@ public class PermissionServiceTests
 
         _tenantContext.TenantId.Returns(1L);
 
-        _service = new PermissionService(
+            _service = new PermissionService(
+            _httpContextAccessor,
             _userManager,
             _identityDbContext,
             _hybridCache,

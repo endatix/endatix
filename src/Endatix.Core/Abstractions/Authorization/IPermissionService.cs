@@ -56,6 +56,14 @@ public interface IPermissionService
     /// <returns>Complete user role and permission information.</returns>
     Task<Result<AuthorizationData>> GetUserPermissionsInfoAsync(long userId, CancellationToken cancellationToken = default);
 
+
+    /// <summary>
+    /// Gets comprehensive user role and permission information for the current user.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Complete user role and permission information.</returns>
+    Task<Result<AuthorizationData>> GetCurrentUserPermissionsInfoAsync(CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Validates whether the current user has the required permission.
     /// Checks authentication, admin status, and specific permission.

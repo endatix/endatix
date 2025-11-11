@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Endatix.Core.Abstractions.Authorization;
 
 
@@ -6,23 +8,46 @@ namespace Endatix.Core.Abstractions.Authorization;
 /// Authorization data for a user including roles, permissions, admin status and metadata for caching.
 /// Optimized for JSON serialization and client-side caching.
 /// </summary>
-public sealed class AuthorizationData
+public sealed record AuthorizationData
 {
-    public long UserId { get; init; }
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization only (used by HybridCache).
+    /// Application code should use factory methods: <see cref="ForAnonymousUser"/> or <see cref="ForAuthenticatedUser"/>.
+    /// Properties are init-only to maintain immutability after deserialization.
+    /// </summary>
+    [JsonConstructor]
+    public AuthorizationData()
+    {
+        UserId = string.Empty;
+        Roles = [];
+        Permissions = [];
+    }
+
+    /// <summary>
+    /// Private constructor for factory methods only. Ensures disciplined object creation.
+    /// </summary>
+    private AuthorizationData(string userId, long tenantId, string[] roles, string[] permissions, bool isAdmin, DateTime cachedAt, TimeSpan cacheExpiresIn, string eTag)
+    {
+        UserId = userId;
+        TenantId = tenantId;
+        Roles = roles;
+        Permissions = permissions;
+        IsAdmin = isAdmin;
+        CachedAt = cachedAt;
+        CacheExpiresIn = cacheExpiresIn;
+        ETag = eTag;
+    }
+
+    public string UserId { get; init; }
     public long TenantId { get; init; }
     public string[] Roles { get; init; } = [];
     public string[] Permissions { get; init; } = [];
     public bool IsAdmin { get; init; }
     public DateTime CachedAt { get; init; }
     public TimeSpan CacheExpiresIn { get; init; }
-
-    /// <summary>
-    /// ETag for cache validation in HTTP responses.
-    /// </summary>
     public string ETag { get; init; } = string.Empty;
 
-    /// <summary>
-    /// Indicates if this data came from cache or was freshly computed.
-    /// </summary>
-    public bool FromCache { get; init; }
+    public static AuthorizationData ForAnonymousUser(long tenantId) => new("anonymous", tenantId, [], [], false, DateTime.UtcNow, TimeSpan.Zero, string.Empty);
+
+    public static AuthorizationData ForAuthenticatedUser(string userId, long tenantId, string[] roles, string[] permissions, bool isAdmin, DateTime cachedAt, TimeSpan cacheExpiresIn, string eTag) => new(userId, tenantId, roles, permissions, isAdmin, cachedAt, cacheExpiresIn, eTag);
 }

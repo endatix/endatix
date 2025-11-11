@@ -24,20 +24,13 @@ public sealed class KeycloakAuthorizationProvider(AuthProviderRegistry authProvi
     }
 
     /// <inheritdoc />
-    public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
+    public Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
     {
         if (!CanHandle(principal))
         {
-            return Result.Error("Provider cannot handle the given issuer");
+            return Task.FromResult(Result<AuthorizationData>.Error("Provider cannot handle the given issuer"));
         }
 
-        var authorizationData = await Task.FromResult(new AuthorizationData
-        {
-            Roles = ["User"],
-            Permissions = ["User"],
-            IsAdmin = false,
-        });
-
-        return Result.Success(authorizationData);
+        return Task.FromResult(Result<AuthorizationData>.Success(AuthorizationData.ForAnonymousUser(AuthConstants.DEFAULT_TENANT_ID)));
     }
 }

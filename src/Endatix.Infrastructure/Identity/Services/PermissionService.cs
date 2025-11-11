@@ -8,6 +8,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Abstractions.Authorization;
+using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Infrastructure.Identity.Services;
 
@@ -17,6 +18,8 @@ namespace Endatix.Infrastructure.Identity.Services;
 /// </summary>
 internal sealed class PermissionService : IPermissionService
 {
+
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly UserManager<AppUser> _userManager;
     private readonly AppIdentityDbContext _identityContext;
     private readonly HybridCache _hybridCache;
@@ -28,6 +31,7 @@ internal sealed class PermissionService : IPermissionService
     private static readonly TimeSpan _hybridCacheExpiration = TimeSpan.FromMinutes(15);
 
     public PermissionService(
+        IHttpContextAccessor httpContextAccessor,
         UserManager<AppUser> userManager,
         AppIdentityDbContext identityContext,
         HybridCache hybridCache,
@@ -35,6 +39,7 @@ internal sealed class PermissionService : IPermissionService
         IDateTimeProvider dateTimeProvider,
         ILogger<PermissionService> logger)
     {
+        _httpContextAccessor = httpContextAccessor;
         _userManager = userManager;
         _identityContext = identityContext;
         _hybridCache = hybridCache;
@@ -79,6 +84,24 @@ internal sealed class PermissionService : IPermissionService
         }
 
         return Result.Success(permissions.ToDictionary(p => p, permissionInfo.Permissions.Contains));
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<AuthorizationData>> GetCurrentUserPermissionsInfoAsync(CancellationToken cancellationToken = default)
+    {
+        var currentPrincipal = _httpContextAccessor.HttpContext?.User;
+        if (currentPrincipal is null)
+        {
+            return Result.Success(AuthorizationData.ForAnonymousUser(_tenantContext.TenantId));
+        }
+
+        var userId = currentPrincipal.GetUserId();
+        if (userId is null || !long.TryParse(userId, out var parsedUserId))
+        {
+            return Result.Success(AuthorizationData.ForAnonymousUser(_tenantContext.TenantId));
+        }
+
+        return await GetUserPermissionsInfoAsync(parsedUserId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -166,7 +189,6 @@ internal sealed class PermissionService : IPermissionService
         return Result.Forbidden($"Permission '{requiredPermission}' required to access this resource.");
     }
 
-
     private async Task<AuthorizationData> GetUserPermissionsInfoInternalAsync(long userId, CancellationToken cancellationToken = default)
     {
         var utcNow = _dateTimeProvider.Now.UtcDateTime;
@@ -176,18 +198,16 @@ internal sealed class PermissionService : IPermissionService
             var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null)
             {
-                return new AuthorizationData
-                {
-                    UserId = userId,
-                    TenantId = _tenantContext.TenantId,
-                    Roles = Array.Empty<string>(),
-                    Permissions = [Actions.Access.Authenticated],
-                    IsAdmin = false,
-                    CachedAt = utcNow,
-                    CacheExpiresIn = _hybridCacheExpiration,
-                    ETag = GenerateETag(userId, Array.Empty<string>(), Array.Empty<string>()),
-                    FromCache = false
-                };
+                return AuthorizationData.ForAuthenticatedUser(
+                    userId: userId.ToString(),
+                    tenantId: _tenantContext.TenantId,
+                    roles: Array.Empty<string>(),
+                    permissions: [Actions.Access.Authenticated],
+                    isAdmin: false,
+                    cachedAt: utcNow,
+                    cacheExpiresIn: _hybridCacheExpiration,
+                    eTag: GenerateETag(userId, Array.Empty<string>(), Array.Empty<string>())
+                    );
             }
 
             var userRoleIds = _identityContext.UserRoles
@@ -212,34 +232,30 @@ internal sealed class PermissionService : IPermissionService
                 .Distinct()
                 .ToArray();
 
-            return new AuthorizationData
-            {
-                UserId = userId,
-                TenantId = user.TenantId,
-                Roles = assignedRoles,
-                Permissions = [Actions.Access.Authenticated, .. assignedPermissions],
-                IsAdmin = assignedRoles.Contains(SystemRole.Admin.Name) || assignedRoles.Contains(SystemRole.PlatformAdmin.Name),
-                CachedAt = DateTime.UtcNow,
-                CacheExpiresIn = _hybridCacheExpiration,
-                ETag = GenerateETag(userId, assignedRoles, assignedPermissions),
-                FromCache = false
-            };
+            return AuthorizationData.ForAuthenticatedUser(
+                    userId: userId.ToString(),
+                    tenantId: user.TenantId,
+                    roles: assignedRoles,
+                    permissions: [Actions.Access.Authenticated, .. assignedPermissions],
+                    isAdmin: assignedRoles.Contains(SystemRole.Admin.Name) || assignedRoles.Contains(SystemRole.PlatformAdmin.Name),
+                    cachedAt: utcNow,
+                    cacheExpiresIn: _hybridCacheExpiration,
+                    eTag: GenerateETag(userId, assignedRoles, assignedPermissions)
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting user permissions info for user {UserId}", userId);
-            return new AuthorizationData
-            {
-                UserId = userId,
-                TenantId = _tenantContext.TenantId,
-                Roles = Array.Empty<string>(),
-                Permissions = [Actions.Access.Authenticated],
-                IsAdmin = false,
-                CachedAt = utcNow,
-                CacheExpiresIn = _hybridCacheExpiration,
-                ETag = GenerateETag(userId, Array.Empty<string>(), Array.Empty<string>()),
-                FromCache = false
-            };
+            return AuthorizationData.ForAuthenticatedUser(
+                userId: userId.ToString(),
+                tenantId: _tenantContext.TenantId,
+                roles: Array.Empty<string>(),
+                permissions: [Actions.Access.Authenticated],
+                isAdmin: false,
+                cachedAt: utcNow,
+                cacheExpiresIn: _hybridCacheExpiration,
+                eTag: GenerateETag(userId, Array.Empty<string>(), Array.Empty<string>())
+            );
         }
     }
 
