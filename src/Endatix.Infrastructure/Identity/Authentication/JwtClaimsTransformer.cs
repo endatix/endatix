@@ -14,7 +14,7 @@ namespace Endatix.Infrastructure.Identity.Authentication;
 /// This enables FastEndpoints' built-in authorization to work with our RBAC system.
 /// </summary>
 internal sealed class JwtClaimsTransformer(
-    IAuthorizationProvider authorizationProvider,
+    IEnumerable<IAuthorizationProvider> authorizationProviders,
     IDateTimeProvider dateTimeProvider,
     HybridCache hybridCache) : IClaimsTransformation
 {
@@ -55,6 +55,12 @@ internal sealed class JwtClaimsTransformer(
         var cacheExpiration = ComputeCacheExpiration(principal);
         var cacheKey = $"usr_cache:{claimIdentityId}";
 
+        var authorizationProvider = GetAuthorizationProvider(principal);
+        if (authorizationProvider is null)
+        {
+            return null;
+        }
+
         var authorizationData = await hybridCache.GetOrCreateAsync(
             cacheKey,
             async _ => await authorizationProvider.GetAuthorizationDataAsync(principal, cancellationToken),
@@ -68,6 +74,16 @@ internal sealed class JwtClaimsTransformer(
         );
 
         return authorizationData;
+    }
+
+    private IAuthorizationProvider? GetAuthorizationProvider(ClaimsPrincipal principal){
+        var issuer = principal.GetIssuer();
+        if (issuer is null)
+        {
+            return null;
+        }
+
+        return authorizationProviders.FirstOrDefault();
     }
 
     /// <summary>

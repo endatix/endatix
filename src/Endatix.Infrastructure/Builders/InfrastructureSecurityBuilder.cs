@@ -92,6 +92,8 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder AddKeycloakAuthProvider()
     {
         _authProviderRegistry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider(), Services, Configuration);
+        
+        Services.AddScoped<IAuthorizationProvider, KeycloakAuthorizationProvider>();
 
         return this;
     }

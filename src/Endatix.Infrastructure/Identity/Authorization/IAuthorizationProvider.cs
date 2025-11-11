@@ -9,5 +9,7 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// </summary>
 public interface IAuthorizationProvider
 {
+    bool CanHandle(ClaimsPrincipal principal);
+    
     Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default);
 }

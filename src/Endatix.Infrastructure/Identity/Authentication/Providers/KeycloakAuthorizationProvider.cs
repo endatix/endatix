@@ -5,7 +5,7 @@ using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 
-public sealed class EndatixAuthorizationProvider(AuthProviderRegistry authProviderRegistry, IPermissionService permissionService) : IAuthorizationProvider
+public sealed class KeycloakAuthorizationProvider(AuthProviderRegistry authProviderRegistry) : IAuthorizationProvider
 {
     /// <inheritdoc />
     public bool CanHandle(ClaimsPrincipal principal)
@@ -20,30 +20,24 @@ public sealed class EndatixAuthorizationProvider(AuthProviderRegistry authProvid
             .GetActiveProviders()
             .FirstOrDefault(provider => provider.CanHandle(issuer, string.Empty));
 
-        return activeProvider is not null && activeProvider is EndatixJwtAuthProvider;
+        return activeProvider is not null && activeProvider is KeycloakAuthProvider;
     }
 
     /// <inheritdoc />
     public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
     {
-
         if (!CanHandle(principal))
         {
             return Result.Error("Provider cannot handle the given issuer");
         }
 
-        var userId = principal.GetUserId();
-        if (userId is null || !long.TryParse(userId, out var endatixUserId))
+        var authorizationData = await Task.FromResult(new AuthorizationData
         {
-            return Result.Error("User ID is required");
-        }
+            Roles = ["User"],
+            Permissions = ["User"],
+            IsAdmin = false,
+        });
 
-        var authorizationData = await permissionService!.GetUserPermissionsInfoAsync(endatixUserId, cancellationToken);
-        if (!authorizationData.IsSuccess)
-        {
-            return Result.Error("Failed to get authorization data");
-        }
-
-        return Result.Success(authorizationData.Value);
+        return Result.Success(authorizationData);
     }
 }
