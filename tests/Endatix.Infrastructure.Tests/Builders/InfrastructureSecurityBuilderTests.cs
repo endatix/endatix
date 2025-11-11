@@ -438,8 +438,8 @@ public class InfrastructureSecurityBuilderTests
         Assert.NotNull(jwtClaimsTransformerDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, jwtClaimsTransformerDescriptor.Lifetime);
 
-        Assert.True(IsServiceRegistered<IPermissionService>());
-        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IPermissionService>());
+        Assert.True(IsServiceRegistered<ICurrentUserAuthorizationService>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<ICurrentUserAuthorizationService>());
         Assert.True(IsServiceRegistered<IAuthorizationHandler>());
         // Verify our PermissionsHandler is registered as Scoped
         // Note: AddAuthorization() also registers a default PassThroughAuthorizationHandler as Transient
@@ -479,7 +479,7 @@ public class InfrastructureSecurityBuilderTests
         Assert.Equal(typeof(JwtClaimsTransformer), claimsTransformationDescriptor.ImplementationType);
 
         // IPermissionService should be Scoped
-        var permissionServiceDescriptor = FindServiceDescriptor<IPermissionService>();
+        var permissionServiceDescriptor = FindServiceDescriptor<ICurrentUserAuthorizationService>();
         Assert.NotNull(permissionServiceDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, permissionServiceDescriptor.Lifetime);
 

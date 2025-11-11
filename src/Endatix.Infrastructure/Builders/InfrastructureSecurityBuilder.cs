@@ -220,7 +220,7 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IClaimsTransformation, JwtClaimsTransformer>();
 
         // Register authorization related services
-        Services.AddScoped<IPermissionService, PermissionService>();
+        Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
 
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();

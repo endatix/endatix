@@ -1,6 +1,5 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Core.Abstractions;
 using Microsoft.AspNetCore.Http;
 using Endatix.Core.Abstractions.Authorization;
 
@@ -10,7 +9,7 @@ namespace Endatix.Api.Endpoints.Auth;
 /// Endpoint for getting current user information including roles and permissions.
 /// Used by clients (e.g., Next.js Hub) to fetch fresh permission data without re-authentication.
 /// </summary>
-public class Me(IPermissionService permissionService)
+public class Me(ICurrentUserAuthorizationService permissionService)
     : EndpointWithoutRequest<Results<Ok<AuthorizationData>, UnauthorizedHttpResult>>
 {
     public override void Configure()
@@ -30,7 +29,7 @@ public class Me(IPermissionService permissionService)
         CancellationToken cancellationToken)
     {
         // Get user roles and permissions from PermissionService
-        var authorizationDataResult = await permissionService.GetCurrentUserPermissionsInfoAsync(cancellationToken);
+        var authorizationDataResult = await permissionService.GetAuthorizationDataAsync(cancellationToken);
         if (!authorizationDataResult.IsSuccess)
         {
             return TypedResults.Unauthorized();

@@ -13,7 +13,7 @@ public class GetActiveFormDefinitionHandler(
     IFormsRepository formRepository,
     IRepository<CustomQuestion> customQuestionsRepository,
     IReCaptchaPolicyService reCaptchaPolicyService,
-    IPermissionService permissionService
+    ICurrentUserAuthorizationService authorizationService
     )
     : IQueryHandler<GetActiveFormDefinitionQuery, Result<ActiveDefinitionDto>>
 {
@@ -29,8 +29,7 @@ public class GetActiveFormDefinitionHandler(
 
         if (!formWithActiveDefinition.IsPublic)
         {
-            var accessResult = await permissionService.ValidateAccessAsync(
-                request.UserId,
+            var accessResult = await authorizationService.ValidateAccessAsync(
                 request.RequiredPermission,
                 cancellationToken);
 

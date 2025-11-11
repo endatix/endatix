@@ -7,7 +7,7 @@ namespace Endatix.Infrastructure.Identity.Authorization.Handlers;
 /// Handles authorization for PlatformAdminRequirement.
 /// Verifies user has PlatformAdmin role for cross-tenant access.
 /// </summary>
-public sealed class PlatformAdminHandler(IPermissionService permissionService)
+public sealed class PlatformAdminHandler(ICurrentUserAuthorizationService authorizationService)
     : AuthorizationHandler<PlatformAdminRequirement>
 {
     protected override async Task HandleRequirementAsync(
@@ -33,7 +33,7 @@ public sealed class PlatformAdminHandler(IPermissionService permissionService)
             return;
         }
 
-        var result = await permissionService.IsUserPlatformAdminAsync(parsedUserId);
+        var result = await authorizationService.IsPlatformAdminAsync(CancellationToken.None);
         if (result.IsSuccess)
         {
             context.Succeed(requirement);

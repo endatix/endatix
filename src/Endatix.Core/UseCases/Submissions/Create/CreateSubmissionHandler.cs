@@ -19,7 +19,7 @@ public class CreateSubmissionHandler(
     ISubmissionTokenService tokenService,
     IReCaptchaPolicyService recaptchaService,
     IMediator mediator,
-    IPermissionService permissionService
+    ICurrentUserAuthorizationService authorizationService
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
@@ -45,8 +45,7 @@ public class CreateSubmissionHandler(
 
         if (!formWithActiveDefinition.IsPublic)
         {
-            var accessResult = await permissionService.ValidateAccessAsync(
-                request.SubmittedBy,
+            var accessResult = await authorizationService.ValidateAccessAsync(
                 request.RequiredPermission,
                 cancellationToken);
 

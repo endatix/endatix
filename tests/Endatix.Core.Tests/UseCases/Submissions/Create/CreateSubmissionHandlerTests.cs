@@ -19,7 +19,7 @@ public class CreateSubmissionHandlerTests
     private readonly ISubmissionTokenService _submissionTokenService;
     private readonly IReCaptchaPolicyService _recaptchaService;
     private readonly IMediator _mediator;
-    private readonly IPermissionService _permissionService;
+    private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly CreateSubmissionHandler _handler;
 
     public CreateSubmissionHandlerTests()
@@ -29,14 +29,14 @@ public class CreateSubmissionHandlerTests
         _submissionTokenService = Substitute.For<ISubmissionTokenService>();
         _recaptchaService = Substitute.For<IReCaptchaPolicyService>();
         _mediator = Substitute.For<IMediator>();
-        _permissionService = Substitute.For<IPermissionService>();
+        _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
         _handler = new CreateSubmissionHandler(
             _submissionsRepository,
             _formsRepository,
             _submissionTokenService,
             _recaptchaService,
             _mediator,
-            _permissionService);
+            _authorizationService);
     }
 
     [Fact]
@@ -424,7 +424,7 @@ public class CreateSubmissionHandlerTests
             Arg.Any<CancellationToken>())
             .Returns(form);
 
-        _permissionService.ValidateAccessAsync(null, "submissions.create", Arg.Any<CancellationToken>())
+        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
             .Returns(Result.Unauthorized("Authentication required to access this resource."));
 
         // Act
@@ -459,7 +459,7 @@ public class CreateSubmissionHandlerTests
             Arg.Any<CancellationToken>())
             .Returns(form);
 
-        _permissionService.ValidateAccessAsync("123", "submissions.create", Arg.Any<CancellationToken>())
+        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
             .Returns(Result.Forbidden("Permission 'submissions.create' required to access this resource."));
 
         // Act
@@ -499,7 +499,7 @@ public class CreateSubmissionHandlerTests
             Arg.Any<CancellationToken>())
             .Returns(form);
 
-        _permissionService.ValidateAccessAsync("123", "submissions.create", Arg.Any<CancellationToken>())
+        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
         // Act
@@ -549,7 +549,7 @@ public class CreateSubmissionHandlerTests
         result.Value.Should().NotBeNull();
 
         // Verify permission check was not called for public form
-        await _permissionService.DidNotReceive().ValidateAccessAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _authorizationService.DidNotReceive().ValidateAccessAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     #endregion

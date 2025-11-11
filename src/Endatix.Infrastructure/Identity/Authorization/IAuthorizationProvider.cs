@@ -9,7 +9,18 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// </summary>
 public interface IAuthorizationProvider
 {
+    /// <summary>
+    /// Checks if the provider can handle the authentication provider of the given claims principal.
+    /// </summary>
+    /// <param name="principal">The claims principal to check.</param>
+    /// <returns>True if the provider can handle the given claims principal, false otherwise.</returns>
     bool CanHandle(ClaimsPrincipal principal);
-    
+
+    /// <summary>
+    /// Gets the authorization data for the given claims principal.
+    /// </summary>
+    /// <param name="principal">The claims principal to get authorization data for.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>Result containing the authorization data.</returns>
     Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default);
 }
