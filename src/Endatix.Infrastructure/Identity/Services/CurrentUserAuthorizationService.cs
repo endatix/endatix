@@ -47,16 +47,16 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             return Result.Error("No current user found");
         }
 
-        var userId = currentPrincipal.GetUserId();
-        if (userId is null || !long.TryParse(userId, out var parsedUserId))
-        {
-            return Result.Success(AuthorizationData.ForAnonymousUser(_tenantContext.TenantId));
-        }
-
         var authorizationDataResult = ExtractAuthorizationDataFromClaims(currentPrincipal);
         if (authorizationDataResult.IsSuccess)
         {
             return authorizationDataResult;
+        }
+
+        var userId = currentPrincipal.GetUserId();
+        if (userId is null)
+        {
+            return Result.Success(AuthorizationData.ForAnonymousUser(_tenantContext.TenantId));
         }
 
         try

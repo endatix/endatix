@@ -14,4 +14,22 @@ public class KeycloakOptions : JwtAuthProviderOptions
     /// OpenID Connect metadata address
     /// </summary>
     public string MetadataAddress => $"{Issuer}/.well-known/openid-configuration";
+
+
+    /// <summary>
+    /// Keycloak introspection endpoint
+    /// </summary>
+    public string IntrospectionEndpoint => $"{Issuer}/protocol/openid-connect/token/introspect";
+
+    /// <summary>
+    /// Keycloak client secret
+    /// </summary>
+    [Required]
+    public string ClientSecret { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Keycloak client ID
+    /// </summary>
+    [Required]
+    public string ClientId { get; set; } = string.Empty;
 }

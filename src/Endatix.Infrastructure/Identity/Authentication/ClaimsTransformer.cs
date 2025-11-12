@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -76,14 +75,15 @@ internal sealed class ClaimsTransformer(
         return authorizationData;
     }
 
-    private IAuthorizationProvider? GetAuthorizationProvider(ClaimsPrincipal principal){
+    private IAuthorizationProvider? GetAuthorizationProvider(ClaimsPrincipal principal)
+    {
         var issuer = principal.GetIssuer();
         if (issuer is null)
         {
             return null;
         }
 
-        return authorizationProviders.FirstOrDefault();
+        return authorizationProviders.FirstOrDefault(provider => provider.CanHandle(principal));
     }
 
     /// <summary>
@@ -97,6 +97,8 @@ internal sealed class ClaimsTransformer(
         {
             return;
         }
+
+        identity.AddClaim(new Claim(ClaimNames.TenantId, authorizationData.TenantId.ToString()));
 
         foreach (var role in authorizationData.Roles)
         {

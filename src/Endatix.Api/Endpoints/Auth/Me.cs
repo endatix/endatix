@@ -9,7 +9,7 @@ namespace Endatix.Api.Endpoints.Auth;
 /// Endpoint for getting current user information including roles and permissions.
 /// Used by clients (e.g., Next.js Hub) to fetch fresh permission data without re-authentication.
 /// </summary>
-public class Me(ICurrentUserAuthorizationService permissionService)
+public class Me(ICurrentUserAuthorizationService authorizationService)
     : EndpointWithoutRequest<Results<Ok<AuthorizationData>, UnauthorizedHttpResult>>
 {
     public override void Configure()
@@ -28,8 +28,8 @@ public class Me(ICurrentUserAuthorizationService permissionService)
     public override async Task<Results<Ok<AuthorizationData>, UnauthorizedHttpResult>> ExecuteAsync(
         CancellationToken cancellationToken)
     {
-        // Get user roles and permissions from PermissionService
-        var authorizationDataResult = await permissionService.GetAuthorizationDataAsync(cancellationToken);
+        // Get user roles and permissions from AuthorizationService
+        var authorizationDataResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
         if (!authorizationDataResult.IsSuccess)
         {
             return TypedResults.Unauthorized();
