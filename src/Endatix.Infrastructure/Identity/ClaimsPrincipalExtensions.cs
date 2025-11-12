@@ -89,7 +89,8 @@ public static class ClaimsPrincipalExtensions
     {
         if (principal.IsHydrated())
         {
-            return Result.Success(principal.HasClaim(ClaimNames.IsAdmin, true.ToString()));
+            var isAdmin = principal.HasClaim(ClaimNames.IsAdmin, "true");
+            return Result.Success(isAdmin);
         }
 
         return Result.Error("Claims principal is not hydrated");
