@@ -59,10 +59,10 @@ public class JsonExtractor : IDisposable
         {
             var stringValues = getElementResult.Value
                 .EnumerateArray()
-                .Select(x => x.GetString() ?? string.Empty)
+                .Select(x => x.ValueKind == JsonValueKind.String ? x.GetString()! : string.Empty)
                 .ToArray();
 
-            return Result<string[]>.Success(stringValues);
+            return Result.Success(stringValues);
         }
         catch (InvalidOperationException)
         {

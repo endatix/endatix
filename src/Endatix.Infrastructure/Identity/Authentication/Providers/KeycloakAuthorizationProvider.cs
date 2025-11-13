@@ -1,12 +1,9 @@
 using System.Security.Claims;
-using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Utils;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -15,7 +12,7 @@ namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 public class KeycloakAuthorizationProvider(
     AuthProviderRegistry authProviderRegistry,
     IOptions<KeycloakOptions> keycloakOptions,
-    RoleManager<AppRole> roleManager,
+    IExternalAuthorizationMapper externalAuthorizationMapper,
     IHttpContextAccessor httpContextAccessor,
     IHttpClientFactory httpClientFactory,
     ILogger<KeycloakAuthorizationProvider> logger
@@ -96,30 +93,17 @@ public class KeycloakAuthorizationProvider(
                     { "creator", SystemRole.Creator.Name }
                 };
 
-            var mappedRoles = parsedRolesResult.Value
-                .Select(x => rolesMappingConfig.TryGetValue(x, out var role) ? role : string.Empty)
-                .Where(x => !string.IsNullOrEmpty(x))
-                .Distinct()
-                .ToArray();
-
-            var normalizedMappedRoles = mappedRoles
-                .Select(x => roleManager.KeyNormalizer.NormalizeName(x))
-                .ToArray();
-
-            var permissions = await roleManager.Roles
-                            .Where(x => x.IsActive && normalizedMappedRoles.Contains(x.NormalizedName))
-                            .SelectMany(x => x.RolePermissions)
-                            .Where(p => p.IsActive)
-                            .Select(p => p.Permission.Name)
-                            .Distinct()
-                            .ToArrayAsync(cancellationToken);
+            var mappingResult = await externalAuthorizationMapper.MapToAppRolesAsync(parsedRolesResult.Value, rolesMappingConfig, cancellationToken);
+            if (!mappingResult.IsSuccess)
+            {
+                return Result.Error(mappingResult.ErrorMessage!);
+            }
 
             var authorizationData = AuthorizationData.ForAuthenticatedUser(
                 userId: principal.GetUserId() ?? string.Empty,
                 tenantId: AuthConstants.DEFAULT_TENANT_ID,
-                roles: mappedRoles,
-                permissions: permissions,
-                isAdmin: mappedRoles.Contains(SystemRole.Admin.Name),
+                roles: mappingResult.Roles,
+                permissions: mappingResult.Permissions,
                 cachedAt: DateTime.UtcNow,
                 cacheExpiresIn: TimeSpan.FromMinutes(15),
                 eTag: string.Empty);

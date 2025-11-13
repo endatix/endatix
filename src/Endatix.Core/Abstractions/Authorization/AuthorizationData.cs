@@ -26,13 +26,13 @@ public sealed record AuthorizationData
     /// <summary>
     /// Private constructor for factory methods only. Ensures disciplined object creation.
     /// </summary>
-    private AuthorizationData(string userId, long tenantId, string[] roles, string[] permissions, bool isAdmin, DateTime cachedAt, TimeSpan cacheExpiresIn, string eTag)
+    private AuthorizationData(string userId, long tenantId, string[] roles, string[] permissions, DateTime cachedAt, TimeSpan cacheExpiresIn, string eTag)
     {
         UserId = userId;
         TenantId = tenantId;
         Roles = roles;
         Permissions = permissions;
-        IsAdmin = isAdmin;
+        IsAdmin = roles.Contains(SystemRole.Admin.Name) || roles.Contains(SystemRole.PlatformAdmin.Name);
         CachedAt = cachedAt;
         CacheExpiresIn = cacheExpiresIn;
         ETag = eTag;
@@ -47,7 +47,7 @@ public sealed record AuthorizationData
     public TimeSpan CacheExpiresIn { get; init; }
     public string ETag { get; init; } = string.Empty;
 
-    public static AuthorizationData ForAnonymousUser(long tenantId) => new("anonymous", tenantId, [], [], false, DateTime.UtcNow, TimeSpan.Zero, string.Empty);
+    public static AuthorizationData ForAnonymousUser(long tenantId) => new("anonymous", tenantId, [], [], DateTime.UtcNow, TimeSpan.Zero, string.Empty);
 
-    public static AuthorizationData ForAuthenticatedUser(string userId, long tenantId, string[] roles, string[] permissions, bool isAdmin, DateTime cachedAt, TimeSpan cacheExpiresIn, string eTag) => new(userId, tenantId, roles, permissions, isAdmin, cachedAt, cacheExpiresIn, eTag);
+    public static AuthorizationData ForAuthenticatedUser(string userId, long tenantId, string[] roles, string[] permissions, DateTime cachedAt, TimeSpan cacheExpiresIn, string eTag) => new(userId, tenantId, roles, permissions, cachedAt, cacheExpiresIn, eTag);
 }

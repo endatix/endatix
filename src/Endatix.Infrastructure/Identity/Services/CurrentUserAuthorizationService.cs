@@ -215,7 +215,6 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
          tenantId: parsedTenantId,
          roles: principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray(),
          permissions: principal.FindAll(ClaimNames.Permission).Select(c => c.Value).Distinct().ToArray(),
-         isAdmin: principal.IsAdmin(),
          cachedAt: DateTime.UtcNow,
          cacheExpiresIn: TimeSpan.Zero,
          eTag: string.Empty);

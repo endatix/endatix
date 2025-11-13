@@ -1,3 +1,4 @@
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Utils;
 
 namespace Endatix.Infrastructure.Tests.Utils;
@@ -114,7 +115,7 @@ public sealed class JsonExtractorTests
         var result = extractor.ExtractArrayOfStrings("roles");
 
         // Assert
-        result.IsNotFound().Should().BeTrue();
+        result.Status.Should().Be(ResultStatus.NotFound);
     }
 
     [Fact]
@@ -128,7 +129,7 @@ public sealed class JsonExtractorTests
         var result = extractor.ExtractArrayOfStrings("resource_access.endatix-hub.roles");
 
         // Assert
-        result.IsNotFound().Should().BeTrue();
+        result.Status.Should().Be(ResultStatus.NotFound);
     }
 
     [Fact]
@@ -231,8 +232,9 @@ public sealed class JsonExtractorTests
         // Act
         var result = extractor.ExtractArrayOfStrings("roles");
 
+       
         // Assert
-        result.IsSuccess.Should().BeTrue();
+        result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().HaveCount(4);
         result.Value[0].Should().Be("admin");
         result.Value[1].Should().Be(string.Empty); // Non-string values become empty string

@@ -92,7 +92,7 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder AddKeycloakAuthProvider()
     {
         _authProviderRegistry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider(), Services, Configuration);
-        
+
         Services.AddScoped<IAuthorizationProvider, KeycloakAuthorizationProvider>();
 
         return this;
@@ -227,6 +227,7 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
 
         Services.AddScoped<IAuthorizationProvider, EndatixAuthorizationProvider>();
+        Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
 
         return this;
     }

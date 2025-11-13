@@ -1,4 +1,4 @@
-namespace Endatix.Infrastructure.Identity.Authorization;
+namespace Endatix.Core.Abstractions.Authorization;
 
 /// <summary>
 /// Defines basic set of tenant level actions in the Endatix system to define the permission system.
@@ -52,7 +52,8 @@ public static class Actions
         public const string ViewRoles = "tenant.roles.view";
         public const string ManageRoles = "tenant.roles.manage";
         public const string ViewSettings = "tenant.settings.view";
-        public const string ManageSettings = "tenant.settings.manage"; public const string ViewUsage = "tenant.usage.view";
+        public const string ManageSettings = "tenant.settings.manage";
+        public const string ViewUsage = "tenant.usage.view";
     }
 
     /// <summary>

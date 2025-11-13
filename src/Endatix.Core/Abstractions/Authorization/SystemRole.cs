@@ -1,6 +1,6 @@
 using Ardalis.GuardClauses;
 
-namespace Endatix.Infrastructure.Identity.Authorization;
+namespace Endatix.Core.Abstractions.Authorization;
 
 
 /// <summary>

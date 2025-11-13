@@ -69,7 +69,6 @@ public sealed class EndatixAuthorizationProvider(
                     tenantId: tenantContext.TenantId,
                     roles: [],
                     permissions: [Actions.Access.Authenticated],
-                    isAdmin: false,
                     cachedAt: utcNow,
                     cacheExpiresIn: TimeSpan.FromMinutes(15),
                     eTag: GenerateETag(userId.ToString(), [], [])
@@ -103,7 +102,6 @@ public sealed class EndatixAuthorizationProvider(
                     tenantId: user.TenantId,
                     roles: assignedRoles,
                     permissions: [Actions.Access.Authenticated, .. assignedPermissions],
-                    isAdmin: assignedRoles.Contains(SystemRole.Admin.Name) || assignedRoles.Contains(SystemRole.PlatformAdmin.Name),
                     cachedAt: utcNow,
                     cacheExpiresIn: TimeSpan.FromMinutes(15),
                     eTag: GenerateETag(userId.ToString(), assignedRoles, assignedPermissions)
@@ -117,7 +115,6 @@ public sealed class EndatixAuthorizationProvider(
                 tenantId: tenantContext.TenantId,
                 roles: Array.Empty<string>(),
                 permissions: [Actions.Access.Authenticated],
-                isAdmin: false,
                 cachedAt: utcNow,
                 cacheExpiresIn: TimeSpan.FromMinutes(15),
                 eTag: GenerateETag(userId.ToString(), [], [])
