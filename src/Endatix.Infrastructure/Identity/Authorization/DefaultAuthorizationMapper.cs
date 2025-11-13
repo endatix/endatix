@@ -7,10 +7,10 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// <summary>
 /// Default implementation of IExternalAuthorizationMapper.
 /// </summary>
-/// <param name="dbContext">The identity database context to query roles.</param>
+/// <param name="roleManager">The role manager to query roles.</param>
 /// <param name="keyNormalizer">The key normalizer for normalizing role names.</param>
 public class DefaultAuthorizationMapper(
-        AppIdentityDbContext dbContext,
+        RoleManager<AppRole> roleManager,
         ILookupNormalizer keyNormalizer
 ) : IExternalAuthorizationMapper
 {
@@ -37,7 +37,7 @@ public class DefaultAuthorizationMapper(
                 .Distinct()
                 .ToArray();
 
-            var mappedRolesWithPermissions = await dbContext.Roles
+            var mappedRolesWithPermissions = await roleManager.Roles
                             .Where(x => x.IsActive && matchingRoles.Contains(x.NormalizedName))
                             .Include(x => x.RolePermissions)
                                 .ThenInclude(x => x.Permission)
