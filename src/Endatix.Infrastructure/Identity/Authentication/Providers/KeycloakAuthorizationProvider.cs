@@ -1,9 +1,9 @@
 using System.Security.Claims;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -46,8 +46,6 @@ public class KeycloakAuthorizationProvider(
         }
 
         var keycloakSettings = keycloakOptions.Value;
-        logger.LogWarning("Keycloak settings: {KeycloakSettings}", keycloakSettings);
-
 
         var authHeader = httpContextAccessor.HttpContext?.Request.Headers["Authorization"].FirstOrDefault();
         if (authHeader is null)
@@ -81,76 +79,58 @@ public class KeycloakAuthorizationProvider(
         }
 
         var introspectionResponseContent = await introspectionResponse.Content.ReadAsStringAsync(cancellationToken);
-        var rolesPathSelector = "resource_access.endatix-hub.roles";
-        var selectors = rolesPathSelector.Split('.');
-        using (var document = JsonDocument.Parse(introspectionResponseContent))
-        {
-            var root = document.RootElement;
-            var rolesElement = GetNestedJsonElement(root, rolesPathSelector);
-            if (rolesElement.IsSuccess && rolesElement.Value.ValueKind == JsonValueKind.Array)
-            {
-                var roles = rolesElement.Value
-                    .EnumerateArray()
-                    .Select(x => x.GetString() ?? string.Empty).ToList();
 
-                var rolesMappingConfig = new Dictionary<string, string> {
+        try
+        {
+            var rolesPathSelector = "resource_access.endatix-hub.roles";
+            using var jsonExtractor = new JsonExtractor(introspectionResponseContent);
+            var parsedRolesResult = jsonExtractor.ExtractArrayOfStrings(rolesPathSelector);
+            if (!parsedRolesResult.IsSuccess)
+            {
+                return Result.Error("Failed to get roles");
+            }
+
+            var rolesMappingConfig = new Dictionary<string, string> {
                     { "admin", SystemRole.Admin.Name },
                     { "platform-admin", SystemRole.PlatformAdmin.Name },
                     { "creator", SystemRole.Creator.Name }
                 };
 
-                var mappedRoles = roles
-                    .Select(x => rolesMappingConfig.TryGetValue(x, out var role) ? role : string.Empty)
-                    .Where(x => !string.IsNullOrEmpty(x))
-                    .Distinct()
-                    .ToArray();
+            var mappedRoles = parsedRolesResult.Value
+                .Select(x => rolesMappingConfig.TryGetValue(x, out var role) ? role : string.Empty)
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct()
+                .ToArray();
 
-                var normalizedMappedRoles = mappedRoles
-                    .Select(x => roleManager.KeyNormalizer.NormalizeName(x))
-                    .ToArray();
+            var normalizedMappedRoles = mappedRoles
+                .Select(x => roleManager.KeyNormalizer.NormalizeName(x))
+                .ToArray();
 
-                var permissions = await roleManager.Roles
-                                .Where(x => normalizedMappedRoles.Contains(x.NormalizedName))
-                                .SelectMany(x => x.RolePermissions)
-                                .Select(x => x.Permission.Name)
-                                .Distinct()
-                                .ToArrayAsync(cancellationToken);
+            var permissions = await roleManager.Roles
+                            .Where(x => x.IsActive && normalizedMappedRoles.Contains(x.NormalizedName))
+                            .SelectMany(x => x.RolePermissions)
+                            .Where(p => p.IsActive)
+                            .Select(p => p.Permission.Name)
+                            .Distinct()
+                            .ToArrayAsync(cancellationToken);
 
-                var authorizationData = AuthorizationData.ForAuthenticatedUser(
-                    userId: principal.GetUserId() ?? string.Empty,
-                    tenantId: AuthConstants.DEFAULT_TENANT_ID,
-                    roles: mappedRoles,
-                    permissions: permissions,
-                    isAdmin: mappedRoles.Contains(SystemRole.Admin.Name),
-                    cachedAt: DateTime.UtcNow,
-                    cacheExpiresIn: TimeSpan.FromMinutes(15),
-                    eTag: string.Empty);
+            var authorizationData = AuthorizationData.ForAuthenticatedUser(
+                userId: principal.GetUserId() ?? string.Empty,
+                tenantId: AuthConstants.DEFAULT_TENANT_ID,
+                roles: mappedRoles,
+                permissions: permissions,
+                isAdmin: mappedRoles.Contains(SystemRole.Admin.Name),
+                cachedAt: DateTime.UtcNow,
+                cacheExpiresIn: TimeSpan.FromMinutes(15),
+                eTag: string.Empty);
 
-                return Result.Success(authorizationData);
-            }
-            else
-            {
-                return Result.Error("Failed to get roles");
-            }
+            return Result.Success(authorizationData);
+
         }
-    }
-
-    private static Result<JsonElement> GetNestedJsonElement(JsonElement element, string path)
-    {
-        var selectors = path.Split('.');
-        var currentElement = element;
-        foreach (var selector in selectors)
+        catch (Exception ex)
         {
-            if (currentElement.TryGetProperty(selector, out var property))
-            {
-                currentElement = property;
-            }
-            else
-            {
-                return Result<JsonElement>.NotFound("Property not found");
-            }
+            logger.LogError(ex, "Error getting authorization data");
+            return Result.Error("Failed to get authorization data");
         }
-
-        return Result<JsonElement>.Success(currentElement);
     }
 }
