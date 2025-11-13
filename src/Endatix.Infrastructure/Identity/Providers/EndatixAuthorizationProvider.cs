@@ -4,12 +4,13 @@ using System.Text;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace Endatix.Infrastructure.Identity.Authentication.Providers;
+namespace Endatix.Infrastructure.Identity.Providers;
 
 public sealed class EndatixAuthorizationProvider(
     AuthProviderRegistry authProviderRegistry,

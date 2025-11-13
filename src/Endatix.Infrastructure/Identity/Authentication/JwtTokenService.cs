@@ -11,6 +11,7 @@ using Endatix.Core.Entities.Identity;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
+using Endatix.Infrastructure.Identity.Providers;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 

@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using Endatix.Infrastructure.Identity.Authentication;
 
-namespace Endatix.Infrastructure.Identity.Authentication.Providers;
+namespace Endatix.Infrastructure.Identity.Providers;
 public class GoogleOptions : JwtAuthProviderOptions
 {
     private const string DEFAULT_ISSUER = "https://accounts.google.com";

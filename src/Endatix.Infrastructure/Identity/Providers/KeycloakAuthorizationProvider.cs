@@ -1,13 +1,14 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Endatix.Infrastructure.Identity.Authentication.Providers;
+namespace Endatix.Infrastructure.Identity.Providers;
 
 public class KeycloakAuthorizationProvider(
     AuthProviderRegistry authProviderRegistry,

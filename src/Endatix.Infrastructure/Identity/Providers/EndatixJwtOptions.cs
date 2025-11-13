@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Endatix.Infrastructure.Identity.Authentication;
 
+namespace Endatix.Infrastructure.Identity.Providers;
 
 /// <summary>
 /// Configuration options for Endatix JWT authentication provider

@@ -1,10 +1,11 @@
 using Ardalis.GuardClauses;
+using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Endatix.Infrastructure.Identity.Authentication.Providers;
+namespace Endatix.Infrastructure.Identity.Providers;
 
 public class GoogleAuthProvider : IAuthProvider
 {
