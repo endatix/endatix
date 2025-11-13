@@ -87,11 +87,8 @@ public class KeycloakAuthorizationProvider(
                 return Result.Error("Failed to get roles");
             }
 
-            var rolesMappingConfig = new Dictionary<string, string> {
-                    { "admin", SystemRole.Admin.Name },
-                    { "platform-admin", SystemRole.PlatformAdmin.Name },
-                    { "creator", SystemRole.Creator.Name }
-                };
+            var rolesMappingConfig = keycloakSettings.Authorization.RoleMappings;
+            var rolesPath = keycloakSettings.Authorization.RolesPath;
 
             var mappingResult = await externalAuthorizationMapper.MapToAppRolesAsync(parsedRolesResult.Value, rolesMappingConfig, cancellationToken);
             if (!mappingResult.IsSuccess)
@@ -101,7 +98,7 @@ public class KeycloakAuthorizationProvider(
 
             var authorizationData = AuthorizationData.ForAuthenticatedUser(
                 userId: principal.GetUserId() ?? string.Empty,
-                tenantId: AuthConstants.DEFAULT_TENANT_ID,
+                tenantId: keycloakSettings.DefaultTenantId,
                 roles: mappingResult.Roles,
                 permissions: mappingResult.Permissions,
                 cachedAt: DateTime.UtcNow,

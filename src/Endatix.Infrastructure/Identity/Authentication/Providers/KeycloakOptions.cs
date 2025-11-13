@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Endatix.Infrastructure.Identity.Providers;
 
 namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 
@@ -32,4 +33,9 @@ public class KeycloakOptions : JwtAuthProviderOptions
     /// </summary>
     [Required]
     public string ClientId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Keycloak authorization strategy options
+    /// </summary>
+    public IntrospectionAuthorizationStrategyOptions Authorization{ get; set; } = new();
 }
