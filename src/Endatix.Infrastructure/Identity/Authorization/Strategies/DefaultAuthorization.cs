@@ -79,7 +79,7 @@ public sealed class DefaultAuthorization(
                     userId: userId.ToString(),
                     tenantId: tenantContext.TenantId,
                     roles: [],
-                    permissions: [Actions.Access.Authenticated],
+                    permissions: [],
                     cachedAt: utcNow,
                     cacheExpiresIn: TimeSpan.FromMinutes(15),
                     eTag: GenerateETag(userId.ToString(), [], [])
@@ -112,7 +112,7 @@ public sealed class DefaultAuthorization(
                     userId: userId.ToString(),
                     tenantId: user.TenantId,
                     roles: assignedRoles,
-                    permissions: [Actions.Access.Authenticated, .. assignedPermissions],
+                    permissions: assignedPermissions,
                     cachedAt: utcNow,
                     cacheExpiresIn: TimeSpan.FromMinutes(15),
                     eTag: GenerateETag(userId.ToString(), assignedRoles, assignedPermissions)
@@ -124,8 +124,8 @@ public sealed class DefaultAuthorization(
             return AuthorizationData.ForAuthenticatedUser(
                 userId: userId.ToString(),
                 tenantId: tenantContext.TenantId,
-                roles: Array.Empty<string>(),
-                permissions: [Actions.Access.Authenticated],
+                roles: [],
+                permissions: [],
                 cachedAt: utcNow,
                 cacheExpiresIn: TimeSpan.FromMinutes(15),
                 eTag: GenerateETag(userId.ToString(), [], [])

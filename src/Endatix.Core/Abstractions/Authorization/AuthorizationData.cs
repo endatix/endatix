@@ -19,8 +19,8 @@ public sealed record AuthorizationData
     public AuthorizationData()
     {
         UserId = string.Empty;
-        Roles = [];
-        Permissions = [];
+        Roles = new HashSet<string>();
+        Permissions = new HashSet<string>();
     }
 
     /// <summary>
@@ -30,8 +30,8 @@ public sealed record AuthorizationData
     {
         UserId = userId;
         TenantId = tenantId;
-        Roles = roles;
-        Permissions = permissions;
+        Roles = roles.ToHashSet();
+        Permissions = permissions.ToHashSet();
         IsAdmin = roles.Contains(SystemRole.Admin.Name) || roles.Contains(SystemRole.PlatformAdmin.Name);
         CachedAt = cachedAt;
         CacheExpiresIn = cacheExpiresIn;
@@ -40,14 +40,28 @@ public sealed record AuthorizationData
 
     public string UserId { get; init; }
     public long TenantId { get; init; }
-    public string[] Roles { get; init; } = [];
-    public string[] Permissions { get; init; } = [];
+    public HashSet<string> Roles { get; init; } = [];
+    public HashSet<string> Permissions { get; init; } = [];
     public bool IsAdmin { get; init; }
     public DateTime CachedAt { get; init; }
     public TimeSpan CacheExpiresIn { get; init; }
     public string ETag { get; init; } = string.Empty;
 
-    public static AuthorizationData ForAnonymousUser(long tenantId) => new("anonymous", tenantId, [], [], DateTime.UtcNow, TimeSpan.Zero, string.Empty);
+    public static AuthorizationData ForAnonymousUser(long tenantId) => new(
+        userId: "anonymous",
+        tenantId: tenantId,
+        roles: [SystemRole.Public.Name],
+        permissions: SystemRole.Public.Permissions,
+        cachedAt: DateTime.UtcNow,
+        cacheExpiresIn: TimeSpan.Zero,
+        eTag: string.Empty);
 
-    public static AuthorizationData ForAuthenticatedUser(string userId, long tenantId, string[] roles, string[] permissions, DateTime cachedAt, TimeSpan cacheExpiresIn, string eTag) => new(userId, tenantId, roles, permissions, cachedAt, cacheExpiresIn, eTag);
+    public static AuthorizationData ForAuthenticatedUser(string userId, long tenantId, string[] roles, string[] permissions, DateTime cachedAt, TimeSpan cacheExpiresIn, string eTag) => new(
+        userId: userId,
+        tenantId: tenantId,
+        roles: [SystemRole.Authenticated.Name, .. roles],
+        permissions: [.. SystemRole.Authenticated.Permissions, .. permissions],
+        cachedAt: cachedAt,
+        cacheExpiresIn: cacheExpiresIn,
+        eTag: eTag);
 }

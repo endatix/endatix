@@ -22,9 +22,9 @@ internal sealed class ClaimsTransformer(
 
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
-        if (principal.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
+        if (principal?.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
         {
-            return principal;
+            return principal!;
         }
 
         var authorizationData = await GetAuthorizationDataAsync(principal);
@@ -50,19 +50,19 @@ internal sealed class ClaimsTransformer(
             return null;
         }
 
-        var claimIdentityId = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}";
-        var cacheExpiration = ComputeCacheExpiration(principal);
-        var cacheKey = $"usr_cache:{claimIdentityId}";
-
-        var authorizationProvider = GetAuthorizationStrategy(principal);
-        if (authorizationProvider is null)
+        var authorizationStrategy = GetAuthorizationStrategy(principal);
+        if (authorizationStrategy is null)
         {
             return null;
         }
 
+        var claimIdentityId = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}";
+        var cacheExpiration = ComputeCacheExpiration(principal);
+        var cacheKey = $"usr_cache:{claimIdentityId}";
+
         var authorizationData = await hybridCache.GetOrCreateAsync(
             cacheKey,
-            async _ => await authorizationProvider.GetAuthorizationDataAsync(principal, cancellationToken),
+            async _ => await authorizationStrategy.GetAuthorizationDataAsync(principal, cancellationToken),
             new HybridCacheEntryOptions
             {
                 Expiration = cacheExpiration,
@@ -72,7 +72,12 @@ internal sealed class ClaimsTransformer(
             cancellationToken
         );
 
-        return authorizationData;
+        if (authorizationData is not null && authorizationData.IsSuccess)
+        {
+            return authorizationData.Value;
+        }
+
+        return null;
     }
 
     private IAuthorizationStrategy? GetAuthorizationStrategy(ClaimsPrincipal principal)
