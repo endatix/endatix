@@ -16,22 +16,20 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
 {
 
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly HybridCache _hybridCache;
+    private readonly IAuthorizationCache _authorizationCache;
     private readonly ITenantContext _tenantContext;
     private readonly IEnumerable<IAuthorizationStrategy> _authorizationStrategies;
     private readonly ILogger<CurrentUserAuthorizationService> _logger;
 
-    private static readonly TimeSpan _hybridCacheExpiration = TimeSpan.FromMinutes(15);
-
     public CurrentUserAuthorizationService(
         IHttpContextAccessor httpContextAccessor,
-        HybridCache hybridCache,
+        IAuthorizationCache authorizationCache,
         IEnumerable<IAuthorizationStrategy> authorizationStrategies,
         ITenantContext tenantContext,
         ILogger<CurrentUserAuthorizationService> logger)
     {
         _httpContextAccessor = httpContextAccessor;
-        _hybridCache = hybridCache;
+        _authorizationCache = authorizationCache;
         _authorizationStrategies = authorizationStrategies;
         _tenantContext = tenantContext;
         _logger = logger;
@@ -58,24 +56,21 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             return Result.Success(AuthorizationData.ForAnonymousUser(_tenantContext.TenantId));
         }
 
+        var authorizationStrategy = _authorizationStrategies
+             .FirstOrDefault(strategy => strategy.CanHandle(currentPrincipal));
+        if (authorizationStrategy is null)
+        {
+            return Result.Error("No authorization provider found for the current user");
+        }
+
         try
         {
-            var cacheKey = GetAuthorizationDataCacheKey(userId, _tenantContext.TenantId);
-            var authorizationStrategy = _authorizationStrategies
-                    .FirstOrDefault(strategy => strategy.CanHandle(currentPrincipal));
-            if (authorizationStrategy is null)
-            {
-                return Result.Error("No authorization provider found for the current user");
-            }
+            var authorizationData = await _authorizationCache.GetOrCreateAsync(
+                currentPrincipal,
+                async _ => await authorizationStrategy.GetAuthorizationDataAsync(currentPrincipal, cancellationToken),
+                cancellationToken);
 
-            var permissionsInfo = await _hybridCache.GetOrCreateAsync(
-                cacheKey,
-                async cancel => await authorizationStrategy.GetAuthorizationDataAsync(currentPrincipal, cancellationToken),
-                new HybridCacheEntryOptions { Expiration = _hybridCacheExpiration },
-                tags: ["usr_rbac:all", $"usr_rbac:{_tenantContext.TenantId}"],
-                cancellationToken: cancellationToken);
-
-            return Result.Success(permissionsInfo);
+            return Result.Success(authorizationData);
         }
         catch (Exception ex)
         {
@@ -180,9 +175,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             return;
         }
 
-        var authorizationDataKey = GetAuthorizationDataCacheKey(userId, tenantId);
-
-        await _hybridCache.RemoveAsync(authorizationDataKey);
+        await _authorizationCache.InvalidateAsync(userId, tenantId, cancellationToken);
     }
 
 
@@ -218,9 +211,9 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
          tenantId: endatixIdentity.TenantId,
          roles: endatixIdentity.Roles.ToArray(),
          permissions: endatixIdentity.Permissions.Distinct().ToArray(),
-         cachedAt: DateTime.UtcNow,
-         cacheExpiresIn: TimeSpan.Zero,
-         eTag: string.Empty);
+         cachedAt: endatixIdentity.CachedAt,
+         expiresAt: endatixIdentity.CacheExpiresIn,
+         eTag: endatixIdentity.ETag);
 
         if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
         {
@@ -229,6 +222,4 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
 
         return Result.Success(authorizationData);
     }
-
-    private static string GetAuthorizationDataCacheKey(string userId, long tenantId) => $"usr_rbac:{userId}:{tenantId}";
 }

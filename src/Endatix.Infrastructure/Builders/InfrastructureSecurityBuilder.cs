@@ -217,18 +217,17 @@ public class InfrastructureSecurityBuilder
                 policy.Requirements.Add(new PlatformAdminRequirement()));
         });
 
-        // Register claims transformation to enrich JWT with permissions and roles from database
+        // Register core authorization services
         Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
-
-        // Register authorization related services
+        Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
+        Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
+        Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
 
+        // Register authorization handlers
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
-
-        Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
-        Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
 
         return this;
     }

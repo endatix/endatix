@@ -62,6 +62,20 @@ public sealed class AuthorizedIdentity : ClaimsIdentity
     public bool IsAdmin => HasClaim(ClaimNames.IsAdmin, "true");
 
 
+    /// <summary>
+    /// Gets the cached at timestamp from this identity.
+    /// </summary>
+    public DateTime CachedAt => DateTime.Parse(FindFirst(ClaimNames.CachedAt)?.Value ?? DateTime.UtcNow.ToString("O"));
+
+    /// <summary>
+    /// Gets the cache expires in from this identity.
+    /// </summary>
+    public DateTime CacheExpiresIn => DateTime.Parse(FindFirst(ClaimNames.ExpiresAt)?.Value ?? DateTime.UtcNow.ToString("O"));
+
+    /// <summary>
+    /// Gets the ETag from this identity.
+    /// </summary>
+    public string ETag => FindFirst(ClaimNames.ETag)?.Value ?? string.Empty;
 
     /// <summary>
     /// Static factory method to build an authorized identity from an authorization data.
@@ -93,6 +107,10 @@ public sealed class AuthorizedIdentity : ClaimsIdentity
         {
             claims.Add(new Claim(ClaimNames.IsAdmin, "true"));
         }
+
+        claims.Add(new Claim(ClaimNames.CachedAt, authorizationData.CachedAt.ToString("O")));
+        claims.Add(new Claim(ClaimNames.ExpiresAt, authorizationData.ExpiresAt.ToString("O")));
+        claims.Add(new Claim(ClaimNames.ETag, authorizationData.ETag));
 
         claims.Add(new Claim(ClaimNames.Hydrated, "true"));
 

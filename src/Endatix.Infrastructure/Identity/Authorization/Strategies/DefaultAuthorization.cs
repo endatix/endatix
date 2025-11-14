@@ -79,10 +79,7 @@ public sealed class DefaultAuthorization(
                     userId: userId.ToString(),
                     tenantId: tenantContext.TenantId,
                     roles: [],
-                    permissions: [],
-                    cachedAt: utcNow,
-                    cacheExpiresIn: TimeSpan.FromMinutes(15),
-                    eTag: GenerateETag(userId.ToString(), [], [])
+                    permissions: []
                     );
             }
 
@@ -112,10 +109,7 @@ public sealed class DefaultAuthorization(
                     userId: userId.ToString(),
                     tenantId: user.TenantId,
                     roles: assignedRoles,
-                    permissions: assignedPermissions,
-                    cachedAt: utcNow,
-                    cacheExpiresIn: TimeSpan.FromMinutes(15),
-                    eTag: GenerateETag(userId.ToString(), assignedRoles, assignedPermissions)
+                    permissions: assignedPermissions
             );
         }
         catch (Exception ex)
@@ -125,26 +119,8 @@ public sealed class DefaultAuthorization(
                 userId: userId.ToString(),
                 tenantId: tenantContext.TenantId,
                 roles: [],
-                permissions: [],
-                cachedAt: utcNow,
-                cacheExpiresIn: TimeSpan.FromMinutes(15),
-                eTag: GenerateETag(userId.ToString(), [], [])
+                permissions: []
             );
         }
-    }
-
-
-    /// <summary>
-    /// Generates an ETag for the user permissions.
-    /// </summary>
-    /// <param name="userId">The user ID to generate the ETag for.</param>
-    /// <param name="roles">The roles to generate the ETag for.</param>
-    /// <param name="permissions">The permissions to generate the ETag for.</param>
-    /// <returns>The ETag for the user permissions.</returns>
-    private static string GenerateETag(string userId, IEnumerable<string> roles, IEnumerable<string> permissions)
-    {
-        var content = $"{userId}:{string.Join(",", roles)}:{string.Join(",", permissions)}";
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(content));
-        return Convert.ToBase64String(hash)[..8]; // Short ETag
     }
 }

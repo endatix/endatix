@@ -101,10 +101,8 @@ public class KeycloakTokenIntrospectionAuthorization(
                 userId: principal.GetUserId() ?? string.Empty,
                 tenantId: keycloakSettings.DefaultTenantId,
                 roles: mappingResult.Roles,
-                permissions: mappingResult.Permissions,
-                cachedAt: DateTime.UtcNow,
-                cacheExpiresIn: TimeSpan.FromMinutes(15),
-                eTag: string.Empty);
+                permissions: mappingResult.Permissions
+            );
 
             return Result.Success(authorizationData);
 

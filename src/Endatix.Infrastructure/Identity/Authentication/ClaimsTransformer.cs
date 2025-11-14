@@ -1,10 +1,8 @@
 using System.Security.Claims;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Caching.Hybrid;
-using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 
@@ -14,12 +12,9 @@ namespace Endatix.Infrastructure.Identity.Authentication;
 /// </summary>
 internal sealed class ClaimsTransformer(
     IEnumerable<IAuthorizationStrategy> authorizationStrategies,
-    IDateTimeProvider dateTimeProvider,
-    HybridCache hybridCache) : IClaimsTransformation
+    IAuthorizationCache authorizationCache,
+    ILogger<ClaimsTransformer> logger) : IClaimsTransformation
 {
-    private static readonly TimeSpan _cacheExpiryBuffer = TimeSpan.FromSeconds(10);
-    private static readonly TimeSpan _fallbackCacheExpiration = TimeSpan.FromMinutes(15);
-
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
         if (principal?.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
@@ -56,28 +51,20 @@ internal sealed class ClaimsTransformer(
             return null;
         }
 
-        var claimIdentityId = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}";
-        var cacheExpiration = ComputeCacheExpiration(principal);
-        var cacheKey = $"usr_cache:{claimIdentityId}";
-
-        var authorizationData = await hybridCache.GetOrCreateAsync(
-            cacheKey,
-            async _ => await authorizationStrategy.GetAuthorizationDataAsync(principal, cancellationToken),
-            new HybridCacheEntryOptions
-            {
-                Expiration = cacheExpiration,
-                LocalCacheExpiration = cacheExpiration
-            },
-            tags: ["auth_data"],
-            cancellationToken
-        );
-
-        if (authorizationData is not null && authorizationData.IsSuccess)
+        try
         {
-            return authorizationData.Value;
+            var authorizationData = await authorizationCache.GetOrCreateAsync(
+                principal,
+                async _ => await authorizationStrategy.GetAuthorizationDataAsync(principal, cancellationToken),
+                cancellationToken
+            );
+            return authorizationData;
         }
-
-        return null;
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting authorization data for user {UserId}", userId);
+            return null;
+        }
     }
 
     private IAuthorizationStrategy? GetAuthorizationStrategy(ClaimsPrincipal principal)
@@ -89,24 +76,5 @@ internal sealed class ClaimsTransformer(
         }
 
         return authorizationStrategies.FirstOrDefault(provider => provider.CanHandle(principal));
-    }
-
-    /// <summary>
-    /// Computes the cache expiration time for the claims principal authorization hydrated claims.
-    /// </summary>
-    /// <param name="principal">The claims identity to compute the cache expiration for.</param>
-    /// <returns>The cache expiration time.</returns>
-    private TimeSpan ComputeCacheExpiration(ClaimsPrincipal principal)
-    {
-
-        var claimExpiry = principal.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
-        if (claimExpiry != null && long.TryParse(claimExpiry, out var expirySeconds))
-        {
-            var expirationDateTime = DateTimeOffset.FromUnixTimeSeconds(expirySeconds);
-            var timeUntilExpiry = expirationDateTime - dateTimeProvider.Now - _cacheExpiryBuffer;
-            return timeUntilExpiry > TimeSpan.Zero ? timeUntilExpiry : _fallbackCacheExpiration;
-        }
-
-        return _fallbackCacheExpiration;
     }
 }

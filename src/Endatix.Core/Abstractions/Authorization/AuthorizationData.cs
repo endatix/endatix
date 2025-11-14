@@ -26,7 +26,7 @@ public sealed record AuthorizationData
     /// <summary>
     /// Private constructor for factory methods only. Ensures disciplined object creation.
     /// </summary>
-    private AuthorizationData(string userId, long tenantId, string[] roles, string[] permissions, DateTime cachedAt, TimeSpan cacheExpiresIn, string eTag)
+    private AuthorizationData(string userId, long tenantId, string[] roles, string[] permissions, DateTime cachedAt, DateTime expiresAt, string eTag)
     {
         UserId = userId;
         TenantId = tenantId;
@@ -34,7 +34,7 @@ public sealed record AuthorizationData
         Permissions = permissions.ToHashSet();
         IsAdmin = roles.Contains(SystemRole.Admin.Name) || roles.Contains(SystemRole.PlatformAdmin.Name);
         CachedAt = cachedAt;
-        CacheExpiresIn = cacheExpiresIn;
+        ExpiresAt = expiresAt;
         ETag = eTag;
     }
 
@@ -44,7 +44,7 @@ public sealed record AuthorizationData
     public HashSet<string> Permissions { get; init; } = [];
     public bool IsAdmin { get; init; }
     public DateTime CachedAt { get; init; }
-    public TimeSpan CacheExpiresIn { get; init; }
+    public DateTime ExpiresAt { get; init; }
     public string ETag { get; init; } = string.Empty;
 
     public static AuthorizationData ForAnonymousUser(long tenantId) => new(
@@ -53,15 +53,23 @@ public sealed record AuthorizationData
         roles: [SystemRole.Public.Name],
         permissions: SystemRole.Public.Permissions,
         cachedAt: DateTime.UtcNow,
-        cacheExpiresIn: TimeSpan.Zero,
+        expiresAt: DateTime.UtcNow,
         eTag: string.Empty);
 
-    public static AuthorizationData ForAuthenticatedUser(string userId, long tenantId, string[] roles, string[] permissions, DateTime cachedAt, TimeSpan cacheExpiresIn, string eTag) => new(
+    public static AuthorizationData ForAuthenticatedUser(string userId, long tenantId, string[] roles, string[] permissions, DateTime cachedAt = default, DateTime expiresAt = default, string? eTag = null) => new(
         userId: userId,
         tenantId: tenantId,
         roles: [SystemRole.Authenticated.Name, .. roles],
         permissions: [.. SystemRole.Authenticated.Permissions, .. permissions],
         cachedAt: cachedAt,
-        cacheExpiresIn: cacheExpiresIn,
-        eTag: eTag);
+        expiresAt: expiresAt,
+        eTag: eTag ?? string.Empty);
+
+    public AuthorizationData WithCacheMetadata(DateTime cachedAt, DateTime expiresAt, string eTag) =>
+        this with
+        {
+            CachedAt = cachedAt,
+            ExpiresAt = expiresAt,
+            ETag = eTag
+        };
 }
