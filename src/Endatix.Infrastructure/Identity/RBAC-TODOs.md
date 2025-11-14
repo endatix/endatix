@@ -12,6 +12,16 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 - [x] Add DI and registraiton infrastructure for AuthorizationProviders
 - [ ] Extend ProviderRegistration with Interface and proper auth providers validation and runtime instance providing logic
 - [x] Add tests
+- [ ] Cover AuthorizationData with tests
+- [x] Cover ClaimsTransformer with tests
+- [ ] Cover AssertionPermissionsHandler with tests
+- [ ] Cover PlatformAdminHandler and TenantAdminHandler with tests
+- [ ] Cover CurrentUserAuthorizationService with tests
+- [ ] Cover DefaultAuthorization with tests
+- [ ] Cover AuthorizedIdentity with tests
+- [ ] Cover ClaimsPrincipalExtensions with tests
+- [ ] Update InfrastructureSecurityBuilder Tests to include new Auth services
+
 
 ## Pretty Level TODOs
 
