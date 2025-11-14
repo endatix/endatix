@@ -5,20 +5,30 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace Endatix.Infrastructure.Identity.Providers;
 
-public sealed class EndatixAuthorizationProvider(
+namespace Endatix.Infrastructure.Identity.Authorization.Strategies;
+
+/// <summary>
+/// Default authorization strategy that extracts roles and permissions from the database.
+/// </summary>
+/// <param name="authProviderRegistry">The authentication provider registry.</param>
+/// <param name="userManager">The user manager.</param>
+/// <param name="identityDbContext">The identity database context.</param>
+/// <param name="tenantContext">The tenant context.</param>
+/// <param name="dateTimeProvider">The date time provider.</param>
+/// <param name="logger">The logger.</param>
+public sealed class DefaultAuthorization(
     AuthProviderRegistry authProviderRegistry,
      UserManager<AppUser> userManager,
         AppIdentityDbContext identityDbContext,
         ITenantContext tenantContext,
         IDateTimeProvider dateTimeProvider,
-        ILogger<EndatixAuthorizationProvider> logger) : IAuthorizationProvider
+        ILogger<DefaultAuthorization> logger) : IAuthorizationStrategy
 {
     /// <inheritdoc />
     public bool CanHandle(ClaimsPrincipal principal)
@@ -37,7 +47,7 @@ public sealed class EndatixAuthorizationProvider(
     }
 
     /// <inheritdoc />
-    public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
+    public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
 
         if (!CanHandle(principal))

@@ -4,6 +4,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;

@@ -1,11 +1,10 @@
 using Ardalis.GuardClauses;
-using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Endatix.Infrastructure.Identity.Providers;
+namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 
 /// <summary>
 /// Provides authentication for the Endatix platform using Keycloak.

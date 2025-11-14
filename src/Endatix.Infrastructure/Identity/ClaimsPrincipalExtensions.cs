@@ -1,6 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Identity.Authentication;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -21,6 +23,15 @@ public static class ClaimsPrincipalExtensions
         if (principal?.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
         {
             return false;
+        }
+
+        var endatixIdentity = principal.Identities
+            .OfType<AuthorizedIdentity>()
+            .FirstOrDefault();
+
+        if (endatixIdentity is not null)
+        {
+            return endatixIdentity.IsHydrated;
         }
 
         return identity.HasClaim(c => c.Type == ClaimNames.Hydrated && c.Value == "true");
@@ -53,15 +64,24 @@ public static class ClaimsPrincipalExtensions
     /// Gets the tenant ID from the claims principal.
     /// </summary>
     /// <param name="principal">The claims principal to get the tenant ID from.</param>
-    /// <returns>The tenant ID as a string, or null if not authenticated or the tenant ID claim is not found.</returns>
-    public static string? GetTenantId(this ClaimsPrincipal principal)
+    /// <returns>The tenant ID as a long, or the default tenant ID if not authenticated or the tenant ID claim is not found.</returns>
+    public static long GetTenantId(this ClaimsPrincipal principal)
     {
         if (principal?.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
         {
-            return null;
+            return AuthConstants.DEFAULT_TENANT_ID;
         }
 
-        return identity.FindFirst(ClaimNames.TenantId)?.Value;
+        var endatixIdentity = principal.Identities
+            .OfType<AuthorizedIdentity>()
+            .FirstOrDefault();
+
+        if (endatixIdentity is not null)
+        {
+            return endatixIdentity.TenantId;
+        }
+
+        return AuthConstants.DEFAULT_TENANT_ID;
     }
 
 

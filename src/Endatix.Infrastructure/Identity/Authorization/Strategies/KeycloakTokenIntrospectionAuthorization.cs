@@ -2,22 +2,22 @@ using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Endatix.Infrastructure.Identity.Providers;
+namespace Endatix.Infrastructure.Identity.Authorization.Strategies;
 
-public class KeycloakAuthorizationProvider(
+public class KeycloakTokenIntrospectionAuthorization(
     AuthProviderRegistry authProviderRegistry,
     IOptions<KeycloakOptions> keycloakOptions,
     IExternalAuthorizationMapper externalAuthorizationMapper,
     IHttpContextAccessor httpContextAccessor,
     IHttpClientFactory httpClientFactory,
-    ILogger<KeycloakAuthorizationProvider> logger
-    ) : IAuthorizationProvider
+    ILogger<KeycloakTokenIntrospectionAuthorization> logger
+    ) : IAuthorizationStrategy
 {
     /// <inheritdoc />
     public bool CanHandle(ClaimsPrincipal principal)

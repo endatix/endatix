@@ -2,9 +2,10 @@ using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
-using Endatix.Infrastructure.Identity.Providers;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
+using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Endatix.Infrastructure.Identity.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -93,7 +94,7 @@ public class InfrastructureSecurityBuilder
     {
         _authProviderRegistry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider(), Services, Configuration);
 
-        Services.AddScoped<IAuthorizationProvider, KeycloakAuthorizationProvider>();
+        Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
 
         return this;
     }
@@ -226,7 +227,7 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
 
-        Services.AddScoped<IAuthorizationProvider, EndatixAuthorizationProvider>();
+        Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
         Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
 
         return this;

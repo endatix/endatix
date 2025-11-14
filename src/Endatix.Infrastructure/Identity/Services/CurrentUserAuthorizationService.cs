@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Identity;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authorization;
@@ -19,7 +18,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly HybridCache _hybridCache;
     private readonly ITenantContext _tenantContext;
-    private readonly IEnumerable<IAuthorizationProvider> _authorizationProviders;
+    private readonly IEnumerable<IAuthorizationStrategy> _authorizationStrategies;
     private readonly ILogger<CurrentUserAuthorizationService> _logger;
 
     private static readonly TimeSpan _hybridCacheExpiration = TimeSpan.FromMinutes(15);
@@ -27,13 +26,13 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
     public CurrentUserAuthorizationService(
         IHttpContextAccessor httpContextAccessor,
         HybridCache hybridCache,
-        IEnumerable<IAuthorizationProvider> authorizationProviders,
+        IEnumerable<IAuthorizationStrategy> authorizationStrategies,
         ITenantContext tenantContext,
         ILogger<CurrentUserAuthorizationService> logger)
     {
         _httpContextAccessor = httpContextAccessor;
         _hybridCache = hybridCache;
-        _authorizationProviders = authorizationProviders;
+        _authorizationStrategies = authorizationStrategies;
         _tenantContext = tenantContext;
         _logger = logger;
     }
@@ -47,7 +46,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             return Result.Error("No current user found");
         }
 
-        var authorizationDataResult = ExtractAuthorizationDataFromClaims(currentPrincipal);
+        var authorizationDataResult = ExtractAuthorizationData(currentPrincipal);
         if (authorizationDataResult.IsSuccess)
         {
             return authorizationDataResult;
@@ -62,15 +61,16 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         try
         {
             var cacheKey = GetAuthorizationDataCacheKey(userId, _tenantContext.TenantId);
-            var authorizationProvider = _authorizationProviders.FirstOrDefault(provider => provider.CanHandle(currentPrincipal));
-            if (authorizationProvider is null)
+            var authorizationStrategy = _authorizationStrategies
+                    .FirstOrDefault(strategy => strategy.CanHandle(currentPrincipal));
+            if (authorizationStrategy is null)
             {
                 return Result.Error("No authorization provider found for the current user");
             }
 
             var permissionsInfo = await _hybridCache.GetOrCreateAsync(
                 cacheKey,
-                async cancel => await authorizationProvider.GetAuthorizationDataAsync(currentPrincipal, cancellationToken),
+                async cancel => await authorizationStrategy.GetAuthorizationDataAsync(currentPrincipal, cancellationToken),
                 new HybridCacheEntryOptions { Expiration = _hybridCacheExpiration },
                 tags: ["usr_rbac:all", $"usr_rbac:{_tenantContext.TenantId}"],
                 cancellationToken: cancellationToken);
@@ -191,11 +191,20 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
     /// </summary>
     /// <param name="principal">The claims principal to get the hydrated authorization data from.</param>
     /// <returns>The hydrated authorization data if successful, otherwise a not found result.</returns>
-    private Result<AuthorizationData> ExtractAuthorizationDataFromClaims(ClaimsPrincipal principal)
+    private static Result<AuthorizationData> ExtractAuthorizationData(ClaimsPrincipal principal)
     {
-        if (!principal.IsHydrated())
+        if (principal?.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
         {
-            return Result.NotFound("Claims principal is not hydrated");
+            return Result.Error("Claims principal is missing or not authenticated");
+        }
+
+        var endatixIdentity = principal.Identities
+            .OfType<AuthorizedIdentity>()
+            .FirstOrDefault();
+
+        if (endatixIdentity is null)
+        {
+            return Result.NotFound("Claims principal is not hydrated with authorization data");
         }
 
         var userId = principal.GetUserId();
@@ -204,22 +213,22 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             return Result.Error("User ID is not found");
         }
 
-        var tenantId = principal.GetTenantId();
-        if (tenantId is null || !long.TryParse(tenantId, out var parsedTenantId))
-        {
-            return Result.Error("Tenant ID is not found");
-        }
-
         var authorizationData = AuthorizationData.ForAuthenticatedUser(
          userId: userId,
-         tenantId: parsedTenantId,
-         roles: principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray(),
-         permissions: principal.FindAll(ClaimNames.Permission).Select(c => c.Value).Distinct().ToArray(),
+         tenantId: endatixIdentity.TenantId,
+         roles: endatixIdentity.Roles.ToArray(),
+         permissions: endatixIdentity.Permissions.Distinct().ToArray(),
          cachedAt: DateTime.UtcNow,
          cacheExpiresIn: TimeSpan.Zero,
          eTag: string.Empty);
 
+        if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
+        {
+            return Result.Error("IsAdmin flag is not consistent with the claims principal");
+        }
+
         return Result.Success(authorizationData);
     }
+
     private static string GetAuthorizationDataCacheKey(string userId, long tenantId) => $"usr_rbac:{userId}:{tenantId}";
 }

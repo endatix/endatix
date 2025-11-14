@@ -13,7 +13,7 @@ namespace Endatix.Infrastructure.Identity.Authentication;
 /// This enables FastEndpoints' built-in authorization to work with our RBAC system.
 /// </summary>
 internal sealed class ClaimsTransformer(
-    IEnumerable<IAuthorizationProvider> authorizationProviders,
+    IEnumerable<IAuthorizationStrategy> authorizationStrategies,
     IDateTimeProvider dateTimeProvider,
     HybridCache hybridCache) : IClaimsTransformation
 {
@@ -30,7 +30,7 @@ internal sealed class ClaimsTransformer(
         var authorizationData = await GetAuthorizationDataAsync(principal);
         if (authorizationData is not null)
         {
-            HydrateClaimsWithAuthorizationData(identity, authorizationData);
+            principal.AddIdentity(new AuthorizedIdentity(authorizationData));
         }
 
         return principal;
@@ -54,7 +54,7 @@ internal sealed class ClaimsTransformer(
         var cacheExpiration = ComputeCacheExpiration(principal);
         var cacheKey = $"usr_cache:{claimIdentityId}";
 
-        var authorizationProvider = GetAuthorizationProvider(principal);
+        var authorizationProvider = GetAuthorizationStrategy(principal);
         if (authorizationProvider is null)
         {
             return null;
@@ -75,7 +75,7 @@ internal sealed class ClaimsTransformer(
         return authorizationData;
     }
 
-    private IAuthorizationProvider? GetAuthorizationProvider(ClaimsPrincipal principal)
+    private IAuthorizationStrategy? GetAuthorizationStrategy(ClaimsPrincipal principal)
     {
         var issuer = principal.GetIssuer();
         if (issuer is null)
@@ -83,39 +83,7 @@ internal sealed class ClaimsTransformer(
             return null;
         }
 
-        return authorizationProviders.FirstOrDefault(provider => provider.CanHandle(principal));
-    }
-
-    /// <summary>
-    /// Hydrates the claims identity with the user's roles and permissions from the database.
-    /// </summary>
-    /// <param name="identity"></param>
-    /// <param name="authorizationData"></param>
-    private void HydrateClaimsWithAuthorizationData(ClaimsIdentity identity, AuthorizationData authorizationData)
-    {
-        if (authorizationData is null)
-        {
-            return;
-        }
-
-        identity.AddClaim(new Claim(ClaimNames.TenantId, authorizationData.TenantId.ToString()));
-
-        foreach (var role in authorizationData.Roles)
-        {
-            identity.AddClaim(new Claim(ClaimTypes.Role, role));
-        }
-
-        foreach (var permission in authorizationData.Permissions)
-        {
-            identity.AddClaim(new Claim(ClaimNames.Permission, permission));
-        }
-
-        if (authorizationData.IsAdmin)
-        {
-            identity.AddClaim(new Claim(ClaimNames.IsAdmin, "true"));
-        }
-
-        identity.AddClaim(new Claim(ClaimNames.Hydrated, "true"));
+        return authorizationStrategies.FirstOrDefault(provider => provider.CanHandle(principal));
     }
 
     /// <summary>

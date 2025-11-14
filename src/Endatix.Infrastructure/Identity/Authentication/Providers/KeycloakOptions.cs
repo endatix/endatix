@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
-using Endatix.Infrastructure.Identity.Authentication;
 
-namespace Endatix.Infrastructure.Identity.Providers;
+namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 
 public class KeycloakOptions : JwtAuthProviderOptions
 {
@@ -38,4 +37,27 @@ public class KeycloakOptions : JwtAuthProviderOptions
     /// Keycloak authorization strategy options
     /// </summary>
     public KeycloakAuthorizationStrategyOptions Authorization { get; set; } = new();
+
+
+    /// <summary>
+    /// Options for the Keycloak authorization strategy.
+    /// </summary>
+    public class KeycloakAuthorizationStrategyOptions
+    {
+        /// <summary>
+        /// The role mappings for the authorization strategy.
+        /// </summary>
+        public Dictionary<string, string> RoleMappings { get; set; } = new();
+
+        /// <summary>
+        /// Dot notation path to the roles in the introspection response. For example: "resource_access.endatix.roles".
+        /// </summary>
+        [Required]
+        public string RolesPath { get; set; } = "resource_access.{ClientId}.roles";
+
+        /// <summary>
+        /// Resolve the roles path with the client ID. For example: "resource_access.endatix.roles" -> "resource_access.endatix-hub.roles".
+        /// </summary>
+        public string ResolveRolesPath(string clientId) => RolesPath.Replace("{ClientId}", clientId);
+    }
 }
