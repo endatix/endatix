@@ -8,9 +8,9 @@ using System.Text;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Entities.Identity;
-using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
-using Endatix.Infrastructure.Identity.Authentication;
 
+namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 
 /// <summary>
 /// Configuration options for Endatix JWT authentication provider
@@ -8,7 +8,7 @@ using Endatix.Infrastructure.Identity.Authentication;
 public class EndatixJwtOptions : JwtAuthProviderOptions
 {
     private const string DEFAULT_ISSUER = "endatix-api";
-    
+
     /// <summary>
     /// The key used to sign the JWT token
     /// </summary>

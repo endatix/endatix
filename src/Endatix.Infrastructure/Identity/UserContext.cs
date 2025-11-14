@@ -32,7 +32,7 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
             return null;
         }
 
-        var tenantId = ExtractTenantId(principal) ?? AuthConstants.DEFAULT_TENANT_ID;
+        var tenantId = principal.GetTenantId();
         var email = principal.FindFirst(ClaimNames.Email)?.Value;
         var userName = principal.Identity?.Name;
         var isVerified = principal.FindFirst(ClaimNames.EmailVerified)?.Value == "true";
@@ -64,17 +64,6 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
         if (long.TryParse(userId, out var userIdLong))
         {
             return userIdLong;
-        }
-
-        return null;
-    }
-
-    private static long? ExtractTenantId(ClaimsPrincipal principal)
-    {
-        var tenantId = principal.GetTenantId();
-        if (long.TryParse(tenantId, out var tenantIdParsed))
-        {
-            return tenantIdParsed;
         }
 
         return null;

@@ -9,7 +9,7 @@ using MediatR;
 using Endatix.Core.Infrastructure.Result;
 using System.Text.Json;
 using System.IO.Pipelines;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 

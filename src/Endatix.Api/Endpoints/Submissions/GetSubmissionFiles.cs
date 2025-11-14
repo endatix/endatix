@@ -4,7 +4,7 @@ using MediatR;
 using Endatix.Infrastructure.Utils;
 using Endatix.Core.UseCases.Submissions.GetFiles;
 using FluentValidation.Results;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 

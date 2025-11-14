@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 
 namespace Endatix.Infrastructure.Identity.Authorization;

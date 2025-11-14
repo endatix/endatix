@@ -1,5 +1,4 @@
 using MediatR;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -10,6 +9,7 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Features.ReCaptcha;
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
@@ -19,7 +19,7 @@ public class CreateSubmissionHandler(
     ISubmissionTokenService tokenService,
     IReCaptchaPolicyService recaptchaService,
     IMediator mediator,
-    IPermissionService permissionService
+    ICurrentUserAuthorizationService authorizationService
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
@@ -45,8 +45,7 @@ public class CreateSubmissionHandler(
 
         if (!formWithActiveDefinition.IsPublic)
         {
-            var accessResult = await permissionService.ValidateAccessAsync(
-                request.SubmittedBy,
+            var accessResult = await authorizationService.ValidateAccessAsync(
                 request.RequiredPermission,
                 cancellationToken);
 

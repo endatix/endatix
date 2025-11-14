@@ -3,9 +3,9 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.Delete;
-using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Attributes;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 

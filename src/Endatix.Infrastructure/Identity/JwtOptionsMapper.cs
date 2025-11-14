@@ -1,4 +1,4 @@
-using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 
 namespace Endatix.Infrastructure.Identity;
 

@@ -1,4 +1,5 @@
 ﻿using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -9,7 +10,7 @@ namespace Endatix.Core.UseCases.Identity.Login;
 public class LoginHandler(
     IAuthService authService,
     IUserTokenService tokenService,
-    IPermissionService permissionService,
+    ICurrentUserAuthorizationService authorizationService,
     IMediator mediator
     ) : ICommandHandler<LoginCommand, Result<AuthTokensDto>>
 {
@@ -32,7 +33,7 @@ public class LoginHandler(
         var refreshToken = tokenService.IssueRefreshToken();
 
         await authService.StoreRefreshToken(user.Id, refreshToken.Token, refreshToken.ExpireAt, cancellationToken);
-        await permissionService.InvalidateUserPermissionCacheAsync(user.Id, cancellationToken);
+        await authorizationService.InvalidateAuthorizationDataCacheAsync(cancellationToken);
 
         await mediator.Publish(new UserLoggedInEvent(user), cancellationToken);
 

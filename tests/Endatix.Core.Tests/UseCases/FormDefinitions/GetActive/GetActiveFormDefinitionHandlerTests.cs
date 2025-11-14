@@ -1,4 +1,4 @@
-using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.ReCaptcha;
@@ -14,7 +14,7 @@ public class GetActiveFormDefinitionHandlerTests
     private readonly IFormsRepository _formsRepository;
     private readonly IRepository<CustomQuestion> _customQuestionsRepository;
     private readonly IReCaptchaPolicyService _recaptchaPolicyService;
-    private readonly IPermissionService _permissionService;
+    private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly GetActiveFormDefinitionHandler _handler;
 
     public GetActiveFormDefinitionHandlerTests()
@@ -22,8 +22,8 @@ public class GetActiveFormDefinitionHandlerTests
         _formsRepository = Substitute.For<IFormsRepository>();
         _customQuestionsRepository = Substitute.For<IRepository<CustomQuestion>>();
         _recaptchaPolicyService = Substitute.For<IReCaptchaPolicyService>();
-        _permissionService = Substitute.For<IPermissionService>();
-        _handler = new GetActiveFormDefinitionHandler(_formsRepository, _customQuestionsRepository, _recaptchaPolicyService, _permissionService);
+        _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
+        _handler = new GetActiveFormDefinitionHandler(_formsRepository, _customQuestionsRepository, _recaptchaPolicyService, _authorizationService);
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public class GetActiveFormDefinitionHandlerTests
             CancellationToken.None
         ).Returns(formWithActiveDefinition);
 
-        _permissionService.ValidateAccessAsync(null, "access.authenticated", Arg.Any<CancellationToken>())
+        _authorizationService.ValidateAccessAsync("access.authenticated", Arg.Any<CancellationToken>())
             .Returns(Result.Unauthorized("Authentication required to access this resource."));
 
         // Act
@@ -204,7 +204,7 @@ public class GetActiveFormDefinitionHandlerTests
             CancellationToken.None
         ).Returns(formWithActiveDefinition);
 
-        _permissionService.ValidateAccessAsync("123", "access.authenticated", Arg.Any<CancellationToken>())
+        _authorizationService.ValidateAccessAsync("access.authenticated", Arg.Any<CancellationToken>())
             .Returns(Result.Forbidden("Permission 'access.authenticated' required to access this resource."));
 
         // Act
@@ -238,7 +238,7 @@ public class GetActiveFormDefinitionHandlerTests
             Arg.Any<CancellationToken>()
         ).Returns(new List<CustomQuestion>());
 
-        _permissionService.ValidateAccessAsync("123", "access.authenticated", Arg.Any<CancellationToken>())
+        _authorizationService.ValidateAccessAsync("access.authenticated", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
         // Act
@@ -284,7 +284,7 @@ public class GetActiveFormDefinitionHandlerTests
         result.Value.Id.Should().Be(activeDefinition.Id);
 
         // Verify permission check was not called for public form
-        await _permissionService.DidNotReceive().ValidateAccessAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _authorizationService.DidNotReceive().ValidateAccessAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     #endregion

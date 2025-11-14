@@ -3,7 +3,7 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.UseCases.FormTemplates.List;
 using Endatix.Api.Infrastructure;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 

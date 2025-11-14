@@ -1,10 +1,11 @@
 using Ardalis.GuardClauses;
-using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
+using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Endatix.Infrastructure.Identity.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -92,6 +93,8 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder AddKeycloakAuthProvider()
     {
         _authProviderRegistry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider(), Services, Configuration);
+
+        Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
 
         return this;
     }
@@ -214,16 +217,17 @@ public class InfrastructureSecurityBuilder
                 policy.Requirements.Add(new PlatformAdminRequirement()));
         });
 
-        // Register claims transformation to enrich JWT with permissions and roles from database
-        Services.AddScoped<IClaimsTransformation, JwtClaimsTransformer>();
+        // Register core authorization services
+        Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
+        Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
+        Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
+        Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
+        Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
 
-        // Register authorization related services
-        Services.AddScoped<IPermissionService, PermissionService>();
-
+        // Register authorization handlers
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
-
 
         return this;
     }

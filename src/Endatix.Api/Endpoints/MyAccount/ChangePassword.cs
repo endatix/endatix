@@ -4,7 +4,7 @@ using Errors = Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.MyAccount.ChangePassword;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions;
 
 namespace Endatix.Api.Endpoints.MyAccount;

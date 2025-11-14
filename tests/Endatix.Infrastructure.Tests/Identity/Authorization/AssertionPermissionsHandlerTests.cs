@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
-using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Data;
 using Microsoft.Extensions.Caching.Hybrid;
 using Endatix.Core.Infrastructure.Result;
@@ -14,7 +14,7 @@ public class AssertionPermissionsHandlerTests
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly HybridCache _cache;
     private readonly AppDbContext _dbContext;
-    private readonly IPermissionService _permissionService;
+    private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly AssertionPermissionsHandler _handler;
 
     public AssertionPermissionsHandlerTests()
@@ -22,9 +22,8 @@ public class AssertionPermissionsHandlerTests
         _httpContextAccessor = Substitute.For<IHttpContextAccessor>();
         _cache = Substitute.For<HybridCache>();
         _dbContext = Substitute.For<AppDbContext>();
-        _permissionService = Substitute.For<IPermissionService>();
-
-        _handler = new AssertionPermissionsHandler(_httpContextAccessor, _cache, _dbContext, _permissionService);
+        _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
+        _handler = new AssertionPermissionsHandler(_httpContextAccessor, _cache, _dbContext, _authorizationService);
     }
 
     [Fact(Skip = "Skipping until next PR")]
@@ -45,8 +44,7 @@ public class AssertionPermissionsHandlerTests
     public async Task HandleAsync_AdminUser_SucceedsAllRequirements()
     {
         // Arrange
-        var userId = "123";
-        _permissionService.IsUserAdminAsync(123).Returns(Result.Success(true));
+        _authorizationService.IsAdminAsync(TestContext.Current.CancellationToken).Returns(Result.Success(true));
 
         var context = CreateAuthorizationContext();
 

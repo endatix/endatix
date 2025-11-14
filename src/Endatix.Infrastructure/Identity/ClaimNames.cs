@@ -49,4 +49,20 @@ public static class ClaimNames
     /// Used for idempotency checks to prevent multiple transformations of the same claims principal.
     /// </summary>
     public const string Hydrated = "hydrated";
+
+
+    /// <summary>
+    /// Represents a claim for the cached at timestamp.
+    /// </summary>
+    public const string CachedAt = "cached_at";
+
+    /// <summary>
+    /// Represents a claim for the expires at timestamp.
+    /// </summary>
+    public const string ExpiresAt = "expires_at";
+
+    /// <summary>
+    /// Represents a claim for the ETag.
+    /// </summary>
+    public const string ETag = "etag";
 }

@@ -2,7 +2,7 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Themes.GetById;
 
 namespace Endatix.Api.Endpoints.Themes;

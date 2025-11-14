@@ -1,8 +1,10 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Account;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -432,13 +434,13 @@ public class InfrastructureSecurityBuilderTests
         // Verify our specific JwtClaimsTransformer is registered as Scoped
         var jwtClaimsTransformerDescriptor = _services
             .Where(sd => sd.ServiceType == typeof(IClaimsTransformation) &&
-                         sd.ImplementationType == typeof(JwtClaimsTransformer))
+                         sd.ImplementationType == typeof(ClaimsTransformer))
             .FirstOrDefault();
         Assert.NotNull(jwtClaimsTransformerDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, jwtClaimsTransformerDescriptor.Lifetime);
 
-        Assert.True(IsServiceRegistered<IPermissionService>());
-        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IPermissionService>());
+        Assert.True(IsServiceRegistered<ICurrentUserAuthorizationService>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<ICurrentUserAuthorizationService>());
         Assert.True(IsServiceRegistered<IAuthorizationHandler>());
         // Verify our PermissionsHandler is registered as Scoped
         // Note: AddAuthorization() also registers a default PassThroughAuthorizationHandler as Transient
@@ -475,10 +477,10 @@ public class InfrastructureSecurityBuilderTests
         var claimsTransformationDescriptor = claimsTransformationDescriptors.LastOrDefault();
         Assert.NotNull(claimsTransformationDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, claimsTransformationDescriptor.Lifetime);
-        Assert.Equal(typeof(JwtClaimsTransformer), claimsTransformationDescriptor.ImplementationType);
+        Assert.Equal(typeof(ClaimsTransformer), claimsTransformationDescriptor.ImplementationType);
 
         // IPermissionService should be Scoped
-        var permissionServiceDescriptor = FindServiceDescriptor<IPermissionService>();
+        var permissionServiceDescriptor = FindServiceDescriptor<ICurrentUserAuthorizationService>();
         Assert.NotNull(permissionServiceDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, permissionServiceDescriptor.Lifetime);
 

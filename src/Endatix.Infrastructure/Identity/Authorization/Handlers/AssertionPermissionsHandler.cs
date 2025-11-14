@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Attributes;
 using Endatix.Infrastructure.Data;
 using FastEndpoints;
@@ -22,7 +23,7 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly HybridCache _cache;
     private readonly AppDbContext _dbContext;
-    private readonly IPermissionService _permissionService;
+    private readonly ICurrentUserAuthorizationService _authorizationService;
 
     private static readonly TimeSpan _ownershipCacheExpiration = TimeSpan.FromMinutes(5);
 
@@ -30,12 +31,12 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
         IHttpContextAccessor httpContextAccessor,
         HybridCache cache,
         AppDbContext dbContext,
-        IPermissionService permissionService)
+        ICurrentUserAuthorizationService authorizationService)
     {
         _httpContextAccessor = httpContextAccessor;
         _cache = cache;
         _dbContext = dbContext;
-        _permissionService = permissionService;
+        _authorizationService = authorizationService;
     }
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, AssertionRequirement requirement)
     {
@@ -166,7 +167,7 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
             return false;
         }
 
-        var permissionCheckResult = await _permissionService.IsUserAdminAsync(parsedUserId);
+        var permissionCheckResult = await _authorizationService.IsAdminAsync(CancellationToken.None);
         return permissionCheckResult.IsSuccess && permissionCheckResult.Value;
     }
 

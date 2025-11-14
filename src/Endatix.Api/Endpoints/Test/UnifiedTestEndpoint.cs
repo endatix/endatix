@@ -1,5 +1,5 @@
 using FastEndpoints;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions;
 using Microsoft.AspNetCore.Identity;
 using Endatix.Core.Entities.Identity;
