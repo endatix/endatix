@@ -1,4 +1,6 @@
-﻿namespace Endatix.Api.Endpoints.Forms;
+﻿using System.Text.Json;
+
+namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
 /// Model of a form.
@@ -44,4 +46,15 @@ public class FormModel
     /// The total number of submissions for the form
     /// </summary>
     public int? SubmissionsCount { get; init; }
+
+    /// <summary>
+    /// The JSON data containing webhook configuration settings for this form as a string.
+    /// </summary>
+    [Obsolete("Use WebHookSettings instead.")]
+    public string? WebHookSettingsJson { get; set; }
+
+    /// <summary>
+    /// The webhook configuration settings as a JSON object.
+    /// </summary>
+    public JsonElement? WebHookSettings { get; set; }
 }

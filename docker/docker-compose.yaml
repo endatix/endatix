@@ -9,7 +9,7 @@ services:
       - "endatix-net"
     restart: "always"
   endatix-db:
-    image: "docker.io/library/postgres:17.5"
+    image: "docker.io/library/postgres:17.6"
     container_name: "endatix-db"
     environment:
       POSTGRES_HOST_AUTH_METHOD: "scram-sha-256"
@@ -37,7 +37,7 @@ services:
       ConnectionStrings__DefaultConnection: "Host=endatix-db;Port=5432;Username=postgres;Password=${ENDATIX_DB_PASSWORD};Database=main-db"
       ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT}"
       ConnectionStrings__DefaultConnection_DbProvider: "postgresql"
-      Endatix__Jwt__SigningKey: "s9BZnoA7yCxS/FfMr+D7EndSpO+Z+KFIv+NEkEGnXAg="
+      Endatix__Jwt__SigningKey: "AghmwSuu9G7NCOJd1axzGfRuF8O/cxiahWUUrZMszw8="
       Endatix__Data__EnableAutoMigrations: "true"
       Endatix__Data__SeedSampleData: "true"
       Endatix__Data__InitialUser__Email: "${USER_EMAIL}"
@@ -60,10 +60,11 @@ services:
     environment:
       NODE_ENV: "production"
       PORT: "8000"
-      ENDATIX_BASE_URL: "http://endatix-api:${ENDATIX_API_PORT}"
-      SESSION_SECRET: "xtzqXxJOQwzw5fEhxEYE3k0dVFMQhst4YL1/fLoTRSk="
+      ENDATIX_API_URL: "http://endatix-api:${ENDATIX_API_PORT}/api"
+      SESSION_SECRET: "Tr9YJeqVsIicqvNgpcn+iJVGq6l4qU95b+GuP/xziMs="
       NEXT_OTEL_VERBOSE: "0"
-      AUTH_SECRET: "2Sg0gWRAdGvJRC45dlcQd8wHv+DKQWrsHlJwqFMvSAg="
+      AUTH_SECRET: "edukEVrf9XA1GRDN44/BnB+6xeO1xLUWeKRWS7RWoYo="
+      AUTH_TRUST_HOST: "true"
       services__endatix-api__http__0: "http://endatix-api:${ENDATIX_API_PORT}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://docker-env-dashboard:18889"
       OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"

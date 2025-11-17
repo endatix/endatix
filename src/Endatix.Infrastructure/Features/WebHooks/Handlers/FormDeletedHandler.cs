@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Events;
 using Endatix.Core.Features.WebHooks;
 using MediatR;
@@ -8,7 +9,7 @@ namespace Endatix.Infrastructure.Features.WebHooks.Handlers;
 /// <summary>
 /// Webhook handler for FormDeletedEvent.
 /// </summary>
-public class FormDeletedHandler(IWebHookService webHookService, ILogger<FormDeletedHandler> logger) : INotificationHandler<FormDeletedEvent>
+public class FormDeletedHandler(IWebHookService webHookService, ILogger<FormDeletedHandler> logger, IIdGenerator<long> idGenerator) : INotificationHandler<FormDeletedEvent>
 {
     public async Task Handle(FormDeletedEvent notification, CancellationToken cancellationToken)
     {
@@ -16,7 +17,7 @@ public class FormDeletedHandler(IWebHookService webHookService, ILogger<FormDele
 
         var form = new
         {
-            id = notification.Form.Id,
+            formId = notification.Form.Id,
             tenantId = notification.Form.TenantId,
             name = notification.Form.Name,
             description = notification.Form.Description,
@@ -28,10 +29,10 @@ public class FormDeletedHandler(IWebHookService webHookService, ILogger<FormDele
         };
 
         var message = new WebHookMessage<object>(
-            notification.Form.Id,
+            idGenerator.CreateId(),
             WebHookOperation.FormDeleted,
             form);
 
-        await webHookService.EnqueueWebHookAsync(message, cancellationToken);
+        await webHookService.EnqueueWebHookAsync(notification.Form.TenantId, message, cancellationToken, notification.Form.Id);
     }
 } 

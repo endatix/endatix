@@ -7,26 +7,35 @@ public class Token
 {
     private const int TOKEN_SIZE_BYTES = 32; // 256 bits
 
-    public string Value { get; private set; }
-    public DateTime ExpiresAt { get; private set; }
+    public string Value { get; private set; } = null!;
+    public DateTime? ExpiresAt { get; private set; }
 
-    public bool IsExpired => DateTime.UtcNow > ExpiresAt;
+    public bool IsExpired => ExpiresAt.HasValue && DateTime.UtcNow > ExpiresAt.Value;
 
     private Token() { }
 
-    public Token(int expiryInHours)
+    public Token(int? expiryInHours)
     {
-        Guard.Against.NegativeOrZero(expiryInHours);
+        if (expiryInHours.HasValue)
+        {
+            Guard.Against.NegativeOrZero(expiryInHours.Value, nameof(expiryInHours));
+        }
 
         Value = GenerateToken();
-        ExpiresAt = DateTime.UtcNow.AddHours(expiryInHours);
+        ExpiresAt = expiryInHours.HasValue ? DateTime.UtcNow.AddHours(expiryInHours.Value) : null;
     }
 
-    public void Extend(int expiryInHours)
+    public void Extend(int? expiryInHours)
     {
-        Guard.Against.NegativeOrZero(expiryInHours);
-
-        ExpiresAt = DateTime.UtcNow.AddHours(expiryInHours);
+        if (expiryInHours.HasValue)
+        {
+            Guard.Against.NegativeOrZero(expiryInHours.Value, nameof(expiryInHours));
+            ExpiresAt = DateTime.UtcNow.AddHours(expiryInHours.Value);
+        }
+        else
+        {
+            ExpiresAt = null; // Remove expiration
+        }
     }
 
     private string GenerateToken()

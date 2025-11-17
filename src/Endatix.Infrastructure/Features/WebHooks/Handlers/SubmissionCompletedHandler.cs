@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Events;
 using Endatix.Core.Features.WebHooks;
 using MediatR;
@@ -8,7 +9,7 @@ namespace Endatix.Infrastructure.Features.WebHooks.Handlers;
 /// <summary>
 /// Webhook handler for SubmissionCompletedEvent.
 /// </summary>
-public class SubmissionCompletedWebHookHandler(IWebHookService webHookService, ILogger<SubmissionCompletedWebHookHandler> logger) : INotificationHandler<SubmissionCompletedEvent>
+public class SubmissionCompletedWebHookHandler(IWebHookService webHookService, ILogger<SubmissionCompletedWebHookHandler> logger, IIdGenerator<long> idGenerator) : INotificationHandler<SubmissionCompletedEvent>
 {
     public async Task Handle(SubmissionCompletedEvent notification, CancellationToken cancellationToken)
     {
@@ -16,7 +17,7 @@ public class SubmissionCompletedWebHookHandler(IWebHookService webHookService, I
 
         var submission = new
         {
-            id = notification.Submission.Id,
+            submissionId = notification.Submission.Id,
             formId = notification.Submission.FormId,
             formDefinitionId = notification.Submission.FormDefinitionId,
             tenantId = notification.Submission.TenantId,
@@ -32,10 +33,10 @@ public class SubmissionCompletedWebHookHandler(IWebHookService webHookService, I
         };
 
         var message = new WebHookMessage<object>(
-            notification.Submission.Id,
+            idGenerator.CreateId(),
             WebHookOperation.SubmissionCompleted,
             submission);
 
-        await webHookService.EnqueueWebHookAsync(message, cancellationToken);
+        await webHookService.EnqueueWebHookAsync(notification.Submission.TenantId, message, cancellationToken, notification.Submission.FormId);
     }
 } 

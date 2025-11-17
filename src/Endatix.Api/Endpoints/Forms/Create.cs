@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Forms.Create;
 using Endatix.Infrastructure.Identity.Authorization;
+using System.Text.Json;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -31,7 +32,21 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateFormResponse>, BadRequest>> ExecuteAsync(CreateFormRequest request, CancellationToken cancellationToken)
     {
-        var createFormCommand = new CreateFormCommand(request.Name!, request.Description, request.IsEnabled!.Value, request.FormDefinitionJsonData!);
+        var formDefinitionJsonData = request.FormDefinitionSchema.HasValue
+            ? JsonSerializer.Serialize(request.FormDefinitionSchema.Value)
+            : request.FormDefinitionJsonData!;
+
+        var webHookSettingsJson = request.WebHookSettings.HasValue
+            ? JsonSerializer.Serialize(request.WebHookSettings.Value)
+            : request.WebHookSettingsJson;
+
+        var createFormCommand = new CreateFormCommand(
+            request.Name!,
+            request.Description,
+            request.IsEnabled!.Value,
+            formDefinitionJsonData,
+            webHookSettingsJson);
+
         var result = await mediator.Send(createFormCommand, cancellationToken);
 
         return TypedResultsBuilder

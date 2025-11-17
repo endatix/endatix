@@ -1,5 +1,6 @@
 ﻿using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Forms;
+using System.Text.Json;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -22,8 +23,30 @@ public class FormMapper
         IsEnabled = form.IsEnabled,
         ThemeId = form.ThemeId?.ToString(),
         CreatedAt = form.CreatedAt,
-        ModifiedAt = form.ModifiedAt
+        ModifiedAt = form.ModifiedAt,
+        WebHookSettingsJson = form.WebHookSettingsJson,
+        WebHookSettings = ParseJsonString(form.WebHookSettingsJson)
     };
+
+    /// <summary>
+    /// Parses a JSON string to a JsonElement, returning null if the string is empty or invalid.
+    /// </summary>
+    internal static JsonElement? ParseJsonString(string? jsonString)
+    {
+        if (string.IsNullOrWhiteSpace(jsonString))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<JsonElement>(jsonString);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// Maps a collection of form entities to a collection of form API models.
@@ -61,6 +84,8 @@ public static class FormMapperExtensions
         ThemeId = formDto.ThemeId,
         CreatedAt = formDto.CreatedAt,
         ModifiedAt = formDto.ModifiedAt,
-        SubmissionsCount = formDto.SubmissionsCount
+        SubmissionsCount = formDto.SubmissionsCount,
+        WebHookSettingsJson = formDto.WebHookSettingsJson,
+        WebHookSettings = FormMapper.ParseJsonString(formDto.WebHookSettingsJson)
     };
 }

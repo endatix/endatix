@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Events;
 using Endatix.Core.Features.WebHooks;
 using MediatR;
@@ -8,7 +9,7 @@ namespace Endatix.Infrastructure.Features.WebHooks.Handlers;
 /// <summary>
 /// Webhook handler for FormUpdatedEvent.
 /// </summary>
-public class FormUpdatedWebHookHandler(IWebHookService webHookService, ILogger<FormUpdatedWebHookHandler> logger) : INotificationHandler<FormUpdatedEvent>
+public class FormUpdatedWebHookHandler(IWebHookService webHookService, ILogger<FormUpdatedWebHookHandler> logger, IIdGenerator<long> idGenerator) : INotificationHandler<FormUpdatedEvent>
 {
     public async Task Handle(FormUpdatedEvent notification, CancellationToken cancellationToken)
     {
@@ -16,7 +17,7 @@ public class FormUpdatedWebHookHandler(IWebHookService webHookService, ILogger<F
 
         var form = new
         {
-            id = notification.Form.Id,
+            formId = notification.Form.Id,
             tenantId = notification.Form.TenantId,
             name = notification.Form.Name,
             description = notification.Form.Description,
@@ -28,10 +29,10 @@ public class FormUpdatedWebHookHandler(IWebHookService webHookService, ILogger<F
         };
 
         var message = new WebHookMessage<object>(
-            notification.Form.Id,
+            idGenerator.CreateId(),
             WebHookOperation.FormUpdated,
             form);
 
-        await webHookService.EnqueueWebHookAsync(message, cancellationToken);
+        await webHookService.EnqueueWebHookAsync(notification.Form.TenantId, message, cancellationToken, notification.Form.Id);
     }
 } 

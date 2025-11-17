@@ -26,4 +26,21 @@ public sealed class StringUtilsTests
         var result = StringUtils.ToKebabCase(input);
         Assert.Equal(expected, result);
     }
+
+    [Theory]
+    [InlineData("form_created", "FormCreated")]
+    [InlineData("submission_completed", "SubmissionCompleted")]
+    [InlineData("user_registered", "UserRegistered")]
+    [InlineData("simple", "Simple")]
+    [InlineData("multiple_word_event_name", "MultipleWordEventName")]
+    [InlineData("", "")]
+    [InlineData("single", "Single")]
+    [InlineData("with_numbers_123", "WithNumbers123")]
+    [InlineData("UPPERCASE_INPUT", "UppercaseInput")]
+    [InlineData("MiXeD_cAsE_InPuT", "MixedCaseInput")]
+    public void ToPascalCase_WorksAsExpected(string input, string expected)
+    {
+        var result = StringUtils.ToPascalCase(input);
+        Assert.Equal(expected, result);
+    }
 }
