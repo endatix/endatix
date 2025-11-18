@@ -398,6 +398,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
+                    b.Property<bool>("IsSubmissionTokenValidAfterCompletion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 

@@ -5,7 +5,7 @@ using Endatix.Core.Entities;
 
 namespace Endatix.Persistence.PostgreSql.Config
 {
-    public class FormConfigurationPostgreSql : IEntityTypeConfiguration<Form> 
+    public class FormConfigurationPostgreSql : IEntityTypeConfiguration<Form>
     {
         public void Configure(EntityTypeBuilder<Form> builder)
         {

@@ -33,7 +33,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok
     public override async Task<Results<Ok<UpdateFormResponse>, BadRequest, NotFound>> ExecuteAsync(UpdateFormRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
-            new UpdateFormCommand(request.FormId, request.Name!, request.Description, request.IsEnabled!.Value),
+            new UpdateFormCommand(request.FormId, request.Name!, request.Description, request.IsEnabled!.Value, request.WebHookSettingsJson),
             cancellationToken);
 
         return TypedResultsBuilder

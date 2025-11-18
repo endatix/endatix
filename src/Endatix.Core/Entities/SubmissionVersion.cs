@@ -25,12 +25,12 @@ public class SubmissionVersion : BaseEntity, IAggregateRoot
     /// <summary>
     /// The JSON data at the time this version was created
     /// </summary>
-    public string JsonData { get; private set; }
+    public string JsonData { get; private set; } = null!;
 
 
 
     /// <summary>
     /// Navigation property to the submission
     /// </summary>
-    public Submission Submission { get; private set; }
+    public Submission Submission { get; private set; } = null!;
 }

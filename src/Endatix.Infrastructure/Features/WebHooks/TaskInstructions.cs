@@ -37,6 +37,30 @@ public class TaskInstructions
     }
 
     /// <summary>
+    /// Creates TaskInstructions from a WebHookEndpointConfig (database-backed configuration).
+    /// </summary>
+    /// <param name="endpointConfig">The webhook endpoint configuration from the database.</param>
+    /// <returns>A new TaskInstructions instance.</returns>
+    public static TaskInstructions FromWebHookEndpointConfig(Endatix.Core.Entities.WebHookEndpointConfig endpointConfig)
+    {
+        AuthenticationConfig? authConfig = null;
+
+        if (endpointConfig.Authentication != null && endpointConfig.Authentication.Type != "None")
+        {
+            authConfig = new AuthenticationConfig
+            {
+                Type = endpointConfig.Authentication.Type == "ApiKey"
+                    ? AuthenticationType.ApiKey
+                    : AuthenticationType.None,
+                ApiKey = endpointConfig.Authentication.ApiKey,
+                ApiKeyHeader = endpointConfig.Authentication.ApiKeyHeader
+            };
+        }
+
+        return new TaskInstructions(endpointConfig.Url, authConfig);
+    }
+
+    /// <summary>
     /// Gets the URI associated with the task instruction set.
     /// </summary>
     public string Uri { get; init; }

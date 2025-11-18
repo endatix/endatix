@@ -10,7 +10,7 @@ using MediatR;
 namespace Endatix.Core.UseCases.Forms.Create;
 
 public class CreateFormHandler(
-    IFormsRepository formsRepository, 
+    IFormsRepository formsRepository,
     ITenantContext tenantContext,
     IMediator mediator) : ICommandHandler<CreateFormCommand, Result<Form>>
 {
@@ -18,7 +18,13 @@ public class CreateFormHandler(
     {
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
-        var newForm = new Form(tenantContext.TenantId, request.Name, request.Description, request.IsEnabled);
+        var newForm = new Form(
+            tenantId: tenantContext.TenantId,
+            name: request.Name,
+            description: request.Description,
+            isEnabled: request.IsEnabled,
+            isPublic: true,
+            webHookSettingsJson: request.WebHookSettingsJson);
         var newFormDefinition = new FormDefinition(tenantContext.TenantId, isDraft: true, jsonData: request.FormDefinitionJsonData);
 
         var form = await formsRepository.CreateFormWithDefinitionAsync(newForm, newFormDefinition, cancellationToken);

@@ -22,8 +22,13 @@ public class CreateFormValidator : Validator<CreateFormRequest>
         RuleFor(x => x.IsEnabled)
             .NotEmpty();
 
+        RuleFor(x => x)
+            .Must(x => !string.IsNullOrWhiteSpace(x.FormDefinitionJsonData) || x.FormDefinitionSchema.HasValue)
+            .WithMessage("Either FormDefinitionJsonData or FormDefinitionSchema must be provided.")
+            .WithName("FormDefinition");
+
         RuleFor(x => x.FormDefinitionJsonData)
-            .NotEmpty()
-            .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH);
+            .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH)
+            .When(x => x.FormDefinitionJsonData != null);
     }
 }

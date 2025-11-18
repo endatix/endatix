@@ -29,4 +29,9 @@ public class PartialUpdateFormRequest
     /// The ID of the theme to update.
     /// </summary>
     public long? ThemeId { get; set; }
+
+    /// <summary>
+    /// The JSON data containing webhook configuration settings for this form.
+    /// </summary>
+    public string? WebHookSettingsJson { get; set; }
 }

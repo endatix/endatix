@@ -21,7 +21,7 @@ public class Theme : TenantEntity, IAggregateRoot
         JsonData = jsonData ?? "{}"; // Default to empty JSON object
     }
 
-    public string Name { get; private set; }
+    public string Name { get; private set; } = null!;
     public string? Description { get; private set; }
 
     /// <summary>

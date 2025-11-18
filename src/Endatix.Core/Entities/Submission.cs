@@ -27,8 +27,8 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
     }
 
     public bool IsComplete { get; private set; }
-    public string JsonData { get; private set; }
-    public FormDefinition FormDefinition { get; private set; }
+    public string JsonData { get; private set; } = null!;
+    public FormDefinition FormDefinition { get; private set; } = null!;
     public long FormId { get; init; }
     public long FormDefinitionId { get; private set; }
     public int? CurrentPage { get; private set; }
@@ -36,7 +36,7 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
     public string? SubmittedBy { get; private set; }
     public DateTime? CompletedAt { get; private set; }
     public Token? Token { get; private set; }
-    public SubmissionStatus Status { get; private set; }
+    public SubmissionStatus Status { get; private set; } = null!;
 
     public void Update(string jsonData, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {
