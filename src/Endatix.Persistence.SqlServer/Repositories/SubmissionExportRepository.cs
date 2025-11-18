@@ -15,10 +15,12 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         _dbContext = dbContext;
     }
 
-    public IAsyncEnumerable<SubmissionExportRow> GetExportRowsAsync(long formId, CancellationToken cancellationToken)
+    public IAsyncEnumerable<SubmissionExportRow> GetExportRowsAsync(long formId, string? sqlFunctionName, CancellationToken cancellationToken)
     {
+        var procedureName = sqlFunctionName ?? "export_form_submissions";
+
         return _dbContext.Set<SubmissionExportRow>()
-            .FromSqlRaw("EXEC dbo.export_form_submissions @form_id",
+            .FromSqlRaw($"EXEC dbo.{procedureName} @form_id",
                         new SqlParameter("@form_id", formId))
             .AsNoTracking()
             .AsAsyncEnumerable();

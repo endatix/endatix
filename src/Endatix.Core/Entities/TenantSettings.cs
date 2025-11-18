@@ -14,10 +14,12 @@ public class TenantSettings : IAggregateRoot
     private SlackSettings? _slackSettings;
     private string? _webHookSettingsJson;
     private WebHookConfiguration? _webHookSettings;
+    private string? _customExportsJson;
+    private List<CustomExportConfiguration>? _customExports;
 
     private TenantSettings() { } // For EF Core
 
-    public TenantSettings(long tenantId, int? submissionTokenExpiryHours = 24, bool isSubmissionTokenValidAfterCompletion = false, string? slackSettingsJson = null, string? webHookSettingsJson = null)
+    public TenantSettings(long tenantId, int? submissionTokenExpiryHours = 24, bool isSubmissionTokenValidAfterCompletion = false, string? slackSettingsJson = null, string? webHookSettingsJson = null, string? customExportsJson = null)
     {
         Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
 
@@ -26,6 +28,7 @@ public class TenantSettings : IAggregateRoot
         IsSubmissionTokenValidAfterCompletion = isSubmissionTokenValidAfterCompletion;
         SlackSettingsJson = slackSettingsJson;
         WebHookSettingsJson = webHookSettingsJson;
+        CustomExportsJson = customExportsJson;
     }
 
     /// <summary>
@@ -78,6 +81,22 @@ public class TenantSettings : IAggregateRoot
         get => _webHookSettings ??= DeserializeWebHookSettings();
     }
 
+    public string? CustomExportsJson
+    {
+        get => _customExportsJson;
+        private set
+        {
+            _customExportsJson = value;
+            _customExports = null; // Clear cached settings
+        }
+    }
+
+    [NotMapped]
+    public List<CustomExportConfiguration> CustomExports
+    {
+        get => _customExports ??= DeserializeCustomExports();
+    }
+
     /// <summary>
     /// Gets the date and time when these settings were last modified.
     /// Useful for tracking configuration changes.
@@ -128,6 +147,15 @@ public class TenantSettings : IAggregateRoot
         WebHookSettingsJson = JsonSerializer.Serialize(settings);
     }
 
+    /// <summary>
+    /// Updates the custom export configurations.
+    /// </summary>
+    public void UpdateCustomExports(List<CustomExportConfiguration> exports)
+    {
+        _customExports = exports;
+        CustomExportsJson = JsonSerializer.Serialize(exports);
+    }
+
     private SlackSettings DeserializeSlackSettings()
     {
         if (string.IsNullOrEmpty(SlackSettingsJson))
@@ -148,5 +176,16 @@ public class TenantSettings : IAggregateRoot
 
         return JsonSerializer.Deserialize<WebHookConfiguration>(WebHookSettingsJson) ??
                new WebHookConfiguration();
+    }
+
+    private List<CustomExportConfiguration> DeserializeCustomExports()
+    {
+        if (string.IsNullOrEmpty(CustomExportsJson))
+        {
+            return new List<CustomExportConfiguration>();
+        }
+
+        return JsonSerializer.Deserialize<List<CustomExportConfiguration>>(CustomExportsJson) ??
+               new List<CustomExportConfiguration>();
     }
 }

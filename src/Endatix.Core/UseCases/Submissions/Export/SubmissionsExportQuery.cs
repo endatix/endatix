@@ -10,7 +10,8 @@ public sealed record SubmissionsExportQuery(
     long FormId,
     IExporter<SubmissionExportRow> Exporter,
     ExportOptions? Options,
-    PipeWriter OutputWriter
+    PipeWriter OutputWriter,
+    long? ExportId = null
 ) : IRequest<Result<FileExport>>
 {
     public ExportOptions GetOptionsWithFormId()
