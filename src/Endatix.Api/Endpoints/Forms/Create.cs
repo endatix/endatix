@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Forms.Create;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using System.Text.Json;
 
 namespace Endatix.Api.Endpoints.Forms;
@@ -19,7 +19,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
     public override void Configure()
     {
         Post("forms");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.Create);
         Summary(s =>
         {
             s.Summary = "Create a new form";

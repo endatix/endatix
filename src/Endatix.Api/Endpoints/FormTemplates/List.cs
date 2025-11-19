@@ -3,7 +3,7 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.UseCases.FormTemplates.List;
 using Endatix.Api.Infrastructure;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
@@ -18,7 +18,7 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
     public override void Configure()
     {
         Get("form-templates");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Templates.View);
         Summary(s =>
         {
             s.Summary = "List form templates";

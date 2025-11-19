@@ -1,6 +1,6 @@
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.TenantSettings.Get;
-using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -19,7 +19,7 @@ public class GetTenantSettings(IMediator mediator) : EndpointWithoutRequest<Resu
     public override void Configure()
     {
         Get("tenant-settings");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Tenant.ViewSettings);
         Summary(s =>
         {
             s.Summary = "Get tenant settings for the current tenant";

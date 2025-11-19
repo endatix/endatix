@@ -4,6 +4,7 @@ using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity;
 using Endatix.Core.UseCases.Identity.Login;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Core.Tests.UseCases.Identity.Login;
 
@@ -11,6 +12,7 @@ public class LoginHandlerTests
 {
     private readonly IAuthService _authService;
     private readonly IUserTokenService _tokenService;
+    private readonly ICurrentUserAuthorizationService _permissionService;
     private readonly IMediator _mediator;
     private readonly LoginHandler _handler;
 
@@ -19,7 +21,8 @@ public class LoginHandlerTests
         _authService = Substitute.For<IAuthService>();
         _tokenService = Substitute.For<IUserTokenService>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new LoginHandler(_authService, _tokenService, _mediator);
+        _permissionService = Substitute.For<ICurrentUserAuthorizationService>();
+        _handler = new LoginHandler(_authService, _tokenService, _permissionService, _mediator);
     }
 
     [Fact]

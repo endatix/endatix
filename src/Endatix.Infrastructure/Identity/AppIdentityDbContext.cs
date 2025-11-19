@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Endatix.Infrastructure.Data;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Abstractions;
+using Microsoft.AspNetCore.Identity;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -20,11 +21,15 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
         _idGenerator = idGenerator;
     }
 
+    public DbSet<Permission> Permissions { get; set; }
+    public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.ApplyConfigurationsFor<AppIdentityDbContext>(Endatix.Infrastructure.AssemblyReference.Assembly);
 
         builder.HasDefaultSchema("identity");
 
@@ -35,46 +40,11 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 
         builder.Entity<AppRole>()
                .Property(e => e.Id)
-                .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
+               .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
                .ValueGeneratedNever();
 
-        builder.Entity<EmailVerificationToken>(entity =>
-        {
-            entity.ToTable("EmailVerificationTokens");
 
-            entity.Property(t => t.Id)
-                .IsRequired();
-
-            entity.Property(t => t.UserId)
-                .IsRequired();
-
-            entity.Property(t => t.Token)
-                .IsRequired()
-                .HasMaxLength(64);
-
-            entity.Property(t => t.ExpiresAt)
-                .IsRequired();
-
-            entity.Property(t => t.IsUsed)
-                .IsRequired()
-                .HasDefaultValue(false);
-
-            // Create unique index on token value
-            entity.HasIndex(t => t.Token)
-                .IsUnique();
-
-            // Create index on user ID for quick lookups
-            entity.HasIndex(t => t.UserId);
-
-            // Create index on expiry for cleanup operations
-            entity.HasIndex(t => t.ExpiresAt);
-
-            // Add foreign key relationship to AppUser
-            entity.HasOne<AppUser>()
-                .WithMany()
-                .HasForeignKey(t => t.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
+        RenameIdentityTables(builder);
     }
 
     public override int SaveChanges()
@@ -124,5 +94,16 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
                     break;
             }
         }
+    }
+
+    private void RenameIdentityTables(ModelBuilder builder)
+    {
+        builder.Entity<AppUser>().ToTable("Users");
+        builder.Entity<AppRole>().ToTable("Roles");
+        builder.Entity<IdentityUserClaim<long>>().ToTable("UserClaims");
+        builder.Entity<IdentityUserRole<long>>().ToTable("UserRoles");
+        builder.Entity<IdentityUserLogin<long>>().ToTable("UserLogins");
+        builder.Entity<IdentityRoleClaim<long>>().ToTable("RoleClaims");
+        builder.Entity<IdentityUserToken<long>>().ToTable("UserTokens");
     }
 }

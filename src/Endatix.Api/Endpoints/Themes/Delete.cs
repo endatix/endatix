@@ -1,7 +1,7 @@
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Themes.Delete;
 using Endatix.Api.Infrastructure;
 
@@ -18,7 +18,7 @@ public class Delete(IMediator mediator) : Endpoint<DeleteRequest, Results<Ok<str
     public override void Configure()
     {
         Delete("themes/{themeId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Themes.Delete);
         Summary(s =>
         {
             s.Summary = "Delete a theme";

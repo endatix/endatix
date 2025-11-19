@@ -23,5 +23,10 @@ public abstract class AuthProviderOptions
     /// <summary>
     /// Whether to map inbound claims from the provider
     /// </summary>
-    public bool MapInboundClaims { get; set; } = true;
+    public bool MapInboundClaims { get; set; } = false;
+
+    /// <summary>
+    /// The default tenant ID to use for the authentication provider
+    /// </summary>
+    public long DefaultTenantId { get; set; } = AuthConstants.DEFAULT_TENANT_ID;
 }

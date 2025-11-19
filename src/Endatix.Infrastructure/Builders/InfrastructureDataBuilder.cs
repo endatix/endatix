@@ -42,6 +42,9 @@ public class InfrastructureDataBuilder
     {
         LogSetupInfo("Configuring data infrastructure with default settings");
 
+        Services.AddHybridCache();
+        Services.AddHttpContextAccessor();
+        
         Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         Services.AddScoped<IUnitOfWork, AppUnitOfWork>();
         Services.AddSingleton<EfCoreValueGeneratorFactory>();

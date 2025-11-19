@@ -2,7 +2,7 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Themes.List;
 
 namespace Endatix.Api.Endpoints.Themes;
@@ -18,7 +18,7 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumer
     public override void Configure()
     {
         Get("themes");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Themes.View);
         Summary(s =>
         {
             s.Summary = "List themes";

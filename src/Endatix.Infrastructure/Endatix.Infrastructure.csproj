@@ -16,6 +16,7 @@
 	<ItemGroup>
 		<PackageReference Include="CsvHelper" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
 		<PackageReference Include="Microsoft.Extensions.Http.Resilience" />
 		<PackageReference Include="Serilog.AspNetCore" />
 		<PackageReference Include="Serilog.Sinks.ApplicationInsights" />
@@ -39,7 +40,8 @@
 		<Folder Include="Identity/Authorization/" />
 		<Folder Include="Logging/" />
 	</ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="Endatix.Infrastructure.Tests" />
-  </ItemGroup>
+	<ItemGroup>
+		<InternalsVisibleTo Include="Endatix.Infrastructure.Tests" />
+		<InternalsVisibleTo Include="DynamicProxyGenAssembly2" PublicKey="$(NSubstitutePublicKey)" />
+	</ItemGroup>
 </Project>

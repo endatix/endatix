@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.UpdateStatus;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -18,7 +18,7 @@ public class UpdateStatus(IMediator mediator) : Endpoint<UpdateStatusRequest, Re
     public override void Configure()
     {
         Post("forms/{formId}/submissions/{submissionId}/status");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Submissions.Edit);
         Summary(s =>
         {
             s.Summary = "Update submission status";

@@ -4,7 +4,7 @@ using MediatR;
 using Endatix.Infrastructure.Utils;
 using Endatix.Core.UseCases.Submissions.GetFiles;
 using FluentValidation.Results;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -17,7 +17,7 @@ public class GetSubmissionFiles(IMediator mediator) : Endpoint<GetSubmissionFile
     public override void Configure()
     {
         Post("forms/{formId}/submissions/{submissionId}/files");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Submissions.View);
         Summary(s =>
         {
             s.Summary = "Download files for a submission";

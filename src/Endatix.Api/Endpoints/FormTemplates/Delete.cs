@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormTemplates.Delete;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
@@ -18,7 +18,7 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormTemplateRequest, Re
     public override void Configure()
     {
         Delete("form-templates/{formTemplateId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Templates.Delete);
         Summary(s =>
         {
             s.Summary = "Delete a form template";

@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Forms.Delete;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -18,7 +18,7 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormRequest, Results<Ok
     public override void Configure()
     {
         Delete("forms/{formId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.Delete);
         Summary(s =>
         {
             s.Summary = "Delete a form";

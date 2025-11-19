@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormTemplates.GetById;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
@@ -18,7 +18,7 @@ public class GetById(IMediator mediator) : Endpoint<GetFormTemplateByIdRequest, 
     public override void Configure()
     {
         Get("form-templates/{formTemplateId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Templates.View);
         Summary(s =>
         {
             s.Summary = "Get a form template by ID";

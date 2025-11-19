@@ -4,14 +4,14 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.Create;
 using Endatix.Core.Abstractions;
-using Errors = Microsoft.AspNetCore.Mvc;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for creating a new form submission.
 /// </summary>
-public class Create(IMediator mediator, IUserContext userContext) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
+public class Create(IMediator mediator, IUserContext userContext) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, ProblemHttpResult>>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -29,10 +29,10 @@ public class Create(IMediator mediator, IUserContext userContext) : Endpoint<Cre
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Created<CreateSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken cancellationToken)
     {
-        var submittedBy = userContext.GetCurrentUserId();
-        
+        var userId = userContext.GetCurrentUserId();
+
         var createCommand = new CreateSubmissionCommand(
             FormId: request.FormId,
             JsonData: request.JsonData!,
@@ -40,13 +40,14 @@ public class Create(IMediator mediator, IUserContext userContext) : Endpoint<Cre
             CurrentPage: request.CurrentPage,
             IsComplete: request.IsComplete,
             ReCaptchaToken: request.ReCaptchaToken,
-            SubmittedBy: submittedBy
+            SubmittedBy: userId,
+            RequiredPermission: Actions.Submissions.Create
         );
 
         var result = await mediator.Send(createCommand, cancellationToken);
 
         return TypedResultsBuilder
             .MapResult(result, SubmissionMapper.Map<CreateSubmissionResponse>)
-            .SetTypedResults<Created<CreateSubmissionResponse>, BadRequest<Errors.ProblemDetails>, NotFound>();
+            .SetTypedResults<Created<CreateSubmissionResponse>, ProblemHttpResult>();
     }
 }

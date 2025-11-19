@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
@@ -7,18 +8,21 @@ using Endatix.Api.Endpoints.FormDefinitions;
 using Endatix.Core.UseCases.FormDefinitions.GetActive;
 using Errors = Microsoft.AspNetCore.Mvc;
 using Endatix.Core.UseCases.FormDefinitions;
+using Endatix.Core.Abstractions;
 
 namespace Endatix.Api.Tests.Endpoints.FormDefinitions;
 
 public class GetActiveTests
 {
     private readonly IMediator _mediator;
+    private readonly IUserContext _userContext;
     private readonly GetActive _endpoint;
 
     public GetActiveTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _endpoint = Factory.Create<GetActive>(_mediator);
+        _userContext = Substitute.For<IUserContext>();
+        _endpoint = Factory.Create<GetActive>(_mediator, _userContext);
     }
 
     [Fact]
@@ -28,7 +32,7 @@ public class GetActiveTests
         var formId = 1L;
         var request = new GetActiveFormDefinitionRequest { FormId = formId };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<GetActiveFormDefinitionQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -36,8 +40,9 @@ public class GetActiveTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
-        badRequestResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]
@@ -55,8 +60,9 @@ public class GetActiveTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var notFoundResult = response.Result as NotFound<Errors.ProblemDetails>;
-        notFoundResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
     [Fact]
