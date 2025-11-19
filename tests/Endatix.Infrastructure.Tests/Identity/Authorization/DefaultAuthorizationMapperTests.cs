@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
@@ -102,6 +103,181 @@ public sealed class DefaultAuthorizationMapperTests
 
         // Assert
         result.Should().NotBeNull();
+    }
+
+    #endregion
+
+    #region GetMatchingRoles Tests
+
+    [Fact]
+    public void GetMatchingRoles_WithValidMappings_ReturnsMappedInternalRoles()
+    {
+        // Arrange
+        var externalRoles = new[] { "keycloak-admin", "keycloak-user" };
+        var roleMappings = new Dictionary<string, string>
+        {
+            { "keycloak-admin", "Admin" },
+            { "keycloak-user", "User" }
+        };
+
+        // Act
+        var result = InvokeGetMatchingRoles(externalRoles, roleMappings);
+
+        // Assert
+        result.Should().BeEquivalentTo(new[] { "Admin", "User" });
+    }
+
+    [Fact]
+    public void GetMatchingRoles_WithPartialMappings_ReturnsOnlyMappedRoles()
+    {
+        // Arrange
+        var externalRoles = new[] { "keycloak-admin", "keycloak-user", "unmapped-role" };
+        var roleMappings = new Dictionary<string, string>
+        {
+            { "keycloak-admin", "Admin" },
+            { "keycloak-user", "User" }
+        };
+
+        // Act
+        var result = InvokeGetMatchingRoles(externalRoles, roleMappings);
+
+        // Assert
+        result.Should().BeEquivalentTo(new[] { "Admin", "User" });
+    }
+
+    [Fact]
+    public void GetMatchingRoles_WithDuplicateExternalRoles_ReturnsDistinctInternalRoles()
+    {
+        // Arrange
+        var externalRoles = new[] { "keycloak-admin", "keycloak-admin", "keycloak-user" };
+        var roleMappings = new Dictionary<string, string>
+        {
+            { "keycloak-admin", "Admin" },
+            { "keycloak-user", "User" }
+        };
+
+        // Act
+        var result = InvokeGetMatchingRoles(externalRoles, roleMappings);
+
+        // Assert
+        result.Should().BeEquivalentTo(new[] { "Admin", "User" });
+        result.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void GetMatchingRoles_WithEmptyMappedRole_IgnoresEmptyMapping()
+    {
+        // Arrange
+        var externalRoles = new[] { "keycloak-admin", "keycloak-empty" };
+        var roleMappings = new Dictionary<string, string>
+        {
+            { "keycloak-admin", "Admin" },
+            { "keycloak-empty", string.Empty }
+        };
+
+        // Act
+        var result = InvokeGetMatchingRoles(externalRoles, roleMappings);
+
+        // Assert
+        result.Should().BeEquivalentTo(new[] { "Admin" });
+    }
+
+    [Fact]
+    public void GetMatchingRoles_WithNoMatchingExternalRoles_ReturnsEmptyArray()
+    {
+        // Arrange
+        var externalRoles = new[] { "unknown-role-1", "unknown-role-2" };
+        var roleMappings = new Dictionary<string, string>
+        {
+            { "keycloak-admin", "Admin" },
+            { "keycloak-user", "User" }
+        };
+
+        // Act
+        var result = InvokeGetMatchingRoles(externalRoles, roleMappings);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void GetMatchingRoles_WithCaseSensitiveMapping_RespectsCase()
+    {
+        // Arrange
+        var externalRoles = new[] { "keycloak-admin" };
+        var roleMappings = new Dictionary<string, string>
+        {
+            { "keycloak-admin", "AdminRole" },
+            { "KEYCLOAK-ADMIN", "DifferentRole" }
+        };
+
+        // Act
+        var result = InvokeGetMatchingRoles(externalRoles, roleMappings);
+
+        // Assert
+        result.Should().BeEquivalentTo(new[] { "AdminRole" });
+    }
+
+    [Fact]
+    public void GetMatchingRoles_WithMultipleExternalRolesMappingToSameInternalRole_ReturnsSingleInternalRole()
+    {
+        // Arrange
+        var externalRoles = new[] { "keycloak-admin", "kc-admin", "admin-role" };
+        var roleMappings = new Dictionary<string, string>
+        {
+            { "keycloak-admin", "Admin" },
+            { "kc-admin", "Admin" },
+            { "admin-role", "Admin" }
+        };
+
+        // Act
+        var result = InvokeGetMatchingRoles(externalRoles, roleMappings);
+
+        // Assert
+        result.Should().BeEquivalentTo(new[] { "Admin" });
+        result.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void GetMatchingRoles_WithEmptyExternalRoles_ReturnsEmptyArray()
+    {
+        // Arrange
+        var externalRoles = Array.Empty<string>();
+        var roleMappings = new Dictionary<string, string>
+        {
+            { "keycloak-admin", "Admin" }
+        };
+
+        // Act
+        var result = InvokeGetMatchingRoles(externalRoles, roleMappings);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void GetMatchingRoles_WithEmptyRoleMappings_ReturnsEmptyArray()
+    {
+        // Arrange
+        var externalRoles = new[] { "keycloak-admin" };
+        var roleMappings = new Dictionary<string, string>();
+
+        // Act
+        var result = InvokeGetMatchingRoles(externalRoles, roleMappings);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    private string[] InvokeGetMatchingRoles(string[] externalRoles, Dictionary<string, string> roleMappings)
+    {
+        var method = typeof(DefaultAuthorizationMapper).GetMethod(
+            "GetMatchingRoles",
+            BindingFlags.NonPublic | BindingFlags.Instance);
+
+        method.Should().NotBeNull("GetMatchingRoles method should exist");
+
+        return (string[])method!.Invoke(_mapper, new object[] { externalRoles, roleMappings })!;
     }
 
     #endregion
