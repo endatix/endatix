@@ -18,27 +18,21 @@ public class DefaultAuthorizationMapper(
     /// <inheritdoc />
     public async Task<MappingResult> MapToAppRolesAsync(string[] externalRoles, Dictionary<string, string> roleMappings, CancellationToken cancellationToken)
     {
-
-        if (externalRoles is not { Length: > 0 })
+        var matchingRoles = GetMatchingRoles(externalRoles, roleMappings);
+        if (matchingRoles is not { Length: > 0 })
         {
             return MappingResult.Empty();
         }
 
-        if (roleMappings is not { Count: > 0 })
-        {
-            return MappingResult.Empty();
-        }
+        var normalizedRoleNames = matchingRoles
+            .Select(role => keyNormalizer.NormalizeName(role))
+            .Distinct()
+            .ToArray();
 
         try
         {
-            var matchingRoles = externalRoles
-                .Where(er => roleMappings.TryGetValue(er, out var matchingRole) && !string.IsNullOrEmpty(matchingRole))
-                .Select(roleName => keyNormalizer.NormalizeName(roleName))
-                .Distinct()
-                .ToArray();
-
             var mappedRolesWithPermissions = await roleManager.Roles
-                            .Where(x => x.IsActive && matchingRoles.Contains(x.NormalizedName))
+                            .Where(x => x.IsActive && normalizedRoleNames.Contains(x.NormalizedName))
                             .Include(x => x.RolePermissions)
                                 .ThenInclude(x => x.Permission)
                             .AsSplitQuery()
@@ -64,5 +58,35 @@ public class DefaultAuthorizationMapper(
         {
             return MappingResult.Failure(ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Gets the matching roles based on the external roles and role mappings.
+    /// </summary>
+    /// <param name="externalRoles">The external roles to get the matching roles from.</param>
+    /// <param name="roleMappings">The role mappings to use.</param>
+    /// <returns>The matching roles.</returns>
+    private string[] GetMatchingRoles(string[] externalRoles, Dictionary<string, string> roleMappings)
+    {
+        if (externalRoles is not { Length: > 0 })
+        {
+            return [];
+        }
+
+        if (roleMappings is not { Count: > 0 })
+        {
+            return [];
+        }
+
+        HashSet<string> matchingRoles = [];
+        foreach (var externalRole in externalRoles)
+        {
+            if (roleMappings.TryGetValue(externalRole, out var matchingRole) && !string.IsNullOrEmpty(matchingRole))
+            {
+                matchingRoles.Add(matchingRole);
+            }
+        }
+
+        return matchingRoles.ToArray();
     }
 }
