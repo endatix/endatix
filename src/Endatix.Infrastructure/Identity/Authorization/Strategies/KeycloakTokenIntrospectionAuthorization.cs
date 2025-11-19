@@ -44,6 +44,15 @@ public class KeycloakTokenIntrospectionAuthorization(
         }
 
         var keycloakSettings = keycloakOptions.Value;
+        if (keycloakSettings.Authorization is null || keycloakSettings.Authorization.RoleMappings is not { Count: > 0 })
+        {
+            return Result.Success(AuthorizationData.ForAuthenticatedUser(
+                userId: principal.GetUserId() ?? string.Empty,
+                tenantId: keycloakSettings.DefaultTenantId,
+                roles: [],
+                permissions: []
+            ));
+        }
 
         var authHeader = httpContextAccessor.HttpContext?.Request.Headers["Authorization"].FirstOrDefault();
         if (authHeader is null)
@@ -80,7 +89,7 @@ public class KeycloakTokenIntrospectionAuthorization(
 
         try
         {
-            var rolesPathSelector = "resource_access.endatix-hub.roles";
+            var rolesPathSelector = keycloakSettings.Authorization.ResolveRolesPath(keycloakSettings.ClientId);
             using var jsonExtractor = new JsonExtractor(introspectionResponseContent);
             var parsedRolesResult = jsonExtractor.ExtractArrayOfStrings(rolesPathSelector);
             if (!parsedRolesResult.IsSuccess)

@@ -36,7 +36,7 @@ public class KeycloakOptions : JwtAuthProviderOptions
     /// <summary>
     /// Keycloak authorization strategy options
     /// </summary>
-    public KeycloakAuthorizationStrategyOptions Authorization { get; set; } = new();
+    public KeycloakAuthorizationStrategyOptions? Authorization { get; set; }
 
 
     /// <summary>
