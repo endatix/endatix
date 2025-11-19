@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormTemplates.PartialUpdate;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
@@ -18,7 +18,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormTempl
     public override void Configure()
     {
         Patch("form-templates/{formTemplateId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Templates.Edit);
         Summary(s =>
         {
             s.Summary = "Partially update a form template";

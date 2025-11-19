@@ -2,7 +2,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Submissions.GetById;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -18,7 +18,7 @@ public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<S
     public override void Configure()
     {
         Get("forms/{formId}/submissions/{submissionId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Submissions.View);
         Summary(s =>
         {
             s.Summary = "Get a single submission";

@@ -1,4 +1,5 @@
-﻿using Endatix.Core.Abstractions.Repositories;
+﻿using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -11,7 +12,8 @@ namespace Endatix.Core.UseCases.FormDefinitions.GetActive;
 public class GetActiveFormDefinitionHandler(
     IFormsRepository formRepository,
     IRepository<CustomQuestion> customQuestionsRepository,
-    IReCaptchaPolicyService reCaptchaPolicyService
+    IReCaptchaPolicyService reCaptchaPolicyService,
+    ICurrentUserAuthorizationService authorizationService
     )
     : IQueryHandler<GetActiveFormDefinitionQuery, Result<ActiveDefinitionDto>>
 {
@@ -23,6 +25,18 @@ public class GetActiveFormDefinitionHandler(
         if (formWithActiveDefinition == null || formWithActiveDefinition.ActiveDefinition == null)
         {
             return Result.NotFound("Active form definition not found.");
+        }
+
+        if (!formWithActiveDefinition.IsPublic)
+        {
+            var accessResult = await authorizationService.ValidateAccessAsync(
+                request.RequiredPermission,
+                cancellationToken);
+
+            if (!accessResult.IsSuccess)
+            {
+                return accessResult;
+            }
         }
 
         var tenantId = formWithActiveDefinition.TenantId;

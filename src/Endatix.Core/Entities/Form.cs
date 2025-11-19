@@ -13,19 +13,21 @@ public partial class Form : TenantEntity, IAggregateRoot
 
     private Form() { } // For EF Core
 
-    public Form(long tenantId, string name, string? description = null, bool isEnabled = false, string? webHookSettingsJson = null)
+    public Form(long tenantId, string name, string? description = null, bool isEnabled = false, bool isPublic = true, string? webHookSettingsJson = null)
         : base(tenantId)
     {
         Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
+        IsPublic = isPublic;
         WebHookSettingsJson = webHookSettingsJson;
     }
 
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
     public bool IsEnabled { get; set; }
+    public bool IsPublic { get; set; }
 
     public long? ActiveDefinitionId { get; private set; }
     public FormDefinition? ActiveDefinition { get; private set; }

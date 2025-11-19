@@ -1,7 +1,12 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Authorization.Handlers;
+using Endatix.Infrastructure.Identity.Authorization.Strategies;
+using Endatix.Infrastructure.Identity.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -15,6 +20,10 @@ namespace Endatix.Infrastructure.Builders;
 /// </summary>
 public class InfrastructureSecurityBuilder
 {
+    /// <summary>
+    /// The name of the multi-JWT scheme used tp support multiple JWT based authentication providers
+    /// </summary>
+    public static readonly string MULTI_JWT_SCHEME_NAME = "MultiJwt";
     private readonly InfrastructureBuilder _parentBuilder;
     private readonly ILogger _logger;
     internal readonly AuthProviderRegistry _authProviderRegistry;
@@ -84,6 +93,8 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder AddKeycloakAuthProvider()
     {
         _authProviderRegistry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider(), Services, Configuration);
+
+        Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
 
         return this;
     }
@@ -164,7 +175,7 @@ public class InfrastructureSecurityBuilder
        });
 
         // Multi-JWT policy scheme
-        _authenticationBuilder.AddPolicyScheme("MultiJwt", "Multi JWT Scheme", options =>
+        _authenticationBuilder.AddPolicyScheme(MULTI_JWT_SCHEME_NAME, "Multi JWT Scheme", options =>
        {
            options.ForwardDefaultSelector = context =>
            {
@@ -194,11 +205,29 @@ public class InfrastructureSecurityBuilder
 
         Services.AddAuthorization(options =>
         {
-            var defaultPolicy = new AuthorizationPolicyBuilder("MultiJwt")
+            var defaultPolicy = new AuthorizationPolicyBuilder(MULTI_JWT_SCHEME_NAME)
                 .RequireAuthenticatedUser()
                 .Build();
             options.DefaultPolicy = defaultPolicy;
+
+            options.AddPolicy("TenantAdmin", policy =>
+                policy.Requirements.Add(new TenantAdminRequirement()));
+
+            options.AddPolicy("PlatformAdmin", policy =>
+                policy.Requirements.Add(new PlatformAdminRequirement()));
         });
+
+        // Register core authorization services
+        Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
+        Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
+        Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
+        Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
+        Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
+
+        // Register authorization handlers
+        Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
+        Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();
+        Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
 
         return this;
     }

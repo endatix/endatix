@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormDefinitions.List;
 using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
 
@@ -19,7 +19,7 @@ public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Res
     public override void Configure()
     {
         Get("forms/{formId}/definitions");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Forms.View);
         Summary(s =>
         {
             s.Summary = "List form definitions";

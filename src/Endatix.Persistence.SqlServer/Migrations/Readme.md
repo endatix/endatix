@@ -11,5 +11,5 @@ dotnet ef migrations add InitialEntities --startup-project src/Endatix.WebHost -
 ## For AppIdentityDbContext Entities
 
 ```bash
-dotnet ef migrations add InitialIdentity --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.SqlServer  --context AppIdentityDbContext --output-dir Migrations/AppIdentity
+dotnet ef migrations add InitialEntities --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.SqlServer  --context AppIdentityDbContext --output-dir Migrations/AppEntities
 ```

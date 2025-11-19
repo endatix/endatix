@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
+using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Infrastructure.Identity;
@@ -25,22 +26,19 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
             return null;
         }
 
-        // Map ClaimsPrincipal to User (customize as needed)
-        var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var email = principal.FindFirst(ClaimTypes.Email)?.Value;
-        var userName = principal.Identity?.Name;
-        var isVerified = principal.FindFirst("email_verified")?.Value == "true";
-        var tenantIdClaim = principal.FindFirst("tenant_id")?.Value;
-
-        if (!long.TryParse(userIdClaim, out var userId))
+        var userId = ExtractUserId(principal);
+        if (userId is null)
         {
             return null;
         }
 
-        long.TryParse(tenantIdClaim, out var tenantId);
+        var tenantId = principal.GetTenantId();
+        var email = principal.FindFirst(ClaimNames.Email)?.Value;
+        var userName = principal.Identity?.Name;
+        var isVerified = principal.FindFirst(ClaimNames.EmailVerified)?.Value == "true";
 
         return new User(
-            id: userId,
+            id: userId.Value,
             tenantId: tenantId,
             userName: userName ?? email ?? $"user-{userId}",
             email: email ?? string.Empty,
@@ -52,16 +50,20 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
     public string? GetCurrentUserId()
     {
         var principal = httpContextAccessor.HttpContext?.User;
-        var subClaim = principal?.FindFirst("sub")?.Value;
-        if (!string.IsNullOrWhiteSpace(subClaim))
+        if (principal is null)
         {
-            return subClaim;
+            return null;
         }
 
-        var userIdClaim = principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!string.IsNullOrWhiteSpace(userIdClaim))
+        return principal.GetUserId();
+    }
+
+    private static long? ExtractUserId(ClaimsPrincipal principal)
+    {
+        var userId = principal.GetUserId();
+        if (long.TryParse(userId, out var userIdLong))
         {
-            return userIdClaim;
+            return userIdLong;
         }
 
         return null;

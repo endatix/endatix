@@ -4,13 +4,11 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Tests;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
-using Endatix.Infrastructure.Identity.Authorization;
-using FluentAssertions;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using NSubstitute;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authentication;
 
@@ -173,10 +171,11 @@ public class JwtTokenServiceTests
         jsonToken.Should().NotBeNull();
         jsonToken!.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Sub && c.Value == "1");
         jsonToken.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Email && c.Value == "test@example.com");
-        jsonToken.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.NameId && c.Value == "1");
-        jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.Role && c.Value == RoleNames.ADMIN);
-        jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.Permission && c.Value == Allow.AllowAll);
+        jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.UserId && c.Value == "1");
         jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.TenantId && c.Value == SampleData.TENANT_ID.ToString());
+
+        // Note: Role and Permission claims are now added by JwtClaimsTransformer during authentication,
+        // not by JwtTokenService directly. This test only verifies the basic claims added by the token service.
     }
 
     [Fact]
@@ -188,7 +187,7 @@ public class JwtTokenServiceTests
         var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
         var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", false);
         var token = tokenService.IssueAccessToken(user);
-        
+
         // Mock the auth scheme selector to return EndatixJwt for valid tokens
         _authSchemeSelector.SelectScheme(token.Token).Returns(AuthSchemes.EndatixJwt);
 

@@ -2,7 +2,7 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.CustomQuestions.List;
 
 namespace Endatix.Api.Endpoints.CustomQuestions;
@@ -18,7 +18,7 @@ public class List(IMediator mediator) : Endpoint<EmptyRequest, Results<Ok<IEnume
     public override void Configure()
     {
         Get("questions");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Questions.View);
         Summary(s =>
         {
             s.Summary = "List custom questions";

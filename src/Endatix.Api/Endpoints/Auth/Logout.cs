@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Identity.Login;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Auth;
 
@@ -15,7 +15,6 @@ public class Logout(IMediator mediator) : EndpointWithoutRequest<Results<Ok<Logo
     public override void Configure()
     {
         Post("auth/logout");
-        Permissions(Allow.AllowAll);
         Summary(s =>
         {
             s.Summary = "Logs out the authenticated user";

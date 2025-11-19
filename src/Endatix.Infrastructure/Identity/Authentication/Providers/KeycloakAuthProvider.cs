@@ -1,4 +1,3 @@
-using System;
 using Ardalis.GuardClauses;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;

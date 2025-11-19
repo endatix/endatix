@@ -8,6 +8,8 @@ using Endatix.Core.Specifications;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Features.ReCaptcha;
+using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
@@ -16,7 +18,8 @@ public class CreateSubmissionHandler(
     IFormsRepository formRepository,
     ISubmissionTokenService tokenService,
     IReCaptchaPolicyService recaptchaService,
-    IMediator mediator
+    IMediator mediator,
+    ICurrentUserAuthorizationService authorizationService
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
@@ -27,6 +30,8 @@ public class CreateSubmissionHandler(
 
     public async Task<Result<Submission>> Handle(CreateSubmissionCommand request, CancellationToken cancellationToken)
     {
+        Guard.Against.NullOrEmpty(request.RequiredPermission);
+
         // Consider moving Domain event logic to a separate service should we decide to move UseCases in separate project. This way the Domain logic will stay in the core project. Will also centralize it in one place
         // This way the code will transform to  return await _submissionService.CreateSubmission(createSubmissionDto);
         var activeFormDefinitionSpec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
@@ -36,6 +41,18 @@ public class CreateSubmissionHandler(
         if (formWithActiveDefinition?.ActiveDefinition is null)
         {
             return Result.NotFound("Form not found. Cannot create a submission");
+        }
+
+        if (!formWithActiveDefinition.IsPublic)
+        {
+            var accessResult = await authorizationService.ValidateAccessAsync(
+                request.RequiredPermission,
+                cancellationToken);
+
+            if (!accessResult.IsSuccess)
+            {
+                return accessResult;
+            }
         }
 
         var validationContext = new SubmissionVerificationContext(

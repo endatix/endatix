@@ -2,7 +2,7 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.CustomQuestions.Create;
 
 namespace Endatix.Api.Endpoints.CustomQuestions;
@@ -18,7 +18,7 @@ public class Create(IMediator mediator) : Endpoint<CreateCustomQuestionRequest, 
     public override void Configure()
     {
         Post("questions");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Questions.Create);
         Summary(s =>
         {
             s.Summary = "Create a new custom question";

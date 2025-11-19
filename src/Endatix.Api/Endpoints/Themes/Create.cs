@@ -2,7 +2,7 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Themes.Create;
 
 namespace Endatix.Api.Endpoints.Themes;
@@ -18,7 +18,7 @@ public class Create(IMediator mediator) : Endpoint<CreateRequest, Results<Create
     public override void Configure()
     {
         Post("themes");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Themes.Create);
         Summary(s =>
         {
             s.Summary = "Create a new theme";

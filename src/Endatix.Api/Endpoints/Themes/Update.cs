@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Models.Themes;
-using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Core.Abstractions.Authorization;
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Themes.Update;
@@ -21,7 +21,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateRequest, Results<Ok<Upd
     public override void Configure()
     {
         Put("themes/{themeId}");
-        Permissions(Allow.AllowAll);
+        Permissions(Actions.Themes.Edit);
         Summary(s =>
         {
             s.Summary = "Update a theme";

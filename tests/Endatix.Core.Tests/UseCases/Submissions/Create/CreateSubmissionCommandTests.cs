@@ -15,7 +15,8 @@ public class CreateSubmissionCommandTests
             CurrentPage: null,
             IsComplete: null,
             ReCaptchaToken: null,
-            SubmittedBy: null
+            SubmittedBy: null,
+            RequiredPermission: "submissions.create"
         );
 
         // Assert
@@ -34,8 +35,9 @@ public class CreateSubmissionCommandTests
         bool? isComplete = true;
         var reCaptchaToken = "test-token";
         var submittedBy = "123";
+        var requiredPermission = "submissions.create";
         // Act
-        var command = new CreateSubmissionCommand(formId, jsonData, metadata, currentPage, isComplete, reCaptchaToken, submittedBy);
+        var command = new CreateSubmissionCommand(formId, jsonData, metadata, currentPage, isComplete, reCaptchaToken, submittedBy, requiredPermission);
 
         // Assert
         Assert.Equal(formId, command.FormId);
@@ -45,6 +47,7 @@ public class CreateSubmissionCommandTests
         Assert.Equal(isComplete, command.IsComplete);
         Assert.Equal(reCaptchaToken, command.ReCaptchaToken);
         Assert.Equal(submittedBy, command.SubmittedBy);
+        Assert.Equal(requiredPermission, command.RequiredPermission);
     }
 
     [Fact]
@@ -58,7 +61,8 @@ public class CreateSubmissionCommandTests
             CurrentPage: null,
             IsComplete: null,
             ReCaptchaToken: null,
-            SubmittedBy: null
+            SubmittedBy: null,
+            RequiredPermission: "submissions.create"
         );
 
         // Assert

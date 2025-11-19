@@ -3,14 +3,15 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormDefinitions.GetActive;
-using Errors = Microsoft.AspNetCore.Mvc;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
 
 /// <summary>
 /// Endpoint for getting the active form definition.
 /// </summary>
-public class GetActive(IMediator mediator) : Endpoint<GetActiveFormDefinitionRequest, Results<Ok<FormDefinitionModel>, BadRequest, NotFound<Errors.ProblemDetails>>>
+public class GetActive(IMediator mediator, IUserContext userContext) : Endpoint<GetActiveFormDefinitionRequest, Results<Ok<FormDefinitionModel>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -30,15 +31,16 @@ public class GetActive(IMediator mediator) : Endpoint<GetActiveFormDefinitionReq
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<FormDefinitionModel>, BadRequest, NotFound<Errors.ProblemDetails>>> ExecuteAsync(GetActiveFormDefinitionRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<FormDefinitionModel>, ProblemHttpResult>> ExecuteAsync(GetActiveFormDefinitionRequest request, CancellationToken cancellationToken)
     {
+        var userId = userContext.GetCurrentUserId();
+
         var result = await mediator.Send(
-            new GetActiveFormDefinitionQuery(request.FormId),
+            new GetActiveFormDefinitionQuery(request.FormId, userId, Actions.Access.Authenticated),
             cancellationToken);
 
         return TypedResultsBuilder
             .MapResult(result, FormDefinitionMapper.Map<FormDefinitionModel>)
-            .SetTypedResults<Ok<FormDefinitionModel>, BadRequest, NotFound<Errors.ProblemDetails>>();
-        ;
+            .SetTypedResults<Ok<FormDefinitionModel>, ProblemHttpResult>();
     }
 }
