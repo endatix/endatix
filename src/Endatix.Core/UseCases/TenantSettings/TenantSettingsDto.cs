@@ -31,6 +31,11 @@ public record TenantSettingsDto
     public WebHookConfigurationDto? WebHookSettings { get; init; }
 
     /// <summary>
+    /// Custom export configurations.
+    /// </summary>
+    public List<CustomExportConfigurationDto>? CustomExports { get; init; }
+
+    /// <summary>
     /// Last modification timestamp.
     /// </summary>
     public DateTime? ModifiedAt { get; init; }
@@ -98,4 +103,25 @@ public record WebHookEndpointConfigDto
     /// The webhook URL.
     /// </summary>
     public string? Url { get; init; }
+}
+
+/// <summary>
+/// DTO for custom export configuration.
+/// </summary>
+public record CustomExportConfigurationDto
+{
+    /// <summary>
+    /// The ID of the custom export configuration.
+    /// </summary>
+    public long Id { get; init; }
+
+    /// <summary>
+    /// The name of the custom export configuration.
+    /// </summary>
+    public required string Name { get; init; }
+
+    /// <summary>
+    /// The name of the SQL function to call for the custom export.
+    /// </summary>
+    public required string SqlFunctionName { get; init; }
 }

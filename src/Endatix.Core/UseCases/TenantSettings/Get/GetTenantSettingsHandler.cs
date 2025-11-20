@@ -44,6 +44,7 @@ public class GetTenantSettingsHandler(
             IsSubmissionTokenValidAfterCompletion = tenantSettings.IsSubmissionTokenValidAfterCompletion,
             SlackSettings = MapSlackSettings(tenantSettings.SlackSettings),
             WebHookSettings = MapWebHookConfiguration(tenantSettings.WebHookSettings),
+            CustomExports = MapCustomExports(tenantSettings.CustomExports),
             ModifiedAt = tenantSettings.ModifiedAt
         };
     }
@@ -118,5 +119,23 @@ public class GetTenantSettingsHandler(
         {
             Url = endpoint.Url
         };
+    }
+
+    /// <summary>
+    /// Maps custom export configurations.
+    /// </summary>
+    private static List<CustomExportConfigurationDto>? MapCustomExports(List<CustomExportConfiguration>? customExports)
+    {
+        if (customExports == null || !customExports.Any())
+        {
+            return null;
+        }
+
+        return customExports.Select(export => new CustomExportConfigurationDto
+        {
+            Id = export.Id,
+            Name = export.Name,
+            SqlFunctionName = export.SqlFunctionName
+        }).ToList();
     }
 }
