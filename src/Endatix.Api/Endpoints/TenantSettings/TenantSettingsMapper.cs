@@ -68,7 +68,7 @@ public static class TenantSettingsMapper
     {
         return dtos.Select(dto => new CustomExportConfigurationModel
         {
-            Id = dto.Id,
+            Id = dto.Id.ToString(),
             Name = dto.Name,
             SqlFunctionName = dto.SqlFunctionName
         }).ToList();

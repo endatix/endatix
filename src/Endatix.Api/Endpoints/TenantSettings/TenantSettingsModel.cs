@@ -113,7 +113,7 @@ public class CustomExportConfigurationModel
     /// <summary>
     /// The ID of the custom export configuration.
     /// </summary>
-    public long Id { get; set; }
+    public required string Id { get; set; }
 
     /// <summary>
     /// The name of the custom export configuration.
