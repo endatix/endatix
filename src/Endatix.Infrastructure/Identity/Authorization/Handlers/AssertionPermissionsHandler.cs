@@ -40,8 +40,7 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
     }
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, AssertionRequirement requirement)
     {
-        var currentUser = context.User;
-        if (currentUser is null)
+        if (context?.User is not ClaimsPrincipal currentUser)
         {
             return;
         }

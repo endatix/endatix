@@ -14,7 +14,7 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 - [x] Add tests
 - [ ] Cover AuthorizationData with tests
 - [x] Cover ClaimsTransformer with tests
-- [ ] Cover AssertionPermissionsHandler with tests
+- [x] Cover AssertionPermissionsHandler with tests
 - [ ] Cover PlatformAdminHandler and TenantAdminHandler with tests
 - [ ] Cover CurrentUserAuthorizationService with tests
 - [ ] Cover DefaultAuthorization with tests
