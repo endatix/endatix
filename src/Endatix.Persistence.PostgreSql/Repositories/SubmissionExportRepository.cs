@@ -14,10 +14,23 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         _dbContext = dbContext;
     }
 
-    public IAsyncEnumerable<SubmissionExportRow> GetExportRowsAsync(long formId, CancellationToken cancellationToken)
+    public IAsyncEnumerable<SubmissionExportRow> GetExportRowsAsync(long formId, string? sqlFunctionName, CancellationToken cancellationToken)
     {
+        var functionName = sqlFunctionName ?? "export_form_submissions";
+
+        var sql = $@"
+            SELECT
+                ""FormId"",
+                ""Id"",
+                ""IsComplete"",
+                ""CompletedAt"",
+                ""CreatedAt"",
+                ""ModifiedAt"",
+                ""AnswersModel""::text AS ""AnswersModel""
+            FROM {functionName}({{0}})";
+
         return _dbContext.Set<SubmissionExportRow>()
-            .FromSqlRaw("SELECT * FROM export_form_submissions({0})", formId)
+            .FromSqlRaw(sql, formId)
             .AsNoTracking()
             .AsAsyncEnumerable();
     }

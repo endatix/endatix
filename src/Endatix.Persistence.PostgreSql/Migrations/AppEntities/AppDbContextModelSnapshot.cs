@@ -400,6 +400,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("CustomExportsJson")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsSubmissionTokenValidAfterCompletion")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")

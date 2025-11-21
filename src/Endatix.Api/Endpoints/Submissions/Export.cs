@@ -85,7 +85,8 @@ public class Export : Endpoint<ExportRequest>
                 FormId: request.FormId,
                 Exporter: exporter,
                 Options: options,
-                OutputWriter: pipeWriter
+                OutputWriter: pipeWriter,
+                ExportId: request.ExportId
             );
 
             // Execute the export

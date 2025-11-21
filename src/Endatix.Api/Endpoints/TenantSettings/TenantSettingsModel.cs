@@ -31,6 +31,11 @@ public class TenantSettingsModel
     public WebHookConfigurationModel? WebHookSettings { get; set; }
 
     /// <summary>
+    /// Custom export configurations.
+    /// </summary>
+    public List<CustomExportConfigurationModel>? CustomExports { get; set; }
+
+    /// <summary>
     /// Last modification timestamp.
     /// </summary>
     public DateTime? ModifiedAt { get; set; }
@@ -98,4 +103,25 @@ public class WebHookEndpointConfigModel
     /// The webhook URL.
     /// </summary>
     public string? Url { get; set; }
+}
+
+/// <summary>
+/// API model for custom export configuration.
+/// </summary>
+public class CustomExportConfigurationModel
+{
+    /// <summary>
+    /// The ID of the custom export configuration.
+    /// </summary>
+    public required string Id { get; set; }
+
+    /// <summary>
+    /// The name of the custom export configuration.
+    /// </summary>
+    public required string Name { get; set; }
+
+    /// <summary>
+    /// The name of the SQL function to call for the custom export.
+    /// </summary>
+    public required string SqlFunctionName { get; set; }
 }

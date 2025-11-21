@@ -9,6 +9,7 @@ using WebHookConfigurationEntity = Endatix.Core.Entities.WebHookConfiguration;
 using WebHookEventConfig = Endatix.Core.Entities.WebHookEventConfig;
 using WebHookEndpointConfig = Endatix.Core.Entities.WebHookEndpointConfig;
 using WebHookAuthConfig = Endatix.Core.Entities.WebHookAuthConfig;
+using CustomExportConfigurationEntity = Endatix.Core.Entities.CustomExportConfiguration;
 
 namespace Endatix.Core.Tests.UseCases.TenantSettings.Get;
 
@@ -192,5 +193,133 @@ public class GetTenantSettingsHandlerTests
         result.Value.SlackSettings.Token.Should().MatchRegex("^\\*+$"); // Token should still be masked
         result.Value.SlackSettings.EndatixHubBaseUrl.Should().Be("https://hub.endatix.com");
         result.Value.SlackSettings.ChannelId.Should().Be("C01234567");
+    }
+
+    [Fact]
+    public async Task Handle_CustomExportsWithValidData_ReturnsCustomExportsInDto()
+    {
+        // Arrange
+        var customExports = new List<CustomExportConfigurationEntity>
+        {
+            new CustomExportConfigurationEntity
+            {
+                Id = 1,
+                Name = "Nested Loops Export",
+                SqlFunctionName = "export_form_submissions_nested_loops"
+            },
+            new CustomExportConfigurationEntity
+            {
+                Id = 2,
+                Name = "Standard Export",
+                SqlFunctionName = "export_form_submissions_standard"
+            }
+        };
+
+        var tenantSettings = new TenantSettingsEntity(
+            tenantId: SampleData.TENANT_ID,
+            submissionTokenExpiryHours: 24,
+            isSubmissionTokenValidAfterCompletion: false);
+        tenantSettings.UpdateCustomExports(customExports);
+
+        var request = new GetTenantSettingsQuery();
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
+                   .Returns(tenantSettings);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Value.CustomExports.Should().NotBeNull();
+        result.Value.CustomExports.Should().HaveCount(2);
+
+        result.Value.CustomExports![0].Id.Should().Be(1);
+        result.Value.CustomExports[0].Name.Should().Be("Nested Loops Export");
+        result.Value.CustomExports[0].SqlFunctionName.Should().Be("export_form_submissions_nested_loops");
+
+        result.Value.CustomExports[1].Id.Should().Be(2);
+        result.Value.CustomExports[1].Name.Should().Be("Standard Export");
+        result.Value.CustomExports[1].SqlFunctionName.Should().Be("export_form_submissions_standard");
+    }
+
+    [Fact]
+    public async Task Handle_NoCustomExports_ReturnsNullCustomExports()
+    {
+        // Arrange
+        var tenantSettings = new TenantSettingsEntity(
+            tenantId: SampleData.TENANT_ID,
+            submissionTokenExpiryHours: 24,
+            isSubmissionTokenValidAfterCompletion: false);
+
+        var request = new GetTenantSettingsQuery();
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
+                   .Returns(tenantSettings);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Value.CustomExports.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_EmptyCustomExportsList_ReturnsNullCustomExports()
+    {
+        // Arrange
+        var customExports = new List<CustomExportConfigurationEntity>();
+
+        var tenantSettings = new TenantSettingsEntity(
+            tenantId: SampleData.TENANT_ID,
+            submissionTokenExpiryHours: 24,
+            isSubmissionTokenValidAfterCompletion: false);
+        tenantSettings.UpdateCustomExports(customExports);
+
+        var request = new GetTenantSettingsQuery();
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
+                   .Returns(tenantSettings);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Value.CustomExports.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_SingleCustomExport_ReturnsSingleItemInDto()
+    {
+        // Arrange
+        var customExports = new List<CustomExportConfigurationEntity>
+        {
+            new CustomExportConfigurationEntity
+            {
+                Id = 1,
+                Name = "My Custom Export",
+                SqlFunctionName = "custom_export_function"
+            }
+        };
+
+        var tenantSettings = new TenantSettingsEntity(
+            tenantId: SampleData.TENANT_ID,
+            submissionTokenExpiryHours: 24,
+            isSubmissionTokenValidAfterCompletion: false);
+        tenantSettings.UpdateCustomExports(customExports);
+
+        var request = new GetTenantSettingsQuery();
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
+                   .Returns(tenantSettings);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Value.CustomExports.Should().NotBeNull();
+        result.Value.CustomExports.Should().HaveCount(1);
+        result.Value.CustomExports![0].Id.Should().Be(1);
+        result.Value.CustomExports[0].Name.Should().Be("My Custom Export");
+        result.Value.CustomExports[0].SqlFunctionName.Should().Be("custom_export_function");
     }
 }

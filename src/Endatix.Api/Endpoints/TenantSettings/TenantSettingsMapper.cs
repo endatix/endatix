@@ -19,6 +19,7 @@ public static class TenantSettingsMapper
             IsSubmissionTokenValidAfterCompletion = dto.IsSubmissionTokenValidAfterCompletion,
             SlackSettings = dto.SlackSettings != null ? MapSlackSettings(dto.SlackSettings) : null,
             WebHookSettings = dto.WebHookSettings != null ? MapWebHookConfiguration(dto.WebHookSettings) : null,
+            CustomExports = dto.CustomExports != null ? MapCustomExports(dto.CustomExports) : null,
             ModifiedAt = dto.ModifiedAt
         };
     }
@@ -61,5 +62,15 @@ public static class TenantSettingsMapper
         {
             Url = dto.Url
         };
+    }
+
+    private static List<CustomExportConfigurationModel> MapCustomExports(List<CustomExportConfigurationDto> dtos)
+    {
+        return dtos.Select(dto => new CustomExportConfigurationModel
+        {
+            Id = dto.Id.ToString(),
+            Name = dto.Name,
+            SqlFunctionName = dto.SqlFunctionName
+        }).ToList();
     }
 }

@@ -14,7 +14,7 @@ RETURNS TABLE (
     "CompletedAt" timestamptz,
     "CreatedAt" timestamptz,
     "ModifiedAt" timestamptz,
-    AnswersModel jsonb
+    "AnswersModel" jsonb
 ) AS $$
 BEGIN
     RETURN QUERY
