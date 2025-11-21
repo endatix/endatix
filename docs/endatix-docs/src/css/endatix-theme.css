@@ -135,22 +135,13 @@
 
 /* Customize admonition (tip, note, etc.) boxes */
 .alert--success {
-  --ifm-alert-background-color: rgba(0, 102, 255, 0.1);
-  --ifm-alert-border-color: #0066FF;
+  --ifm-alert-background-color: rgba(0, 148, 0, 0.1);
+  --ifm-alert-border-color: #009400;
   --ifm-alert-color: var(--ifm-font-color-base);
 }
 
 .alert--success .admonition-icon svg {
-  fill: #0066FF;
-}
-
-[data-theme='dark'] .alert--success {
-  --ifm-alert-background-color: rgba(77, 148, 255, 0.1);
-  --ifm-alert-border-color: #4D94FF;
-}
-
-[data-theme='dark'] .alert--success .admonition-icon svg {
-  fill: #4D94FF;
+  fill: #009400;
 }
 
 /* Make in-text links more visible */

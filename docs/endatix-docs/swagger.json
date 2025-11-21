@@ -1,5 +1,5 @@
 {
-  "x-generator": "NSwag v14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))",
+  "x-generator": "NSwag v14.4.0.0 (NJsonSchema v11.3.2.0 (Newtonsoft.Json v13.0.0.0))",
   "openapi": "3.0.0",
   "info": {
     "title": "Endatix Platform REST API",
@@ -8,10 +8,724 @@
   },
   "servers": [
     {
-      "url": "https://ci.api.endatix.com"
+      "url": "https://api.endatix.com"
     }
   ],
   "paths": {
+    "/api/agents/forms/define": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Define a form using AI assistance",
+        "description": "Uses AI to generate or refine a form definition based on the provided prompt.",
+        "operationId": "EndatixModulesAgentsDefineFormDefineForm",
+        "requestBody": {
+          "x-name": "DefineFormRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineFormRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Form definition generated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefineFormResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/agents/conversations/{conversationId}/messages": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Get messages for conversation",
+        "description": "Gets all messages for the specified conversation for the current user.",
+        "operationId": "EndatixModulesAgentsFeaturesMessagesGetUserConversationMessages",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Messages retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserMessageDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "User does not have access to this conversation."
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/agents/forms/{formId}/conversations/latest": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Get latest conversation for form",
+        "description": "Gets the most recent conversation for the specified form for the current user.",
+        "operationId": "EndatixModulesAgentsFeaturesConversationsGetLatestConversationByFormId",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest conversation retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetLatestConversationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/users/{userId}/roles": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Assign a role to a user",
+        "description": "Assigns the specified role to a user. Admin-only access.",
+        "operationId": "EndatixApiEndpointsUsersAssignRoleToUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the user to assign the role to.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "AssignRoleRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRoleRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Role assigned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignRoleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or role assignment failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get roles assigned to a user",
+        "description": "Retrieves all roles assigned to the specified user. Admin-only access.",
+        "operationId": "EndatixApiEndpointsUsersGetUserRoles",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the user to get roles for.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Roles retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/users/{userId}/roles/{roleName}": {
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Remove a role from a user",
+        "description": "Removes the specified role from a user. Admin-only access.",
+        "operationId": "EndatixApiEndpointsUsersRemoveRoleFromUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the user to remove the role from.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "roleName",
+            "in": "path",
+            "required": true,
+            "description": "The name of the role to remove.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role removed successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoveRoleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or role removal failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/themes": {
+      "post": {
+        "tags": [
+          "Themes"
+        ],
+        "summary": "Create a new theme",
+        "description": "Creates a new theme with the provided data.",
+        "operationId": "EndatixApiEndpointsThemesCreate",
+        "requestBody": {
+          "x-name": "CreateRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "201": {
+            "description": "Theme created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Themes"
+        ],
+        "summary": "List themes",
+        "description": "Lists all themes with optional pagination and filtering.",
+        "operationId": "EndatixApiEndpointsThemesList",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The page number (1-based).",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "The number of items per page.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "description": "Filter expressions.",
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Themes retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ThemeModel"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/themes/{themeId}": {
+      "delete": {
+        "tags": [
+          "Themes"
+        ],
+        "summary": "Delete a theme",
+        "description": "Deletes a theme by its ID.",
+        "operationId": "EndatixApiEndpointsThemesDelete",
+        "parameters": [
+          {
+            "name": "themeId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the theme to delete.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Theme not found."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Themes"
+        ],
+        "summary": "Get a theme by ID",
+        "description": "Gets a theme by its ID.",
+        "operationId": "EndatixApiEndpointsThemesGetById",
+        "parameters": [
+          {
+            "name": "themeId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the theme.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Theme retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThemeModel"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Theme not found."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Themes"
+        ],
+        "summary": "Partially update a theme",
+        "description": "Updates specific fields of a theme as provided in the request.",
+        "operationId": "EndatixApiEndpointsThemesPartialUpdate",
+        "parameters": [
+          {
+            "name": "themeId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the theme to update.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "PartialUpdateRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialUpdateRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Theme updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartialUpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Theme not found."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Themes"
+        ],
+        "summary": "Update a theme",
+        "description": "Updates a theme with the provided data.",
+        "operationId": "EndatixApiEndpointsThemesUpdate",
+        "parameters": [
+          {
+            "name": "themeId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the theme to update.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "UpdateRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Theme updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Theme not found."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tenant-settings": {
+      "get": {
+        "tags": [
+          "Tenant-Settings"
+        ],
+        "summary": "Get tenant settings for the current tenant",
+        "description": "Retrieves tenant configuration settings including.",
+        "operationId": "EndatixApiEndpointsTenantSettingsGetTenantSettings",
+        "responses": {
+          "200": {
+            "description": "Tenant settings retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantSettingsModel"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/forms/{formId}/submissions": {
       "post": {
         "tags": [
@@ -65,9 +779,6 @@
                 }
               }
             }
-          },
-          "404": {
-            "description": "Form not found. Cannot create a submission"
           }
         }
       },
@@ -139,6 +850,67 @@
             }
           },
           "400": {
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form not found. Pass correct formId"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/forms/{formId}/submissions/{submissionId}": {
+      "delete": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Delete a submission",
+        "description": "Deletes a submission.",
+        "operationId": "EndatixApiEndpointsSubmissionsDelete",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "submissionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the submission to delete.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
             "description": "Invalid input data.",
             "content": {
               "application/problem+json": {
@@ -153,9 +925,6 @@
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form not found. Pass correct formId"
           }
         },
         "security": [
@@ -163,9 +932,7 @@
             "JWTBearerAuth": []
           }
         ]
-      }
-    },
-    "/api/forms/{formId}/submissions/{submissionId}": {
+      },
       "get": {
         "tags": [
           "Forms"
@@ -207,23 +974,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form submission not found"
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form submission not found"
           }
         },
         "security": [
@@ -286,23 +1046,16 @@
             }
           },
           "400": {
-            "description": "Bad request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Form submission not found"
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form submission not found"
           }
         },
         "security": [
@@ -365,7 +1118,63 @@
             }
           },
           "400": {
-            "description": "Bad request",
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Form submission not found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/forms/{formId}/submissions/export": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Export submissions",
+        "description": "Export submissions for a given form",
+        "operationId": "EndatixApiEndpointsSubmissionsExport",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "ExportRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -379,9 +1188,6 @@
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form submission not found"
           }
         },
         "security": [
@@ -434,9 +1240,9 @@
           "400": {
             "description": "Invalid input data.",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -458,7 +1264,6 @@
             "name": "formId",
             "in": "path",
             "required": true,
-            "description": "The ID of the form for which the submission is made.",
             "schema": {
               "type": "integer",
               "format": "int64"
@@ -501,9 +1306,9 @@
           "400": {
             "description": "Bad request",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -512,6 +1317,75 @@
             "description": "Form submission not found or invalid token"
           }
         }
+      }
+    },
+    "/api/forms/{formId}/submissions/{submissionId}/files": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Download files for a submission",
+        "description": "Downloads use uploaded files for a given submission",
+        "operationId": "EndatixApiEndpointsSubmissionsGetSubmissionFiles",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "submissionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "GetSubmissionFilesRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetSubmissionFilesRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
       }
     },
     "/api/forms/{formId}/submissions/{submissionId}/status": {
@@ -569,7 +1443,59 @@
             }
           },
           "400": {
-            "description": "Invalid status or business rule violation",
+            "description": "Invalid status or business rule violation"
+          },
+          "404": {
+            "description": "Submission not found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/roles": {
+      "post": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "Create a new role with permissions",
+        "description": "Creates a new role for the current tenant with the specified permissions. Admin-only access.",
+        "operationId": "EndatixApiEndpointsRolesCreateRole",
+        "requestBody": {
+          "x-name": "CreateRoleRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "201": {
+            "description": "Role created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateRoleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or role creation failed.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -583,9 +1509,60 @@
           },
           "403": {
             "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/roles/{roleName}": {
+      "delete": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "Delete a role",
+        "description": "Deletes the specified role for the current tenant. Admin-only access.",
+        "operationId": "EndatixApiEndpointsRolesDeleteRole",
+        "parameters": [
+          {
+            "name": "roleName",
+            "in": "path",
+            "required": true,
+            "description": "The name of the role to delete.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteRoleResponse"
+                }
+              }
+            }
           },
-          "404": {
-            "description": "Submission not found"
+          "400": {
+            "description": "Invalid request or role deletion failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
           }
         },
         "security": [
@@ -639,9 +1616,6 @@
           },
           "401": {
             "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden"
           }
         },
         "security": [
@@ -649,44 +1623,6 @@
             "JWTBearerAuth": []
           }
         ]
-      }
-    },
-    "/api/slacktoken": {
-      "post": {
-        "tags": [
-          "Slacktoken"
-        ],
-        "summary": "Receives a Slack token",
-        "description": "Receives a Slack token",
-        "operationId": "EndatixApiEndpointsIntegrationsSlackToken",
-        "requestBody": {
-          "x-name": "SlackTokenRequest",
-          "description": "",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SlackTokenRequest"
-              }
-            }
-          },
-          "required": true,
-          "x-position": 1
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid input data."
-          }
-        }
       }
     },
     "/api/form-templates": {
@@ -722,14 +1658,7 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
           },
           "401": {
             "description": "Unauthorized"
@@ -788,14 +1717,7 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
           },
           "401": {
             "description": "Unauthorized"
@@ -843,23 +1765,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form template not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form template not found."
           }
         },
         "security": [
@@ -899,23 +1814,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form template not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form template not found."
           }
         },
         "security": [
@@ -968,23 +1876,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form template not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form template not found."
           }
         },
         "security": [
@@ -1027,14 +1928,7 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
           },
           "401": {
             "description": "Unauthorized"
@@ -1076,6 +1970,20 @@
               "format": "int32",
               "nullable": true
             }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "description": "The filter expressions ",
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string"
+              }
+            }
           }
         ],
         "responses": {
@@ -1093,14 +2001,7 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
           },
           "401": {
             "description": "Unauthorized"
@@ -1148,23 +2049,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form not found."
           }
         },
         "security": [
@@ -1204,23 +2098,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form not found."
           }
         },
         "security": [
@@ -1273,23 +2160,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form not found."
           }
         },
         "security": [
@@ -1342,23 +2222,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form not found."
           }
         },
         "security": [
@@ -1413,23 +2286,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form not found."
           }
         },
         "security": [
@@ -1492,23 +2358,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form not found."
           }
         },
         "security": [
@@ -1555,16 +2414,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Form not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1615,23 +2464,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form not found."
           }
         },
         "security": [
@@ -1684,23 +2526,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form not found."
           }
         },
         "security": [
@@ -1752,23 +2587,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form definition or form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form definition or form not found."
           }
         },
         "security": [
@@ -1831,23 +2659,16 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form definition or form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
-          },
-          "404": {
-            "description": "Form definition or form not found."
           }
         },
         "security": [
@@ -1910,23 +2731,102 @@
             }
           },
           "400": {
-            "description": "Invalid input data.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Invalid input data."
+          },
+          "404": {
+            "description": "Form definition or form not found."
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
             "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/questions": {
+      "post": {
+        "tags": [
+          "Questions"
+        ],
+        "summary": "Create a new custom question",
+        "description": "Creates a new custom question with the provided data.",
+        "operationId": "EndatixApiEndpointsCustomQuestionsCreate",
+        "requestBody": {
+          "x-name": "CreateCustomQuestionRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomQuestionRequest"
+              }
+            }
           },
-          "404": {
-            "description": "Form definition or form not found."
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "201": {
+            "description": "Custom question created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateCustomQuestionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Questions"
+        ],
+        "summary": "List custom questions",
+        "description": "Lists all custom questions for the current tenant.",
+        "operationId": "EndatixApiEndpointsCustomQuestionsList",
+        "responses": {
+          "200": {
+            "description": "Custom questions retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomQuestionModel"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
           }
         },
         "security": [
@@ -1941,7 +2841,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Log in",
+        "summary": "Sign in",
         "description": "Authenticates a user based on valid credentials and returns JWT token and refresh token",
         "operationId": "EndatixApiEndpointsAuthLogin",
         "requestBody": {
@@ -2005,9 +2905,36 @@
           },
           "401": {
             "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get current user information",
+        "description": "Returns current authenticated user information including roles, permissions, and tenant context. Permissions are resolved server-side for freshness and accuracy.",
+        "operationId": "EndatixApiEndpointsAuthMe",
+        "responses": {
+          "200": {
+            "description": "User information retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationData"
+                }
+              }
+            }
           },
-          "403": {
-            "description": "Forbidden"
+          "401": {
+            "description": "Unauthorized - authentication required."
           }
         },
         "security": [
@@ -2052,9 +2979,9 @@
           "400": {
             "description": "Invalid or expired refresh token.",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -2097,30 +3024,686 @@
           "400": {
             "description": "Registration failed. Please check your input and try again.",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/send-verification-email": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Send verification email",
+        "description": "Sends a verification email to the specified email address if the user exists and is not already verified.",
+        "operationId": "EndatixApiEndpointsAuthSendVerificationEmail",
+        "requestBody": {
+          "x-name": "SendVerificationEmailRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendVerificationEmailRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Verification email has been sent successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid email address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/verify-email": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Verify email address",
+        "description": "Verifies a user's email address using a verification token.",
+        "operationId": "EndatixApiEndpointsAuthVerifyEmail",
+        "requestBody": {
+          "x-name": "VerifyEmailRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Email has been successfully verified. Returns the user ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired verification token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Verification token not found."
+          }
+        }
+      }
+    },
+    "/api/account/forgot-password": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Forgot password",
+        "description": "Sends a password reset email to the user.",
+        "operationId": "EndatixApiEndpointsAccountForgotPassword",
+        "requestBody": {
+          "x-name": "ForgotPasswordRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset email sent successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForgotPasswordResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or email.",
+            "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden"
           }
+        }
+      }
+    },
+    "/api/account/reset-password": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Reset password",
+        "description": "Resets a user's password.",
+        "operationId": "EndatixApiEndpointsAccountResetPassword",
+        "requestBody": {
+          "x-name": "ResetPasswordRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
         },
-        "security": [
-          {
-            "JWTBearerAuth": []
+        "responses": {
+          "200": {
+            "description": "Password reset successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
-        ]
+        }
       }
     }
   },
   "components": {
     "schemas": {
+      "DefineFormResponse": {
+        "type": "object",
+        "description": "Response model for the AI-assisted form definition.",
+        "additionalProperties": false,
+        "properties": {
+          "agentResponse": {
+            "type": "string",
+            "description": "The human-friendly response from the AI agent."
+          },
+          "definition": {
+            "type": "string",
+            "description": "The AI-generated or refined form definition.",
+            "nullable": true
+          },
+          "agentId": {
+            "type": "string",
+            "description": "The agent ID for continuing the conversation."
+          },
+          "threadId": {
+            "type": "string",
+            "description": "The thread ID for continuing the conversation."
+          }
+        }
+      },
+      "DefineFormRequest": {
+        "type": "object",
+        "description": "Request model for defining a form using AI assistance.",
+        "additionalProperties": false,
+        "required": [
+          "prompt"
+        ],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "The prompt to guide the AI in form definition.",
+            "maxLength": 10000,
+            "minLength": 0,
+            "nullable": false
+          },
+          "definition": {
+            "type": "string",
+            "description": "Optional existing form definition to refine or modify.",
+            "maxLength": 100000,
+            "minLength": 0,
+            "nullable": true
+          },
+          "agentName": {
+            "type": "string",
+            "description": "Optional assistant ID for continuing a conversation."
+          },
+          "threadId": {
+            "type": "integer",
+            "description": "Optional thread ID for continuing a conversation.",
+            "format": "int64",
+            "nullable": true
+          },
+          "formId": {
+            "type": "integer",
+            "description": "Optional form ID to associate the conversation with a specific form.",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "format": "int32",
+            "default": 400
+          },
+          "message": {
+            "type": "string",
+            "default": "One or more errors occurred!"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "UserMessageDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "conversationId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "GetUserConversationMessagesRequest": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "GetLatestConversationResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "conversationId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "agentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastModified": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resultJson": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "GetLatestConversationByFormIdRequest": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "AssignRoleResponse": {
+        "type": "object",
+        "description": "Response for assigning a role to a user.",
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "AssignRoleRequest": {
+        "type": "object",
+        "description": "Request for assigning a role to a user.",
+        "additionalProperties": false,
+        "required": [
+          "roleName"
+        ],
+        "properties": {
+          "roleName": {
+            "type": "string",
+            "description": "The name of the role to assign.",
+            "minLength": 1,
+            "nullable": false
+          }
+        }
+      },
+      "GetUserRolesRequest": {
+        "type": "object",
+        "description": "Request for retrieving roles assigned to a user.",
+        "additionalProperties": false
+      },
+      "RemoveRoleResponse": {
+        "type": "object",
+        "description": "Response for removing a role from a user.",
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "RemoveRoleRequest": {
+        "type": "object",
+        "description": "Request for removing a role from a user.",
+        "additionalProperties": false
+      },
+      "CreateResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ThemeModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for creating a theme.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ThemeModel": {
+        "type": "object",
+        "description": "API model representing a theme.",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the theme."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the theme."
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the theme.",
+            "nullable": true
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data representing the theme properties."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "The date and time when the theme was created.",
+            "format": "date-time"
+          },
+          "modifiedAt": {
+            "type": "string",
+            "description": "The date and time when the theme was last modified.",
+            "format": "date-time",
+            "nullable": true
+          },
+          "formsCount": {
+            "type": "integer",
+            "description": "The count of forms using this theme.",
+            "format": "int32"
+          }
+        }
+      },
+      "CreateRequest": {
+        "type": "object",
+        "description": "Request model for creating a new theme.",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "jsonData"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the theme.",
+            "maxLength": 100,
+            "minLength": 2,
+            "nullable": false
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the theme (optional).",
+            "nullable": true
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data representing theme properties (optional).",
+            "minLength": 2,
+            "nullable": false
+          }
+        }
+      },
+      "DeleteRequest": {
+        "type": "object",
+        "description": "Request model for deleting a theme.",
+        "additionalProperties": false
+      },
+      "GetByIdRequest": {
+        "type": "object",
+        "description": "Request model for getting a theme by ID.",
+        "additionalProperties": false
+      },
+      "ListRequest": {
+        "type": "object",
+        "description": "Request model for listing themes with optional pagination and filtering.",
+        "additionalProperties": false
+      },
+      "PartialUpdateResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ThemeModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for partially updating a theme.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PartialUpdateRequest": {
+        "type": "object",
+        "description": "Request model for partially updating an existing theme.",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the theme (optional).",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the theme (optional).",
+            "nullable": true
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data representing theme properties (optional).",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ThemeModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for updating a theme.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "UpdateRequest": {
+        "type": "object",
+        "description": "Request model for updating an existing theme.",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "jsonData"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the theme.",
+            "maxLength": 100,
+            "minLength": 2,
+            "nullable": false
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the theme (optional).",
+            "nullable": true
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data representing theme properties (optional).",
+            "minLength": 2,
+            "nullable": false
+          }
+        }
+      },
+      "TenantSettingsModel": {
+        "type": "object",
+        "description": "API model for tenant settings with sensitive data masked for security.",
+        "additionalProperties": false,
+        "properties": {
+          "tenantId": {
+            "type": "integer",
+            "description": "The tenant identifier.",
+            "format": "int64"
+          },
+          "submissionTokenExpiryHours": {
+            "type": "integer",
+            "description": "Submission token expiration time in hours. Null indicates tokens never expire.",
+            "format": "int32",
+            "nullable": true
+          },
+          "isSubmissionTokenValidAfterCompletion": {
+            "type": "boolean",
+            "description": "Indicates whether submission tokens remain valid after submission completion."
+          },
+          "slackSettings": {
+            "description": "Slack integration settings with sensitive data masked.",
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SlackSettingsModel"
+              }
+            ]
+          },
+          "webHookSettings": {
+            "description": "Webhook configuration with sensitive data masked.",
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WebHookConfigurationModel"
+              }
+            ]
+          },
+          "modifiedAt": {
+            "type": "string",
+            "description": "Last modification timestamp.",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "SlackSettingsModel": {
+        "type": "object",
+        "description": "API model for Slack settings with Token field masked.",
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The Slack token (masked for security).",
+            "nullable": true
+          },
+          "endatixHubBaseUrl": {
+            "type": "string",
+            "description": "The Base URL for the Endatix Hub.",
+            "nullable": true
+          },
+          "channelId": {
+            "type": "string",
+            "description": "The Slack channel ID where notifications are posted.",
+            "nullable": true
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Indicates whether Slack integration is active.",
+            "nullable": true
+          }
+        }
+      },
+      "WebHookConfigurationModel": {
+        "type": "object",
+        "description": "API model for webhook configuration with sensitive data masked.",
+        "additionalProperties": false,
+        "properties": {
+          "events": {
+            "type": "object",
+            "description": "Dictionary of webhook events keyed by event name, with sensitive data masked.",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WebHookEventConfigModel"
+            }
+          }
+        }
+      },
+      "WebHookEventConfigModel": {
+        "type": "object",
+        "description": "API model for webhook event configuration.",
+        "additionalProperties": false,
+        "properties": {
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Indicates whether this webhook event is enabled."
+          },
+          "webHookEndpoints": {
+            "type": "array",
+            "description": "List of webhook endpoints with sensitive data masked.",
+            "items": {
+              "$ref": "#/components/schemas/WebHookEndpointConfigModel"
+            }
+          }
+        }
+      },
+      "WebHookEndpointConfigModel": {
+        "type": "object",
+        "description": "API model for webhook endpoint configuration.",
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The webhook URL.",
+            "nullable": true
+          }
+        }
+      },
       "CreateSubmissionResponse": {
         "allOf": [
           {
@@ -2180,16 +3763,30 @@
           },
           "status": {
             "type": "string"
+          },
+          "submittedBy": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
       "CreateSubmissionRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseSubmissionRequest"
+          },
+          {
+            "type": "object",
+            "description": "Request payload to be used with Create endpoint",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BaseSubmissionRequest": {
         "type": "object",
-        "description": "Request payload to be used with Create endpoint",
+        "description": "Base class for submission request models with common properties",
+        "x-abstract": true,
         "additionalProperties": false,
-        "required": [
-          "jsonData"
-        ],
         "properties": {
           "isComplete": {
             "type": "boolean",
@@ -2200,42 +3797,40 @@
             "type": "integer",
             "description": "Current page if the form has multiple pages. Optional",
             "format": "int32",
+            "minimum": 0.0,
             "nullable": true
           },
           "jsonData": {
             "type": "string",
             "description": "Stringified form submission data",
             "minLength": 2,
-            "nullable": false
+            "nullable": true
           },
           "metadata": {
             "type": "string",
             "description": "Stringified metadata related to the form submission",
+            "minLength": 2,
+            "nullable": true
+          },
+          "reCaptchaToken": {
+            "type": "string",
+            "description": "reCAPTCHA v3 token for bot protection",
             "nullable": true
           }
         }
       },
-      "ErrorResponse": {
+      "DeleteSubmissionRequest": {
+        "type": "object",
+        "description": "Request model for deleting a submission.",
+        "additionalProperties": false
+      },
+      "ExportRequest": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "statusCode": {
-            "type": "integer",
-            "format": "int32",
-            "default": 400
-          },
-          "message": {
+          "exportFormat": {
             "type": "string",
-            "default": "One or more errors occurred!"
-          },
-          "errors": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
+            "nullable": true
           }
         }
       },
@@ -2294,62 +3889,137 @@
             "description": "The date and time when the form definition was last modified.",
             "format": "date-time",
             "nullable": true
+          },
+          "themeModel": {
+            "type": "string",
+            "description": "The model of the associated theme stored as a stringified JSON object.",
+            "nullable": true
+          },
+          "customQuestions": {
+            "type": "array",
+            "description": "The list of custom questions' JSON data associated with this form definition.",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiresReCaptcha": {
+            "type": "boolean",
+            "description": "Indicates if reCAPTCHA is enabled for this form definition.",
+            "nullable": true
           }
         }
       },
-      "GetByIdRequest": {
+      "GetByIdRequest2": {
         "type": "object",
         "description": "Request model for getting a form submission by ID.",
         "additionalProperties": false
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "additionalProperties": {
+          "nullable": true
+        },
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "GetByTokenRequest": {
         "type": "object",
         "description": "Request model for getting a form submission by token.",
         "additionalProperties": false
       },
+      "GetSubmissionFilesRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fileNamesPrefix": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0,
+            "nullable": true
+          }
+        }
+      },
       "SubmissionDto": {
         "type": "object",
+        "description": "Represents a submission data transfer object.",
         "additionalProperties": false,
         "properties": {
           "id": {
             "type": "integer",
+            "description": "The unique identifier of the submission.",
             "format": "int64"
           },
           "isComplete": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Indicates if the submission is complete."
           },
           "jsonData": {
             "type": "object",
+            "description": "A dictionary containing JSON data related to the submission.",
             "additionalProperties": {}
           },
           "metadata": {
             "type": "string",
+            "description": "Additional metadata related to the submission.",
             "nullable": true
           },
           "formId": {
             "type": "integer",
+            "description": "The unique identifier of the form associated with the submission.",
             "format": "int64"
           },
           "formDefinitionId": {
             "type": "integer",
+            "description": "The unique identifier of the form definition associated with the submission.",
             "format": "int64"
           },
           "currentPage": {
             "type": "integer",
+            "description": "The current page of the submission, if applicable.",
             "format": "int32",
             "nullable": true
           },
           "completedAt": {
             "type": "string",
+            "description": "The date and time when the submission was completed, if applicable.",
             "format": "date-time",
             "nullable": true
           },
           "createdAt": {
             "type": "string",
+            "description": "The date and time when the submission was created.",
             "format": "date-time"
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "The status of the submission."
+          },
+          "submittedBy": {
+            "type": "string",
+            "description": "The unique identifier of the user who created the submission, if applicable.",
+            "nullable": true
           }
         }
       },
@@ -2414,34 +4084,16 @@
         ]
       },
       "PartialUpdateSubmissionByTokenRequest": {
-        "type": "object",
-        "description": "Request model for partial update of a form submission by token.",
-        "additionalProperties": false,
-        "properties": {
-          "jsonData": {
-            "type": "string",
-            "description": "Stringified form submission data",
-            "minLength": 2,
-            "nullable": true
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseSubmissionRequest"
           },
-          "isComplete": {
-            "type": "boolean",
-            "description": "Boolean flag to mark the form completion status",
-            "nullable": true
-          },
-          "currentPage": {
-            "type": "integer",
-            "description": "The current page of the form",
-            "format": "int32",
-            "minimum": 0.0,
-            "nullable": true
-          },
-          "metadata": {
-            "type": "string",
-            "description": "Stringified metadata related to the form submission",
-            "nullable": true
+          {
+            "type": "object",
+            "description": "Request model for partial update of a form submission by token.",
+            "additionalProperties": false
           }
-        }
+        ]
       },
       "UpdateSubmissionResponse": {
         "allOf": [
@@ -2522,6 +4174,65 @@
           }
         }
       },
+      "CreateRoleResponse": {
+        "type": "object",
+        "description": "Response for creating a new role.",
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateRoleRequest": {
+        "type": "object",
+        "description": "Request for creating a new role.",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the role to create.",
+            "maxLength": 256,
+            "minLength": 0,
+            "nullable": false
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the role.",
+            "maxLength": 500,
+            "minLength": 0,
+            "nullable": true
+          },
+          "permissions": {
+            "type": "array",
+            "description": "The list of permission names to assign to the role.",
+            "minLength": 1,
+            "nullable": false,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DeleteRoleResponse": {
+        "type": "object",
+        "description": "Response for deleting a role.",
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "DeleteRoleRequest": {
+        "type": "object",
+        "description": "Request for deleting a role.",
+        "additionalProperties": false
+      },
       "ChangePasswordResponse": {
         "type": "object",
         "description": "Response model for the password change operation",
@@ -2530,35 +4241,6 @@
           "message": {
             "type": "string",
             "description": "Gets the message included in the change password response"
-          }
-        }
-      },
-      "ProblemDetails": {
-        "type": "object",
-        "additionalProperties": {
-          "nullable": true
-        },
-        "properties": {
-          "type": {
-            "type": "string",
-            "nullable": true
-          },
-          "title": {
-            "type": "string",
-            "nullable": true
-          },
-          "status": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "detail": {
-            "type": "string",
-            "nullable": true
-          },
-          "instance": {
-            "type": "string",
-            "nullable": true
           }
         }
       },
@@ -2589,18 +4271,6 @@
             "description": "The new password to set",
             "minLength": 1,
             "nullable": false
-          }
-        }
-      },
-      "SlackTokenRequest": {
-        "type": "object",
-        "description": "Request model for creating a form with an active form definition.",
-        "additionalProperties": false,
-        "properties": {
-          "token": {
-            "type": "string",
-            "description": "The name of the form.",
-            "nullable": true
           }
         }
       },
@@ -2798,6 +4468,11 @@
             "type": "boolean",
             "description": "Indicates if the form is enabled."
           },
+          "themeId": {
+            "type": "string",
+            "description": "The ID of the theme associated with the form.",
+            "nullable": true
+          },
           "createdAt": {
             "type": "string",
             "description": "The date and time when the form was created.",
@@ -2814,6 +4489,17 @@
             "description": "The total number of submissions for the form",
             "format": "int32",
             "nullable": true
+          },
+          "webHookSettingsJson": {
+            "type": "string",
+            "description": "The JSON data containing webhook configuration settings for this form as a string.",
+            "deprecated": true,
+            "x-deprecatedMessage": "Use WebHookSettings instead.",
+            "nullable": true
+          },
+          "webHookSettings": {
+            "description": "The webhook configuration settings as a JSON object.",
+            "nullable": true
           }
         }
       },
@@ -2823,8 +4509,7 @@
         "additionalProperties": false,
         "required": [
           "name",
-          "isEnabled",
-          "formDefinitionJsonData"
+          "isEnabled"
         ],
         "properties": {
           "name": {
@@ -2847,9 +4532,26 @@
           },
           "formDefinitionJsonData": {
             "type": "string",
-            "description": "The JSON data of the active form definition.",
+            "description": "The JSON data of the active form definition as a string.",
             "minLength": 2,
-            "nullable": false
+            "deprecated": true,
+            "x-deprecatedMessage": "Use FormDefinitionSchema instead.",
+            "nullable": true
+          },
+          "formDefinitionSchema": {
+            "description": "The active form definition schema as a JSON object.",
+            "nullable": true
+          },
+          "webHookSettingsJson": {
+            "type": "string",
+            "description": "The JSON data containing webhook configuration settings for this form as a string.",
+            "deprecated": true,
+            "x-deprecatedMessage": "Use WebHookSettings instead.",
+            "nullable": true
+          },
+          "webHookSettings": {
+            "description": "The webhook configuration settings as a JSON object.",
+            "nullable": true
           }
         }
       },
@@ -2899,6 +4601,17 @@
             "type": "boolean",
             "description": "Indicates if the form is enabled.",
             "nullable": true
+          },
+          "themeId": {
+            "type": "integer",
+            "description": "The ID of the theme to update.",
+            "format": "int64",
+            "nullable": true
+          },
+          "webHookSettingsJson": {
+            "type": "string",
+            "description": "The JSON data containing webhook configuration settings for this form.",
+            "nullable": true
           }
         }
       },
@@ -2940,6 +4653,11 @@
             "description": "Indicates if the form is enabled.",
             "minLength": 1,
             "nullable": false
+          },
+          "webHookSettingsJson": {
+            "type": "string",
+            "description": "The JSON data containing webhook configuration settings for this form.",
+            "nullable": true
           }
         }
       },
@@ -3121,6 +4839,82 @@
           }
         }
       },
+      "CreateCustomQuestionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CustomQuestionModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for creating a custom question.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "CustomQuestionModel": {
+        "type": "object",
+        "description": "API model representing a custom question.",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the custom question."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the custom question."
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the custom question.",
+            "nullable": true
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data representing the custom question properties."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "The date and time when the custom question was created.",
+            "format": "date-time"
+          },
+          "modifiedAt": {
+            "type": "string",
+            "description": "The date and time when the custom question was last modified.",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CreateCustomQuestionRequest": {
+        "type": "object",
+        "description": "Request model for creating a new custom question.",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "jsonData"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the custom question.",
+            "maxLength": 100,
+            "minLength": 2,
+            "nullable": false
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the custom question (optional).",
+            "nullable": true
+          },
+          "jsonData": {
+            "type": "string",
+            "description": "The JSON data representing custom question properties.",
+            "minLength": 2,
+            "nullable": false
+          }
+        }
+      },
       "LoginResponse": {
         "type": "object",
         "description": "A response record used in the Login result",
@@ -3149,8 +4943,7 @@
         },
         "additionalProperties": false,
         "required": [
-          "email",
-          "password"
+          "email"
         ],
         "properties": {
           "email": {
@@ -3159,13 +4952,13 @@
             "format": "email",
             "minLength": 1,
             "pattern": "^[^@]+@[^@]+$",
-            "nullable": false
+            "nullable": false,
+            "example": "user@example.com"
           },
           "password": {
             "type": "string",
             "description": "The Password of the account",
-            "minLength": 8,
-            "nullable": false
+            "example": "Password123!"
           }
         }
       },
@@ -3177,6 +4970,46 @@
           "message": {
             "type": "string",
             "description": "Gets the message included in the Logout response."
+          }
+        }
+      },
+      "AuthorizationData": {
+        "type": "object",
+        "description": "Authorization data for a user including roles, permissions, admin status and metadata for caching.\nOptimized for JSON serialization and client-side caching.",
+        "additionalProperties": false,
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "cachedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "eTag": {
+            "type": "string"
           }
         }
       },
@@ -3210,7 +5043,8 @@
             "type": "string",
             "description": "The refresh token used to obtain a new access token.",
             "minLength": 1,
-            "nullable": false
+            "nullable": false,
+            "example": "example-refresh-token"
           }
         }
       },
@@ -3249,15 +5083,123 @@
             "format": "email",
             "minLength": 1,
             "pattern": "^[^@]+@[^@]+$",
-            "nullable": false
+            "nullable": false,
+            "example": "user@example.com"
           },
           "password": {
             "type": "string",
-            "description": "The password chosen by the user."
+            "description": "The password chosen by the user.",
+            "example": "Password123!"
           },
           "confirmPassword": {
             "type": "string",
             "description": "The confirmation of the password chosen by the user.",
+            "minLength": 1,
+            "nullable": false,
+            "example": "Password123!"
+          }
+        }
+      },
+      "SendVerificationEmailRequest": {
+        "type": "object",
+        "description": "Represents the request for the \"/send-verification-email\" endpoint.",
+        "example": {
+          "email": "user@example.com"
+        },
+        "additionalProperties": false,
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The email address to send the verification email to.",
+            "format": "email",
+            "minLength": 1,
+            "pattern": "^[^@]+@[^@]+$",
+            "nullable": false,
+            "example": "user@example.com"
+          }
+        }
+      },
+      "VerifyEmailRequest": {
+        "type": "object",
+        "description": "Represents the request for the \"/verify-email\" endpoint.",
+        "example": {
+          "token": "abc123def456..."
+        },
+        "additionalProperties": false,
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The verification token.",
+            "minLength": 1,
+            "nullable": false,
+            "example": "abc123def456..."
+          }
+        }
+      },
+      "ForgotPasswordResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "example": {
+          "email": "user@example.com"
+        },
+        "additionalProperties": false,
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "minLength": 1,
+            "pattern": "^[^@]+@[^@]+$",
+            "nullable": false,
+            "example": "user@example.com"
+          }
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "resetCode",
+          "newPassword",
+          "confirmPassword"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "minLength": 1,
+            "pattern": "^[^@]+@[^@]+$",
+            "nullable": false
+          },
+          "resetCode": {
+            "type": "string",
+            "minLength": 1,
+            "nullable": false
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 1,
+            "nullable": false
+          },
+          "confirmPassword": {
+            "type": "string",
             "minLength": 1,
             "nullable": false
           }

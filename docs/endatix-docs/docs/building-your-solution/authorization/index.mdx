@@ -1,0 +1,224 @@
+---
+title: Authorization
+description: Overview of authorization in Endatix and how to configure role-based access control
+sidebar_position: 2
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# Authorization
+
+Authorization determines what authenticated users can do in your Endatix application. While authentication verifies who a user is, authorization controls what resources and actions they can access.
+
+## Authentication vs. Authorization
+
+- **Authentication**: Verifies user identity (who you are)
+- **Authorization**: Controls access to resources (what you can do)
+
+Endatix supports both default authorization (with Endatix JWT) and external authorization providers (like Keycloak) for more advanced scenarios.
+
+## Authorization Providers
+
+### Default Authorization
+
+The built-in Endatix JWT provider stores all required info such as roles, permissions and assigned roles in the database. The authorization pipelines provides the following authorization capabilities:
+
+- Role-based access control
+- Permission-based authorization
+- Policy-based authorization
+- Tenant-based isolation
+
+This is suitable for most applications and requires no additional configuration. Endatix can be extended to support more advanced authorization scenarios such as custom permissions, temp permissions or even support for external authorization providers.
+
+### External Authorization
+
+For advanced scenarios, Endatix can use external identity providers (like Keycloak) for role-based access control in your Endatix application. This enables use cases such as enterprise-wide authentication and authorization with single sign-on (SSO) and centralized role management, where Endatix is acting as a relying party for the external identity provider and authorization policies are managed in the external authorization provider.
+
+Endatix maps external authroization data such as permissions, roles and claims to the built-in Endatix authorization system giving you maximum flexibility and control over your authorization logic.
+
+:::info Learn More
+For a comprehensive guide on external authorization concepts and benefits, see the [External Authorization guide](/docs/guides/external-authorization).
+:::
+
+## Default Authorization System
+
+Endatix includes a built-in authorization system with predefined roles and permissions that you can use out of the box. Additionally, you can define your own custom roles and permissions to suit your specific needs.
+
+### System Roles
+
+| Role          | Description                                                                                                                                                                                                         | Hub Access |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Admin         | Tenant administrator with full access to all features and settings of their tenant                                                                                                                                  | ✅         |
+| PlatformAdmin | Platform administrator with full access to all features and settings of the platform. Platform administrators can manage and administer tenants, settings, integrations, users, metrics, logs and usage statistics. | ✅         |
+| Creator       | Form creator user who can create, edit, and manage forms and templates. They are given access for the tenant they are assigned to.                                                                                  | ✅         |
+| Authenticated | This is pseudo role, which is given to every authenticated user and gives the "access.authenticated" permission to every signed in user.                                                                            | No         |
+| Public        | This is pseudo role, which is given to every anonymous user and gives no permissions to anonymous users.                                                                                                            | No         |
+
+### Granular Permissions
+
+Endatix comes with a set of predefined permissions that are organized into categories for easy management and organization. There are action based permissions (verbs)and as well as access level permissions (resources).
+
+Permission names follow the pattern: `{category}.{action}.{scope}`
+
+<details>
+  <summary>List of built-in permissions</summary>
+    #### Access-Level Permissions
+
+These are access-level permissions (not action-based):
+
+- `access.authenticated` - User is authenticated (signed in). Basic authentication level authorization
+- `access.apps.hub` - User has access to the Endatix Hub application.
+
+#### Platform-Level Permissions
+
+Platform-wide management permissions:
+
+- `platform.tenants.manage` - Manage tenants
+- `platform.settings.manage` - Manage platform settings
+- `platform.integrations.manage` - Manage platform integrations
+- `platform.users.impersonate` - Impersonate users
+- `platform.metrics.view` - View platform metrics
+- `platform.logs.view` - View platform logs
+- `platform.usage.view` - View platform usage statistics
+
+#### Tenant-Level Permissions
+
+Tenant-specific management permissions:
+
+- `tenant.users.invite` - Invite users to the tenant
+- `tenant.users.view` - View tenant users
+- `tenant.users.manage` - Manage tenant users
+- `tenant.roles.view` - View tenant roles
+- `tenant.roles.manage` - Manage tenant roles
+- `tenant.settings.view` - View tenant settings
+- `tenant.settings.manage` - Manage tenant settings
+- `tenant.usage.view` - View tenant usage statistics
+
+#### Form Management Permissions
+
+- `forms.view` - View forms
+- `forms.create` - Create forms
+- `forms.edit` - Edit forms
+- `forms.delete` - Delete forms
+
+#### Template Management Permissions
+
+- `templates.view` - View templates
+- `templates.create` - Create templates
+- `templates.edit` - Edit templates
+- `templates.delete` - Delete templates
+
+#### Theme Management Permissions
+
+- `themes.view` - View themes
+- `themes.create` - Create themes
+- `themes.edit` - Edit themes
+- `themes.delete` - Delete themes
+
+#### Submission Management Permissions
+
+- `submissions.view` - View submissions
+- `submissions.create` - Create submissions
+- `submissions.edit` - Edit submissions
+- `submissions.delete` - Delete submissions
+- `submissions.export` - Export submissions
+- `submissions.delete.owned` - Delete own submissions (ownership-based)
+
+#### Question Management Permissions
+
+- `questions.view` - View questions
+- `questions.create` - Create questions
+- `questions.edit` - Edit questions
+- `questions.delete` - Delete questions
+
+</details>
+
+## Quick Start
+
+### Basic Authorization Setup
+
+Built-in default authorization is automatically configured when you set up Endatix application. This also includes the system roles and permissions mentioned above. 
+
+### Using Roles in Your Code
+
+Once authorization is configured, you can use roles in your Fast endpoints using the `Permissions()` method (Claims, Roles, Policies, etc work as well).
+
+Use simple permission e.g. "forms.create". Note that it's accessed via convenient `Actions` class.
+```csharp
+public class CreateForm(IMediator mediator) : Endpoint<CreateFormRequest, Results<Created<FormModel>, BadRequest>>
+{
+    public override void Configure()
+    {
+        Post("forms");
+        Permissions(Actions.Forms.Create);
+        Summary(s =>
+        {
+            s.Summary = "Create a new form";
+            s.Description = "Creates a new form with the provided data";
+        });
+    }
+
+    public override async Task<Results<Created<FormModel>, BadRequest>> ExecuteAsync(
+        CreateFormRequest request, CancellationToken cancellationToken)
+    {
+        // Only users with forms.create permission will reach this endpoint. Note that Admins will also pass this permission check
+        var command = new CreateFormCommand(/* map from request */);
+        var result = await mediator.Send(command, cancellationToken);
+
+        return TypedResultsBuilder
+            .MapResult(result, Mapper.Map<FormModel>)
+            .SetTypedResults<Created<FormModel>, BadRequest>();
+    }
+}
+```
+
+You can also require multiple permissions (user needs at least one):
+
+```csharp
+public override void Configure()
+{
+    Delete("submissions/{submissionId}");
+    Permissions(Actions.Submissions.Delete, Actions.Submissions.DeleteOwned);
+    // User needs either Delete or DeleteOwned permission
+}
+```
+
+Or check permissions programmatically in use cases:
+
+```csharp
+public class MyUseCase(ICurrentUserAuthorizationService authService)
+{
+    public async Task<Result> ExecuteAsync(CancellationToken cancellationToken)
+    {
+        var accessResult = await authService.authorizationService.ValidateAccessAsync(
+                Actions.Forms.Edit,
+                cancellationToken);
+
+        if (!accessResult.IsSuccess)
+        {
+            return Result.Forbidden("Permission required");
+        }
+
+        // User has permission, proceed with operation
+        return Result.Success();
+    }
+}
+```
+
+:::tip Good to know
+Admins and PlatformAdmins will always pass any permission check.
+To restrict access to Platform-level features and settings to PlatformAdmins only, you can use the `PlatformAdmin` policy on your endpoints e.g. `Policy("PlatformAdmin", () => { ... });`
+:::
+
+## Advanced Authorization Scenarios
+
+### External Authorization with Keycloak
+
+For role-based access control with Keycloak using token introspection, see the [Keycloak RBAC Setup](/docs/building-your-solution/authorization/keycloak-rbac) guide.
+
+## Next Steps
+
+- Learn about [External Authorization concepts](/docs/guides/external-authorization)
+- Set up [Keycloak RBAC](/docs/building-your-solution/authorization/keycloak-rbac) for advanced authorization
+- Explore [Authentication providers](/docs/building-your-solution/authentication) for your application

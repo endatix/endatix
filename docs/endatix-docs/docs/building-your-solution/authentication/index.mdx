@@ -11,7 +11,7 @@ import TabItem from "@theme/TabItem";
 
 # Authentication
 
-Endatix provides a flexible authentication system supporting multiple providers. By default, the system users the internal JWT based provider ("Endatix JWT"), which stores the user information in the database. It's easy to add additional authenticaiton providers.
+Endatix provides a flexible authentication system supporting multiple providers. By default, the system uses the internal JWT based provider ("Endatix JWT"), which stores the user information in the database. It's easy to add additional authentication providers.
 
 We have a list of providers that we support with ability for you to add custom providers:
 
@@ -107,7 +107,7 @@ Below are the detailed setup guides for each provider. Choose your authenticatio
 
 ### [Endatix JWT Customization](./endatix-jwt)
 
-Registered by default, it's avaiable at any time you start the application. Here is a complete guide to customize the built-in JWT provider:
+Registered by default, it's available at any time you start the application. Here is a complete guide to customize the built-in JWT provider:
 
 - JWT settings configuration
 - Secure key generation
@@ -115,11 +115,18 @@ Registered by default, it's avaiable at any time you start the application. Here
 
 ### [Keycloak Setup](./keycloak)
 
-[Keycloak](https://www.keycloak.org) is very powerfult and popular open-srouce option for supporting multiple authentication scenarios. Read the complete guide to setting up Keycloak authentication for your Endatix application:
+[Keycloak](https://www.keycloak.org) is very powerful and popular open-source option for supporting multiple authentication scenarios. Read the complete guide to setting up Keycloak authentication for your Endatix application:
 
 - Keycloak realm and client configuration
 - OIDC endpoint setup
 - User management and testing
+
+:::info Advanced Keycloak Features
+Once you have basic Keycloak authentication working, explore advanced features in the Guides section:
+
+- [Session Bridge](/docs/guides/session-bridge) - Cross-platform token exchange
+- [External Authorization](/docs/guides/external-authorization) - Authorization concepts and benefits
+  :::
 
 ### [Google OAuth Setup](./google-oauth)
 
@@ -128,3 +135,7 @@ Registered by default, it's avaiable at any time you start the application. Here
 - Google Cloud Console configuration
 - Environment variables setup
 - Testing and troubleshooting
+
+## Related Topics
+
+- **[Authorization](/docs/building-your-solution/authorization)** - Learn about authorization in Endatix and role-based access control
