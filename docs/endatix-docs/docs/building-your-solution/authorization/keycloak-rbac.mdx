@@ -1,0 +1,227 @@
+---
+title: Keycloak RBAC
+description: Step-by-step guide for setting up external authorization with Keycloak using token introspection
+sidebar_position: 1
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Keycloak RBAC
+
+This guide walks you through setting up role-based access control (RBAC) with Keycloak using lightweight JWT tokens and token introspection. This approach provides smaller token sizes, reduced cookie sizes, and better PII protection.
+
+:::info Concepts
+For a general overview of external authorization concepts and benefits, see the [External Authorization guide](/docs/guides/external-authorization).
+:::
+
+## Prerequisites
+
+- Keycloak authentication already configured (see [Keycloak Setup](/docs/building-your-solution/authentication/keycloak))
+- Admin access to Keycloak realm
+- Endatix API and Endatix Hub running
+
+## Introduction
+
+This guide covers:
+
+- Enabling lightweight JWT tokens in Keycloak
+- Configuring protocol mappers for token introspection
+- Setting up role mappings in the Endatix API
+- Testing token introspection
+
+### Why Lightweight Tokens?
+
+Lightweight JWT tokens offer several benefits:
+
+- **Smaller token size**: Reduces HTTP header and cookie sizes
+- **PII protection**: Sensitive information is not included in the token
+- **Better performance**: Smaller tokens mean faster transmission
+- **Enhanced security**: Authorization data retrieved via secure introspection endpoint
+
+## Lightweight Token Overview
+
+When using lightweight tokens, certain claims cannot be removed as they are essential for security:
+
+- **exp**: Expiration time - Unix timestamp when the token becomes invalid
+- **iat**: Issued at - Unix timestamp when the token was created
+- **jti**: JWT ID - Unique token identifier for revocation tracking
+- **iss**: Issuer - Identifies the Keycloak realm that issued the token
+- **typ**: Type - Declares token type (Bearer)
+- **azp**: Authorized party - The client that the token was issued to
+- **sid**: Session ID - Links the token to a specific Keycloak session
+- **scope**: Scopes granted - Lists permissions or OpenID Connect scopes
+
+Role and permission information is excluded from the lightweight token and retrieved via token introspection when needed.
+
+## Step 1: Enable Lightweight JWT Tokens in Keycloak
+
+1. Go to your realm in Keycloak Admin Console
+2. Click on **"Clients"**
+3. Select your client (e.g., `endatix-hub`)
+4. Go to **"Advanced settings"** tab
+5. Find **"Always use lightweight access token"** and turn the switch to **On**
+6. Click **"Save"**
+
+:::tip Alternative Method
+You can also use Keycloak client policies to conditionally enable lightweight tokens. See the [Keycloak documentation](https://www.keycloak.org/docs/latest/server_admin/#_using_lightweight_access_token) for details.
+:::
+
+## Step 2: Configure Protocol Mappers for Token Introspection
+
+To ensure role information is available via token introspection, you need to configure protocol mappers:
+
+1. In Keycloak Admin Console, go to **"Client Scopes"**
+2. Select the **"Roles"** scope
+3. Go to the **"Mappers"** tab
+4. Find or add the **"audience resolve"** mapper:
+   - If it doesn't exist, click **"Add mapper"** → **"By configuration"**
+   - Select **"Audience Resolve"**
+5. Ensure the mapper is added to the lightweight access token by turning the toggle **On**
+6. Click **"Save"**
+
+:::info Why Roles Scope?
+The audience resolve mapper is used to fill the `aud` claim in the access token based on applied client roles. This is essential for token exchange scenarios and proper token validation.
+:::
+
+## Step 3: Configure Client Roles
+
+For token introspection to return role information, users must have client roles assigned:
+
+1. Go to **"Clients"** in Keycloak
+2. Click on your client (e.g., `endatix-hub`)
+3. Go to the **"Roles"** tab
+4. Create client-specific roles (e.g., `admin`, `manager`, `panelist`)
+5. Assign these roles to users:
+   - Go to **"Users"** → Select a user
+   - Go to **"Role Mappings"** tab
+   - Click **"Assign role"**
+   - Filter by your client and select the roles
+   - Click **"Assign"**
+
+## Step 4: Configure Protocol Mappers for Introspection
+
+Ensure role mappers are configured to include data in token introspection:
+
+1. Go to **"Client Scopes"** → **"Roles"** → **"Mappers"** tab
+2. For each role mapper (e.g., "realm roles", "client roles"):
+   - Click on the mapper
+   - Ensure **"Add to token introspection"** is turned **On**
+   - Click **"Save"**
+
+This ensures that role information is available in the introspection response even though it's excluded from the lightweight token payload.
+
+## Step 5: API Configuration
+
+Update your `appsettings.json` to include the Authorization section:
+
+```json
+{
+  "Endatix": {
+    "Auth": {
+      "Providers": {
+        "Keycloak": {
+          "Enabled": true,
+          "DefaultTenantId": 1,
+          "Audience": "your-audience",
+          "Issuer": "http://localhost:8080/realms/endatix",
+          "RequireHttpsMetadata": false,
+          "ClientId": "your-client-id",
+          "ClientSecret": "your-client-secret",
+          "Authorization": {
+            "RoleMappings": {
+              "admin": "admin",
+              "manager": "creator",
+              "org manager": "platformAdmin"
+            },
+            "RolesPath": "resource_access.{ClientId}.roles"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Configuration Properties
+
+**Authorization Section:**
+- **RoleMappings**: Maps Keycloak roles to Endatix application roles
+  - Key: Keycloak role name (as it appears in introspection response)
+  - Value: Endatix application role name
+- **RolesPath**: JSON path to roles in the token introspection response
+  - Use `{ClientId}` placeholder which will be replaced with your actual ClientId
+  - Example: `"resource_access.endatix-hub.roles"` (if ClientId is `endatix-hub`)
+
+**Other Properties:**
+- **DefaultTenantId**: Default tenant ID for authenticated users (defaults to 0)
+- **ClientId**: Your Keycloak client ID (required)
+- **ClientSecret**: Your Keycloak client secret (required)
+
+
+## Step 6: Testing Token Introspection
+
+### Get an Access Token
+
+1. First, obtain a lightweight access token from Keycloak using your preferred method (OAuth flow, direct access grant, etc.). 
+2. You can go to you Endatix API and request `/api/auth/me` endpoint with the token in the Authorization header.
+
+```bash
+curl --location 'https://{{ENDATIX_API_URL}}/api/auth/me' \
+--header 'Authorization: Bearer {{KEYCLOAK_ACCESS_TOKEN}}'
+```
+
+The response should be like this:
+
+```json
+{
+  "userId": "0f6d8b28-e761-4033-8e84-2ddebecec49c",
+  "tenantId": 1,
+  "email": "user@example.com",
+  "isAdmin": true,
+  "roles": ["admin", "manager", "creator"],
+  "permissions": ["read", "write", "delete"],
+  "cachedAt": "2025-01-01T00:00:00Z",
+  "expiresAt": "2025-01-01T00:00:00Z",
+  "eTag": "1234567890",
+}
+```
+
+
+### Debug Tips
+
+1. **Enable API logging** to see introspection calls and responses
+2. **Test introspection directly** with Keycloak.
+3. **Verify token structure** by decoding the JWT (without verification) to see available claims. You can use [jwt.io](https://jwt.io/) to decode the token.
+4. **Check Keycloak logs** for introspection endpoint activity
+
+## Security Considerations
+
+### Why Lightweight Tokens Are More Secure
+
+- **Reduced attack surface**: Less information in the token means less information to exploit
+- **PII protection**: Sensitive user data is not transmitted in every request
+- **Token size**: Smaller tokens reduce the risk of header size limits and improve performance
+
+### Production Best Practices
+
+- **Use HTTPS**: Always use HTTPS in production for token transmission
+- **Rotate secrets**: Regularly rotate client secrets
+- **Monitor introspection**: Log and monitor introspection endpoint usage
+- **Limit token lifetime**: Use appropriate token expiration times
+- **Secure storage**: Store client secrets securely (environment variables, secrets manager)
+- **Audit logging**: Enable audit logging in Keycloak for authorization events
+
+## Next Steps
+
+- Learn about [External Authorization concepts](/docs/guides/external-authorization)
+- Set up [Session Bridge](/docs/guides/session-bridge) for cross-platform token exchange
+- Review [Keycloak Setup](/docs/building-your-solution/authentication/keycloak) for basic authentication
+
+## Additional Resources
+
+- [Keycloak Token Introspection Documentation](https://www.keycloak.org/securing-apps/oidc-layers#_token_introspection_endpoint)
+- [Keycloak Lightweight Access Tokens](https://www.keycloak.org/docs/latest/server_admin/#_using_lightweight_access_token)
+- [Keycloak Protocol Mappers](https://www.keycloak.org/docs/latest/server_admin/#_protocol_mappers)
+
+
