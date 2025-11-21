@@ -136,10 +136,12 @@ Add Keycloak configuration to your `appsettings.json`:
       "Providers": {
         "Keycloak": {
           "Enabled": true,
-          "RequireHttpsMetadata": false,
-          "Audience": "account",
+          "DefaultTenantId": 1,
+          "Audience": "your-audience",
           "Issuer": "http://localhost:8080/realms/endatix",
-          "MapInboundClaims": true
+          "RequireHttpsMetadata": false,
+          "ClientId": "your-client-id",
+          "ClientSecret": "your-client-secret",
         }
       }
     }
@@ -149,10 +151,18 @@ Add Keycloak configuration to your `appsettings.json`:
 
 **Configuration Properties:**
 - **Enabled**: Enable/disable Keycloak authentication
-- **RequireHttpsMetadata**: Set to `false` for development, `true` for production
-- **Audience**: The audience claim expected in tokens (usually "account")
+- **DefaultTenantId**: Default tenant ID for authenticated users (defaults to 0 if not specified)
+- **Audience**: The audience claim expected in tokens
 - **Issuer**: Your Keycloak realm issuer URL
-- **MapInboundClaims**: Automatically map Keycloak claims to standard claims
+- **RequireHttpsMetadata**: Set to `false` for development, `true` for production
+- **ClientId**: Your Keycloak client ID (required)
+- **ClientSecret**: Your Keycloak client secret (required)
+
+:::info Authorization Configuration
+You can use Keycloak to also provide authorization data for your Endatix application allowing you to manage user roles and access control from the Keycloak admin console (or other external identity providers).
+
+The `Authorization` section is optional and used for role-based access control with token introspection. For details on setting up RBAC with Keycloak, see the [Keycloak RBAC guide](/docs/building-your-solution/authorization/keycloak-rbac).
+:::
 
 ## Step 2: Endatix Hub Configuration
 
@@ -289,6 +299,14 @@ pnpm dev
 - **Enable security events** - Monitor authentication events
 - **Use different realms per environment** - Separate dev/staging/prod
 - **Implement proper logout** - Configure proper logout URLs
+
+## Advanced Topics
+
+Once you have basic Keycloak authentication working, you can explore advanced features:
+
+- **[Session Bridge](/docs/guides/session-bridge)** - Enable token exchange for cross-platform session bridging (e.g., mobile app to web application)
+- **[External Authorization](/docs/guides/external-authorization)** - Learn about external authorization concepts and benefits
+- **[Keycloak RBAC](/docs/building-your-solution/authorization/keycloak-rbac)** - Set up role-based access control with Keycloak using token introspection
 
 ## Additional Resources
 
