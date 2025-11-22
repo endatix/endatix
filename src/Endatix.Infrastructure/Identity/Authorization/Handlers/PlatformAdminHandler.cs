@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Microsoft.AspNetCore.Authorization;
 
@@ -14,32 +15,36 @@ public sealed class PlatformAdminHandler(ICurrentUserAuthorizationService author
         AuthorizationHandlerContext context,
         PlatformAdminRequirement requirement)
     {
-        var currentUser = context.User;
-        if (currentUser is null)
+        if (context?.User is not ClaimsPrincipal currentUser)
         {
             return;
         }
 
-        var isPlatformAdmin = currentUser.IsHydrated() && currentUser.IsInRole(SystemRole.PlatformAdmin.Name);
-        if (isPlatformAdmin)
-        {
-            context.Succeed(requirement);
-            return;
-        }
-
-        var userId = currentUser.GetUserId();
-        if (userId == null || !long.TryParse(userId, out var parsedUserId))
+        if (currentUser.Identity is not ClaimsIdentity)
         {
             return;
         }
 
-        var result = await authorizationService.IsPlatformAdminAsync(CancellationToken.None);
-        if (result.IsSuccess)
+        var isHydrated = currentUser.IsHydrated();
+        if (isHydrated)
         {
-            context.Succeed(requirement);
+            var isPlatformAdmin = currentUser.IsInRole(SystemRole.PlatformAdmin.Name);
+            if (isPlatformAdmin)
+            {
+                context.Succeed(requirement);
+            }
+
             return;
         }
+        else
+        {
+            var isPlatformAdminResult = await authorizationService.IsPlatformAdminAsync(CancellationToken.None);
+            if (isPlatformAdminResult.IsSuccess && isPlatformAdminResult.Value)
+            {
+                context.Succeed(requirement);
+            }
 
-        return;
+            return;
+        }
     }
 }
