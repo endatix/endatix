@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Microsoft.AspNetCore.Authorization;
 
@@ -13,30 +14,34 @@ public sealed class TenantAdminHandler(ICurrentUserAuthorizationService authoriz
         AuthorizationHandlerContext context,
         TenantAdminRequirement requirement)
     {
-        var currentUser = context.User;
-        if (currentUser is null)
+        if (context?.User is not ClaimsPrincipal currentUser)
         {
             return;
         }
 
-        var claimCheckResult = currentUser.IsAdmin();
-        if (claimCheckResult.IsSuccess && claimCheckResult.Value)
-        {
-            context.Succeed(requirement);
-            return;
-        }
-
-        var userId = currentUser.GetUserId();
-        if (userId is null || !long.TryParse(userId, out var parsedUserId))
+        if (currentUser.Identity is not ClaimsIdentity)
         {
             return;
         }
 
-        var result = await authorizationService.IsAdminAsync(CancellationToken.None);
-        if (result.IsSuccess && result.Value)
+        var isHydrated = currentUser.IsHydrated();
+        if (isHydrated)
         {
-            context.Succeed(requirement);
+            var isAdmin = currentUser.IsAdmin();
+            if (isAdmin.IsSuccess && isAdmin.Value)
+            {
+                context.Succeed(requirement);
+            }
+
             return;
+        }
+        else
+        {
+            var isAdminResult = await authorizationService.IsAdminAsync(CancellationToken.None);
+            if (isAdminResult.IsSuccess && isAdminResult.Value)
+            {
+                context.Succeed(requirement);
+            }
         }
 
         return;
