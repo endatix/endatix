@@ -118,8 +118,8 @@ public class KeycloakTokenIntrospectionAuthorization(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error getting authorization data");
-            return Result.Error("Failed to get authorization data");
+            logger.LogError(ex, "Error getting authorization data from Keycloak");
+            return Result.Error("Failed to get authorization data from Keycloak");
         }
     }
 }

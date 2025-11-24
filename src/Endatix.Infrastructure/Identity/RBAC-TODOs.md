@@ -22,6 +22,7 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 - [x] Cover AuthorizedIdentity with tests
 - [x] Cover ClaimsPrincipalExtensions with tests
 - [x] Update InfrastructureSecurityBuilder Tests to include new Auth services
+- [x] Cover KeycloakTokenIntrospectionAuthorization with tests
 
 
 ## Pretty Level TODOs
