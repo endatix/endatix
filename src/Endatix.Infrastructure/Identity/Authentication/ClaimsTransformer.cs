@@ -22,6 +22,11 @@ internal sealed class ClaimsTransformer(
             return principal!;
         }
 
+        if (principal.IsHydrated())
+        {
+            return principal;
+        }
+
         var authorizationData = await GetAuthorizationDataAsync(principal);
         if (authorizationData is not null)
         {

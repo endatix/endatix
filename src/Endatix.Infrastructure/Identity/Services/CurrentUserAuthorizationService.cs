@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
@@ -6,6 +5,8 @@ using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.Abstractions.Authorization;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
+using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Infrastructure.Identity.Authorization.Exceptions;
 
 namespace Endatix.Infrastructure.Identity.Services;
 
@@ -44,16 +45,23 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             return Result.Error("No current user found");
         }
 
-        var authorizationDataResult = ExtractAuthorizationData(currentPrincipal);
-        if (authorizationDataResult.IsSuccess)
-        {
-            return authorizationDataResult;
-        }
-
         var userId = currentPrincipal.GetUserId();
         if (userId is null)
         {
             return Result.Success(AuthorizationData.ForAnonymousUser(_tenantContext.TenantId));
+        }
+
+        if (currentPrincipal.IsHydrated())
+        {
+            try
+            {
+                return Result.Success(GetAuthorizationDataFromClaims(currentPrincipal));
+            }
+            catch (InvalidAuthorizedIdentityException ex)
+            {
+                _logger.LogWarning(ex, "Invalid authorized identity encountered for user {UserId}", userId);
+                return Result.Error("Invalid authorized identity encountered");
+            }
         }
 
         var authorizationStrategy = _authorizationStrategies
@@ -74,7 +82,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting role info for user {UserId}", userId);
+            _logger.LogError(ex, "Error getting authorization data for user {UserId}", userId);
             return Result.Error("Failed to retrieve user role information");
         }
     }
@@ -180,31 +188,28 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
 
 
     /// <summary>
-    /// Extracts the authorization data from the claims principal.
+    /// Gets the authorization data from the claims principal using the hydrated <see cref="AuthorizedIdentity"/> if present.
     /// </summary>
     /// <param name="principal">The claims principal to get the hydrated authorization data from.</param>
-    /// <returns>The hydrated authorization data if successful, otherwise a not found result.</returns>
-    private static Result<AuthorizationData> ExtractAuthorizationData(ClaimsPrincipal principal)
+    /// <returns>The authorization data.</returns>
+    /// <exception cref="InvalidAuthorizedIdentityException">Thrown when the claims principal is does not contain valid authorization data via the <see cref="AuthorizedIdentity"/>.</exception>
+    private AuthorizationData GetAuthorizationDataFromClaims(ClaimsPrincipal principal)
     {
         if (principal?.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
         {
-            return Result.Error("Claims principal is missing or not authenticated");
+            throw new InvalidAuthorizedIdentityException("The claims principal is not authenticated");
         }
 
         var endatixIdentity = principal.Identities
             .OfType<AuthorizedIdentity>()
             .FirstOrDefault();
 
-        if (endatixIdentity is null)
+        if (endatixIdentity is null || !endatixIdentity.IsHydrated)
         {
-            return Result.NotFound("Claims principal is not hydrated with authorization data");
+            throw new InvalidAuthorizedIdentityException("The claims principal is not hydrated");
         }
 
-        var userId = principal.GetUserId();
-        if (userId is null)
-        {
-            return Result.Error("User ID is not found");
-        }
+        var userId = principal.GetUserId() ?? throw new InvalidAuthorizedIdentityException("User ID is not found");
 
         var authorizationData = AuthorizationData.ForAuthenticatedUser(
          userId: userId,
@@ -217,9 +222,11 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
 
         if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
         {
-            return Result.Error("IsAdmin flag is not consistent with the claims principal");
+            throw new InvalidAuthorizedIdentityException("IsAdmin flag is not consistent with the claims principal");
         }
 
-        return Result.Success(authorizationData);
+        return authorizationData;
     }
+
+
 }
