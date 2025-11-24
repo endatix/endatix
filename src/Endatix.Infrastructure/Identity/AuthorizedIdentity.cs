@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity.Authentication;
@@ -65,12 +66,12 @@ public sealed class AuthorizedIdentity : ClaimsIdentity
     /// <summary>
     /// Gets the cached at timestamp from this identity.
     /// </summary>
-    public DateTime CachedAt => DateTime.Parse(FindFirst(ClaimNames.CachedAt)?.Value ?? DateTime.UtcNow.ToString("O"));
+    public DateTime CachedAt => DateTime.Parse(FindFirst(ClaimNames.CachedAt)?.Value ?? DateTime.UtcNow.ToString("O"), null, DateTimeStyles.RoundtripKind);
 
     /// <summary>
     /// Gets the cache expires in from this identity.
     /// </summary>
-    public DateTime CacheExpiresIn => DateTime.Parse(FindFirst(ClaimNames.ExpiresAt)?.Value ?? DateTime.UtcNow.ToString("O"));
+    public DateTime CacheExpiresIn => DateTime.Parse(FindFirst(ClaimNames.ExpiresAt)?.Value ?? DateTime.UtcNow.ToString("O"), null, DateTimeStyles.RoundtripKind);
 
     /// <summary>
     /// Gets the ETag from this identity.

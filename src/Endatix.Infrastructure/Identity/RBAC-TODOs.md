@@ -19,7 +19,7 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 - [x] Cover CurrentUserAuthorizationService with tests
 - [x] Cover AuthorizationCache with tests
 - [ ] Cover DefaultAuthorization with tests
-- [ ] Cover AuthorizedIdentity with tests
+- [x] Cover AuthorizedIdentity with tests
 - [ ] Cover ClaimsPrincipalExtensions with tests
 - [ ] Update InfrastructureSecurityBuilder Tests to include new Auth services
 
