@@ -68,6 +68,9 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
              .FirstOrDefault(strategy => strategy.CanHandle(currentPrincipal));
         if (authorizationStrategy is null)
         {
+            _logger.LogWarning("No authorization strategy found for user {UserId} and issuer {Issuer}",
+                userId,
+                currentPrincipal.GetIssuer() ?? "unknown");
             return Result.Error("No authorization provider found for the current user");
         }
 
