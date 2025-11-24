@@ -18,7 +18,7 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 - [x] Cover PlatformAdminHandler and TenantAdminHandler with tests
 - [x] Cover CurrentUserAuthorizationService with tests
 - [x] Cover AuthorizationCache with tests
-- [ ] Cover DefaultAuthorization with tests
+- [x] Cover DefaultAuthorization with tests
 - [x] Cover AuthorizedIdentity with tests
 - [x] Cover ClaimsPrincipalExtensions with tests
 - [x] Update InfrastructureSecurityBuilder Tests to include new Auth services

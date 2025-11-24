@@ -15,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
+using Endatix.Infrastructure.Identity.Authorization.Data;
 
 namespace Endatix.Infrastructure.Tests.Builders;
 
@@ -444,6 +445,8 @@ public class InfrastructureSecurityBuilderTests
 
         Assert.True(IsServiceRegistered<ICurrentUserAuthorizationService>());
         Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<ICurrentUserAuthorizationService>());
+        Assert.True(IsServiceRegistered<IAuthorizationDataProvider>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IAuthorizationDataProvider>());
         Assert.True(IsServiceRegistered<IAuthorizationHandler>());
         // Verify our PermissionsHandler is registered as Scoped
         // Note: AddAuthorization() also registers a default PassThroughAuthorizationHandler as Transient
@@ -457,6 +460,9 @@ public class InfrastructureSecurityBuilderTests
         // Verify authorization infrastructure registrations
         Assert.True(IsServiceRegistered<IAuthorizationCache>());
         Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IAuthorizationCache>());
+
+        Assert.True(IsServiceRegistered<IAuthorizationDataProvider>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IAuthorizationDataProvider>());
 
         var authorizationStrategyDescriptor = _services
             .FirstOrDefault(sd => sd.ServiceType == typeof(IAuthorizationStrategy) &&
@@ -533,6 +539,11 @@ public class InfrastructureSecurityBuilderTests
                                   sd.ImplementationType == typeof(DefaultAuthorizationMapper));
         Assert.NotNull(authorizationMapperDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, authorizationMapperDescriptor.Lifetime);
+
+        // IUserAuthorizationReader should be Scoped
+        var authorizationReaderDescriptor = FindServiceDescriptor<IAuthorizationDataProvider>();
+        Assert.NotNull(authorizationReaderDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, authorizationReaderDescriptor.Lifetime);
 
         // IAuthorizationHandler (PermissionsHandler) should be Scoped
         // Note: Multiple handlers can be registered, but they should all be Scoped

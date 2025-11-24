@@ -1,34 +1,21 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+using Endatix.Infrastructure.Identity.Authorization.Data;
 
 
 namespace Endatix.Infrastructure.Identity.Authorization.Strategies;
 
 /// <summary>
-/// Default authorization strategy that extracts roles and permissions from the database.
+/// Default authorization strategy that routes requests to the appropriate authorization reader.
 /// </summary>
 /// <param name="authProviderRegistry">The authentication provider registry.</param>
-/// <param name="userManager">The user manager.</param>
-/// <param name="identityDbContext">The identity database context.</param>
-/// <param name="tenantContext">The tenant context.</param>
-/// <param name="dateTimeProvider">The date time provider.</param>
-/// <param name="logger">The logger.</param>
+/// <param name="authorizationDataProvider">The authorization data provider responsible for fetching user authorization data.</param>
 public sealed class DefaultAuthorization(
     AuthProviderRegistry authProviderRegistry,
-     UserManager<AppUser> userManager,
-        AppIdentityDbContext identityDbContext,
-        ITenantContext tenantContext,
-        IDateTimeProvider dateTimeProvider,
-        ILogger<DefaultAuthorization> logger) : IAuthorizationStrategy
+    IAuthorizationDataProvider authorizationDataProvider) : IAuthorizationStrategy
 {
     /// <inheritdoc />
     public bool CanHandle(ClaimsPrincipal principal)
@@ -61,69 +48,6 @@ public sealed class DefaultAuthorization(
             return Result.Error("User ID is required");
         }
 
-        return await GetUserPermissionsInfoInternalAsync(endatixUserId, cancellationToken);
-    }
-
-    /// <summary>
-    /// Gets the authorization data for a user from the identity store.
-    /// </summary>
-    /// <param name="userId">The user ID.</param>
-    /// <param name="cancellationToken"></param>
-    /// <returns>The authorization data for the user. In case of error returns Result.Error with the error message, so that data caching can be skipped.</returns>
-    private async Task<Result<AuthorizationData>> GetUserPermissionsInfoInternalAsync(long userId, CancellationToken cancellationToken = default)
-    {
-        var utcNow = dateTimeProvider.Now.UtcDateTime;
-
-        try
-        {
-            var user = await userManager.FindByIdAsync(userId.ToString());
-            if (user is null)
-            {
-                var anonymousData = AuthorizationData.ForAuthenticatedUser(
-                    userId: userId.ToString(),
-                    tenantId: tenantContext.TenantId,
-                    roles: [],
-                    permissions: []
-                    );
-
-                return Result.Success(anonymousData);
-            }
-
-            var userRoleIds = identityDbContext.UserRoles
-                .Where(ur => ur.UserId == userId)
-                .Select(ur => ur.RoleId);
-
-            var userRoles = await identityDbContext.Roles
-                .Where(r => r.IsActive && userRoleIds.Contains(r.Id))
-                .Include(r => r.RolePermissions.Where(rp => rp.IsActive && (rp.ExpiresAt == null || rp.ExpiresAt > utcNow)))
-                .ThenInclude(rp => rp.Permission)
-                .AsSplitQuery()
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
-
-
-            var assignedRoles = userRoles
-                .Select(r => r.Name!)
-                .ToArray() ?? [];
-
-            var assignedPermissions = userRoles
-                .SelectMany(r => r.RolePermissions.Select(rp => rp.Permission.Name))
-                .Distinct()
-                .ToArray();
-
-            var authorizationData = AuthorizationData.ForAuthenticatedUser(
-                    userId: userId.ToString(),
-                    tenantId: user.TenantId,
-                    roles: assignedRoles,
-                    permissions: assignedPermissions
-            );
-
-            return Result.Success(authorizationData);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting user permissions info for user {UserId}", userId);
-            return Result.Error("Failed to get user permissions info from the identity store");
-        }
+        return await authorizationDataProvider.GetAuthorizationDataAsync(endatixUserId, cancellationToken);
     }
 }
