@@ -61,26 +61,32 @@ public sealed class DefaultAuthorization(
             return Result.Error("User ID is required");
         }
 
-        var authorizationData = await GetUserPermissionsInfoInternalAsync(endatixUserId, cancellationToken);
-
-        return Result.Success(authorizationData);
+        return await GetUserPermissionsInfoInternalAsync(endatixUserId, cancellationToken);
     }
 
-    private async Task<AuthorizationData> GetUserPermissionsInfoInternalAsync(long userId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Gets the authorization data for a user from the identity store.
+    /// </summary>
+    /// <param name="userId">The user ID.</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>The authorization data for the user. In case of error returns Result.Error with the error message, so that data caching can be skipped.</returns>
+    private async Task<Result<AuthorizationData>> GetUserPermissionsInfoInternalAsync(long userId, CancellationToken cancellationToken = default)
     {
         var utcNow = dateTimeProvider.Now.UtcDateTime;
 
         try
         {
             var user = await userManager.FindByIdAsync(userId.ToString());
-            if (user == null)
+            if (user is null)
             {
-                return AuthorizationData.ForAuthenticatedUser(
+                var anonymousData = AuthorizationData.ForAuthenticatedUser(
                     userId: userId.ToString(),
                     tenantId: tenantContext.TenantId,
                     roles: [],
                     permissions: []
                     );
+
+                return Result.Success(anonymousData);
             }
 
             var userRoleIds = identityDbContext.UserRoles
@@ -105,22 +111,19 @@ public sealed class DefaultAuthorization(
                 .Distinct()
                 .ToArray();
 
-            return AuthorizationData.ForAuthenticatedUser(
+            var authorizationData = AuthorizationData.ForAuthenticatedUser(
                     userId: userId.ToString(),
                     tenantId: user.TenantId,
                     roles: assignedRoles,
                     permissions: assignedPermissions
             );
+
+            return Result.Success(authorizationData);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error getting user permissions info for user {UserId}", userId);
-            return AuthorizationData.ForAuthenticatedUser(
-                userId: userId.ToString(),
-                tenantId: tenantContext.TenantId,
-                roles: [],
-                permissions: []
-            );
+            return Result.Error("Failed to get user permissions info from the identity store");
         }
     }
 }
