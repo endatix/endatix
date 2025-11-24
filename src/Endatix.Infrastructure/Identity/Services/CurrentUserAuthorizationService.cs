@@ -5,7 +5,6 @@ using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.Abstractions.Authorization;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
-using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authorization.Exceptions;
 
 namespace Endatix.Infrastructure.Identity.Services;
