@@ -1,6 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication;
 

@@ -4,7 +4,7 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 
 ## TODOs
 
-- [ ] Remove UnifiedTestEndpoint
+- [x] Remove UnifiedTestEndpoint
 - [x] Add Keycloak AuthorizationProvider
 - [x] Rename JwtClaimsTransformer to ClaimsTransformer
 - [x] Add Endatix ClaimsIdentity for auth logic isolation and improved security
@@ -20,8 +20,8 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 - [x] Cover AuthorizationCache with tests
 - [ ] Cover DefaultAuthorization with tests
 - [x] Cover AuthorizedIdentity with tests
-- [ ] Cover ClaimsPrincipalExtensions with tests
-- [ ] Update InfrastructureSecurityBuilder Tests to include new Auth services
+- [x] Cover ClaimsPrincipalExtensions with tests
+- [x] Update InfrastructureSecurityBuilder Tests to include new Auth services
 
 
 ## Pretty Level TODOs
