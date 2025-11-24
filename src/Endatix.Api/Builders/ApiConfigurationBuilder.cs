@@ -3,6 +3,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Api.Infrastructure.Cors;
 using Endatix.Api.Setup;
 using Endatix.Framework.Hosting;
+using Endatix.Framework.Serialization;
 using Endatix.Framework.Setup;
 using FastEndpoints;
 using FastEndpoints.Swagger;

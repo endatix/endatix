@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Endatix.Api.Infrastructure;
+namespace Endatix.Framework.Serialization;
 
 /// <summary>
 /// Processes the Long to JavaScript converter into string, so there's no precision issues due to JavaScript number min/max values.

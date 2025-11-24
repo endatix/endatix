@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Endatix.Api.Builders;
 using Endatix.Api.Infrastructure;
 using Endatix.Api.Setup;
+using Endatix.Framework.Serialization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Multitenancy;
 using FastEndpoints;

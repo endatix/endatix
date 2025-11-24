@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Endatix.Api.Builders;
 using Endatix.Api.Infrastructure;
+using Endatix.Framework.Serialization;
 using Endatix.Infrastructure.Identity;
 using FastEndpoints;
 using FastEndpoints.Swagger;
