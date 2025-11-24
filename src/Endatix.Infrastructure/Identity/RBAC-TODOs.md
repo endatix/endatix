@@ -12,7 +12,7 @@ This is created as part of the [Role Based Access Control (RBAC) #261](https://g
 - [x] Add DI and registraiton infrastructure for AuthorizationProviders
 - [ ] Extend ProviderRegistration with Interface and proper auth providers validation and runtime instance providing logic
 - [x] Add tests
-- [ ] Cover AuthorizationData with tests
+- [x] Cover AuthorizationData with tests
 - [x] Cover ClaimsTransformer with tests
 - [x] Cover AssertionPermissionsHandler with tests
 - [x] Cover PlatformAdminHandler and TenantAdminHandler with tests

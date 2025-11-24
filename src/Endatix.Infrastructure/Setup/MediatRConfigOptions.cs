@@ -14,7 +14,7 @@ public sealed class MediatRConfigOptions
 
     /// <summary>
     /// Additional Assemblies to be Registered in the MediatR's known Types
-    /// For more info check <see cref="https://github.com/jbogard/MediatR/wiki#setup"/>
+    /// For more info check <see href="https://github.com/jbogard/MediatR/wiki#setup"/>
     /// </summary>
     public Assembly[] AdditionalAssemblies { get; set; } = [];
 }
