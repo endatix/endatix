@@ -4,6 +4,7 @@ using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Authorization.Data;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Endatix.Infrastructure.Identity.Services;
@@ -221,6 +222,7 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
         Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
+        Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();
         Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
         Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
 

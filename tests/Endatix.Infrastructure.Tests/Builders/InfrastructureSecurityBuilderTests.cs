@@ -6,12 +6,16 @@ using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
+using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Authorization.Strategies;
+using Endatix.Infrastructure.Identity.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
+using Endatix.Infrastructure.Identity.Authorization.Data;
 
 namespace Endatix.Infrastructure.Tests.Builders;
 
@@ -441,6 +445,8 @@ public class InfrastructureSecurityBuilderTests
 
         Assert.True(IsServiceRegistered<ICurrentUserAuthorizationService>());
         Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<ICurrentUserAuthorizationService>());
+        Assert.True(IsServiceRegistered<IAuthorizationDataProvider>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IAuthorizationDataProvider>());
         Assert.True(IsServiceRegistered<IAuthorizationHandler>());
         // Verify our PermissionsHandler is registered as Scoped
         // Note: AddAuthorization() also registers a default PassThroughAuthorizationHandler as Transient
@@ -450,6 +456,37 @@ public class InfrastructureSecurityBuilderTests
             .FirstOrDefault();
         Assert.NotNull(permissionsHandlerDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, permissionsHandlerDescriptor.Lifetime);
+
+        // Verify authorization infrastructure registrations
+        Assert.True(IsServiceRegistered<IAuthorizationCache>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IAuthorizationCache>());
+
+        Assert.True(IsServiceRegistered<IAuthorizationDataProvider>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IAuthorizationDataProvider>());
+
+        var authorizationStrategyDescriptor = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IAuthorizationStrategy) &&
+                                  sd.ImplementationType == typeof(DefaultAuthorization));
+        Assert.NotNull(authorizationStrategyDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, authorizationStrategyDescriptor.Lifetime);
+
+        var authorizationMapperDescriptor = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalAuthorizationMapper) &&
+                                  sd.ImplementationType == typeof(DefaultAuthorizationMapper));
+        Assert.NotNull(authorizationMapperDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, authorizationMapperDescriptor.Lifetime);
+
+        var tenantAdminHandler = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IAuthorizationHandler) &&
+                                  sd.ImplementationType == typeof(TenantAdminHandler));
+        Assert.NotNull(tenantAdminHandler);
+        Assert.Equal(ServiceLifetime.Scoped, tenantAdminHandler.Lifetime);
+
+        var platformAdminHandler = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IAuthorizationHandler) &&
+                                  sd.ImplementationType == typeof(PlatformAdminHandler));
+        Assert.NotNull(platformAdminHandler);
+        Assert.Equal(ServiceLifetime.Scoped, platformAdminHandler.Lifetime);
 
         // Verify identity services
         Assert.True(IsServiceRegistered<IUserRegistrationService>());
@@ -483,6 +520,30 @@ public class InfrastructureSecurityBuilderTests
         var permissionServiceDescriptor = FindServiceDescriptor<ICurrentUserAuthorizationService>();
         Assert.NotNull(permissionServiceDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, permissionServiceDescriptor.Lifetime);
+
+        // Authorization cache should be Scoped
+        var authorizationCacheDescriptor = FindServiceDescriptor<IAuthorizationCache>();
+        Assert.NotNull(authorizationCacheDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, authorizationCacheDescriptor.Lifetime);
+
+        // Authorization strategy should be Scoped
+        var authorizationStrategyDescriptor = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IAuthorizationStrategy) &&
+                                  sd.ImplementationType == typeof(DefaultAuthorization));
+        Assert.NotNull(authorizationStrategyDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, authorizationStrategyDescriptor.Lifetime);
+
+        // Authorization mapper should be Scoped
+        var authorizationMapperDescriptor = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalAuthorizationMapper) &&
+                                  sd.ImplementationType == typeof(DefaultAuthorizationMapper));
+        Assert.NotNull(authorizationMapperDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, authorizationMapperDescriptor.Lifetime);
+
+        // IUserAuthorizationReader should be Scoped
+        var authorizationReaderDescriptor = FindServiceDescriptor<IAuthorizationDataProvider>();
+        Assert.NotNull(authorizationReaderDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, authorizationReaderDescriptor.Lifetime);
 
         // IAuthorizationHandler (PermissionsHandler) should be Scoped
         // Note: Multiple handlers can be registered, but they should all be Scoped

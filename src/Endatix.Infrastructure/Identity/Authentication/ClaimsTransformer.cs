@@ -22,6 +22,11 @@ internal sealed class ClaimsTransformer(
             return principal!;
         }
 
+        if (principal.IsHydrated())
+        {
+            return principal;
+        }
+
         var authorizationData = await GetAuthorizationDataAsync(principal);
         if (authorizationData is not null)
         {
@@ -42,12 +47,14 @@ internal sealed class ClaimsTransformer(
         var userId = principal.GetUserId();
         if (userId is null)
         {
+            logger.LogWarning("Authenticated principal missing user id; skipping hydrating claims with authorization data.");
             return null;
         }
 
         var authorizationStrategy = GetAuthorizationStrategy(principal);
         if (authorizationStrategy is null)
         {
+            logger.LogWarning("No authorization strategy found for issuer {Issuer}", principal.GetIssuer() ?? "unknown");
             return null;
         }
 
@@ -62,7 +69,7 @@ internal sealed class ClaimsTransformer(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error getting authorization data for user {UserId}", userId);
+            logger.LogError(ex, "Error getting authorization data for user {UserId} using strategy {AuthorizationStrategy}", userId, authorizationStrategy?.GetType().Name ?? "unknown");
             return null;
         }
     }
