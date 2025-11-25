@@ -44,7 +44,7 @@ public class GoogleAuthProvider : IAuthProvider
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuers = new[] { googleOptions.Issuer },
+                    ValidIssuers = new[] { googleIssuer },
                     ValidateAudience = true,
                     ValidAudience = googleOptions.Audience,
                     ValidateLifetime = true,

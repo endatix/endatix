@@ -1,20 +1,11 @@
-using Endatix.Setup;
+using Endatix.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Instantiate the Endatix Platform
-builder.CreateEndatix()
-    .AddDefaultSetup()
-    .AddApiEndpoints();
+builder.Host.ConfigureEndatix();
 
 var app = builder.Build();
 
-// Register the Endatix middleware
-app.UseEndatixMiddleware()
-            .UseEndatixApi();
-
-// TODO: Uncomment after Nuget package is updated
-// await app.ApplyDbMigrationsAsync();
-// await app.SeedInitialUserAsync();
+app.UseEndatix();
 
 app.Run();

@@ -19,6 +19,7 @@
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
     <ProjectReference Include="..\Endatix.Core.Tests\Endatix.Core.Tests.csproj" />

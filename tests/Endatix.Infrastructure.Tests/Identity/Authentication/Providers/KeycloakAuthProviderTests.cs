@@ -190,7 +190,7 @@ public class KeycloakAuthProviderTests
         // Act & Assert
         var action = () => _provider.Configure(_authBuilder, config, false);
         action.Should().Throw<ArgumentException>()
-            .WithMessage("Required input keycloakIssuer was empty.*");
+            .WithMessage("Value cannot be null. (Parameter 'Issuer')");
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public class KeycloakAuthProviderTests
         // Act & Assert
         var action = () => _provider.Configure(_authBuilder, config, false);
         action.Should().Throw<ArgumentException>()
-            .WithMessage("Required input keycloakIssuer was empty.*");
+            .WithMessage("Required input Issuer was empty.*");
     }
 
     [Fact]
@@ -214,7 +214,7 @@ public class KeycloakAuthProviderTests
         // Act & Assert
         var action = () => _provider.Configure(_authBuilder, config, false);
         action.Should().Throw<ArgumentException>()
-            .WithMessage("Required input keycloakIssuer was empty.*");
+            .WithMessage("Required input Issuer was empty.*");
     }
 
     #endregion
