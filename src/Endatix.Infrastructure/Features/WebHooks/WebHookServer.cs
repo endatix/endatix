@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Core.Features.WebHooks;
+using Endatix.Framework.Serialization;
 using Microsoft.Extensions.Logging;
 using Polly.Timeout;
 
@@ -72,7 +73,9 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
 
     private StringContent CreateContent<T>(WebHookMessage<T> message)
     {
-        var jsonContent = JsonSerializer.Serialize(message);
+        var options = new JsonSerializerOptions();
+        options.Converters.Add(new LongToStringConverter());
+        var jsonContent = JsonSerializer.Serialize(message, options);
         return new StringContent(jsonContent, Encoding.UTF8, "application/json");
     }
 

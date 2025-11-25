@@ -238,8 +238,8 @@ public class WebHookServerTests
         // Parse JSON without full deserialization to avoid constructor issues
         using var jsonDoc = JsonDocument.Parse(content);
         var root = jsonDoc.RootElement;
-        
-        root.GetProperty("id").GetInt64().Should().Be(123);
+
+        root.GetProperty("id").GetString().Should().Be("123");
         root.GetProperty("eventName").GetString().Should().Be("submission_completed");
         root.GetProperty("action").GetString().Should().Be("updated");
         

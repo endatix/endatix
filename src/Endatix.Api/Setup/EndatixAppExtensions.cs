@@ -5,6 +5,7 @@ using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Endatix.Api.Infrastructure;
+using Endatix.Framework.Serialization;
 using Ardalis.GuardClauses;
 using Microsoft.Extensions.Configuration;
 using Endatix.Infrastructure.Identity;
