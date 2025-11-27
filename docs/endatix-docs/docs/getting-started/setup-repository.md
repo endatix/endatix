@@ -16,7 +16,7 @@ If you want to explore the source code, contribute to the project, or customize 
 Before getting started, make sure you have:
 
 - [Git](https://git-scm.com/downloads)
-- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or higher
+- [.NET 10.0 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) or higher
 - IDE: [Visual Studio Code](https://code.visualstudio.com/), [Cursor](https://www.cursor.com/), [Rider](https://www.jetbrains.com/rider/) or [Visual Studio](https://visualstudio.microsoft.com/)
 
 ## Step 1: Clone the Repository
