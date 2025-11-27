@@ -11,7 +11,7 @@ public abstract class JwtAuthProviderOptions : AuthProviderOptions
     /// Valid issuer for the JWT token
     /// </summary>
     [Required]
-    public string Issuer { get; set; } = string.Empty;
+    public virtual string Issuer { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether to validate the issuer

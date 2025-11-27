@@ -3,16 +3,17 @@ using System.ComponentModel.DataAnnotations;
 namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 public class GoogleOptions : JwtAuthProviderOptions
 {
-    private const string DEFAULT_ISSUER = "https://accounts.google.com";
+    internal const string DEFAULT_ISSUER = "https://accounts.google.com";
 
     public GoogleOptions()
     {
-        Issuer = DEFAULT_ISSUER;
         ValidateIssuer = true;
         ValidateAudience = true;
         ValidateLifetime = true;
         ValidateIssuerSigningKey = true;
     }
+
+    public override string Issuer { get; set; } = DEFAULT_ISSUER;
 
     /// <summary>
     /// Google audience

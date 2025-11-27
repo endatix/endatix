@@ -1,5 +1,4 @@
 using Endatix.Infrastructure.Identity.Authentication.Providers;
-using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -181,42 +180,41 @@ public class GoogleAuthProviderTests
     }
 
     [Fact]
-    public void Configure_WithNullIssuer_ShouldSetDefaultIssuer()
+    public void Configure_WithNullIssuer_ShouldThrowException()
     {
         // Arrange
         var config = CreateConfiguration(issuer: null!, enabled: true);
 
-        // Act
-        var result = _provider.Configure(_authBuilder, config, false);
-
-        // Assert
-        Assert.True(result);
-        _provider.CanHandle("https://accounts.google.com", "test-token").Should().BeTrue();
-    }
-
-    [Fact]
-    public void Configure_WithWhitespaceIssuer_ShouldThrowException()
-    {
-        // Arrange
-        var config = CreateConfiguration(issuer: "   ", enabled: true);
-
         // Act & Assert
         var action = () => _provider.Configure(_authBuilder, config, false);
         action.Should().Throw<ArgumentException>()
-            .WithMessage("Required input Issuer was empty*");
+            .WithMessage("Value cannot be null. (Parameter 'Issuer')");
     }
+
+     [Fact]
+    public void Configure_WithoutIssuer_ShouldUseDefaultIssuer()
+    {
+        // Arrange
+        var config = CreateConfiguration(enabled: true, skipIssuer: true);
+
+        // Act & Assert
+        var result = _provider.Configure(_authBuilder, config, false);
+        result.Should().BeTrue();
+        _provider.CanHandle("https://accounts.google.com", "test-token").Should().BeTrue();
+    }
+    
 
     #endregion
 
     #region Helper Methods
 
-    private IConfigurationSection CreateConfiguration(string issuer, bool enabled)
+    private IConfigurationSection CreateConfiguration(string? issuer = null, bool? enabled = true, bool? skipIssuer = false)
     {
+        enabled ??= true;
         var configData = new Dictionary<string, string?>
         {
-            ["Google:Issuer"] = issuer,
             ["Google:Audience"] = "endatix-hub",
-            ["Google:Enabled"] = enabled.ToString().ToLowerInvariant(),
+            ["Google:Enabled"] = enabled.Value.ToString().ToLowerInvariant(),
             ["Google:ValidateIssuer"] = "true",
             ["Google:ValidateAudience"] = "true",
             ["Google:ValidateLifetime"] = "true",
@@ -224,6 +222,11 @@ public class GoogleAuthProviderTests
             ["Google:RequireHttpsMetadata"] = "true",
             ["Google:MapInboundClaims"] = "false"
         };
+
+        if (skipIssuer == false)
+        {
+            configData["Google:Issuer"] = issuer;
+        }
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
