@@ -32,6 +32,7 @@ This API project is the core of the [Endatix Hub](https://endatix.com) form mana
 * **Form Templates**
 * **Themes** (Based on SurveyJS [Themes and Styles](https://surveyjs.io/form-library/documentation/manage-default-themes-and-styles))
 * **Partial Submissions** (Users can resume incomplete submissions)
+* **Prefilled forms**
 * **Submission metadata** (Including completion status, date/time started, and date/time completed)
 * **Webhooks** (Support for *submission completed*, *form created*, *form updated*, and *form deleted* events)
 * **reCAPTCHA support**
@@ -44,7 +45,7 @@ This API project is the core of the [Endatix Hub](https://endatix.com) form mana
 
 ## Tech Stack
 
-* .NET 9.0 (formerly .NET Core)
+* .NET 10.0 (formerly .NET Core)
 * Entity Framework Core
 * PostgreSQL, MS SQL, or Azure SQL
 
@@ -52,13 +53,13 @@ This API project is the core of the [Endatix Hub](https://endatix.com) form mana
 
 <img width="480" alt="image" src="assets/images/environments.png"><br>
 
-Endatix runs on any server or workstation that supports [.NET 9.0 (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0), including **Linux**, **Windows**, and **macOS**.
+Endatix runs on any server or workstation that supports [.NET 10.0 (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0), including **Linux**, **Windows**, and **macOS**.
 
 It can be deployed to on-premise servers, cloud environments such as **Azure**, **AWS**, or **Google Cloud**, and also runs in [**Docker Containers**](https://hub.docker.com/u/endatix) for simplified setup and scaling.
 
 ## Installation
 
-To set up the Endatix API ensure you have [.NET 9.0 SDK or Runtime (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) installed and follow these steps:
+To set up the Endatix API ensure you have [.NET 10.0 SDK or Runtime (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) installed and follow these steps:
 
 ```bash
 # Clone the repository
