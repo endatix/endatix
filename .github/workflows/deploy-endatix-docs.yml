@@ -11,7 +11,7 @@ on:
 jobs:
   deploy-endatix-docs:
     env:
-      STORE_PATH:
+      STORE_PATH: ""
     runs-on: ubuntu-latest
     environment:
       name: Production
@@ -31,7 +31,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.10
+          version: 10.25.0
           run_install: false
 
       - name: Get pnpm store directory
