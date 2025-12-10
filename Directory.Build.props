@@ -6,6 +6,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
         <NeutralLanguage>en-US</NeutralLanguage>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
