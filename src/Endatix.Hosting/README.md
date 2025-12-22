@@ -290,9 +290,7 @@ You can control migrations and data seeding through configuration:
       "SeedSampleData": true,
       "InitialUser": {
         "Email": "admin@example.com",
-        "Password": "SecurePassword123!",
-        "FirstName": "Admin",
-        "LastName": "User"
+        "Password": "SecurePassword123!"
       }
     }
   }
