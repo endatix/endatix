@@ -18,6 +18,13 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
 {
     private const string NOT_AVAILABLE_VALUE = "N/A";
     private const string CSV_CONTENT_TYPE = "text/csv";
+
+    /// <inheritdoc/>
+    public string Format => "csv";
+
+    /// <inheritdoc/>
+    public Type ItemType => typeof(SubmissionExportRow);
+
     private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
     {
         [nameof(SubmissionExportRow.FormId)] = row => row.FormId,
