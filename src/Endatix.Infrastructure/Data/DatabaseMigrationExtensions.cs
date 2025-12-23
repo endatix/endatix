@@ -35,7 +35,7 @@ public static class DatabaseMigrationExtensions
 
             using var identityDbContext = scopedProvider.GetRequiredService<AppIdentityDbContext>();
             await ApplyMigrationForContextAsync(identityDbContext, logger);
-            
+
             logger?.LogDebug("{Operation} operation executed successfully", nameof(ApplyDbMigrationsAsync));
         }
         catch (Exception ex)
@@ -50,15 +50,12 @@ public static class DatabaseMigrationExtensions
         Guard.Against.Null(dbContext);
         Guard.Against.Null(logger);
 
-        if (dbContext.Database.GetPendingMigrations().Any())
-        {
-            var startTime = Stopwatch.GetTimestamp();
-            logger.LogWarning("💽 Applying database migrations for {dbContextName}", typeof(T).Name);
+        var startTime = Stopwatch.GetTimestamp();
+        logger.LogWarning("💽 Applying database migrations for {dbContextName}", typeof(T).Name);
 
-            await dbContext.Database.MigrateAsync();
+        await dbContext.Database.MigrateAsync();
 
-            var elapsedTime = Stopwatch.GetElapsedTime(startTime);
-            logger.LogWarning("💽 Database migrations applied for {dbContextName}. Took: {elapsedTime} ms.", typeof(T).Name, elapsedTime.TotalMilliseconds);
-        }
+        var elapsedTime = Stopwatch.GetElapsedTime(startTime);
+        logger.LogWarning("💽 Database migrations applied for {dbContextName}. Took: {elapsedTime} ms.", typeof(T).Name, elapsedTime.TotalMilliseconds);
     }
 }

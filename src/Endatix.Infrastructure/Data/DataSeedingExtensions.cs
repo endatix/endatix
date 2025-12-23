@@ -19,7 +19,7 @@ public static class DataSeedingExtensions
 {
     // This private class is only used as a logger category
     private class DataSeedingLogger { }
-    
+
     /// <summary>
     /// Seeds initial user data.
     /// </summary>
@@ -39,29 +39,31 @@ public static class DataSeedingExtensions
     {
         var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
         var logger = loggerFactory?.CreateLogger<DataSeedingLogger>();
-        
+
         try
         {
             logger?.LogInformation("Seeding initial user data");
-            
+
             // Get required services
             using var scope = serviceProvider.CreateScope();
             var scopedProvider = scope.ServiceProvider;
-            
+
             var userManager = scopedProvider.GetRequiredService<UserManager<AppUser>>();
             var userRegistrationService = scopedProvider.GetRequiredService<IUserRegistrationService>();
+            var roleManagementService = scopedProvider.GetRequiredService<IRoleManagementService>();
             var dataOptions = scopedProvider.GetRequiredService<IOptions<DataOptions>>().Value;
-            
+
             // Create a suitable logger for IdentitySeed (ILogger instead of ILogger<T>)
             ILogger seedLogger = logger != null ? (ILogger)logger : NullLogger.Instance;
-            
+
             // Call the implementation in IdentitySeed
             await IdentitySeed.SeedInitialUser(
                 userManager,
                 userRegistrationService,
+                roleManagementService,
                 dataOptions,
                 seedLogger);
-            
+
             logger?.LogInformation("Initial user data seeded successfully");
         }
         catch (Exception ex)
@@ -70,4 +72,4 @@ public static class DataSeedingExtensions
             throw; // Rethrow for explicit seeding calls
         }
     }
-} 
+}

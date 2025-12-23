@@ -18,9 +18,7 @@ To configure the data settings, add the following snippet to your `appsettings.j
         "SeedSampleData": true,
         "InitialUser": {
             "Email": "admin@example.com",
-            "Password": "StrongPassword123!",
-            "FirstName": "Admin", 
-            "LastName": "User"
+            "Password": "StrongPassword123!"
         }
     }
 }
@@ -42,8 +40,6 @@ When `SeedSampleData` is enabled, you can configure the initial user with these 
 |----------|-------------|----------|
 | `Email` | Email address for the initial user | Yes |
 | `Password` | Password for the initial user | Yes |
-| `FirstName` | First name for the initial user | No |
-| `LastName` | Last name for the initial user | No |
 
 ## Programmatic Configuration
 

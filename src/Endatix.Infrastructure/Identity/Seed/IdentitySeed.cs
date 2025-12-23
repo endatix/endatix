@@ -1,5 +1,7 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Entities.Identity;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -23,16 +25,19 @@ namespace Endatix.Infrastructure.Identity.Seed
         /// </summary>
         /// <param name="userManager">ASP.NET Identity user manager</param>
         /// <param name="userRegistrationService">Service handling user registration logic</param>
+        /// <param name="roleManagementService">Service handling assigning roles to the seeded user</param>
         /// <param name="dataOptions">Configuration options containing optional custom initial user credentials</param>
         /// <param name="logger">Logger instance</param>
         public static async Task SeedInitialUser(
             UserManager<AppUser> userManager,
             IUserRegistrationService userRegistrationService,
+            IRoleManagementService roleManagementService,
             DataOptions dataOptions,
             ILogger logger)
         {
             Guard.Against.Null(userManager);
             Guard.Against.Null(userRegistrationService);
+            Guard.Against.Null(roleManagementService);
 
             var initialUserIsConfigured = dataOptions?.InitialUser != null;
 
@@ -67,19 +72,30 @@ namespace Endatix.Infrastructure.Identity.Seed
                 isEmailConfirmed: true,             // Initial user should have confirmed email
                 CancellationToken.None);
 
-            if (registerUserResult.IsSuccess)
-            {
-                logger.LogInformation("👤 Initial user {Email} created successfully! Please use it to authenticate.", email);
-                logger.LogInformation("🔐 The default password is {Password}. Please change it after logging in.", password);
-            }
-            else
+            if (!registerUserResult.IsSuccess)
             {
                 logger.LogError(
-                    "❌ Failed to register initial user {Email}. Errors: {Errors}. ValidationErrors: {ValidationErrors}",
-                    email,
-                    string.Join(", ", registerUserResult.Errors!),
-                    string.Join(", ", registerUserResult.ValidationErrors!));
+                                    "❌ Failed to register initial user {Email}. Errors: {Errors}. ValidationErrors: {ValidationErrors}",
+                                    email,
+                                    string.Join(", ", registerUserResult.Errors!),
+                                    string.Join(", ", registerUserResult.ValidationErrors!));
+                return;
             }
+
+            var assignRoleResult = await roleManagementService.AssignRoleToUserAsync(registerUserResult.Value.Id, SystemRole.PlatformAdmin.Name);
+
+            if (!assignRoleResult.IsSuccess)
+            {
+                logger.LogError(
+                                    "❌ Failed to assign role to initial user {Email}. Errors: {Errors}. ValidationErrors: {ValidationErrors}",
+                                    email,
+                                    string.Join(", ", assignRoleResult.Errors!),
+                                    string.Join(", ", assignRoleResult.ValidationErrors!));
+                return;
+            }
+
+            logger.LogInformation("👤 Initial user {Email} created successfully! Please use it to authenticate.", email);
+            logger.LogWarning("🔐 The default password can be found in the configuration file under Endatix:Data:InitialUser. Please change the password after logging in and delete the InitialUser section from the configuration file.");
         }
     }
 }
