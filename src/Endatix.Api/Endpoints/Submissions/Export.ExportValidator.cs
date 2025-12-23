@@ -21,6 +21,6 @@ public class ExportValidator : Validator<ExportRequest>
           RuleFor(x => x.ExportFormat)
                .Must(format => supportedFormats.Contains(format, StringComparer.OrdinalIgnoreCase))
                .WithMessage($"Export format not supported. Supported formats: {string.Join(", ", supportedFormats)}")
-               .When(x => !string.IsNullOrWhiteSpace(x.ExportFormat));
+               .When(x => x.ExportFormat is not null);
      }
 }
