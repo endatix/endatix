@@ -1,9 +1,5 @@
-using System.Globalization;
 using System.IO.Pipelines;
 using System.Text.Json;
-using Ardalis.GuardClauses;
-using CsvHelper;
-using CsvHelper.Configuration;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
@@ -12,15 +8,16 @@ using Microsoft.Extensions.Logging;
 namespace Endatix.Infrastructure.Features.Submissions;
 
 /// <summary>
-/// CSV exporter for submission data, optimized for streaming and low memory usage.
+/// JSON exporter for submission data, optimized for streaming and low memory usage.
 /// </summary>
-public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
+public sealed class SubmissionJsonExporter : IExporter<SubmissionExportRow>
 {
+    private const string JSON_CONTENT_TYPE = "application/json";
+
     private const string NOT_AVAILABLE_VALUE = "N/A";
-    private const string CSV_CONTENT_TYPE = "text/csv";
 
     /// <inheritdoc/>
-    public string Format => "csv";
+    public string Format => "json";
 
     /// <inheritdoc/>
     public Type ItemType => typeof(SubmissionExportRow);
@@ -35,39 +32,21 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
         [nameof(SubmissionExportRow.CompletedAt)] = row => row.CompletedAt
     };
 
-    private readonly ILogger<SubmissionCsvExporter> _logger;
-    private SubmissionExportRow? _firstRow;
-    private IAsyncEnumerator<SubmissionExportRow>? _enumerator;
+    private readonly ILogger<SubmissionJsonExporter> _logger;
     private readonly List<ColumnDefinition<SubmissionExportRow>> _columnDefinitions = new();
 
-    public SubmissionCsvExporter(ILogger<SubmissionCsvExporter> logger)
+    public SubmissionJsonExporter(ILogger<SubmissionJsonExporter> logger)
     {
         _logger = logger;
     }
 
-    /// <summary>
-    /// Gets the HTTP headers for the export without processing data.
-    /// </summary>
+    // <inheritdoc/>
     public Task<Result<FileExport>> GetHeadersAsync(ExportOptions? options, CancellationToken cancellationToken)
     {
         try
         {
-            // For CSV export, we can determine the headers without any data processing
-
-            // Default filename with a placeholder for form ID
-            var fileName = "submissions.csv";
-
-            // If options contains a FormId, we can use it in the filename
-            if (options?.Metadata != null &&
-                options.Metadata.TryGetValue("FormId", out var formIdObj))
-            {
-                if (formIdObj is long formId)
-                {
-                    fileName = $"submissions-{formId}.csv";
-                }
-            }
-
-            var fileExport = new FileExport(CSV_CONTENT_TYPE, fileName);
+            var fileName = "submissions.json";
+            var fileExport = new FileExport(JSON_CONTENT_TYPE, fileName);
             return Task.FromResult(Result<FileExport>.Success(fileExport));
         }
         catch (Exception ex)
@@ -77,55 +56,53 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
         }
     }
 
-    /// <summary>
-    /// Streams the export directly to the provided PipeWriter.
-    /// </summary>
-    public async Task<Result<FileExport>> StreamExportAsync(
-        IAsyncEnumerable<SubmissionExportRow> records,
-        ExportOptions? options,
-        CancellationToken cancellationToken,
-        PipeWriter writer)
+    public async Task<Result<FileExport>> StreamExportAsync(IAsyncEnumerable<SubmissionExportRow> records, ExportOptions? options, CancellationToken cancellationToken, PipeWriter writer)
     {
-        Guard.Against.Null(writer);
-
         try
         {
-            // Initialize enumeration and read first row
-            await InitializeEnumerationAsync(records, cancellationToken);
+            using var stream = writer.AsStream();
 
-            if (_firstRow is null)
+            var jsonOptions = new JsonSerializerOptions
             {
-                return Result<FileExport>.Success(
-                    new FileExport(CSV_CONTENT_TYPE, "no-submissions.csv"));
-            }
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
 
-            BuildColumnDefinitions(_firstRow, options);
+            // We stream the TRANSFORMED records (dictionaries), not the raw rows
+            var processedRecords = PrepareRecordsAsync(records, options, cancellationToken);
 
-            // Convert PipeWriter to Stream for CsvHelper compatibility
-            var writerStream = writer.AsStream();
+            await JsonSerializer.SerializeAsync(
+                stream,
+                processedRecords,
+                jsonOptions,
+                cancellationToken);
 
-            // Configure writer and write CSV
-            var streamWriter = new StreamWriter(writerStream, leaveOpen: true);
-            var csvWriter = new CsvWriter(streamWriter, new CsvConfiguration(CultureInfo.InvariantCulture)
-            {
-                HasHeaderRecord = false
-            });
-
-            await WriteHeaderRowAsync(csvWriter);
-            await StreamSubmissionRowsAsync(csvWriter, cancellationToken);
-
-            // Ensure all data is written and flushed to the pipe
-            await streamWriter.FlushAsync();
             await writer.FlushAsync(cancellationToken);
 
-            var fileName = $"submissions-{_firstRow.FormId}.csv";
-            return Result<FileExport>.Success(
-                new FileExport(CSV_CONTENT_TYPE, fileName));
+            var fileExport = new FileExport(
+                fileName: $"submissions-{options?.Metadata?["FormId"]}.json",
+                contentType: JSON_CONTENT_TYPE);
+
+            return Result<FileExport>.Success(fileExport);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error exporting submissions to CSV");
+            _logger.LogError(ex, "Error exporting submissions to JSON");
             return Result<FileExport>.Error($"Failed to export submissions: {ex.Message}");
+        }
+    }
+
+    private async IAsyncEnumerable<IDictionary<string, object>> PrepareRecordsAsync(IAsyncEnumerable<SubmissionExportRow> records, ExportOptions? options, CancellationToken cancellationToken)
+    {
+        await foreach (var row in records.WithCancellation(cancellationToken))
+        {
+            // Initialize columns based on the first row if not already done
+            if (_columnDefinitions.Count == 0)
+            {
+                BuildColumnDefinitions(row, options);
+            }
+
+            yield return BuildSingleRecord(row);
         }
     }
 
@@ -201,57 +178,7 @@ public sealed class SubmissionCsvExporter : IExporter<SubmissionExportRow>
         }
     }
 
-    /// <summary>
-    /// Initializes the enumeration by creating an enumerator and reading the first row.
-    /// </summary>
-    private async Task InitializeEnumerationAsync(IAsyncEnumerable<SubmissionExportRow> records, CancellationToken cancellationToken)
-    {
-        _enumerator = records.GetAsyncEnumerator(cancellationToken);
-        _firstRow = null;
-
-        if (await _enumerator.MoveNextAsync())
-        {
-            _firstRow = _enumerator.Current;
-        }
-    }
-
-    /// <summary>
-    /// Writes the header row to the CSV file.
-    /// </summary>
-    private async Task WriteHeaderRowAsync(CsvWriter csv)
-    {
-        foreach (var column in _columnDefinitions)
-        {
-            csv.WriteField(column.Name);
-        }
-
-        await csv.NextRecordAsync();
-    }
-
-    /// <summary>
-    /// Streams all submission rows to the CSV writer.
-    /// </summary>
-    private async Task StreamSubmissionRowsAsync(CsvWriter csv, CancellationToken cancellationToken)
-    {
-        // Define a local async generator function to yield records
-        async IAsyncEnumerable<IDictionary<string, object>> GetRecords()
-        {
-            yield return BuildSingleCsvRecord(_firstRow!);
-
-            while (_enumerator != null && await _enumerator.MoveNextAsync())
-            {
-                yield return BuildSingleCsvRecord(_enumerator.Current);
-            }
-        }
-
-        // Write all records to the CSV
-        await csv.WriteRecordsAsync(GetRecords(), cancellationToken);
-    }
-
-    /// <summary>
-    /// Builds a dictionary representing a CSV record by parsing JSON once per row.
-    /// </summary>
-    private IDictionary<string, object> BuildSingleCsvRecord(SubmissionExportRow row)
+    private IDictionary<string, object> BuildSingleRecord(SubmissionExportRow row)
     {
         var record = new Dictionary<string, object>();
         JsonDocument? document = null;

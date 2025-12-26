@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Threading.RateLimiting;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Configuration;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Features.WebHooks;
@@ -124,6 +125,24 @@ public static class ServiceCollectionExtensions
                        QueueLimit = webHookSettings.ServerSettings.MaxQueueSize
                    });
                });
+
+        return services;
+    }
+
+    /// <summary>
+    /// /// Registers an exporter as both <see cref="IExporter{T}"/> and <see cref="IExporter"/> interfaces.
+    /// </summary>
+    /// <param name="services">The service collection to register the exporter on.</param>
+    /// <typeparam name="T">The type of records to export.</typeparam>
+    /// <typeparam name="TExporter">The exporter type to register.</typeparam>
+    /// <returns>The service collection with the exporter registered.</returns>
+    public static IServiceCollection AddExporter<T, TExporter>(this IServiceCollection services)
+        where T : class
+        where TExporter : class, IExporter<T>
+    {
+        services.AddScoped<TExporter>();
+        services.AddScoped<IExporter<T>>(sp => sp.GetRequiredService<TExporter>());
+        services.AddScoped<IExporter>(sp => sp.GetRequiredService<TExporter>());
 
         return services;
     }
