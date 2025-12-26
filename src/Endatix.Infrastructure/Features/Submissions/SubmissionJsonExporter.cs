@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
@@ -20,6 +21,9 @@ public sealed class SubmissionJsonExporter : IExporter<SubmissionExportRow>
     public Type ItemType => typeof(SubmissionExportRow);
 
     private readonly ILogger<SubmissionJsonExporter> _logger;
+    private SubmissionExportRow? _firstRow;
+    private IAsyncEnumerator<SubmissionExportRow>? _enumerator;
+    private readonly List<ColumnDefinition<SubmissionExportRow>> _columnDefinitions = new();
 
     public SubmissionJsonExporter(ILogger<SubmissionJsonExporter> logger)
     {
@@ -42,5 +46,36 @@ public sealed class SubmissionJsonExporter : IExporter<SubmissionExportRow>
         }
     }
 
-    public Task<Result<FileExport>> StreamExportAsync(IAsyncEnumerable<SubmissionExportRow> records, ExportOptions? options, CancellationToken cancellationToken, PipeWriter writer) => throw new NotImplementedException();
+    public async Task<Result<FileExport>> StreamExportAsync(IAsyncEnumerable<SubmissionExportRow> records, ExportOptions? options, CancellationToken cancellationToken, PipeWriter writer)
+    {
+        try
+        {
+            using var stream = writer.AsStream();
+
+            var jsonOptions = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
+            await JsonSerializer.SerializeAsync(
+                stream,
+                records,
+                jsonOptions,
+                cancellationToken);
+
+            await writer.FlushAsync(cancellationToken);
+
+            var fileExport = new FileExport(
+                fileName: $"submissions-{options?.Metadata?["FormId"]}.json",
+                contentType: JSON_CONTENT_TYPE);
+
+            return Result<FileExport>.Success(fileExport);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting submissions to JSON");
+            return Result<FileExport>.Error($"Failed to export submissions: {ex.Message}");
+        }
+    }
 }
