@@ -124,7 +124,7 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
         var questionNames = doc?.RootElement.EnumerateObject().Select(p => p.Name).ToList() ?? [];
         var allNames = _staticColumnAccessors.Keys.Concat(questionNames).ToList();
 
-        var selectedNames = (options?.Columns?.Any() == true)
+        var selectedNames = (options?.Columns?.Any() is true)
            ? options.Columns.Where(allNames.Contains)
            : allNames;
 
@@ -135,7 +135,7 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
                 ? (ColumnDefinition<SubmissionExportRow>)new StaticColumnDefinition<SubmissionExportRow>(name, _staticColumnAccessors[name])
                 : new JsonColumnDefinition<SubmissionExportRow>(name, name);
 
-            if (options?.Transformers?.TryGetValue(name, out var transformer) == true)
+            if (options?.Transformers?.TryGetValue(name, out var transformer) is true)
             {
                 col.WithTransformer(transformer);
             }
