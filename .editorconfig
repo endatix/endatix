@@ -262,6 +262,14 @@ dotnet_naming_rule.public_protected_static_readonly_fields_must_be_pascal_case_r
 dotnet_naming_rule.public_protected_static_readonly_fields_must_be_pascal_case_rule.style      = pascal_case_style
 dotnet_naming_rule.public_protected_static_readonly_fields_must_be_pascal_case_rule.severity   = warning
 
+# Protected instance fields are allowed (camelCase with _ prefix)
+dotnet_naming_symbols.protected_instance_fields.applicable_accessibilities = protected
+dotnet_naming_symbols.protected_instance_fields.applicable_kinds = field
+dotnet_naming_rule.protected_instance_fields_should_be_camel_case.symbols = protected_instance_fields
+dotnet_naming_rule.protected_instance_fields_should_be_camel_case.style = instance_field_style
+dotnet_naming_rule.protected_instance_fields_should_be_camel_case.severity = warning
+
+
 # No other public/protected/protected_internal fields are allowed
 # https://docs.microsoft.com/dotnet/standard/design-guidelines/field
 dotnet_naming_symbols.other_public_protected_fields_group.applicable_accessibilities = public, protected, protected_internal
