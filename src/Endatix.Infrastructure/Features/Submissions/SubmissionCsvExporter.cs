@@ -33,49 +33,37 @@ public sealed class SubmissionCsvExporter(ILogger<SubmissionCsvExporter> logger)
             using var streamWriter = new StreamWriter(stream, leaveOpen: true);
             using var csv = new CsvWriter(streamWriter, new CsvConfiguration(CultureInfo.InvariantCulture));
 
-            List<ColumnDefinition<SubmissionExportRow>>? columns = null;
-            var isFirstRow = true;
+            SubmissionExportRow? firstRow = null;
+            var headerWritten = false;
 
-            await foreach (var row in records.WithCancellation(cancellationToken))
+            await foreach (var (row, doc, columns) in GetStreamContextAsync(records, options, cancellationToken))
             {
-                JsonDocument? doc = null;
-
-                if (isFirstRow)
+                using (doc)
                 {
-                    (columns, doc) = GetInitialContext(row, options);
+                    firstRow ??= row;
+
+                    if (!headerWritten)
+                    {
+                        foreach (var col in columns)
+                        {
+                            csv.WriteField(col.Name);
+                        }
+                        await csv.NextRecordAsync();
+                        headerWritten = true;
+                    }
 
                     foreach (var col in columns)
                     {
-                        csv.WriteField(col.Name);
-                    }
-                    await csv.NextRecordAsync();
-                    isFirstRow = false;
-                }
-                else
-                {
-                    doc = string.IsNullOrWhiteSpace(row.AnswersModel)
-                        ? null
-                        : JsonDocument.Parse(row.AnswersModel);
-                }
-
-                using (doc)
-                {
-                    foreach (var col in columns!)
-                    {
                         csv.WriteField(col.GetFormattedValue(row, doc));
                     }
+                    await csv.NextRecordAsync();
                 }
-
-                await csv.NextRecordAsync();
             }
 
+            await streamWriter.FlushAsync();
             await writer.FlushAsync(cancellationToken);
 
-            var fileExport = new FileExport(
-                fileName: GetFileName(options, null, FileExtension),
-                contentType: ContentType);
-
-            return Result<FileExport>.Success(fileExport);
+            return Result<FileExport>.Success(new FileExport(ContentType, GetFileName(options, firstRow, FileExtension)));
         }
         catch (Exception ex)
         {

@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
@@ -68,13 +69,9 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
     /// </summary>
     protected virtual string GetFileName(ExportOptions? options, SubmissionExportRow? firstRow, string extension)
     {
-        long? formId = null;
-        if (options?.Metadata?.TryGetValue("FormId", out var value) == true)
-        {
-            formId = value as long?;
-        }
-
-        formId ??= firstRow?.FormId;
+        var formId = options?.Metadata?.TryGetValue("FormId", out var value) == true
+            ? Convert.ToInt64(value)
+            : firstRow?.FormId;
 
         return formId != null
             ? $"submissions-{formId}.{extension}"
@@ -82,43 +79,56 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
     }
 
     /// <summary>
-    /// Initializes columns and returns the pre-parsed JsonDocument for the first row to avoid double parsing.
+    /// Centralized iterator that handles column discovery and JSON document lifecycle.
     /// </summary>
-    protected (List<ColumnDefinition<SubmissionExportRow>> Columns, JsonDocument? FirstRowDoc) GetInitialContext(SubmissionExportRow firstRow, ExportOptions? options)
+    protected async IAsyncEnumerable<(SubmissionExportRow Row, JsonDocument? Doc, List<ColumnDefinition<SubmissionExportRow>> Columns)>
+        GetStreamContextAsync(
+            IAsyncEnumerable<SubmissionExportRow> records,
+            ExportOptions? options,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        JsonDocument? firstRowDoc = null;
-        if (!string.IsNullOrWhiteSpace(firstRow.AnswersModel))
-        {
-            try
-            {
-                firstRowDoc = JsonDocument.Parse(firstRow.AnswersModel);
-            }
-            catch (JsonException ex)
-            {
-                _logger.LogWarning(ex, "Failed to parse JSON for first row {Id}", firstRow.Id);
-            }
-        }
+        List<ColumnDefinition<SubmissionExportRow>>? columns = null;
 
-        var columns = BuildColumnsFromDoc(firstRowDoc, options).ToList();
-        return (columns, firstRowDoc);
+        await foreach (var row in records.WithCancellation(cancellationToken))
+        {
+            JsonDocument? doc = null;
+
+            if (columns == null)
+            {
+                // First row: initialize columns and parse the doc
+                if (!string.IsNullOrWhiteSpace(row.AnswersModel))
+                {
+                    try
+                    {
+                        doc = JsonDocument.Parse(row.AnswersModel);
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse JSON for first row {Id}", row.Id);
+                    }
+                }
+                columns = BuildColumns(doc, options);
+            }
+            else
+            {
+                // Subsequent rows: parse doc if model exists
+                doc = string.IsNullOrWhiteSpace(row.AnswersModel) ? null : JsonDocument.Parse(row.AnswersModel);
+            }
+
+            yield return (row, doc, columns);
+        }
     }
 
-    private IEnumerable<ColumnDefinition<SubmissionExportRow>> BuildColumnsFromDoc(JsonDocument? doc, ExportOptions? options)
+    private List<ColumnDefinition<SubmissionExportRow>> BuildColumns(JsonDocument? doc, ExportOptions? options)
     {
-        List<string> questionNames = [];
-        if (doc is not null)
-        {
-            questionNames = doc.RootElement.EnumerateObject()
-                .Select(p => p.Name)
-                .ToList();
-        }
-
+        var questionNames = doc?.RootElement.EnumerateObject().Select(p => p.Name).ToList() ?? [];
         var allNames = _staticColumnAccessors.Keys.Concat(questionNames).ToList();
 
         var selectedNames = (options?.Columns?.Any() == true)
            ? options.Columns.Where(allNames.Contains)
            : allNames;
 
+        var result = new List<ColumnDefinition<SubmissionExportRow>>();
         foreach (var name in selectedNames)
         {
             var col = _staticColumnAccessors.ContainsKey(name)
@@ -130,7 +140,10 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
                 col.WithTransformer(transformer);
             }
 
-            yield return col;
+            // Optimization: Pre-calculate JSON name for the writer
+            col.JsonPropertyName = JsonNamingPolicy.CamelCase.ConvertName(name);
+            result.Add(col);
         }
+        return result;
     }
 }

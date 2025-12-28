@@ -24,41 +24,22 @@ public sealed class SubmissionJsonExporter(ILogger<SubmissionJsonExporter> logge
         try
         {
             using var stream = writer.AsStream();
-            using var jsonWriter = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+            await using var jsonWriter = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
 
             jsonWriter.WriteStartArray();
+            SubmissionExportRow? firstRow = null;
 
-            List<ColumnDefinition<SubmissionExportRow>>? columns = null;
-            var isFirstRow = true;
-
-            await foreach (var row in records.WithCancellation(cancellationToken))
+            await foreach (var (row, doc, columns) in GetStreamContextAsync(records, options, cancellationToken))
             {
-                JsonDocument? doc = null;
-
-                if (isFirstRow)
+                using (doc) // Ensure the document is disposed after each row
                 {
-                    (columns, doc) = GetInitialContext(row, options);
-                    isFirstRow = false;
-                }
-                else
-                {
-                    doc = string.IsNullOrWhiteSpace(row.AnswersModel)
-                        ? null
-                        : JsonDocument.Parse(row.AnswersModel);
-                }
-
-                using (doc)
-                {
+                    firstRow ??= row;
                     jsonWriter.WriteStartObject();
-
-                    foreach (var col in columns!)
+                    foreach (var col in columns)
                     {
-                        var value = col.ExtractValue(row, doc);
-                        jsonWriter.WritePropertyName(JsonNamingPolicy.CamelCase.ConvertName(col.Name));
-
-                        WriteValue(jsonWriter, value);
+                        jsonWriter.WritePropertyName(col.JsonPropertyName);
+                        WriteValue(jsonWriter, col.ExtractValue(row, doc));
                     }
-
                     jsonWriter.WriteEndObject();
                 }
             }
@@ -67,11 +48,7 @@ public sealed class SubmissionJsonExporter(ILogger<SubmissionJsonExporter> logge
             await jsonWriter.FlushAsync(cancellationToken);
             await writer.FlushAsync(cancellationToken);
 
-            var fileExport = new FileExport(
-                fileName: GetFileName(options, null, FileExtension),
-                contentType: ContentType);
-
-            return Result<FileExport>.Success(fileExport);
+            return Result<FileExport>.Success(new FileExport(ContentType, GetFileName(options, firstRow, FileExtension)));
         }
         catch (Exception ex)
         {
