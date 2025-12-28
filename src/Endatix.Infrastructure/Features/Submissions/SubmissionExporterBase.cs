@@ -1,5 +1,4 @@
 using System.IO.Pipelines;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
@@ -15,9 +14,6 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
 {
     protected const string NOT_AVAILABLE_VALUE = "N/A";
 
-    /// <summary>
-    /// The logger to use for the exporter.
-    /// </summary>
     protected readonly ILogger _logger = logger;
 
     private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
@@ -45,6 +41,9 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
     public abstract string ContentType { get; }
 
     /// <inheritdoc/>
+    public Type ItemType => typeof(SubmissionExportRow);
+
+    /// <inheritdoc/>
     public virtual Task<Result<FileExport>> GetHeadersAsync(ExportOptions? options, CancellationToken cancellationToken)
     {
         try
@@ -67,10 +66,6 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
     /// <summary>
     /// Gets the file name for the export.
     /// </summary>
-    /// <param name="options">The export options.</param>
-    /// <param name="firstRow">The first row of the export.</param>
-    /// <param name="extension">The extension of the export.</param>
-    /// <returns>The file name for the export.</returns>
     protected virtual string GetFileName(ExportOptions? options, SubmissionExportRow? firstRow, string extension)
     {
         long? formId = null;
@@ -87,36 +82,38 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
     }
 
     /// <summary>
-    /// Prepares the records for export by building the column definitions and building the records.
+    /// Initializes columns and returns the pre-parsed JsonDocument for the first row to avoid double parsing.
     /// </summary>
-    /// <param name="records">The records to prepare.</param>
-    /// <param name="options">The export options.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>An asynchronous enumerable of dictionaries representing the records.</returns>
-    protected async IAsyncEnumerable<IDictionary<string, object?>> PrepareRecordsAsync(
-        IAsyncEnumerable<SubmissionExportRow> records,
-        ExportOptions? options,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+    protected (List<ColumnDefinition<SubmissionExportRow>> Columns, JsonDocument? FirstRowDoc) GetInitialContext(SubmissionExportRow firstRow, ExportOptions? options)
     {
-        List<ColumnDefinition<SubmissionExportRow>>? columns = null;
-
-        await foreach (var row in records.WithCancellation(cancellationToken))
+        JsonDocument? firstRowDoc = null;
+        if (!string.IsNullOrWhiteSpace(firstRow.AnswersModel))
         {
-            columns ??= BuildColumns(row, options).ToList();
-            yield return BuildSingleRecord(row, columns);
+            try
+            {
+                firstRowDoc = JsonDocument.Parse(firstRow.AnswersModel);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse JSON for first row {Id}", firstRow.Id);
+            }
         }
+
+        var columns = BuildColumnsFromDoc(firstRowDoc, options).ToList();
+        return (columns, firstRowDoc);
     }
 
-    /// <summary>
-    /// Builds the column definitions based on entity columns, question names, and options.
-    /// </summary>
-    /// <param name="row">The first row of the export.</param>
-    /// <param name="options">The export options.</param>
-    protected virtual IEnumerable<ColumnDefinition<SubmissionExportRow>> BuildColumns(SubmissionExportRow row, ExportOptions? options)
+    private IEnumerable<ColumnDefinition<SubmissionExportRow>> BuildColumnsFromDoc(JsonDocument? doc, ExportOptions? options)
     {
-        var questionNames = ExtractQuestionNames(row);
-        var allNames = _staticColumnAccessors.Keys
-                            .Concat(questionNames).ToList();
+        List<string> questionNames = [];
+        if (doc is not null)
+        {
+            questionNames = doc.RootElement.EnumerateObject()
+                .Select(p => p.Name)
+                .ToList();
+        }
+
+        var allNames = _staticColumnAccessors.Keys.Concat(questionNames).ToList();
 
         var selectedNames = (options?.Columns?.Any() == true)
            ? options.Columns.Where(allNames.Contains)
@@ -124,8 +121,8 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
 
         foreach (var name in selectedNames)
         {
-            ColumnDefinition<SubmissionExportRow> col = _staticColumnAccessors.ContainsKey(name)
-                ? new StaticColumnDefinition<SubmissionExportRow>(name, _staticColumnAccessors[name])
+            var col = _staticColumnAccessors.ContainsKey(name)
+                ? (ColumnDefinition<SubmissionExportRow>)new StaticColumnDefinition<SubmissionExportRow>(name, _staticColumnAccessors[name])
                 : new JsonColumnDefinition<SubmissionExportRow>(name, name);
 
             if (options?.Transformers?.TryGetValue(name, out var transformer) == true)
@@ -135,71 +132,5 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
 
             yield return col;
         }
-    }
-
-    /// <summary>
-    /// Builds a dictionary representing a single record by parsing JSON once per row.
-    /// </summary>
-    /// <param name="row">The row to build the record for.</param>
-    /// <param name="columns">The columns definitions to build the record for.</param>
-    /// <returns>A dictionary representing the record.</returns>
-    protected IDictionary<string, object?> BuildSingleRecord(SubmissionExportRow row, IEnumerable<ColumnDefinition<SubmissionExportRow>> columns)
-    {
-        var record = new Dictionary<string, object?>();
-        try
-        {
-            using var document = string.IsNullOrWhiteSpace(row.AnswersModel) ? null : JsonDocument.Parse(row.AnswersModel);
-            foreach (var columnDef in columns)
-            {
-                try
-                {
-                    record[columnDef.Name] = columnDef.GetFormattedValue(row, document);
-                }
-                catch (JsonException ex)
-                {
-                    _logger.LogWarning(ex, "Failed to parse JSON answers for row ID {RowId}. Form ID: {FormId}.", row.Id, row.FormId);
-                }
-            }
-            return record;
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogWarning(ex, "Failed to parse JSON answers for row ID {RowId}. Form ID: {FormId}.",
-                row.Id, row.FormId);
-
-            // On parsing error, still include static columns
-            foreach (var columnDef in columns)
-            {
-                if (columnDef is StaticColumnDefinition<SubmissionExportRow>)
-                {
-                    record[columnDef.Name] = columnDef.GetFormattedValue(row, null);
-                }
-                else
-                {
-                    record[columnDef.Name] = NOT_AVAILABLE_VALUE;
-                }
-            }
-            return record;
-        }
-    }
-
-    /// <summary>
-    /// Extracts the question names from the answers model.
-    /// </summary>
-    /// <param name="row">The row to extract the question names from.</param>
-    /// <returns>The question names.</returns>
-    private static List<string> ExtractQuestionNames(SubmissionExportRow row)
-    {
-        if (string.IsNullOrWhiteSpace(row.AnswersModel))
-        {
-            return [];
-        }
-
-        try
-        {
-            using var doc = JsonDocument.Parse(row.AnswersModel);
-            return doc.RootElement.EnumerateObject().Select(p => p.Name).ToList();
-        }
-        catch (JsonException) { return []; }
     }
 }

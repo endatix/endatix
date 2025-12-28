@@ -19,9 +19,6 @@ public sealed class SubmissionCsvExporter(ILogger<SubmissionCsvExporter> logger)
     public override string Format => "csv";
     public override string ContentType => "text/csv";
 
-    /// <summary>
-    /// Streams the export directly to the provided PipeWriter.
-    /// </summary>
     public override async Task<Result<FileExport>> StreamExportAsync(
         IAsyncEnumerable<SubmissionExportRow> records,
         ExportOptions? options,
@@ -37,27 +34,38 @@ public sealed class SubmissionCsvExporter(ILogger<SubmissionCsvExporter> logger)
             using var csv = new CsvWriter(streamWriter, new CsvConfiguration(CultureInfo.InvariantCulture));
 
             List<ColumnDefinition<SubmissionExportRow>>? columns = null;
+            var isFirstRow = true;
 
             await foreach (var row in records.WithCancellation(cancellationToken))
             {
-                if (columns is null)
+                JsonDocument? doc = null;
+
+                if (isFirstRow)
                 {
-                    columns = BuildColumns(row, options).ToList();
+                    (columns, doc) = GetInitialContext(row, options);
+
                     foreach (var col in columns)
                     {
                         csv.WriteField(col.Name);
                     }
                     await csv.NextRecordAsync();
+                    isFirstRow = false;
                 }
-
-                using var jsonDoc = string.IsNullOrWhiteSpace(row.AnswersModel)
-                    ? null
-                    : JsonDocument.Parse(row.AnswersModel);
-
-                foreach (var column in columns)
+                else
                 {
-                    csv.WriteField(column.GetFormattedValue(row, jsonDoc));
+                    doc = string.IsNullOrWhiteSpace(row.AnswersModel)
+                        ? null
+                        : JsonDocument.Parse(row.AnswersModel);
                 }
+
+                using (doc)
+                {
+                    foreach (var col in columns!)
+                    {
+                        csv.WriteField(col.GetFormattedValue(row, doc));
+                    }
+                }
+
                 await csv.NextRecordAsync();
             }
 
