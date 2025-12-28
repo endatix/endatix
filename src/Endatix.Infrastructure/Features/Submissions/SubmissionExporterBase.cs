@@ -119,7 +119,7 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
         }
     }
 
-    private List<ColumnDefinition<SubmissionExportRow>> BuildColumns(JsonDocument? doc, ExportOptions? options)
+    private static List<ColumnDefinition<SubmissionExportRow>> BuildColumns(JsonDocument? doc, ExportOptions? options)
     {
         var questionNames = doc?.RootElement.EnumerateObject().Select(p => p.Name).ToList() ?? [];
         var allNames = _staticColumnAccessors.Keys.Concat(questionNames).ToList();
