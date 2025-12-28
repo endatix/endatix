@@ -11,25 +11,27 @@ namespace Endatix.Infrastructure.Features.Submissions;
 /// <summary>
 /// Base class for submission exporters to reuse common logic for streaming and header generation.
 /// </summary>
-public abstract class SubmissionExporterBase : IExporter<SubmissionExportRow>
+public abstract class SubmissionExporterBase(ILogger logger) : IExporter<SubmissionExportRow>
 {
     protected const string NOT_AVAILABLE_VALUE = "N/A";
-    protected readonly ILogger _logger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SubmissionExporterBase"/> class.
+    /// The logger to use for the exporter.
     /// </summary>
-    /// <param name="logger">The logger to use for the exporter.</param>
-    protected SubmissionExporterBase(ILogger logger)
+    protected readonly ILogger _logger = logger;
+
+    private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
     {
-        _logger = logger;
-    }
+        [nameof(SubmissionExportRow.FormId)] = row => row.FormId,
+        [nameof(SubmissionExportRow.Id)] = row => row.Id,
+        [nameof(SubmissionExportRow.IsComplete)] = row => row.IsComplete,
+        [nameof(SubmissionExportRow.CreatedAt)] = row => row.CreatedAt,
+        [nameof(SubmissionExportRow.ModifiedAt)] = row => row.ModifiedAt,
+        [nameof(SubmissionExportRow.CompletedAt)] = row => row.CompletedAt
+    };
 
     /// <inheritdoc/>
     public abstract string Format { get; }
-
-    /// <inheritdoc/>
-    public Type ItemType => typeof(SubmissionExportRow);
 
     /// <summary>
     /// Gets the extension of the exported file. Example: "json", "csv", "xlsx".
@@ -42,7 +44,6 @@ public abstract class SubmissionExporterBase : IExporter<SubmissionExportRow>
     /// </summary>
     public abstract string ContentType { get; }
 
-
     /// <inheritdoc/>
     public virtual Task<Result<FileExport>> GetHeadersAsync(ExportOptions? options, CancellationToken cancellationToken)
     {
@@ -50,6 +51,7 @@ public abstract class SubmissionExporterBase : IExporter<SubmissionExportRow>
         {
             var fileName = GetFileName(options, null, FileExtension);
             var fileExport = new FileExport(ContentType, fileName);
+
             return Task.FromResult(Result<FileExport>.Success(fileExport));
         }
         catch (Exception ex)
@@ -113,11 +115,12 @@ public abstract class SubmissionExporterBase : IExporter<SubmissionExportRow>
     protected virtual IEnumerable<ColumnDefinition<SubmissionExportRow>> BuildColumns(SubmissionExportRow row, ExportOptions? options)
     {
         var questionNames = ExtractQuestionNames(row);
-        List<string> allColumnNames = [.. _staticColumnAccessors.Keys, .. questionNames];
+        var allNames = _staticColumnAccessors.Keys
+                            .Concat(questionNames).ToList();
 
         var selectedNames = (options?.Columns?.Any() == true)
-           ? options.Columns.Where(allColumnNames.Contains)
-           : allColumnNames;
+           ? options.Columns.Where(allNames.Contains)
+           : allNames;
 
         foreach (var name in selectedNames)
         {
@@ -129,6 +132,7 @@ public abstract class SubmissionExporterBase : IExporter<SubmissionExportRow>
             {
                 col.WithTransformer(transformer);
             }
+
             yield return col;
         }
     }
@@ -184,7 +188,7 @@ public abstract class SubmissionExporterBase : IExporter<SubmissionExportRow>
     /// </summary>
     /// <param name="row">The row to extract the question names from.</param>
     /// <returns>The question names.</returns>
-    private List<string> ExtractQuestionNames(SubmissionExportRow row)
+    private static List<string> ExtractQuestionNames(SubmissionExportRow row)
     {
         if (string.IsNullOrWhiteSpace(row.AnswersModel))
         {
@@ -198,14 +202,4 @@ public abstract class SubmissionExporterBase : IExporter<SubmissionExportRow>
         }
         catch (JsonException) { return []; }
     }
-
-    private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
-    {
-        [nameof(SubmissionExportRow.FormId)] = row => row.FormId,
-        [nameof(SubmissionExportRow.Id)] = row => row.Id,
-        [nameof(SubmissionExportRow.IsComplete)] = row => row.IsComplete,
-        [nameof(SubmissionExportRow.CreatedAt)] = row => row.CreatedAt,
-        [nameof(SubmissionExportRow.ModifiedAt)] = row => row.ModifiedAt,
-        [nameof(SubmissionExportRow.CompletedAt)] = row => row.CompletedAt
-    };
 }

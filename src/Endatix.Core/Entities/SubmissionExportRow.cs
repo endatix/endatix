@@ -2,11 +2,11 @@ namespace Endatix.Core.Entities;
 
 public class SubmissionExportRow
 {
-    public long FormId { get; set; }
-    public long Id { get; set; }
+    public long FormId { get; init; }
+    public long Id { get; init; }
     public bool IsComplete { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? ModifiedAt { get; set; }
-    public DateTime? CompletedAt { get; set; }
-    public string AnswersModel { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; init; }
+    public DateTime? ModifiedAt { get; init; }
+    public DateTime? CompletedAt { get; init; }
+    public string AnswersModel { get; init; } = string.Empty;
 } 
