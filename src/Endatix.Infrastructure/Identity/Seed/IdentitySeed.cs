@@ -1,7 +1,7 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Logging;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -76,7 +76,7 @@ namespace Endatix.Infrastructure.Identity.Seed
             {
                 logger.LogError(
                                     "❌ Failed to register initial user {Email}. Errors: {Errors}. ValidationErrors: {ValidationErrors}",
-                                    email,
+                                    SensitiveValue.Email(email),
                                     string.Join(", ", registerUserResult.Errors!),
                                     string.Join(", ", registerUserResult.ValidationErrors!));
                 return;
@@ -94,7 +94,7 @@ namespace Endatix.Infrastructure.Identity.Seed
                 return;
             }
 
-            logger.LogInformation("👤 Initial user {Email} created successfully! Please use it to authenticate.", email);
+            logger.LogInformation("👤 Initial user {Email} created successfully! Please use it to authenticate.", SensitiveValue.Email(email));
             logger.LogWarning("🔐 The default password can be found in the configuration file under Endatix:Data:InitialUser. Please change the password after logging in and delete the InitialUser section from the configuration file.");
         }
     }
