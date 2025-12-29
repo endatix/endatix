@@ -135,12 +135,11 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
                 ? (ColumnDefinition<SubmissionExportRow>)new StaticColumnDefinition<SubmissionExportRow>(name, _staticColumnAccessors[name])
                 : new JsonColumnDefinition<SubmissionExportRow>(name, name);
 
-            if (options?.Transformers?.TryGetValue(name, out var transformer) is true)
+            if (options?.Transformers is not null && options.Transformers.TryGetValue(name, out var transformer))
             {
                 col.WithTransformer(transformer);
             }
 
-            // Optimization: Pre-calculate JSON name for the writer
             col.JsonPropertyName = JsonNamingPolicy.CamelCase.ConvertName(name);
             result.Add(col);
         }
