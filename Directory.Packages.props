@@ -16,7 +16,7 @@
     <PackageVersion Include="FastEndpoints.Security" Version="7.1.1" />
     <PackageVersion Include="FastEndpoints.Swagger" Version="7.1.1" />
     <PackageVersion Include="FastEndpoints.Testing" Version="7.1.1" />
-    <PackageVersion Include="FluentAssertions" Version="8.8.0" />
+    <PackageVersion Include="FluentAssertions" Version="7.2.0" />
     <PackageVersion Include="FluentValidation" Version="12.0.0" />
     <PackageVersion Include="IdGen" Version="3.0.7" />
     <PackageVersion Include="MediatR" Version="12.4.1" />
