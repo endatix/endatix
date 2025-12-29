@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Account;
 using Endatix.Core.Features.Email;
+using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
@@ -26,7 +27,7 @@ public class ResetPasswordHandler(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to send password changed email to {Email}", request.Email);
+                logger.LogError(ex, "Failed to send password changed email to {Email}", SensitiveValue.Email(request.Email));
             }
 
             return Result.Success("Password changed successfully");
