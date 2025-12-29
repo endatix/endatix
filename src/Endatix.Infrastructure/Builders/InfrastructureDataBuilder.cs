@@ -44,16 +44,19 @@ public class InfrastructureDataBuilder
 
         Services.AddHybridCache();
         Services.AddHttpContextAccessor();
-        
+
         Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         Services.AddScoped<IUnitOfWork, AppUnitOfWork>();
         Services.AddSingleton<EfCoreValueGeneratorFactory>();
         Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         Services.AddScoped<IFormsRepository, FormsRepository>();
-        Services.AddScoped<IExporterFactory, ExporterFactory>();
-        Services.AddScoped<IExporter<SubmissionExportRow>, SubmissionCsvExporter>();
-        Services.AddScoped<ISubmissionFileExtractor, SubmissionFileExtractor>();
         Services.AddSingleton<DataSeeder>();
+
+        // Add exporters
+        Services.AddScoped<IExporterFactory, ExporterFactory>();
+        Services.AddScoped<ISubmissionFileExtractor, SubmissionFileExtractor>();
+        Services.AddExporter<SubmissionExportRow, SubmissionCsvExporter>();
+        Services.AddExporter<SubmissionExportRow, SubmissionJsonExporter>();
 
         LogSetupInfo("Data infrastructure configured successfully");
         return this;

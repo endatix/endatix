@@ -12,6 +12,12 @@ public abstract class ColumnDefinition<T> where T : class
     public string Name { get; }
 
     /// <summary>
+    /// The JSON property name (typically camelCase) for JSON exports.
+    /// Pre-calculated during column initialization for performance.
+    /// </summary>
+    public string JsonPropertyName { get; set; } = string.Empty;
+
+    /// <summary>
     /// Optional function to transform the value for presentation.
     /// </summary>
     public Func<object?, string>? Transformer { get; private set; }

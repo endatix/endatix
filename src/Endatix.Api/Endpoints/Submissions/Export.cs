@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using MediatR;
 using Endatix.Core.Infrastructure.Result;
 using System.Text.Json;
-using System.IO.Pipelines;
 using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -61,7 +60,22 @@ public class Export : Endpoint<ExportRequest>
                 Metadata = new Dictionary<string, object> { ["FormId"] = request.FormId }
             };
 
-            var exporter = _exporterFactory.GetExporter<SubmissionExportRow>("csv");
+            // Use format from request, default to "csv"
+            var format = string.IsNullOrWhiteSpace(request.ExportFormat)
+                ? "csv"
+                : request.ExportFormat;
+
+            IExporter<SubmissionExportRow> exporter;
+            try
+            {
+                exporter = _exporterFactory.GetExporter<SubmissionExportRow>(format);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Unsupported export format requested: {Format}", format);
+                await SetErrorResponse(ex.Message, StatusCodes.Status400BadRequest);
+                return;
+            }
             var headersResult = await exporter.GetHeadersAsync(options, cancellationToken);
 
             if (!headersResult.IsSuccess)
