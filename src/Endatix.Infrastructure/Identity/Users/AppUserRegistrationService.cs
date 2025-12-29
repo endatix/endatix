@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Features.Email;
+using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,7 @@ namespace Endatix.Infrastructure.Identity.Users;
 /// Implements the user registration service.
 /// </summary>
 public class AppUserRegistrationService(
-    UserManager<AppUser> userManager, 
+    UserManager<AppUser> userManager,
     IUserStore<AppUser> userStore,
     IEmailVerificationService emailVerificationService,
     IEmailSender emailSender,
@@ -81,7 +82,7 @@ public class AppUserRegistrationService(
             {
                 return Result.Invalid(new ValidationError("The email is already registered."));
             }
-            
+
             var resultErrors = new ErrorList(createUserResult.Errors.Select(error => $"Error code: {error.Code}. {error.Description}"));
             return Result.Error(resultErrors);
         }
@@ -95,28 +96,28 @@ public class AppUserRegistrationService(
                 try
                 {
                     var emailModel = emailTemplateService.CreateVerificationEmail(
-                        email, 
+                        email,
                         tokenResult.Value!.Token);
 
                     await emailSender.SendEmailAsync(emailModel, cancellationToken);
 
-                    logger.LogInformation("Verification email sent successfully to {Email} during registration", email);
+                    logger.LogInformation("Verification email sent successfully to {Email} during registration", SensitiveValue.Email(email));
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Failed to send verification email to {Email} during registration", email);
+                    logger.LogError(ex, "Failed to send verification email to {Email} during registration", SensitiveValue.Email(email));
                 }
             }
             else
             {
                 // Log token creation failure
-                logger.LogError("Failed to create verification token for user: {Email} (UserId: {UserId}). Errors: {Errors}", 
-                    email, newUser.Id, string.Join(", ", tokenResult.ValidationErrors.Select(e => e.ErrorMessage)));
+                logger.LogError("Failed to create verification token for user: {Email} (UserId: {UserId}). Errors: {Errors}",
+                    SensitiveValue.Email(email), newUser.Id, string.Join(", ", tokenResult.ValidationErrors.Select(e => e.ErrorMessage)));
             }
         }
         else
         {
-            logger.LogInformation("Skipping email verification for {Email} - email is already confirmed", email);
+            logger.LogInformation("Skipping email verification for {Email} - email is already confirmed", SensitiveValue.Email(email));
         }
 
         // If token creation or email sending fails, we should still return success but log the error
