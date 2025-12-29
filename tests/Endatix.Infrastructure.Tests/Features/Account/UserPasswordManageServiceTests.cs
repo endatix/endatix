@@ -1,12 +1,11 @@
 using System.Text;
+using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Features.Account;
 using Endatix.Infrastructure.Identity;
-using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
-using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
 namespace Endatix.Infrastructure.Tests.Features.Account;
@@ -41,7 +40,7 @@ public class UserPasswordManageServiceTests
         _userManager.GeneratePasswordResetTokenAsync(user).Returns(token);
 
         // Act
-        var result = await _service.GeneratePasswordResetTokenAsync(email);
+        var result = await _service.GeneratePasswordResetTokenAsync(email, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -57,10 +56,10 @@ public class UserPasswordManageServiceTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
-    public async Task GeneratePasswordResetTokenAsync_WithNullOrWhiteSpaceEmail_ReturnsInvalidResult(string email)
+    public async Task GeneratePasswordResetTokenAsync_WithNullOrWhiteSpaceEmail_ReturnsInvalidResult(string? email)
     {
         // Act
-        var result = await _service.GeneratePasswordResetTokenAsync(email);
+        var result = await _service.GeneratePasswordResetTokenAsync(email!, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -82,7 +81,7 @@ public class UserPasswordManageServiceTests
         _userManager.FindByEmailAsync(email).Returns(user);
 
         // Act
-        var result = await _service.GeneratePasswordResetTokenAsync(email);
+        var result = await _service.GeneratePasswordResetTokenAsync(email, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -105,7 +104,7 @@ public class UserPasswordManageServiceTests
         _userManager.IsEmailConfirmedAsync(user).Returns(false);
 
         // Act
-        var result = await _service.GeneratePasswordResetTokenAsync(email);
+        var result = await _service.GeneratePasswordResetTokenAsync(email, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -130,7 +129,7 @@ public class UserPasswordManageServiceTests
         _userManager.GeneratePasswordResetTokenAsync(user)!.Returns(token);
 
         // Act
-        var result = await _service.GeneratePasswordResetTokenAsync(email);
+        var result = await _service.GeneratePasswordResetTokenAsync(email, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -161,7 +160,7 @@ public class UserPasswordManageServiceTests
         _userManager.ResetPasswordAsync(user, Arg.Any<string>(), newPassword).Returns(identityResult);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -183,7 +182,7 @@ public class UserPasswordManageServiceTests
     public async Task ResetPasswordAsync_WithNullOrEmptyInputs_ReturnsInvalidResult(string? email, string? resetCode, string? newPassword)
     {
         // Act
-        var result = await _service.ResetPasswordAsync(email!, resetCode!, newPassword!);
+        var result = await _service.ResetPasswordAsync(email!, resetCode!, newPassword!, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -207,7 +206,7 @@ public class UserPasswordManageServiceTests
         _userManager.FindByEmailAsync(email).Returns(user);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -233,7 +232,7 @@ public class UserPasswordManageServiceTests
         _userManager.IsEmailConfirmedAsync(user).Returns(false);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -258,7 +257,7 @@ public class UserPasswordManageServiceTests
         _userManager.IsEmailConfirmedAsync(user).Returns(true);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -287,7 +286,7 @@ public class UserPasswordManageServiceTests
         _userManager.ResetPasswordAsync(user, originalCode, newPassword).Returns(identityResult);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -312,7 +311,7 @@ public class UserPasswordManageServiceTests
         _userManager.ResetPasswordAsync(user, Arg.Any<string>(), newPassword).Returns(identityResult);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -333,12 +332,14 @@ public class UserPasswordManageServiceTests
         var user = new AppUser { Email = email, EmailConfirmed = true };
         var unexpectedException = new InvalidOperationException("Database connection failed");
 
+        var maskedEmail = SensitiveValue.Email(email);
+
         _userManager.FindByEmailAsync(email).Returns(user);
         _userManager.IsEmailConfirmedAsync(user).Returns(true);
         _userManager.ResetPasswordAsync(user, Arg.Any<string>(), newPassword).ThrowsAsync(unexpectedException);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -346,7 +347,13 @@ public class UserPasswordManageServiceTests
         result.Errors.Should().Contain("Could not reset password. Please try again or contact support.");
 
         await _userManager.Received(1).ResetPasswordAsync(user, Arg.Any<string>(), newPassword);
-        _logger.Received(1).LogError(unexpectedException, "An unexpected error occurred while resetting the password");
+        
+        _logger.Received().Log(
+            LogLevel.Error,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(state => state.ToString()!.Equals($"An unexpected error occurred while resetting the password for user {maskedEmail}")),
+            unexpectedException,
+            Arg.Any<Func<object, Exception?, string>>());
     }
 
     [Fact]
@@ -364,7 +371,7 @@ public class UserPasswordManageServiceTests
         _userManager.ResetPasswordAsync(user, Arg.Any<string>(), newPassword).ThrowsAsync(formatException);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -392,7 +399,7 @@ public class UserPasswordManageServiceTests
         _userManager.FindByIdAsync(Arg.Any<string>()).Returns(nullUser);
 
         // Act
-        var result = await _service.ChangePasswordAsync(requestedUser.Id, "currentPass", "newPass");
+        var result = await _service.ChangePasswordAsync(requestedUser.Id, "currentPass", "newPass", TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
@@ -412,7 +419,7 @@ public class UserPasswordManageServiceTests
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
         // Act
-        var result = await _service.ChangePasswordAsync(user.Id, "", "newPass");
+        var result = await _service.ChangePasswordAsync(user.Id, "", "newPass", TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
@@ -432,7 +439,7 @@ public class UserPasswordManageServiceTests
         _userManager.FindByIdAsync(user.Id.ToString()).Returns(user);
 
         // Act
-        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "");
+        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "", TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
@@ -455,7 +462,7 @@ public class UserPasswordManageServiceTests
             .Returns(IdentityResult.Failed(errorDescriber.PasswordMismatch()));
 
         // Act
-        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "newPass");
+        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "newPass", TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
@@ -479,7 +486,7 @@ public class UserPasswordManageServiceTests
             .ThrowsAsync(new Exception("An unexpected error occurred while changing the password"));
 
         // Act
-        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "newPass");
+        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "newPass", TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Error);
@@ -502,7 +509,7 @@ public class UserPasswordManageServiceTests
             .Returns(IdentityResult.Success);
 
         // Act
-        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "newPass");
+        var result = await _service.ChangePasswordAsync(user.Id, "currentPass", "newPass", TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Ok);
@@ -525,7 +532,7 @@ public class UserPasswordManageServiceTests
         _userManager.FindByEmailAsync(email).Returns(user);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -553,7 +560,7 @@ public class UserPasswordManageServiceTests
         _userManager.IsEmailConfirmedAsync(user).Returns(false);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -583,7 +590,7 @@ public class UserPasswordManageServiceTests
         _userManager.ResetPasswordAsync(user, Arg.Any<string>(), newPassword).Returns(identityResult);
 
         // Act
-        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword);
+        var result = await _service.ResetPasswordAsync(email, resetCode, newPassword, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
