@@ -42,7 +42,7 @@ public class LoggingPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TR
                 ? PiiRedactor.Redact(value, sensitiveAttribute.Type)
                 : value;
 
-                _logger.LogInformation("Property {Property} : {@Value}", prop?.Name, redactedValue);
+                _logger.LogInformation("Property {Property} : {@Value}", prop.Name, redactedValue);
             }
         }
 

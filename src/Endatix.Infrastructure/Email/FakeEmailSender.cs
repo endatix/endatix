@@ -16,13 +16,13 @@ public class FakeEmailSender(ILogger<FakeEmailSender> logger) : IEmailSender
 {
     public Task SendEmailAsync(EmailWithBody email, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Not actually sending an email to {to} from {from} with subject {subject}", SensitiveValue.Email(email.To), email.From, email.Subject);
+        logger.LogInformation("Not actually sending an email to {To} from {From} with subject {Subject}", SensitiveValue.Email(email.To), email.From, email.Subject);
         return Task.CompletedTask;
     }
 
     public Task SendEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Not actually sending an email to {to} from {from} with subject {subject}", SensitiveValue.Email(email.To), email.From, email.Subject);
+        logger.LogInformation("Not actually sending an email to {To} from {From} with subject {Subject}", SensitiveValue.Email(email.To), email.From, email.Subject);
         return Task.CompletedTask;
     }
 }
