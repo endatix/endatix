@@ -116,11 +116,6 @@ public class Export : Endpoint<ExportRequest>
             await pipeWriter.CompleteAsync();
             _logger.LogDebug("Successfully exported submissions for form {FormId}", request.FormId);
         }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex, "Invalid export format requested");
-            await SetErrorResponse(ex.Message, StatusCodes.Status400BadRequest);
-        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled error in export endpoint");
