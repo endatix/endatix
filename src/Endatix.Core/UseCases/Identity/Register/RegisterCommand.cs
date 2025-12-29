@@ -7,7 +7,8 @@ namespace Endatix.Core.UseCases.Identity.Register;
 
 public record RegisterCommand(string Email, string Password) : ICommand<Result<User>>
 {
+    [Sensitive(SensitivityType.Email)]
     public string Email { get; init; } = Email;
-    [Sensitive]
+    [Sensitive(SensitivityType.Secret)]
     public string Password { get; init; } = Password;
 }

@@ -6,7 +6,9 @@ namespace Endatix.Core.UseCases.Identity.Login;
 
 public record LoginCommand(string Email, string Password) : ICommand<Result<AuthTokensDto>>
 {
+    [Sensitive(SensitivityType.Email)]
     public string Email { get; init; } = Email;
-    [Sensitive]
+
+    [Sensitive(SensitivityType.Secret)]
     public string Password { get; init; } = Password;
 }

@@ -10,17 +10,18 @@ public record RegisterRequest(string Email, string Password, string ConfirmPassw
     /// <summary>
     /// The email address of the user.
     /// </summary>
+    [Sensitive(SensitivityType.Email)]
     public string Email { get; init; } = Email;
 
     /// <summary>
     /// The password chosen by the user.
     /// </summary>
-    [Sensitive]
+    [Sensitive(SensitivityType.Secret)]
     public string Password { get; init; } = Password;
 
     /// <summary>
     /// The confirmation of the password chosen by the user.
     /// </summary>
-    [Sensitive]
+    [Sensitive(SensitivityType.Secret)]
     public string ConfirmPassword { get; init; } = ConfirmPassword;
 }

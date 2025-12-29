@@ -4,14 +4,15 @@ namespace Endatix.Api.Endpoints.Account;
 
 public sealed record ResetPasswordRequest
 {
+    [Sensitive(SensitivityType.Email)]
     public required string Email { get; init; }
 
-    [Sensitive]
+    [Sensitive(SensitivityType.Secret)]
     public required string ResetCode { get; init; }
 
-    [Sensitive]
+    [Sensitive(SensitivityType.Secret)]
     public required string NewPassword { get; init; }
 
-    [Sensitive]
+    [Sensitive(SensitivityType.Secret)]
     public required string ConfirmPassword { get; init; }
 }
