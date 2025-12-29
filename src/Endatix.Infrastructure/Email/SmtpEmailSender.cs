@@ -10,6 +10,7 @@ using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Ardalis.GuardClauses;
+using Endatix.Core.Infrastructure.Logging;
 
 namespace Endatix.Infrastructure.Email;
 
@@ -24,14 +25,14 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
     private readonly IRepository<EmailTemplate> _templateRepository;
 
     public SmtpEmailSender(
-        ILogger<SmtpEmailSender> logger, 
+        ILogger<SmtpEmailSender> logger,
         IOptions<SmtpSettings> options,
         IRepository<EmailTemplate> templateRepository)
     {
         _logger = logger;
         _settings = options.Value;
         _templateRepository = templateRepository;
-        
+
         Guard.Against.Null(_settings);
         Guard.Against.NullOrEmpty(_settings.Host);
         Guard.Against.NullOrEmpty(_settings.DefaultFromAddress);
@@ -54,8 +55,8 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
 
         await smtpClient.SendMailAsync(mailMessage, cancellationToken);
 
-        _logger.LogInformation("SMTP email sent successfully to {To} with subject {Subject}", 
-            email.To, email.Subject);
+        _logger.LogInformation("SMTP email sent successfully to {To} with subject {Subject}",
+            SensitiveValue.Email(email.To), email.Subject);
     }
 
     public async Task SendEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
@@ -75,10 +76,10 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
 
         var emailWithBody = template.Render(
             email.To,
-            variables, 
-            subject: email.Subject, 
+            variables,
+            subject: email.Subject,
             from: email.From);
-        
+
         await SendEmailAsync(emailWithBody, cancellationToken);
     }
 
@@ -117,12 +118,12 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         if (!string.IsNullOrEmpty(email.HtmlBody) && !string.IsNullOrEmpty(email.PlainTextBody))
         {
             var plainTextView = AlternateView.CreateAlternateViewFromString(
-                email.PlainTextBody, 
-                System.Text.Encoding.UTF8, 
+                email.PlainTextBody,
+                System.Text.Encoding.UTF8,
                 "text/plain");
             mailMessage.AlternateViews.Add(plainTextView);
         }
 
         return mailMessage;
     }
-} 
+}

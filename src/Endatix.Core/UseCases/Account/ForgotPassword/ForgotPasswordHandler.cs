@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Account;
 using Endatix.Core.Features.Email;
+using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
@@ -30,11 +31,12 @@ public class ForgotPasswordHandler(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to send forgot password email to {Email}", request.Email);
+                logger.LogError(ex, "Failed to send forgot password email to {Email}", SensitiveValue.Email(request.Email));
                 return Result.Error(FAILED_TO_SEND_EMAIL_MESSAGE);
             }
         }
 
-        return Result.Success(GENERAL_SUCCESS_MESSAGE); // except for server errors, always return success message to prevent email enumeration attacks
+        // except for server errors, always return success message to prevent email enumeration attacks
+        return Result.Success(GENERAL_SUCCESS_MESSAGE);
     }
 }

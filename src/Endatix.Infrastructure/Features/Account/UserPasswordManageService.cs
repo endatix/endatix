@@ -1,7 +1,7 @@
-using System.Runtime.CompilerServices;
 using System.Text;
 using Endatix.Core.Abstractions.Account;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -46,8 +46,10 @@ public class UserPasswordManageService(
         var user = await userManager.FindByEmailAsync(email);
         if (user is null || !await userManager.IsEmailConfirmedAsync(user))
         {
-            logger.LogWarning("User not found or email not confirmed for email: {Email}", email);
-            return Result.Invalid(new ValidationError("Invalid input")); // Don't leak information about the user's existence
+            logger.LogWarning("User not found or email not confirmed for email: {Email}", SensitiveValue.Email(email));
+
+            // Don't leak information about the user's existence
+            return Result.Invalid(new ValidationError("Invalid input"));
         }
 
         IdentityResult result;
@@ -62,7 +64,8 @@ public class UserPasswordManageService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "An unexpected error occurred while resetting the password");
+            logger.LogError(ex, "An unexpected error occurred while resetting the password for user {Email}", SensitiveValue.Email(email));
+            
             return Result.Error("Could not reset password. Please try again or contact support.");
         }
 

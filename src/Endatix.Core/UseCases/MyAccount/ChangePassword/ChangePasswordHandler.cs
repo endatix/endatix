@@ -4,6 +4,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Account;
 using Endatix.Core.Features.Email;
 using Microsoft.Extensions.Logging;
+using Endatix.Core.Infrastructure.Logging;
 
 namespace Endatix.Core.UseCases.MyAccount.ChangePassword;
 
@@ -41,7 +42,7 @@ public class ChangePasswordHandler(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to send password changed email to {Email}", changePasswordResult.Value.Email);
+                logger.LogError(ex, "Failed to send password changed email to {Email}", SensitiveValue.Email(changePasswordResult.Value.Email));
             }
             return Result.Success("Password changed successfully");
         }

@@ -32,19 +32,17 @@ public class LoggingPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TR
 
             // Reflection! Could be a performance concern
             var myType = request.GetType();
-            IList<PropertyInfo> props = new List<PropertyInfo>(myType.GetProperties());
+            IList<PropertyInfo> props = [.. myType.GetProperties()];
             foreach (var prop in props)
             {
-                object? propValue;
-                if (prop.GetCustomAttribute<SensitiveAttribute>() != null)
-                {
-                    propValue = new string('*', 10);
-                }
-                else
-                {
-                    propValue = prop?.GetValue(request, null);
-                }
-                _logger.LogInformation("Property {Property} : {@Value}", prop?.Name, propValue);
+                var sensitiveAttribute = prop.GetCustomAttribute<SensitiveAttribute>();
+                var value = prop.GetValue(request, null);
+
+                var redactedValue = sensitiveAttribute is not null
+                ? PiiRedactor.Redact(value, sensitiveAttribute.Type)
+                : value;
+
+                _logger.LogInformation("Property {Property} : {@Value}", prop.Name, redactedValue);
             }
         }
 

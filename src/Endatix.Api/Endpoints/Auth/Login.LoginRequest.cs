@@ -1,4 +1,4 @@
-﻿using Endatix.Core.Infrastructure.Attributes;
+﻿using Endatix.Core.Infrastructure.Logging;
 
 namespace Endatix.Api.Endpoints.Auth;
 
@@ -7,6 +7,7 @@ namespace Endatix.Api.Endpoints.Auth;
 /// </summary>
 public record LoginRequest(string Email, string Password)
 {
+    [Sensitive(SensitivityType.Email)]
     /// <summary>
     /// The Email of the user. Must be a valid email address
     /// </summary>
@@ -15,6 +16,6 @@ public record LoginRequest(string Email, string Password)
     /// <summary>
     /// The Password of the account
     /// </summary>
-    [Sensitive]
+    [Sensitive(SensitivityType.Secret)]
     public string Password { get; init; } = Password;
 }
