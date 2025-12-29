@@ -88,7 +88,7 @@ namespace Endatix.Infrastructure.Identity.Seed
             {
                 logger.LogError(
                                     "❌ Failed to assign role to initial user {Email}. Errors: {Errors}. ValidationErrors: {ValidationErrors}",
-                                    email,
+                                    SensitiveValue.Email(email),
                                     string.Join(", ", assignRoleResult.Errors!),
                                     string.Join(", ", assignRoleResult.ValidationErrors!));
                 return;
