@@ -1,4 +1,4 @@
-using Endatix.Core.Infrastructure.Attributes;
+using Endatix.Core.Infrastructure.Logging;
 
 namespace Endatix.Api.Endpoints.Account;
 

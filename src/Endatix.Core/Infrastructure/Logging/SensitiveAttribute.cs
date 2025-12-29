@@ -1,6 +1,4 @@
-using System;
-
-namespace Endatix.Core.Infrastructure.Attributes;
+namespace Endatix.Core.Infrastructure.Logging;
 
 [AttributeUsage(AttributeTargets.Property)]
 public class SensitiveAttribute : Attribute

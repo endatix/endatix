@@ -1,5 +1,5 @@
 using Endatix.Core.Entities.Identity;
-using Endatix.Core.Infrastructure.Attributes;
+using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
