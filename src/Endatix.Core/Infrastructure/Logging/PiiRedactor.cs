@@ -11,8 +11,8 @@ namespace Endatix.Core.Infrastructure.Logging;
 /// </summary>
 public static class PiiRedactor
 {
-    internal const int SECRET_LENGHT_MIN_LENGHT = 5;
-    internal const int SECRET_LENGHT_MAX_LENGHT = 16;
+    internal const int SECRET_LENGTH_MIN_LENGTH = 5;
+    internal const int SECRET_LENGTH_MAX_LENGTH = 16;
     internal const char PHONE_NUMBER_COUNTRY_CODE_PREFIX = '+';
     internal const byte PHONE_NUMBER_VISIBLE_DIGITS = 4;
     internal const byte PHONE_NUMBER_COUNTRY_CODE_MAX_LENGTH = 3;
@@ -81,7 +81,7 @@ public static class PiiRedactor
     /// <returns>A random string of asterisks.</returns>
     internal static string RedactSecret()
     {
-        var maskedSecretLength = _randomGenerator.Next(SECRET_LENGHT_MIN_LENGHT, SECRET_LENGHT_MAX_LENGHT);
+        var maskedSecretLength = _randomGenerator.Next(SECRET_LENGTH_MIN_LENGTH, SECRET_LENGTH_MAX_LENGTH);
         return new string('*', maskedSecretLength);
     }
 

@@ -20,5 +20,5 @@ public sealed class SensitiveAttribute(
     /// <summary>
     /// The type of sensitivity for the property/field/parameter.
     /// </summary>
-    public SensitivityType SensitivityType { get; } = type;
+    public SensitivityType Type { get; } = type;
 }

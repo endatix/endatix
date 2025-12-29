@@ -77,22 +77,29 @@ public class LoggingPipelineBehaviorTests
             .ToList();
         
         logCalls.Should().HaveCount(5);
-        logCalls.Should().ContainInOrder(
-            "Handling TestRequest",
-            "Property Id : 1",
-            "Property Name : Test",
-            "Property Password : **********"
+        logCalls.Should().SatisfyRespectively(
+            s => s.Should().Be("Handling TestRequest"),
+            s => s.Should().Be("Property Id : 1"),
+            s => s.Should().Be("Property Name : T***"),
+            s =>
+            {
+                s.Should().StartWith("Property Password : ");
+                var mask = s.Replace("Property Password : ", "");
+                mask.Should().MatchRegex(@"^\*+$");
+                mask.Length.Should().BeInRange(PiiRedactor.SECRET_LENGTH_MIN_LENGTH, PiiRedactor.SECRET_LENGTH_MAX_LENGTH - 1);
+            },
+            s => s.Should().StartWith($"Handled TestRequest with {response} in")
         );
-        
-        logCalls[4].Should().StartWith($"Handled TestRequest with {response} in");
     }
 
     private class TestRequest : IRequest<TestResponse>
     {
         public int Id { get; set; }
+
+        [Sensitive(SensitivityType.Name)]
         public string Name { get; set; } = string.Empty;
         
-        [Sensitive]
+        [Sensitive(SensitivityType.Secret)]
         public string Password { get; set; } = string.Empty;
     }
 
