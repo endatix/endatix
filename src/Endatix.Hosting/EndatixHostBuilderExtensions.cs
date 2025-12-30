@@ -1,6 +1,8 @@
 using Ardalis.GuardClauses;
 using Endatix.Hosting.Builders;
+using Endatix.Infrastructure.Logging;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Hosting;
 
@@ -21,20 +23,9 @@ public static class EndatixHostBuilderExtensions
     {
         Guard.Against.Null(hostBuilder);
 
-        // Use a basic configure services action to get the configuration and register Endatix
-        hostBuilder.ConfigureServices((context, services) =>
-        {
-            // Create the Endatix builder
-            var builder = services.AddEndatix(context.Configuration);
-            
-            // Apply defaults
-            builder.UseDefaults();
-            
-            // Finalize all configurations to ensure proper initialization
-            builder.FinalizeConfiguration();
-        });
+        return hostBuilder
+                .ConfigureEndatix(builder => builder.UseDefaults());
 
-        return hostBuilder;
     }
 
     /// <summary>
@@ -56,21 +47,23 @@ public static class EndatixHostBuilderExtensions
         Guard.Against.Null(hostBuilder);
         Guard.Against.Null(configureAction);
 
+        hostBuilder.ConfigureLogging(ConfigureDefaultOpenTelemetryLogging);
+
         hostBuilder.ConfigureServices((context, services) =>
         {
             // Create the Endatix builder
             var builder = services.AddEndatix(context.Configuration);
-            
+
             // Apply the configuration action
             configureAction(builder);
-            
+
             // Finalize all configurations to ensure proper initialization
             builder.FinalizeConfiguration();
         });
-        
+
         return hostBuilder;
     }
-    
+
     /// <summary>
     /// First applies default settings, then applies custom configuration.
     /// </summary>
@@ -100,4 +93,36 @@ public static class EndatixHostBuilderExtensions
             configureAction(builder);
         });
     }
-} 
+
+    /// <summary>
+    /// Configures OpenTelemetry logging with custom options.
+    /// </summary>
+    /// <param name="hostBuilder">The host builder.</param>
+    /// <param name="configureLogging">Action to configure OpenTelemetry logging.</param>
+    /// <returns>The host builder for chaining.</returns>
+    /// <example>
+    /// builder.Host.ConfigureEndatixLogging(logging => {
+    ///     logging.AddOpenTelemetry(options => {
+    ///         options.AddConsoleExporter();
+    ///         options.AddOtlpExporter();
+    ///     });
+    /// });
+    /// </example>
+    public static IHostBuilder ConfigureEndatixLogging(
+        this IHostBuilder hostBuilder,
+        Action<ILoggingBuilder> configureLogging)
+    {
+        Guard.Against.Null(hostBuilder);
+        Guard.Against.Null(configureLogging);
+
+        hostBuilder.ConfigureLogging(configureLogging);
+        return hostBuilder;
+    }
+
+    private static void ConfigureDefaultOpenTelemetryLogging(
+       HostBuilderContext context,
+       ILoggingBuilder loggingBuilder)
+    {
+        loggingBuilder.ConfigureOpenTelemetry(context.Configuration);
+    }
+}
