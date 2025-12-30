@@ -1,8 +1,11 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 namespace Endatix.Infrastructure.Logging;
 
@@ -38,8 +41,36 @@ public static class OpenTelemetryConfigurator
             {
                 options.AddAzureMonitorLogExporter(o => o.ConnectionString = azureMonitorConnectionString);
             }
+            else
+            {
+                options.AddOtlpExporter();
+            }
 
             configureActions?.Invoke(options);
         });
+
+        loggingBuilder.Services
+                .AddOpenTelemetry()
+                .WithMetrics(metrics =>
+            {
+                metrics
+                   .AddAspNetCoreInstrumentation()
+                   .AddHttpClientInstrumentation()
+                   .AddView("http.server.request.duration",
+                       new ExplicitBucketHistogramConfiguration
+                       {
+                           Boundaries =
+                               [0, 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10]
+                       }
+                    )
+                    .AddOtlpExporter();
+            })
+                .WithTracing(tracing =>
+                {
+                    tracing
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddOtlpExporter();
+                });
     }
 }
