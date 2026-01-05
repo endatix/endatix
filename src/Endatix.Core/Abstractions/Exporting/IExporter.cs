@@ -33,8 +33,8 @@ public interface IExporter
 /// <summary>
 /// Abstraction for exporting data of a specific type to a stream.
 /// </summary>
-/// <typeparam name="T">The type of records to export.</typeparam>
-public interface IExporter<T> : IExporter where T : class
+/// <typeparam name="T">The type of records to export. Must implement <see cref="IExportItem"/>.</typeparam>
+public interface IExporter<T> : IExporter where T : class, IExportItem
 {
 
     /// <inheritdoc/>

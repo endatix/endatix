@@ -12,14 +12,16 @@ using Endatix.Core.Infrastructure.Result;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
+using Endatix.Core.Entities;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
-/// Represents a validated export operation with resolved format and SQL function name.
+/// Represents a validated export operation with resolved format, item type, and SQL function name.
 /// </summary>
 internal sealed record ValidatedExportOperation(
     string Format,
+    Type ItemType,
     string? SqlFunctionName
 );
 
@@ -84,11 +86,12 @@ public class Export : Endpoint<ExportRequest>
             IExporter exporter;
             try
             {
-                exporter = _exporterFactory.GetExporter(validatedExportOperation.Format);
+                exporter = _exporterFactory.GetExporter(validatedExportOperation.Format, validatedExportOperation.ItemType);
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Unsupported export format requested: {Format}", validatedExportOperation.Format);
+                _logger.LogWarning(ex, "Unsupported export format requested: {Format} for type {ItemType}",
+                    validatedExportOperation.Format, validatedExportOperation.ItemType.Name);
                 await SetErrorResponse(ex.Message, StatusCodes.Status400BadRequest);
                 return;
             }
@@ -131,7 +134,7 @@ public class Export : Endpoint<ExportRequest>
 
             if (!result.IsSuccess)
             {
-                await HandleErrorResult(result);
+                await SetErrorResponse(string.Join(", ", result.Errors), StatusCodes.Status500InternalServerError);
                 return;
             }
 
@@ -185,29 +188,68 @@ public class Export : Endpoint<ExportRequest>
                 return Result.Invalid(new ValidationError($"Export configuration {request.ExportId.Value} has no format specified"));
             }
 
-            var exportIdBasedOperation = new ValidatedExportOperation(exportConfig.Format, exportConfig.SqlFunctionName);
+            var itemType = ResolveExportItemType(exportConfig.ItemTypeName);
+            if (itemType is null)
+            {
+                return Result.Invalid(new ValidationError(
+                    $"Export configuration {request.ExportId.Value} has invalid ItemTypeName: {exportConfig.ItemTypeName}"));
+            }
+
+            if (!typeof(IExportItem).IsAssignableFrom(itemType))
+            {
+                _logger.LogWarning("Export configuration {RequestExportId} specifies type {ItemTypeName} which does not implement IExportItem",
+                    request.ExportId.Value, exportConfig.ItemTypeName);
+                return Result.Invalid(new ValidationError($"Invalid item type: {exportConfig.ItemTypeName}"));
+            }
+
+            var exportIdBasedOperation = new ValidatedExportOperation(
+                exportConfig.Format,
+                itemType,
+                exportConfig.SqlFunctionName);
             return Result.Success(exportIdBasedOperation);
         }
 
         var format = string.IsNullOrWhiteSpace(request.ExportFormat) ? DEFAULT_EXPORT_FORMAT : request.ExportFormat;
-        var formatBasedExportOperation = new ValidatedExportOperation(format, null);
+        var defaultItemType = typeof(Endatix.Core.Entities.SubmissionExportRow);
+        var formatBasedExportOperation = new ValidatedExportOperation(format, defaultItemType, null);
         return Result.Success(formatBasedExportOperation);
     }
 
-    private async Task<bool> HandleErrorResult<T>(Result<T> result)
+    /// <summary>
+    /// Resolves the Type from a fully qualified type name string.
+    /// Optimized to search only in relevant assemblies (Endatix.Core) first,
+    /// then falls back to all assemblies if not found.
+    /// </summary>
+    private static Type? ResolveExportItemType(string? typeName)
     {
-        if (result.Status == ResultStatus.NotFound)
+        if (string.IsNullOrWhiteSpace(typeName))
         {
-            await SetErrorResponse("Form not found", StatusCodes.Status404NotFound);
-            return true;
+            return typeof(SubmissionExportRow);
         }
 
-        _logger.LogError("Export failed due to: {Errors}", string.Join(", ", result.Errors));
-        await SetErrorResponse(string.Join(", ", result.Errors));
-        return true;
+        // Try to resolve from all loaded assemblies (Type.GetType searches mscorlib and calling assembly)
+        var type = Type.GetType(typeName, false);
+        if (type is not null && typeof(IExportItem).IsAssignableFrom(type))
+        {
+            return type;
+        }
+
+        var endatixCoreAssembly = typeof(IExportItem).Assembly;
+        type = endatixCoreAssembly.GetType(typeName, false);
+        if (type is not null && typeof(IExportItem).IsAssignableFrom(type))
+        {
+            return type;
+        }
+
+        return null;
     }
 
-
+    /// <summary>
+    /// Sets the error response for the current HTTP context.
+    /// </summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="statusCode">The status code to set.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task SetErrorResponse(string message, int? statusCode = null)
     {
         if (!HttpContext.Response.HasStarted)

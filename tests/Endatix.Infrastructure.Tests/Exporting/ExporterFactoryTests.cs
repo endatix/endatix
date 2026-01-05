@@ -88,7 +88,7 @@ public sealed class ExporterFactoryTests
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(
-            () => factory.GetExporter<Form>("csv"));
+            () => factory.GetExporter<TestExportItem>("csv"));
         Assert.Contains("No exporter registered", exception.Message);
     }
 
@@ -132,7 +132,7 @@ public sealed class ExporterFactoryTests
         var factory = new ExporterFactory(exporters);
 
         // Act
-        var supportedExporters = factory.GetSupportedExporters<Form>();
+        var supportedExporters = factory.GetSupportedExporters<TestExportItem>();
 
         // Assert
         Assert.Empty(supportedExporters);
@@ -194,7 +194,7 @@ public sealed class ExporterFactoryTests
         var factory = new ExporterFactory(exporters);
 
         // Act
-        var formats = factory.GetSupportedFormats<Form>();
+        var formats = factory.GetSupportedFormats<TestExportItem>();
 
         // Assert
         Assert.Empty(formats);
@@ -210,6 +210,10 @@ public sealed class ExporterFactoryTests
         // Assert
         Assert.Empty(factory.GetSupportedFormats<SubmissionExportRow>());
         Assert.Throws<InvalidOperationException>(() => factory.GetExporter<SubmissionExportRow>("csv"));
+    }
+
+    private class TestExportItem : IExportItem
+    {
     }
 }
 

@@ -1,6 +1,11 @@
+using Endatix.Core.Abstractions.Exporting;
+
 namespace Endatix.Core.Entities;
 
-public class SubmissionExportRow
+/// <summary>
+/// Represents a row of submission data for export operations.
+/// </summary>
+public class SubmissionExportRow : IExportItem
 {
     public long FormId { get; init; }
     public long Id { get; init; }

@@ -26,6 +26,13 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
         {
             // Use reflection to call the generic ExecuteExportAsync method based on the exporter's item type
             var itemType = request.Exporter.ItemType;
+
+            if (!typeof(IExportItem).IsAssignableFrom(itemType))
+            {
+                _logger.LogWarning("Exporter {Exporter} has item type {ItemType} which does not implement IExportItem", request.Exporter, itemType.Name);
+                return Result.Invalid(new ValidationError($"Invalid item type: {itemType.Name}"));
+            }
+
             var method = typeof(SubmissionsExportHandler)
                 .GetMethod(nameof(ExecuteExportAsync), BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Could not find ExecuteExportAsync method");
@@ -42,7 +49,7 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
         }
     }
 
-    private async Task<Result<FileExport>> ExecuteExportAsync<T>(SubmissionsExportQuery request, CancellationToken cancellationToken) where T : class
+    private async Task<Result<FileExport>> ExecuteExportAsync<T>(SubmissionsExportQuery request, CancellationToken cancellationToken) where T : class, IExportItem
     {
         var exportRows = _exportRepository.GetExportRowsAsync<T>(request.FormId, request.SqlFunctionName, cancellationToken);
         var exporter = (IExporter<T>)request.Exporter;

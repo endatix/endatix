@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
@@ -14,7 +15,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         _dbContext = dbContext;
     }
 
-    public IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, CancellationToken cancellationToken) where T : class
+    public IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, CancellationToken cancellationToken) where T : class, IExportItem
     {
         var procedureName = sqlFunctionName ?? "export_form_submissions";
         var sql = "EXEC dbo." + procedureName + " @form_id";
