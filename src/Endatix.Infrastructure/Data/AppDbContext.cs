@@ -40,6 +40,8 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<SubmissionExportRow> SubmissionExportRows { get; set; }
 
+    public DbSet<DynamicExportRow> DynamicExportRows { get; set; }
+
     public DbSet<EmailTemplate> EmailTemplates { get; set; }
 
     public DbSet<TenantSettings> TenantSettings { get; set; }
@@ -56,6 +58,10 @@ public class AppDbContext : DbContext, ITenantDbContext
         builder.ApplyConfigurationsFor<AppDbContext>(Endatix.Infrastructure.AssemblyReference.Assembly);
 
         builder.Entity<SubmissionExportRow>()
+            .HasNoKey()
+            .ToTable(t => t.ExcludeFromMigrations());
+
+        builder.Entity<DynamicExportRow>()
             .HasNoKey()
             .ToTable(t => t.ExcludeFromMigrations());
 

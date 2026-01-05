@@ -3,32 +3,20 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
-using Endatix.Core.Specifications;
-using Endatix.Core.Abstractions;
-using Endatix.Core.Infrastructure.Domain;
-using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
+using System.Reflection;
 
 namespace Endatix.Core.UseCases.Submissions.Export;
 
 public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExportQuery, Result<FileExport>>
 {
     private readonly ISubmissionExportRepository _exportRepository;
-    private readonly IFormsRepository _formsRepository;
-    private readonly IRepository<TenantSettingsEntity> _tenantSettingsRepository;
-    private readonly ITenantContext _tenantContext;
     private readonly ILogger<SubmissionsExportHandler> _logger;
 
     public SubmissionsExportHandler(
         ISubmissionExportRepository exportRepository,
-        IFormsRepository formsRepository,
-        IRepository<TenantSettingsEntity> tenantSettingsRepository,
-        ITenantContext tenantContext,
         ILogger<SubmissionsExportHandler> logger)
     {
         _exportRepository = exportRepository;
-        _formsRepository = formsRepository;
-        _tenantSettingsRepository = tenantSettingsRepository;
-        _tenantContext = tenantContext;
         _logger = logger;
     }
 
@@ -36,25 +24,16 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
     {
         try
         {
-            // Get options with FormId in metadata
-            var options = request.GetOptionsWithFormId();
-            var form = await _formsRepository.GetByIdAsync(request.FormId, cancellationToken);
-            if (form is null)
-            {
-                return Result<FileExport>.NotFound($"Form with ID {request.FormId} not found");
-            }
+            // Use reflection to call the generic ExecuteExportAsync method based on the exporter's item type
+            var itemType = request.Exporter.ItemType;
+            var method = typeof(SubmissionsExportHandler)
+                .GetMethod(nameof(ExecuteExportAsync), BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Could not find ExecuteExportAsync method");
 
-            var sqlFunctionName = await GetSqlFunctionName(request.ExportId, cancellationToken);
+            var genericMethod = method.MakeGenericMethod(itemType);
+            var task = (Task<Result<FileExport>>)genericMethod.Invoke(this, new object?[] { request, cancellationToken })!;
 
-            // Get the export data stream
-            var exportRows = _exportRepository.GetExportRowsAsync(request.FormId, sqlFunctionName, cancellationToken);
-            
-            // Stream the export directly to the provided output writer
-            return await request.Exporter.StreamExportAsync(
-                records: exportRows,
-                options: options,
-                cancellationToken: cancellationToken,
-                writer: request.OutputWriter);
+            return await task;
         }
         catch (Exception ex)
         {
@@ -63,29 +42,15 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
         }
     }
 
-    private async Task<string?> GetSqlFunctionName(long? exportId, CancellationToken cancellationToken)
+    private async Task<Result<FileExport>> ExecuteExportAsync<T>(SubmissionsExportQuery request, CancellationToken cancellationToken) where T : class
     {
-        if (!exportId.HasValue)
-        {
-            return null;
-        }
+        var exportRows = _exportRepository.GetExportRowsAsync<T>(request.FormId, request.SqlFunctionName, cancellationToken);
+        var exporter = (IExporter<T>)request.Exporter;
 
-        var spec = new TenantSettingsByTenantIdSpec(_tenantContext.TenantId);
-        var tenantSettings = await _tenantSettingsRepository.FirstOrDefaultAsync(spec, cancellationToken);
-        if (tenantSettings is null)
-        {
-            _logger.LogWarning("No tenant settings found for tenant {TenantId}", _tenantContext.TenantId);
-            return null;
-        }
-
-        var customExports = tenantSettings.CustomExports;
-        var exportConfig = customExports.FirstOrDefault(e => e.Id == exportId.Value);
-        if (exportConfig is null)
-        {
-            _logger.LogWarning("Export with ID {ExportId} not found for tenant {TenantId}", exportId.Value, _tenantContext.TenantId);
-            return null;
-        }
-
-        return exportConfig.SqlFunctionName;
+        return await exporter.StreamExportAsync(
+            records: exportRows,
+            options: request.Options,
+            cancellationToken: cancellationToken,
+            writer: request.OutputWriter);
     }
 }

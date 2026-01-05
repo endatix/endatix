@@ -4,9 +4,10 @@ using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Exporting.ColumnDefinitions;
 using Microsoft.Extensions.Logging;
 
-namespace Endatix.Infrastructure.Features.Submissions;
+namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 
 /// <summary>
 /// Base class for submission exporters to reuse common logic for streaming and header generation.

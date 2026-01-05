@@ -19,4 +19,9 @@ public class CustomExportConfiguration
     /// The name of the SQL function to call for the custom export.
     /// </summary>
     public required string SqlFunctionName { get; set; }
+
+    /// <summary>
+    /// The format identifier for the exporter to use (e.g., "csv", "json", "shoji").
+    /// </summary>
+    public string? Format { get; set; }
 }

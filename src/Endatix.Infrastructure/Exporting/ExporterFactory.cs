@@ -31,6 +31,20 @@ internal sealed class ExporterFactory : IExporterFactory
     }
 
     /// <inheritdoc/>
+    public IExporter GetExporter(string format)
+    {
+        var exporter = _exporters
+                .FirstOrDefault(e => e.Format.Equals(format, StringComparison.OrdinalIgnoreCase));
+
+        if (exporter is null)
+        {
+            throw new InvalidOperationException($"No exporter registered for format {format}");
+        }
+
+        return exporter;
+    }
+
+    /// <inheritdoc/>
     public IReadOnlyList<Type> GetSupportedExporters<T>() where T : class => _exporters
         .Where(e => e.ItemType == typeof(T))
         .Select(e => e.GetType())

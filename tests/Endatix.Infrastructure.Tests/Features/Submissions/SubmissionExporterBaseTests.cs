@@ -3,7 +3,8 @@ using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Infrastructure.Exporting.ColumnDefinitions;
+using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Tests.Features.Submissions;

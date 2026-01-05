@@ -14,6 +14,13 @@ public interface IExporterFactory
     IExporter<T> GetExporter<T>(string format) where T : class;
 
     /// <summary>
+    /// Gets any exporter registered for the specified format.
+    /// </summary>
+    /// <param name="format">The export format.</param>
+    /// <returns>An exporter for the specified format.</returns>
+    IExporter GetExporter(string format);
+
+    /// <summary>
     /// Gets all exporters for the specified record type.
     /// </summary>
     /// <typeparam name="T">The type of records to export.</typeparam>

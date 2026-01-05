@@ -14,22 +14,14 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         _dbContext = dbContext;
     }
 
-    public IAsyncEnumerable<SubmissionExportRow> GetExportRowsAsync(long formId, string? sqlFunctionName, CancellationToken cancellationToken)
+    public IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, CancellationToken cancellationToken) where T : class
     {
         var functionName = sqlFunctionName ?? "export_form_submissions";
 
-        var sql = $@"
-            SELECT
-                ""FormId"",
-                ""Id"",
-                ""IsComplete"",
-                ""CompletedAt"",
-                ""CreatedAt"",
-                ""ModifiedAt"",
-                ""AnswersModel""::text AS ""AnswersModel""
-            FROM {functionName}({{0}})";
+        // For dynamic types we might need to handle the SQL differently if they don't share the same schema as SubmissionExportRow. For now, we assume the function name handles the return type mapping
+        var sql = $@"SELECT * FROM {functionName}({{0}})";
 
-        return _dbContext.Set<SubmissionExportRow>()
+        return _dbContext.Set<T>()
             .FromSqlRaw(sql, formId)
             .AsNoTracking()
             .AsAsyncEnumerable();

@@ -17,6 +17,17 @@ public interface IExporter
     /// Gets the type of items that this exporter can export.
     /// </summary>
     Type ItemType { get; }
+
+    /// <summary>
+    /// Gets the HTTP headers for the export without processing data.
+    /// This is a non-generic method that can be called without knowing the specific type.
+    /// </summary>
+    /// <param name="options">Export options.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Export headers or error information.</returns>
+    Task<Result<FileExport>> GetHeadersAsync(
+        ExportOptions? options,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -45,14 +56,4 @@ public interface IExporter<T> : IExporter where T : class
         ExportOptions? options,
         CancellationToken cancellationToken,
         PipeWriter writer);
-
-    /// <summary>
-    /// Gets the HTTP headers for the export without processing data.
-    /// </summary>
-    /// <param name="options">Export options.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Export headers or error information.</returns>
-    Task<Result<FileExport>> GetHeadersAsync(
-        ExportOptions? options,
-        CancellationToken cancellationToken);
 }
