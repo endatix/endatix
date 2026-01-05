@@ -85,7 +85,7 @@ public sealed class StaticColumnDefinition<T> : ColumnDefinition<T> where T : cl
         _accessor = accessor;
     }
 
-    public override object? ExtractValue(T row, JsonDocument? _) => _accessor(row);
+    public override object? ExtractValue(T row, JsonDocument? document) => _accessor(row);
 }
 
 /// <summary>

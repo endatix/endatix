@@ -19,6 +19,12 @@ public interface IExporter
     Type ItemType { get; }
 
     /// <summary>
+    /// Gets the content type of the exported file.
+    /// Example: "application/json", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".
+    /// </summary>
+    string ContentType { get; }
+
+    /// <summary>
     /// Gets the HTTP headers for the export without processing data.
     /// This is a non-generic method that can be called without knowing the specific type.
     /// </summary>

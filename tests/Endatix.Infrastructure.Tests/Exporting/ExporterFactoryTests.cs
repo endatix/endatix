@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Exporting;
+using Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Microsoft.Extensions.Logging;
 
@@ -10,15 +11,19 @@ public sealed class ExporterFactoryTests
 {
     private readonly ILogger<SubmissionCsvExporter> _csvLogger;
     private readonly ILogger<SubmissionJsonExporter> _jsonLogger;
+    private readonly ILogger<CodebookJsonExporter> _codebookLogger;
     private readonly SubmissionCsvExporter _csvExporter;
     private readonly SubmissionJsonExporter _jsonExporter;
+    private readonly CodebookJsonExporter _codebookExporter;
 
     public ExporterFactoryTests()
     {
         _csvLogger = Substitute.For<ILogger<SubmissionCsvExporter>>();
         _jsonLogger = Substitute.For<ILogger<SubmissionJsonExporter>>();
+        _codebookLogger = Substitute.For<ILogger<CodebookJsonExporter>>();
         _csvExporter = new SubmissionCsvExporter(_csvLogger);
         _jsonExporter = new SubmissionJsonExporter(_jsonLogger);
+        _codebookExporter = new CodebookJsonExporter(_codebookLogger);
     }
 
     [Fact]
@@ -211,6 +216,157 @@ public sealed class ExporterFactoryTests
         Assert.Empty(factory.GetSupportedFormats<SubmissionExportRow>());
         Assert.Throws<InvalidOperationException>(() => factory.GetExporter<SubmissionExportRow>("csv"));
     }
+
+    #region GetExporter(string format, Type itemType) Tests
+
+    [Fact]
+    public void GetExporter_WithFormatAndType_ShouldReturnCsvExporter_WhenFormatIsCsv()
+    {
+        // Arrange
+        var exporters = new IExporter[] { _csvExporter, _jsonExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act
+        var exporter = factory.GetExporter("csv", typeof(SubmissionExportRow));
+
+        // Assert
+        Assert.IsType<SubmissionCsvExporter>(exporter);
+        Assert.Equal("csv", exporter.Format);
+        Assert.Equal(typeof(SubmissionExportRow), exporter.ItemType);
+    }
+
+    [Fact]
+    public void GetExporter_WithFormatAndType_ShouldReturnJsonExporter_WhenFormatIsJson()
+    {
+        // Arrange
+        var exporters = new IExporter[] { _csvExporter, _jsonExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act
+        var exporter = factory.GetExporter("json", typeof(SubmissionExportRow));
+
+        // Assert
+        Assert.IsType<SubmissionJsonExporter>(exporter);
+        Assert.Equal("json", exporter.Format);
+        Assert.Equal(typeof(SubmissionExportRow), exporter.ItemType);
+    }
+
+    [Fact]
+    public void GetExporter_WithFormatAndType_ShouldReturnCodebookExporter_WhenFormatIsCodebook()
+    {
+        // Arrange
+        var exporters = new IExporter[] { _csvExporter, _jsonExporter, _codebookExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act
+        var exporter = factory.GetExporter("codebook", typeof(DynamicExportRow));
+
+        // Assert
+        Assert.IsType<CodebookJsonExporter>(exporter);
+        Assert.Equal("codebook", exporter.Format);
+        Assert.Equal(typeof(DynamicExportRow), exporter.ItemType);
+    }
+
+    [Fact]
+    public void GetExporter_WithFormatAndType_ShouldBeCaseInsensitive()
+    {
+        // Arrange
+        var exporters = new IExporter[] { _csvExporter, _jsonExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act & Assert
+        Assert.IsType<SubmissionCsvExporter>(factory.GetExporter("CSV", typeof(SubmissionExportRow)));
+        Assert.IsType<SubmissionCsvExporter>(factory.GetExporter("Csv", typeof(SubmissionExportRow)));
+        Assert.IsType<SubmissionJsonExporter>(factory.GetExporter("JSON", typeof(SubmissionExportRow)));
+        Assert.IsType<SubmissionJsonExporter>(factory.GetExporter("Json", typeof(SubmissionExportRow)));
+    }
+
+    [Fact]
+    public void GetExporter_WithFormatAndType_ShouldThrow_WhenFormatNotFound()
+    {
+        // Arrange
+        var exporters = new IExporter[] { _csvExporter, _jsonExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => factory.GetExporter("xlsx", typeof(SubmissionExportRow)));
+        Assert.Contains("No exporter registered", exception.Message);
+        Assert.Contains("xlsx", exception.Message);
+        Assert.Contains("SubmissionExportRow", exception.Message);
+    }
+
+    [Fact]
+    public void GetExporter_WithFormatAndType_ShouldThrow_WhenTypeNotFound()
+    {
+        // Arrange
+        var exporters = new IExporter[] { _csvExporter, _jsonExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => factory.GetExporter("csv", typeof(TestExportItem)));
+        Assert.Contains("No exporter registered", exception.Message);
+        Assert.Contains("csv", exception.Message);
+        Assert.Contains("TestExportItem", exception.Message);
+    }
+
+    [Fact]
+    public void GetExporter_WithFormatAndType_ShouldThrow_WhenFormatMatchesButTypeDoesNot()
+    {
+        // Arrange
+        var exporters = new IExporter[] { _csvExporter, _jsonExporter, _codebookExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act & Assert
+        // "codebook" format exists but for DynamicExportRow, not SubmissionExportRow
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => factory.GetExporter("codebook", typeof(SubmissionExportRow)));
+        Assert.Contains("No exporter registered", exception.Message);
+        Assert.Contains("codebook", exception.Message);
+        Assert.Contains("SubmissionExportRow", exception.Message);
+    }
+
+    [Fact]
+    public void GetExporter_WithFormatAndType_ShouldReturnFirstMatch_WhenMultipleExportersForSameFormatAndType()
+    {
+        // Arrange - Create a duplicate CSV exporter
+        var duplicateCsvExporter = new SubmissionCsvExporter(_csvLogger);
+        var exporters = new IExporter[] { _csvExporter, duplicateCsvExporter, _jsonExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act
+        var exporter = factory.GetExporter("csv", typeof(SubmissionExportRow));
+
+        // Assert
+        Assert.NotNull(exporter);
+        Assert.IsType<SubmissionCsvExporter>(exporter);
+        Assert.Equal("csv", exporter.Format);
+        Assert.Equal(typeof(SubmissionExportRow), exporter.ItemType);
+    }
+
+    [Fact]
+    public void GetExporter_WithFormatAndType_ShouldDistinguishBetweenDifferentTypesWithSameFormat()
+    {
+        // Arrange
+        // Note: In practice, we might have different exporters for different types with same format
+        // For now, we test that the method correctly matches both format and type
+        var exporters = new IExporter[] { _csvExporter, _jsonExporter, _codebookExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act
+        var submissionExporter = factory.GetExporter("csv", typeof(SubmissionExportRow));
+        var codebookExporter = factory.GetExporter("codebook", typeof(DynamicExportRow));
+
+        // Assert
+        Assert.IsType<SubmissionCsvExporter>(submissionExporter);
+        Assert.Equal(typeof(SubmissionExportRow), submissionExporter.ItemType);
+
+        Assert.IsType<CodebookJsonExporter>(codebookExporter);
+        Assert.Equal(typeof(DynamicExportRow), codebookExporter.ItemType);
+    }
+
+    #endregion
 
     private class TestExportItem : IExportItem
     {

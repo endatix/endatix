@@ -36,14 +36,11 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
     /// </summary>
     public virtual string FileExtension => Format;
 
-    /// <summary>
-    /// Gets the content type of the exported file.
-    /// Example: "application/json", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".
-    /// </summary>
-    public abstract string ContentType { get; }
-
     /// <inheritdoc/>
     public Type ItemType => typeof(SubmissionExportRow);
+
+    /// <inheritdoc/>
+    public abstract string ContentType { get; }
 
     /// <inheritdoc/>
     public virtual Task<Result<FileExport>> GetHeadersAsync(ExportOptions? options, CancellationToken cancellationToken)
