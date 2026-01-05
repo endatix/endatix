@@ -1,9 +1,10 @@
 using MediatR;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Endatix.Core.UseCases.Submissions.Export;
 
@@ -24,7 +25,6 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
     {
         try
         {
-            // Use reflection to call the generic ExecuteExportAsync method based on the exporter's item type
             var itemType = request.Exporter.ItemType;
 
             if (!typeof(IExportItem).IsAssignableFrom(itemType))
@@ -33,14 +33,11 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
                 return Result.Invalid(new ValidationError($"Invalid item type: {itemType.Name}"));
             }
 
-            var method = typeof(SubmissionsExportHandler)
-                .GetMethod(nameof(ExecuteExportAsync), BindingFlags.NonPublic | BindingFlags.Instance)
-                ?? throw new InvalidOperationException("Could not find ExecuteExportAsync method");
-
-            var genericMethod = method.MakeGenericMethod(itemType);
-            var task = (Task<Result<FileExport>>)genericMethod.Invoke(this, new object?[] { request, cancellationToken })!;
-
-            return await task;
+            return await request.Exporter.StreamExportAsync(
+                getDataAsync: type => GetExportRowsByType(type, request.FormId, request.SqlFunctionName, cancellationToken),
+                options: request.Options,
+                cancellationToken: cancellationToken,
+                writer: request.OutputWriter);
         }
         catch (Exception ex)
         {
@@ -49,15 +46,29 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
         }
     }
 
-    private async Task<Result<FileExport>> ExecuteExportAsync<T>(SubmissionsExportQuery request, CancellationToken cancellationToken) where T : class, IExportItem
+    private async IAsyncEnumerable<IExportItem> GetExportRowsByType(
+        Type itemType,
+        long formId,
+        string? sqlFunctionName,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var exportRows = _exportRepository.GetExportRowsAsync<T>(request.FormId, request.SqlFunctionName, cancellationToken);
-        var exporter = (IExporter<T>)request.Exporter;
-
-        return await exporter.StreamExportAsync(
-            records: exportRows,
-            options: request.Options,
-            cancellationToken: cancellationToken,
-            writer: request.OutputWriter);
+        if (itemType == typeof(SubmissionExportRow))
+        {
+            await foreach (var item in _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, sqlFunctionName, cancellationToken))
+            {
+                yield return item;
+            }
+        }
+        else if (itemType == typeof(DynamicExportRow))
+        {
+            await foreach (var item in _exportRepository.GetExportRowsAsync<DynamicExportRow>(formId, sqlFunctionName, cancellationToken))
+            {
+                yield return item;
+            }
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unsupported export item type: {itemType.Name}");
+        }
     }
 }
