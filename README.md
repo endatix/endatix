@@ -10,7 +10,9 @@ Endatix is a free form management backend API designed to integrate with the [Su
 
 It provides REST API endpoints for CRUD operations and the management of forms, templates, submissions, themes, custom form fields, and more. It can be used to build self-hosted or SaaS solutions that focus on collecting information from [humans](https://en.wikipedia.org/wiki/Human) in industries such as market research, legal, insurance, finance, education, healthcare, and more.
 
-This API project is the core of the [Endatix Hub](https://endatix.com) form management system for business users, offering a complete UI, seamless integration with the [SurveyJS Creator](https://github.com/surveyjs/survey-creator) form-building tool, and an [AI assistant](https://www.youtube.com/watch?v=aX_Hm4WYsEE).
+This API project is the core of the [Endatix Hub](https://github.com/endatix/endatix-hub) form management system for business users, offering a complete UI, seamless integration with the [SurveyJS Creator](https://github.com/surveyjs/survey-creator) form-building tool, and an [AI assistant](https://www.youtube.com/watch?v=aX_Hm4WYsEE).
+
+For more information visit https://endatix.com
 
 ## Table of Contents
 - [Features](#features)
