@@ -1,34 +1,23 @@
 using MediatR;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
-using Endatix.Core.Specifications;
-using Endatix.Core.Abstractions;
-using Endatix.Core.Infrastructure.Domain;
-using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
+using System.Runtime.CompilerServices;
 
 namespace Endatix.Core.UseCases.Submissions.Export;
 
 public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExportQuery, Result<FileExport>>
 {
     private readonly ISubmissionExportRepository _exportRepository;
-    private readonly IFormsRepository _formsRepository;
-    private readonly IRepository<TenantSettingsEntity> _tenantSettingsRepository;
-    private readonly ITenantContext _tenantContext;
     private readonly ILogger<SubmissionsExportHandler> _logger;
 
     public SubmissionsExportHandler(
         ISubmissionExportRepository exportRepository,
-        IFormsRepository formsRepository,
-        IRepository<TenantSettingsEntity> tenantSettingsRepository,
-        ITenantContext tenantContext,
         ILogger<SubmissionsExportHandler> logger)
     {
         _exportRepository = exportRepository;
-        _formsRepository = formsRepository;
-        _tenantSettingsRepository = tenantSettingsRepository;
-        _tenantContext = tenantContext;
         _logger = logger;
     }
 
@@ -36,23 +25,17 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
     {
         try
         {
-            // Get options with FormId in metadata
-            var options = request.GetOptionsWithFormId();
-            var form = await _formsRepository.GetByIdAsync(request.FormId, cancellationToken);
-            if (form is null)
+            var itemType = request.Exporter.ItemType;
+
+            if (!typeof(IExportItem).IsAssignableFrom(itemType))
             {
-                return Result<FileExport>.NotFound($"Form with ID {request.FormId} not found");
+                _logger.LogWarning("Exporter {Exporter} has item type {ItemType} which does not implement IExportItem", request.Exporter, itemType.Name);
+                return Result.Invalid(new ValidationError($"Invalid item type: {itemType.Name}"));
             }
 
-            var sqlFunctionName = await GetSqlFunctionName(request.ExportId, cancellationToken);
-
-            // Get the export data stream
-            var exportRows = _exportRepository.GetExportRowsAsync(request.FormId, sqlFunctionName, cancellationToken);
-            
-            // Stream the export directly to the provided output writer
             return await request.Exporter.StreamExportAsync(
-                records: exportRows,
-                options: options,
+                getDataAsync: type => GetExportRowsByType(type, request.FormId, request.SqlFunctionName, cancellationToken),
+                options: request.Options,
                 cancellationToken: cancellationToken,
                 writer: request.OutputWriter);
         }
@@ -63,29 +46,29 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
         }
     }
 
-    private async Task<string?> GetSqlFunctionName(long? exportId, CancellationToken cancellationToken)
+    private async IAsyncEnumerable<IExportItem> GetExportRowsByType(
+        Type itemType,
+        long formId,
+        string? sqlFunctionName,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (!exportId.HasValue)
+        if (itemType == typeof(SubmissionExportRow))
         {
-            return null;
+            await foreach (var item in _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, sqlFunctionName, cancellationToken))
+            {
+                yield return item;
+            }
         }
-
-        var spec = new TenantSettingsByTenantIdSpec(_tenantContext.TenantId);
-        var tenantSettings = await _tenantSettingsRepository.FirstOrDefaultAsync(spec, cancellationToken);
-        if (tenantSettings is null)
+        else if (itemType == typeof(DynamicExportRow))
         {
-            _logger.LogWarning("No tenant settings found for tenant {TenantId}", _tenantContext.TenantId);
-            return null;
+            await foreach (var item in _exportRepository.GetExportRowsAsync<DynamicExportRow>(formId, sqlFunctionName, cancellationToken))
+            {
+                yield return item;
+            }
         }
-
-        var customExports = tenantSettings.CustomExports;
-        var exportConfig = customExports.FirstOrDefault(e => e.Id == exportId.Value);
-        if (exportConfig is null)
+        else
         {
-            _logger.LogWarning("Export with ID {ExportId} not found for tenant {TenantId}", exportId.Value, _tenantContext.TenantId);
-            return null;
+            throw new InvalidOperationException($"Unsupported export item type: {itemType.Name}");
         }
-
-        return exportConfig.SqlFunctionName;
     }
 }

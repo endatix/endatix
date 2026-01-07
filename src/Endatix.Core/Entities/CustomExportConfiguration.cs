@@ -19,4 +19,15 @@ public class CustomExportConfiguration
     /// The name of the SQL function to call for the custom export.
     /// </summary>
     public required string SqlFunctionName { get; set; }
+
+    /// <summary>
+    /// The format identifier for the exporter to use (e.g., "csv", "json", "codebook").
+    /// </summary>
+    public string? Format { get; set; }
+
+    /// <summary>
+    /// The fully qualified type name of the export row type (e.g., "Endatix.Core.Entities.SubmissionExportRow").
+    /// Used to uniquely identify the exporter when multiple exporters share the same format.
+    /// </summary>
+    public string? ItemTypeName { get; set; }
 }

@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+namespace Endatix.Infrastructure.Exporting.ColumnDefinitions;
+
 /// <summary>
 /// Represents an abstract base column definition for exporting data.
 /// The type T is the type of the row to be exported.
@@ -83,7 +85,7 @@ public sealed class StaticColumnDefinition<T> : ColumnDefinition<T> where T : cl
         _accessor = accessor;
     }
 
-    public override object? ExtractValue(T row, JsonDocument? _) => _accessor(row);
+    public override object? ExtractValue(T row, JsonDocument? document) => _accessor(row);
 }
 
 /// <summary>
@@ -117,7 +119,7 @@ public sealed class JsonColumnDefinition<T> : ColumnDefinition<T> where T : clas
                 _ => element.ToString()
             };
         }
-        
+
         return null;
     }
 }

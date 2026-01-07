@@ -14,7 +14,7 @@ internal sealed class ExporterFactory : IExporterFactory
         _exporters = exporters;
     }
 
-    public IExporter<T> GetExporter<T>(string format) where T : class
+    public IExporter<T> GetExporter<T>(string format) where T : class, IExportItem
     {
         var exporter = _exporters
                 .Where(e => e.ItemType == typeof(T) &&
@@ -31,7 +31,22 @@ internal sealed class ExporterFactory : IExporterFactory
     }
 
     /// <inheritdoc/>
-    public IReadOnlyList<Type> GetSupportedExporters<T>() where T : class => _exporters
+    public IExporter GetExporter(string format, Type itemType)
+    {
+        var exporter = _exporters
+                .FirstOrDefault(e => e.Format.Equals(format, StringComparison.OrdinalIgnoreCase) &&
+                                     e.ItemType == itemType);
+
+        if (exporter is null)
+        {
+            throw new InvalidOperationException($"No exporter registered for format {format} and type {itemType.Name}");
+        }
+
+        return exporter;
+    }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<Type> GetSupportedExporters<T>() where T : class, IExportItem => _exporters
         .Where(e => e.ItemType == typeof(T))
         .Select(e => e.GetType())
         .Distinct()
@@ -39,7 +54,7 @@ internal sealed class ExporterFactory : IExporterFactory
         .AsReadOnly();
 
     /// <inheritdoc/>
-    public IReadOnlyList<string> GetSupportedFormats<T>() where T : class => _exporters
+    public IReadOnlyList<string> GetSupportedFormats<T>() where T : class, IExportItem => _exporters
         .Where(e => e.ItemType == typeof(T))
         .Select(e => e.Format)
         .Distinct()

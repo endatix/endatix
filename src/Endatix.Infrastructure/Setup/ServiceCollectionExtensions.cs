@@ -137,7 +137,7 @@ public static class ServiceCollectionExtensions
     /// <typeparam name="TExporter">The exporter type to register.</typeparam>
     /// <returns>The service collection with the exporter registered.</returns>
     public static IServiceCollection AddExporter<T, TExporter>(this IServiceCollection services)
-        where T : class
+        where T : class, IExportItem
         where TExporter : class, IExporter<T>
     {
         services.AddScoped<TExporter>();

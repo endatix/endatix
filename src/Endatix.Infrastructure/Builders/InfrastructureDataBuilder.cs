@@ -7,6 +7,8 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Exporting;
+using Endatix.Infrastructure.Exporting.Exporters.Dynamic;
+using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,6 +59,7 @@ public class InfrastructureDataBuilder
         Services.AddScoped<ISubmissionFileExtractor, SubmissionFileExtractor>();
         Services.AddExporter<SubmissionExportRow, SubmissionCsvExporter>();
         Services.AddExporter<SubmissionExportRow, SubmissionJsonExporter>();
+        Services.AddExporter<DynamicExportRow, CodebookJsonExporter>();
 
         LogSetupInfo("Data infrastructure configured successfully");
         return this;

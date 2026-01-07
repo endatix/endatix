@@ -2,7 +2,7 @@ using System.IO.Pipelines;
 using System.Text;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
-using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Tests.Features.Submissions;

@@ -1,15 +1,15 @@
 using System.Globalization;
 using System.IO.Pipelines;
-using System.Text.Json;
 using Ardalis.GuardClauses;
 using CsvHelper;
 using CsvHelper.Configuration;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Exporting.ColumnDefinitions;
 using Microsoft.Extensions.Logging;
 
-namespace Endatix.Infrastructure.Features.Submissions;
+namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 
 /// <summary>
 /// CSV exporter for submission data, optimized for streaming and low memory usage.
