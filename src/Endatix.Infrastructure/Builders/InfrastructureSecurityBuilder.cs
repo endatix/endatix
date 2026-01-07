@@ -1,5 +1,8 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Submissions;
+using Endatix.Framework.Configuration;
+using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
@@ -53,6 +56,10 @@ public class InfrastructureSecurityBuilder
         LogSetupInfo("Configuring security infrastructure with default settings");
 
         Services.AddEndatixSecurityServices(Configuration);
+
+        Services.AddScoped<ISubmissionAccessTokenService, SubmissionAccessTokenService>();
+        Services.AddEndatixOptions<SubmissionAccessTokenOptions>(Configuration);
+
         ConfigureIdentity();
         AddEndatixJwtAuthProvider();
 
