@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Options;
@@ -14,10 +15,15 @@ namespace Endatix.Infrastructure.Features.Submissions;
 internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
 {
     private readonly byte[] _signingKeyBytes;
+    private readonly IDateTimeProvider _dateTimeProvider;
 
-    public SubmissionAccessTokenService(IOptions<SubmissionAccessTokenOptions> options)
+    public SubmissionAccessTokenService(
+        IOptions<SubmissionAccessTokenOptions> options,
+        IDateTimeProvider dateTimeProvider)
     {
         Guard.Against.Null(options);
+        Guard.Against.Null(dateTimeProvider);
+
         var signingKey = options.Value.AccessTokenSigningKey;
         Guard.Against.NullOrWhiteSpace(signingKey);
         if (signingKey.Length < 32)
@@ -26,6 +32,7 @@ internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
         }
 
         _signingKeyBytes = Encoding.UTF8.GetBytes(signingKey);
+        _dateTimeProvider = dateTimeProvider;
     }
 
     /// <inheritdoc />
@@ -43,8 +50,8 @@ internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
             }
         }
 
-        var expiresAt = DateTime.UtcNow.AddMinutes(expiryMinutes);
-        var expiryUnix = new DateTimeOffset(expiresAt).ToUnixTimeSeconds();
+        var expiresAt = _dateTimeProvider.Now.AddMinutes(expiryMinutes);
+        var expiryUnix = expiresAt.ToUnixTimeSeconds();
 
         var permissionsCode = SubmissionAccessTokenPermissions.EncodeNames(permissions);
 
@@ -53,7 +60,7 @@ internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
 
         var token = $"{submissionId}.{expiryUnix}.{permissionsCode}.{signature}";
 
-        return Result.Success(new SubmissionAccessTokenDto(token, expiresAt, permissions));
+        return Result.Success(new SubmissionAccessTokenDto(token, expiresAt.UtcDateTime, permissions));
     }
 
     /// <inheritdoc />
@@ -87,8 +94,8 @@ internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
             return Result.Invalid(SubmissionAccessTokenErrors.ValidationErrors.InvalidToken);
         }
 
-        var expiresAt = DateTimeOffset.FromUnixTimeSeconds(expiryUnix).UtcDateTime;
-        if (DateTime.UtcNow > expiresAt)
+        var expiresAt = DateTimeOffset.FromUnixTimeSeconds(expiryUnix);
+        if (_dateTimeProvider.Now > expiresAt)
         {
             return Result.Invalid(SubmissionAccessTokenErrors.ValidationErrors.TokenExpired);
         }
@@ -102,7 +109,7 @@ internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
         return Result.Success(new SubmissionAccessTokenClaims(
             submissionId,
             permissions,
-            expiresAt));
+            expiresAt.UtcDateTime));
     }
 
     private string BuildStringToSign(long submissionId, long expiryUnix, string permissionsCode)
