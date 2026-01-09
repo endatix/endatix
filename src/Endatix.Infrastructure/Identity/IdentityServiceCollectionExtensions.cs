@@ -1,12 +1,14 @@
 using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Framework.Configuration;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
 using Endatix.Infrastructure.Identity.EmailVerification;
+using Endatix.Infrastructure.Features.Submissions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -92,6 +94,10 @@ public static class IdentityServiceCollectionExtensions
 
         // Register Identity Unit of Work for identity operations
         services.AddKeyedScoped<IUnitOfWork, IdentityUnitOfWork>("identity");
+
+        // Register submission access token service
+        services.AddScoped<ISubmissionAccessTokenService, SubmissionAccessTokenService>();
+        services.AddEndatixOptions<SubmissionAccessTokenOptions>(configuration);
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()
