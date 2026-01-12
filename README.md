@@ -1,4 +1,8 @@
-# Endatix Platform
+<a href="https://endatix.com"><img width="100%" src="assets/images/endatix-api-banner.png" alt="Self-Hosted Alternative to SaaS Form and Survey Platforms" /></a>
+<br />
+<br />
+
+# Endatix API
 
 [![Build & Test](https://github.com/endatix/endatix/actions/workflows/build-ci.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/build-ci.yml)
 [![Release](https://github.com/endatix/endatix/actions/workflows/release.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/release.yml)
