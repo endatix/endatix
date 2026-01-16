@@ -26,5 +26,8 @@ public class CreateSubmissionValidator : Validator<CreateSubmissionRequest>
             .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH)
             .When(x => x.Metadata != null);
 
+        RuleFor(x => x.SubmittedBy)
+            .Must(value => !string.IsNullOrWhiteSpace(value))
+            .When(x => x.SubmittedBy != null);
     }
 }

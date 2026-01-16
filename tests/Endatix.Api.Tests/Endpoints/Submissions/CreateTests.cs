@@ -157,6 +157,47 @@ public class CreateTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithSubmittedByInRequest_UsesProvidedValue()
+    {
+        // Arrange
+        const string userId = "authenticated-user-123";
+        const string submittedBy = "prefill-user-456";
+        var request = new CreateSubmissionRequest
+        {
+            FormId = 123,
+            IsComplete = true,
+            CurrentPage = 2,
+            JsonData = """{ "field": "value" }""",
+            Metadata = """{ "key", "value" }""",
+            ReCaptchaToken = "recaptcha-token",
+            SubmittedBy = submittedBy
+        };
+        var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+
+        _userContext.GetCurrentUserId().Returns(userId);
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<CreateSubmissionCommand>(cmd =>
+                cmd.FormId == request.FormId &&
+                cmd.IsComplete == request.IsComplete &&
+                cmd.CurrentPage == request.CurrentPage &&
+                cmd.JsonData == request.JsonData &&
+                cmd.Metadata == request.Metadata &&
+                cmd.ReCaptchaToken == request.ReCaptchaToken &&
+                cmd.SubmittedBy == submittedBy &&
+                cmd.RequiredPermission == "submissions.create"
+            ),
+            Arg.Any<CancellationToken>()
+        );
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ReCaptchaValidationFailed_ReturnsBadRequest()
     {
         // Arrange
