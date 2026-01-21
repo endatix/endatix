@@ -52,6 +52,10 @@ jobs:
 
       - name: 🏗️ Build Project
         run: pnpm run build
+        env:
+          ALGOLIA_APP_ID: ${{ secrets.DOCS_ALGOLIA_APP_ID }}
+          ALGOLIA_API_KEY: ${{ secrets.DOCS_ALGOLIA_API_KEY }}
+          ALGOLIA_INDEX_NAME: ${{ vars.DOCS_ALGOLIA_INDEX_NAME }}
 
       - name: 🔗 Copy Url Rewrites to the build folder
         run: cp staticwebapp.config.json ./build/
