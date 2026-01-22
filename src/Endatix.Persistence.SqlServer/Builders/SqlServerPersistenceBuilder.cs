@@ -53,6 +53,7 @@ public class SqlServerPersistenceBuilder
             options.UseSqlServer(connectionString, sqlOptions =>
             {
                 sqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().GetName().Name);
+                sqlOptions.UseCompatibilityLevel(170); // SQL Server 2025
             });
         });
 
@@ -77,6 +78,7 @@ public class SqlServerPersistenceBuilder
             dbContextOptions.UseSqlServer(sqlServerOptions.ConnectionString, sqlOptions =>
             {
                 sqlOptions.MigrationsAssembly(sqlServerOptions.MigrationsAssembly ?? Assembly.GetExecutingAssembly().GetName().Name);
+                sqlOptions.UseCompatibilityLevel(170); // SQL Server 2025
 
                 if (sqlServerOptions.CommandTimeout.HasValue)
                 {

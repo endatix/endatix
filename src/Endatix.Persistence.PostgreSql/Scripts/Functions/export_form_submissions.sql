@@ -23,10 +23,10 @@ BEGIN
         -- Base case: Get top-level elements from form pages
         SELECT elem AS element
         FROM "FormDefinitions" fd,
-             jsonb_array_elements(fd."JsonData"::jsonb -> 'pages') AS page,
+             jsonb_array_elements(fd."JsonData" -> 'pages') AS page,
              jsonb_array_elements(page->'elements') AS elem
         WHERE fd."FormId" = form_id
-          AND fd."JsonData"::jsonb ? 'pages'
+          AND fd."JsonData" ? 'pages'
 
         UNION ALL
 
@@ -52,7 +52,7 @@ BEGIN
             s."CreatedAt",
             s."ModifiedAt",
             -- Create JSON object with question names as keys and answers as values
-            jsonb_object_agg(q.name, COALESCE(s."JsonData"::jsonb ->>q.name, '')) AS AnswersModel
+            jsonb_object_agg(q.name, COALESCE(s."JsonData" ->> q.name, '')) AS AnswersModel
         FROM "Submissions" s
         CROSS JOIN question_names q
         WHERE s."FormId" = form_id

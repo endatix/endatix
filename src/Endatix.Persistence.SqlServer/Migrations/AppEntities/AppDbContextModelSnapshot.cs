@@ -17,7 +17,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.9")
+                .HasAnnotation("ProductVersion", "10.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -41,7 +41,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("JsonData")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -59,6 +59,18 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasIndex("TenantId");
 
                     b.ToTable("CustomQuestions", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.DynamicExportRow", b =>
+                {
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.ToTable("DynamicExportRows", null, t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.EmailTemplate", b =>
@@ -150,7 +162,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("bigint");
 
                     b.Property<string>("WebHookSettingsJson")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.HasKey("Id");
 
@@ -187,7 +199,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("JsonData")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -226,7 +238,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("JsonData")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -277,10 +289,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("JsonData")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<string>("Metadata")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -351,7 +363,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("JsonData")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -402,7 +414,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("bigint");
 
                     b.Property<string>("CustomExportsJson")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<bool>("IsSubmissionTokenValidAfterCompletion")
                         .ValueGeneratedOnAdd()
@@ -413,13 +425,13 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("datetime2");
 
                     b.Property<string>("SlackSettingsJson")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<int?>("SubmissionTokenExpiryHours")
                         .HasColumnType("int");
 
                     b.Property<string>("WebHookSettingsJson")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.HasKey("TenantId");
 
@@ -445,7 +457,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("JsonData")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");

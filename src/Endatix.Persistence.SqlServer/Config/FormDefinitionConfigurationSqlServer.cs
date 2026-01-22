@@ -7,13 +7,13 @@ using Endatix.Infrastructure.Data.Config;
 namespace Endatix.Persistence.SqlServer.Config
 {
     [ApplyConfigurationFor<AppDbContext>]
-    public class CustomQuestionConfigurationSqlServer : IEntityTypeConfiguration<CustomQuestion>
+    public class FormDefinitionConfigurationSqlServer : IEntityTypeConfiguration<FormDefinition>
     {
-        public void Configure(EntityTypeBuilder<CustomQuestion> builder)
+        public void Configure(EntityTypeBuilder<FormDefinition> builder)
         {
             // Configure JsonData as JSON for SQL Server
-            builder.Property(q => q.JsonData)
+            builder.Property(fd => fd.JsonData)
                 .HasColumnType("json");
         }
     }
-} 
+}

@@ -7,14 +7,16 @@ using Endatix.Infrastructure.Data.Config;
 namespace Endatix.Persistence.SqlServer.Config
 {
     [ApplyConfigurationFor<AppDbContext>]
-    public class SubmissionConfigurationSqlServer : IEntityTypeConfiguration<Submission>
+    public class TenantSettingsConfigurationSqlServer : IEntityTypeConfiguration<TenantSettings>
     {
-        public void Configure(EntityTypeBuilder<Submission> builder)
+        public void Configure(EntityTypeBuilder<TenantSettings> builder)
         {
             // Configure JSON columns as JSON for SQL Server
-            builder.Property(s => s.JsonData)
+            builder.Property(ts => ts.SlackSettingsJson)
                 .HasColumnType("json");
-            builder.Property(s => s.Metadata)
+            builder.Property(ts => ts.WebHookSettingsJson)
+                .HasColumnType("json");
+            builder.Property(ts => ts.CustomExportsJson)
                 .HasColumnType("json");
         }
     }

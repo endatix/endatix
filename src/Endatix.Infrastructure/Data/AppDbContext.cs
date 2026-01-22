@@ -6,6 +6,8 @@ using Endatix.Core.Abstractions;
 using Ardalis.GuardClauses;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Endatix.Infrastructure.Data.Abstractions;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -55,7 +57,16 @@ public class AppDbContext : DbContext, ITenantDbContext
     {
         base.OnModelCreating(builder);
         builder.ApplyEndatixQueryFilters(this);
-        builder.ApplyConfigurationsFor<AppDbContext>(Endatix.Infrastructure.AssemblyReference.Assembly);
+
+        // Apply base configurations from Infrastructure assembly
+        builder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly);
+
+        // Apply database-specific configurations from the migrations assembly
+        var migrationsAssembly = Database.GetService<IMigrationsAssembly>();
+        if (migrationsAssembly?.Assembly != null)
+        {
+            builder.ApplyConfigurationsFromAssembly(migrationsAssembly.Assembly);
+        }
 
         builder.Entity<SubmissionExportRow>()
             .HasNoKey()
