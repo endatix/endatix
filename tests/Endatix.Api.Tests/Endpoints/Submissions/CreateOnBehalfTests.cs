@@ -6,23 +6,18 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.Create;
-using Endatix.Core.Abstractions;
-using Errors = Microsoft.AspNetCore.Mvc;
-using Endatix.Core.Features.ReCaptcha;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
-public class CreateTests
+public class CreateOnBehalfTests
 {
     private readonly IMediator _mediator;
-    private readonly IUserContext _userContext;
-    private readonly Create _endpoint;
+    private readonly CreateOnBehalf _endpoint;
 
-    public CreateTests()
+    public CreateOnBehalfTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _userContext = Substitute.For<IUserContext>();
-        _endpoint = Factory.Create<Create>(_mediator, _userContext);
+        _endpoint = Factory.Create<CreateOnBehalf>(_mediator);
     }
 
     [Fact]
@@ -30,7 +25,7 @@ public class CreateTests
     {
         // Arrange
         var formId = 1L;
-        var request = new CreateSubmissionRequest { FormId = formId };
+        var request = new CreateSubmissionOnBehalfRequest { FormId = formId };
         var result = Result.Invalid();
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
@@ -51,7 +46,7 @@ public class CreateTests
         // Arrange
         var formId = 1L;
         var jsonData = "{ }";
-        var request = new CreateSubmissionRequest
+        var request = new CreateSubmissionOnBehalfRequest
         {
             FormId = formId,
             JsonData = jsonData,
@@ -71,7 +66,7 @@ public class CreateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var createdResult = response.Result as Created<CreateSubmissionResponse>;
+        var createdResult = response.Result as Created<CreateSubmissionOnBehalfResponse>;
         createdResult.Should().NotBeNull();
         createdResult!.Value.Should().NotBeNull();
         createdResult!.Value!.Id.Should().Be("1");
@@ -80,22 +75,19 @@ public class CreateTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldMapRequestToCommandCorrectly()
+    public async Task ExecuteAsync_WithSubmittedBy_UsesProvidedValue()
     {
         // Arrange
-        const string userId = "123";
-        var request = new CreateSubmissionRequest
+        const string targetUserId = "target-user-456";
+        var request = new CreateSubmissionOnBehalfRequest
         {
             FormId = 123,
-            IsComplete = true,
-            CurrentPage = 2,
             JsonData = """{ "field": "value" }""",
-            Metadata = """{ "key", "value" }""",
-            ReCaptchaToken = "recaptcha-token"
+            SubmittedBy = targetUserId
         };
-        var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+        var result = Result<Submission>.Created(
+            new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
 
-        _userContext.GetCurrentUserId().Returns(userId);
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -106,34 +98,27 @@ public class CreateTests
         await _mediator.Received(1).Send(
             Arg.Is<CreateSubmissionCommand>(cmd =>
                 cmd.FormId == request.FormId &&
-                cmd.IsComplete == request.IsComplete &&
-                cmd.CurrentPage == request.CurrentPage &&
                 cmd.JsonData == request.JsonData &&
-                cmd.Metadata == request.Metadata &&
-                cmd.ReCaptchaToken == request.ReCaptchaToken &&
-                cmd.SubmittedBy == userId &&
-                cmd.RequiredPermission == "submissions.create"
+                cmd.SubmittedBy == targetUserId &&
+                cmd.RequiredPermission == "submissions.create.onbehalf"
             ),
             Arg.Any<CancellationToken>()
         );
     }
 
     [Fact]
-    public async Task ExecuteAsync_AnonymousUser_PassesNullSubmittedBy()
+    public async Task ExecuteAsync_WithoutSubmittedBy_UsesNull()
     {
         // Arrange
-        var request = new CreateSubmissionRequest
+        var request = new CreateSubmissionOnBehalfRequest
         {
             FormId = 123,
-            IsComplete = true,
-            CurrentPage = 2,
             JsonData = """{ "field": "value" }""",
-            Metadata = """{ "key", "value" }""",
-            ReCaptchaToken = "recaptcha-token"
+            SubmittedBy = null
         };
-        var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+        var result = Result<Submission>.Created(
+            new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
 
-        _userContext.GetCurrentUserId().Returns((string?)null);
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -144,36 +129,38 @@ public class CreateTests
         await _mediator.Received(1).Send(
             Arg.Is<CreateSubmissionCommand>(cmd =>
                 cmd.FormId == request.FormId &&
-                cmd.IsComplete == request.IsComplete &&
-                cmd.CurrentPage == request.CurrentPage &&
                 cmd.JsonData == request.JsonData &&
-                cmd.Metadata == request.Metadata &&
-                cmd.ReCaptchaToken == request.ReCaptchaToken &&
                 cmd.SubmittedBy == null &&
-                cmd.RequiredPermission == "submissions.create"
+                cmd.RequiredPermission == "submissions.create.onbehalf"
             ),
             Arg.Any<CancellationToken>()
         );
     }
 
     [Fact]
-    public async Task ExecuteAsync_ReCaptchaValidationFailed_ReturnsBadRequest()
+    public async Task ExecuteAsync_ShouldUseCorrectPermission()
     {
         // Arrange
-        var request = new CreateSubmissionRequest { FormId = 1, ReCaptchaToken = "invalid-token" };
-        var result = Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
+        var request = new CreateSubmissionOnBehalfRequest
+        {
+            FormId = 123,
+            JsonData = """{ "field": "value" }"""
+        };
+        var result = Result<Submission>.Created(
+            new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        await _endpoint.ExecuteAsync(request, CancellationToken.None);
 
         // Assert
-        var problemResult = response.Result as ProblemHttpResult;
-        problemResult.Should().NotBeNull();
-        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
-        problemResult!.ProblemDetails.Detail.Should().Contain(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED);
-        problemResult!.ProblemDetails.Extensions["errorCode"].Should().Be(ReCaptchaErrors.ErrorCodes.RECAPTCHA_VERIFICATION_FAILED);
+        await _mediator.Received(1).Send(
+            Arg.Is<CreateSubmissionCommand>(cmd =>
+                cmd.RequiredPermission == "submissions.create.onbehalf"
+            ),
+            Arg.Any<CancellationToken>()
+        );
     }
 }

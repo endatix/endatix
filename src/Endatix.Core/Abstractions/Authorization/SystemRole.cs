@@ -60,6 +60,7 @@ public sealed record SystemRole
             Actions.Themes.Delete,
             Actions.Submissions.View,
             Actions.Submissions.Create,
+            Actions.Submissions.CreateOnBehalf,
             Actions.Submissions.Edit,
             Actions.Submissions.Export,
             Actions.Submissions.DeleteOwned,
