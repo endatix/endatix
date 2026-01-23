@@ -1,0 +1,367 @@
+---
+title: Form Prefilling and Sharing
+description: Create prefilled forms and share submissions with controlled access using access tokens
+sidebar_position: 5
+---
+
+# Form Prefilling and Sharing
+
+This guide demonstrates how to create prefilled forms and share submissions with users using the access token system. Access tokens provide granular, time-limited permissions for viewing and editing submissions.
+
+## Overview
+
+Access tokens enable you to:
+- **Prefill forms** with data and share them for completion
+- **Share completed submissions** for read-only review
+- **Share submissions for editing** with controlled permissions
+- **Control access duration** with configurable expiration times
+
+## Prerequisites
+
+To generate access tokens, you must be authenticated with a user having of the following permissions:
+- `Submissions.View` - Required to grant "view" permissions
+- `Submissions.Edit` - Required to grant "edit" permissions
+- `Submissions.Export` - Required to grant "export" permissions
+
+## Access Token Basics
+
+### Creating an Access Token
+
+Use the endpoint `POST /api/forms/{formId}/submissions/{submissionId}/access-token` to generate a token.
+
+**Request Body:**
+```json
+{
+  "expiryMinutes": 1440,
+  "permissions": ["view", "edit"]
+}
+```
+
+**Parameters:**
+- `expiryMinutes` - Token lifetime in minutes (minimum: 1, maximum: 10080 / 1 week)
+- `permissions` - Array of permissions to grant:
+  - `"view"` - Read-only access to submission data
+  - `"edit"` - Permission to modify submission data
+  - `"export"` - Permission to export submission data
+
+**Response:**
+```json
+{
+  "token": "1463909567300632576.1769113804.rw.qRHaddrBDolnRRMq",
+  "expiresAt": "2026-01-20T15:30:00Z",
+  "permissions": ["view", "edit"]
+}
+```
+
+## Use Case 1: Prefilling Forms
+
+Create a form with prefilled data and share it with users for completion.
+
+### Step 1: Create a Submission with Prefilled Data
+
+```http
+POST /api/forms/1442869143157080064/submissions
+Content-Type: application/json
+
+{
+  "jsonData": "{\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\"}",
+  "isComplete": false
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1443953837470646272,
+  "formId": 1442869143157080064,
+  "jsonData": "{\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\"}",
+  "isComplete": false,
+  "createdAt": "2026-01-19T10:00:00Z"
+  /* other submission fields */
+}
+```
+
+### Step 2: Generate an Access Token
+
+Create a token with both `view` and `edit` permissions:
+
+```http
+POST /api/forms/1442869143157080064/submissions/1443953837470646272/access-token
+Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN
+
+{
+  "expiryMinutes": 1440,
+  "permissions": ["view", "edit"]
+}
+```
+
+**Response:**
+```json
+{
+  "token": "1443953837470646272.1737280800.rw.aB3xK9pLmN2qR5sT",
+  "expiresAt": "2026-01-20T10:00:00Z",
+  "permissions": ["view", "edit"]
+}
+```
+
+### Step 3: Share the Prefilled Form URL
+
+Generate the share URL using the access token in the format `https://app.endatix.com/share/{formId}?token={access-token}`:
+
+```
+https://app.endatix.com/share/1442869143157080064?token=1443953837470646272.1737280800.rw.aB3xK9pLmN2qR5sT
+```
+
+When users open this URL:
+- The form loads with the prefilled data
+- Users can review and modify the data
+- Users can complete and submit the form
+- The token expires after the specified duration (24 hours in this example)
+
+## Use Case 2: Read-Only Review
+
+Share a completed submission for read-only review without allowing edits.
+
+### Step 1: Generate a View-Only Access Token
+
+Create a token with only `view` permission:
+
+```http
+POST /api/forms/1442869143157080064/submissions/1442878433519468544/access-token
+Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN
+
+{
+  "expiryMinutes": 720,
+  "permissions": ["view"]
+}
+```
+
+**Response:**
+```json
+{
+  "token": "1442878433519468544.1737237600.r.xY7zP4kLqM8nW2vC",
+  "expiresAt": "2026-01-19T22:00:00Z",
+  "permissions": ["view"]
+}
+```
+
+### Step 2: Share the View URL
+
+Generate the view URL using the access token in the format `https://app.endatix.com/view/{formId}?token={access-token}`:
+
+```
+https://app.endatix.com/view/1442869143157080064?token=1442878433519468544.1737237600.r.xY7zP4kLqM8nW2vC
+```
+
+Users with this URL can:
+- View the submission data (read-only)
+- Cannot modify or submit changes
+- Access expires after 12 hours in this example
+
+## Use Case 3: Editable Review
+
+Share a submission for review and editing with full access.
+
+### Step 1: Generate an Edit Access Token
+
+Create a token with both `view` and `edit` permissions:
+
+```http
+POST /api/forms/1442869143157080064/submissions/1442882398567006208/access-token
+Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN
+
+{
+  "expiryMinutes": 2880,
+  "permissions": ["view", "edit"]
+}
+```
+
+**Response:**
+```json
+{
+  "token": "1442882398567006208.1737453600.rw.dF6hJ3mNpQ9sV1xB",
+  "expiresAt": "2026-01-21T10:00:00Z",
+  "permissions": ["view", "edit"]
+}
+```
+
+### Step 2: Share the Edit URL
+
+Generate the edit URL using the access token in the format `https://app.endatix.com/edit/{formId}?token={access-token}`:
+
+```
+https://app.endatix.com/edit/1442869143157080064?token=1442882398567006208.1737453600.rw.dF6hJ3mNpQ9sV1xB
+```
+
+Users with this URL can:
+- View the submission data
+- Modify and update the submission
+- Access expires after 48 hours in this example
+
+## Working with Access Tokens via API
+
+### Retrieve a Submission Using Access Token
+
+```http
+GET /api/forms/1442869143157080064/submissions/by-access-token/1443953837470646272.1737280800.rw.aB3xK9pLmN2qR5sT
+```
+
+This endpoint is public (no authentication required) and validates the access token automatically.
+
+**Response:**
+```json
+{
+  "id": 1443953837470646272,
+  "formId": 1442869143157080064,
+  "jsonData": "{\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\"}",
+  "isComplete": false,
+  "metadata": "{}",
+  "currentPage": 0,
+  "createdAt": "2026-01-19T10:00:00Z",
+  "modifiedAt": "2026-01-19T10:00:00Z"
+  /* other submission fields */
+}
+```
+
+### Update a Submission Using Access Token
+
+```http
+PATCH /api/forms/1442869143157080064/submissions/by-access-token/1443953837470646272.1737280800.rw.aB3xK9pLmN2qR5sT
+Content-Type: application/json
+
+{
+  "jsonData": "{\"firstName\":\"John\",\"lastName\":\"Smith\",\"email\":\"john.smith@example.com\"}",
+  "isComplete": true,
+  "currentPage": 1,
+  "metadata": "{\"someData\":\"someValue\"}"
+}
+```
+
+This endpoint requires the access token to have the `edit` permission.
+
+**Response:**
+```json
+{
+  "id": 1443953837470646272,
+  "formId": 1442869143157080064,
+  "isComplete": true,
+  "modifiedAt": "2026-01-19T14:30:00Z"
+  /* other submission fields */
+}
+```
+
+## URL Patterns Summary
+
+| Use Case | URL Pattern | Required Permissions |
+|----------|-------------|---------------------|
+| **Prefilling/Share** | `/share/{formId}?token={accessToken}` | `view` + `edit` |
+| **Read-Only Review** | `/view/{formId}?token={accessToken}` | `view` |
+| **Editable Review** | `/edit/{formId}?token={accessToken}` | `view` + `edit` |
+
+## Best Practices
+
+### Security
+
+- **Minimum Permissions**: Only grant permissions necessary for the use case
+- **Short Expiration**: Use shorter expiration times for sensitive data
+- **Secure Sharing**: Share tokens only through secure channels (HTTPS, encrypted email, etc)
+- **One-Time Use**: Generate new tokens for each recipient
+
+### Error Handling
+
+Tokens may fail due to:
+- **Expired tokens**: Generate a new token for the submission
+- **Invalid permissions**: Ensure token has required permissions for the operation
+- **Submission not found**: Verify the submission ID exists
+- **Missing authentication**: Ensure you're authenticated when creating tokens and have the necessary permissions
+
+## Common Scenarios
+
+### Scenario 1: Patient Intake Form
+
+**Use Case**: Healthcare provider pre-fills patient information from their system
+
+1. Medical office creates submission with patient demographics from EHR (name, date of birth, insurance)
+2. Generate 48-hour access token with view + edit permissions
+3. Email patient the `/share/` URL before appointment
+4. Patient reviews pre-filled data, completes medical history and symptoms
+5. Office receives completed intake form before appointment
+
+### Scenario 2: Insurance Claim Processing
+
+**Use Case**: Insurance company streamlines claim submission
+
+1. Create submission with policy holder data (policy number, coverage details, incident date)
+2. Generate 7-day access token with view + edit permissions
+3. Send policyholder the `/share/` URL via email or SMS
+4. Policyholder adds claim details, uploads supporting documents
+5. Claim is automatically routed for processing upon submission
+
+### Scenario 3: Application Data Verification
+
+**Use Case**: Company sends data for customer verification and correction
+
+1. Create submission with existing customer data from database (contact info, preferences)
+2. Generate 72-hour access token with view + edit permissions
+3. Email customer the `/share/` URL for annual data verification
+4. Customer reviews, updates outdated information, and submits
+5. System updates customer records with verified data
+
+### Scenario 4: Document Review and Approval
+
+**Use Case**: Share completed documents for stakeholder review
+
+1. Employee completes and submits a proposal or report form
+2. Manager generates 4-hour view-only token
+3. Manager reviews via `/view/` URL during meeting
+4. If approved, workflow continues; if changes needed, generate edit token
+5. Employee receives `/edit/` URL to make revisions
+
+### Scenario 5: Event Registration Follow-up
+
+**Use Case**: Pre-fill attendee information for multi-step registration
+
+1. Create submission with attendee data from initial registration (name, email, company)
+2. Generate 7-day access token with view + edit permissions
+3. Send `/share/` URL for workshop selection and dietary preferences
+4. Attendee completes additional event details
+5. System confirms registration with all details
+
+## API Reference
+
+### Endpoints
+
+- `POST /api/forms/{formId}/submissions` - Create a new submission (public)
+- `POST /api/forms/{formId}/submissions/{submissionId}/access-token` - Generate access token
+- `GET /api/forms/{formId}/submissions/by-access-token/{token}` - Retrieve submission (public)
+- `PATCH /api/forms/{formId}/submissions/by-access-token/{token}` - Update submission (public)
+- `GET /api/forms/{formId}/definition` - Get form definition for constructing prefill data (public)
+
+### Permission Reference
+
+| Permission | Code | Description |
+|------------|------|-------------|
+| `view` | `r` | Read-only access to submission data |
+| `edit` | `w` | Permission to modify submission data |
+| `export` | `x` | Permission to export submission data |
+
+## Troubleshooting
+
+### Token Validation Errors
+
+**Error**: "Invalid token or permissions"
+- **Solution**: Verify the token hasn't expired and has required permissions
+
+**Error**: "Submission not found"
+- **Solution**: Confirm the submission ID exists and the form ID matches
+
+### Permission Errors
+
+**Error**: "Insufficient permissions to create access token"
+- **Solution**: Ensure your user account has `Submissions.View`, `Submissions.Edit`, or `Submissions.Export` permissions
+
+**Error**: "Cannot update submission - edit permission required"
+- **Solution**: Generate a new token with `edit` permission included
