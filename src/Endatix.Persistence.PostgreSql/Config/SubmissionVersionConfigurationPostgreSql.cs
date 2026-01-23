@@ -7,12 +7,12 @@ using Endatix.Infrastructure.Data.Config;
 namespace Endatix.Persistence.PostgreSql.Config
 {
     [ApplyConfigurationFor<AppDbContext>]
-    public class FormConfigurationPostgreSql : IEntityTypeConfiguration<Form>
+    public class SubmissionVersionConfigurationPostgreSql : IEntityTypeConfiguration<SubmissionVersion>
     {
-        public void Configure(EntityTypeBuilder<Form> builder)
+        public void Configure(EntityTypeBuilder<SubmissionVersion> builder)
         {
-            // Configure WebHookSettingsJson as JSONB for PostgreSQL
-            builder.Property(f => f.WebHookSettingsJson)
+            // Configure JsonData as JSONB for PostgreSQL
+            builder.Property(sv => sv.JsonData)
                 .HasColumnType("jsonb");
         }
     }
