@@ -29,9 +29,4 @@ public abstract class BaseSubmissionRequest
     /// Stringified metadata related to the form submission
     /// </summary>
     public string? Metadata { get; set; }
-
-    /// <summary>
-    /// reCAPTCHA v3 token for bot protection
-    /// </summary>
-    public string? ReCaptchaToken { get; set; }
 }

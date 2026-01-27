@@ -31,7 +31,7 @@ public class Create(IMediator mediator, IUserContext userContext) : Endpoint<Cre
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken cancellationToken)
     {
-        var submittedBy = request.SubmittedBy ?? userContext.GetCurrentUserId();
+        var submittedBy = userContext.GetCurrentUserId();
 
         var createCommand = new CreateSubmissionCommand(
             FormId: request.FormId,

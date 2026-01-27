@@ -100,7 +100,10 @@ public static class Actions
         public const string Delete = "submissions.delete";
         public const string Export = "submissions.export";
 
-        // Ownership-based permissions  
+        // Create submissions on behalf of other users, used for pre-filling submissions.
+        public const string CreateOnBehalf = "submissions.create.onbehalf";
+
+        // Ownership-based permissions
         public const string DeleteOwned = "submissions.delete.owned";
     }
 
