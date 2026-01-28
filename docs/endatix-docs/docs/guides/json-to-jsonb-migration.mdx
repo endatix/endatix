@@ -1,0 +1,323 @@
+---
+title: PostgreSQL JSONB Migration
+description: Guide for safely migrating JSON text columns to native JSONB type in PostgreSQL databases
+sidebar_position: 6
+---
+
+# PostgreSQL JSONB Migration
+
+This guide helps you safely prepare your Endatix database for the migration from text-based JSON storage to PostgreSQL's native JSONB type. This migration improves query performance and enables advanced JSON operations.
+
+## Overview
+
+Starting with migration `20260122130935_MigrateJsonColumnsToJsonb`, Endatix converts JSON data stored as text to PostgreSQL's native `jsonb` type across multiple tables. This provides:
+
+- Better query performance
+- Native JSON indexing capabilities
+- Type safety at the database level
+- More efficient storage
+
+### Affected Tables and Columns
+
+The migration affects the following tables:
+- `FormDefinitions.JsonData`
+- `Submissions.JsonData` and `Submissions.Metadata`
+- `SubmissionVersions.JsonData`
+- `FormTemplates.JsonData`
+- `Themes.JsonData`
+- `CustomQuestions.JsonData`
+- `TenantSettings.SlackSettingsJson`, `WebHookSettingsJson`, `CustomExportsJson`
+- `Forms.WebHookSettingsJson`
+
+## When to Use This Guide
+
+**You need this guide if:**
+- You're upgrading to a version of Endatix that includes migration `20260122130935_MigrateJsonColumnsToJsonb` or later
+- Your current database doesn't have this migration applied yet
+
+### How to Check if You Need This Guide
+
+You need to verify two things:
+
+**Step 1: Check if your target version includes this migration**
+
+Look for the migration file in the Endatix version you're upgrading to:
+
+```bash
+# Check if this migration exists in your target Endatix source code
+ls src/Endatix.Persistence.PostgreSql/Migrations/AppEntities/*MigrateJsonColumnsToJsonb.cs
+
+# On Windows (Command Prompt)
+dir src\Endatix.Persistence.PostgreSql\Migrations\AppEntities\*MigrateJsonColumnsToJsonb.cs
+```
+
+**Step 2: Check if your database has already applied this migration**
+
+Query your current PostgreSQL database:
+
+```sql
+-- Check if this migration has already been applied to your database
+SELECT * FROM "__EFMigrationsHistory"
+WHERE "MigrationId" LIKE '%MigrateJsonColumnsToJsonb%';
+```
+
+### Interpreting the Results
+
+| Target Code Has Migration? | Database Has Migration? | What This Means | Action |
+|----------------------------|------------------------|-----------------|--------|
+| ✅ Yes | ❌ No | You're upgrading to a version with this migration, but haven't applied it yet | **Use this guide before upgrading** |
+| ✅ Yes | ✅ Yes | You've already applied this migration | **Skip this guide** - you're past this point |
+| ❌ No | ❌ No | Your target version doesn't include this change yet | **Skip this guide** - not needed for your upgrade |
+| ❌ No | ✅ Yes | You're downgrading (unusual) | Contact Endatix support |
+
+## Why This Guide is Necessary
+
+The migration will **fail** if any of these columns contain invalid JSON data. This can happen when:
+- Empty strings were stored instead of valid JSON
+- Malformed JSON was saved due to application bugs
+- Data was manually entered incorrectly
+
+This guide provides tools to identify and fix such issues before running the migration.
+
+:::warning
+**Important:** If you have invalid JSON data and attempt the migration without fixing it first, the migration will fail and your deployment will be blocked.
+:::
+
+## Prerequisites
+
+Before starting, ensure you have:
+- Database backup (always backup before any migration!)
+- Access to your PostgreSQL database via a client tool (pgAdmin, DBeaver, Azure Data Studio, psql, etc.)
+- The two SQL scripts from your Endatix source code:
+  - `PreMigrationAudit.sql` - Identifies invalid JSON data
+  - `PreMigrationFix.sql` - Automatically fixes invalid JSON data
+
+**Script Location:** These scripts are located in `src/Endatix.Persistence.PostgreSql/Scripts/Tools/` in your Endatix source code.
+
+---
+
+## Step 1: Run the Audit Script
+
+The audit script identifies any invalid JSON data across all affected tables without making any changes to your database.
+
+### Running the Audit
+
+1. Open your PostgreSQL client (pgAdmin, DBeaver, etc.)
+2. Connect to your Endatix database
+3. Open and execute the entire `PreMigrationAudit.sql` script
+
+### Understanding the Results
+
+The script produces two result sets:
+
+#### 1. Detailed Results
+Shows each record with invalid JSON:
+- `table_column`: Which table and column has the issue
+- `record_id`: The ID of the affected record
+- `form_name`: Associated form name (if applicable)
+- `issue_type`: Type of problem (EMPTY STRING, WHITESPACE ONLY, INVALID JSON)
+- `json_preview`: First 100 characters of the invalid data
+
+#### 2. Summary Counts
+Shows total count of issues per table/column
+
+### Interpreting the Audit Results
+
+**Scenario A: No Issues Found**
+```
+(No rows returned in either result set)
+```
+✅ Your database is ready! Proceed directly with applying the Endatix migration.
+
+**Scenario B: Issues Found**
+```
+table_column                      | record_id | issue_type    | json_preview
+----------------------------------|-----------|---------------|-------------
+Submissions.JsonData              | 12345     | EMPTY STRING  |
+FormDefinitions.JsonData          | 67890     | INVALID JSON  | {name: "test"
+```
+⚠️ You need to fix these issues before migration. Continue to Step 2.
+
+---
+
+## Step 2: Fix Invalid JSON Data
+
+If the audit found issues, you have two options:
+
+### Option A: Automated Fix (Replace with Empty Objects)
+
+**Use this when:** The invalid data is not important or can be discarded.
+
+The `PreMigrationFix.sql` script will replace all invalid JSON values with empty JSON objects `{}`.
+
+#### Running the Fix Script
+
+1. Open your PostgreSQL client
+2. Connect to your Endatix database
+3. Open `PreMigrationFix.sql` in a **new query window/tab**
+4. Execute the **entire script**
+
+#### Reviewing the Fix
+
+The script runs in a transaction and shows output like:
+```
+============================================================================
+FormDefinitions.JsonData - Records to fix: 0
+============================================================================
+============================================================================
+Submissions.JsonData - Records to fix: 3
+============================================================================
+...
+```
+
+Review the counts to understand what will be changed.
+
+#### Applying or Reverting Changes
+
+After reviewing the output, you must explicitly commit or rollback:
+
+**If you're satisfied with the changes:**
+```sql
+COMMIT;
+```
+Type this command in the same query window and execute it.
+
+**If you want to undo the changes:**
+```sql
+ROLLBACK;
+```
+Type this command in the same query window and execute it.
+
+:::tip SQL Client Transaction Behavior
+When you run a script that starts with `BEGIN;`, your SQL client keeps that transaction open until you explicitly run `COMMIT;` or `ROLLBACK;`. This allows you to review the changes before making them permanent.
+
+**Important:** Don't close the query window until you've committed or rolled back - closing the window may automatically rollback the transaction depending on your client settings.
+:::
+
+### Option B: Manual Fix (Preserve Data)
+
+**Use this when:** You need to preserve the actual data by fixing it properly.
+
+#### Steps for Manual Fix
+
+1. **Run the audit script** to identify all invalid records
+2. **For each invalid record**, examine the `json_preview` to understand what's wrong
+3. **Fix the data manually** with UPDATE statements
+
+#### Example: Fix Empty Strings
+
+```sql
+-- Fix empty strings in Submissions.JsonData
+UPDATE "Submissions"
+SET "JsonData" = '{}'
+WHERE "Id" IN (12345, 67890, ...); -- Replace with actual IDs from audit
+```
+
+#### Example: Fix Malformed JSON
+
+```sql
+-- Fix specific malformed JSON (example: missing quotes around property names)
+UPDATE "FormDefinitions"
+SET "JsonData" = '{"name": "test", "value": 123}'
+WHERE "Id" = 12345; -- Replace with the correct JSON
+```
+
+#### Example: Reconstruct Lost Data
+
+If you know what the data should be:
+```sql
+-- Reconstruct data from other sources
+UPDATE "Submissions"
+SET "JsonData" = '{"question1": "answer1", "question2": "answer2"}'
+WHERE "Id" = 12345;
+```
+
+:::warning
+**Be Careful:** Manual fixes require understanding your data structure. Test your UPDATE statements carefully, ideally on a database backup first.
+:::
+
+---
+
+## Step 3: Verify the Fix
+
+After fixing the data (either automatically or manually), **run the audit script again** to verify all issues are resolved.
+
+Open and execute the entire `PreMigrationAudit.sql` script in your PostgreSQL client.
+
+**Expected Result:** No rows should be returned in either result set, confirming all JSON data is now valid.
+
+---
+
+## Step 4: Proceed with Migration
+
+Once the audit confirms no issues:
+
+1. **Apply the Endatix migration** using your normal deployment process:
+   ```bash
+   # Example using dotnet CLI
+   dotnet ef database update --context AppDbContext --startup-project ../Endatix.WebHost
+
+   # Or let auto-migrations handle it when you deploy
+   ```
+
+2. **Verify the deployment** completed successfully
+
+The `20260122130935_MigrateJsonColumnsToJsonb` migration will now execute without errors.
+
+---
+
+## Troubleshooting
+
+### The audit script takes a long time to run
+
+This is normal for databases with many records. The script validates JSON for every row across multiple tables. You can:
+- Run it during off-peak hours
+- Be patient - it's safer than a failed migration!
+
+### I accidentally closed my SQL client after running PreMigrationFix.sql
+
+Most SQL clients automatically ROLLBACK uncommitted transactions when you close the window. Run the audit script again to confirm your database state.
+
+### The fix script says "0 records to fix" but I know there are issues
+
+Make sure you:
+1. Ran the audit script first to confirm issues exist
+2. Are connected to the correct database
+3. Have the latest version of the scripts
+
+### The migration still fails after fixing
+
+1. Run the audit script one more time to verify all issues are resolved
+2. Check the migration error message - it might be a different issue
+3. Verify you're running the correct version of Endatix
+4. Check database permissions
+
+### Some JSON data is complex - how do I know if it's valid?
+
+You can test JSON validity using:
+- Online validators like [jsonlint.com](https://jsonlint.com/)
+- PostgreSQL directly: `SELECT '{"test": "value"}'::jsonb;`
+- Most code editors have JSON validation built-in
+
+---
+
+## Best Practices
+
+1. **Always backup first** - Take a full database backup before any migration
+2. **Test in non-production first** - If possible, test the migration on a copy of your production database
+3. **Review audit results carefully** - Understand what data will be affected before running fixes
+4. **Use automated fix for non-critical data** - If the invalid JSON doesn't impact business operations
+5. **Use manual fix for critical data** - When data preservation is important
+6. **Document your decisions** - Keep notes on what data was fixed and why
+
+---
+
+## Additional Resources
+
+- [PostgreSQL JSON Types Documentation](https://www.postgresql.org/docs/current/datatype-json.html)
+- [Endatix GitHub Repository](https://github.com/endatix/endatix)
+- [Endatix Support](https://endatix.com/contact)
+
+---
+
+**Need Help?** If you encounter issues not covered in this guide, please reach out via [GitHub Discussions](https://github.com/endatix/endatix/discussions) or contact Endatix support.
