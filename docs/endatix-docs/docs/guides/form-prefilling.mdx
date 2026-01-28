@@ -260,6 +260,44 @@ This endpoint requires the access token to have the `edit` permission.
 | **Prefilling/Share** | `/share/{formId}?token={accessToken}` | `view` + `edit` |
 | **Read-Only Review** | `/view/{formId}?token={accessToken}` | `view` |
 | **Editable Review** | `/edit/{formId}?token={accessToken}` | `view` + `edit` |
+| **Embedding** | `<script data-token="{accessToken}">` | `view` + `edit` |
+
+## Form Embedding with Access Tokens
+
+You can embed forms with access tokens directly into your website, allowing users to view and edit existing submissions within an iframe.
+
+### Embed Code
+
+```html
+<script src="https://app.endatix.com/embed/v1/embed.js"
+        data-form-id="1442869143157080064"
+        data-token="1443953837470646272.1737280800.rw.aB3xK9pLmN2qR5sT">
+</script>
+```
+
+The embed script creates an iframe pointing to `/embed/{formId}?token={accessToken}`. The form loads with existing submission data and users can edit directly within the embedded form.
+
+### Embed Attributes
+
+| Attribute | Description | Required |
+|-----------|-------------|----------|
+| `data-form-id` | The form ID to embed | Yes |
+| `data-token` | Access token for the submission | No* |
+| `data-base-url` | Custom Hub base URL (defaults to script origin) | No |
+
+*If `data-token` is not provided, the embed creates a new submission.
+
+### Token Requirements
+
+Access tokens for embedding **must have both `view` and `edit` permissions**. The embedded form validates permissions before loading and displays appropriate error messages for expired tokens, missing permissions, or invalid tokens.
+
+### Embedding vs. Sharing
+
+| Feature | Embedded Form | Share Page |
+|---------|---------------|------------|
+| **Integration** | Iframe in your website | Standalone page |
+| **Branding** | Your site's branding around form | Endatix interface |
+| **Navigation** | User stays on your site | User navigates away |
 
 ## Best Practices
 
@@ -269,6 +307,7 @@ This endpoint requires the access token to have the `edit` permission.
 - **Short Expiration**: Use shorter expiration times for sensitive data
 - **Secure Sharing**: Share tokens only through secure channels (HTTPS, encrypted email, etc)
 - **One-Time Use**: Generate new tokens for each recipient
+- **Embedding**: Generate tokens on-demand when loading embedded forms; avoid caching tokens client-side
 
 ### Error Handling
 
@@ -329,6 +368,38 @@ Tokens may fail due to:
 3. Send `/share/` URL for workshop selection and dietary preferences
 4. Attendee completes additional event details
 5. System confirms registration with all details
+
+### Scenario 6: Embedded Profile Management
+
+**Use Case**: SaaS application with embedded profile form in customer dashboard
+
+1. User logs into your application and navigates to profile page
+2. Backend generates short-lived access token for user's profile submission
+3. Embed form in dashboard using `<script data-token="{token}">` snippet
+4. User updates profile without leaving your application
+5. Changes save directly to the submission via access token
+
+```javascript
+// Backend generates token when user loads profile page
+app.get('/profile', async (req, res) => {
+  const tokenResponse = await createAccessToken({
+    formId: PROFILE_FORM_ID,
+    submissionId: req.user.profileSubmissionId,
+    permissions: ['view', 'edit'],
+    expiryMinutes: 60
+  });
+
+  res.render('profile', { accessToken: tokenResponse.token });
+});
+```
+
+```html
+<!-- Profile page with embedded form -->
+<script src="https://app.endatix.com/embed/v1/embed.js"
+        data-form-id="1442869143157080064"
+        data-token="<%= accessToken %>">
+</script>
+```
 
 ## API Reference
 
