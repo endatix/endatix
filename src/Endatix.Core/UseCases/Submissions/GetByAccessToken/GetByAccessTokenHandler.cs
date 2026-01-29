@@ -24,8 +24,9 @@ public class GetByAccessTokenHandler(
         }
 
         var tokenClaims = tokenValidationResult.Value;
-
-        if (!tokenClaims.Permissions.Contains(SubmissionAccessTokenPermissions.View.Name))
+        var hasRequiredPermission = tokenClaims.Permissions.Contains(SubmissionAccessTokenPermissions.View.Name) ||
+                                    tokenClaims.Permissions.Contains(SubmissionAccessTokenPermissions.Export.Name);
+        if (!hasRequiredPermission)
         {
             return Result.Forbidden("Token does not have view permission");
         }
