@@ -163,6 +163,34 @@ public class GetByAccessTokenHandlerTests
     }
 
     [Fact]
+    public async Task Handle_TokenWithExportPermission_Succeeds()
+    {
+        // Arrange
+        var formId = 123L;
+        var submissionId = 456L;
+        var token = "valid.token.x.signature";
+        var query = new GetByAccessTokenQuery(formId, token);
+
+        var tokenClaims = new SubmissionAccessTokenClaims(
+            submissionId,
+            new[] { "export" },  // Only export permission, no view
+            DateTime.UtcNow.AddHours(1));
+        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+
+        _tokenService.ValidateAccessToken(token)
+            .Returns(Result.Success(tokenClaims));
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        var result = await _handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(submission);
+    }
+
+    [Fact]
     public async Task Handle_TokenWithAllPermissions_Succeeds()
     {
         // Arrange
