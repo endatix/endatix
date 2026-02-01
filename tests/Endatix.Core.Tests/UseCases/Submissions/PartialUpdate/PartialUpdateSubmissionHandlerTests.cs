@@ -46,8 +46,9 @@ public class PartialUpdateSubmissionHandlerTests
     {
         // Arrange
         var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3) { Id = 1 };
+        var requestMetadata = "{\"key\":\"value\"}";
         var request = new PartialUpdateSubmissionCommand(
-            1, 2, true, 1, "{ \"updated\": true }", "metadata"
+            1, 2, true, 1, "{ \"updated\": true }", requestMetadata
         );
 
         _repository.SingleOrDefaultAsync(
@@ -65,7 +66,7 @@ public class PartialUpdateSubmissionHandlerTests
         result.Value.JsonData.Should().Be(request.JsonData);
         result.Value.IsComplete.Should().Be(request.IsComplete!.Value);
         result.Value.CurrentPage.Should().Be(request.CurrentPage!.Value);
-        result.Value.Metadata.Should().Be(request.Metadata);
+        result.Value.Metadata.Should().Contain("\"key\":\"value\"");
         result.Value.FormId.Should().Be(request.FormId);
 
         await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -177,5 +178,121 @@ public class PartialUpdateSubmissionHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
         result.Value.CurrentPage.Should().Be(DEFAULT_CURRENT_PAGE);
+    }
+
+    [Fact]
+    public async Task Handle_MetadataProvided_MergesWithExistingMetadata()
+    {
+        // Arrange
+        var existingMetadata = "{\"test\":\"1\",\"existing\":\"value\"}";
+        var submission = new Submission(
+            tenantId: SampleData.TENANT_ID,
+            jsonData: "{ }",
+            formId: 2,
+            formDefinitionId: 3,
+            isComplete: false,
+            metadata: existingMetadata);
+
+        var newMetadata = "{\"language\":\"en\",\"test\":\"updated\"}";
+        var request = new PartialUpdateSubmissionCommand(
+            SubmissionId: 1,
+            FormId: 2,
+            IsComplete: null,
+            CurrentPage: null,
+            JsonData: null,
+            Metadata: newMetadata
+        );
+
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+
+        // Verify that metadata was merged: new fields added, updated fields overwritten, existing fields preserved
+        result.Value.Metadata.Should().Contain("\"language\":\"en\"");
+        result.Value.Metadata.Should().Contain("\"test\":\"updated\""); // overwritten
+        result.Value.Metadata.Should().Contain("\"existing\":\"value\""); // preserved
+    }
+
+    [Fact]
+    public async Task Handle_MetadataProvidedButExistingIsNull_SetsNewMetadata()
+    {
+        // Arrange
+        var submission = new Submission(
+            tenantId: SampleData.TENANT_ID,
+            jsonData: "{ }",
+            formId: 2,
+            formDefinitionId: 3,
+            isComplete: false,
+            metadata: null);
+
+        var newMetadata = "{\"language\":\"en\"}";
+        var request = new PartialUpdateSubmissionCommand(
+            SubmissionId: 1,
+            FormId: 2,
+            IsComplete: null,
+            CurrentPage: null,
+            JsonData: null,
+            Metadata: newMetadata
+        );
+
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+        result.Value.Metadata.Should().Contain("\"language\":\"en\"");
+    }
+
+    [Fact]
+    public async Task Handle_NoMetadataInRequest_KeepsExistingMetadata()
+    {
+        // Arrange
+        var existingMetadata = "{\"test\":\"1\"}";
+        var submission = new Submission(
+            tenantId: SampleData.TENANT_ID,
+            jsonData: "{ }",
+            formId: 2,
+            formDefinitionId: 3,
+            isComplete: false,
+            metadata: existingMetadata);
+
+        var request = new PartialUpdateSubmissionCommand(
+            SubmissionId: 1,
+            FormId: 2,
+            IsComplete: null,
+            CurrentPage: null,
+            JsonData: null,
+            Metadata: null
+        );
+
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+        result.Value.Metadata.Should().Be(existingMetadata);
     }
 }
