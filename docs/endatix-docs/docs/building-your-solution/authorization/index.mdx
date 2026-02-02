@@ -63,7 +63,12 @@ Permission names follow the pattern: `{category}.{action}.{scope}`
 
 <details>
   <summary>List of built-in permissions</summary>
-    #### Access-Level Permissions
+
+:::tip API Endpoint Reference
+For a comprehensive guide showing which API endpoints require which permissions, see the [API Permissions Reference](/docs/guides/api-permissions-reference).
+:::
+
+  #### Access-Level Permissions
 
 These are access-level permissions (not action-based):
 
@@ -119,11 +124,12 @@ Tenant-specific management permissions:
 #### Submission Management Permissions
 
 - `submissions.view` - View submissions
-- `submissions.create` - Create submissions
+- `submissions.create` - Create submissions (authenticated)
+- `submissions.create.onbehalf` - Create submissions on behalf of other users (for form prefilling)
 - `submissions.edit` - Edit submissions
 - `submissions.delete` - Delete submissions
-- `submissions.export` - Export submissions
 - `submissions.delete.owned` - Delete own submissions (ownership-based)
+- `submissions.export` - Export submissions
 
 #### Question Management Permissions
 
@@ -219,6 +225,7 @@ For role-based access control with Keycloak using token introspection, see the [
 
 ## Next Steps
 
+- See [API Permissions Reference](/docs/guides/api-permissions-reference) for a complete mapping of endpoints to required permissions
 - Learn about [External Authorization concepts](/docs/guides/external-authorization)
 - Set up [Keycloak RBAC](/docs/building-your-solution/authorization/keycloak-rbac) for advanced authorization
 - Explore [Authentication providers](/docs/building-your-solution/authentication) for your application
