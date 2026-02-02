@@ -1,0 +1,368 @@
+---
+title: API Permissions Reference
+description: Complete reference of API endpoints and their required permissions
+sidebar_position: 5
+---
+
+# API Permissions Reference
+
+This guide provides a comprehensive reference of all Endatix API endpoints and their required permissions. Use this as a quick lookup when integrating with the API or troubleshooting authorization issues.
+
+## Overview
+
+Endatix uses a permission-based authorization system where each API endpoint requires specific permissions. Permissions follow the pattern: `{category}.{action}.{scope}`
+
+### Understanding Endpoint Permissions
+
+In the endpoint tables below, the **Permission** column shows:
+- **Public** - No authentication required (accessible anonymously)
+- **Authenticated** - Requires authentication but no specific permission
+- **Specific permission** (e.g., `forms.create`) - Requires authentication and the specified permission
+
+:::tip Quick Links
+- [Permission Categories](#permission-categories) - All available permissions
+- [Endpoints by Category](#endpoints-by-category) - Complete endpoint reference
+- [Authorization Overview](/docs/building-your-solution/authorization) - Learn about the authorization system
+:::
+
+## Permission Categories
+
+### Access-Level Permissions
+
+| Permission | Description |
+|------------|-------------|
+| `access.authenticated` | User is authenticated (signed in) |
+| `access.apps.hub` | User has access to Endatix Hub application |
+
+### Platform-Level Permissions
+
+Platform-wide management permissions (typically for PlatformAdmin role):
+
+| Permission | Description |
+|------------|-------------|
+| `platform.tenants.manage` | Manage tenants |
+| `platform.settings.manage` | Manage platform settings |
+| `platform.integrations.manage` | Manage platform integrations |
+| `platform.users.impersonate` | Impersonate users |
+| `platform.metrics.view` | View platform metrics |
+| `platform.logs.view` | View platform logs |
+| `platform.usage.view` | View platform usage statistics |
+
+### Tenant-Level Permissions
+
+Tenant-specific management permissions:
+
+| Permission | Description |
+|------------|-------------|
+| `tenant.users.invite` | Invite users to the tenant |
+| `tenant.users.view` | View tenant users |
+| `tenant.users.manage` | Manage tenant users |
+| `tenant.roles.view` | View tenant roles |
+| `tenant.roles.manage` | Manage tenant roles |
+| `tenant.settings.view` | View tenant settings |
+| `tenant.settings.manage` | Manage tenant settings |
+| `tenant.usage.view` | View tenant usage statistics |
+
+### Resource Permissions
+
+#### Forms
+
+| Permission | Description |
+|------------|-------------|
+| `forms.view` | View forms |
+| `forms.create` | Create new forms |
+| `forms.edit` | Edit existing forms |
+| `forms.delete` | Delete forms |
+
+#### Templates
+
+| Permission | Description |
+|------------|-------------|
+| `templates.view` | View form templates |
+| `templates.create` | Create new templates |
+| `templates.edit` | Edit existing templates |
+| `templates.delete` | Delete templates |
+
+#### Themes
+
+| Permission | Description |
+|------------|-------------|
+| `themes.view` | View themes |
+| `themes.create` | Create new themes |
+| `themes.edit` | Edit existing themes |
+| `themes.delete` | Delete themes |
+
+#### Submissions
+
+| Permission | Description |
+|------------|-------------|
+| `submissions.view` | View submissions |
+| `submissions.create` | Create submissions (authenticated) |
+| `submissions.create.onbehalf` | Create submissions on behalf of other users (for prefilling) |
+| `submissions.edit` | Edit submissions |
+| `submissions.delete` | Delete any submission |
+| `submissions.delete.owned` | Delete own submissions (ownership-based) |
+| `submissions.export` | Export submissions to CSV or other formats |
+
+#### Questions
+
+| Permission | Description |
+|------------|-------------|
+| `questions.view` | View custom questions |
+| `questions.create` | Create custom questions |
+| `questions.edit` | Edit custom questions |
+| `questions.delete` | Delete custom questions |
+
+## Endpoints by Category
+
+This section provides the **complete reference** of all API endpoints with information about permissions and short descriptions.
+
+:::info Public vs Authenticated Endpoints
+- **Public** endpoints do not require authentication and are accessible anonymously
+- Public submission endpoints use ReCAPTCHA validation to prevent abuse
+- Access token endpoints require a valid signed token for security
+:::
+
+### Authentication & Account Management
+
+#### Authentication Endpoints
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| POST | `/auth/login` | Public | Authenticate user and return JWT tokens |
+| POST | `/auth/register` | Public | Register a new user account |
+| POST | `/auth/refresh-token` | Public | Refresh access token using refresh token |
+| POST | `/auth/logout` | Authenticated | Log out authenticated user |
+| GET | `/auth/me` | Authenticated | Get current user info, roles, and permissions |
+| POST | `/auth/verify-email` | Public | Verify user's email address using verification token |
+| POST | `/auth/send-verification-email` | Public | Send verification email to specified email address |
+
+#### Account Management
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| POST | `/account/forgot-password` | Public | Send password reset email |
+| POST | `/account/reset-password` | Public | Reset password with reset code |
+| POST | `/my-account/change-password` | Authenticated | Change authenticated user's password |
+
+### Forms Management
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| POST | `/forms` | `forms.create` | Create a new form with active definition |
+| GET | `/forms` | `forms.view` | List all forms with pagination |
+| GET | `/forms/{formId}` | `forms.view` | Get form by ID |
+| PUT | `/forms/{formId}` | `forms.edit` | Update a form |
+| PATCH | `/forms/{formId}` | `forms.edit` | Partially update a form |
+| DELETE | `/forms/{formId}` | `forms.delete` | Delete form and all its definitions/submissions |
+
+:::warning Cascading Delete
+Deleting a form will delete all associated form definitions and submissions.
+:::
+
+### Form Definitions
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| POST | `/forms/{formId}/definitions` | `forms.edit` | Create new form definition |
+| GET | `/forms/{formId}/definitions` | `forms.view` | List all form definitions for a form |
+| GET | `/forms/{formId}/definition` | **Public** | Get active form definition (for rendering) |
+| GET | `/forms/{formId}/definitions/{definitionId}` | `forms.view` | Get specific form definition by ID |
+| PUT | `/forms/{formId}/definitions/{definitionId}` | `forms.edit` | Update form definition |
+| PATCH | `/forms/{formId}/definitions/{definitionId}` | `forms.edit` | Partially update form definition |
+| PUT | `/forms/{formId}/definition` | `forms.edit` | Update the active form definition |
+| PATCH | `/forms/{formId}/definition` | `forms.edit` | Partially update the active definition |
+
+:::tip Active Definition
+The `/definition` endpoint (singular) always returns or updates the currently active form definition, while `/definitions` (plural) works with all versions.
+:::
+
+### Submissions
+
+#### Authenticated Submission Endpoints
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| GET | `/forms/{formId}/submissions` | `submissions.view` | List submissions for a form |
+| GET | `/forms/{formId}/submissions/{submissionId}` | `submissions.view` | Get submission by ID |
+| PUT | `/forms/{formId}/submissions/{submissionId}` | `submissions.edit` | Update submission |
+| PATCH | `/forms/{formId}/submissions/{submissionId}` | `submissions.edit` | Partially update submission |
+| POST | `/forms/{formId}/submissions/{submissionId}/status` | `submissions.edit` | Update submission status |
+| DELETE | `/forms/{formId}/submissions/{submissionId}` | `submissions.delete` OR `submissions.delete.owned` | Delete submission (see note below) |
+| POST | `/forms/{formId}/submissions/export` | `submissions.export` | Export submissions (CSV or custom formats) |
+| POST | `/forms/{formId}/submissions/{submissionId}/files` | `submissions.view` | Download submission files as ZIP |
+
+:::info Ownership-Based Deletion
+The delete endpoint accepts either `submissions.delete` (delete any submission) OR `submissions.delete.owned` (delete only own submissions). This allows users to manage their own submissions without full delete permissions.
+:::
+
+#### Public Submission Endpoints
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| POST | `/forms/{formId}/submissions` | **Public** | Create submission (anonymous form submission) |
+| GET | `/forms/{formId}/submissions/by-token/{submissionToken}` | **Public** | Get submission by token (for partial submissions) |
+| PATCH | `/forms/{formId}/submissions/by-token/{submissionToken}` | **Public** | Update submission by token (for partial submissions) |
+
+#### Special Submission Endpoints
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| POST | `/forms/{formId}/submissions/onbehalf` | `submissions.create.onbehalf` | Create submission on behalf of another user (for prefilling) |
+| POST | `/forms/{formId}/submissions/{submissionId}/access-token` | `submissions.view` OR `submissions.edit` OR `submissions.export` | Generate short-lived access token for sharing |
+| GET | `/forms/{formId}/submissions/by-access-token/{token}` | **Public** | Get submission using access token |
+| PATCH | `/forms/{formId}/submissions/by-access-token/{token}` | **Public** | Update submission using access token |
+
+:::tip Access Token Permissions
+When generating an access token, you can specify which permission (view, edit, or export) the token should grant. The token is short-lived and scoped to that specific permission.
+:::
+
+### Form Templates
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| POST | `/form-templates` | `templates.create` | Create new form template |
+| GET | `/form-templates` | `templates.view` | List all form templates |
+| GET | `/form-templates/{formTemplateId}` | `templates.view` | Get form template by ID |
+| PATCH | `/form-templates/{formTemplateId}` | `templates.edit` | Partially update form template |
+| DELETE | `/form-templates/{formTemplateId}` | `templates.delete` | Delete form template |
+
+### Themes
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| POST | `/themes` | `themes.create` | Create new theme |
+| GET | `/themes` | `themes.view` | List all themes |
+| GET | `/themes/{themeId}` | `themes.view` | Get theme by ID |
+| PUT | `/themes/{themeId}` | `themes.edit` | Update theme |
+| PATCH | `/themes/{themeId}` | `themes.edit` | Partially update theme |
+| DELETE | `/themes/{themeId}` | `themes.delete` | Delete theme |
+
+### Custom Questions
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| POST | `/questions` | `questions.create` | Create custom question |
+| GET | `/questions` | `questions.view` | List custom questions for tenant |
+
+### User & Role Management
+
+#### User Management
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| GET | `/users/{userId}/roles` | `tenant.users.view` | Get roles assigned to a user |
+| POST | `/users/{userId}/roles` | `tenant.users.manage` | Assign role to user |
+| DELETE | `/users/{userId}/roles/{roleName}` | `tenant.users.manage` | Remove role from user |
+
+#### Role Management
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| POST | `/roles` | `tenant.roles.manage` | Create new role with permissions |
+| DELETE | `/roles/{roleName}` | `tenant.roles.manage` | Delete role |
+
+### Tenant Settings
+
+| Method | Route | Permission | Description |
+|--------|-------|------------|-------------|
+| GET | `/tenant-settings` | `tenant.settings.view` | Get tenant settings (sensitive data masked) |
+
+## Special Permission Patterns
+
+### Multiple Permission Support
+
+Some endpoints accept multiple permissions, where the user needs at least one of them:
+
+```csharp
+// Example: Delete submission endpoint
+Permissions(Actions.Submissions.Delete, Actions.Submissions.DeleteOwned);
+// User needs EITHER Delete OR DeleteOwned permission
+```
+
+### Ownership-Based Permissions
+
+Permissions ending with `.owned` are ownership-based:
+
+- `submissions.delete.owned` - User can only delete their own submissions
+
+This pattern allows fine-grained control where users can manage their own resources without full permissions.
+
+### Access Token Scoping
+
+When generating access tokens for submission sharing, you can specify the permission level:
+
+```json
+{
+  "submissionId": "123",
+  "permission": "export",
+  "expiresInMinutes": 60
+}
+```
+
+The generated token will only grant the specified permission (`view`, `edit`, or `export`).
+
+### Admin Override
+
+:::tip Important
+Users with the **Admin** or **PlatformAdmin** roles will pass any permission check automatically. To restrict access to platform-level features to PlatformAdmins only, use role policies instead of permissions.
+:::
+
+## Role to Permission Mapping
+
+Here's a quick reference of which permissions each default role has:
+
+| Role | Key Permissions |
+|------|-----------------|
+| **Admin** | Full tenant access - all forms, submissions, templates, themes, tenant users/roles/settings |
+| **PlatformAdmin** | Full platform access - all tenant capabilities plus platform.* permissions |
+| **Creator** | `forms.*`, `templates.*`, `themes.*`, `submissions.view`, `submissions.export` |
+| **Authenticated** | `access.authenticated` (basic authenticated access) |
+| **Public** | No permissions (anonymous access) |
+
+:::info Custom Roles
+You can create custom roles with any combination of permissions to suit your specific needs. See [Authorization](/docs/building-your-solution/authorization) for details.
+:::
+
+## Troubleshooting Permission Errors
+
+### 401 Unauthorized
+
+- User is not authenticated
+- Token is expired or invalid
+- Check that the Authorization header is set correctly
+
+### 403 Forbidden
+
+- User is authenticated but lacks the required permission
+- Check the user's assigned roles
+- Verify the role has the required permission
+- For ownership-based permissions, verify the user owns the resource
+
+### Common Issues
+
+1. **"I have the role but still get 403"**
+   - Verify the role includes the specific permission
+   - Check if you're accessing resources in the correct tenant
+
+2. **"Public endpoint returns 401"**
+   - Verify the endpoint is documented as public
+   - Check that AllowAnonymous is correctly configured
+   - For access token endpoints, ensure the token is valid
+
+3. **"Can't delete my own submission"**
+   - You need either `submissions.delete` OR `submissions.delete.owned`
+   - Verify the submission actually belongs to your user account
+
+## Next Steps
+
+- [Authorization Overview](/docs/building-your-solution/authorization) - Learn about the authorization system
+- [External Authorization](/docs/guides/external-authorization) - Use external identity providers
+- [Form Prefilling Guide](/docs/guides/form-prefilling) - Learn about the `submissions.create.onbehalf` permission
+- [Session Bridge](/docs/guides/session-bridge) - Cross-platform authentication
+
+## Additional Resources
+
+- **Actions Class**: `src/Endatix.Core/Abstractions/Authorization/Actions.cs` - Permission constants
+- **Endpoints**: `src/Endatix.Api/Endpoints/` - Endpoint implementations
+- **FastEndpoints Docs**: [Security documentation](https://fast-endpoints.com/docs/security) - Framework reference

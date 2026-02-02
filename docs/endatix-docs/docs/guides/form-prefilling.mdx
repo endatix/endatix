@@ -1,7 +1,7 @@
 ---
 title: Form Prefilling and Sharing
 description: Create prefilled forms and share submissions with controlled access using access tokens
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 # Form Prefilling and Sharing
@@ -15,6 +15,107 @@ Access tokens enable you to:
 - **Share completed submissions** for read-only review
 - **Share submissions for editing** with controlled permissions
 - **Control access duration** with configurable expiration times
+
+## Creating Submissions
+
+Endatix provides two endpoints for creating submissions, each suited for different scenarios:
+
+### Option 1: Public Submission Creation
+
+Use the **public endpoint** when creating anonymous submissions or when you don't need to track who created the submission.
+
+**Endpoint:** `POST /api/forms/{formId}/submissions`
+
+**Authentication:** Not required (public endpoint)
+
+**Request Example:**
+```http
+POST /api/forms/1442869143157080064/submissions
+Content-Type: application/json
+
+{
+  "jsonData": "{\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\"}",
+  "isComplete": false,
+  "currentPage": 0,
+  "metadata": "{}"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1443953837470646272,
+  "formId": 1442869143157080064,
+  "jsonData": "{\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\"}",
+  "isComplete": false,
+  "createdAt": "2026-01-19T10:00:00Z"
+  /* other submission fields */
+}
+```
+
+**Key Features:**
+- Public access (no authentication required)
+- Cannot specify `submittedBy` field
+- Ideal for anonymous form submissions
+- May require reCAPTCHA validation (if configured)
+
+### Option 2: Authenticated Submission Creation (On Behalf)
+
+Use the **authenticated endpoint** when you need to create submissions on behalf of specific users and track who they're for.
+
+**Endpoint:** `POST /api/forms/{formId}/submissions/onbehalf`
+
+**Authentication:** Required with `Submissions.CreateOnBehalf` permission
+
+**Request Example:**
+```http
+POST /api/forms/1442869143157080064/submissions/onbehalf
+Content-Type: application/json
+Authorization: Bearer YOUR_JWT_TOKEN
+
+{
+  "jsonData": "{\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\"}",
+  "isComplete": false,
+  "currentPage": 0,
+  "metadata": "{}",
+  "submittedBy": "user123"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1443953837470646272,
+  "formId": 1442869143157080064,
+  "jsonData": "{\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\"}",
+  "isComplete": false,
+  "submittedBy": "user123",
+  "createdAt": "2026-01-19T10:00:00Z"
+  /* other submission fields */
+}
+```
+
+**Key Features:**
+- Requires authentication and `Submissions.CreateOnBehalf` permission
+- Can specify `submittedBy` field to track the user the submission is for
+- No reCAPTCHA required (authenticated requests)
+- Ideal for admin/staff creating submissions on behalf of users
+
+**Common Use Cases:**
+- Healthcare staff pre-filling patient forms
+- Customer service representatives creating submissions for customers
+- Admin users bulk-importing historical data with proper attribution
+- Support staff creating submissions during assisted onboarding
+
+### Choosing the Right Endpoint
+
+| Scenario | Recommended Endpoint |
+|----------|---------------------|
+| Anonymous user submitting a form | Public endpoint |
+| Embedded forms on public websites | Public endpoint |
+| Admin creating submission for a specific user | Authenticated (onbehalf) endpoint |
+| Bulk import with user attribution | Authenticated (onbehalf) endpoint |
+| Staff-assisted form completion | Authenticated (onbehalf) endpoint |
 
 ## Prerequisites
 
@@ -59,6 +160,10 @@ Create a form with prefilled data and share it with users for completion.
 
 ### Step 1: Create a Submission with Prefilled Data
 
+You can use either the **public endpoint** or the **authenticated (onbehalf) endpoint** to create the submission, depending on your scenario. See [Creating Submissions](#creating-submissions) for details on both options.
+
+**Example using the public endpoint:**
+
 ```http
 POST /api/forms/1442869143157080064/submissions
 Content-Type: application/json
@@ -80,6 +185,8 @@ Content-Type: application/json
   /* other submission fields */
 }
 ```
+
+> **Note**: If you're a staff member creating this submission on behalf of a specific user (e.g., a patient, customer, or client), use the authenticated `/onbehalf` endpoint instead and include the `submittedBy` field to track who the submission is for.
 
 ### Step 2: Generate an Access Token
 
@@ -406,6 +513,7 @@ app.get('/profile', async (req, res) => {
 ### Endpoints
 
 - `POST /api/forms/{formId}/submissions` - Create a new submission (public)
+- `POST /api/forms/{formId}/submissions/onbehalf` - Create a submission on behalf of another user (authenticated)
 - `POST /api/forms/{formId}/submissions/{submissionId}/access-token` - Generate access token
 - `GET /api/forms/{formId}/submissions/by-access-token/{token}` - Retrieve submission (public)
 - `PATCH /api/forms/{formId}/submissions/by-access-token/{token}` - Update submission (public)
