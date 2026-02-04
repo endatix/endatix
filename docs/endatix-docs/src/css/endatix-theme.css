@@ -6,48 +6,48 @@
 
 /* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #0066FF;
-  --ifm-color-primary-dark: #0055D9;
-  --ifm-color-primary-darker: #0049CC;
-  --ifm-color-primary-darkest: #003CB3;
-  --ifm-color-primary-light: #1A75FF;
-  --ifm-color-primary-lighter: #3385FF;
-  --ifm-color-primary-lightest: #4D94FF;
+  --ifm-color-primary: #0066ff;
+  --ifm-color-primary-dark: #0055d9;
+  --ifm-color-primary-darker: #0049cc;
+  --ifm-color-primary-darkest: #003cb3;
+  --ifm-color-primary-light: #1a75ff;
+  --ifm-color-primary-lighter: #3385ff;
+  --ifm-color-primary-lightest: #4d94ff;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
   --ifm-navbar-background-color: #ffffff;
   --ifm-navbar-link-color: #000000;
-  
+
   /* Footer variables for light mode - matches corp site */
   --ifm-footer-background-color: #f4f5f7;
   --ifm-footer-title-color: #1a1a1a;
-  --ifm-footer-link-color: #0066FF;
+  --ifm-footer-link-color: #0066ff;
   --ifm-footer-text-color: #666666;
-  
-  --ifm-hero-background-color: #0066FF;
+
+  --ifm-hero-background-color: #0066ff;
   --ifm-hero-text-color: #ffffff;
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
-[data-theme='dark'] {
-  --ifm-color-primary: #4D94FF;
-  --ifm-color-primary-dark: #3385FF;
-  --ifm-color-primary-darker: #1A75FF;
-  --ifm-color-primary-darkest: #0066FF;
-  --ifm-color-primary-light: #66A3FF;
-  --ifm-color-primary-lighter: #80B3FF;
-  --ifm-color-primary-lightest: #99C2FF;
+[data-theme="dark"] {
+  --ifm-color-primary: #4d94ff;
+  --ifm-color-primary-dark: #3385ff;
+  --ifm-color-primary-darker: #1a75ff;
+  --ifm-color-primary-darkest: #0066ff;
+  --ifm-color-primary-light: #66a3ff;
+  --ifm-color-primary-lighter: #80b3ff;
+  --ifm-color-primary-lightest: #99c2ff;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
-  --ifm-navbar-background-color: #1B1B1D;
+  --ifm-navbar-background-color: #1b1b1d;
   --ifm-navbar-link-color: #ffffff;
-  
+
   /* Footer variables for dark mode */
   --ifm-footer-background-color: #2b3137;
   --ifm-footer-title-color: #ffffff;
   --ifm-footer-link-color: #ffffff;
   --ifm-footer-text-color: #ffffff;
-  
-  --ifm-hero-background-color: #0066FF;
+
+  --ifm-hero-background-color: #0066ff;
   --ifm-hero-text-color: #ffffff;
 }
 
@@ -57,21 +57,21 @@
   color: var(--ifm-hero-text-color);
 }
 
-.hero__title, 
+.hero__title,
 .hero__subtitle {
   color: var(--ifm-hero-text-color);
 }
 
 .button.button--secondary {
   color: #000000;
-  background-color: #FFFFFF;
-  border-color: #FFFFFF;
+  background-color: #ffffff;
+  border-color: #ffffff;
 }
 
-[data-theme='dark'] .button.button--secondary {
-  color: #FFFFFF;
+[data-theme="dark"] .button.button--secondary {
+  color: #ffffff;
   background-color: transparent;
-  border-color: #FFFFFF;
+  border-color: #ffffff;
 }
 
 /* Logo and navbar styling */
@@ -84,7 +84,7 @@
   height: 2.5rem;
   margin-right: 0.5rem;
   position: relative;
-  top: 3px; 
+  top: 3px;
 }
 
 /* Make navbar sticky */
@@ -159,21 +159,30 @@ article a {
   color: var(--ifm-color-primary);
 }
 
-/* PRODUCTS category styled as static section divider (label only, no link) */
-.menu__list-item .sidebar-products-divider .menu__link {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+/* PRODUCTS section divider:  */
+.theme-doc-sidebar-item-link.sidebar-products-divider {
+  margin-bottom: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  padding-left: 0.75rem;
+  border-top: 1px solid var(--ifm-toc-border-color);
+  border-left: 3px solid var(--ifm-color-primary);
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 0 0 0 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ifm-color-emphasis-600);
+  color: var(--ifm-color-primary);
   cursor: default;
   pointer-events: none;
 }
-.menu__list-item.sidebar-products-divider {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--ifm-toc-border-color);
+
+
+.theme-doc-sidebar-container li.sidebar-products-divider {
+  margin-top: 0.75rem;
 }
-.menu__list-item.sidebar-products-divider .menu__link--sublist::after {
-  display: none;
+
+[data-theme="dark"] .theme-doc-sidebar-item-link.sidebar-products-divider {
+  background: var(--ifm-color-emphasis-200);
 }

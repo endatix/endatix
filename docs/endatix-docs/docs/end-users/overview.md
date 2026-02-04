@@ -1,10 +1,10 @@
 ---
-title: Overview
+title: Hub Basics
 description: Welcome to Endatix Hub - the web-based form management platform
 sidebar_position: 1
 ---
 
-# Welcome to Endatix Hub
+# Hub Basics
 
 Endatix Hub is a powerful form management platform that lets you create, customize, and manage forms without writing any code. Built on top of SurveyJS, it provides everything you need to build professional form solutions.
 

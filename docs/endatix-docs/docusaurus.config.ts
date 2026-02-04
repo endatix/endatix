@@ -1,11 +1,12 @@
 import { themes as prismThemes } from "prism-react-renderer";
-import type { Config, MarkdownConfig } from "@docusaurus/types";
+import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 import type * as Redocusaurus from "redocusaurus";
 
 const config: Config = {
   title: "Endatix Documentation",
-  tagline: "Official documentation for Endatix data platform",
+  tagline:
+    "Master the art of data collection. Whether you are building custom workflows with our API or managing forms in the Hub, we have you covered.",
   favicon: "img/endatix.svg",
 
   // Set the production url of your site here
@@ -18,7 +19,6 @@ const config: Config = {
   // If you aren't using GitHub pages, you don't need these.
   organizationName: "facebook", // Usually your GitHub org/user name.
   projectName: "docusaurus", // Usually your repo name.
-
   onBrokenLinks: "throw",
 
   // Even if you don't use internationalization, you can use this field to set
@@ -36,6 +36,7 @@ const config: Config = {
     [
       "classic",
       {
+        blog: false,
         docs: {
           sidebarPath: "./sidebars.ts",
           // Please change this to your repo.
@@ -60,7 +61,7 @@ const config: Config = {
           {
             id: "using-remote-url",
             spec: "./swagger.json",
-            route: "/docs/developers/endatix-api/api-reference",
+            route: "/docs/developers/api/api-reference",
           },
         ],
         // Theme Options for modifying how redoc renders them
@@ -82,13 +83,13 @@ const config: Config = {
       items: [
         {
           type: "docSidebar",
-          sidebarId: "developers",
+          sidebarId: "devSidebar",
           position: "left",
           label: "Developers",
         },
         {
           type: "docSidebar",
-          sidebarId: "endUsers",
+          sidebarId: "userSidebar",
           position: "left",
           label: "End Users",
         },
@@ -182,7 +183,7 @@ const config: Config = {
       appId: process.env.ALGOLIA_APP_ID || "YOUR_APP_ID",
       apiKey: process.env.ALGOLIA_API_KEY || "YOUR_API_KEY",
       indexName: process.env.ALGOLIA_INDEX_NAME || "Endatix Docs",
-    }
+    },
   } satisfies Preset.ThemeConfig,
   markdown: {
     mermaid: true,

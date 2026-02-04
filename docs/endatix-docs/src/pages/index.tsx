@@ -4,6 +4,7 @@ import HomepageFeatures from "@site/src/components/HomepageFeatures";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
+import { Code2, LayoutDashboard } from "lucide-react";
 
 import styles from "./index.module.css";
 
@@ -13,168 +14,180 @@ function HomepageHeader() {
     <header className={clsx("hero hero--primary", styles.heroBanner)}>
       <div className="container">
         <Heading as="h1" className="hero__title">
-          {siteConfig.title}
+          Welcome to Endatix Documentation
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
-        <div className={styles.buttons}>
-          <Link
-            className="button button--primary button--lg margin-right--md"
-            to="/docs/getting-started/what-is-endatix"
-          >
-            Developers — Get started
-          </Link>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs/end-users/overview"
-          >
-            End Users — Hub guide
-          </Link>
-        </div>
       </div>
     </header>
+  );
+}
+
+function HeroCard({
+  icon: Icon,
+  title,
+  description,
+  primaryCTA,
+  primaryLink,
+  secondaryLinks,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  primaryCTA: string;
+  primaryLink: string;
+  secondaryLinks: Array<{ label: string; href: string }>;
+}) {
+  return (
+    <div className={styles.heroCard}>
+      <div className={styles.heroCardIcon}>
+        <Icon size={48} />
+      </div>
+      <Heading as="h3" className={styles.heroCardTitle}>
+        {title}
+      </Heading>
+      <p className={styles.heroCardDescription}>{description}</p>
+      <div className={styles.heroCardActions}>
+        <Link className="button button--primary button--lg" to={primaryLink}>
+          {primaryCTA}
+        </Link>
+        <div className={styles.heroCardSecondaryLinks}>
+          {secondaryLinks.map((link, idx) => (
+            <Link key={idx} className={styles.secondaryLink} to={link.href}>
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductDeepDive({
+  title,
+  description,
+  link,
+}: {
+  title: string;
+  description: string;
+  link: string;
+}) {
+  return (
+    <div className={styles.productDeepDive}>
+      <Heading as="h3" className={styles.productDeepDiveTitle}>
+        {title}
+      </Heading>
+      <p className={styles.productDeepDiveDescription}>{description}</p>
+      <Link className="button button--secondary" to={link}>
+        Learn More
+      </Link>
+    </div>
   );
 }
 
 function HomepageContent() {
   return (
     <div className="container margin-top--xl margin-bottom--xl">
-      <div className="row">
-        <div className="col col--10 col--offset-1">
-          <div className="margin-bottom--lg">
-            <Heading as="h2">Open-source backend for SurveyJS</Heading>
+      {/* Hero Cards Section */}
+      <div className={styles.heroCardsSection}>
+        <div className="row">
+          <div className="col col--6">
+            <HeroCard
+              icon={Code2}
+              title="I am a Developer"
+              description="Build, extend, and integrate. Dive into our .NET API and Next.js Hub to create powerful data collection solutions."
+              primaryCTA="Quick Start Guide"
+              primaryLink="/docs/getting-started/quick-start"
+              secondaryLinks={[
+                {
+                  label: "API Reference",
+                  href: "/docs/developers/api/api-reference",
+                },
+                { label: "GitHub", href: "https://github.com/endatix" },
+              ]}
+            />
+          </div>
+          <div className="col col--6">
+            <HeroCard
+              icon={LayoutDashboard}
+              title="I am an End User"
+              description="Create forms, manage responses, and analyze data. Learn how to use the Endatix Hub UI to power your business."
+              primaryCTA="Hub Basics"
+              primaryLink="/docs/end-users/overview"
+              secondaryLinks={[
+                {
+                  label: "Template Gallery",
+                  href: "/docs/end-users/template-gallery",
+                },
+                {
+                  label: "Managing Results",
+                  href: "/docs/end-users/managing-results",
+                },
+              ]}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Product Deep Dives Section */}
+      <div className={styles.productDeepDivesSection}>
+        <Heading as="h2" className="text--center margin-bottom--lg">
+          Product Deep Dives
+        </Heading>
+        <div className="row">
+          <div className="col col--6">
+            <ProductDeepDive
+              title="Endatix API (.NET)"
+              description="The engine. Open-source, high-performance backend for form logic and data storage."
+              link="/docs/developers/api/"
+            />
+          </div>
+          <div className="col col--6">
+            <ProductDeepDive
+              title="Endatix Hub (Next.js)"
+              description="The interface. A sophisticated, enterprise-ready UI for managing the entire Endatix lifecycle."
+              link="/docs/developers/hub/"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* FAQs Section - Keep for now */}
+      <div className="margin-top--xl">
+        <Heading as="h2" className="text--center margin-bottom--lg">
+          FAQs
+        </Heading>
+        <div className="row">
+          <div className="col col--6">
+            <Heading as="h3">Is it free for commercial use?</Heading>
             <p>
-              Endatix is a free and open-source backend for SurveyJS projects
-              that can be integrated into any .NET Core project or set up in a
-              container as a standalone application. Its database persistence
-              provider makes it easy to store JSON form schema and form
-              submissions. It also features a REST API that enables any frontend
-              to be paired with it, regardless of whether it uses React, Vue,
-              Angular, or JQuery.
+              Yes, Endatix API is a free and open-source library, licensed under
+              the MIT License and may be used for commercial projects. Endatix
+              Hub requires a commercial license for production use.
             </p>
           </div>
-
-          <div className="margin-bottom--lg">
-            <Heading as="h2">Features that Save Time</Heading>
-            <div className="row">
-              <div className="col col--6">
-                <Heading as="h3">Fluent API</Heading>
-                <p>
-                  Chained configuration methods for a cleaner and more readable
-                  initialization.
-                </p>
-              </div>
-              <div className="col col--6">
-                <Heading as="h3">Persistence of Forms and Submissions</Heading>
-                <p>
-                  Persist SurveyJS form schema and submissions to a database
-                  with ease.
-                </p>
-              </div>
-            </div>
-            <div className="row">
-              <div className="col col--6">
-                <Heading as="h3">REST API Endpoints</Heading>
-                <p>
-                  The API layer provides endpoints for SurveyJS CRUD operations.
-                </p>
-              </div>
-              <div className="col col--6">
-                <Heading as="h3">Event Handling</Heading>
-                <p>
-                  Subscribe to form submission events and trigger workflows.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="margin-bottom--lg">
-            <Heading as="h2">Choose your journey</Heading>
+          <div className="col col--6">
+            <Heading as="h3">Which databases are supported?</Heading>
             <p>
-              Whether you are a developer integrating Endatix API or Endatix
-              Hub, or an end user building and managing forms in the Hub UI,
-              start from the docs that match your role.
+              Currently, Endatix supports Microsoft SQL Server and PostgreSQL.
+              We plan to continue adding support for other types.
             </p>
-            <div className="row">
-              <div className="col col--6">
-                <Heading as="h3">Developers</Heading>
-                <ul>
-                  <li>
-                    <Link to="/docs/getting-started/what-is-endatix">
-                      First time? What is Endatix?
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/docs/getting-started/quick-start">
-                      Quick start (API / NuGet / Docker)
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/docs/developers/endatix-api/api-reference">
-                      API Reference (Endatix API)
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/docs/developers/endatix-hub/">
-                      Endatix Hub development (Next.js)
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div className="col col--6">
-                <Heading as="h3">End Users</Heading>
-                <ul>
-                  <li>
-                    <Link to="/docs/end-users/overview">Hub overview</Link>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div className={styles.buttons}>
-              <Link
-                className="button button--primary button--lg margin-right--md"
-                to="/docs/getting-started/quick-start"
-              >
-                Installation Guide
-              </Link>
-            </div>
           </div>
-
-          <div>
-            <Heading as="h2">FAQs</Heading>
-            <div className="row">
-              <div className="col col--6">
-                <Heading as="h3">Is it free for commercial use?</Heading>
-                <p>
-                  Yes, Endatix is a free and open-source library, licensed under
-                  the MIT License and may be used for commercial projects.
-                </p>
-              </div>
-              <div className="col col--6">
-                <Heading as="h3">Which databases are supported?</Heading>
-                <p>
-                  Currently, Endatix supports Microsoft SQL Server and
-                  PostgreSQL. We plan to continue adding support for other
-                  types.
-                </p>
-              </div>
-            </div>
-            <div className="row">
-              <div className="col col--6">
-                <Heading as="h3">Do I need to be on the .NET stack?</Heading>
-                <p>
-                  No. While the platform is written in C#, we provide a
-                  containerized version, which you can run alongside your
-                  solution in any Docker-compatible environment.
-                </p>
-              </div>
-              <div className="col col--6">
-                <Heading as="h3">Do I need a SurveyJS license?</Heading>
-                <p>
-                  No, the SurveyJS Form library is also licensed under the MIT
-                  open-source license and is free for commercial use.
-                </p>
-              </div>
-            </div>
+        </div>
+        <div className="row">
+          <div className="col col--6">
+            <Heading as="h3">Do I need to be on the .NET stack?</Heading>
+            <p>
+              No. While the platform is written in C#, we provide a
+              containerized version, which you can run alongside your solution
+              in any Docker-compatible environment.
+            </p>
+          </div>
+          <div className="col col--6">
+            <Heading as="h3">Do I need a SurveyJS license?</Heading>
+            <p>
+              No, the SurveyJS Form library is also licensed under the MIT
+              open-source license and is free for commercial use.
+            </p>
           </div>
         </div>
       </div>
@@ -186,8 +199,8 @@ export default function Home(): React.ReactNode {
   const { siteConfig } = useDocusaurusContext();
   return (
     <Layout
-      title={`${siteConfig.title} - Open-source backend for SurveyJS`}
-      description="Endatix is a free and open-source backend for SurveyJS projects that can be integrated into any .NET Core project or set up in a container as a standalone application."
+      title={`${siteConfig.title} - Master the art of data collection`}
+      description="Master the art of data collection. Whether you are building custom workflows with our API or managing forms in the Hub, we have you covered."
     >
       <HomepageHeader />
       <main>
