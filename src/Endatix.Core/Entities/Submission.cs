@@ -29,6 +29,7 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
     public bool IsComplete { get; private set; }
     public string JsonData { get; private set; } = null!;
     public FormDefinition FormDefinition { get; private set; } = null!;
+    public Form Form { get; private set; } = null!;
     public long FormId { get; init; }
     public long FormDefinitionId { get; private set; }
     public int? CurrentPage { get; private set; }

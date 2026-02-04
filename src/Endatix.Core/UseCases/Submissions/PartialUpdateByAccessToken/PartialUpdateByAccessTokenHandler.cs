@@ -33,12 +33,17 @@ public class PartialUpdateByAccessTokenHandler(
             return Result.Forbidden("Token does not have edit permission");
         }
 
-        var submissionSpec = new SubmissionWithDefinitionSpec(request.FormId, tokenClaims.SubmissionId);
+        var submissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, tokenClaims.SubmissionId);
         var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
 
         if (submission == null)
         {
             return Result.NotFound("Submission not found");
+        }
+
+        if (!submission.Form.IsEnabled)
+        {
+            return Result.NotFound("Form not found");
         }
 
         var partialUpdateSubmissionCommand = new PartialUpdateSubmissionCommand(

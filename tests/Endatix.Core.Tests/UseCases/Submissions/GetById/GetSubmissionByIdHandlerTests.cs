@@ -23,7 +23,7 @@ public class GetSubmissionByIdHandlerTests
         // Arrange
         var request = new GetByIdQuery(1, 1);
         _submissionsRepository.SingleOrDefaultAsync(
-            Arg.Any<SubmissionWithDefinitionSpec>(), 
+            Arg.Any<SubmissionWithDefinitionAndFormSpec>(),
             Arg.Any<CancellationToken>())
             .Returns((Submission?)null);
 
@@ -43,11 +43,20 @@ public class GetSubmissionByIdHandlerTests
         var formId = 1L;
         var formDefinitionId = 1L;
         var submissionId = 1L;
+
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true);
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
         var submission = new Submission(SampleData.TENANT_ID, "{ }", formId, formDefinitionId) { Id = submissionId };
+
+        var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
+        formProperty.SetValue(submission, form);
+        var formDefinitionProperty = typeof(Submission).GetProperty(nameof(Submission.FormDefinition))!;
+        formDefinitionProperty.SetValue(submission, formDefinition);
+
         var request = new GetByIdQuery(formId, submissionId);
-        
+
         _submissionsRepository.SingleOrDefaultAsync(
-            Arg.Any<SubmissionWithDefinitionSpec>(), 
+            Arg.Any<SubmissionWithDefinitionAndFormSpec>(),
             Arg.Any<CancellationToken>())
             .Returns(submission);
 

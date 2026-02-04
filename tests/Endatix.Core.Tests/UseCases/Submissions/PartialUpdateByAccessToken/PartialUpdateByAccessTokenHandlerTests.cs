@@ -25,11 +25,26 @@ public class PartialUpdateByAccessTokenHandlerTests
         _handler = new PartialUpdateByAccessTokenHandler(_sender, _submissionRepository, _tokenService);
     }
 
+    private static Submission CreateSubmissionWithForm(long formId, long formDefinitionId, bool isFormEnabled = true)
+    {
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: isFormEnabled);
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
+        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
+
+        var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
+        formProperty.SetValue(submission, form);
+        var formDefinitionProperty = typeof(Submission).GetProperty(nameof(Submission.FormDefinition))!;
+        formDefinitionProperty.SetValue(submission, formDefinition);
+
+        return submission;
+    }
+
     [Fact]
-    public async Task Handle_ValidToken_UpdatesSubmissionSuccessfully()
+    public async Task Handle_ValidToken_AndEnabledForm_UpdatesSubmissionSuccessfully()
     {
         // Arrange
         var formId = 123L;
+        var formDefinitionId = 1L;
         var submissionId = 456L;
         var token = "valid.token.w.signature";
         var command = new PartialUpdateByAccessTokenCommand(
@@ -44,12 +59,21 @@ public class PartialUpdateByAccessTokenHandlerTests
             submissionId,
             new[] { "edit" },
             DateTime.UtcNow.AddHours(1));
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
-        var updatedSubmission = new Submission(SampleData.TENANT_ID, "{\"field\":\"value\"}", formId, 1L);
+
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true);
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
+        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
+
+        var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
+        formProperty.SetValue(submission, form);
+        var formDefinitionProperty = typeof(Submission).GetProperty(nameof(Submission.FormDefinition))!;
+        formDefinitionProperty.SetValue(submission, formDefinition);
+
+        var updatedSubmission = new Submission(SampleData.TENANT_ID, "{\"field\":\"value\"}", formId, formDefinitionId);
 
         _tokenService.ValidateAccessToken(token)
             .Returns(Result.Success(tokenClaims));
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
         _sender.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(updatedSubmission));
@@ -62,7 +86,7 @@ public class PartialUpdateByAccessTokenHandlerTests
         result.Value.Should().Be(updatedSubmission);
 
         _tokenService.Received(1).ValidateAccessToken(token);
-        await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>());
+        await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>());
         await _sender.Received(1).Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>());
     }
 
@@ -85,7 +109,49 @@ public class PartialUpdateByAccessTokenHandlerTests
         result.Status.Should().Be(ResultStatus.Invalid);
 
         _tokenService.Received(1).ValidateAccessToken(token);
-        await _submissionRepository.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>());
+        await _submissionRepository.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>());
+        await _sender.DidNotReceive().Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ValidToken_ButDisabledForm_ReturnsNotFound()
+    {
+        // Arrange
+        var formId = 123L;
+        var formDefinitionId = 1L;
+        var submissionId = 456L;
+        var token = "valid.token.w.signature";
+        var command = new PartialUpdateByAccessTokenCommand(token, formId, null, null, null, null);
+
+        var tokenClaims = new SubmissionAccessTokenClaims(
+            submissionId,
+            new[] { "edit" },
+            DateTime.UtcNow.AddHours(1));
+
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: false);
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
+        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
+
+        var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
+        formProperty.SetValue(submission, form);
+        var formDefinitionProperty = typeof(Submission).GetProperty(nameof(Submission.FormDefinition))!;
+        formDefinitionProperty.SetValue(submission, formDefinition);
+
+        _tokenService.ValidateAccessToken(token)
+            .Returns(Result.Success(tokenClaims));
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.NotFound);
+        result.Errors.Should().Contain("Form not found");
+
+        _tokenService.Received(1).ValidateAccessToken(token);
+        await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>());
         await _sender.DidNotReceive().Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>());
     }
 
@@ -115,7 +181,7 @@ public class PartialUpdateByAccessTokenHandlerTests
         result.Errors.Should().Contain("Token does not have edit permission");
 
         _tokenService.Received(1).ValidateAccessToken(token);
-        await _submissionRepository.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>());
+        await _submissionRepository.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>());
         await _sender.DidNotReceive().Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>());
     }
 
@@ -135,7 +201,7 @@ public class PartialUpdateByAccessTokenHandlerTests
 
         _tokenService.ValidateAccessToken(token)
             .Returns(Result.Success(tokenClaims));
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns((Submission?)null);
 
         // Act
@@ -147,7 +213,7 @@ public class PartialUpdateByAccessTokenHandlerTests
         result.Errors.Should().Contain("Submission not found");
 
         _tokenService.Received(1).ValidateAccessToken(token);
-        await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>());
+        await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>());
         await _sender.DidNotReceive().Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>());
     }
 
@@ -168,12 +234,12 @@ public class PartialUpdateByAccessTokenHandlerTests
             submissionId,
             new[] { "edit" },
             DateTime.UtcNow.AddHours(1));
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
         var updatedSubmission = new Submission(SampleData.TENANT_ID, jsonData, formId, 1L);
 
         _tokenService.ValidateAccessToken(token)
             .Returns(Result.Success(tokenClaims));
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
         _sender.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(updatedSubmission));
@@ -208,12 +274,12 @@ public class PartialUpdateByAccessTokenHandlerTests
             submissionId,
             new[] { "edit" },
             DateTime.UtcNow.AddHours(1));
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
         var updatedSubmission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
 
         _tokenService.ValidateAccessToken(token)
             .Returns(Result.Success(tokenClaims));
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
         _sender.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(updatedSubmission));
@@ -239,12 +305,12 @@ public class PartialUpdateByAccessTokenHandlerTests
             submissionId,
             new[] { "view", "edit", "export" },
             DateTime.UtcNow.AddHours(1));
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
         var updatedSubmission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
 
         _tokenService.ValidateAccessToken(token)
             .Returns(Result.Success(tokenClaims));
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
         _sender.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(updatedSubmission));
@@ -270,11 +336,11 @@ public class PartialUpdateByAccessTokenHandlerTests
             submissionId,
             new[] { "edit" },
             DateTime.UtcNow.AddHours(1));
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
 
         _tokenService.ValidateAccessToken(token)
             .Returns(Result.Success(tokenClaims));
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
         _sender.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<Submission>.Error("Update failed"));

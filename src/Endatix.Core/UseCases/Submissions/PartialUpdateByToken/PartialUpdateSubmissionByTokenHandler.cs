@@ -30,7 +30,7 @@ public class PartialUpdateSubmissionByTokenHandler(
         var submissionId = tokenResult.Value;
 
         var form = await formsRepository.GetByIdAsync(request.FormId, cancellationToken);
-        if (form == null)
+        if (form == null || !form.IsEnabled)
         {
             return Result.NotFound("Form not found");
         }

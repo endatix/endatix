@@ -1,16 +1,18 @@
-using MediatR;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Submissions.GetById;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.Submissions.GetByToken;
 
 /// <summary>
 /// Handler for getting a submission by token
 /// </summary>
-public class GetByTokenHandler(ISender sender, ISubmissionTokenService tokenService) : IQueryHandler<GetByTokenQuery, Result<Submission>>
+public class GetByTokenHandler(
+    IRepository<Submission> repository,
+    ISubmissionTokenService tokenService) : IQueryHandler<GetByTokenQuery, Result<Submission>>
 {
     public async Task<Result<Submission>> Handle(GetByTokenQuery request, CancellationToken cancellationToken)
     {
@@ -21,7 +23,20 @@ public class GetByTokenHandler(ISender sender, ISubmissionTokenService tokenServ
         }
 
         var submissionId = tokenResult.Value;
-        var getByIdQuery = new GetByIdQuery(request.FormId, submissionId);
-        return await sender.Send(getByIdQuery, cancellationToken);
+
+        var submissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, submissionId);
+        var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
+
+        if (submission == null)
+        {
+            return Result.NotFound("Submission not found");
+        }
+
+        if (!submission.Form.IsEnabled)
+        {
+            return Result.NotFound("Form not found");
+        }
+
+        return Result.Success(submission);
     }
 }
