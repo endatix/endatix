@@ -59,9 +59,8 @@ const config: Config = {
         specs: [
           {
             id: "using-remote-url",
-            // Remote File
             spec: "./swagger.json",
-            route: "/docs/api",
+            route: "/docs/developers/endatix-api/api-reference",
           },
         ],
         // Theme Options for modifying how redoc renders them
@@ -83,11 +82,16 @@ const config: Config = {
       items: [
         {
           type: "docSidebar",
-          sidebarId: "docsSidebar",
+          sidebarId: "developers",
           position: "left",
-          label: "Docs",
+          label: "Developers",
         },
-        { to: "/docs/api", label: "API Reference", position: "left" },
+        {
+          type: "docSidebar",
+          sidebarId: "endUsers",
+          position: "left",
+          label: "End Users",
+        },
         {
           href: "https://github.com/endatix",
           label: "GitHub",
@@ -188,6 +192,24 @@ const config: Config = {
     },
   },
   themes: ["@docusaurus/theme-mermaid"],
+  plugins: [
+    // Shim gtag so plugin never throws when script is blocked or not loaded yet
+    function gtagShimPlugin() {
+      return {
+        name: "gtag-shim",
+        injectHtmlTags() {
+          return {
+            headTags: [
+              {
+                tagName: "script",
+                innerHTML: "window.gtag=window.gtag||function(){};",
+              },
+            ],
+          };
+        },
+      };
+    },
+  ],
 };
 
 export default config;

@@ -139,7 +139,7 @@ If you encounter any issues during setup:
 
 After successful setup, you can:
 
-- Explore the [API endpoints](/docs/api)
+- Explore the [API endpoints](/docs/developers/endatix-api/api-reference)
 - Use the [Swagger UI](https://localhost:5001/api-docs) to authenticate and test the API endpoints
 - Learn how to create and manage forms - `🚧 coming soon`
 - Understand how to handle form submissions - `🚧 coming soon`

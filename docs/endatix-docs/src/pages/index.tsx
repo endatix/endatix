@@ -18,10 +18,16 @@ function HomepageHeader() {
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <div className={styles.buttons}>
           <Link
-            className="button button--secondary button--lg"
+            className="button button--primary button--lg margin-right--md"
             to="/docs/getting-started/what-is-endatix"
           >
-            What is Endatix?
+            Developers — Get started
+          </Link>
+          <Link
+            className="button button--secondary button--lg"
+            to="/docs/end-users/overview"
+          >
+            End Users — Hub guide
           </Link>
         </div>
       </div>
@@ -82,11 +88,47 @@ function HomepageContent() {
           </div>
 
           <div className="margin-bottom--lg">
-            <Heading as="h2">Get Started in Minutes</Heading>
+            <Heading as="h2">Choose your journey</Heading>
             <p>
-              Integrate Endatix into your .NET Core project with your favorite
-              package manager or download it directly from NuGet.
+              Whether you are a developer integrating Endatix API or Endatix
+              Hub, or an end user building and managing forms in the Hub UI,
+              start from the docs that match your role.
             </p>
+            <div className="row">
+              <div className="col col--6">
+                <Heading as="h3">Developers</Heading>
+                <ul>
+                  <li>
+                    <Link to="/docs/getting-started/what-is-endatix">
+                      First time? What is Endatix?
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/docs/getting-started/quick-start">
+                      Quick start (API / NuGet / Docker)
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/docs/developers/endatix-api/api-reference">
+                      API Reference (Endatix API)
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/docs/developers/endatix-hub/">
+                      Endatix Hub development (Next.js)
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+              <div className="col col--6">
+                <Heading as="h3">End Users</Heading>
+                <ul>
+                  <li>
+                    <Link to="/docs/end-users/overview">Hub overview</Link>
+                  </li>
+                </ul>
+              </div>
+            </div>
             <div className={styles.buttons}>
               <Link
                 className="button button--primary button--lg margin-right--md"

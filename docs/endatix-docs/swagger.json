@@ -1,5 +1,5 @@
 {
-  "x-generator": "NSwag v14.4.0.0 (NJsonSchema v11.3.2.0 (Newtonsoft.Json v13.0.0.0))",
+  "x-generator": "NSwag v14.6.2.0 (NJsonSchema v11.5.2.0 (Newtonsoft.Json v13.0.0.0))",
   "openapi": "3.0.0",
   "info": {
     "title": "Endatix Platform REST API",
@@ -869,6 +869,151 @@
         ]
       }
     },
+    "/api/forms/{formId}/submissions/{submissionId}/access-token": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Generate short-lived access token for submission",
+        "description": "Creates a temporary signed token for sharing submission access with granular permissions",
+        "operationId": "EndatixApiEndpointsSubmissionsCreateAccessToken",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "submissionId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the submission.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "CreateAccessTokenRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccessTokenRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "Access token generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAccessTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/forms/{formId}/submissions/onbehalf": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Create a new submission on behalf of another user",
+        "description": "Creates a new form submission with the ability to set the submittedBy field.",
+        "operationId": "EndatixApiEndpointsSubmissionsCreateOnBehalf",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "CreateSubmissionOnBehalfRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSubmissionOnBehalfRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "201": {
+            "description": "The submission was successfully created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSubmissionOnBehalfResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "JWTBearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/forms/{formId}/submissions/{submissionId}": {
       "delete": {
         "tags": [
@@ -1195,6 +1340,122 @@
             "JWTBearerAuth": []
           }
         ]
+      }
+    },
+    "/api/forms/{formId}/submissions/by-access-token/{token}": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Get submission using access token",
+        "description": "Retrieves submission data using a short-lived access token",
+        "operationId": "EndatixApiEndpointsSubmissionsGetByAccessToken",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "description": "The ID of the form.",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "The access token.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submission retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionDetailsModel"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid token or permissions",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Update a form submission by access token",
+        "description": "Updates a form submission using a short-lived access token",
+        "operationId": "EndatixApiEndpointsSubmissionsPartialUpdateByAccessToken",
+        "parameters": [
+          {
+            "name": "formId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "The access token.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "x-name": "PartialUpdateByAccessTokenRequest",
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialUpdateByAccessTokenRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "The form submission was updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartialUpdateSubmissionByTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request or invalid token/permissions",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/forms/{formId}/submissions/by-token/{submissionToken}": {
@@ -3225,14 +3486,21 @@
         "description": "Response model for the AI-assisted form definition.",
         "additionalProperties": false,
         "properties": {
-          "agentResponse": {
-            "type": "string",
-            "description": "The human-friendly response from the AI agent."
+          "userPrompt": {
+            "description": "The user prompt.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DefineFormResponse_UserMessage"
+              }
+            ]
           },
-          "definition": {
-            "type": "string",
-            "description": "The AI-generated or refined form definition.",
-            "nullable": true
+          "agentResponse": {
+            "description": "The human-friendly response from the AI agent.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DefineFormResponse_AgentMessage"
+              }
+            ]
           },
           "agentId": {
             "type": "string",
@@ -3241,6 +3509,38 @@
           "threadId": {
             "type": "string",
             "description": "The thread ID for continuing the conversation."
+          }
+        }
+      },
+      "DefineFormResponse_UserMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "content": {
+            "type": "string"
+          }
+        }
+      },
+      "DefineFormResponse_AgentMessage": {
+        "type": "object",
+        "description": "The response from the AI agent.",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "content": {
+            "type": "string"
+          },
+          "definition": {
+            "type": "string",
+            "description": "The AI-generated or refined form definition.",
+            "nullable": true
           }
         }
       },
@@ -3625,6 +3925,14 @@
               }
             ]
           },
+          "customExports": {
+            "type": "array",
+            "description": "Custom export configurations.",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/CustomExportConfigurationModel"
+            }
+          },
           "modifiedAt": {
             "type": "string",
             "description": "Last modification timestamp.",
@@ -3704,6 +4012,25 @@
           }
         }
       },
+      "CustomExportConfigurationModel": {
+        "type": "object",
+        "description": "API model for custom export configuration.",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the custom export configuration."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the custom export configuration."
+          },
+          "sqlFunctionName": {
+            "type": "string",
+            "description": "The name of the SQL function to call for the custom export."
+          }
+        }
+      },
       "CreateSubmissionResponse": {
         "allOf": [
           {
@@ -3773,12 +4100,32 @@
       "CreateSubmissionRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/BaseSubmissionRequest"
+            "$ref": "#/components/schemas/BasePublicSubmissionRequest"
           },
           {
             "type": "object",
             "description": "Request payload to be used with Create endpoint",
             "additionalProperties": false
+          }
+        ]
+      },
+      "BasePublicSubmissionRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseSubmissionRequest"
+          },
+          {
+            "type": "object",
+            "description": "Base class for public (anonymous) submission request models that require bot protection",
+            "x-abstract": true,
+            "additionalProperties": false,
+            "properties": {
+              "reCaptchaToken": {
+                "type": "string",
+                "description": "reCAPTCHA v3 token for bot protection",
+                "nullable": true
+              }
+            }
           }
         ]
       },
@@ -3811,13 +4158,89 @@
             "description": "Stringified metadata related to the form submission",
             "minLength": 2,
             "nullable": true
-          },
-          "reCaptchaToken": {
-            "type": "string",
-            "description": "reCAPTCHA v3 token for bot protection",
-            "nullable": true
           }
         }
+      },
+      "CreateAccessTokenResponse": {
+        "type": "object",
+        "description": "Response containing the generated access token.",
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateAccessTokenRequest": {
+        "type": "object",
+        "description": "Request to generate access token.",
+        "additionalProperties": false,
+        "required": [
+          "expiryMinutes",
+          "permissions"
+        ],
+        "properties": {
+          "expiryMinutes": {
+            "type": "integer",
+            "description": "Token expiry time in minutes.",
+            "format": "int32",
+            "maximum": 10080.0,
+            "minimum": 0.0,
+            "minLength": 1,
+            "nullable": false,
+            "exclusiveMinimum": true
+          },
+          "permissions": {
+            "type": "array",
+            "description": "Array of permissions to grant (view, edit, export).",
+            "minLength": 1,
+            "nullable": false,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateSubmissionOnBehalfResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SubmissionModel"
+          },
+          {
+            "type": "object",
+            "description": "Response model for submission created on behalf of another user.",
+            "additionalProperties": false
+          }
+        ]
+      },
+      "CreateSubmissionOnBehalfRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseSubmissionRequest"
+          },
+          {
+            "type": "object",
+            "description": "Request payload for creating a submission on behalf of another user.\nUsed with CreateOnBehalf endpoint.",
+            "additionalProperties": false,
+            "properties": {
+              "submittedBy": {
+                "type": "string",
+                "description": "Optional identifier of the user on whose behalf the form is being submitted.",
+                "nullable": true
+              }
+            }
+          }
+        ]
       },
       "DeleteSubmissionRequest": {
         "type": "object",
@@ -3831,6 +4254,13 @@
           "exportFormat": {
             "type": "string",
             "nullable": true
+          },
+          "exportId": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0.0,
+            "nullable": true,
+            "exclusiveMinimum": true
           }
         }
       },
@@ -3909,6 +4339,11 @@
             "nullable": true
           }
         }
+      },
+      "GetByAccessTokenRequest": {
+        "type": "object",
+        "description": "Request to get submission using access token.",
+        "additionalProperties": false
       },
       "GetByIdRequest2": {
         "type": "object",
@@ -4083,10 +4518,22 @@
           }
         ]
       },
+      "PartialUpdateByAccessTokenRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BasePublicSubmissionRequest"
+          },
+          {
+            "type": "object",
+            "description": "Request to partially update submission using access token.",
+            "additionalProperties": false
+          }
+        ]
+      },
       "PartialUpdateSubmissionByTokenRequest": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/BaseSubmissionRequest"
+            "$ref": "#/components/schemas/BasePublicSubmissionRequest"
           },
           {
             "type": "object",
@@ -4948,7 +5395,6 @@
         "properties": {
           "email": {
             "type": "string",
-            "description": "The Email of the user. Must be a valid email address",
             "format": "email",
             "minLength": 1,
             "pattern": "^[^@]+@[^@]+$",

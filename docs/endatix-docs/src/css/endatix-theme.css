@@ -158,3 +158,22 @@ article a {
   font-weight: 600;
   color: var(--ifm-color-primary);
 }
+
+/* PRODUCTS category styled as static section divider (label only, no link) */
+.menu__list-item .sidebar-products-divider .menu__link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-600);
+  cursor: default;
+  pointer-events: none;
+}
+.menu__list-item.sidebar-products-divider {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ifm-toc-border-color);
+}
+.menu__list-item.sidebar-products-divider .menu__link--sublist::after {
+  display: none;
+}
