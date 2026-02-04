@@ -113,16 +113,7 @@ function HomepageContent() {
               description="Create forms, manage responses, and analyze data. Learn how to use the Endatix Hub UI to power your business."
               primaryCTA="Hub Basics"
               primaryLink="/docs/end-users/overview"
-              secondaryLinks={[
-                {
-                  label: "Template Gallery",
-                  href: "/docs/end-users/template-gallery",
-                },
-                {
-                  label: "Managing Results",
-                  href: "/docs/end-users/managing-results",
-                },
-              ]}
+              secondaryLinks={[]}
             />
           </div>
         </div>
