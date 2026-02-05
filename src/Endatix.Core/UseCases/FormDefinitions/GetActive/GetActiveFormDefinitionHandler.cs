@@ -27,6 +27,11 @@ public class GetActiveFormDefinitionHandler(
             return Result.NotFound("Active form definition not found.");
         }
 
+        if (!formWithActiveDefinition.IsEnabled)
+        {
+            return Result.NotFound("Form not found");
+        }
+
         if (!formWithActiveDefinition.IsPublic)
         {
             var accessResult = await authorizationService.ValidateAccessAsync(

@@ -35,6 +35,12 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
             .OnDelete(DeleteBehavior.NoAction)
            .IsRequired();
 
+        builder.HasOne(s => s.Form)
+            .WithMany()
+            .HasForeignKey(s => s.FormId)
+            .OnDelete(DeleteBehavior.NoAction)
+            .IsRequired();
+
         builder.OwnsOne(s => s.Token, tokenBuilder =>
            {
                tokenBuilder.Property(t => t.Value)

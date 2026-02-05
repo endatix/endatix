@@ -47,7 +47,7 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_ReturnsActiveFormDefinition()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: true)
+        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: true)
         {
             Id = 1
         };
@@ -81,7 +81,7 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequestWithCustomQuestions_ReturnsActiveFormDefinitionWithCustomQuestions()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: true)
+        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: true)
         {
             Id = 1
         };
@@ -123,7 +123,7 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequestWithTheme_ReturnsActiveFormDefinitionWithTheme()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: true)
+        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: true)
         {
             Id = 1
         };
@@ -161,7 +161,7 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_PrivateFormWithAnonymousUser_ReturnsUnauthorizedResult()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false)
+        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: false)
         {
             Id = 1
         };
@@ -190,7 +190,7 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_PrivateFormWithUserWithoutPermission_ReturnsForbiddenResult()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false)
+        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: false)
         {
             Id = 1
         };
@@ -219,7 +219,7 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_PrivateFormWithUserWithPermission_ReturnsActiveFormDefinition()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false)
+        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: false)
         {
             Id = 1
         };
@@ -255,7 +255,7 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_PublicForm_ReturnsActiveFormDefinitionWithoutPermissionCheck()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: true)
+        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: true)
         {
             Id = 1
         };

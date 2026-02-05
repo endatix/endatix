@@ -93,7 +93,7 @@ public class PartialUpdateSubmissionByTokenHandlerTests
             .Returns(tokenResult);
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
-            .Returns(new Form(SampleData.TENANT_ID, "Test Form") { Id = formId });
+            .Returns(new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = formId });
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -188,7 +188,7 @@ public class PartialUpdateSubmissionByTokenHandlerTests
             .Returns(Result.Success(submissionId));
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
-            .Returns(new Form(SampleData.TENANT_ID, "Test Form") { Id = formId });
+            .Returns(new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = formId });
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -242,7 +242,7 @@ public class PartialUpdateSubmissionByTokenHandlerTests
             .Returns(Result.Success(submissionId));
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
-            .Returns(new Form(SampleData.TENANT_ID, "Test Form") { Id = formId });
+            .Returns(new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = formId });
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
