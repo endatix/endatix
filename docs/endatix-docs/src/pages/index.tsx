@@ -14,7 +14,7 @@ function HomepageHeader() {
     <header className={clsx("hero hero--primary", styles.heroBanner)}>
       <div className="container">
         <Heading as="h1" className="hero__title">
-          Welcome to Endatix Documentation
+          Endatix Documentation
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
       </div>
@@ -141,47 +141,6 @@ function HomepageContent() {
           </div>
         </div>
       </div>
-
-      {/* FAQs Section - Keep for now */}
-      <div className="margin-top--xl">
-        <Heading as="h2" className="text--center margin-bottom--lg">
-          FAQs
-        </Heading>
-        <div className="row">
-          <div className="col col--6">
-            <Heading as="h3">Is it free for commercial use?</Heading>
-            <p>
-              Yes, Endatix API is a free and open-source library, licensed under
-              the MIT License and may be used for commercial projects. Endatix
-              Hub requires a commercial license for production use.
-            </p>
-          </div>
-          <div className="col col--6">
-            <Heading as="h3">Which databases are supported?</Heading>
-            <p>
-              Currently, Endatix supports Microsoft SQL Server and PostgreSQL.
-              We plan to continue adding support for other types.
-            </p>
-          </div>
-        </div>
-        <div className="row">
-          <div className="col col--6">
-            <Heading as="h3">Do I need to be on the .NET stack?</Heading>
-            <p>
-              No. While the platform is written in C#, we provide a
-              containerized version, which you can run alongside your solution
-              in any Docker-compatible environment.
-            </p>
-          </div>
-          <div className="col col--6">
-            <Heading as="h3">Do I need a SurveyJS license?</Heading>
-            <p>
-              No, the SurveyJS Form library is also licensed under the MIT
-              open-source license and is free for commercial use.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -196,7 +155,6 @@ export default function Home(): React.ReactNode {
       <HomepageHeader />
       <main>
         <HomepageContent />
-        <HomepageFeatures />
       </main>
     </Layout>
   );

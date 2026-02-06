@@ -6,7 +6,7 @@ import type * as Redocusaurus from "redocusaurus";
 const config: Config = {
   title: "Endatix Documentation",
   tagline:
-    "Master the art of data collection. Whether you are building custom workflows with our API or managing forms in the Hub, we have you covered.",
+    "Self-Hosted Alternative to SaaS Form or Survey Platforms",
   favicon: "img/endatix.svg",
 
   // Set the production url of your site here

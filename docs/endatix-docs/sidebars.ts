@@ -128,7 +128,33 @@ const sidebars: SidebarsConfig = {
       items: ["developers/hub/index"],
     },
   ],
-  userSidebar: ["end-users/overview"],
+  userSidebar: [
+    {
+      type: "category",
+      label: "Forms",
+      collapsed: false,
+      link: {
+        type: "generated-index",
+        slug: "forms",
+        title: "Forms",
+      },
+      items: [
+        {
+          type: "category",
+          label: "Form Builder",
+          collapsed: false,
+          link: {
+            type: "generated-index",
+            slug: "form-builder",
+            title: "Form Builder",
+          },
+          items: [
+            "end-users/forms/form-builder/question-loops"
+          ],
+        }
+      ],
+    }
+  ],
 };
 
 export default sidebars;
