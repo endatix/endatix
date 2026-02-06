@@ -1,0 +1,192 @@
+---
+title: Question Loops
+description: Set up and customize authentication providers for your Endatix application
+sidebar_position: 1
+---
+
+# **Question Loops**
+
+The **Question Loops** feature allows you to automatically generate a series of repeating questions (a "loop") based on answers provided in previous sections of a form or survey. This eliminates manual redundancy and is ideal for scenarios such as:
+
+- **Market Research:** Asking respondents to rate specific attributes for every product they claimed to use in a previous question.
+- **Recruitment:** Prompting candidates to list start dates, end dates, and duties for each past employer they add.
+- **Event Registration:** Collecting dietary restrictions and workshop preferences for each additional guest a main attendee registers.
+
+In Endatix Hub, Question Loops are created using the **Dynamic Panel** widget. Simply place the questions you want to loop inside the **Dynamic Panel** template and configure the settings as shown below.
+
+## **Prerequisites**
+
+1. Set `"questionsOnPageMode": "inputPerPage"` within the survey JSON configuration or select the **“Single input field per page”** mode in the **Navigation** section of the **Property Grid**:
+<img src={require('./question-loops-navigation-mode.webp').default} width="453" alt="Form navigation settings" />
+<br />
+<br />
+2. Set `"allowAddPanel": false` and `"allowRemovePanel": false` to disable manual addition or removal of panels to the Dynamic Panel widget:
+<img src={require('./question-loops-dynamic-panel-settings.webp').default} width="453" alt="Dynamic panel settings" />
+
+## **Loop Configuration Guide**
+
+To configure the loop, select the **Dynamic Panel** widget and locate the **Question Loops** category in the Property Grid:
+
+<img src={require('./question-loops-property-grid.webp').default} width="453" />
+
+### **Properties Reference**
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+  <colgroup>
+    <col style={{width: '24%'}} />
+    <col style={{width: '45%'}} />
+    <col style={{width: '31%'}} />
+  </colgroup>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Description</th>
+      <th>Options</th>
+    </tr>
+  </thead>
+  <tbody className="custom-table-body">
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><strong>Select source question(s)</strong></td>
+      <td>Choose which question(s) should drive this loop. You can select multiple sources. If multiple sources contain choices with the same ids, only one instance of the choice will be included in the final list.</td>
+      <td>Any Checkbox, Tag Box, or Radio Group question.</td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><strong>Loop over</strong></td>
+      <td>Defines which items from the source questions trigger a panel.</td>
+      <td><strong>Selected Only</strong>: Only items the user checked.<br/><strong>Unselected Only</strong>: Only items the user left blank.</td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><strong>Randomize items</strong></td>
+      <td>If enabled, the order of the generated panels will be shuffled for every respondent.</td>
+      <td>Toggle (True/False).</td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><strong>Priority items</strong></td>
+      <td>Select specific items that should <strong>always</strong> be included in the loop, even if randomization is turned on and the number of loops is limited.</td>
+      <td>Multi-select list of all source choices.</td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><strong>Max number of loops</strong></td>
+      <td>Limits the total number of panels shown. Priority items are always included in this count.</td>
+      <td>Number (0 = unlimited).</td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><strong>Exit current loop if…</strong></td>
+      <td>Optional condition that determines whether the current loop should be terminated and the next loop should start immediately.</td>
+      <td rowspan="2" style={{ verticalAlign: 'middle' }}>
+        A valid SurveyJS expression. Questions inside the dynamic panel’s template must be prefixed with “panel.” (e.g. <code>{'{panel.questionName}'}</code>)
+      </td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><strong>Exit all loops if…</strong></td>
+      <td>Optional condition that determines whether all loops should be terminated.</td>
+      {/* The third cell is removed because the one above spans into this space */}
+    </tr>
+  </tbody>
+</table>
+
+## **Text Piping and Expression Keywords**
+
+To provide context to the user within the loop, or to apply logic, you can use special keywords:
+
+* Current loop index \- `{panel.loopIndex}`
+* Current loop item’s value \- `{panel.itemValue}`  
+* Current loop item’s text \- `{panel.itemText}`
+
+**Text Piping Example**
+
+In the Title or Description of any question inside your Dynamic Panel, use the placeholder `{panel.item}`.
+
+* **Example Title:** "How often do you use **`{panel.item}`**?"  
+* **At Runtime:** If the loop is currently on "Nike", the user will see: "How often do you use **Nike**?"
+
+**Conditional Logic Example**
+
+`{panel.ItemValue} = ‘brand1’ and {panel.question3} = ‘yes’`
+
+## **Technical Reference (JSON Schema)**
+
+Advanced users and developers can configure loops directly in the survey JSON. The custom properties are added to the paneldynamic question type.
+
+```JSON
+{  
+  "type": "paneldynamic",  
+  "name": "brand_feedback_loop",  
+  "title": "Feedback Loop",  
+  "loopSource": ["source_q1", "source_q2"],  
+  "choicePattern": "Selected Only",  
+  "randomizeLoop": true,  
+  "priorityItems": ["brand_apple"],  
+  "maxLoopCount": 5,  
+  "exitLoopCondition": "{panel.moreBrandQuestions} = 'no'",  
+  "exitAllLoopsCondition": "{panel.reviewMoreBrands} = 'no'",  
+  "templateElements": [  
+    {  
+      "type": "rating",  
+      "name": "quality_rating",  
+      "title": "How would you rate the quality of {panel.item}?"  
+    },  
+    {  
+      "type": "comment",  
+      "name": "feedback_text",  
+      "title": "Tell us more about {panel.item}:"  
+    }  
+  ]  
+}
+```
+
+### **Property Data Types**
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+  <colgroup>
+    <col style={{width: '25%'}} />
+    <col style={{width: '25%'}} />
+    <col style={{width: '50%'}} />
+  </colgroup>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Accepted Values</th>
+    </tr>
+  </thead>
+  <tbody className="custom-table-body">
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>loopSource</code></td>
+      <td><code>Array&lt;string&gt;</code></td>
+      <td>Names of the questions to drive the loop.</td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>choicePattern</code></td>
+      <td><code>string</code></td>
+      <td><code>"Selected Only"</code>, <code>"Unselected Only"</code>, <code>"All"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>randomizeLoop</code></td>
+      <td><code>boolean</code></td>
+      <td><code>true</code>, <code>false</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>priorityItems</code></td>
+      <td><code>Array&lt;string&gt;</code></td>
+      <td>Values of the specific choices that must be included.</td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>maxLoopCount</code></td>
+      <td><code>number</code></td>
+      <td>Any positive integer (<code>0</code> for unlimited).</td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>exitLoopCondition</code></td>
+      <td><code>string</code></td>
+      <td rowspan="2" style={{ verticalAlign: 'middle' }}>
+        Any valid SurveyJS expression<br/>(e.g., <code>"{'{panel.questionName} == 1'}"</code>).
+      </td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>exitAllLoopsCondition</code></td>
+      <td><code>string</code></td>
+      {/* Third cell removed due to rowspan above */}
+    </tr>
+  </tbody>
+</table>
