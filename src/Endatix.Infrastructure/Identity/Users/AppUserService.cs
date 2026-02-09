@@ -52,18 +52,27 @@ public class AppUserService(
             .ToListAsync(cancellationToken);
 
         IReadOnlyList<UserWithRoles> usersResult = usersWithRoles
-            .GroupBy(userRoles => userRoles.Id)
-            .Select(userRolesGroup => new UserWithRoles
+            .GroupBy(userRolesGroup => userRolesGroup.Id)
+            .Where(userRolesGroup =>
             {
-                Id = userRolesGroup.Key,
-                UserName = userRolesGroup.First()?.UserName ?? string.Empty,
-                Email = userRolesGroup.First()?.Email ?? string.Empty,
-                IsVerified = userRolesGroup.First().EmailConfirmed,
-                Roles = userRolesGroup
-                            .Where(userRoles => userRoles.RoleName != null)
-                            .Select(userRoles => userRoles.RoleName!)
-                            .Distinct()
-                            .ToList()
+                var user = userRolesGroup.First();
+                return !string.IsNullOrWhiteSpace(user.UserName) && !string.IsNullOrWhiteSpace(user.Email);
+            })
+            .Select(userRolesGroup =>
+            {
+                var user = userRolesGroup.First();
+                return new UserWithRoles
+                {
+                    Id = userRolesGroup.Key,
+                    UserName = user.UserName!,
+                    Email = user.Email!,
+                    IsVerified = user.EmailConfirmed,
+                    Roles = userRolesGroup
+                        .Where(userRole => !string.IsNullOrWhiteSpace(userRole.RoleName))
+                        .Select(userRole => userRole.RoleName!)
+                        .Distinct()
+                        .ToList()
+                };
             })
             .ToList();
 
