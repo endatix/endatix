@@ -32,10 +32,10 @@ public class List(IMediator mediator)
     /// <inheritdoc/>
     public override async Task<Results<Ok<IEnumerable<ListUsersResponse>>, ProblemHttpResult>> ExecuteAsync(
         ListUsersRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var listUsersQuery = new ListUsersQuery(request.Page, request.PageSize);
-        var result = await mediator.Send(listUsersQuery, cancellationToken);
+        var result = await mediator.Send(listUsersQuery, ct);
 
         return TypedResultsBuilder
             .MapResult(result, Map)
