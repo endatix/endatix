@@ -1,0 +1,127 @@
+---
+title: Form Display Modes
+description: Configure how questions are presented and how users navigate through your Endatix form
+sidebar_label: Form Display Modes
+---
+
+# **Form Display Modes**
+
+The **Display Modes** settings in Endatix Hub allow you to control the structural flow and visual presentation of your survey. Whether you want a long-form scrolling experience or a focused, one-question-at-a-time interface, these settings define how respondents interact with your content.
+
+These options are useful in market research scenarios where you need to eliminate order bias while maintaining the contextual integrity of your randomized list, or when you need to optimize for mobile vs. desktop experiences.
+
+## **Configuration Guide**
+
+To change the general structure of your form, navigate to the **Navigation** section in the **Property Grid** and locate the **Survey layout** dropdown.
+
+<img src={require('./form-display-modes.webp').default} width="549" alt="Form display modes" />
+
+<br />
+<br />
+You can choose from the following four display modes:
+
+<table style={{ borderCollapse: 'collapse' , width: '100%' }}>
+    <thead>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '2px solid var(--ifm-contents-border-color)' }}>
+            <th style={{ textAlign: 'left' , padding: '12px', width: '35%' }}>Mode</th>
+            <th style={{ textAlign: 'left' , padding: '12px' }}>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}><strong>Original structure</strong></td>
+            <td style={{ padding: '12px' }}>Questions are displayed exactly as you have organized them into pages in the
+                editor.</td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}><strong>Show all questions on one page</strong></td>
+            <td style={{ padding: '12px' }}>Overrides your page breaks to show every question on a single, continuous
+                scrolling page.</td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}><strong>Show single question per page</strong></td>
+            <td style={{ padding: '12px' }}>Automatically creates a page break after every question, regardless of your
+                editor setup.</td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}><strong>Show single input field per page</strong></td>
+            <td style={{ padding: '12px' }}> A focused mode that displays only one input field at a time. This is a
+                prerequisite for features like [Question Loops](question-loops). </td>
+        </tr>
+    </tbody>
+</table>
+
+
+## **Navigation Settings**
+
+Beyond the layout, you can further customize the user experience using the following toggle options found in the Navigation panel:
+
+### **First page is a start page**
+
+When enabled, the first page of your survey acts as an introductory splash screen. This page usually contains a title and description but no questions. It will feature a "Start" button instead of the standard "Next" button.
+
+### **Auto-advance to the next page**
+
+This feature speeds up the survey process by automatically moving the respondent to the next page as soon as they provide an answer.
+
+:::tip
+This is most effective for single-choice questions (Radiogroups or Dropdowns) where the respondent's intent is finalized upon selection.
+:::
+
+#### **Complete the survey automatically**
+
+When **Auto-advance** is enabled you will be given the option to enable automatic form completion. When this options is selected the form will be completed as soon as the last question receives an answer.
+
+### **Show navigation buttons**
+
+Determines whether the **Next**, **Previous**, and **Complete** buttons are visible to the respondent. If you have "Auto-advance" enabled and your survey is strictly linear, you might choose to hide these for a cleaner interface. For more information see [Form Navigation](form-navigation)
+
+---
+
+## **Technical Reference (JSON Schema)**
+
+For advanced users, these display modes correspond to the `questionsOnPageMode` property in the survey JSON configuration.
+
+```json
+{
+  "questionsOnPageMode": "singlePage", // Show all questions on one page
+  "firstPageIsStartPage": true,
+  "showNavigationButtons": true,
+  "goNextPageAutomatic": true
+}
+
+```
+
+### **Properties**
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>UI Option</th>
+<th>JSON Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Original structure</td>
+<td><code>questionsOnPageMode</code></td>
+<td><code>"standard"</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Show all questions on one page</td>
+<td><code>questionsOnPageMode</code></td>
+<td><code>"singlePage"</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Show single question per page</td>
+<td><code>questionsOnPageMode</code></td>
+<td><code>"questionPerPage"</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Show single input field per page</td>
+<td><code>questionsOnPageMode</code></td>
+<td><code>"inputPerPage"</code> </td>
+</tr>
+</tbody>
+</table>
