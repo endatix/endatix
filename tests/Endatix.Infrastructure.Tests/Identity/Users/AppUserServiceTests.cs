@@ -1,17 +1,21 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Users;
+using Endatix.Infrastructure.Data;
+using Endatix.Core.Abstractions;
 using FluentAssertions;
 using System.Security.Claims;
 using Endatix.Core.Entities.Identity;
-using Endatix.Core.Tests;
 
 namespace Endatix.Infrastructure.Tests.Identity.Users;
 
 public class AppUserServiceTests
 {
     private readonly UserManager<AppUser> _userManager;
+    private readonly ITenantContext _tenantContext;
+    private readonly AppIdentityDbContext _identityDbContext;
     private readonly AppUserService _userService;
 
     public AppUserServiceTests()
@@ -19,7 +23,12 @@ public class AppUserServiceTests
         _userManager = Substitute.For<UserManager<AppUser>>(
             Substitute.For<IUserStore<AppUser>>(),
             null, null, null, null, null, null, null, null);
-        _userService = new AppUserService(_userManager);
+        _tenantContext = Substitute.For<ITenantContext>();
+        var dbOptions = new DbContextOptionsBuilder<AppIdentityDbContext>().Options;
+        var valueGeneratorFactory = Substitute.For<EfCoreValueGeneratorFactory>(Substitute.For<IIdGenerator<long>>());
+        var idGenerator = Substitute.For<IIdGenerator<long>>();
+        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory, idGenerator);
+        _userService = new AppUserService(_userManager, _tenantContext, _identityDbContext);
     }
 
     [Fact]
@@ -27,7 +36,7 @@ public class AppUserServiceTests
     {
         // Act
         ClaimsPrincipal? nullClaimsPrincipal = null;
-        var result = await _userService.GetUserAsync(nullClaimsPrincipal!);
+        var result = await _userService.GetUserAsync(nullClaimsPrincipal!, TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.NotFound);
@@ -41,7 +50,7 @@ public class AppUserServiceTests
         _userManager.GetUserAsync(Arg.Any<ClaimsPrincipal>()).Returns(null as AppUser);
 
         // Act
-        var result = await _userService.GetUserAsync(claimsPrincipal);
+        var result = await _userService.GetUserAsync(claimsPrincipal, TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.NotFound);
@@ -61,7 +70,7 @@ public class AppUserServiceTests
         _userManager.GetUserAsync(Arg.Any<ClaimsPrincipal>()).Returns(appUser);
 
         // Act
-        var result = await _userService.GetUserAsync(claimsPrincipal);
+        var result = await _userService.GetUserAsync(claimsPrincipal, TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.Ok);
