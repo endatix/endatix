@@ -32,4 +32,11 @@ public interface IUserService
     /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
     /// <returns>A Result containing the User if found, or NotFound if not found.</returns>
     Task<Result<User>> GetUserAsync(string email, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists all users for the current tenant with their role names. Multi-tenancy is assumed; tenant filter is applied by the implementation.
+    /// </summary>
+    /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
+    /// <returns>A Result containing the list of users with roles for the current tenant.</returns>
+    Task<Result<IReadOnlyList<UserWithRoles>>> ListUsersAsync(CancellationToken cancellationToken = default);
 }
