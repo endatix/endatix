@@ -16,8 +16,8 @@ namespace Endatix.Core.Specifications.Parameters;
 /// - "&gt;:" for greater than or equal
 /// - "&lt;:" for less than or equal
 /// 
-/// Multiple values can be specified using comma separation.
-/// Example: "age&gt;:18" or "status:active,pending"
+/// Multiple values can be specified using pipe separation.
+/// Example: "age&gt;:18" or "status:active|pending"
 /// </remarks>
 public class FilterCriterion
 {
@@ -68,7 +68,7 @@ public class FilterCriterion
 
         var valueStartIndex = fieldEndIndex + @operator.Length;
         var values = filterExpression[valueStartIndex..]
-            .Split(',')
+            .Split('|')
             .Select(v => v.Trim())
             .ToList();
 

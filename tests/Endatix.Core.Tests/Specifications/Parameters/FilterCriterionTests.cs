@@ -54,8 +54,8 @@ public class FilterCriterionTests
 
     [Theory]
     [InlineData("field:")]
-    [InlineData("field:value1,,value2")]
-    [InlineData("field:value1, ,value2")]
+    [InlineData("field:value1||value2")]
+    [InlineData("field:value1| |value2")]
     public void Constructor_EmptyValues_ThrowsArgumentException(string filterExpression)
     {
         // Act
@@ -76,7 +76,7 @@ public class FilterCriterionTests
     [InlineData("date<:2024-01-01T10:15:25", ExpressionType.LessThanOrEqual, "date", new[] { "2024-01-01T10:15:25" })]
     [InlineData("count>5", ExpressionType.GreaterThan, "count", new[] { "5" })]
     [InlineData("amount<10", ExpressionType.LessThan, "amount", new[] { "10" })]
-    [InlineData("tags:draft,published", ExpressionType.Equal, "tags", new[] { "draft", "published" })]
+    [InlineData("tags:draft|published", ExpressionType.Equal, "tags", new[] { "draft", "published" })]
     public void Constructor_ValidExpression_CreatesFilterCriterion(
         string filterExpression,
         ExpressionType expectedOperator,
@@ -97,7 +97,7 @@ public class FilterCriterionTests
     public void Parse_ValidExpression_ReturnsFilterCriterion()
     {
         // Arrange
-        var filterExpression = "status:active,pending";
+        var filterExpression = "status:active|pending";
 
         // Act
         var filter = FilterCriterion.Parse(filterExpression);

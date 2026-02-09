@@ -67,7 +67,7 @@ public class SpecificationHelperTests
         // Arrange
         var field = nameof(TestEntity.IntProperty);
         var values = new[] { "1", "2" };
-        var filter = new FilterCriterion($"{field}:1,2");
+        var filter = new FilterCriterion($"{field}:1|2");
 
         // Act
         var result = SpecificationHelper.BuildFilterExpression<TestEntity>(filter);
@@ -122,7 +122,7 @@ public class SpecificationHelperTests
     {
         // Arrange
         var field = nameof(TestEntity.IntProperty);
-        var filter = new FilterCriterion($"{field}!:1,2");
+        var filter = new FilterCriterion($"{field}!:1|2");
 
         // Act
         var result = SpecificationHelper.BuildFilterExpression<TestEntity>(filter);
