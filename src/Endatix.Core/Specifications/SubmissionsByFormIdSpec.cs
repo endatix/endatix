@@ -15,6 +15,8 @@ namespace Endatix.Core.Specifications;
 /// </summary>
 public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
 {
+    private const string STATUS_FIELD_NAME = "status";
+
     /// <summary>
     /// Initializes a new instance of the specification to retrieve submissions for a given form
     /// </summary>
@@ -27,7 +29,7 @@ public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
 
         // Extract and apply status filter if present (owned entity requires special handling)
         var statusFilter = filterParams.Criteria
-            .FirstOrDefault(c => c.Field.Equals("status", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(c => c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase));
         if (statusFilter != null && statusFilter.Values.Any())
         {
             var statusCodes = statusFilter.Values.ToList();
@@ -36,7 +38,7 @@ public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
 
         var nonStatusFilters = new FilterParameters();
         filterParams.Criteria
-            .Where(c => !c.Field.Equals("status", StringComparison.OrdinalIgnoreCase))
+            .Where(c => !c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase))
             .ToList()
             .ForEach(nonStatusFilters.AddFilter);
 
