@@ -12,6 +12,7 @@ public class ListByFormIdValidator : Validator<ListByFormIdRequest>
         { "createdAt", typeof(DateTime) },
         { "updatedAt", typeof(DateTime) },
         { "isComplete", typeof(bool) },
+        { "status", typeof(string) },
         { "jsonData", typeof(string) },
         { "formId", typeof(long) },
         { "formDefinitionId", typeof(long) },
