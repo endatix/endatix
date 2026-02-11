@@ -22,11 +22,12 @@ public class InfrastructureMessagingBuilderTests
         _loggerFactory = Substitute.For<ILoggerFactory>();
         _logger = Substitute.For<ILogger>();
 
-        // Create a substitute for IBuilderRoot
+        // Create a substitute for IBuilderRoot (matches current builder setup)
         _builderRoot = Substitute.For<IBuilderRoot>();
         _builderRoot.Services.Returns(_services);
         _builderRoot.LoggerFactory.Returns(_loggerFactory);
         _builderRoot.Configuration.Returns(Substitute.For<IConfiguration>());
+        _builderRoot.AppEnvironment.Returns((IAppEnvironment?)null);
 
         // Create a real InfrastructureBuilder with the mocked builder root
         _parentBuilder = new InfrastructureBuilder(_builderRoot);
