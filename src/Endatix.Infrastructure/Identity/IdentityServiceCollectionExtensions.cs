@@ -97,6 +97,7 @@ public static class IdentityServiceCollectionExtensions
 
         // Register submission access token service
         services.AddScoped<ISubmissionAccessTokenService, SubmissionAccessTokenService>();
+        services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
         services.AddEndatixOptions<SubmissionAccessTokenOptions>(configuration);
 
         // Register email verification options

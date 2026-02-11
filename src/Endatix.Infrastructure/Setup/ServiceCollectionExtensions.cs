@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Net.Sockets;
 using System.Threading.RateLimiting;
 using Endatix.Core;
@@ -9,11 +9,14 @@ using Endatix.Core.Features.Email;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Infrastructure.Email;
 using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Infrastructure.Setup;
+using Endatix.Infrastructure.Storage;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Timeout;
+using Endatix.Core.Infrastructure;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -23,6 +26,24 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Adds core infrastructure services needed for the infrastructure layer.
+    /// </summary>
+    /// <param name="services">The service collection to add the services to.</param>
+    /// <returns>The service collection with the services added.</returns>
+    public static IServiceCollection AddCoreInfrastructure(this IServiceCollection services)
+    {
+        services.AddHybridCache();
+        services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
+        services.AddHttpContextAccessor();
+
+        services.AddOptions<HubSettings>()
+                 .BindConfiguration(HubSettings.SectionName)
+                 .ValidateOnStart();
+
+        return services;
+    }
+
     /// <summary>
     /// Add specific Email sender implementation, which will also register configuration for the AppSettings and configure the DI container
     /// </summary>
