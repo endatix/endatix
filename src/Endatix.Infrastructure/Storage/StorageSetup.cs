@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions.Exporting;
-using Endatix.Infrastructure.Exporting.Exporters.Submissions;
+using Endatix.Core.Entities;
+using Endatix.Infrastructure.Exporting.Transformers;
 using Endatix.Infrastructure.Storage;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -22,7 +23,7 @@ public static class StorageSetup
             .BindConfiguration($"{StorageOptions.SectionName}:Providers:AzureBlob")
             .ValidateOnStart();
 
-        services.AddSingleton<IExportStorageUrlRewriter, ExportStorageUrlRewriter>();
+        services.AddSingleton<IJsonValueTransformer<SubmissionExportRow>, StorageUrlRewriteTransformer>();
 
         return services;
     }

@@ -14,7 +14,9 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 /// <summary>
 /// CSV exporter for submission data, optimized for streaming and low memory usage.
 /// </summary>
-public sealed class SubmissionCsvExporter(ILogger<SubmissionCsvExporter> logger) : SubmissionExporterBase(logger)
+public sealed class SubmissionCsvExporter(
+    ILogger<SubmissionCsvExporter> logger,
+    IJsonValueTransformer<SubmissionExportRow> storageUrlRewriter) : SubmissionExporterBase(logger, storageUrlRewriter)
 {
     public override string Format => "csv";
     public override string ContentType => "text/csv";

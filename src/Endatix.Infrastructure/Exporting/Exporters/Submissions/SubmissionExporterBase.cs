@@ -12,11 +12,14 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 /// <summary>
 /// Base class for submission exporters to reuse common logic for streaming and header generation.
 /// </summary>
-public abstract class SubmissionExporterBase(ILogger logger) : IExporter<SubmissionExportRow>
+public abstract class SubmissionExporterBase(
+    ILogger logger,
+    IJsonValueTransformer<SubmissionExportRow> storageUrlRewriter) : IExporter<SubmissionExportRow>
 {
     protected const string NOT_AVAILABLE_VALUE = "N/A";
 
     protected readonly ILogger _logger = logger;
+    private readonly IJsonValueTransformer<SubmissionExportRow> _storageUrlRewriter = storageUrlRewriter;
 
     private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
     {
@@ -77,7 +80,7 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
     }
 
     /// <summary>
-    /// Centralized iterator that handles column discovery and JSON document lifecycle.
+    /// Yields (row, answers doc, columns) with URL-rewritten answers and column list built from the first row.
     /// </summary>
     protected async IAsyncEnumerable<(SubmissionExportRow Row, JsonDocument? Doc, List<ColumnDefinition<SubmissionExportRow>> Columns)>
         GetStreamContextAsync(
@@ -89,35 +92,37 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
 
         await foreach (var row in records.WithCancellation(cancellationToken))
         {
-            JsonDocument? doc = null;
+            var isFirstRow = columns is null;
+            var doc = TryParseAnswersJson(row.AnswersModel, row.Id, _logger);
 
-            if (columns == null)
+            if (isFirstRow)
             {
-                // First row: initialize columns and parse the doc
-                if (!string.IsNullOrWhiteSpace(row.AnswersModel))
-                {
-                    try
-                    {
-                        doc = JsonDocument.Parse(row.AnswersModel);
-                    }
-                    catch (JsonException ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to parse JSON for first row {Id}", row.Id);
-                    }
-                }
                 columns = BuildColumns(doc, options);
             }
-            else
-            {
-                // Subsequent rows: parse doc if model exists
-                doc = string.IsNullOrWhiteSpace(row.AnswersModel) ? null : JsonDocument.Parse(row.AnswersModel);
-            }
 
-            yield return (row, doc, columns);
+            yield return (row, doc, columns!);
         }
     }
 
-    private static List<ColumnDefinition<SubmissionExportRow>> BuildColumns(JsonDocument? doc, ExportOptions? options)
+    private static JsonDocument? TryParseAnswersJson(string? answersJson, long rowId, ILogger logger)
+    {
+        if (string.IsNullOrWhiteSpace(answersJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonDocument.Parse(answersJson);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Failed to parse answers JSON for row {Id}", rowId);
+            return null;
+        }
+    }
+
+    private List<ColumnDefinition<SubmissionExportRow>> BuildColumns(JsonDocument? doc, ExportOptions? options)
     {
         var questionNames = doc?.RootElement.EnumerateObject().Select(p => p.Name).ToList() ?? [];
         var allNames = _staticColumnAccessors.Keys.Concat(questionNames).ToList();
@@ -129,18 +134,35 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
         var result = new List<ColumnDefinition<SubmissionExportRow>>();
         foreach (var name in selectedNames)
         {
-            var col = _staticColumnAccessors.ContainsKey(name)
-                ? (ColumnDefinition<SubmissionExportRow>)new StaticColumnDefinition<SubmissionExportRow>(name, _staticColumnAccessors[name])
-                : new JsonColumnDefinition<SubmissionExportRow>(name, name);
+            var column = BuildColumnDefinition(name);
 
             if (options?.Transformers is not null && options.Transformers.TryGetValue(name, out var transformer))
             {
-                col.WithTransformer(transformer);
+                column.WithFormatter(transformer);
             }
 
-            col.JsonPropertyName = JsonNamingPolicy.CamelCase.ConvertName(name);
-            result.Add(col);
+            column.JsonPropertyName = JsonNamingPolicy.CamelCase.ConvertName(name);
+            result.Add(column);
         }
         return result;
+    }
+
+    /// <summary>
+    /// Builds a column definition for a given name. This method is used to build the column definitions for the static columns and the question columns.
+    /// </summary>
+    /// <param name="name">The name of the column.</param>
+    /// <returns>The column definition - static or dynamic (question).</returns>
+    private ColumnDefinition<SubmissionExportRow> BuildColumnDefinition(string name)
+    {
+        if (_staticColumnAccessors.ContainsKey(name))
+        {
+            return new StaticColumnDefinition<SubmissionExportRow>(name, _staticColumnAccessors[name]);
+        }
+
+        var jsonColumn = new JsonColumnDefinition<SubmissionExportRow>(name, name);
+        jsonColumn.WithLogger(_logger);
+        jsonColumn.AddJsonTransformer(_storageUrlRewriter);
+
+        return jsonColumn;
     }
 }

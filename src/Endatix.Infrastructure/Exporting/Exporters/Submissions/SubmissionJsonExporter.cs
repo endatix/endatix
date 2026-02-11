@@ -3,7 +3,6 @@ using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Exporting.ColumnDefinitions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -11,7 +10,9 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 /// <summary>
 /// JSON exporter for submission data, optimized for streaming and low memory usage.
 /// </summary>
-public sealed class SubmissionJsonExporter(ILogger<SubmissionJsonExporter> logger) : SubmissionExporterBase(logger)
+public sealed class SubmissionJsonExporter(
+    ILogger<SubmissionJsonExporter> logger,
+    IJsonValueTransformer<SubmissionExportRow> storageUrlRewriter) : SubmissionExporterBase(logger, storageUrlRewriter)
 {
     public override string Format => "json";
     public override string ContentType => "application/json";
@@ -39,7 +40,7 @@ public sealed class SubmissionJsonExporter(ILogger<SubmissionJsonExporter> logge
                     foreach (var col in columns)
                     {
                         jsonWriter.WritePropertyName(col.JsonPropertyName);
-                        WriteValue(jsonWriter, col.ExtractValue(row, doc));
+                        WriteValue(jsonWriter, col.GetValue(row, doc));
                     }
                     jsonWriter.WriteEndObject();
                 }
