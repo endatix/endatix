@@ -1,7 +1,7 @@
-using System.Runtime.CompilerServices;
-using System.Text;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
@@ -18,30 +18,37 @@ namespace Endatix.Infrastructure.Exporting.Transformers;
 public sealed class StorageUrlRewriteTransformer : IValueTransformer
 {
     private const string ContentProperty = "content";
-    private static readonly byte[] _httpPrefix = "https://"u8.ToArray();
-    private static readonly byte[] _httpPrefixHttp = "http://"u8.ToArray();
-    private static readonly byte[] _pathPrefixS = "/s/"u8.ToArray();
-
     private readonly string _hubUrlBase;
-    private readonly List<(byte[] HostUtf8, byte[] ContainerUtf8)> _detectionRules;
+    private readonly IReadOnlyList<DetectionRule> _detectionRules;
+    private readonly ILogger<StorageUrlRewriteTransformer> _logger;
 
     public StorageUrlRewriteTransformer(
         IOptions<HubSettings> hubSettings,
         IOptions<AzureBlobStorageProviderOptions> azureBlobOptions,
         ILogger<StorageUrlRewriteTransformer> logger)
     {
-        var hubUrl = hubSettings?.Value?.HubBaseUrl?.Trim() ?? string.Empty;
-        _hubUrlBase = string.IsNullOrEmpty(hubUrl) ? string.Empty : hubUrl.TrimEnd('/');
-        _ = logger ?? throw new ArgumentNullException(nameof(logger));
+        Guard.Against.Null(logger);
+        Guard.Against.Null(hubSettings);
+        Guard.Against.Null(azureBlobOptions);
 
-        _detectionRules = new List<(byte[], byte[])>();
+        _logger = logger;
+
+        var hubUrl = hubSettings.Value.HubBaseUrl?.Trim() ?? string.Empty;
+        _hubUrlBase = string.IsNullOrWhiteSpace(hubUrl) ? string.Empty : hubUrl.TrimEnd('/');
+
+        var rules = new List<DetectionRule>();
         if (azureBlobOptions?.Value is { IsConfigured: true } azure)
         {
-            _detectionRules.Add((
-                Encoding.UTF8.GetBytes(azure.HostName.Trim()),
-                Encoding.UTF8.GetBytes(azure.UserFilesContainerName.Trim().ToLowerInvariant())
-            ));
+            var host = azure.HostName.Trim();
+            var container = azure.UserFilesContainerName.Trim();
+
+            if (!string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(container))
+            {
+                rules.Add(new DetectionRule(host, container));
+            }
         }
+
+        _detectionRules = rules;
     }
 
     /// <inheritdoc />
@@ -52,17 +59,13 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
             return value;
         }
 
-        long formId;
-        long submissionId;
-        if (context.Row is SubmissionExportRow row)
-        {
-            formId = row.FormId;
-            submissionId = row.Id;
-        }
-        else
+        if (context.Row is not SubmissionExportRow row)
         {
             return value;
         }
+
+        var formId = row.FormId;
+        var submissionId = row.Id;
 
         if (value is JsonElement element)
         {
@@ -70,14 +73,18 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
             {
                 JsonValueKind.Array => TryRewriteArray(element, formId, submissionId) ?? value,
                 JsonValueKind.Object => TryRewriteSingleObject(element, formId, submissionId) ?? value,
-                JsonValueKind.String => TryRewriteStringValue(element, formId, submissionId) ?? element.GetString(),
+                JsonValueKind.String => TryRewriteStringValue(element.GetString(), formId, submissionId) ?? element.GetString(),
                 _ => value
             };
         }
 
-        if (value is string jsonString && jsonString.TrimStart().StartsWith('['))
+        if (value is string jsonString)
         {
-            return TryRewriteStringifiedArray(jsonString, formId, submissionId) ?? value;
+            var trimmed = jsonString.AsSpan().TrimStart();
+            if (!trimmed.IsEmpty && trimmed[0] == '[')
+            {
+                return TryRewriteStringifiedArray(jsonString, formId, submissionId) ?? value;
+            }
         }
 
         return value;
@@ -85,44 +92,62 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
 
     private string? TryRewriteArray(JsonElement element, long formId, long submissionId)
     {
-        var node = JsonNode.Parse(element.GetRawText());
-        if (node is not JsonArray array)
+        try
         {
+            var node = JsonNode.Parse(element.GetRawText());
+            if (node is not JsonArray array)
+            {
+                return null;
+            }
+
+            if (!RewriteUrlsInNode(array, formId, submissionId, out var anyRewrite) || !anyRewrite)
+            {
+                return null;
+            }
+
+            return node.ToJsonString();
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogDebug(ex, "Failed to parse JsonElement array for row {RowId}. Returning original value.", submissionId);
             return null;
         }
-        if (!RewriteUrlsInNode(array, formId, submissionId, out _))
-        {
-            return null;
-        }
-        return node.ToJsonString();
     }
 
     private string? TryRewriteSingleObject(JsonElement element, long formId, long submissionId)
     {
-        var node = JsonNode.Parse(element.GetRawText());
-        if (node is not JsonObject obj)
+        try
         {
+            var node = JsonNode.Parse(element.GetRawText());
+            if (node is not JsonObject obj)
+            {
+                return null;
+            }
+
+            if (!obj.TryGetPropertyValue(ContentProperty, out var contentNode) ||
+                contentNode?.GetValue<string>() is not string oldUrl)
+            {
+                return null;
+            }
+
+            if (!TryRewriteContentUrl(oldUrl, formId, submissionId, out var newUrl))
+            {
+                return null;
+            }
+
+            obj[ContentProperty] = newUrl;
+            return node.ToJsonString();
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogDebug(ex, "Failed to parse JsonElement object for row {RowId}. Returning original value.", submissionId);
             return null;
         }
-
-        if (!obj.TryGetPropertyValue(ContentProperty, out var contentNode) || contentNode?.GetValue<string>() is not string oldUrl)
-        {
-            return null;
-        }
-
-        if (!TryRewriteContentUrl(Encoding.UTF8.GetBytes(oldUrl).AsSpan(), formId, submissionId, out var newUrl))
-        {
-            return null;
-        }
-
-        obj[ContentProperty] = newUrl;
-        return node.ToJsonString();
     }
 
-    private string? TryRewriteStringValue(JsonElement element, long formId, long submissionId)
+    private string? TryRewriteStringValue(string? value, long formId, long submissionId)
     {
-        var value = element.GetString();
-        if (string.IsNullOrEmpty(value) || value.Length < 2 || value[0] != '[')
+        if (string.IsNullOrWhiteSpace(value) || value.Length < 2 || value[0] != '[')
         {
             return null;
         }
@@ -132,23 +157,18 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
 
     private string? TryRewriteStringifiedArray(string jsonString, long formId, long submissionId)
     {
-        ReadOnlySpan<byte> valueUtf8 = Encoding.UTF8.GetBytes(jsonString).AsSpan();
-        if (valueUtf8.Length < 2 || valueUtf8[0] != (byte)'[')
+        if (string.IsNullOrWhiteSpace(jsonString))
         {
             return null;
         }
 
-        var hasStoragePattern = false;
-        foreach ((var hostUtf8, _) in _detectionRules)
+        var trimmed = jsonString.AsSpan().TrimStart();
+        if (trimmed.IsEmpty || trimmed[0] != '[')
         {
-            if (hostUtf8.Length > 0 && valueUtf8.IndexOf(hostUtf8.AsSpan()) >= 0)
-            {
-                hasStoragePattern = true;
-                break;
-            }
+            return null;
         }
 
-        if (!hasStoragePattern)
+        if (!_detectionRules.Any(r => jsonString.Contains(r.Host, StringComparison.OrdinalIgnoreCase)))
         {
             return null;
         }
@@ -161,15 +181,16 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
                 return null;
             }
 
-            if (!RewriteUrlsInNode(array, formId, submissionId, out _))
+            if (!RewriteUrlsInNode(array, formId, submissionId, out var anyRewrite) || !anyRewrite)
             {
                 return null;
             }
 
             return node.ToJsonString();
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            _logger.LogDebug(ex, "Failed to parse JSON stringified array for row {RowId}. Returning original value.", submissionId);
             return null;
         }
     }
@@ -179,12 +200,14 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
         anyRewrite = false;
         foreach (var item in array)
         {
-            if (item is not JsonObject obj || !obj.TryGetPropertyValue(ContentProperty, out var contentNode) || contentNode?.GetValue<string>() is not string oldUrl)
+            if (item is not JsonObject obj ||
+                !obj.TryGetPropertyValue(ContentProperty, out var contentNode) ||
+                contentNode?.GetValue<string>() is not string oldUrl)
             {
                 continue;
             }
 
-            if (!TryRewriteContentUrl(Encoding.UTF8.GetBytes(oldUrl).AsSpan(), formId, submissionId, out var newUrl))
+            if (!TryRewriteContentUrl(oldUrl, formId, submissionId, out var newUrl))
             {
                 continue;
             }
@@ -195,93 +218,67 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
         return anyRewrite;
     }
 
-    private bool TryRewriteContentUrl(ReadOnlySpan<byte> urlUtf8, long formId, long submissionId, out string? hubUrl)
+    private bool TryRewriteContentUrl(string url, long formId, long submissionId, out string? hubUrl)
     {
         hubUrl = null;
-        if (urlUtf8.Length < 10)
+        if (string.IsNullOrWhiteSpace(url))
         {
             return false;
         }
 
-        var span = urlUtf8;
-        var schemeLen = span.StartsWith(_httpPrefix) ? 8 : (span.StartsWith(_httpPrefixHttp) ? 7 : 0);
-        if (schemeLen == 0)
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
             return false;
         }
 
-        span = span[schemeLen..];
-
-        foreach ((var hostUtf8, var containerUtf8) in _detectionRules)
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
         {
-            if (hostUtf8.Length == 0 || containerUtf8.Length == 0)
+            return false;
+        }
+
+        foreach (var rule in _detectionRules)
+        {
+            if (!string.Equals(uri.Host, rule.Host, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var remaining = span;
-            if (!remaining.StartsWith(hostUtf8))
+            var path = uri.GetComponents(UriComponents.Path, UriFormat.UriEscaped);
+            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length < 5)
             {
                 continue;
             }
 
-            remaining = remaining[hostUtf8.Length..];
-            if (remaining.Length < 1 || remaining[0] != (byte)'/')
+            if (!string.Equals(segments[0], rule.Container, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            remaining = remaining[1..];
-            if (!remaining.StartsWith(containerUtf8))
+            if (!string.Equals(segments[1], "s", StringComparison.Ordinal))
             {
                 continue;
             }
 
-            remaining = remaining[containerUtf8.Length..];
-            if (remaining.Length < 4 || !remaining.StartsWith(_pathPrefixS))
+            if (!long.TryParse(segments[2], NumberStyles.None, CultureInfo.InvariantCulture, out var urlFormId) ||
+                urlFormId != formId)
             {
                 continue;
             }
 
-            remaining = remaining[3..];
-
-            var slash1 = remaining.IndexOf((byte)'/');
-            if (slash1 <= 0)
+            if (!long.TryParse(segments[3], NumberStyles.None, CultureInfo.InvariantCulture, out var urlSubmissionId) ||
+                urlSubmissionId != submissionId)
             {
                 continue;
             }
 
-            var formIdSpan = remaining[..slash1];
-            remaining = remaining[(slash1 + 1)..];
-            var slash2 = remaining.IndexOf((byte)'/');
-            if (slash2 <= 0)
-            {
-                continue;
-            }
-            var submissionIdSpan = remaining[..slash2];
-            var fileNameSpan = remaining[(slash2 + 1)..];
-            var q = fileNameSpan.IndexOf((byte)'?');
-            if (q >= 0)
-            {
-                fileNameSpan = fileNameSpan[..q];
-            }
-
-            if (fileNameSpan.IsEmpty)
+            var fileName = string.Join('/', segments.Skip(4));
+            if (string.IsNullOrWhiteSpace(fileName))
             {
                 continue;
             }
 
-            if (!TryParseLongUtf8(formIdSpan, out var urlFormId) || urlFormId != formId)
-            {
-                continue;
-            }
-
-            if (!TryParseLongUtf8(submissionIdSpan, out var urlSubmissionId) || urlSubmissionId != submissionId)
-            {
-                continue;
-            }
-
-            var fileName = Encoding.UTF8.GetString(fileNameSpan);
             hubUrl = $"{_hubUrlBase}/forms/{formId}/submissions/{submissionId}/files/{fileName}";
             return true;
         }
@@ -289,23 +286,5 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
         return false;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool TryParseLongUtf8(ReadOnlySpan<byte> span, out long value)
-    {
-        value = 0;
-        if (span.IsEmpty)
-        {
-            return false;
-        }
-        for (var i = 0; i < span.Length; i++)
-        {
-            var b = span[i];
-            if (b < (byte)'0' || b > (byte)'9')
-            {
-                return false;
-            }
-            value = (value * 10) + (b - (byte)'0');
-        }
-        return true;
-    }
+    private sealed record DetectionRule(string Host, string Container);
 }

@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Infrastructure.Exporting.Transformers;
 
 namespace Endatix.Infrastructure.Exporting.ColumnDefinitions;
 
@@ -12,8 +14,7 @@ public abstract class ColumnDefinition<T> where T : class
     public string Name { get; }
     public string JsonPropertyName { get; set; } = string.Empty;
 
-    private readonly List<IValueTransformer> _pipeline = new();
-    private int _formatterIndex = -1;
+    private readonly List<IValueTransformer> _transformers = new();
 
     protected ColumnDefinition(string name)
     {
@@ -25,7 +26,9 @@ public abstract class ColumnDefinition<T> where T : class
     /// </summary>
     public ColumnDefinition<T> AddTransformer(IValueTransformer transformer)
     {
-        _pipeline.Add(transformer ?? throw new ArgumentNullException(nameof(transformer)));
+        Guard.Against.Null(transformer, nameof(transformer));
+
+        _transformers.Add(transformer);
         return this;
     }
 
@@ -34,7 +37,9 @@ public abstract class ColumnDefinition<T> where T : class
     /// </summary>
     public ColumnDefinition<T> WithFormatter(Func<object?, string> formatter)
     {
-        ReplaceFormatter(new Transformers.FormatTransformer(formatter ?? throw new ArgumentNullException(nameof(formatter))));
+        Guard.Against.Null(formatter, nameof(formatter));
+
+        _transformers.Add(new DelegateTransformer(value => formatter(value)));
         return this;
     }
 
@@ -49,42 +54,16 @@ public abstract class ColumnDefinition<T> where T : class
     public object? GetValue(TransformationContext<T> context)
     {
         var value = ExtractRawValue(context);
-        var endIndex = _formatterIndex >= 0 ? _formatterIndex - 1 : _pipeline.Count - 1;
-        for (var i = 0; i <= endIndex && i < _pipeline.Count; i++)
+        foreach (var transformer in _transformers)
         {
-            var result = _pipeline[i].Transform(value, context);
+            var result = transformer.Transform(value, context);
             if (result is not null)
             {
                 value = result;
             }
         }
 
-        return value;
-    }
-
-    /// <summary>
-    /// Gets the formatted value for CSV. Runs full pipeline (formatter produces string).
-    /// </summary>
-    public string GetFormattedValue(TransformationContext<T> context)
-    {
-        var value = GetValue(context);
-        if (_formatterIndex >= 0)
-        {
-            return (string)_pipeline[_formatterIndex].Transform(value, context)!;
-        }
-
         return FormatValue(value);
-    }
-
-    private void ReplaceFormatter(IValueTransformer formatter)
-    {
-        if (_formatterIndex >= 0)
-        {
-            _pipeline.RemoveAt(_formatterIndex);
-            _formatterIndex = -1;
-        }
-        _pipeline.Add(formatter);
-        _formatterIndex = _pipeline.Count - 1;
     }
 
     /// <summary>
