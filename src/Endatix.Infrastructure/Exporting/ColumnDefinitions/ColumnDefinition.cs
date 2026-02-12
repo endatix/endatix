@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Infrastructure.Exporting.Transformers;
@@ -88,8 +89,31 @@ public abstract class ColumnDefinition<T> where T : class
             null => string.Empty,
             DateTime dateTime => dateTime.ToString("o"),
             bool boolean => boolean.ToString().ToLowerInvariant(),
+            IEnumerable<string> seq => string.Join(", ", seq),
+            JsonArray array => JoinJsonArray(array),
             _ => value.ToString() ?? string.Empty
         };
+    }
+
+    private static string JoinJsonArray(JsonArray array)
+    {
+        var values = new List<string>(array.Count);
+        foreach (var node in array)
+        {
+            if (node is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var s) && !string.IsNullOrWhiteSpace(s))
+            {
+                values.Add(s);
+                continue;
+            }
+
+            var text = node?.ToString();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                values.Add(text);
+            }
+        }
+
+        return string.Join(", ", values);
     }
 }
 
