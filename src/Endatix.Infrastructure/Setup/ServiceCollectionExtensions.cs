@@ -153,7 +153,8 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Adds a value transformer to the export pipeline. Transformers run in registration order for JSON columns.
-    /// Registers <c>IEnumerable&lt;IValueTransformer&gt;</c> on first use so the exporter receives all registered transformers.
+    /// When an exporter requests <c>IEnumerable&lt;IValueTransformer&gt;</c>, the default DI container automatically returns
+    /// all registered <see cref="IValueTransformer"/> implementations in registration order.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <typeparam name="T">The transformer type implementing <see cref="IValueTransformer"/>.</typeparam>
@@ -162,7 +163,6 @@ public static class ServiceCollectionExtensions
         where T : class, IValueTransformer
     {
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValueTransformer, T>());
-        services.TryAdd(ServiceDescriptor.Singleton<IEnumerable<IValueTransformer>>(sp => sp.GetServices<IValueTransformer>()));
         return services;
     }
 
