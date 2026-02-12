@@ -3,7 +3,7 @@ using Endatix.Core.Abstractions.Exporting;
 namespace Endatix.Infrastructure.Exporting.Transformers;
 
 /// <summary>
-/// Wraps a Func to format a value as string. Used for ExportOptions custom formatters and default formatting.
+/// Wraps a Func to format a value as string. Used for ExportOptions custom formatters.
 /// </summary>
 internal sealed class FormatTransformer : IValueTransformer
 {
@@ -15,5 +15,5 @@ internal sealed class FormatTransformer : IValueTransformer
     }
 
     /// <inheritdoc />
-    public object? Transform(object? value) => _format(value);
+    public object? Transform<T>(object? value, TransformationContext<T> context) => _format(value);
 }

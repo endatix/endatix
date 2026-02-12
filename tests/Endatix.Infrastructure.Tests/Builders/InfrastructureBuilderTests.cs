@@ -1,9 +1,11 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Exporting.Transformers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -100,8 +102,10 @@ public class InfrastructureBuilderTests
 
         builder.UseDefaults();
 
-        // Integrations: AddExternalStorage (IExportStorageUrlRewriter), AddEmailTemplateSettings, AddEmailSender, AddReCaptcha
-        Assert.True(IsRegistered<IExportStorageUrlRewriter>(_services));
+        // Integrations: AddExternalStorage (IValueTransformer / StorageUrlRewriteTransformer), AddEmailTemplateSettings, AddEmailSender, AddReCaptcha
+        Assert.Contains(_services, sd =>
+            sd.ServiceType == typeof(IValueTransformer) &&
+            sd.ImplementationType == typeof(StorageUrlRewriteTransformer));
         Assert.True(IsRegistered<IEmailTemplateService>(_services));
     }
 

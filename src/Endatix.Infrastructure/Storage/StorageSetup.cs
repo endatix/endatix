@@ -23,7 +23,7 @@ public static class StorageSetup
             .BindConfiguration($"{StorageOptions.SectionName}:Providers:AzureBlob")
             .ValidateOnStart();
 
-        services.AddSingleton<IJsonValueTransformer<SubmissionExportRow>, StorageUrlRewriteTransformer>();
+        services.AddExportTransformer<StorageUrlRewriteTransformer>();
 
         return services;
     }

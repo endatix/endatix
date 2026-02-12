@@ -1,8 +1,10 @@
 using System.IO.Pipelines;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Exporting.ColumnDefinitions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -12,7 +14,7 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 /// </summary>
 public sealed class SubmissionJsonExporter(
     ILogger<SubmissionJsonExporter> logger,
-    IJsonValueTransformer<SubmissionExportRow> storageUrlRewriter) : SubmissionExporterBase(logger, storageUrlRewriter)
+    IEnumerable<IValueTransformer> globalTransformers) : SubmissionExporterBase(logger, globalTransformers)
 {
     public override string Format => "json";
     public override string ContentType => "application/json";
@@ -31,16 +33,26 @@ public sealed class SubmissionJsonExporter(
             jsonWriter.WriteStartArray();
             SubmissionExportRow? firstRow = null;
 
-            await foreach (var (row, doc, columns) in GetStreamContextAsync(records, options, cancellationToken))
+            await foreach ((var row, var doc, var columns) in GetStreamContextAsync(records, options, cancellationToken))
             {
-                using (doc) // Ensure the document is disposed after each row
+                using (doc)
                 {
                     firstRow ??= row;
+                    var context = new TransformationContext<SubmissionExportRow>(row, doc, _logger);
                     jsonWriter.WriteStartObject();
                     foreach (var col in columns)
                     {
                         jsonWriter.WritePropertyName(col.JsonPropertyName);
-                        WriteValue(jsonWriter, col.GetValue(row, doc));
+                        try
+                        {
+                            var value = col.GetValue(context);
+                            WriteValue(jsonWriter, value);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error processing column {ColumnName} for row {RowId}", col.Name, row.Id);
+                            jsonWriter.WriteStringValue(NOT_AVAILABLE_VALUE);
+                        }
                     }
                     jsonWriter.WriteEndObject();
                 }
@@ -65,6 +77,12 @@ public sealed class SubmissionJsonExporter(
         {
             case null:
                 writer.WriteNullValue();
+                break;
+            case JsonElement element:
+                element.WriteTo(writer);
+                break;
+            case JsonNode node:
+                writer.WriteRawValue(node.ToJsonString());
                 break;
             case string s:
                 writer.WriteStringValue(s);

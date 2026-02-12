@@ -1,8 +1,14 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
+using Endatix.Core.Features.ReCaptcha;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Builders;
+using Endatix.Infrastructure.Email;
+using Endatix.Infrastructure.Exporting.Exporters.Submissions;
+using Endatix.Infrastructure.Exporting.Transformers;
+using Endatix.Infrastructure.ReCaptcha;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -12,8 +18,7 @@ namespace Endatix.Infrastructure.Tests.Builders;
 
 /// <summary>
 /// Tests for <see cref="InfrastructureIntegrationsBuilder"/>.
-/// Integrations UseDefaults() registers external storage (including export URL rewriter),
-/// email template settings, default email sender (Smtp), and ReCaptcha.
+/// UseDefaults() wires: AddExternalStorage, AddEmailTemplateSettings, AddEmailSender&lt;SmtpEmailSender, SmtpSettings&gt;, AddReCaptcha.
 /// </summary>
 public class InfrastructureIntegrationsBuilderTests
 {
@@ -32,8 +37,8 @@ public class InfrastructureIntegrationsBuilderTests
         _parentBuilder = new InfrastructureBuilder(_builderRoot);
     }
 
-    private static bool IsRegistered<T>(IServiceCollection sc) =>
-        sc.Any(sd => sd.ServiceType == typeof(T));
+    private static ServiceDescriptor? GetDescriptor(IServiceCollection sc, Type serviceType) =>
+        sc.FirstOrDefault(sd => sd.ServiceType == serviceType);
 
     [Fact]
     public void Constructor_IsInternal_UsedViaParentIntegrationsProperty()
@@ -45,36 +50,57 @@ public class InfrastructureIntegrationsBuilderTests
     }
 
     [Fact]
-    public void UseDefaults_ShouldRegisterExternalStorage()
+    public void UseDefaults_ShouldWireAddExternalStorage()
     {
         var builder = _parentBuilder.Integrations;
 
         builder.UseDefaults();
 
-        // AddExternalStorage: StorageOptions, AzureBlobStorageProviderOptions, IExportStorageUrlRewriter
-        Assert.True(IsRegistered<IExportStorageUrlRewriter>(_services));
-     
+        var descriptor = _services.FirstOrDefault(sd =>
+            sd.ServiceType == typeof(IValueTransformer) &&
+            sd.ImplementationType == typeof(StorageUrlRewriteTransformer));
+        Assert.NotNull(descriptor);
+        Assert.Equal(typeof(StorageUrlRewriteTransformer), descriptor!.ImplementationType);
+        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
     }
 
     [Fact]
-    public void UseDefaults_ShouldRegisterEmailServices()
+    public void UseDefaults_ShouldWireAddEmailTemplateSettings()
     {
         var builder = _parentBuilder.Integrations;
 
         builder.UseDefaults();
 
-        Assert.True(IsRegistered<IEmailTemplateService>(_services));
-        Assert.True(IsRegistered<IEmailSender>(_services));
+        var descriptor = GetDescriptor(_services, typeof(IEmailTemplateService));
+        Assert.NotNull(descriptor);
+        Assert.Equal(typeof(EmailTemplateService), descriptor!.ImplementationType);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
-    public void UseDefaults_ShouldRegisterReCaptcha()
+    public void UseDefaults_ShouldWireAddEmailSenderSmtp()
     {
         var builder = _parentBuilder.Integrations;
 
         builder.UseDefaults();
 
-        Assert.True(IsRegistered<Endatix.Core.Features.ReCaptcha.IReCaptchaPolicyService>(_services));
+        var descriptor = GetDescriptor(_services, typeof(IEmailSender));
+        Assert.NotNull(descriptor);
+        Assert.Equal(typeof(SmtpEmailSender), descriptor!.ImplementationType);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+    }
+
+    [Fact]
+    public void UseDefaults_ShouldWireAddReCaptcha()
+    {
+        var builder = _parentBuilder.Integrations;
+
+        builder.UseDefaults();
+
+        var descriptor = GetDescriptor(_services, typeof(IReCaptchaPolicyService));
+        Assert.NotNull(descriptor);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
+        Assert.Equal(typeof(GoogleReCaptchaService), descriptor.ImplementationType);
     }
 
     [Fact]

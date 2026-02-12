@@ -1,31 +1,19 @@
 using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
-using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Exporting.ColumnDefinitions;
 
 /// <summary>
 /// Represents an abstract base column definition for exporting data.
-/// The type T is the type of the row to be exported.
+/// Extract, Pipe, Format: ExtractRawValue feeds a single pipeline of IValueTransformer.
 /// </summary>
 public abstract class ColumnDefinition<T> where T : class
 {
-    /// <summary>
-    /// The name of the column as it will appear in the header.
-    /// </summary>
     public string Name { get; }
-
-    /// <summary>
-    /// The JSON property name (typically camelCase) for JSON exports.
-    /// Pre-calculated during column initialization for performance.
-    /// </summary>
     public string JsonPropertyName { get; set; } = string.Empty;
 
-    private readonly List<IValueTransformer> _transformers = new();
+    private readonly List<IValueTransformer> _pipeline = new();
     private int _formatterIndex = -1;
-
-    /// <summary>Exposed for derived classes to log transform failures.</summary>
-    protected ILogger? Logger { get; private set; }
 
     protected ColumnDefinition(string name)
     {
@@ -33,16 +21,16 @@ public abstract class ColumnDefinition<T> where T : class
     }
 
     /// <summary>
-    /// Adds a value transformer to the pipeline. Return null when no change.
+    /// Adds a value transformer to the pipeline.
     /// </summary>
     public ColumnDefinition<T> AddTransformer(IValueTransformer transformer)
     {
-        _transformers.Add(transformer ?? throw new ArgumentNullException(nameof(transformer)));
+        _pipeline.Add(transformer ?? throw new ArgumentNullException(nameof(transformer)));
         return this;
     }
 
     /// <summary>
-    /// Sets the formatter for presentation (e.g. from ExportOptions). Appended as last transformer; skipped for GetValue (JSON).
+    /// Sets the formatter (e.g. from ExportOptions). Appended as last transformer; skipped for GetValue (JSON).
     /// </summary>
     public ColumnDefinition<T> WithFormatter(Func<object?, string> formatter)
     {
@@ -51,75 +39,38 @@ public abstract class ColumnDefinition<T> where T : class
     }
 
     /// <summary>
-    /// Sets the formatter as an IValueTransformer. Appended as last transformer; skipped for GetValue (JSON).
+    /// Hook for subclasses: returns the initial value (e.g. JsonElement or property value).
     /// </summary>
-    public ColumnDefinition<T> WithFormatter(IValueTransformer formatter)
-    {
-        ReplaceFormatter(formatter ?? throw new ArgumentNullException(nameof(formatter)));
-        return this;
-    }
+    protected abstract object? ExtractRawValue(TransformationContext<T> context);
 
     /// <summary>
-    /// Sets the logger used to log when a value transformation fails.
+    /// Gets the value for export. Runs pipeline excluding formatter. Use for JSON export.
     /// </summary>
-    public ColumnDefinition<T> WithLogger(ILogger logger)
+    public object? GetValue(TransformationContext<T> context)
     {
-        Logger = logger;
-        return this;
-    }
-
-    /// <summary>
-    /// Extracts raw value and optional element. JsonColumnDefinition provides element for JSON transformers.
-    /// </summary>
-    protected abstract (object? value, JsonElement? element) GetRawValue(T row, JsonDocument? document);
-
-    /// <summary>
-    /// Applies value transformers to the given value. Excludes formatter (for JSON export).
-    /// </summary>
-    protected object? ApplyValueTransformers(object? value)
-    {
-        var endIndex = _formatterIndex >= 0 ? _formatterIndex - 1 : _transformers.Count - 1;
-        for (var i = 0; i <= endIndex && i < _transformers.Count; i++)
+        var value = ExtractRawValue(context);
+        var endIndex = _formatterIndex >= 0 ? _formatterIndex - 1 : _pipeline.Count - 1;
+        for (var i = 0; i <= endIndex && i < _pipeline.Count; i++)
         {
-            try
+            var result = _pipeline[i].Transform(value, context);
+            if (result is not null)
             {
-                var result = _transformers[i].Transform(value);
-                if (result is not null)
-                {
-                    value = result;
-                }
-            }
-            catch (Exception ex)
-            {
-                if (Logger is not null)
-                {
-                    Logger.LogError(ex, "Value transformation failed for column {ColumnName}", Name);
-                }
+                value = result;
             }
         }
+
         return value;
     }
 
     /// <summary>
-    /// Gets the value for export: extracts, applies value transformers (excludes formatter). Use for JSON export.
+    /// Gets the formatted value for CSV. Runs full pipeline (formatter produces string).
     /// </summary>
-    public virtual object? GetValue(T row, JsonDocument? document)
+    public string GetFormattedValue(TransformationContext<T> context)
     {
-        (var value, _) = GetRawValue(row, document);
-
-        return ApplyValueTransformers(value);
-    }
-
-    /// <summary>
-    /// Gets the formatted value for CSV: GetValue then formatter (or default FormatValue).
-    /// </summary>
-    public string GetFormattedValue(T row, JsonDocument? document)
-    {
-        var value = GetValue(row, document);
-
+        var value = GetValue(context);
         if (_formatterIndex >= 0)
         {
-            return (string)_transformers[_formatterIndex].Transform(value)!;
+            return (string)_pipeline[_formatterIndex].Transform(value, context)!;
         }
 
         return FormatValue(value);
@@ -129,11 +80,11 @@ public abstract class ColumnDefinition<T> where T : class
     {
         if (_formatterIndex >= 0)
         {
-            _transformers.RemoveAt(_formatterIndex);
+            _pipeline.RemoveAt(_formatterIndex);
             _formatterIndex = -1;
         }
-        _transformers.Add(formatter);
-        _formatterIndex = _transformers.Count - 1;
+        _pipeline.Add(formatter);
+        _formatterIndex = _pipeline.Count - 1;
     }
 
     /// <summary>
@@ -163,88 +114,35 @@ public sealed class StaticColumnDefinition<T> : ColumnDefinition<T> where T : cl
         _accessor = accessor;
     }
 
-    protected override (object? value, JsonElement? element) GetRawValue(T row, JsonDocument? document) =>
-        (_accessor(row), null);
+    /// <inheritdoc />
+    protected override object? ExtractRawValue(TransformationContext<T> context) => _accessor(context.Row);
 }
 
 /// <summary>
-/// Column definition for accessing JSON properties from a document.
-/// Supports specialized IJsonValueTransformer for JsonElement (e.g. URL rewrite).
+/// Column definition for accessing JSON properties. Extracts JsonElement into the pipeline (zero-copy start).
 /// </summary>
 public sealed class JsonColumnDefinition<T> : ColumnDefinition<T> where T : class
 {
-    private readonly string _jsonPropertyName;
-    private readonly List<Core.Abstractions.Exporting.IJsonValueTransformer<T>> _jsonValueTransformers = new();
+    private readonly string _jsonPath;
 
-    public JsonColumnDefinition(string name, string jsonPropertyName) : base(name)
+    public JsonColumnDefinition(string name, string jsonPath) : base(name)
     {
-        _jsonPropertyName = jsonPropertyName;
-    }
-
-    /// <summary>
-    /// Adds a JSON-specific transformer (e.g. storage URL rewrite). Receives (JsonElement, row). Return null when no change.
-    /// </summary>
-    public JsonColumnDefinition<T> AddJsonTransformer(Core.Abstractions.Exporting.IJsonValueTransformer<T> transformer)
-    {
-        _jsonValueTransformers.Add(transformer ?? throw new ArgumentNullException(nameof(transformer)));
-        return this;
-    }
-
-    /// <summary>
-    /// Gets the raw value and element from the document.
-    /// returns (value, element) where value is the raw value and element is the JSON element.
-    /// </summary>
-    protected override (object? value, JsonElement? element) GetRawValue(T row, JsonDocument? document)
-    {
-        if (document is null)
-        {
-            return (null, null);
-        }
-
-        if (document.RootElement.TryGetProperty(_jsonPropertyName, out var element))
-        {
-            object? value = element.ValueKind switch
-            {
-                JsonValueKind.String => element.GetString(),
-                JsonValueKind.Number => element.GetDecimal(),
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                JsonValueKind.Null => null,
-                _ => element.ToString()
-            };
-            return (value, element);
-        }
-
-        return (null, null);
+        _jsonPath = jsonPath;
     }
 
     /// <inheritdoc />
-    public override object? GetValue(T row, JsonDocument? document)
+    protected override object? ExtractRawValue(TransformationContext<T> context)
     {
-        (var value, var element) = GetRawValue(row, document);
-
-        if (element is { } jsonElement)
+        if (context.JsonDoc is null)
         {
-            foreach (var jsonTransformer in _jsonValueTransformers)
-            {
-                try
-                {
-                    var result = jsonTransformer.Transform(jsonElement, row);
-                    if (result is not null)
-                    {
-                        value = result;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (Logger is not null)
-                    {
-                        Logger.LogError(ex, "Value transformation failed for column {ColumnName}", Name);
-                    }
-                }
-            }
+            return null;
         }
 
-        return ApplyValueTransformers(value);
+        if (context.JsonDoc.RootElement.TryGetProperty(_jsonPath, out var element))
+        {
+            return element;
+        }
+
+        return null;
     }
 }

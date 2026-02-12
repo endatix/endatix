@@ -14,12 +14,12 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 /// </summary>
 public abstract class SubmissionExporterBase(
     ILogger logger,
-    IJsonValueTransformer<SubmissionExportRow> storageUrlRewriter) : IExporter<SubmissionExportRow>
+    IEnumerable<IValueTransformer> globalTransformers) : IExporter<SubmissionExportRow>
 {
     protected const string NOT_AVAILABLE_VALUE = "N/A";
 
     protected readonly ILogger _logger = logger;
-    private readonly IJsonValueTransformer<SubmissionExportRow> _storageUrlRewriter = storageUrlRewriter;
+    private readonly List<IValueTransformer> _globalTransformers = globalTransformers?.ToList() ?? [];
 
     private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
     {
@@ -52,7 +52,6 @@ public abstract class SubmissionExporterBase(
         {
             var fileName = GetFileName(options, null, FileExtension);
             var fileExport = new FileExport(ContentType, fileName);
-
             return Task.FromResult(Result<FileExport>.Success(fileExport));
         }
         catch (Exception ex)
@@ -74,13 +73,13 @@ public abstract class SubmissionExporterBase(
             ? Convert.ToInt64(value)
             : firstRow?.FormId;
 
-        return formId != null
+        return formId is not null
             ? $"submissions-{formId}.{extension}"
             : $"submissions.{extension}";
     }
 
     /// <summary>
-    /// Yields (row, answers doc, columns) with URL-rewritten answers and column list built from the first row.
+    /// Yields (row, answers doc, columns) for streaming export.
     /// </summary>
     protected async IAsyncEnumerable<(SubmissionExportRow Row, JsonDocument? Doc, List<ColumnDefinition<SubmissionExportRow>> Columns)>
         GetStreamContextAsync(
@@ -128,8 +127,8 @@ public abstract class SubmissionExporterBase(
         var allNames = _staticColumnAccessors.Keys.Concat(questionNames).ToList();
 
         var selectedNames = (options?.Columns?.Any() ?? false)
-           ? options.Columns.Where(allNames.Contains)
-           : allNames;
+            ? options.Columns.Where(allNames.Contains)
+            : allNames;
 
         var result = new List<ColumnDefinition<SubmissionExportRow>>();
         foreach (var name in selectedNames)
@@ -147,11 +146,6 @@ public abstract class SubmissionExporterBase(
         return result;
     }
 
-    /// <summary>
-    /// Builds a column definition for a given name. This method is used to build the column definitions for the static columns and the question columns.
-    /// </summary>
-    /// <param name="name">The name of the column.</param>
-    /// <returns>The column definition - static or dynamic (question).</returns>
     private ColumnDefinition<SubmissionExportRow> BuildColumnDefinition(string name)
     {
         if (_staticColumnAccessors.ContainsKey(name))
@@ -160,8 +154,10 @@ public abstract class SubmissionExporterBase(
         }
 
         var jsonColumn = new JsonColumnDefinition<SubmissionExportRow>(name, name);
-        jsonColumn.WithLogger(_logger);
-        jsonColumn.AddJsonTransformer(_storageUrlRewriter);
+        foreach (var transformer in _globalTransformers)
+        {
+            jsonColumn.AddTransformer(transformer);
+        }
 
         return jsonColumn;
     }

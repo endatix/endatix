@@ -12,6 +12,7 @@ using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Infrastructure.Setup;
 using Endatix.Infrastructure.Storage;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
@@ -151,7 +152,22 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// /// Registers an exporter as both <see cref="IExporter{T}"/> and <see cref="IExporter"/> interfaces.
+    /// Adds a value transformer to the export pipeline. Transformers run in registration order for JSON columns.
+    /// Registers <c>IEnumerable&lt;IValueTransformer&gt;</c> on first use so the exporter receives all registered transformers.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <typeparam name="T">The transformer type implementing <see cref="IValueTransformer"/>.</typeparam>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddExportTransformer<T>(this IServiceCollection services)
+        where T : class, IValueTransformer
+    {
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValueTransformer, T>());
+        services.TryAdd(ServiceDescriptor.Singleton<IEnumerable<IValueTransformer>>(sp => sp.GetServices<IValueTransformer>()));
+        return services;
+    }
+
+    /// <summary>
+    /// Registers an exporter as both <see cref="IExporter{T}"/> and <see cref="IExporter"/> interfaces.
     /// </summary>
     /// <param name="services">The service collection to register the exporter on.</param>
     /// <typeparam name="T">The type of records to export.</typeparam>

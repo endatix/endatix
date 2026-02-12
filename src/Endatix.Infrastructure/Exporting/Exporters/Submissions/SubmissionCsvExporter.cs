@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO.Pipelines;
+using System.Text.Json;
 using Ardalis.GuardClauses;
 using CsvHelper;
 using CsvHelper.Configuration;
@@ -16,7 +17,7 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 /// </summary>
 public sealed class SubmissionCsvExporter(
     ILogger<SubmissionCsvExporter> logger,
-    IJsonValueTransformer<SubmissionExportRow> storageUrlRewriter) : SubmissionExporterBase(logger, storageUrlRewriter)
+    IEnumerable<IValueTransformer> globalTransformers) : SubmissionExporterBase(logger, globalTransformers)
 {
     public override string Format => "csv";
     public override string ContentType => "text/csv";
@@ -38,7 +39,7 @@ public sealed class SubmissionCsvExporter(
             SubmissionExportRow? firstRow = null;
             var headerWritten = false;
 
-            await foreach (var (row, doc, columns) in GetStreamContextAsync(records, options, cancellationToken))
+            await foreach ((var row, var doc, var columns) in GetStreamContextAsync(records, options, cancellationToken))
             {
                 using (doc)
                 {
@@ -54,9 +55,19 @@ public sealed class SubmissionCsvExporter(
                         headerWritten = true;
                     }
 
+                    var context = new TransformationContext<SubmissionExportRow>(row, doc, _logger);
                     foreach (var col in columns)
                     {
-                        csv.WriteField(col.GetFormattedValue(row, doc));
+                        try
+                        {
+                            var formatted = col.GetFormattedValue(context);
+                            csv.WriteField(formatted);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error processing column {ColumnName} for row {RowId}", col.Name, row.Id);
+                            csv.WriteField(NOT_AVAILABLE_VALUE);
+                        }
                     }
                     await csv.NextRecordAsync();
                 }
