@@ -168,51 +168,68 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
 
     private string? TryRewriteUrl(string url, long formId, long submissionId)
     {
-        if (string.IsNullOrWhiteSpace(url) || !url.Contains(_storageHost, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
             return null;
         }
 
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            return null;
-        }
-
-        if (!string.Equals(uri.Host, _storageHost, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        var segments = uri.AbsolutePath.TrimStart('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length < 5)
-        {
-            return null;
-        }
-
-        if (!string.Equals(segments[0], _storageContainer, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(segments[1], "s", StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        if (!long.TryParse(segments[2], NumberStyles.None, CultureInfo.InvariantCulture, out var urlFormId) ||
-            urlFormId != formId)
-        {
-            return null;
-        }
-
-        if (!long.TryParse(segments[3], NumberStyles.None, CultureInfo.InvariantCulture, out var urlSubmissionId) ||
-            urlSubmissionId != submissionId)
-        {
-            return null;
-        }
-
-        var fileName = string.Join('/', segments.Skip(4));
-        if (string.IsNullOrWhiteSpace(fileName))
+        var (isValid, fileName) = IsValidStorageUrl(uri, formId, submissionId);
+        if (!isValid)
         {
             return null;
         }
 
         return $"{_hubUrlBase}/forms/{formId}/submissions/{submissionId}/files/{fileName}";
+    }
+
+
+    /// <summary>
+    /// Validates if the URL is a valid storage URL and returns the file name on success.
+    /// </summary>
+    /// <param name="uri">The URL to validate.</param>
+    /// <param name="formId">The form ID.</param>
+    /// <param name="submissionId">The submission ID.</param>
+    /// <returns>A tuple containing a boolean indicating if the URL is valid and the file name if it is.</returns>
+    private (bool IsValid, string? FileName) IsValidStorageUrl(Uri uri, long formId, long submissionId)
+    {
+        var segments = uri.AbsolutePath.TrimStart('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length < 5)
+        {
+            return (false, null);
+        }
+
+
+        if (!string.Equals(uri.Host, _storageHost, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, null);
+        }
+
+        if (!string.Equals(segments[0], _storageContainer, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, null);
+        }
+
+        if (!string.Equals(segments[1], "s", StringComparison.Ordinal))
+        {
+            return (false, null);
+        }
+
+        if (!long.TryParse(segments[2], NumberStyles.None, CultureInfo.InvariantCulture, out var urlFormId) || urlFormId != formId)
+        {
+            return (false, null);
+        }
+
+        if (!long.TryParse(segments[3], NumberStyles.None, CultureInfo.InvariantCulture, out var urlSubmissionId) || urlSubmissionId != submissionId)
+        {
+            return (false, null);
+        }
+
+        var fileName = string.Join('/', segments.Skip(4));
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return (false, null);
+        }
+
+        return (true, fileName);
     }
 }
