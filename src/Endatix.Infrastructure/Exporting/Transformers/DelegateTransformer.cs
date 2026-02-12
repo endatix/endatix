@@ -16,7 +16,7 @@ public sealed class DelegateTransformer : IValueTransformer
     /// <param name="transform">The delegate to transform the value. Func that takes an object and returns a string.</param>
     public DelegateTransformer(Func<object?, string> transform)
     {
-        Guard.Against.Null(transform, nameof(transform));
+        Guard.Against.Null(transform);
 
         _transform = transform;
     }

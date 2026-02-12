@@ -26,7 +26,7 @@ public abstract class ColumnDefinition<T> where T : class
     /// </summary>
     public ColumnDefinition<T> AddTransformer(IValueTransformer transformer)
     {
-        Guard.Against.Null(transformer, nameof(transformer));
+        Guard.Against.Null(transformer);
 
         _transformers.Add(transformer);
         return this;
@@ -37,7 +37,7 @@ public abstract class ColumnDefinition<T> where T : class
     /// </summary>
     public ColumnDefinition<T> WithFormatter(Func<object?, string> formatter)
     {
-        Guard.Against.Null(formatter, nameof(formatter));
+        Guard.Against.Null(formatter);
 
         _transformers.Add(new DelegateTransformer(value => formatter(value)));
         return this;
@@ -46,21 +46,18 @@ public abstract class ColumnDefinition<T> where T : class
     /// <summary>
     /// Hook for subclasses: returns the initial value (e.g. JsonElement or property value).
     /// </summary>
-    protected abstract object? ExtractRawValue(TransformationContext<T> context);
+    protected abstract object? ExtractRawValue(T row, JsonDocument? document);
 
     /// <summary>
     /// Gets the value for export. Runs pipeline excluding formatter. Use for JSON export.
     /// </summary>
     public object? GetValue(TransformationContext<T> context)
     {
-        var value = ExtractRawValue(context);
-        foreach (var transformer in _transformers)
+        var value = ExtractRawValue(context.Row, context.JsonDoc);
+        var count = _transformers.Count;
+        for (var i = 0; i < count; i++)
         {
-            var result = transformer.Transform(value, context);
-            if (result is not null)
-            {
-                value = result;
-            }
+            value = _transformers[i].Transform(value, context);
         }
 
         return FormatValue(value);
@@ -94,7 +91,7 @@ public sealed class StaticColumnDefinition<T> : ColumnDefinition<T> where T : cl
     }
 
     /// <inheritdoc />
-    protected override object? ExtractRawValue(TransformationContext<T> context) => _accessor(context.Row);
+    protected override object? ExtractRawValue(T row, JsonDocument? document) => _accessor(row);
 }
 
 /// <summary>
@@ -110,14 +107,14 @@ public sealed class JsonColumnDefinition<T> : ColumnDefinition<T> where T : clas
     }
 
     /// <inheritdoc />
-    protected override object? ExtractRawValue(TransformationContext<T> context)
+    protected override object? ExtractRawValue(T row, JsonDocument? document)
     {
-        if (context.JsonDoc is null)
+        if (document is null)
         {
             return null;
         }
 
-        if (context.JsonDoc.RootElement.TryGetProperty(_jsonPath, out var element))
+        if (document.RootElement.TryGetProperty(_jsonPath, out var element))
         {
             return element;
         }

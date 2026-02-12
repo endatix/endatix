@@ -13,14 +13,18 @@ namespace Endatix.Infrastructure.Exporting.Transformers;
 
 /// <summary>
 /// Rewrites storage file URLs in JSON values to hub file-details URLs.
-/// Implements IValueTransformer; handles JsonElement (Array/Object/String) and string (stringified JSON).
+/// Storage: https://{host}/{container}/s/{formId}/{submissionId}/{fileName}
+/// Hub: {hubBaseUrl}/forms/{formId}/submissions/{submissionId}/files/{fileName}
 /// </summary>
 public sealed class StorageUrlRewriteTransformer : IValueTransformer
 {
     private const string ContentProperty = "content";
+
     private readonly string _hubUrlBase;
-    private readonly IReadOnlyList<DetectionRule> _detectionRules;
+    private readonly string _storageHost;
+    private readonly string _storageContainer;
     private readonly ILogger<StorageUrlRewriteTransformer> _logger;
+    private readonly bool _enabled;
 
     public StorageUrlRewriteTransformer(
         IOptions<HubSettings> hubSettings,
@@ -36,30 +40,23 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
         var hubUrl = hubSettings.Value.HubBaseUrl?.Trim() ?? string.Empty;
         _hubUrlBase = string.IsNullOrWhiteSpace(hubUrl) ? string.Empty : hubUrl.TrimEnd('/');
 
-        var rules = new List<DetectionRule>();
-        if (azureBlobOptions?.Value is { IsConfigured: true } azure)
+        var host = string.Empty;
+        var container = string.Empty;
+        if (azureBlobOptions.Value is { IsConfigured: true } azure)
         {
-            var host = azure.HostName.Trim();
-            var container = azure.UserFilesContainerName.Trim();
-
-            if (!string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(container))
-            {
-                rules.Add(new DetectionRule(host, container));
-            }
+            host = azure.HostName.Trim();
+            container = azure.UserFilesContainerName.Trim();
         }
 
-        _detectionRules = rules;
+        _storageHost = host;
+        _storageContainer = container.ToLowerInvariant();
+        _enabled = !string.IsNullOrWhiteSpace(_hubUrlBase) && !string.IsNullOrWhiteSpace(_storageHost);
     }
 
     /// <inheritdoc />
     public object? Transform<T>(object? value, TransformationContext<T> context)
     {
-        if (string.IsNullOrEmpty(_hubUrlBase) || _detectionRules.Count == 0)
-        {
-            return value;
-        }
-
-        if (context.Row is not SubmissionExportRow row)
+        if (!_enabled || context.Row is not SubmissionExportRow row)
         {
             return value;
         }
@@ -71,220 +68,151 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
         {
             return element.ValueKind switch
             {
-                JsonValueKind.Array => TryRewriteArray(element, formId, submissionId) ?? value,
-                JsonValueKind.Object => TryRewriteSingleObject(element, formId, submissionId) ?? value,
-                JsonValueKind.String => TryRewriteStringValue(element.GetString(), formId, submissionId) ?? element.GetString(),
+                JsonValueKind.Array => ProcessJsonArray(element.GetRawText(), formId, submissionId) ?? value,
+                JsonValueKind.Object => ProcessSingleObject(element.GetRawText(), formId, submissionId) ?? value,
+                JsonValueKind.String => ProcessStringValue(element.GetString(), formId, submissionId),
                 _ => value
             };
         }
 
-        if (value is string jsonString)
+        if (value is string s)
         {
-            var trimmed = jsonString.AsSpan().TrimStart();
-            if (!trimmed.IsEmpty && trimmed[0] == '[')
+            if (s.TrimStart().StartsWith('['))
             {
-                return TryRewriteStringifiedArray(jsonString, formId, submissionId) ?? value;
+                return ProcessJsonArray(s, formId, submissionId) ?? value;
             }
+            return TryRewriteUrl(s, formId, submissionId) ?? value;
         }
 
         return value;
     }
 
-    private string? TryRewriteArray(JsonElement element, long formId, long submissionId)
+    private string ProcessStringValue(string? value, long formId, long submissionId)
     {
-        try
+        if (string.IsNullOrWhiteSpace(value))
         {
-            var node = JsonNode.Parse(element.GetRawText());
-            if (node is not JsonArray array)
-            {
-                return null;
-            }
-
-            if (!RewriteUrlsInNode(array, formId, submissionId, out var anyRewrite) || !anyRewrite)
-            {
-                return null;
-            }
-
-            return node.ToJsonString();
+            return value ?? string.Empty;
         }
-        catch (JsonException ex)
-        {
-            _logger.LogDebug(ex, "Failed to parse JsonElement array for row {RowId}. Returning original value.", submissionId);
-            return null;
-        }
+        return value.TrimStart().StartsWith('[')
+            ? ProcessJsonArray(value, formId, submissionId) ?? value
+            : TryRewriteUrl(value, formId, submissionId) ?? value;
     }
 
-    private string? TryRewriteSingleObject(JsonElement element, long formId, long submissionId)
+    private string? ProcessJsonArray(string json, long formId, long submissionId)
     {
-        try
-        {
-            var node = JsonNode.Parse(element.GetRawText());
-            if (node is not JsonObject obj)
-            {
-                return null;
-            }
-
-            if (!obj.TryGetPropertyValue(ContentProperty, out var contentNode) ||
-                contentNode?.GetValue<string>() is not string oldUrl)
-            {
-                return null;
-            }
-
-            if (!TryRewriteContentUrl(oldUrl, formId, submissionId, out var newUrl))
-            {
-                return null;
-            }
-
-            obj[ContentProperty] = newUrl;
-            return node.ToJsonString();
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogDebug(ex, "Failed to parse JsonElement object for row {RowId}. Returning original value.", submissionId);
-            return null;
-        }
-    }
-
-    private string? TryRewriteStringValue(string? value, long formId, long submissionId)
-    {
-        if (string.IsNullOrWhiteSpace(value) || value.Length < 2 || value[0] != '[')
-        {
-            return null;
-        }
-
-        return TryRewriteStringifiedArray(value, formId, submissionId);
-    }
-
-    private string? TryRewriteStringifiedArray(string jsonString, long formId, long submissionId)
-    {
-        if (string.IsNullOrWhiteSpace(jsonString))
-        {
-            return null;
-        }
-
-        var trimmed = jsonString.AsSpan().TrimStart();
-        if (trimmed.IsEmpty || trimmed[0] != '[')
-        {
-            return null;
-        }
-
-        if (!_detectionRules.Any(r => jsonString.Contains(r.Host, StringComparison.OrdinalIgnoreCase)))
+        if (!json.Contains(_storageHost, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
         try
         {
-            var node = JsonNode.Parse(jsonString);
-            if (node is not JsonArray array)
+            var root = JsonNode.Parse(json);
+            if (root is not JsonArray array)
             {
                 return null;
             }
 
-            if (!RewriteUrlsInNode(array, formId, submissionId, out var anyRewrite) || !anyRewrite)
+            var modified = false;
+            foreach (var node in array)
             {
-                return null;
+                if (node is JsonObject obj &&
+                    obj.TryGetPropertyValue(ContentProperty, out var contentNode) &&
+                    contentNode?.GetValue<string>() is string url)
+                {
+                    var newUrl = TryRewriteUrl(url, formId, submissionId);
+                    if (newUrl is not null && newUrl != url)
+                    {
+                        obj[ContentProperty] = newUrl;
+                        modified = true;
+                    }
+                }
             }
 
-            return node.ToJsonString();
+            return modified ? root.ToJsonString() : null;
         }
         catch (JsonException ex)
         {
-            _logger.LogDebug(ex, "Failed to parse JSON stringified array for row {RowId}. Returning original value.", submissionId);
+            _logger.LogDebug(ex, "Failed to parse JSON for row {RowId}", submissionId);
             return null;
         }
     }
 
-    private bool RewriteUrlsInNode(JsonArray array, long formId, long submissionId, out bool anyRewrite)
+    private string? ProcessSingleObject(string json, long formId, long submissionId)
     {
-        anyRewrite = false;
-        foreach (var item in array)
+        try
         {
-            if (item is not JsonObject obj ||
+            var root = JsonNode.Parse(json);
+            if (root is not JsonObject obj ||
                 !obj.TryGetPropertyValue(ContentProperty, out var contentNode) ||
-                contentNode?.GetValue<string>() is not string oldUrl)
+                contentNode?.GetValue<string>() is not string url)
             {
-                continue;
+                return null;
             }
 
-            if (!TryRewriteContentUrl(oldUrl, formId, submissionId, out var newUrl))
+            var newUrl = TryRewriteUrl(url, formId, submissionId);
+            if (newUrl is null || newUrl == url)
             {
-                continue;
+                return null;
             }
 
             obj[ContentProperty] = newUrl;
-            anyRewrite = true;
+            return root.ToJsonString();
         }
-        return anyRewrite;
+        catch (JsonException ex)
+        {
+            _logger.LogDebug(ex, "Failed to parse JSON object for row {RowId}", submissionId);
+            return null;
+        }
     }
 
-    private bool TryRewriteContentUrl(string url, long formId, long submissionId, out string? hubUrl)
+    private string? TryRewriteUrl(string url, long formId, long submissionId)
     {
-        hubUrl = null;
-        if (string.IsNullOrWhiteSpace(url))
+        if (string.IsNullOrWhiteSpace(url) || !url.Contains(_storageHost, StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return null;
         }
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
-            return false;
+            return null;
         }
 
-        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(uri.Host, _storageHost, StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return null;
         }
 
-        foreach (var rule in _detectionRules)
+        var segments = uri.AbsolutePath.TrimStart('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length < 5)
         {
-            if (!string.Equals(uri.Host, rule.Host, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var path = uri.GetComponents(UriComponents.Path, UriFormat.UriEscaped);
-            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length < 5)
-            {
-                continue;
-            }
-
-            if (!string.Equals(segments[0], rule.Container, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (!string.Equals(segments[1], "s", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (!long.TryParse(segments[2], NumberStyles.None, CultureInfo.InvariantCulture, out var urlFormId) ||
-                urlFormId != formId)
-            {
-                continue;
-            }
-
-            if (!long.TryParse(segments[3], NumberStyles.None, CultureInfo.InvariantCulture, out var urlSubmissionId) ||
-                urlSubmissionId != submissionId)
-            {
-                continue;
-            }
-
-            var fileName = string.Join('/', segments.Skip(4));
-            if (string.IsNullOrWhiteSpace(fileName))
-            {
-                continue;
-            }
-
-            hubUrl = $"{_hubUrlBase}/forms/{formId}/submissions/{submissionId}/files/{fileName}";
-            return true;
+            return null;
         }
 
-        return false;
+        if (!string.Equals(segments[0], _storageContainer, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(segments[1], "s", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        if (!long.TryParse(segments[2], NumberStyles.None, CultureInfo.InvariantCulture, out var urlFormId) ||
+            urlFormId != formId)
+        {
+            return null;
+        }
+
+        if (!long.TryParse(segments[3], NumberStyles.None, CultureInfo.InvariantCulture, out var urlSubmissionId) ||
+            urlSubmissionId != submissionId)
+        {
+            return null;
+        }
+
+        var fileName = string.Join('/', segments.Skip(4));
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        return $"{_hubUrlBase}/forms/{formId}/submissions/{submissionId}/files/{fileName}";
     }
-
-    private sealed record DetectionRule(string Host, string Container);
 }
