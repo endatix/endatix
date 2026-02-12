@@ -280,7 +280,7 @@ public sealed class SubmissionExporterBaseTests
         // Assert
         var idColumn = contexts[0].Columns.First(c => c.Name == "Id");
         var ctx = new TransformationContext<SubmissionExportRow>(contexts[0].Row, contexts[0].Doc, _logger);
-        var formatted = idColumn.GetFormattedValue(ctx);
+        var formatted = idColumn.GetValue(ctx);
         Assert.Equal("ID-42", formatted);
     }
 
