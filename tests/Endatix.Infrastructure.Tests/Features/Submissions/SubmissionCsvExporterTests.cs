@@ -1,5 +1,6 @@
 using System.IO.Pipelines;
 using System.Text;
+using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -10,12 +11,16 @@ namespace Endatix.Infrastructure.Tests.Features.Submissions;
 public sealed class SubmissionCsvExporterTests
 {
     private readonly ILogger<SubmissionCsvExporter> _logger;
+    private readonly IEnumerable<IValueTransformer> _globalTransformers;
     private readonly SubmissionCsvExporter _sut;
 
     public SubmissionCsvExporterTests()
     {
         _logger = Substitute.For<ILogger<SubmissionCsvExporter>>();
-        _sut = new SubmissionCsvExporter(_logger);
+        var transformer = Substitute.For<IValueTransformer>();
+        transformer.Transform(Arg.Any<object?>(), Arg.Any<TransformationContext<SubmissionExportRow>>()).Returns((object?)null);
+        _globalTransformers = new[] { transformer };
+        _sut = new SubmissionCsvExporter(_logger, _globalTransformers);
     }
 
     [Fact]

@@ -11,12 +11,16 @@ namespace Endatix.Infrastructure.Tests.Features.Submissions;
 public sealed class SubmissionJsonExporterTests
 {
     private readonly ILogger<SubmissionJsonExporter> _logger;
+    private readonly IEnumerable<IValueTransformer> _globalTransformers;
     private readonly SubmissionJsonExporter _sut;
 
     public SubmissionJsonExporterTests()
     {
         _logger = Substitute.For<ILogger<SubmissionJsonExporter>>();
-        _sut = new SubmissionJsonExporter(_logger);
+        var transformer = Substitute.For<IValueTransformer>();
+        transformer.Transform(Arg.Any<object?>(), Arg.Any<TransformationContext<SubmissionExportRow>>()).Returns((object?)null);
+        _globalTransformers = new[] { transformer };
+        _sut = new SubmissionJsonExporter(_logger, _globalTransformers);
     }
 
     [Fact]
@@ -212,8 +216,7 @@ public sealed class SubmissionJsonExporterTests
     public async Task StreamExportAsync_ShouldNotApplyTransformers_ForJsonExport()
     {
         // Arrange
-        // Note: JSON exporter uses ExtractValue which doesn't apply transformers
-        // Transformers are for formatted string output (CSV), not raw JSON values
+        // Note: JSON exporter uses GetValue; formatter from ExportOptions is for CSV, not raw JSON
         var records = CreateTestRecords(
             new SubmissionExportRow
             {

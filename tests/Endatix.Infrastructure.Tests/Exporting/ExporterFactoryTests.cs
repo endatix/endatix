@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Exporting;
@@ -12,6 +13,7 @@ public sealed class ExporterFactoryTests
     private readonly ILogger<SubmissionCsvExporter> _csvLogger;
     private readonly ILogger<SubmissionJsonExporter> _jsonLogger;
     private readonly ILogger<CodebookJsonExporter> _codebookLogger;
+    private readonly IEnumerable<IValueTransformer> _globalTransformers;
     private readonly SubmissionCsvExporter _csvExporter;
     private readonly SubmissionJsonExporter _jsonExporter;
     private readonly CodebookJsonExporter _codebookExporter;
@@ -21,8 +23,11 @@ public sealed class ExporterFactoryTests
         _csvLogger = Substitute.For<ILogger<SubmissionCsvExporter>>();
         _jsonLogger = Substitute.For<ILogger<SubmissionJsonExporter>>();
         _codebookLogger = Substitute.For<ILogger<CodebookJsonExporter>>();
-        _csvExporter = new SubmissionCsvExporter(_csvLogger);
-        _jsonExporter = new SubmissionJsonExporter(_jsonLogger);
+        var transformer = Substitute.For<IValueTransformer>();
+        transformer.Transform(Arg.Any<object?>(), Arg.Any<TransformationContext<SubmissionExportRow>>()).Returns((object?)null);
+        _globalTransformers = new[] { transformer };
+        _csvExporter = new SubmissionCsvExporter(_csvLogger, _globalTransformers);
+        _jsonExporter = new SubmissionJsonExporter(_jsonLogger, _globalTransformers);
         _codebookExporter = new CodebookJsonExporter(_codebookLogger);
     }
 
@@ -101,7 +106,7 @@ public sealed class ExporterFactoryTests
     public void GetExporter_ShouldReturnFirstMatch_WhenMultipleExportersForSameFormat()
     {
         // Arrange - Create a duplicate CSV exporter
-        var duplicateCsvExporter = new SubmissionCsvExporter(_csvLogger);
+        var duplicateCsvExporter = new SubmissionCsvExporter(_csvLogger, _globalTransformers);
         var exporters = new IExporter[] { _csvExporter, duplicateCsvExporter, _jsonExporter };
         var factory = new ExporterFactory(exporters);
 
@@ -147,7 +152,7 @@ public sealed class ExporterFactoryTests
     public void GetSupportedExporters_ShouldReturnDistinctTypes()
     {
         // Arrange - Add duplicate exporters
-        var duplicateCsv = new SubmissionCsvExporter(_csvLogger);
+        var duplicateCsv = new SubmissionCsvExporter(_csvLogger, _globalTransformers);
         var exporters = new IExporter[] { _csvExporter, duplicateCsv, _jsonExporter };
         var factory = new ExporterFactory(exporters);
 
@@ -178,7 +183,7 @@ public sealed class ExporterFactoryTests
     public void GetSupportedFormats_ShouldReturnDistinctFormats()
     {
         // Arrange - Add duplicate exporters with same format
-        var duplicateCsv = new SubmissionCsvExporter(_csvLogger);
+        var duplicateCsv = new SubmissionCsvExporter(_csvLogger, _globalTransformers);
         var exporters = new IExporter[] { _csvExporter, duplicateCsv, _jsonExporter };
         var factory = new ExporterFactory(exporters);
 
@@ -331,7 +336,7 @@ public sealed class ExporterFactoryTests
     public void GetExporter_WithFormatAndType_ShouldReturnFirstMatch_WhenMultipleExportersForSameFormatAndType()
     {
         // Arrange - Create a duplicate CSV exporter
-        var duplicateCsvExporter = new SubmissionCsvExporter(_csvLogger);
+        var duplicateCsvExporter = new SubmissionCsvExporter(_csvLogger, _globalTransformers);
         var exporters = new IExporter[] { _csvExporter, duplicateCsvExporter, _jsonExporter };
         var factory = new ExporterFactory(exporters);
 
