@@ -1,4 +1,4 @@
-using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Exporting;
@@ -24,7 +24,9 @@ public sealed class ExporterFactoryTests
         _jsonLogger = Substitute.For<ILogger<SubmissionJsonExporter>>();
         _codebookLogger = Substitute.For<ILogger<CodebookJsonExporter>>();
         var transformer = Substitute.For<IValueTransformer>();
-        transformer.Transform(Arg.Any<object?>(), Arg.Any<TransformationContext<SubmissionExportRow>>()).Returns((object?)null);
+        transformer
+            .Transform(Arg.Any<JsonNode?>(), Arg.Any<TransformationContext<SubmissionExportRow>>())
+            .Returns(callInfo => (JsonNode?)callInfo[0]);
         _globalTransformers = new[] { transformer };
         _csvExporter = new SubmissionCsvExporter(_csvLogger, _globalTransformers);
         _jsonExporter = new SubmissionJsonExporter(_jsonLogger, _globalTransformers);

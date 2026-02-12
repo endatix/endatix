@@ -4,7 +4,6 @@ using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Exporting.ColumnDefinitions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -12,12 +11,14 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 /// <summary>
 /// JSON exporter for submission data, optimized for streaming and low memory usage.
 /// </summary>
-public sealed class SubmissionJsonExporter(
+internal sealed partial class SubmissionJsonExporter(
     ILogger<SubmissionJsonExporter> logger,
     IEnumerable<IValueTransformer> globalTransformers) : SubmissionExporterBase(logger, globalTransformers)
 {
     public override string Format => "json";
     public override string ContentType => "application/json";
+
+    private long? _formId = null;
 
     public override async Task<Result<FileExport>> StreamExportAsync(
         IAsyncEnumerable<SubmissionExportRow> records,
@@ -38,6 +39,7 @@ public sealed class SubmissionJsonExporter(
                 using (doc)
                 {
                     firstRow ??= row;
+                    _formId ??= row.FormId;
                     var context = new TransformationContext<SubmissionExportRow>(row, doc, _logger);
                     jsonWriter.WriteStartObject();
                     foreach (var col in columns)
@@ -46,11 +48,25 @@ public sealed class SubmissionJsonExporter(
                         try
                         {
                             var value = col.GetValue(context);
-                            WriteValue(jsonWriter, value);
+                            switch (value)
+                            {
+                                case null:
+                                    jsonWriter.WriteNullValue();
+                                    break;
+                                case JsonElement el:
+                                    el.WriteTo(jsonWriter);
+                                    break;
+                                case JsonNode node:
+                                    node.WriteTo(jsonWriter);
+                                    break;
+                                default:
+                                    JsonSerializer.Serialize(jsonWriter, value);
+                                    break;
+                            }
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex, "Error processing column {ColumnName} for row {RowId}", col.Name, row.Id);
+                            LogCellLevelError(col.Name, row.Id, ex);
                             jsonWriter.WriteStringValue(NOT_AVAILABLE_VALUE);
                         }
                     }
@@ -66,48 +82,14 @@ public sealed class SubmissionJsonExporter(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error exporting submissions to JSON");
+            LogExportError(ex, _formId);
             return Result<FileExport>.Error($"Failed to export submissions: {ex.Message}");
         }
     }
 
-    private static void WriteValue(Utf8JsonWriter writer, object? value)
-    {
-        switch (value)
-        {
-            case null:
-                writer.WriteNullValue();
-                break;
-            case JsonElement element:
-                element.WriteTo(writer);
-                break;
-            case JsonNode node:
-                writer.WriteRawValue(node.ToJsonString());
-                break;
-            case string s:
-                writer.WriteStringValue(s);
-                break;
-            case bool b:
-                writer.WriteBooleanValue(b);
-                break;
-            case DateTime dt:
-                writer.WriteStringValue(dt);
-                break;
-            case int i:
-                writer.WriteNumberValue(i);
-                break;
-            case long l:
-                writer.WriteNumberValue(l);
-                break;
-            case double d:
-                writer.WriteNumberValue(d);
-                break;
-            case decimal dec:
-                writer.WriteNumberValue(dec);
-                break;
-            default:
-                writer.WriteStringValue(value.ToString());
-                break;
-        }
-    }
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error processing column {ColumnName} for row {RowId}")]
+    private partial void LogCellLevelError(string columnName, long rowId, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error exporting submissions to JSON for form {FormId:L}")]
+    private partial void LogExportError(Exception ex, long? formId);
 }

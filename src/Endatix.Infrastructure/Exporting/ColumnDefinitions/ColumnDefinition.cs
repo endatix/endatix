@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Exporting;
-using Endatix.Infrastructure.Exporting.Transformers;
 
 namespace Endatix.Infrastructure.Exporting.ColumnDefinitions;
 
@@ -15,12 +14,14 @@ public abstract class ColumnDefinition<T> where T : class
     public string Name { get; }
     public string JsonPropertyName { get; set; } = string.Empty;
 
+    private IValueFormatter? _formatter;
+
     private readonly List<IValueTransformer> _transformers = new();
-    private Func<object?, string>? _formatter;
 
     protected ColumnDefinition(string name)
     {
         Name = name;
+        JsonPropertyName = JsonNamingPolicy.CamelCase.ConvertName(name);
     }
 
     /// <summary>
@@ -35,9 +36,9 @@ public abstract class ColumnDefinition<T> where T : class
     }
 
     /// <summary>
-    /// Sets the formatter (e.g. from ExportOptions). Appended as last transformer; skipped for GetValue (JSON).
+    /// Sets a value formatter to the column.
     /// </summary>
-    public ColumnDefinition<T> WithFormatter(Func<object?, string> formatter)
+    public ColumnDefinition<T> SetFormatter(IValueFormatter formatter)
     {
         Guard.Against.Null(formatter);
 
@@ -55,65 +56,30 @@ public abstract class ColumnDefinition<T> where T : class
     /// </summary>
     public object? GetValue(TransformationContext<T> context)
     {
-        var value = ExtractRawValue(context.Row, context.JsonDoc);
+        var rawValue = ExtractRawValue(context.Row, context.JsonDoc);
+        if (_transformers is { Count: 0 })
+        {
+            return rawValue;
+        }
+
+        var node = JsonNodeParser.ToJsonNode(rawValue);
+        if (node is null)
+        {
+            return rawValue;
+        }
+
         var count = _transformers.Count;
         for (var i = 0; i < count; i++)
         {
-            value = _transformers[i].Transform(value, context);
+            node = _transformers[i].Transform(node, context)!;
         }
 
-        return value;
-    }
-
-    /// <summary>
-    /// Gets the formatted value for export (e.g. CSV). Applies the optional formatter, then default formatting.
-    /// </summary>
-    public string GetFormattedValue(TransformationContext<T> context)
-    {
-        var value = GetValue(context);
         if (_formatter is not null)
         {
-            return _formatter(value);
+            return _formatter.Format(node, context);
         }
 
-        return FormatValue(value);
-    }
-
-    /// <summary>
-    /// Default formatting for common value types.
-    /// </summary>
-    protected static string FormatValue(object? value)
-    {
-        return value switch
-        {
-            null => string.Empty,
-            DateTime dateTime => dateTime.ToString("o"),
-            bool boolean => boolean.ToString().ToLowerInvariant(),
-            IEnumerable<string> seq => string.Join(", ", seq),
-            JsonArray array => JoinJsonArray(array),
-            _ => value.ToString() ?? string.Empty
-        };
-    }
-
-    private static string JoinJsonArray(JsonArray array)
-    {
-        var values = new List<string>(array.Count);
-        foreach (var node in array)
-        {
-            if (node is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var s) && !string.IsNullOrWhiteSpace(s))
-            {
-                values.Add(s);
-                continue;
-            }
-
-            var text = node?.ToString();
-            if (!string.IsNullOrWhiteSpace(text))
-            {
-                values.Add(text);
-            }
-        }
-
-        return string.Join(", ", values);
+        return node;
     }
 }
 

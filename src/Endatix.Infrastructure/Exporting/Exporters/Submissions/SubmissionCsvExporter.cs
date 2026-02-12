@@ -1,13 +1,12 @@
 using System.Globalization;
 using System.IO.Pipelines;
-using System.Text.Json;
 using Ardalis.GuardClauses;
 using CsvHelper;
 using CsvHelper.Configuration;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Exporting.ColumnDefinitions;
+using Endatix.Infrastructure.Exporting.Formatters;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -60,8 +59,10 @@ public sealed class SubmissionCsvExporter(
                     {
                         try
                         {
-                            var formatted = col.GetFormattedValue(context);
-                            csv.WriteField(formatted);
+                            var value = col.GetValue(context);
+                            var formattedValue = new DefaultCsvFormatter().Format(value, context);
+
+                            csv.WriteField(formattedValue);
                         }
                         catch (Exception ex)
                         {

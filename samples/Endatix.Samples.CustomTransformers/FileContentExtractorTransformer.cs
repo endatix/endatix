@@ -1,6 +1,6 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Infrastructure.Exporting.Transformers;
 
 namespace Endatix.Samples.CustomTransformers;
 
@@ -15,105 +15,68 @@ namespace Endatix.Samples.CustomTransformers;
 /// </summary>
 public sealed class FileContentExtractorTransformer : IValueTransformer
 {
-    private const string ContentPropertyName = "content";
+    private const string CONTENT_PROPERTY_NAME = "content";
 
-    public object? Transform<T>(object? value, TransformationContext<T> context)
+    public JsonNode? Transform<T>(JsonNode? node, TransformationContext<T> context)
     {
-        return value switch
+        switch (node)
         {
-            // Case 1: Already a JsonElement (from native JSON column)
-            JsonElement element => ExtractFromElement(element) ?? value,
-
-            // Case 2: A String (potentially JSON)
-            string jsonString when !string.IsNullOrWhiteSpace(jsonString) =>
-                TryParseJsonString(jsonString, context) ?? value,
-
-            // Default: Return as is
-            _ => value
-        };
-    }
-
-    private object? TryParseJsonString<T>(string jsonString, TransformationContext<T> context)
-    {
-        // Optimization: Fast check for JSON structure characters
-        var span = jsonString.AsSpan().TrimStart();
-        if (span.IsEmpty || (span[0] != '{' && span[0] != '['))
-        {
-            return null;
-        }
-
-        try
-        {
-            using var doc = JsonDocument.Parse(jsonString);
-            return ExtractFromElement(doc.RootElement);
-        }
-        catch (JsonException ex)
-        {
-            context.Logger?.LogDebug(ex, "Failed to parse JSON string in FileContentExtractor: {Value}", jsonString);
-            return null;
+            case null:
+                return null;
+            case JsonObject obj:
+                return TransformJsonObject(obj);
+            case JsonArray array:
+                return TransformJsonArray(array);
+            default:
+                return node;
         }
     }
 
-    private static object? ExtractFromElement(JsonElement element)
+    private static JsonNode? TransformJsonObject(JsonObject obj)
     {
-        return element.ValueKind switch
+        if (TryGetContentUrl(obj, out var contentUrl))
         {
-            JsonValueKind.Object => GetContentUrl(element),
-            JsonValueKind.Array => GetContentUrls(element),
-            JsonValueKind.String => TryParseEmbeddedJson(element.GetString()),
-            _ => null
-        };
-    }
-
-    private static string? GetContentUrl(JsonElement obj)
-    {
-        if (obj.TryGetProperty(ContentPropertyName, out var prop) &&
-            prop.ValueKind == JsonValueKind.String)
-        {
-            return prop.GetString();
+            return JsonValue.Create(contentUrl);
         }
-        return null;
+
+        return obj;
     }
 
-    private static JsonArray? GetContentUrls(JsonElement array)
+    private static JsonArray TransformJsonArray(JsonArray array)
     {
-        var result = new JsonArray();
-        var hasItems = false;
+        var urls = new JsonArray();
 
-        foreach (var item in array.EnumerateArray())
+        foreach (var item in array)
         {
-            if (item.ValueKind == JsonValueKind.Object)
+            if (item is not JsonObject itemObj)
             {
-                var url = GetContentUrl(item);
-                if (!string.IsNullOrWhiteSpace(url))
-                {
-                    result.Add(url);
-                    hasItems = true;
-                }
+                continue;
+            }
+
+            if (TryGetContentUrl(itemObj, out var url))
+            {
+                urls.Add(url);
             }
         }
 
-        return hasItems ? result : null;
+        return urls is { Count: > 0 } ? urls : array;
     }
 
-    private static object? TryParseEmbeddedJson(string? text)
+    private static bool TryGetContentUrl(JsonObject obj, out string contentUrl)
     {
-        if (string.IsNullOrWhiteSpace(text))
-            return null;
+        contentUrl = string.Empty;
 
-        var span = text.AsSpan().TrimStart();
-        if (span.IsEmpty || (span[0] != '{' && span[0] != '['))
-            return null;
+        if (!obj.TryGetPropertyValue(CONTENT_PROPERTY_NAME, out var contentNode))
+        {
+            return false;
+        }
 
-        try
+        if (contentNode is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var url))
         {
-            using var doc = JsonDocument.Parse(text);
-            return ExtractFromElement(doc.RootElement);
+            contentUrl = url;
+            return true;
         }
-        catch
-        {
-            return null;
-        }
+
+        return false;
     }
 }
-

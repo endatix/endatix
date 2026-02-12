@@ -5,6 +5,7 @@ using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Exporting.ColumnDefinitions;
+using Endatix.Infrastructure.Exporting.Formatters;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -135,9 +136,9 @@ public abstract class SubmissionExporterBase(
         {
             var column = BuildColumnDefinition(name);
 
-            if (options?.Formatters is not null && options.Formatters.TryGetValue(name, out var transformer))
+            if (options?.Formatters is not null && options.Formatters.TryGetValue(column.Name, out var formatter))
             {
-                column.WithFormatter(transformer);
+                column.SetFormatter(new DelegateFormatter(formatter));
             }
 
             column.JsonPropertyName = JsonNamingPolicy.CamelCase.ConvertName(name);

@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,9 +13,9 @@ public sealed class ServiceCollectionExtensionsTests
 
         services.AddExportTransformer<FirstTransformer>();
 
-        using ServiceProvider provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
 
-        List<IValueTransformer> transformers = provider.GetServices<IValueTransformer>().ToList();
+        var transformers = provider.GetServices<IValueTransformer>().ToList();
 
         Assert.Single(transformers);
         Assert.IsType<FirstTransformer>(transformers[0]);
@@ -28,9 +29,9 @@ public sealed class ServiceCollectionExtensionsTests
         services.AddExportTransformer<FirstTransformer>();
         services.AddExportTransformer<SecondTransformer>();
 
-        using ServiceProvider provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
 
-        List<IValueTransformer> transformers = provider.GetServices<IValueTransformer>().ToList();
+        var transformers = provider.GetServices<IValueTransformer>().ToList();
 
         Assert.Equal(2, transformers.Count);
         Assert.IsType<FirstTransformer>(transformers[0]);
@@ -45,9 +46,9 @@ public sealed class ServiceCollectionExtensionsTests
         services.AddExportTransformer<FirstTransformer>();
         services.AddExportTransformer<FirstTransformer>();
 
-        using ServiceProvider provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
 
-        List<IValueTransformer> transformers = provider.GetServices<IValueTransformer>().ToList();
+        var transformers = provider.GetServices<IValueTransformer>().ToList();
 
         Assert.Single(transformers);
         Assert.IsType<FirstTransformer>(transformers[0]);
@@ -55,12 +56,12 @@ public sealed class ServiceCollectionExtensionsTests
 
     private sealed class FirstTransformer : IValueTransformer
     {
-        public object? Transform<T>(object? value, TransformationContext<T> context) => value;
+        public JsonNode? Transform<T>(JsonNode? node, TransformationContext<T> context) => node;
     }
 
     private sealed class SecondTransformer : IValueTransformer
     {
-        public object? Transform<T>(object? value, TransformationContext<T> context) => value;
+        public JsonNode? Transform<T>(JsonNode? node, TransformationContext<T> context) => node;
     }
 }
 

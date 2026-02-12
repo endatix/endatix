@@ -2,6 +2,7 @@ using System.Buffers;
 using System.IO.Pipelines;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -20,8 +21,8 @@ public sealed class SubmissionJsonExporterTests
         _logger = Substitute.For<ILogger<SubmissionJsonExporter>>();
         var transformer = Substitute.For<IValueTransformer>();
         transformer
-            .Transform(Arg.Any<object?>(), Arg.Any<TransformationContext<SubmissionExportRow>>())
-            .Returns(callInfo => callInfo[0]);
+            .Transform(Arg.Any<JsonNode?>(), Arg.Any<TransformationContext<SubmissionExportRow>>())
+            .Returns(callInfo => (JsonNode?)callInfo[0]);
         _globalTransformers = new[] { transformer };
         _sut = new SubmissionJsonExporter(_logger, _globalTransformers);
     }
