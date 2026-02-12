@@ -15,6 +15,8 @@ namespace Endatix.Core.Specifications;
 /// </summary>
 public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
 {
+    private const string STATUS_FIELD_NAME = "status";
+
     /// <summary>
     /// Initializes a new instance of the specification to retrieve submissions for a given form
     /// </summary>
@@ -23,9 +25,25 @@ public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
     /// <param name="filterParams">Parameters for filtering the results</param>
     public SubmissionsByFormIdSpec(long formId, PagingParameters pagingParams, FilterParameters filterParams)
     {
+        Query.Where(s => s.FormDefinition.FormId == formId);
+
+        // Extract and apply status filter if present (owned entity requires special handling)
+        var statusFilter = filterParams.Criteria
+            .FirstOrDefault(c => c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase));
+        if (statusFilter != null && statusFilter.Values.Any())
+        {
+            var statusCodes = statusFilter.Values.ToList();
+            Query.Where(s => statusCodes.Contains(s.Status.Code));
+        }
+
+        var nonStatusFilters = new FilterParameters();
+        filterParams.Criteria
+            .Where(c => !c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase))
+            .ToList()
+            .ForEach(nonStatusFilters.AddFilter);
+
         Query
-            .Where(s => s.FormDefinition.FormId == formId)
-              .Filter(filterParams)
+            .Filter(nonStatusFilters)
             .OrderByDescending(s => s.CreatedAt)
             .ThenByDescending(s => s.CompletedAt)
             .Paginate(pagingParams)

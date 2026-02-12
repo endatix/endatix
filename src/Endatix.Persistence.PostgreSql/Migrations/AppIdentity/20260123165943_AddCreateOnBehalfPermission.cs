@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
+namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
 {
     /// <inheritdoc />
     public partial class AddCreateOnBehalfPermission : Migration

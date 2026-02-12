@@ -1,0 +1,295 @@
+---
+title: Form Navigation
+description: Customize how users move through an Endatix form, including button placement, progress indicators, and submission reviews.
+sidebar_label: Form Navigation
+---
+
+# **Form Navigation**
+
+The **Navigation** settings in Endatix Hub allow you to fine-tune the respondent's journey. By adjusting how navigation elements are positioned and what information is visible, you can create a more intuitive experience that reduces form abandonment.
+
+These settings are particularly important when balancing the need for simplicity - using features like "Auto-advance" - against the need for data accuracy, such as providing a "Review before submit" stage.
+
+:::info
+Some form navigation options are dependent on the form's [display mode](form-display-modes).
+:::
+
+## **Configuration Guide**
+
+To access these settings, select the **Navigation** icon in the **Property Grid**.
+
+<img src={require('./form-navigation-options.webp').default} width="542" alt="Navigation settings" />
+<br />
+<br />
+
+## **Navigation Buttons**
+
+This section defines the core interactive elements and visual indicators that guide a respondent through your form. You can control where navigation buttons appear and whether users can go backward.
+
+<img src={require('./navigation-buttons.webp').default} width="467" alt="Navigation buttons" />
+<br />
+<br />
+
+* **Navigation buttons alignment**: Select where the main navigation controls (Next, Previous, Complete) are positioned on the page. Options include **Top**, **Bottom**, or **Top and bottom**.
+* **Show the "Previous Page" button**: Toggle this to allow or prevent respondents from returning to earlier questions to review or change their answers.
+
+### **Button Text Customization**
+
+Every navigation button's text be customized to better fit the use case of your form.
+
+<img src={require('./navigation-buttons-text.webp').default} width="467" alt="Navigation buttons text" />
+<br />
+<br />
+
+<table style={{ borderCollapse: 'collapse', width: '100%' }}>
+<thead>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '2px solid var(--ifm-contents-border-color)' }}>
+<th style={{ textAlign: 'left', padding: '12px', width: '30%' }}>Label Field</th>
+<th style={{ textAlign: 'left', padding: '12px' }}>Default Value</th>
+<th style={{ textAlign: 'left', padding: '12px', width: '50%' }}>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>"Review Answers" button text</strong></td>
+<td style={{ padding: '12px' }}>Preview</td>
+<td style={{ padding: '12px' }}>The button that triggers the review summary page.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>"Edit Answer" button text</strong></td>
+<td style={{ padding: '12px' }}>Edit</td>
+<td style={{ padding: '12px' }}>The button displayed next to answers on the review page to return to that question.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>"Previous Page" button text</strong></td>
+<td style={{ padding: '12px' }}>Previous</td>
+<td style={{ padding: '12px' }}>The button used to go back to the prior page.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>"Next Page" button text</strong></td>
+<td style={{ padding: '12px' }}>Next</td>
+<td style={{ padding: '12px' }}>The button used to advance to the following page.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>"Complete Survey" button text</strong></td>
+<td style={{ padding: '12px' }}>Complete</td>
+<td style={{ padding: '12px' }}>The final submission button that ends the survey.</td>
+</tr>
+</tbody>
+</table>
+
+## **Progress Bar**
+
+Enables a visual tracker to show respondents how much of the form they have completed.
+
+<img src={require('./navigation-progress-bar.webp').default} width="615" alt="Progress bar example" />
+<br />
+<br />
+The appearance and behavior of the progress bar can be configured through the following properties:
+<img src={require('./navigation-progress-bar-config.webp').default} width="467" alt="Progress bar configuration" />
+<br />
+
+### **Progress Bar Type**
+This setting determines the logic used to move the progress indicator forward.
+
+<table style={{ borderCollapse: 'collapse', width: '100%' }}>
+<thead>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '2px solid var(--ifm-contents-border-color)' }}>
+<th style={{ textAlign: 'left', padding: '12px' }}>Option</th>
+<th style={{ textAlign: 'left', padding: '12px' }}>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Completed pages</strong></td>
+<td style={{ padding: '12px' }}>Progress is based on the number of pages the user has navigated through.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Answered questions</strong></td>
+<td style={{ padding: '12px' }}>Progress is calculated by the total number of questions answered vs. total questions.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Answered required questions</strong></td>
+<td style={{ padding: '12px' }}>Only tracks progress based on questions marked as "Required."</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Valid answers</strong></td>
+<td style={{ padding: '12px' }}>Progress only advances when questions pass all validation rules (e.g., correct email format).</td>
+</tr>
+</tbody>
+</table>
+
+### **Progress Bar Alignment**
+Defines the vertical placement of the progress bar within the survey interface.
+
+<table style={{ borderCollapse: 'collapse', width: '100%' }}>
+<thead>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '2px solid var(--ifm-contents-border-color)' }}>
+<th style={{ textAlign: 'left', padding: '12px' }}>Option</th>
+<th style={{ textAlign: 'left', padding: '12px' }}>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Auto</strong></td>
+<td style={{ padding: '12px' }}>The system chooses the best placement based on your theme settings (usually top).</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Above the header</strong></td>
+<td style={{ padding: '12px' }}>Places the bar at the very top of the survey page, above the survey title/header.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Below the header</strong></td>
+<td style={{ padding: '12px' }}>Places the bar immediately under the survey header but above the questions.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Bottom</strong></td>
+<td style={{ padding: '12px' }}>Places the bar at the bottom of the survey page.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Top and bottom</strong></td>
+<td style={{ padding: '12px' }}>Displays progress indicators at both the top and the bottom for maximum visibility.</td>
+</tr>
+</tbody>
+</table>
+
+### **Progress Bar Area Width**
+Determines the horizontal span of the progress bar.
+
+<table style={{ borderCollapse: 'collapse', width: '100%' }}>
+<thead>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '2px solid var(--ifm-contents-border-color)' }}>
+<th style={{ textAlign: 'left', padding: '12px' }}>Option</th>
+<th style={{ textAlign: 'left', padding: '12px' }}>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Same as container</strong></td>
+<td style={{ padding: '12px' }}>The bar matches the width of the outer page container.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent', borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+<td style={{ padding: '12px' }}><strong>Same as survey</strong></td>
+<td style={{ padding: '12px' }}>The bar matches the width of the survey content area itself.</td>
+</tr>
+</tbody>
+</table>
+
+Finally, you can use the **Display page titles in the progress bar** and **Display page numbers in the progress bar** checkboxes to add extra context to the visual indicator.
+
+## **Table of Contents**
+
+When enabled, the table of contents will display an interactive list of the form's pages, allowing the respondent to navigate through them.
+
+<img src={require('./navigation-toc.webp').default} width="467" alt="Table of contents" />
+<br />
+
+
+## **Review Before Submit**
+
+<img src={require('./navigation-review.webp').default} width="467" alt="Navigation buttons text" />
+<br />
+
+Adds a condensed summary page at the end where users can see all their answers before final submission.
+
+## **Technical Reference**
+
+These settings are stored in the survey JSON under the following properties:
+
+```json
+{
+  "showProgressBar": true,
+  "progressBarLocation": "topbottom",
+  "progressBarShowPageTitles": true,
+  "progressBarShowPageNumbers": true,
+  "progressBarInheritWidthFrom": "survey",
+  "showTOC": true,
+  "pagePrevText": "Previous Page",
+  "pageNextText": "Next Page",
+  "completeText": "Submit the Form",
+  "previewText": "Preview Responses",
+  "editText": "Edit Answers",
+  "showPreviewBeforeComplete": true,
+  "previewMode": "answeredQuestions"
+}
+
+```
+
+### **Properties**
+
+<table style={{ borderCollapse: 'collapse' , width: '100%' }}>
+    <thead>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '2px solid var(--ifm-contents-border-color)' }}>
+            <th style={{ textAlign: 'left' , padding: '12px' }}>UI Option / Label Field</th>
+            <th style={{ textAlign: 'left' , padding: '12px' }}>JSON Property</th>
+            <th style={{ textAlign: 'left' , padding: '12px' }}>Value / Example</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>Show the progress bar</td>
+            <td style={{ padding: '12px' }}><code>showProgressBar</code></td>
+            <td style={{ padding: '12px' }}><code>true</code> | <code>false</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>Progress bar alignment (Top and bottom)</td>
+            <td style={{ padding: '12px' }}><code>progressBarLocation</code></td>
+            <td style={{ padding: '12px' }}><code>"topbottom"</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>Display page titles in the progress bar</td>
+            <td style={{ padding: '12px' }}><code>progressBarShowPageTitles</code></td>
+            <td style={{ padding: '12px' }}><code>true</code> | <code>false</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>Display page numbers in the progress bar</td>
+            <td style={{ padding: '12px' }}><code>progressBarShowPageNumbers</code></td>
+            <td style={{ padding: '12px' }}><code>true</code> | <code>false</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>Progress bar area width (Same as survey)</td>
+            <td style={{ padding: '12px' }}><code>progressBarInheritWidthFrom</code></td>
+            <td style={{ padding: '12px' }}><code>"survey"</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>Show table of contents (TOC)</td>
+            <td style={{ padding: '12px' }}><code>showTOC</code></td>
+            <td style={{ padding: '12px' }}><code>true</code> | <code>false</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>"Previous Page" button text</td>
+            <td style={{ padding: '12px' }}><code>pagePrevText</code></td>
+            <td style={{ padding: '12px' }}><code>"Previous Page"</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>"Next Page" button text</td>
+            <td style={{ padding: '12px' }}><code>pageNextText</code></td>
+            <td style={{ padding: '12px' }}><code>"Next Page"</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>"Complete Survey" button text</td>
+            <td style={{ padding: '12px' }}><code>completeText</code></td>
+            <td style={{ padding: '12px' }}><code>"Submit the Form"</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>"Review Answers" button text</td>
+            <td style={{ padding: '12px' }}><code>previewText</code></td>
+            <td style={{ padding: '12px' }}><code>"Preview Responses"</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>"Edit Answer" button text</td>
+            <td style={{ padding: '12px' }}><code>editText</code></td>
+            <td style={{ padding: '12px' }}><code>"Edit Answers"</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>Review before submit</td>
+            <td style={{ padding: '12px' }}><code>showPreviewBeforeComplete</code></td>
+            <td style={{ padding: '12px' }}><code>true</code> | <code>false</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>Preview mode (Show answered questions only)</td>
+            <td style={{ padding: '12px' }}><code>previewMode</code></td>
+            <td style={{ padding: '12px' }}><code>"answeredQuestions"</code></td>
+        </tr>
+    </tbody>
+</table>

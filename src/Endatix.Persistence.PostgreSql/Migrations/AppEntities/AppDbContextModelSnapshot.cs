@@ -547,6 +547,12 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("Endatix.Core.Entities.Form", "Form")
+                        .WithMany()
+                        .HasForeignKey("FormId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
                         .WithMany("Submissions")
                         .HasForeignKey("TenantId")
@@ -594,6 +600,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                             b1.WithOwner()
                                 .HasForeignKey("SubmissionId");
                         });
+
+                    b.Navigation("Form");
 
                     b.Navigation("FormDefinition");
 

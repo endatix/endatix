@@ -1,11 +1,12 @@
 import { themes as prismThemes } from "prism-react-renderer";
-import type { Config, MarkdownConfig } from "@docusaurus/types";
+import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 import type * as Redocusaurus from "redocusaurus";
 
 const config: Config = {
   title: "Endatix Documentation",
-  tagline: "Official documentation for Endatix data platform",
+  tagline:
+    "Self-Hosted Alternative to SaaS Form or Survey Platforms",
   favicon: "img/endatix.svg",
 
   // Set the production url of your site here
@@ -18,7 +19,6 @@ const config: Config = {
   // If you aren't using GitHub pages, you don't need these.
   organizationName: "facebook", // Usually your GitHub org/user name.
   projectName: "docusaurus", // Usually your repo name.
-
   onBrokenLinks: "throw",
 
   // Even if you don't use internationalization, you can use this field to set
@@ -36,6 +36,7 @@ const config: Config = {
     [
       "classic",
       {
+        blog: false,
         docs: {
           sidebarPath: "./sidebars.ts",
           // Please change this to your repo.
@@ -59,9 +60,8 @@ const config: Config = {
         specs: [
           {
             id: "using-remote-url",
-            // Remote File
             spec: "./swagger.json",
-            route: "/docs/api",
+            route: "/docs/developers/api/api-reference",
           },
         ],
         // Theme Options for modifying how redoc renders them
@@ -83,11 +83,16 @@ const config: Config = {
       items: [
         {
           type: "docSidebar",
-          sidebarId: "docsSidebar",
+          sidebarId: "devSidebar",
           position: "left",
-          label: "Docs",
+          label: "Developers",
         },
-        { to: "/docs/api", label: "API Reference", position: "left" },
+        {
+          type: "docSidebar",
+          sidebarId: "userSidebar",
+          position: "left",
+          label: "End Users",
+        },
         {
           href: "https://github.com/endatix",
           label: "GitHub",
@@ -178,7 +183,7 @@ const config: Config = {
       appId: process.env.ALGOLIA_APP_ID || "YOUR_APP_ID",
       apiKey: process.env.ALGOLIA_API_KEY || "YOUR_API_KEY",
       indexName: process.env.ALGOLIA_INDEX_NAME || "Endatix Docs",
-    }
+    },
   } satisfies Preset.ThemeConfig,
   markdown: {
     mermaid: true,
@@ -188,6 +193,24 @@ const config: Config = {
     },
   },
   themes: ["@docusaurus/theme-mermaid"],
+  plugins: [
+    // Shim gtag so plugin never throws when script is blocked or not loaded yet
+    function gtagShimPlugin() {
+      return {
+        name: "gtag-shim",
+        injectHtmlTags() {
+          return {
+            headTags: [
+              {
+                tagName: "script",
+                innerHTML: "window.gtag=window.gtag||function(){};",
+              },
+            ],
+          };
+        },
+      };
+    },
+  ],
 };
 
 export default config;

@@ -72,10 +72,10 @@ public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
             return false;
         }
 
-        // For : and !: operators, check each value in the comma-separated list
+        // For : and !: operators, check each value in the pipe-separated list
         if (@operator is ":" or "!:")
         {
-            var values = value.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            var values = value.Split('|', StringSplitOptions.RemoveEmptyEntries);
             if (!values.All(v => IsValidType(v.Trim(), _validFields[field])))
             {
                 errorMessage = $"One or more values are not valid for type {_validFields[field].Name}";

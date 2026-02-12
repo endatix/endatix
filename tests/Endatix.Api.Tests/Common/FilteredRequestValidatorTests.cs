@@ -83,7 +83,7 @@ public class FilteredRequestValidatorTests
 
     [Theory]
     [InlineData("age:notanumber", "One or more values are not valid for type Int32")]
-    [InlineData("age:5,twenty", "One or more values are not valid for type Int32")]
+    [InlineData("age:5|twenty", "One or more values are not valid for type Int32")]
     [InlineData("age>:abc", "Value is not valid for type Int32")]
     [InlineData("created>yesterday", "Value is not valid for type DateTime")]
     public void Validate_InvalidValueType_ReturnsError(string filter, string expectedError)
@@ -101,7 +101,7 @@ public class FilteredRequestValidatorTests
 
     [Theory]
     [InlineData("name:john")]
-    [InlineData("name1:john,jane")]
+    [InlineData("name1:john|jane")]
     [InlineData("age:25")]
     [InlineData("age>:18")]
     [InlineData("created>2025-01-05T15:14:13")]

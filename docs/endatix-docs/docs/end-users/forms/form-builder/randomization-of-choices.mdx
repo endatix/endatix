@@ -1,0 +1,126 @@
+---
+title: Randomization of Choices for Choice-based Questions
+description: Set up advanced randomization, exclusion, and grouping for choice-based questions in Endatix Hub
+sidebar_label: Randomization of Choices
+---
+
+# **Randomization of Choices for Choice-based Questions**
+
+Endatix Hub provides granular control over how options are presented to respondents. Beyond simple shuffling, you can **exclude specific items** from randomization or **group choices together** to ensure related options stay as a cohesive unit while still being randomized as a block.
+
+This feature enables you to eliminate order bias without sacrificing the contextual integrity of your lists.
+
+## **Key Capabilities**
+
+* **Selective Shuffling:** Enable randomization for the whole question but "pin" specific items to their original position.
+* **Logical Grouping:** Assign choices to a "Group". All items within a group will move together during the shuffle.
+* **Mixed Ordering:** Combine fixed items, randomized individual items, and randomized groups within a single question.
+
+This feature applies to all choice-based question types, including:
+
+* **Radio group** (Single Choice)
+* **Check boxes** (Multiple Choice)
+* **Multi-select Dropdown** (Multiple Choice)
+* **Dropdown** (Single Choice)
+* **Image Picker** (Multiple Choice)
+* **Ranking**
+
+<img src={require('./randomization-of-choices-grid.webp').default} width="662" alt="Randomization settings" />
+
+## **Configuration Guide**
+
+To access advanced randomization, you must first enable the general randomization setting for the question.
+
+### **1. Enable Randomization**
+
+In the **Property Grid**, locate the **Choice order** dropdown and select **Random**.
+
+{/* [Screenshot: Selection of 'Random' in the 'Choice order' dropdown at the bottom of the property grid] */}
+
+### **2. Configure Choice Options**
+
+Once **Random** is selected, two new columns appear in the **Choices** editor table: **Randomize** and **Group**.
+
+{/* [Screenshot: The Choice Options modal showing 'Randomize' checkboxes and 'Group' text inputs] */}
+
+| Column | Description |
+| --- | --- |
+| **Randomize** | A checkbox determining if this specific item should be shuffled. If unchecked, the item stays in its defined position. |
+| **Group** | A text identifier. Items with the same Group ID (e.g., "A") will be treated as a single block. |
+
+## **How it Works**
+
+The Endatix randomization engine follows a specific logic to determine the final display order:
+
+1. **Group Identification:** The engine looks for items sharing the same `group` value.
+2. **Block Preservation:** If a group of items is set to randomize, they are shuffled **internally** within their group, but they stay together in the list.
+3. **Sticky Items:** Items where `randomize` is set to `false` (like "None of the above") will remain exactly where you placed them in the editor, regardless of the shuffle.
+
+### **Example Scenario**
+
+Imagine you are listing shoe brands. You want to group brands by Category (Group A and Group B) but keep "Reebok" at a fixed position.
+
+* **Group A (Diet Coke, Diet Pepsi, 7UP Zero Sugar):** These three will shuffle amongst themselves but remain as a block, preserving the context of sugar-free drinks.
+* **Other (Sugar-free):** By unchecking the "Randomize" box, this one will always appear in the 4th position.
+* **Group B (Dr. Pepper, Fanta, Mountain Dew):** These will shuffle amongst themselves but remain as a block, preserving the context of regular drinks.
+* **Other (Regular):** By unchecking the "Randomize" box, this one will always appear in the last position.
+
+
+## **Technical Reference (JSON Schema)**
+
+Advanced users can define these behaviors directly in the JSON schema using the `randomize` (boolean) and `group` (string) properties within the `choices` array.
+
+```json
+{
+  "type": "radiogroup",
+  "name": "brand_preference",
+  "choices": [
+    {
+      "value": "nike",
+      "text": "Nike",
+      "group": "A"
+    },
+    {
+      "value": "adidas",
+      "text": "Adidas",
+      "group": "A"
+    },
+    {
+      "value": "reebok",
+      "text": "Reebok",
+      "randomize": false
+    }
+  ],
+  "choicesOrder": "random"
+}
+
+```
+
+### **Property Data Types**
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>choicesOrder</code></td>
+<td><code>string</code></td>
+<td>Must be set to <code>"random"</code> to enable these features.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>randomize</code></td>
+<td><code>boolean</code></td>
+<td>Defaults to <code>true</code>. Set to <code>false</code> to disable shuffling for a specific item.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>group</code></td>
+<td><code>string</code></td>
+<td>Optional ID to link multiple choices together into a single shuffle-block.</td>
+</tr>
+</tbody>
+</table>
