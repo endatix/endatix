@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO.Pipelines;
 using System.Text;
 using System.Text.Json;
@@ -18,7 +19,9 @@ public sealed class SubmissionJsonExporterTests
     {
         _logger = Substitute.For<ILogger<SubmissionJsonExporter>>();
         var transformer = Substitute.For<IValueTransformer>();
-        transformer.Transform(Arg.Any<object?>(), Arg.Any<TransformationContext<SubmissionExportRow>>()).Returns((object?)null);
+        transformer
+            .Transform(Arg.Any<object?>(), Arg.Any<TransformationContext<SubmissionExportRow>>())
+            .Returns(callInfo => callInfo[0]);
         _globalTransformers = new[] { transformer };
         _sut = new SubmissionJsonExporter(_logger, _globalTransformers);
     }
@@ -227,7 +230,7 @@ public sealed class SubmissionJsonExporterTests
         );
         var options = new ExportOptions
         {
-            Transformers = new Dictionary<string, Func<object?, string>>
+            Formatters = new Dictionary<string, Func<object?, string>>
             {
                 { "Id", v => $"ID-{v}" }
             }
@@ -459,7 +462,7 @@ public sealed class SubmissionJsonExporterTests
     {
         var result = await reader.ReadAsync();
         var buffer = result.Buffer;
-        var content = Encoding.UTF8.GetString(buffer.FirstSpan);
+        var content = Encoding.UTF8.GetString(buffer.ToArray());
         reader.AdvanceTo(buffer.End);
         await reader.CompleteAsync();
         return content;

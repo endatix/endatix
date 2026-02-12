@@ -13,10 +13,10 @@ public class ExportOptions
     public IEnumerable<string>? Columns { get; set; }
 
     /// <summary>
-    /// Optional dictionary of column transformers to customize how values are formatted.
-    /// Keys are column names, values are functions that transform the original value to a string.
+    /// Optional dictionary of column formatters to customize how values are formatted.
+    /// Keys are column names, values are functions that format the original value to a string.
     /// </summary>
-    public IDictionary<string, Func<object?, string>>? Transformers { get; set; }
+    public IDictionary<string, Func<object?, string>>? Formatters { get; set; }
 
     /// <summary>
     /// Optional metadata for export operations. Can be used to pass additional context.

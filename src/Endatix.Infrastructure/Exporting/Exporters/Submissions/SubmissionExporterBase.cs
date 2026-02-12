@@ -135,7 +135,7 @@ public abstract class SubmissionExporterBase(
         {
             var column = BuildColumnDefinition(name);
 
-            if (options?.Transformers is not null && options.Transformers.TryGetValue(name, out var transformer))
+            if (options?.Formatters is not null && options.Formatters.TryGetValue(name, out var transformer))
             {
                 column.WithFormatter(transformer);
             }

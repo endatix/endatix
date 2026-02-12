@@ -15,6 +15,7 @@ public abstract class ColumnDefinition<T> where T : class
     public string JsonPropertyName { get; set; } = string.Empty;
 
     private readonly List<IValueTransformer> _transformers = new();
+    private Func<object?, string>? _formatter;
 
     protected ColumnDefinition(string name)
     {
@@ -39,7 +40,7 @@ public abstract class ColumnDefinition<T> where T : class
     {
         Guard.Against.Null(formatter);
 
-        _transformers.Add(new DelegateTransformer(value => formatter(value)));
+        _formatter = formatter;
         return this;
     }
 
@@ -49,7 +50,7 @@ public abstract class ColumnDefinition<T> where T : class
     protected abstract object? ExtractRawValue(T row, JsonDocument? document);
 
     /// <summary>
-    /// Gets the value for export. Runs pipeline excluding formatter. Use for JSON export.
+    /// Gets the raw value for export. Runs pipeline of all transformers. Use for JSON export.
     /// </summary>
     public object? GetValue(TransformationContext<T> context)
     {
@@ -58,6 +59,20 @@ public abstract class ColumnDefinition<T> where T : class
         for (var i = 0; i < count; i++)
         {
             value = _transformers[i].Transform(value, context);
+        }
+
+        return value;
+    }
+
+    /// <summary>
+    /// Gets the formatted value for export (e.g. CSV). Applies the optional formatter, then default formatting.
+    /// </summary>
+    public string GetFormattedValue(TransformationContext<T> context)
+    {
+        var value = GetValue(context);
+        if (_formatter is not null)
+        {
+            return _formatter(value);
         }
 
         return FormatValue(value);

@@ -256,7 +256,7 @@ public sealed class SubmissionExporterBaseTests
         // Arrange
         var options = new ExportOptions
         {
-            Transformers = new Dictionary<string, Func<object?, string>>
+            Formatters = new Dictionary<string, Func<object?, string>>
             {
                 { "Id", v => $"ID-{v}" }
             }

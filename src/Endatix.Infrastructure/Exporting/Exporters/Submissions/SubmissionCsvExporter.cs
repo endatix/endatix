@@ -60,7 +60,7 @@ public sealed class SubmissionCsvExporter(
                     {
                         try
                         {
-                            var formatted = col.GetValue(context);
+                            var formatted = col.GetFormattedValue(context);
                             csv.WriteField(formatted);
                         }
                         catch (Exception ex)

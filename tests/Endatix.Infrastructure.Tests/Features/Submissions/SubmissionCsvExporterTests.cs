@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO.Pipelines;
 using System.Text;
 using System.Text.Json;
@@ -18,7 +19,9 @@ public sealed class SubmissionCsvExporterTests
     {
         _logger = Substitute.For<ILogger<SubmissionCsvExporter>>();
         var transformer = Substitute.For<IValueTransformer>();
-        transformer.Transform(Arg.Any<object?>(), Arg.Any<TransformationContext<SubmissionExportRow>>()).Returns((object?)null);
+        transformer
+            .Transform(Arg.Any<object?>(), Arg.Any<TransformationContext<SubmissionExportRow>>())
+            .Returns(callInfo => callInfo[0]);
         _globalTransformers = new[] { transformer };
         _sut = new SubmissionCsvExporter(_logger, _globalTransformers);
     }
@@ -149,7 +152,7 @@ public sealed class SubmissionCsvExporterTests
 
         var options = new ExportOptions
         {
-            Transformers = new Dictionary<string, Func<object?, string>>
+            Formatters = new Dictionary<string, Func<object?, string>>
             {
                 { "Id", v => $"ID-{v}" }
             }
@@ -334,7 +337,7 @@ public sealed class SubmissionCsvExporterTests
     {
         var result = await reader.ReadAsync();
         var buffer = result.Buffer;
-        var content = Encoding.UTF8.GetString(buffer.FirstSpan);
+        var content = Encoding.UTF8.GetString(buffer.ToArray());
         reader.AdvanceTo(buffer.End);
         await reader.CompleteAsync();
         return content;
