@@ -12,7 +12,7 @@ namespace Endatix.Infrastructure.Exporting.ColumnDefinitions;
 public abstract class ColumnDefinition<T> where T : class
 {
     public string Name { get; }
-    public string JsonPropertyName { get; set; } = string.Empty;
+    public string JsonPropertyName { get; set; }
 
     private IValueFormatter? _formatter;
 

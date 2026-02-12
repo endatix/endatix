@@ -89,7 +89,7 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
                     ProcessJsonObject(obj, row);
                     break;
                 case JsonValue val:
-                    val.TryGetValue<string>(out var url);
+                    val.TryGetValue<string>(out var _);
                     break;
             }
         }
