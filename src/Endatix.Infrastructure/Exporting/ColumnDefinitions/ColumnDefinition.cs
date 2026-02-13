@@ -51,15 +51,19 @@ public abstract class ColumnDefinition<T> where T : class
     /// </summary>
     protected abstract object? ExtractRawValue(T row, JsonDocument? document);
 
+
     /// <summary>
-    /// Gets the raw value for export. Runs pipeline of all transformers. Use for JSON export.
+    /// Gets the value for export. Runs pipeline of all transformers and formatters. Use for JSON export.
     /// </summary>
-    public object? GetValue(TransformationContext<T> context)
+    /// <param name="context">The context of the transformation.</param>
+    /// <param name="applyFormatters">Whether to apply formatters.</param>
+    /// <returns>The value for export.</returns>
+    public object? GetValue(TransformationContext<T> context, bool applyFormatters = true)
     {
         var rawValue = ExtractRawValue(context.Row, context.JsonDoc);
         if (_transformers is { Count: 0 })
         {
-            return rawValue;
+            return applyFormatters ? GetFormattedValue(rawValue, context) : rawValue;
         }
 
         var node = JsonNodeParser.ToJsonNode(rawValue);
@@ -74,12 +78,28 @@ public abstract class ColumnDefinition<T> where T : class
             node = _transformers[i].Transform(node, context)!;
         }
 
-        if (_formatter is not null)
+        return applyFormatters ? GetFormattedValue(node, context) : node;
+    }
+
+    /// <summary>
+    /// Gets the formatted value for export. Runs pipeline of all transformers and formatters. Use for JSON export.
+    /// </summary>
+    /// <param name="value">The value to format.</param>
+    /// <param name="context">The context of the transformation.</param>
+    /// <returns>The formatted value.</returns>
+    private object? GetFormattedValue(object? value, TransformationContext<T> context)
+    {
+        if (value is null)
         {
-            return _formatter.Format(node, context);
+            return null;
         }
 
-        return node;
+        if (_formatter is not null)
+        {
+            return _formatter.Format(value, context);
+        }
+
+        return value;
     }
 }
 

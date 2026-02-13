@@ -60,9 +60,8 @@ public sealed class SubmissionCsvExporter(
                         try
                         {
                             var value = col.GetValue(context);
-                            var formattedValue = new DefaultCsvFormatter().Format(value, context);
 
-                            csv.WriteField(formattedValue);
+                            csv.WriteField(new DefaultCsvFormatter().Format(value, context));
                         }
                         catch (Exception ex)
                         {

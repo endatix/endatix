@@ -28,7 +28,7 @@ public class DefaultCsvFormatter : IValueFormatter
 
             JsonElement el => FormatJsonElement(el),
 
-            _ => value
+            _ => value?.ToString()
         };
     }
 
@@ -39,27 +39,27 @@ public class DefaultCsvFormatter : IValueFormatter
             return string.Empty;
         }
 
-        var isSimpleList = array.All(x => x is null || x is JsonValue);
-
-        if (isSimpleList)
+        if (!array.All(x => x is null || x is JsonValue))
         {
-            var values = array.Select(x =>
-            {
-                if (x is JsonValue v)
-                {
-                    if (v.TryGetValue<string>(out var s))
-                    {
-                        return s;
-                    }
-
-                    return v.ToString();
-                }
-                return string.Empty;
-            });
-            return string.Join(", ", values);
+            return array.ToJsonString();
         }
 
-        return array.ToJsonString();
+        var values = array
+            .Select(GetSimpleValue)
+            .Where(s => s != null)
+            .Cast<string>();
+
+        return string.Join(", ", values);
+    }
+
+    private static string? GetSimpleValue(JsonNode? node)
+    {
+        if (node is JsonValue v && v.TryGetValue<string>(out var s))
+        {
+            return s;
+        }
+
+        return node?.ToString();
     }
 
     private static object? FormatJsonValue(JsonValue value)
@@ -70,7 +70,7 @@ public class DefaultCsvFormatter : IValueFormatter
         }
         if (value.TryGetValue<bool>(out var b))
         {
-            return b;
+            return b.ToString().ToLowerInvariant();
         }
 
         if (value.TryGetValue<string>(out var s))

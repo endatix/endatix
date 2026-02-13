@@ -217,10 +217,9 @@ public sealed class SubmissionJsonExporterTests
     }
 
     [Fact]
-    public async Task StreamExportAsync_ShouldNotApplyTransformers_ForJsonExport()
+    public async Task StreamExportAsync_ShouldApplyFormatters_ForJsonExport()
     {
         // Arrange
-        // Note: JSON exporter uses GetValue; formatter from ExportOptions is for CSV, not raw JSON
         var records = CreateTestRecords(
             new SubmissionExportRow
             {
@@ -246,8 +245,8 @@ public sealed class SubmissionJsonExporterTests
         var content = await ReadPipeContent(pipe.Reader);
         var json = JsonDocument.Parse(content);
         var firstObject = json.RootElement[0];
-        // JSON exports use raw values, not transformed strings
-        Assert.Equal(42, firstObject.GetProperty("id").GetInt64());
+        // JSON exports use transformed strings via options.Formatters
+        Assert.Equal("ID-42", firstObject.GetProperty("id").GetString());
     }
 
     [Fact]
