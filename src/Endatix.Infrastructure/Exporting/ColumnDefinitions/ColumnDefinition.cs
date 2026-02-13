@@ -1,75 +1,105 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions.Exporting;
 
 namespace Endatix.Infrastructure.Exporting.ColumnDefinitions;
 
 /// <summary>
 /// Represents an abstract base column definition for exporting data.
-/// The type T is the type of the row to be exported.
+/// Extract, Pipe, Format: ExtractRawValue feeds a single pipeline of IValueTransformer.
 /// </summary>
 public abstract class ColumnDefinition<T> where T : class
 {
-    /// <summary>
-    /// The name of the column as it will appear in the header.
-    /// </summary>
     public string Name { get; }
+    public string JsonPropertyName { get; set; }
 
-    /// <summary>
-    /// The JSON property name (typically camelCase) for JSON exports.
-    /// Pre-calculated during column initialization for performance.
-    /// </summary>
-    public string JsonPropertyName { get; set; } = string.Empty;
+    private IValueFormatter? _formatter;
 
-    /// <summary>
-    /// Optional function to transform the value for presentation.
-    /// </summary>
-    public Func<object?, string>? Transformer { get; private set; }
+    private readonly List<IValueTransformer> _transformers = new();
 
     protected ColumnDefinition(string name)
     {
         Name = name;
+        JsonPropertyName = JsonNamingPolicy.CamelCase.ConvertName(name);
     }
 
     /// <summary>
-    /// Sets a transformer function for this column.
+    /// Adds a value transformer to the pipeline.
     /// </summary>
-    public ColumnDefinition<T> WithTransformer(Func<object?, string> transformer)
+    public ColumnDefinition<T> AddTransformer(IValueTransformer transformer)
     {
-        Transformer = transformer;
+        Guard.Against.Null(transformer);
+
+        _transformers.Add(transformer);
         return this;
     }
 
     /// <summary>
-    /// Extracts the raw value from a row and optional JSON document.
+    /// Sets a value formatter to the column.
     /// </summary>
-    public abstract object? ExtractValue(T row, JsonDocument? document);
-
-    /// <summary>
-    /// Gets the formatted value for a row, handling both extraction and formatting.
-    /// </summary>
-    public string GetFormattedValue(T row, JsonDocument? document)
+    public ColumnDefinition<T> SetFormatter(IValueFormatter formatter)
     {
-        var value = ExtractValue(row, document);
+        Guard.Against.Null(formatter);
 
-        if (Transformer != null)
-        {
-            return Transformer(value);
-        }
-
-        return FormatValue(value);
+        _formatter = formatter;
+        return this;
     }
 
     /// <summary>
-    /// Default formatting for common value types.
+    /// Hook for subclasses: returns the initial value (e.g. JsonElement or property value).
     /// </summary>
-    protected static string FormatValue(object? value)
+    protected abstract object? ExtractRawValue(T row, JsonDocument? document);
+
+
+    /// <summary>
+    /// Gets the value for export. Runs pipeline of all transformers and formatters. Use for JSON export.
+    /// </summary>
+    /// <param name="context">The context of the transformation.</param>
+    /// <param name="applyFormatters">Whether to apply formatters.</param>
+    /// <returns>The value for export.</returns>
+    public object? GetValue(TransformationContext<T> context, bool applyFormatters = true)
     {
-        return value switch
+        var rawValue = ExtractRawValue(context.Row, context.JsonDoc);
+        if (_transformers is { Count: 0 })
         {
-            null => string.Empty,
-            DateTime dateTime => dateTime.ToString("o"),
-            bool boolean => boolean.ToString().ToLowerInvariant(),
-            _ => value.ToString() ?? string.Empty
-        };
+            return applyFormatters ? GetFormattedValue(rawValue, context) : rawValue;
+        }
+
+        var node = JsonNodeParser.ToJsonNode(rawValue);
+        if (node is null)
+        {
+            return rawValue;
+        }
+
+        var count = _transformers.Count;
+        for (var i = 0; i < count; i++)
+        {
+            node = _transformers[i].Transform(node, context)!;
+        }
+
+        return applyFormatters ? GetFormattedValue(node, context) : node;
+    }
+
+    /// <summary>
+    /// Gets the formatted value for export. Runs pipeline of all transformers and formatters. Use for JSON export.
+    /// </summary>
+    /// <param name="value">The value to format.</param>
+    /// <param name="context">The context of the transformation.</param>
+    /// <returns>The formatted value.</returns>
+    private object? GetFormattedValue(object? value, TransformationContext<T> context)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (_formatter is not null)
+        {
+            return _formatter.Format(value, context);
+        }
+
+        return value;
     }
 }
 
@@ -85,39 +115,33 @@ public sealed class StaticColumnDefinition<T> : ColumnDefinition<T> where T : cl
         _accessor = accessor;
     }
 
-    public override object? ExtractValue(T row, JsonDocument? document) => _accessor(row);
+    /// <inheritdoc />
+    protected override object? ExtractRawValue(T row, JsonDocument? document) => _accessor(row);
 }
 
 /// <summary>
-/// Column definition for accessing JSON properties from a document.
+/// Column definition for accessing JSON properties. Extracts JsonElement into the pipeline (zero-copy start).
 /// </summary>
 public sealed class JsonColumnDefinition<T> : ColumnDefinition<T> where T : class
 {
-    private readonly string _jsonPropertyName;
+    private readonly string _jsonPath;
 
-    public JsonColumnDefinition(string name, string jsonPropertyName) : base(name)
+    public JsonColumnDefinition(string name, string jsonPath) : base(name)
     {
-        _jsonPropertyName = jsonPropertyName;
+        _jsonPath = jsonPath;
     }
 
-    public override object? ExtractValue(T row, JsonDocument? document)
+    /// <inheritdoc />
+    protected override object? ExtractRawValue(T row, JsonDocument? document)
     {
-        if (document == null)
+        if (document is null)
         {
             return null;
         }
 
-        if (document.RootElement.TryGetProperty(_jsonPropertyName, out var element))
+        if (document.RootElement.TryGetProperty(_jsonPath, out var element))
         {
-            return element.ValueKind switch
-            {
-                JsonValueKind.String => element.GetString(),
-                JsonValueKind.Number => element.GetDecimal(),
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                JsonValueKind.Null => null,
-                _ => element.ToString()
-            };
+            return element;
         }
 
         return null;

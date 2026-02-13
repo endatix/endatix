@@ -1,0 +1,89 @@
+---
+title: Customize Exports
+description: Customize submission exports using value transformers
+sidebar_position: 7
+---
+
+# Customize Exports with Transformers
+
+Endatix exports support a powerful value transformation pipeline. You can register custom transformers to modify data before it is written to the export file (JSON, CSV, or Excel).
+
+Common use cases include:
+- **Rewriting URLs** (e.g., converting internal storage paths to public CDN links).
+- **Flattening Data** (e.g., extracting a single field from a complex JSON object).
+- **Redacting Information** (e.g., removing sensitive keys from a JSON response).
+
+## How it works
+
+During an export, Endatix "lifts" every value (whether it comes from a database string, a JSON column, or a C# property) into a mutable **`JsonNode`**.
+
+This `JsonNode` is passed through a chain of registered transformers. Each transformer can:
+1. **Inspect** the node.
+2. **Modify** it in place (e.g., add/remove properties).
+3. **Replace** it entirely (e.g., replace an Object with a String).
+4. **Return** it for the next transformer.
+
+This architecture ensures that you don't have to manually parse JSON strings or worry about "double-escaping" bugs. You work with a structured Document Object Model (DOM) at all times.
+
+## The `IValueTransformer` interface
+
+Transformers implement the `IValueTransformer` interface. They receive a nullable `JsonNode` and must return a `JsonNode` (or `null` if the value should be removed).
+
+```csharp
+public interface IValueTransformer
+{
+    JsonNode? Transform<T>(JsonNode? node, TransformationContext<T> context);
+}
+```
+
+The `TransformationContext<T>` provides access to:
+
+* `Row`: The entire data row (e.g., `SubmissionExportRow`).
+* `JsonDoc`: The raw JSON document of the submission answers.
+* `Logger`: An `ILogger` for diagnostics.
+
+## Registering a transformer
+
+You register transformers via the Dependency Injection (DI) container during startup.
+
+```csharp
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    // Transformers run in the order they are registered.
+    endatix.Services.AddExportTransformer<FileContentExtractorTransformer>();
+});
+```
+
+**Note on Ordering:** Transformers form a pipeline. For example, if you have a transformer that rewrites URLs and another that extracts them, order matters. Usually, you want to rewrite the URL *inside* the object first, and then extract the result.
+
+## Example: Extract only file URLs
+
+File upload answers in Endatix are stored as rich JSON objects containing metadata (name, type, size):
+
+```json
+{
+  "name": "receipt.jpg",
+  "type": "image/jpeg",
+  "content": "[https://storage.example.com/receipt.jpg](https://storage.example.com/receipt.jpg)"
+}
+```
+
+For a CSV export, you might prefer a simple URL string instead of the full JSON object.
+
+### The Transformation
+
+* **Input (Single File):** A JSON Object => **Result:** A JSON String (`"https://..."`).
+* **Input (Multiple Files):** A JSON Array of Objects => **Result:** A JSON Array of Strings (`["https://...", "https://..."]`).
+
+
+
+### Implementation
+
+This transformer inspects the node. If it finds a `content` property, it replaces the complex object with just the value of that property. A complete working sample is available in the Endatix repository:
+
+* [samples/Endatix.Samples.CustomTransformers](https://github.com/endatix/endatix/tree/main/samples/Endatix.Samples.CustomTransformers)
+
+It includes:
+
+* The `FileContentExtractorTransformer` implementation.
+* Startup logic showing how to register it properly.

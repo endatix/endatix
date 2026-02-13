@@ -8,6 +8,7 @@ public class EmailTemplateSettings
     /// <summary>
     /// The base URL for Endatix Hub application.
     /// </summary>
+    [Obsolete("Use Endatix:Hub:HubBaseUrl instead")]
     public string HubUrl { get; set; } = string.Empty;
 
     /// <summary>

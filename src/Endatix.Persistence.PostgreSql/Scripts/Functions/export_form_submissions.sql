@@ -42,7 +42,9 @@ BEGIN
         WHERE (element->>'type') IS DISTINCT FROM 'panel'
           AND element ? 'name'
     ),
-    -- Combine submission data with answers for each question
+    -- Combine submission data with answers for each question.
+    -- Use -> (jsonb) not ->> (text): keeps arrays/objects as JSON so export consumers get real structure
+    -- (e.g. file-upload answers stay as arrays). Performance: same or slightly better than ->>.
     submission_fields AS (
         SELECT
             s."Id",
@@ -51,8 +53,7 @@ BEGIN
             s."CompletedAt",
             s."CreatedAt",
             s."ModifiedAt",
-            -- Create JSON object with question names as keys and answers as values
-            jsonb_object_agg(q.name, COALESCE(s."JsonData" ->> q.name, '')) AS AnswersModel
+            jsonb_object_agg(q.name, COALESCE(s."JsonData" -> q.name, '""'::jsonb)) AS AnswersModel
         FROM "Submissions" s
         CROSS JOIN question_names q
         WHERE s."FormId" = form_id

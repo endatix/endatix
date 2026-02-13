@@ -8,6 +8,9 @@ namespace Endatix.Infrastructure.Tests.Email;
 
 public class EmailTemplateServiceTests
 {
+    private static IOptions<HubSettings> CreateHubOptions(string? hubUrl = "https://app.example.com") =>
+        Options.Create(new HubSettings { HubBaseUrl = hubUrl ?? string.Empty });
+
     [Fact]
     public void Constructor_WithValidSettings_CreatesInstance()
     {
@@ -22,9 +25,10 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
+        var hubOptions = CreateHubOptions();
 
         // Act
-        var service = new EmailTemplateService(options);
+        var service = new EmailTemplateService(options, hubOptions);
 
         // Assert
         service.Should().NotBeNull();
@@ -34,7 +38,7 @@ public class EmailTemplateServiceTests
     public void Constructor_WithNullOptions_CreatesInstance()
     {
         // Act
-        var service = new EmailTemplateService(null!);
+        var service = new EmailTemplateService(null!, CreateHubOptions());
 
         // Assert
         service.Should().NotBeNull();
@@ -54,8 +58,9 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
-        var service = new EmailTemplateService(options);
-        
+        var hubOptions = CreateHubOptions("https://app.example.com");
+        var service = new EmailTemplateService(options, hubOptions);
+
         var userEmail = "test@example.com";
         var token = "abc123-token";
 
@@ -88,8 +93,9 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
-        var service = new EmailTemplateService(options);
-        
+        var hubOptions = CreateHubOptions(string.Empty);
+        var service = new EmailTemplateService(options, hubOptions);
+
         var userEmail = "test@example.com";
         var token = "abc123-token";
 
@@ -116,8 +122,9 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
-        var service = new EmailTemplateService(options);
-        
+        var hubOptions = CreateHubOptions(string.Empty); // use fallback from settings
+        var service = new EmailTemplateService(options, hubOptions);
+
         var userEmail = "user@test.com";
         var token = "xyz789-token";
 
@@ -149,8 +156,8 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
-        var service = new EmailTemplateService(options);
-        
+        var service = new EmailTemplateService(options, CreateHubOptions());
+
         var token = "abc123-token";
 
         // Act
@@ -179,8 +186,8 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
-        var service = new EmailTemplateService(options);
-        
+        var service = new EmailTemplateService(options, CreateHubOptions());
+
         var userEmail = "test@example.com";
 
         // Act
@@ -191,4 +198,4 @@ public class EmailTemplateServiceTests
         result.To.Should().Be("test@example.com");
         result.Metadata["verificationToken"].Should().Be(token);
     }
-} 
+}

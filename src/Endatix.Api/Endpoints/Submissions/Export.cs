@@ -99,7 +99,7 @@ public class Export : Endpoint<ExportRequest>
             var options = new ExportOptions
             {
                 Columns = null,
-                Transformers = null,
+                Formatters = null,
                 Metadata = new Dictionary<string, object> { ["FormId"] = request.FormId }
             };
 

@@ -5,6 +5,7 @@ using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Exporting.ColumnDefinitions;
+using Endatix.Infrastructure.Exporting.Formatters;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -12,11 +13,14 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 /// <summary>
 /// Base class for submission exporters to reuse common logic for streaming and header generation.
 /// </summary>
-public abstract class SubmissionExporterBase(ILogger logger) : IExporter<SubmissionExportRow>
+public abstract class SubmissionExporterBase(
+    ILogger logger,
+    IEnumerable<IValueTransformer> globalTransformers) : IExporter<SubmissionExportRow>
 {
     protected const string NOT_AVAILABLE_VALUE = "N/A";
 
     protected readonly ILogger _logger = logger;
+    private readonly List<IValueTransformer> _globalTransformers = globalTransformers?.ToList() ?? [];
 
     private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
     {
@@ -49,7 +53,6 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
         {
             var fileName = GetFileName(options, null, FileExtension);
             var fileExport = new FileExport(ContentType, fileName);
-
             return Task.FromResult(Result<FileExport>.Success(fileExport));
         }
         catch (Exception ex)
@@ -71,13 +74,13 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
             ? Convert.ToInt64(value)
             : firstRow?.FormId;
 
-        return formId != null
+        return formId is not null
             ? $"submissions-{formId}.{extension}"
             : $"submissions.{extension}";
     }
 
     /// <summary>
-    /// Centralized iterator that handles column discovery and JSON document lifecycle.
+    /// Yields (row, answers doc, columns) for streaming export.
     /// </summary>
     protected async IAsyncEnumerable<(SubmissionExportRow Row, JsonDocument? Doc, List<ColumnDefinition<SubmissionExportRow>> Columns)>
         GetStreamContextAsync(
@@ -89,58 +92,74 @@ public abstract class SubmissionExporterBase(ILogger logger) : IExporter<Submiss
 
         await foreach (var row in records.WithCancellation(cancellationToken))
         {
-            JsonDocument? doc = null;
+            var isFirstRow = columns is null;
+            var doc = TryParseAnswersJson(row.AnswersModel, row.Id, _logger);
 
-            if (columns == null)
+            if (isFirstRow)
             {
-                // First row: initialize columns and parse the doc
-                if (!string.IsNullOrWhiteSpace(row.AnswersModel))
-                {
-                    try
-                    {
-                        doc = JsonDocument.Parse(row.AnswersModel);
-                    }
-                    catch (JsonException ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to parse JSON for first row {Id}", row.Id);
-                    }
-                }
                 columns = BuildColumns(doc, options);
             }
-            else
-            {
-                // Subsequent rows: parse doc if model exists
-                doc = string.IsNullOrWhiteSpace(row.AnswersModel) ? null : JsonDocument.Parse(row.AnswersModel);
-            }
 
-            yield return (row, doc, columns);
+            yield return (row, doc, columns!);
         }
     }
 
-    private static List<ColumnDefinition<SubmissionExportRow>> BuildColumns(JsonDocument? doc, ExportOptions? options)
+    private static JsonDocument? TryParseAnswersJson(string? answersJson, long rowId, ILogger logger)
+    {
+        if (string.IsNullOrWhiteSpace(answersJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonDocument.Parse(answersJson);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Failed to parse answers JSON for row {Id}", rowId);
+            return null;
+        }
+    }
+
+    private List<ColumnDefinition<SubmissionExportRow>> BuildColumns(JsonDocument? doc, ExportOptions? options)
     {
         var questionNames = doc?.RootElement.EnumerateObject().Select(p => p.Name).ToList() ?? [];
         var allNames = _staticColumnAccessors.Keys.Concat(questionNames).ToList();
 
         var selectedNames = (options?.Columns?.Any() ?? false)
-           ? options.Columns.Where(allNames.Contains)
-           : allNames;
+            ? options.Columns.Where(allNames.Contains)
+            : allNames;
 
         var result = new List<ColumnDefinition<SubmissionExportRow>>();
         foreach (var name in selectedNames)
         {
-            var col = _staticColumnAccessors.ContainsKey(name)
-                ? (ColumnDefinition<SubmissionExportRow>)new StaticColumnDefinition<SubmissionExportRow>(name, _staticColumnAccessors[name])
-                : new JsonColumnDefinition<SubmissionExportRow>(name, name);
+            var column = BuildColumnDefinition(name);
 
-            if (options?.Transformers is not null && options.Transformers.TryGetValue(name, out var transformer))
+            if (options?.Formatters is not null && options.Formatters.TryGetValue(column.Name, out var formatter))
             {
-                col.WithTransformer(transformer);
+                column.SetFormatter(new DelegateFormatter(formatter));
             }
 
-            col.JsonPropertyName = JsonNamingPolicy.CamelCase.ConvertName(name);
-            result.Add(col);
+            column.JsonPropertyName = JsonNamingPolicy.CamelCase.ConvertName(name);
+            result.Add(column);
         }
         return result;
+    }
+
+    private ColumnDefinition<SubmissionExportRow> BuildColumnDefinition(string name)
+    {
+        if (_staticColumnAccessors.ContainsKey(name))
+        {
+            return new StaticColumnDefinition<SubmissionExportRow>(name, _staticColumnAccessors[name]);
+        }
+
+        var jsonColumn = new JsonColumnDefinition<SubmissionExportRow>(name, name);
+        foreach (var transformer in _globalTransformers)
+        {
+            jsonColumn.AddTransformer(transformer);
+        }
+
+        return jsonColumn;
     }
 }

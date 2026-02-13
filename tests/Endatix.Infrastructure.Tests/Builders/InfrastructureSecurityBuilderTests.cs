@@ -37,11 +37,12 @@ public class InfrastructureSecurityBuilderTests
         // Create configuration with default test data
         _configuration = CreateMockConfiguration();
 
-        // Create a substitute for IBuilderRoot
+        // Create a substitute for IBuilderRoot 
         _builderRoot = Substitute.For<IBuilderRoot>();
         _builderRoot.Services.Returns(_services);
         _builderRoot.LoggerFactory.Returns(_loggerFactory);
         _builderRoot.Configuration.Returns(_configuration);
+        _builderRoot.AppEnvironment.Returns((IAppEnvironment?)null);
 
         // Create a real InfrastructureBuilder with the mocked builder root
         _parentBuilder = new InfrastructureBuilder(_builderRoot);
@@ -124,6 +125,7 @@ public class InfrastructureSecurityBuilderTests
         customBuilderRoot.Services.Returns(_services);
         customBuilderRoot.LoggerFactory.Returns(_loggerFactory);
         customBuilderRoot.Configuration.Returns(customConfig);
+        customBuilderRoot.AppEnvironment.Returns((IAppEnvironment?)null);
 
         var customParentBuilder = new InfrastructureBuilder(customBuilderRoot);
         return new InfrastructureSecurityBuilder(customParentBuilder);
@@ -145,13 +147,13 @@ public class InfrastructureSecurityBuilderTests
     }
 
     [Fact]
-    public void UseDefaults_ShouldConfigureWitEndatixJwtProvider()
+    public void UseDefaults_ShouldConfigureWithEndatixJwtProvider()
     {
         // Arrange
         var builder = new InfrastructureSecurityBuilder(_parentBuilder);
         var registry = GetRegistryFromBuilder(builder);
 
-        // Act
+        // Act - UseDefaults() calls AddEndatixSecurityServices, ConfigureIdentity(), AddEndatixJwtAuthProvider(), ConfigureAspNetCoreAuthentication(), AddDefaultAuthorization()
         var result = builder.UseDefaults();
 
         // Assert

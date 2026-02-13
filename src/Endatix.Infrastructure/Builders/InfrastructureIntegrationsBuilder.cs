@@ -33,6 +33,7 @@ public class InfrastructureIntegrationsBuilder
     {
         LogSetupInfo("Configuring integrations with default settings");
 
+        _parentBuilder.Services.AddExternalStorage();
         _parentBuilder.Services.AddEmailTemplateSettings();
         _parentBuilder.Services.AddEmailSender<SmtpEmailSender, SmtpSettings>();
         _parentBuilder.Services.AddReCaptcha(_parentBuilder.Configuration);
@@ -55,6 +56,7 @@ public class InfrastructureIntegrationsBuilder
         _parentBuilder.Services.AddEmailSender<TEmailSender, TSettings>();
         return this;
     }
+
 
     /// <summary>
     /// Builds and returns the parent infrastructure builder.

@@ -1,5 +1,6 @@
 using System.IO.Pipelines;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
@@ -12,12 +13,18 @@ namespace Endatix.Infrastructure.Tests.Features.Submissions;
 public sealed class SubmissionExporterBaseTests
 {
     private readonly ILogger _logger;
+    private readonly IEnumerable<IValueTransformer> _globalTransformers;
     private readonly TestExporter _sut;
 
     public SubmissionExporterBaseTests()
     {
         _logger = Substitute.For<ILogger>();
-        _sut = new TestExporter(_logger);
+        var transformer = Substitute.For<IValueTransformer>();
+        transformer
+            .Transform(Arg.Any<JsonNode?>(), Arg.Any<TransformationContext<SubmissionExportRow>>())
+            .Returns(callInfo => (JsonNode?)callInfo[0]);
+        _globalTransformers = new[] { transformer };
+        _sut = new TestExporter(_logger, _globalTransformers);
     }
 
     [Fact]
@@ -202,12 +209,14 @@ public sealed class SubmissionExporterBaseTests
         // Assert
         Assert.Single(contexts);
         Assert.Null(contexts[0].Doc);
-        _logger.Received(1).Log(
-            LogLevel.Warning,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Failed to parse JSON")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        var logCalls = _logger.ReceivedCalls().Where(c => c.GetMethodInfo().Name == "Log").ToList();
+        Assert.True(logCalls.Count >= 1);
+        var warningCall = logCalls.FirstOrDefault(c =>
+            c.GetArguments()[0] is LogLevel level && level == LogLevel.Warning &&
+            c.GetArguments().Length >= 4 && c.GetArguments()[3] is Exception);
+        Assert.NotNull(warningCall);
+        var state = warningCall!.GetArguments()[2];
+        Assert.Contains("Failed to parse answers JSON", state?.ToString() ?? "");
     }
 
     [Fact]
@@ -250,7 +259,7 @@ public sealed class SubmissionExporterBaseTests
         // Arrange
         var options = new ExportOptions
         {
-            Transformers = new Dictionary<string, Func<object?, string>>
+            Formatters = new Dictionary<string, Func<object?, string>>
             {
                 { "Id", v => $"ID-{v}" }
             }
@@ -273,7 +282,8 @@ public sealed class SubmissionExporterBaseTests
 
         // Assert
         var idColumn = contexts[0].Columns.First(c => c.Name == "Id");
-        var formatted = idColumn.GetFormattedValue(contexts[0].Row, contexts[0].Doc);
+        var ctx = new TransformationContext<SubmissionExportRow>(contexts[0].Row, contexts[0].Doc, _logger);
+        var formatted = idColumn.GetValue(ctx, applyFormatters: true);
         Assert.Equal("ID-42", formatted);
     }
 
@@ -350,7 +360,7 @@ public sealed class SubmissionExporterBaseTests
     // Test implementation to access protected members
     private sealed class TestExporter : SubmissionExporterBase
     {
-        public TestExporter(ILogger logger) : base(logger)
+        public TestExporter(ILogger logger, IEnumerable<IValueTransformer> globalTransformers) : base(logger, globalTransformers)
         {
         }
 
