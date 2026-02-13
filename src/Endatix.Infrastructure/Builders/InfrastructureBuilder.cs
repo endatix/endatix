@@ -1,3 +1,7 @@
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Infrastructure;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Multitenancy;
 using Microsoft.Extensions.Configuration;
@@ -83,6 +87,9 @@ public class InfrastructureBuilder
         Services.AddCoreInfrastructure();
         Services.AddWebHookProcessing();
         Services.AddMultitenancyConfiguration();
+        Services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
+        Services.AddScoped<ISubmissionAuthorizationService, SubmissionAuthorizationService>();
+        Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
         Data.UseDefaults();
         Messaging.UseDefaults();
@@ -111,7 +118,7 @@ public class InfrastructureBuilder
         // Call Build() on all child builders to ensure their configuration is applied
         Security.Build();
         Messaging.Build();
-        
+
         LogSetupInfo("Infrastructure build completed");
         return _parentBuilder;
     }
