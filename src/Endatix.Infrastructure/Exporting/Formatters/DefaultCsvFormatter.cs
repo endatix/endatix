@@ -12,23 +12,24 @@ namespace Endatix.Infrastructure.Exporting.Formatters;
 /// </summary>
 public class DefaultCsvFormatter : IValueFormatter
 {
+    private const string DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
+
+
     public object? Format<T>(object? value, TransformationContext<T> context)
     {
         return value switch
         {
             null => null,
 
-            DateTime dateTime => dateTime.ToString("yyyy-MM-dd HH:mm:ss"),
-            bool boolean => boolean.ToString().ToLowerInvariant(),
+            DateTime dateTime => FormatDateTime(dateTime),
+            bool boolean => FormatBoolean(boolean),
             IEnumerable<string> stringList => string.Join(", ", stringList),
-
             JsonArray array => FormatJsonArray(array),
-            JsonObject obj => obj.ToJsonString(), // Keep complex objects as JSON string
             JsonValue val => FormatJsonValue(val),
-
+            JsonObject obj => obj.ToJsonString(),
             JsonElement el => FormatJsonElement(el),
 
-            _ => value?.ToString()
+            _ => value.ToString()
         };
     }
 
@@ -64,18 +65,19 @@ public class DefaultCsvFormatter : IValueFormatter
 
     private static object? FormatJsonValue(JsonValue value)
     {
-        if (value.TryGetValue<DateTime>(out var dt))
+        if (value.TryGetValue<DateTime>(out var dateTime))
         {
-            return dt;
-        }
-        if (value.TryGetValue<bool>(out var b))
-        {
-            return b.ToString().ToLowerInvariant();
+            return FormatDateTime(dateTime);
         }
 
-        if (value.TryGetValue<string>(out var s))
+        if (value.TryGetValue<bool>(out var boolean))
         {
-            return s;
+            return FormatBoolean(boolean);
+        }
+
+        if (value.TryGetValue<string>(out var stringValue))
+        {
+            return stringValue;
         }
 
         return value.ToString();
@@ -86,11 +88,10 @@ public class DefaultCsvFormatter : IValueFormatter
         return element.ValueKind switch
         {
             JsonValueKind.Null => null,
-            JsonValueKind.True => "true",
-            JsonValueKind.False => "false",
+            JsonValueKind.True => FormatBoolean(true),
+            JsonValueKind.False => FormatBoolean(false),
             JsonValueKind.String => element.GetString(),
             JsonValueKind.Number => element.ToString(),
-
             JsonValueKind.Array => FormatElementArray(element),
             _ => element.GetRawText()
         };
@@ -122,4 +123,8 @@ public class DefaultCsvFormatter : IValueFormatter
 
         return string.Join(", ", values);
     }
+
+
+    private static string FormatBoolean(bool boolean) => boolean.ToString().ToLowerInvariant();
+    private static string FormatDateTime(DateTime dateTime) => dateTime.ToString(DATE_TIME_FORMAT);
 }
