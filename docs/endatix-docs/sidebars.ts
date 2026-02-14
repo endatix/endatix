@@ -154,6 +154,22 @@ const sidebars: SidebarsConfig = {
             "end-users/forms/form-builder/question-loops",
             "end-users/forms/form-builder/randomization-of-choices",
           ],
+        },
+        {
+          type: "category",
+          label: "Translation and Localization",
+          collapsed: false,
+          link: {
+            type: "generated-index",
+            slug: "translation-and-localization",
+            title: "Translation and Localization",
+          },
+          items: [
+            "end-users/forms/translation-and-localization/localization-overview",
+            "end-users/forms/translation-and-localization/form-translation",
+            "end-users/forms/translation-and-localization/ai-translation",
+            "end-users/forms/translation-and-localization/excel-import",            
+          ],
         }
       ],
     }

@@ -1,0 +1,65 @@
+---
+title: Translating with Microsoft Excel
+description: Learn how to properly import Endatix translation CSV files into Microsoft Excel to ensure character encoding is preserved.
+sidebar_label: Translating with Microsoft Excel
+---
+
+# **Translating with Microsoft Excel**
+
+When managing form translations externally, you may encounter character encoding issues if you open Endatix CSV files directly in Microsoft Excel.
+This article explains why this happens and provides a step-by-step guide to importing your translation files correctly.
+
+To learn how to export the translation CSV file see [Form Translation](form-translation#exporting-and-importing-via-csv).
+
+## **Understanding CSV Encoding**
+
+Endatix Hub generates translation files encoded in **UTF-8 without BOM** (Byte Order Mark).
+This is a deliberate design choice to ensure maximum compatibility with modern translation management systems (TMS), web applications, and data processing tools.
+
+However, Microsoft Excel historically prioritizes compatibility with legacy systems.
+When you double-click a CSV file to open it, Excel often assumes the file uses a localized encoding (such as ANSI or Windows-1252) rather than standard UTF-8.
+As a result, specialized characters—such as accented letters, currency symbols, or non-Latin scripts—may appear as garbled text or "unwanted characters" (e.g., `Ã©` instead of `é`).
+
+*Form more information see Microsoft's documentation article about [opening UTF-8 CSV files](https://support.microsoft.com/en-us/office/opening-csv-utf-8-files-correctly-in-excel-8a935af5-3416-4edd-ba7e-3dfd2bc4a032).*
+
+## **Recommended Alternatives**
+
+For the smoothest experience, we recommend using a modern spreadsheet application like **Google Sheets** or **LibreOffice Calc**.
+These platforms natively support UTF-8 without BOM and will open Endatix translation files correctly without requiring additional configuration.
+
+## **How to Import into Excel Correctly**
+
+If you prefer to use Microsoft Excel, you must **import** the data rather than opening the file directly.
+Follow these steps to ensure your characters render correctly:
+
+1.  **Open Microsoft Excel** to a blank workbook.
+2.  Navigate to the **Data** tab in the ribbon.
+3.  Click on **Get Data** (or **From Text/CSV**, depending on your Excel version).
+    <br />
+    <br />
+    <img src={require('./excel-import-step-1.webp').default} width="600" alt="Excel Data tab showing Get Data options" />
+    <br />
+    <br />
+4.  Select your exported Endatix translation CSV file and click **Import**.
+5.  In the window that appears, locate the **File Origin** dropdown.
+6.  Select **65001: Unicode (UTF-8)**.
+    <br />
+    <br />
+    <img src={require('./excel-import-step-2.webp').default} width="500" alt="Excel import wizard selecting UTF-8 encoding" />
+    <br />
+    <br />
+7.  Ensure that "comma" is selected as the delimiter in Step 2 of the import wizard.
+    <br />
+    <br />
+    <img src={require('./excel-import-step-3.webp').default} width="500" alt="Excel import wizard selecting comma delimiter" />
+    <br />
+    <br />
+7.  Verify that the characters in the preview pane look correct.
+8.  Click **Load** to bring the data into your spreadsheet.
+
+You can now edit your translations safely. When you are finished, save the file as a **CSV UTF-8 (Comma delimited) (*.csv)** to preserve the encoding when importing it back into Endatix Hub.
+
+:::warning
+When working with the CSV file, **do not modify the "Description" column** or **any of the column headers**.
+Endatix uses these keys to map the translations back to the correct questions and properties. Changing them will break the link between your translation and the form element.
+:::
