@@ -1,0 +1,202 @@
+{
+  "form": {
+    "name": "Concept Testing Survey"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Concept Feedback Survey",
+        "description": "Please review the following concept and answer a few questions about it.",
+        "pages": [
+            {
+            "name": "screening",
+            "title": "Screening",
+            "elements": [
+                {
+                "type": "boolean",
+                "name": "targetConsumer",
+                "title": "Do you use products or services in this category?",
+                "isRequired": true,
+                "swapOrder": true
+                }
+            ]
+            },
+            {
+            "name": "concept-introduction",
+            "visibleIf": "{targetConsumer} = true",
+            "title": "Concept Introduction",
+            "elements": [
+                {
+                "type": "html",
+                "name": "conceptContent",
+                "html": "<h3>Introducing: SmartHydrate Bottle</h3><p>A smart water bottle that tracks your hydration levels, reminds you to drink, and syncs with your phone.</p><img src='https://example.com/concept-image.jpg' alt='SmartHydrate Bottle' style='max-width:100%; height:auto; margin-top:10px;'>"
+                },
+                {
+                "type": "radiogroup",
+                "name": "conceptClarity",
+                "title": "How clear is the concept to you?",
+                "isRequired": true,
+                "choices": [
+                    "Very clear",
+                    "Somewhat clear",
+                    "Unclear",
+                    "Very unclear"
+                ]
+                },
+                {
+                "type": "rating",
+                "name": "conceptAppeal",
+                "title": "How appealing is this concept to you?",
+                "isRequired": true,
+                "minRateDescription": "Not at all appealing",
+                "maxRateDescription": "Extremely appealing"
+                },
+                {
+                "type": "rating",
+                "name": "purchaseIntent",
+                "title": "How likely would you be to buy or try this product?",
+                "minRateDescription": "Very unlikely",
+                "maxRateDescription": "Very likely"
+                },
+                {
+                "type": "checkbox",
+                "name": "emotions",
+                "title": "What feelings does this concept evoke for you?",
+                "choices": [
+                    "Excitement",
+                    "Trust",
+                    "Confusion",
+                    "Skepticism",
+                    "Curiosity"
+                ],
+                "showOtherItem": true,
+                "showNoneItem": true
+                },
+                {
+                "type": "ranking",
+                "name": "valueDrivers",
+                "title": "Rank what you find most valuable about the concept:",
+                "choices": [
+                    "Hydration reminders",
+                    "Health insights",
+                    "App sync and tracking",
+                    "Modern design",
+                    "Eco-friendly materials"
+                ]
+                },
+                {
+                "type": "comment",
+                "name": "improvements",
+                "title": "What would make this concept more appealing to you?"
+                },
+                {
+                "type": "radiogroup",
+                "name": "seenSimilar",
+                "title": "Have you seen a similar product before?",
+                "choices": [
+                    "Yes",
+                    "No",
+                    "Not sure"
+                ]
+                },
+                {
+                "type": "comment",
+                "name": "comparisonNotes",
+                "visibleIf": "{seenSimilar} = 'Yes'",
+                "title": "How does this compare to similar products you've seen?"
+                }
+            ]
+            },
+            {
+            "name": "final-comments",
+            "visibleIf": "{targetConsumer} = true",
+            "title": "Final Comments",
+            "elements": [
+                {
+                "type": "comment",
+                "name": "finalThoughts",
+                "title": "Any final thoughts on the concept?"
+                },
+                {
+                "type": "html",
+                "name": "thankYou",
+                "html": "<p>Thank you for your feedback!</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "targetConsumer": true,
+        "conceptClarity": "Very clear",
+        "conceptAppeal": 5,
+        "purchaseIntent": 5,
+        "emotions": ["Excitement", "Curiosity"],
+        "valueDrivers": ["Hydration reminders", "Health insights", "App sync and tracking", "Eco-friendly materials", "Modern design"],
+        "improvements": "Battery life is my main concern — I'd want at least a week on a single charge. Also a dishwasher-safe option would be essential.",
+        "seenSimilar": "Yes",
+        "comparisonNotes": "HidrateSpark does something similar but SmartHydrate looks cleaner and the health insights angle is more developed.",
+        "finalThoughts": "I would buy this day one. Hydration is something I constantly forget about and this solves it elegantly."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "targetConsumer": true,
+        "conceptClarity": "Somewhat clear",
+        "conceptAppeal": 3,
+        "purchaseIntent": 2,
+        "emotions": ["Skepticism", "Curiosity"],
+        "valueDrivers": ["Hydration reminders", "Eco-friendly materials", "App sync and tracking", "Health insights", "Modern design"],
+        "improvements": "I'd want to see actual clinical backing for the hydration recommendations — not just a generic 8-glasses-a-day reminder. Also, what happens when the app is discontinued?",
+        "seenSimilar": "Yes",
+        "comparisonNotes": "Similar to some smart bottles I've seen on Kickstarter. Most never delivered. I need to see this one survive past the launch hype.",
+        "finalThoughts": "Interesting concept but I'm cautious about smart gadgets that depend on an app ecosystem."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "targetConsumer": false
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "targetConsumer": true,
+        "conceptClarity": "Very clear",
+        "conceptAppeal": 4,
+        "purchaseIntent": 4,
+        "emotions": ["Excitement", "Trust"],
+        "valueDrivers": ["App sync and tracking", "Hydration reminders", "Health insights", "Modern design", "Eco-friendly materials"],
+        "improvements": "The eco-friendly materials angle should be front and center — sustainability is a big factor in my purchasing decisions. Also needs to be compatible with both iOS and Android.",
+        "seenSimilar": "No",
+        "finalThoughts": "Would make an excellent gift. The health-tracking angle makes it feel purposeful rather than just another gadget."
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "targetConsumer": true,
+        "conceptClarity": "Very clear",
+        "conceptAppeal": 2,
+        "purchaseIntent": 1,
+        "emotions": ["Confusion", "Skepticism"],
+        "valueDrivers": ["Modern design", "Hydration reminders", "Eco-friendly materials", "Health insights", "App sync and tracking"],
+        "improvements": "Drastically reduce the price. A basic insulated bottle costs $15 — this needs to be under $40 to get mainstream adoption. The app integration feels overcomplicated for something as simple as drinking water.",
+        "seenSimilar": "Yes",
+        "comparisonNotes": "There are already several smart bottles on Amazon with better reviews. This one doesn't seem differentiated enough.",
+        "finalThoughts": "Cool idea but the market is crowded and price-sensitive. I don't see a compelling reason to choose this over competitors."
+      }
+    }
+  ]
+}

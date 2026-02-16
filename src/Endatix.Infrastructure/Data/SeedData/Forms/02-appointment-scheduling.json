@@ -1,0 +1,474 @@
+{
+  "form": {
+    "name": "Appointment Scheduling"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Request an Appointment",
+        "description": "Fill out the form to schedule your next medical appointment.",
+        "pages": [
+            {
+            "name": "patient-information",
+            "title": "Patient Information",
+            "elements": [
+                {
+                "type": "text",
+                "name": "fullName",
+                "title": "Full Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "dateOfBirth",
+                "title": "Date of Birth",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "radiogroup",
+                "name": "isReturning",
+                "title": "Are you a returning patient?",
+                "isRequired": true,
+                "choices": [
+                    "Yes",
+                    "No"
+                ]
+                },
+                {
+                "type": "phone",
+                "name": "phone",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "email",
+                "title": "Email Address",
+                "isRequired": true,
+                "inputType": "email"
+                },
+                {
+                "type": "text",
+                "name": "preferredContactTime",
+                "title": "When is the best time to reach you (if needed)?"
+                }
+            ]
+            },
+            {
+            "name": "appointment-details",
+            "title": "Appointment Details",
+            "elements": [
+                {
+                "type": "dropdown",
+                "name": "appointmentType",
+                "title": "Type of Appointment",
+                "isRequired": true,
+                "choices": [
+                    "General Check-Up",
+                    "Consultation",
+                    "Lab Test",
+                    "Immunization",
+                    "Follow-Up",
+                    "Other"
+                ]
+                },
+                {
+                "type": "comment",
+                "name": "reason",
+                "title": "Briefly describe the reason for your visit"
+                },
+                {
+                "type": "dropdown",
+                "name": "preferredProvider",
+                "title": "Preferred Provider",
+                "choices": [
+                  "Dr. Sarah Mitchell (Family Medicine)",
+                  "Dr. James Chen (Internal Medicine)",
+                  "Dr. Emily Rodriguez (Pediatrics)",
+                  "Dr. Michael Thompson (Cardiology)",
+                  "Dr. Lisa Patel (Dermatology)",
+                  "Dr. Robert Williams (Orthopedics)",
+                  "No Preference"
+                ]
+                },
+                {
+                "type": "text",
+                "name": "preferredDate",
+                "title": "Preferred Date",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "text",
+                "name": "preferredTime",
+                "title": "Preferred Time",
+                "inputType": "time"
+                },
+                {
+                "type": "radiogroup",
+                "name": "isFlexible",
+                "title": "Are you flexible with the time?",
+                "choices": [
+                    "Yes",
+                    "No"
+                ]
+                }
+            ]
+            },
+            {
+            "name": "insurance-files",
+            "title": "Insurance & Files",
+            "elements": [
+                {
+                "type": "radiogroup",
+                "name": "hasInsurance",
+                "title": "Do you have health insurance?",
+                "choices": [
+                    "Yes",
+                    "No"
+                ]
+                },
+                {
+                "type": "panel",
+                "name": "insuranceDetails",
+                "visibleIf": "{hasInsurance} = 'Yes'",
+                "elements": [
+                    {
+                    "type": "text",
+                    "name": "insuranceProvider",
+                    "title": "Insurance Provider"
+                    },
+                    {
+                    "type": "text",
+                    "name": "insuranceId",
+                    "title": "Insurance ID / Member Number"
+                    },
+                    {
+                    "type": "file",
+                    "name": "insuranceCard",
+                    "title": "Upload your insurance card (optional)",
+                    "waitForUpload": true,
+                    "maxSize": 2048000
+                    }
+                ]
+                },
+                {
+                "type": "file",
+                "name": "referralDocuments",
+                "title": "Upload any relevant medical documents (optional)",
+                "allowMultiple": true,
+                "waitForUpload": true
+                }
+            ]
+            },
+            {
+            "name": "confirmation",
+            "title": "Confirmation",
+            "elements": [
+                {
+                "type": "html",
+                "name": "confirmationNote",
+                "html": "<p>Once submitted, our staff will contact you to confirm your appointment details. Thank you!</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Linda Hartman",
+        "dateOfBirth": "1972-04-08",
+        "isReturning": "Yes",
+        "phone": "+1 (503) 555-0274",
+        "email": "linda.hartman@gmail.com",
+        "preferredContactTime": "Weekday mornings before 10am",
+        "appointmentType": "Follow-Up",
+        "reason": "Follow-up on thyroid results from last month's lab work.",
+        "preferredDate": "2025-03-12",
+        "preferredTime": "09:30",
+        "isFlexible": "Yes",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "United Healthcare",
+        "insuranceId": "UHC-884421039"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Derek Moss",
+        "dateOfBirth": "1993-09-15",
+        "isReturning": "No",
+        "phone": "+1 (720) 555-0193",
+        "email": "derek.moss@outlook.com",
+        "preferredContactTime": "After 5pm on weekdays",
+        "appointmentType": "General Check-Up",
+        "reason": "First visit — haven't had a physical in three years, want a full wellness check.",
+        "preferredDate": "2025-03-18",
+        "preferredTime": "17:00",
+        "isFlexible": "No",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Cigna",
+        "insuranceId": "CGN-334455789"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "fullName": "Priya Nair",
+        "dateOfBirth": "1985-02-28",
+        "isReturning": "Yes",
+        "phone": "+1 (408) 555-0862",
+        "email": "priya.nair@yahoo.com",
+        "preferredContactTime": "Anytime during business hours",
+        "appointmentType": "Lab Test",
+        "reason": "Annual blood panel — fasting glucose, lipid profile, CBC.",
+        "preferredDate": "2025-03-10",
+        "preferredTime": "08:00",
+        "isFlexible": "Yes",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Kaiser Permanente",
+        "insuranceId": "KP-77219034"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "fullName": "Marcus Bell",
+        "dateOfBirth": "1960-12-03",
+        "isReturning": "Yes",
+        "phone": "+1 (206) 555-0445",
+        "email": "m.bell60@comcast.net",
+        "preferredContactTime": "Morning, any day",
+        "appointmentType": "Consultation",
+        "reason": "Referred by cardiologist to discuss knee replacement options due to severe osteoarthritis.",
+        "preferredDate": "2025-03-25",
+        "preferredTime": "10:00",
+        "isFlexible": "Yes",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Medicare",
+        "insuranceId": "MCD-7X8Y9Z012"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Aisha Patel",
+        "dateOfBirth": "2001-06-20",
+        "isReturning": "No",
+        "phone": "+1 (469) 555-0317",
+        "email": "aisha.patel@student.edu",
+        "preferredContactTime": "Afternoons or evenings",
+        "appointmentType": "Immunization",
+        "reason": "Need updated immunizations for university enrollment — MMR booster and meningococcal vaccine.",
+        "preferredDate": "2025-03-07",
+        "preferredTime": "14:00",
+        "isFlexible": "Yes",
+        "hasInsurance": "No"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Jordan Reeves",
+        "dateOfBirth": "1988-11-22",
+        "isReturning": "No",
+        "phone": "+1 (214) 555-0619",
+        "email": "j.reeves@gmail.com",
+        "preferredContactTime": "Anytime during business hours",
+        "appointmentType": "Consultation",
+        "reason": "Persistent lower back pain for three months, referred by primary care.",
+        "preferredDate": "2025-04-02",
+        "preferredTime": "11:00",
+        "isFlexible": "Yes",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Aetna",
+        "insuranceId": "ATN-997612034"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Rebecca Chan",
+        "dateOfBirth": "1979-07-14",
+        "isReturning": "Yes",
+        "phone": "+1 (415) 555-0388",
+        "email": "rebecca.chan@sfmail.com",
+        "preferredContactTime": "Late mornings (10am–12pm)",
+        "appointmentType": "Follow-Up",
+        "reason": "Post-surgery check after knee arthroscopy in January.",
+        "preferredDate": "2025-03-28",
+        "preferredTime": "14:30",
+        "isFlexible": "Yes",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Blue Cross Blue Shield",
+        "insuranceId": "BCBS-441229870"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "fullName": "Omar Farouk",
+        "dateOfBirth": "1965-03-05",
+        "isReturning": "Yes",
+        "phone": "+1 (202) 555-0741",
+        "email": "o.farouk@hotmail.com",
+        "preferredContactTime": "Early morning",
+        "appointmentType": "Lab Test",
+        "reason": "HbA1c and kidney function panels for ongoing diabetes management.",
+        "preferredDate": "2025-03-20",
+        "preferredTime": "07:30",
+        "isFlexible": "Yes",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Humana",
+        "insuranceId": "HUM-334561022"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "fullName": "Natasha Korolev",
+        "dateOfBirth": "1994-08-30",
+        "isReturning": "No",
+        "phone": "+1 (312) 555-0522",
+        "email": "natasha.k@gmail.com",
+        "preferredContactTime": "Before 11am",
+        "appointmentType": "Immunization",
+        "reason": "Travel vaccinations for Southeast Asia — Hepatitis A, Typhoid, Yellow Fever.",
+        "preferredDate": "2025-04-10",
+        "preferredTime": "09:00",
+        "isFlexible": "No",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Blue Cross Blue Shield",
+        "insuranceId": "BCB-229104456"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Thomas Achterberg",
+        "dateOfBirth": "1970-01-18",
+        "isReturning": "Yes",
+        "phone": "+31 6 555 01234",
+        "email": "t.achterberg@kpn.nl",
+        "preferredContactTime": "Weekday mornings",
+        "appointmentType": "General Check-Up",
+        "reason": "Annual physical with blood pressure monitoring.",
+        "preferredDate": "2025-04-15",
+        "preferredTime": "10:30",
+        "isFlexible": "Yes",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Blue Shield",
+        "insuranceId": "BSH-110234567"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Sofia Mendoza",
+        "dateOfBirth": "2000-04-12",
+        "isReturning": "No",
+        "phone": "+1 (480) 555-0877",
+        "email": "sofia.m@asu.edu",
+        "preferredContactTime": "Afternoons",
+        "appointmentType": "General Check-Up",
+        "reason": "First adult physical after aging off parental insurance at 24.",
+        "preferredDate": "2025-03-31",
+        "preferredTime": "13:00",
+        "isFlexible": "Yes",
+        "hasInsurance": "No"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "fullName": "Brian Kowalczyk",
+        "dateOfBirth": "1955-09-09",
+        "isReturning": "Yes",
+        "phone": "+1 (716) 555-0223",
+        "email": "bkowalczyk@roadrunner.com",
+        "preferredContactTime": "Morning",
+        "appointmentType": "Consultation",
+        "reason": "Review recent echocardiogram results and discuss medication adjustment.",
+        "preferredDate": "2025-04-07",
+        "preferredTime": "11:30",
+        "isFlexible": "Yes",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Medicare Advantage",
+        "insuranceId": "MCA-XK9927731"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Isabella Romano",
+        "dateOfBirth": "1998-02-16",
+        "isReturning": "No",
+        "phone": "+39 333 555 9876",
+        "email": "isa.romano@gmail.com",
+        "preferredContactTime": "Flexible",
+        "appointmentType": "Other",
+        "reason": "New to the city — looking for a primary care doctor, introductory visit.",
+        "preferredDate": "2025-04-22",
+        "preferredTime": "15:00",
+        "isFlexible": "Yes",
+        "hasInsurance": "No"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "fullName": "Charles Dupont",
+        "dateOfBirth": "1948-06-27",
+        "isReturning": "Yes",
+        "phone": "+33 6 55 012 345",
+        "email": "c.dupont@orange.fr",
+        "preferredContactTime": "Early morning",
+        "appointmentType": "Follow-Up",
+        "reason": "Three-month follow-up on cholesterol management and recent diet changes.",
+        "preferredDate": "2025-03-17",
+        "preferredTime": "08:30",
+        "isFlexible": "No",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Aetna International",
+        "insuranceId": "ATN-INT-4412098"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "fullName": "Zainab Al-Hussein",
+        "dateOfBirth": "1991-12-02",
+        "isReturning": "Yes",
+        "phone": "+1 (617) 555-0394",
+        "email": "z.alhussein@mit.edu",
+        "preferredContactTime": "Early morning before work",
+        "appointmentType": "Lab Test",
+        "reason": "Vitamin D, iron panel, and TSH check — persistent fatigue for several months.",
+        "preferredDate": "2025-04-03",
+        "preferredTime": "08:00",
+        "isFlexible": "Yes",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Harvard Pilgrim",
+        "insuranceId": "HP-887234561"
+      }
+    }
+  ]
+}

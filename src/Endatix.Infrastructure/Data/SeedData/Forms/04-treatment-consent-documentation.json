@@ -1,0 +1,214 @@
+{
+  "form": {
+    "name": "Treatment Consent & Documentation"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Treatment Consent Form",
+        "description": "Please read and complete this form before your treatment or procedure.",
+        "pages": [
+            {
+            "name": "patient-information",
+            "title": "Patient Information",
+            "elements": [
+                {
+                "type": "text",
+                "name": "patientFullName",
+                "title": "Patient Full Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "dob",
+                "title": "Date of Birth",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "text",
+                "name": "treatmentName",
+                "title": "Treatment / Procedure Name",
+                "isRequired": true
+                },
+                {
+                "type": "comment",
+                "name": "treatmentDescription",
+                "title": "Briefly describe the treatment or procedure (optional)"
+                },
+                {
+                "type": "radiogroup",
+                "name": "isPatientSigning",
+                "title": "Is the patient signing this form personally?",
+                "isRequired": true,
+                "choices": [
+                    "Yes",
+                    "No"
+                ]
+                }
+            ]
+            },
+            {
+            "name": "consent-statement",
+            "title": "Consent Statement",
+            "elements": [
+                {
+                "type": "html",
+                "name": "consentText",
+                "html": "<h4>Consent to Treatment</h4><p>I hereby authorize the healthcare provider to perform the indicated treatment or procedure. I acknowledge that I have been informed about the nature, risks, benefits, and possible alternatives, and all my questions have been answered to my satisfaction.</p><p>I understand that I may withdraw consent at any time before the treatment begins.</p>"
+                },
+                {
+                "type": "radiogroup",
+                "name": "consentConfirmation",
+                "title": "Do you consent to the treatment or procedure described above?",
+                "isRequired": true,
+                "choices": [
+                    "Yes",
+                    "No"
+                ]
+                },
+                {
+                "type": "comment",
+                "name": "additionalNotes",
+                "title": "Any questions, concerns, or notes before treatment?"
+                }
+            ]
+            },
+            {
+            "name": "representative-details",
+            "visibleIf": "{isPatientSigning} = 'No'",
+            "title": "Representative Details",
+            "elements": [
+                {
+                "type": "text",
+                "name": "representativeName",
+                "title": "Representative Full Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "relationship",
+                "title": "Relationship to Patient",
+                "isRequired": true
+                },
+                {
+                "type": "phone",
+                "name": "contactPhone",
+                "title": "Contact Phone"
+                },
+                {
+                "type": "file",
+                "name": "authorizationDocument",
+                "title": "Upload authorization or ID document (optional)",
+                "waitForUpload": true,
+                "maxSize": 2048000
+                }
+            ]
+            },
+            {
+            "name": "signature-final-confirmation",
+            "title": "Signature & Final Confirmation",
+            "elements": [
+                {
+                "type": "html",
+                "name": "signatureInstructions",
+                "html": "<p>Please sign below to confirm your consent.</p>"
+                },
+                {
+                "type": "signaturepad",
+                "name": "signature",
+                "width": "100%",
+                "title": "Signature",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "signatureDate",
+                "title": "Date of Signature",
+                "defaultValueExpression": "today()",
+                "isRequired": true,
+                "inputType": "date"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "patientFullName": "Catherine Moore",
+        "dob": "1968-05-12",
+        "treatmentName": "Knee Arthroscopy",
+        "treatmentDescription": "Minimally invasive surgical procedure to diagnose and treat knee joint problems, including removal of torn cartilage.",
+        "isPatientSigning": "Yes",
+        "consentConfirmation": "Yes",
+        "additionalNotes": "Please ensure the surgical team is aware of my latex allergy.",
+        "signatureDate": "2025-03-01"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "patientFullName": "Noah Fernandez",
+        "dob": "2019-08-03",
+        "treatmentName": "Tonsillectomy",
+        "treatmentDescription": "Surgical removal of the tonsils due to recurring strep throat infections (7 episodes in the past 12 months).",
+        "isPatientSigning": "No",
+        "consentConfirmation": "Yes",
+        "representativeName": "Isabella Fernandez",
+        "relationship": "Mother",
+        "contactPhone": "+1 (512) 555-0634",
+        "signatureDate": "2025-02-27"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "patientFullName": "Gerald Hutchins",
+        "dob": "1952-11-19",
+        "treatmentName": "Coronary Angioplasty",
+        "treatmentDescription": "Procedure to open narrowed or blocked coronary arteries using a balloon catheter, with possible stent placement.",
+        "isPatientSigning": "Yes",
+        "consentConfirmation": "Yes",
+        "additionalNotes": "I have discussed the risks with Dr. Patel and understand the procedure may include stent insertion. I have a known allergy to iodine-based contrast dye — please confirm pre-medication protocol.",
+        "signatureDate": "2025-02-24"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "patientFullName": "Amara Osei",
+        "dob": "1988-03-27",
+        "treatmentName": "Epidural Steroid Injection",
+        "treatmentDescription": "Injection of corticosteroid medication into the epidural space to reduce inflammation and relieve chronic lower back pain.",
+        "isPatientSigning": "Yes",
+        "consentConfirmation": "Yes",
+        "additionalNotes": "I understand this is a temporary pain management option. I'd like to discuss long-term alternatives at my next visit.",
+        "signatureDate": "2025-02-21"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "patientFullName": "Helen Yap",
+        "dob": "1941-07-08",
+        "treatmentName": "Hip Replacement Surgery",
+        "treatmentDescription": "Total hip arthroplasty to replace damaged hip joint with a prosthetic implant due to severe osteoarthritis.",
+        "isPatientSigning": "No",
+        "consentConfirmation": "Yes",
+        "additionalNotes": "Patient has mild dementia and is unable to sign independently. Power of attorney documentation has been provided.",
+        "representativeName": "David Yap",
+        "relationship": "Son (Power of Attorney)",
+        "contactPhone": "+1 (213) 555-0978",
+        "signatureDate": "2025-02-19"
+      }
+    }
+  ]
+}

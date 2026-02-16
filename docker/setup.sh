@@ -37,6 +37,14 @@ USER_EMAIL=${USER_EMAIL:-admin@endatix.com}
 read -p "Enter USER_PASSWORD - Initial admin user password, minimum 8 characters, must include lower and upper case letters, digit and special character (skip to use the default value 'P@ssw0rd'): " USER_PASSWORD
 USER_PASSWORD=${USER_PASSWORD:-P@ssw0rd}
 
+read -p "Seed sample forms and submissions into the database? Enter 'y' or 'n' (skip to use the default value 'y'): " SEED_SAMPLE_FORMS_INPUT
+SEED_SAMPLE_FORMS_INPUT=${SEED_SAMPLE_FORMS_INPUT:-y}
+if [[ "${SEED_SAMPLE_FORMS_INPUT,,}" == "y" ]]; then
+  SEED_SAMPLE_FORMS="true"
+else
+  SEED_SAMPLE_FORMS="false"
+fi
+
 # Create the .env file with the exact structure and values
 cat > .env << EOF
 # Default container port for endatix-api
@@ -56,6 +64,9 @@ USER_EMAIL=$USER_EMAIL
 
 # Parameter user-password
 USER_PASSWORD=$USER_PASSWORD
+
+# Seed sample forms and submissions into the database
+SEED_SAMPLE_FORMS=$SEED_SAMPLE_FORMS
 
 # Container image name for endatix-hub
 ENDATIX_HUB_IMAGE=$ENDATIX_HUB_IMAGE

@@ -41,6 +41,9 @@
 		<Folder Include="Logging/" />
 	</ItemGroup>
 	<ItemGroup>
+		<EmbeddedResource Include="Data\SeedData\Forms\**\*.json" />
+	</ItemGroup>
+	<ItemGroup>
 		<InternalsVisibleTo Include="Endatix.Infrastructure.Tests" />
 		<InternalsVisibleTo Include="DynamicProxyGenAssembly2" PublicKey="$(NSubstitutePublicKey)" />
 	</ItemGroup>

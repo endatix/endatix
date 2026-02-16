@@ -44,6 +44,10 @@ IF "%USER_EMAIL%"=="" set "USER_EMAIL=admin@endatix.com"
 set /p USER_PASSWORD="Enter USER_PASSWORD - Initial admin user password, minimum 8 characters, must include lower and upper case letters, digit and special character (skip to use the default value 'P@ssw0rd'): "
 IF "%USER_PASSWORD%"=="" set "USER_PASSWORD=P@ssw0rd"
 
+set /p SEED_SAMPLE_FORMS_INPUT="Seed sample forms and submissions into the database? Enter 'y' or 'n' (skip to use the default value 'y'): "
+IF "!SEED_SAMPLE_FORMS_INPUT!"=="" set "SEED_SAMPLE_FORMS_INPUT=y"
+IF /I "!SEED_SAMPLE_FORMS_INPUT!"=="y" (set "SEED_SAMPLE_FORMS=true") ELSE (set "SEED_SAMPLE_FORMS=false")
+
 REM Create the .env file with the exact structure and values
 (
     echo # Default container port for endatix-api
@@ -63,6 +67,9 @@ REM Create the .env file with the exact structure and values
     echo.
     echo # Parameter user-password
     echo USER_PASSWORD=!USER_PASSWORD!
+    echo.
+    echo # Seed sample forms and submissions into the database
+    echo SEED_SAMPLE_FORMS=!SEED_SAMPLE_FORMS!
     echo.
     echo # Container image name for endatix-hub
     echo ENDATIX_HUB_IMAGE=%ENDATIX_HUB_IMAGE%

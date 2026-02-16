@@ -40,6 +40,7 @@ services:
       Endatix__Jwt__SigningKey: "AghmwSuu9G7NCOJd1axzGfRuF8O/cxiahWUUrZMszw8="
       Endatix__Data__EnableAutoMigrations: "true"
       Endatix__Data__SeedSampleData: "true"
+      Endatix__Data__SeedSampleForms: "${SEED_SAMPLE_FORMS}"
       Endatix__Data__InitialUser__Email: "${USER_EMAIL}"
       Endatix__Data__InitialUser__Password: "${USER_PASSWORD}"
       Endatix__Cors__DefaultPolicyName: "AllowAll"
