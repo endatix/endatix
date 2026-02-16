@@ -6,5 +6,6 @@ namespace Endatix.Core.Abstractions.Authorization;
 public static class ResourceTypes
 {
     public const string Form = "form";
+    
     public const string Submission = "submission";
 }
