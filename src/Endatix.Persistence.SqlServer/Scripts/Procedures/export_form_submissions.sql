@@ -90,17 +90,14 @@ BEGIN
 
     WHILE @@FETCH_STATUS = 0
                 BEGIN
-        -- For each submission, add this question's value to the JSON
+        -- Preserve JSON structure: JSON_QUERY returns array/object as JSON fragment (OPENJSON value would stringify).
+        DECLARE @path nvarchar(512) = N'$."' + REPLACE(@name, N'''', N'''''') + N'"';
         DECLARE @updateSql nvarchar(max) = N'
                     UPDATE r
                     SET AnswersJson = JSON_MODIFY(
                         AnswersJson, 
-                        ''$."' + @name + '"'',
-                        ISNULL((
-                            SELECT value 
-                            FROM OPENJSON((SELECT JsonData FROM dbo.Submissions WHERE Id = r.Id)) 
-                            WHERE [key] = ''' + @name + '''
-                        ), '''')
+                        ''$."' + REPLACE(@name, N'''', N'''''') + N'"'',
+                        ISNULL(JSON_QUERY((SELECT JsonData FROM dbo.Submissions WHERE Id = r.Id), N''' + REPLACE(@path, N'''', N'''''') + N'''), ''""'')
                     )
                     FROM #Results r;';
 

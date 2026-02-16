@@ -1,0 +1,156 @@
+{
+  "form": {
+    "name": "Mortgage/Loan Calculator"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Mortgage / Loan Calculator",
+        "description": "Estimate your monthly loan payment based on key inputs.",
+        "pages": [
+            {
+            "name": "loan-details",
+            "title": "Loan Details",
+            "elements": [
+                {
+                "type": "text",
+                "name": "loanAmount",
+                "title": "Loan Amount (USD)",
+                "isRequired": true,
+                "inputType": "number",
+                "min": 1000,
+                "step": 100
+                },
+                {
+                "type": "text",
+                "name": "interestRate",
+                "title": "Annual Interest Rate (%)",
+                "isRequired": true,
+                "inputType": "number",
+                "min": 0.1,
+                "max": 30,
+                "step": 0.01
+                },
+                {
+                "type": "dropdown",
+                "name": "loanTerm",
+                "title": "Loan Term (Years)",
+                "defaultValue": "30",
+                "isRequired": true,
+                "choices": [
+                    "10",
+                    "15",
+                    "20",
+                    "25",
+                    "30"
+                ]
+                },
+                {
+                "type": "text",
+                "name": "propertyTax",
+                "title": "Annual Property Tax (optional)",
+                "defaultValue": 0,
+                "inputType": "number"
+                },
+                {
+                "type": "text",
+                "name": "insurance",
+                "title": "Annual Homeowners Insurance (optional)",
+                "defaultValue": 0,
+                "inputType": "number"
+                }
+            ]
+            },
+            {
+            "name": "estimated-monthly-payment",
+            "title": "Estimated Monthly Payment",
+            "elements": [
+                {
+                "type": "html",
+                "name": "summary",
+                "html": "<h3>Results</h3>\n<p><strong>Loan Amount:</strong> ${loanAmount}</p>\n<p><strong>Interest Rate:</strong> {interestRate}%</p>\n<p><strong>Loan Term:</strong> {loanTerm} years</p>\n<p><strong>Monthly Rate (debug):</strong> {monthlyRate}</p>\n<p><strong>Number of Payments (debug):</strong> {numPayments}</p>\n<hr/>\n<p><strong>Monthly Principal & Interest:</strong> <span style='color:green;'>${monthlyPayment}</span></p>\n<p><strong>Monthly Taxes & Insurance:</strong> ${monthlyEscrow}</p>\n<p><strong>Total Monthly Payment:</strong> <span style='font-size:1.2em;font-weight:bold;'>${totalMonthly}</span></p>\n"
+                }
+            ]
+            }
+        ],
+        "calculatedValues": [
+            {
+            "name": "monthlyRate",
+            "expression": "{interestRate} / 1200"
+            },
+            {
+            "name": "numPayments",
+            "expression": "{loanTerm} * 12"
+            },
+            {
+            "name": "monthlyPayment",
+            "expression": "round(({loanAmount} * {monthlyRate}) / (1 - pow(1 + {monthlyRate}, -1 * {numPayments})), 2)"
+            },
+            {
+            "name": "monthlyEscrow",
+            "expression": "round(({propertyTax} + {insurance}) / 12, 2)"
+            },
+            {
+            "name": "totalMonthly",
+            "expression": "round({monthlyPayment} + {monthlyEscrow}, 2)"
+            }
+        ]
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "loanAmount": 320000,
+        "interestRate": 6.75,
+        "loanTerm": "30",
+        "propertyTax": 4800,
+        "insurance": 1200
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "loanAmount": 550000,
+        "interestRate": 6.25,
+        "loanTerm": "30",
+        "propertyTax": 7500,
+        "insurance": 2000
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "loanAmount": 185000,
+        "interestRate": 5.99,
+        "loanTerm": "15",
+        "propertyTax": 2400,
+        "insurance": 900
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "loanAmount": 420000,
+        "interestRate": 7.10,
+        "loanTerm": "25",
+        "propertyTax": 6000,
+        "insurance": 1500
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "loanAmount": 95000,
+        "interestRate": 8.25,
+        "loanTerm": "10",
+        "propertyTax": 0,
+        "insurance": 0
+      }
+    }
+  ]
+}

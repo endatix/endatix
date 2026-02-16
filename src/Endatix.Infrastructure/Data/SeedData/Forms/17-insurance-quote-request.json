@@ -1,0 +1,272 @@
+{
+  "form": {
+    "name": "Insurance Quote Request"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Insurance Quote Request Form",
+        "description": "Please provide the following information to receive an insurance quote.",
+        "pages": [
+            {
+            "name": "basic-information",
+            "title": "Basic Information",
+            "elements": [
+                {
+                "type": "dropdown",
+                "name": "insuranceType",
+                "title": "What type of insurance do you need?",
+                "isRequired": true,
+                "choices": [
+                    "Auto",
+                    "Home",
+                    "Life"
+                ]
+                },
+                {
+                "type": "text",
+                "name": "fullName",
+                "title": "Full Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "email",
+                "title": "Email",
+                "isRequired": true,
+                "inputType": "email"
+                },
+                {
+                "type": "phone",
+                "name": "phone"
+                }
+            ]
+            },
+            {
+            "name": "auto-insurance",
+            "visibleIf": "{insuranceType} = 'Auto'",
+            "title": "Auto Insurance",
+            "elements": [
+                {
+                "type": "text",
+                "name": "vehicleMake",
+                "title": "Vehicle Make",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "vehicleModel",
+                "title": "Vehicle Model",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "vehicleYear",
+                "title": "Year of Manufacture",
+                "isRequired": true,
+                "inputType": "number"
+                },
+                {
+                "type": "text",
+                "name": "vin",
+                "title": "Vehicle Identification Number (VIN)"
+                },
+                {
+                "type": "boolean",
+                "name": "hasPreviousClaimsAuto",
+                "title": "Have you had any claims in the past 5 years?",
+                "swapOrder": true
+                }
+            ]
+            },
+            {
+            "name": "home-insurance",
+            "visibleIf": "{insuranceType} = 'Home'",
+            "title": "Home Insurance",
+            "elements": [
+                {
+                "type": "text",
+                "name": "propertyAddress",
+                "title": "Property Address",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "yearBuilt",
+                "title": "Year Built",
+                "isRequired": true,
+                "inputType": "number"
+                },
+                {
+                "type": "dropdown",
+                "name": "propertyType",
+                "title": "Type of Property",
+                "choices": [
+                    "Single Family",
+                    "Condo",
+                    "Townhouse",
+                    "Multi-Family"
+                ],
+                "showOtherItem": true
+                },
+                {
+                "type": "text",
+                "name": "estimatedValue",
+                "title": "Estimated Property Value (USD)",
+                "inputType": "number"
+                },
+                {
+                "type": "boolean",
+                "name": "hasSecuritySystem",
+                "title": "Does the property have a security system?",
+                "swapOrder": true
+                }
+            ]
+            },
+            {
+            "name": "life-insurance",
+            "visibleIf": "{insuranceType} = 'Life'",
+            "title": "Life Insurance",
+            "elements": [
+                {
+                "type": "text",
+                "name": "dob",
+                "title": "Date of Birth",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "radiogroup",
+                "name": "gender",
+                "title": "Gender",
+                "choices": [
+                    "Male",
+                    "Female"
+                ]
+                },
+                {
+                "type": "text",
+                "name": "coverageAmount",
+                "title": "Desired Coverage Amount (USD)",
+                "isRequired": true,
+                "inputType": "number"
+                },
+                {
+                "type": "boolean",
+                "name": "smoker",
+                "title": "Do you smoke?",
+                "swapOrder": true
+                },
+                {
+                "type": "comment",
+                "name": "healthConditions",
+                "title": "Please list any pre-existing health conditions (optional)"
+                }
+            ]
+            },
+            {
+            "name": "optional-comments",
+            "title": "Optional Comments",
+            "elements": [
+                {
+                "type": "comment",
+                "name": "additionalNotes",
+                "title": "Any additional information or questions?"
+                }
+            ]
+            },
+            {
+            "name": "confirmation",
+            "title": "Confirmation",
+            "elements": [
+                {
+                "type": "html",
+                "name": "confirmationText",
+                "html": "<h3>Thank you!</h3><p>We have received your request and will reach out shortly with your quote.</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "insuranceType": "Auto",
+        "fullName": "Kevin Marsh",
+        "email": "kevin.marsh@gmail.com",
+        "phone": "+1 (617) 555-0293",
+        "vehicleMake": "Toyota",
+        "vehicleModel": "RAV4 Hybrid",
+        "vehicleYear": 2023,
+        "vin": "2T3MWRFV5PW123456",
+        "hasPreviousClaimsAuto": false
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "insuranceType": "Home",
+        "fullName": "Diane Westbrook",
+        "email": "diane.westbrook@comcast.net",
+        "phone": "+1 (503) 555-0847",
+        "propertyAddress": "4421 Cedar Ridge Rd, Portland, OR 97219",
+        "yearBuilt": 1998,
+        "propertyType": "Single Family",
+        "estimatedValue": 580000,
+        "hasSecuritySystem": true,
+        "additionalNotes": "Recently installed a new roof (2024) and upgraded electrical panel. Interested in bundling with auto insurance."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "insuranceType": "Life",
+        "fullName": "Samuel Okonkwo",
+        "email": "s.okonkwo@yahoo.com",
+        "phone": "+1 (713) 555-0518",
+        "dob": "1984-07-30",
+        "gender": "Male",
+        "coverageAmount": 750000,
+        "smoker": false,
+        "healthConditions": "Managed type 2 diabetes, well controlled with medication. No other significant conditions."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "insuranceType": "Auto",
+        "fullName": "Isabelle Fontaine",
+        "email": "isabelle.fontaine@outlook.fr",
+        "phone": "+33 6 55 01 23 45",
+        "vehicleMake": "Renault",
+        "vehicleModel": "Clio",
+        "vehicleYear": 2021,
+        "vin": "VF1RJA00161234567",
+        "hasPreviousClaimsAuto": true,
+        "additionalNotes": "One minor collision claim in 2023 (rear-end, not at fault). No traffic violations."
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "insuranceType": "Home",
+        "fullName": "George and Helen Stafford",
+        "email": "g.stafford@hotmail.com",
+        "phone": "+1 (404) 555-0662",
+        "propertyAddress": "720 Peachtree Battle Ave NW, Atlanta, GA 30305",
+        "yearBuilt": 1965,
+        "propertyType": "Single Family",
+        "estimatedValue": 895000,
+        "hasSecuritySystem": true,
+        "additionalNotes": "Historic property, original hardwood floors throughout. Interested in coverage that includes guaranteed replacement cost. Please advise on flood insurance options as well."
+      }
+    }
+  ]
+}

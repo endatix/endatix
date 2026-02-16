@@ -53,6 +53,7 @@ public class InfrastructureSecurityBuilder
         LogSetupInfo("Configuring security infrastructure with default settings");
 
         Services.AddEndatixSecurityServices(Configuration);
+        
         ConfigureIdentity();
         AddEndatixJwtAuthProvider();
 

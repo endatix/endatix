@@ -1,0 +1,429 @@
+{
+  "form": {
+    "name": "Loan/Credit Application"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Loan/Credit Application Form",
+        "description": "Please fill out the form to apply for a loan or credit.",
+        "pages": [
+            {
+            "name": "applicant-information",
+            "title": "Applicant Information",
+            "elements": [
+                {
+                "type": "text",
+                "name": "fullName",
+                "title": "Full Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "dob",
+                "title": "Date of Birth",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "radiogroup",
+                "name": "maritalStatus",
+                "title": "Marital Status",
+                "choices": [
+                    "Single",
+                    "Married",
+                    "Divorced",
+                    "Widowed"
+                ]
+                },
+                {
+                "type": "dropdown",
+                "name": "residency",
+                "title": "Country of Residency",
+                "isRequired": true,
+                "choicesByUrl": {
+                    "url": "https://surveyjs.io/api/CountriesExample",
+                    "valueName": "name"
+                }
+                },
+                {
+                "type": "text",
+                "name": "idNumber",
+                "title": "National ID or Passport",
+                "isRequired": true
+                },
+                {
+                "type": "file",
+                "name": "idUpload",
+                "title": "Upload ID Document",
+                "isRequired": true,
+                "waitForUpload": true,
+                "maxSize": 4096000
+                }
+            ]
+            },
+            {
+            "name": "contact-details",
+            "title": "Contact Details",
+            "elements": [
+                {
+                "type": "text",
+                "name": "email",
+                "title": "Email",
+                "isRequired": true,
+                "inputType": "email"
+                },
+                {
+                "type": "phone",
+                "name": "phone",
+                "title": "Phone Number",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "address",
+                "title": "Residential Address",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "city",
+                "title": "City",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "postalCode",
+                "title": "Postal Code"
+                }
+            ]
+            },
+            {
+            "name": "loan-details",
+            "title": "Loan Details",
+            "elements": [
+                {
+                "type": "dropdown",
+                "name": "loanType",
+                "title": "Type of Loan",
+                "isRequired": true,
+                "choices": [
+                    "Personal",
+                    "Auto",
+                    "Home",
+                    "Business"
+                ]
+                },
+                {
+                "type": "text",
+                "name": "loanAmount",
+                "title": "Requested Loan Amount (in USD)",
+                "isRequired": true,
+                "inputType": "number"
+                },
+                {
+                "type": "text",
+                "name": "loanDuration",
+                "title": "Loan Term (in months)",
+                "isRequired": true,
+                "inputType": "number"
+                },
+                {
+                "type": "comment",
+                "name": "loanPurpose",
+                "title": "Purpose of Loan",
+                "isRequired": true
+                },
+                {
+                "type": "file",
+                "name": "supportingDocs",
+                "title": "Upload Supporting Documents (optional)",
+                "waitForUpload": true,
+                "maxSize": 8192000
+                }
+            ]
+            },
+            {
+            "name": "employment-income",
+            "title": "Employment & Income",
+            "elements": [
+                {
+                "type": "dropdown",
+                "name": "employmentStatus",
+                "title": "Employment Status",
+                "isRequired": true,
+                "choices": [
+                    "Employed",
+                    "Self-employed",
+                    "Unemployed",
+                    "Student",
+                    "Retired"
+                ]
+                },
+                {
+                "type": "text",
+                "name": "employerName",
+                "visibleIf": "{employmentStatus} = 'Employed' or {employmentStatus} = 'Self-employed'",
+                "title": "Employer Name"
+                },
+                {
+                "type": "text",
+                "name": "position",
+                "visibleIf": "{employmentStatus} = 'Employed' or {employmentStatus} = 'Self-employed'",
+                "title": "Job Title/Position"
+                },
+                {
+                "type": "text",
+                "name": "monthlyIncome",
+                "title": "Monthly Income (USD)",
+                "isRequired": true,
+                "inputType": "number"
+                },
+                {
+                "type": "file",
+                "name": "incomeProof",
+                "title": "Upload Income Proof (e.g., payslip)",
+                "isRequired": true,
+                "waitForUpload": true,
+                "maxSize": 4096000
+                }
+            ]
+            },
+            {
+            "name": "additional-details",
+            "title": "Additional Details",
+            "elements": [
+                {
+                "type": "boolean",
+                "name": "hasCoApplicant",
+                "title": "Do you have a co-applicant?",
+                "isRequired": true,
+                "swapOrder": true
+                },
+                {
+                "type": "panel",
+                "name": "coApplicantInfo",
+                "visibleIf": "{hasCoApplicant} = true",
+                "title": "Co-applicant Details",
+                "elements": [
+                    {
+                    "type": "text",
+                    "name": "coFullName",
+                    "title": "Full Name",
+                    "isRequired": true
+                    },
+                    {
+                    "type": "text",
+                    "name": "coIncome",
+                    "title": "Monthly Income (USD)",
+                    "isRequired": true,
+                    "inputType": "number"
+                    }
+                ]
+                },
+                {
+                "type": "boolean",
+                "name": "existingLoans",
+                "title": "Do you currently have any other loans?"
+                },
+                {
+                "type": "comment",
+                "name": "loanDetails",
+                "visibleIf": "{existingLoans} = true",
+                "title": "If yes, please provide details"
+                }
+            ]
+            },
+            {
+            "name": "consent-signature",
+            "title": "Consent & Signature",
+            "elements": [
+                {
+                "type": "checkbox",
+                "name": "declarations",
+                "title": "Declarations",
+                "isRequired": true,
+                "choices": [
+                    "I confirm that all information provided is true and correct.",
+                    "I authorize the institution to verify my credit history and other details."
+                ]
+                },
+                {
+                "type": "signaturepad",
+                "name": "signature",
+                "title": "Digital Signature",
+                "isRequired": true,
+                "waitForUpload": true
+                },
+                {
+                "type": "text",
+                "name": "signatureDate",
+                "title": "Date",
+                "defaultValueExpression": "today()",
+                "isRequired": true,
+                "inputType": "date"
+                }
+            ]
+            },
+            {
+            "name": "confirmation",
+            "title": "Confirmation",
+            "elements": [
+                {
+                "type": "html",
+                "name": "confirmationText",
+                "html": "<p>Thank you. Your loan application has been received. We will contact you shortly.</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Victor Andrade",
+        "dob": "1987-03-22",
+        "maritalStatus": "Married",
+        "residency": "United States",
+        "idNumber": "US-PA-445-678-210",
+        "email": "victor.andrade@gmail.com",
+        "phone": "+1 (305) 555-0721",
+        "address": "1240 SW 8th St, Apt 305",
+        "city": "Miami",
+        "postalCode": "33135",
+        "loanType": "Auto",
+        "loanAmount": 28000,
+        "loanDuration": 60,
+        "loanPurpose": "Purchasing a 2024 Toyota Camry Hybrid. The loan will cover the balance after a $5,000 down payment.",
+        "employmentStatus": "Employed",
+        "employerName": "Carnival Corporation",
+        "position": "Fleet Logistics Manager",
+        "monthlyIncome": 7200,
+        "hasCoApplicant": false,
+        "existingLoans": true,
+        "loanDetails": "Active mortgage: $1,650/month remaining balance ~$180,000. No other loans.",
+        "declarations": ["I confirm that all information provided is true and correct.", "I authorize the institution to verify my credit history and other details."],
+        "signatureDate": "2025-02-06"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Sandra Lee",
+        "dob": "1979-11-08",
+        "maritalStatus": "Single",
+        "residency": "Canada",
+        "idNumber": "CA-AB-987-123-456",
+        "email": "sandra.lee@telus.net",
+        "phone": "+1 (403) 555-0394",
+        "address": "850 Kensington Rd NW",
+        "city": "Calgary",
+        "postalCode": "T2N 3R5",
+        "loanType": "Business",
+        "loanAmount": 75000,
+        "loanDuration": 84,
+        "loanPurpose": "Expanding a boutique catering business — purchasing a commercial refrigerated van and additional kitchen equipment. Business is 4 years old with consistent profitability.",
+        "employmentStatus": "Self-employed",
+        "employerName": "Sandra Lee Catering Inc.",
+        "position": "Owner / Executive Chef",
+        "monthlyIncome": 9800,
+        "hasCoApplicant": false,
+        "existingLoans": false,
+        "declarations": ["I confirm that all information provided is true and correct.", "I authorize the institution to verify my credit history and other details."],
+        "signatureDate": "2025-02-08"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "fullName": "Dylan Park",
+        "dob": "1995-06-14",
+        "maritalStatus": "Single",
+        "residency": "United States",
+        "idNumber": "US-NY-112-334-556",
+        "email": "dylan.park@nyu.edu",
+        "phone": "+1 (212) 555-0584",
+        "address": "120 E 14th St",
+        "city": "New York",
+        "postalCode": "10003",
+        "loanType": "Personal",
+        "loanAmount": 15000,
+        "loanDuration": 36,
+        "loanPurpose": "Debt consolidation. Combining 3 credit cards with a total balance of ~$14,800 to reduce monthly payments and interest rate.",
+        "employmentStatus": "Employed",
+        "employerName": "McKinsey & Company",
+        "position": "Junior Consultant",
+        "monthlyIncome": 5400,
+        "hasCoApplicant": false,
+        "existingLoans": true,
+        "loanDetails": "Three credit cards: Chase ($5,500), Amex ($4,800), Citi ($4,500). These will be paid off with the loan proceeds.",
+        "declarations": ["I confirm that all information provided is true and correct.", "I authorize the institution to verify my credit history and other details."],
+        "signatureDate": "2025-02-10"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "fullName": "Patricia O'Brien",
+        "dob": "1963-08-31",
+        "maritalStatus": "Married",
+        "residency": "Ireland",
+        "idNumber": "IE-PPS-7654321A",
+        "email": "patricia.obrien@eircom.net",
+        "phone": "+353 87 555 2210",
+        "address": "45 Grafton Park",
+        "city": "Dublin",
+        "postalCode": "D02 X285",
+        "loanType": "Home",
+        "loanAmount": 180000,
+        "loanDuration": 240,
+        "loanPurpose": "Home renovation — full kitchen remodel, bathroom upgrades, and insulation improvement for a 1970s semi-detached house.",
+        "employmentStatus": "Employed",
+        "employerName": "AIB Group",
+        "position": "Senior Branch Manager",
+        "monthlyIncome": 8600,
+        "hasCoApplicant": true,
+        "coFullName": "Brendan O'Brien",
+        "coIncome": 6200,
+        "existingLoans": true,
+        "loanDetails": "Primary mortgage with remaining balance of €95,000, monthly repayment €740.",
+        "declarations": ["I confirm that all information provided is true and correct.", "I authorize the institution to verify my credit history and other details."],
+        "signatureDate": "2025-02-12"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Mohammed Al-Farsi",
+        "dob": "1990-01-25",
+        "maritalStatus": "Married",
+        "residency": "United Arab Emirates",
+        "idNumber": "AE-784-1990-1234567",
+        "email": "m.alfarsi@adnoc.ae",
+        "phone": "+971 50 555 7441",
+        "address": "Corniche Road, Al Bateen",
+        "city": "Abu Dhabi",
+        "postalCode": "00000",
+        "loanType": "Personal",
+        "loanAmount": 50000,
+        "loanDuration": 48,
+        "loanPurpose": "Family medical expenses and partial funding for a family member's education overseas.",
+        "employmentStatus": "Employed",
+        "employerName": "ADNOC Distribution",
+        "position": "Senior Operations Engineer",
+        "monthlyIncome": 18500,
+        "hasCoApplicant": false,
+        "existingLoans": false,
+        "declarations": ["I confirm that all information provided is true and correct.", "I authorize the institution to verify my credit history and other details."],
+        "signatureDate": "2025-02-14"
+      }
+    }
+  ]
+}

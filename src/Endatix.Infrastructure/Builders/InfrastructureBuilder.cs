@@ -3,7 +3,6 @@ using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Infrastructure;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Framework.Hosting;
-using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Multitenancy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,12 +84,9 @@ public class InfrastructureBuilder
         LogSetupInfo("Configuring infrastructure with default settings");
 
         // Configure core infrastructure services
-        Services.AddHttpContextAccessor();
+        Services.AddCoreInfrastructure();
         Services.AddWebHookProcessing();
         Services.AddMultitenancyConfiguration();
-        Services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
-        Services.AddScoped<ISubmissionAccessControl, SubmissionAccessControl>();
-        Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
         Data.UseDefaults();
         Messaging.UseDefaults();

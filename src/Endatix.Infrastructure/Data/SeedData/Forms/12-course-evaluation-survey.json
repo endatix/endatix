@@ -1,0 +1,275 @@
+{
+  "form": {
+    "name": "Course Evaluation Survey"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Course Evaluation Survey",
+        "description": "We appreciate your feedback on the course. Your responses will help us improve future sessions.",
+        "pages": [
+            {
+            "name": "course-content-delivery",
+            "title": "Course Content & Delivery",
+            "elements": [
+                {
+                "type": "text",
+                "name": "courseTitle",
+                "title": "Course Title",
+                "isRequired": true
+                },
+                {
+                "type": "matrix",
+                "name": "contentEvaluation",
+                "title": "Please rate the following aspects of the course:",
+                "columns": [
+                    {
+                    "value": "1",
+                    "text": "Very Poor"
+                    },
+                    {
+                    "value": "2",
+                    "text": "Poor"
+                    },
+                    {
+                    "value": "3",
+                    "text": "Average"
+                    },
+                    {
+                    "value": "4",
+                    "text": "Good"
+                    },
+                    {
+                    "value": "5",
+                    "text": "Excellent"
+                    }
+                ],
+                "rows": [
+                    {
+                    "value": "contentClarity",
+                    "text": "Clarity of course content"
+                    },
+                    {
+                    "value": "contentRelevance",
+                    "text": "Relevance to your learning goals"
+                    },
+                    {
+                    "value": "materialQuality",
+                    "text": "Quality of course materials"
+                    },
+                    {
+                    "value": "pace",
+                    "text": "Appropriate pace of delivery"
+                    }
+                ],
+                "eachRowRequired": true
+                },
+                {
+                "type": "rating",
+                "name": "contentSatisfaction",
+                "title": "Overall satisfaction with course content",
+                "isRequired": true
+                },
+                {
+                "type": "comment",
+                "name": "lowContentFeedback",
+                "visibleIf": "{contentSatisfaction} <= 3",
+                "title": "What could be improved in the course content?"
+                }
+            ]
+            },
+            {
+            "name": "instructor-evaluation",
+            "title": "Instructor Evaluation",
+            "elements": [
+                {
+                "type": "text",
+                "name": "instructorName",
+                "title": "Instructor Name",
+                "isRequired": true
+                },
+                {
+                "type": "matrix",
+                "name": "instructorEvaluation",
+                "title": "Please rate the following aspects of the instructor:",
+                "columns": [
+                    {
+                    "value": "1",
+                    "text": "Very Poor"
+                    },
+                    {
+                    "value": "2",
+                    "text": "Poor"
+                    },
+                    {
+                    "value": "3",
+                    "text": "Average"
+                    },
+                    {
+                    "value": "4",
+                    "text": "Good"
+                    },
+                    {
+                    "value": "5",
+                    "text": "Excellent"
+                    }
+                ],
+                "rows": [
+                    {
+                    "value": "knowledge",
+                    "text": "Subject knowledge"
+                    },
+                    {
+                    "value": "clarity",
+                    "text": "Clarity of explanations"
+                    },
+                    {
+                    "value": "engagement",
+                    "text": "Engagement and interaction"
+                    },
+                    {
+                    "value": "responsiveness",
+                    "text": "Responsiveness to questions"
+                    }
+                ],
+                "eachRowRequired": true
+                },
+                {
+                "type": "rating",
+                "name": "instructorSatisfaction",
+                "title": "Overall satisfaction with the instructor",
+                "isRequired": true
+                },
+                {
+                "type": "comment",
+                "name": "lowInstructorFeedback",
+                "visibleIf": "{instructorSatisfaction} <= 3",
+                "title": "What could be improved in the instruction?"
+                }
+            ]
+            },
+            {
+            "name": "overall-experience",
+            "title": "Overall Experience",
+            "elements": [
+                {
+                "type": "rating",
+                "name": "overallExperience",
+                "title": "How would you rate your overall course experience?",
+                "isRequired": true,
+                "minRateDescription": "Very Dissatisfied",
+                "maxRateDescription": "Very Satisfied"
+                },
+                {
+                "type": "radiogroup",
+                "name": "wouldRecommend",
+                "title": "Would you recommend this course to others?",
+                "choices": [
+                    "Yes",
+                    "No",
+                    "Not sure"
+                ]
+                },
+                {
+                "type": "comment",
+                "name": "finalComments",
+                "title": "Any final comments, suggestions, or praise?"
+                }
+            ]
+            },
+            {
+            "name": "thank-you",
+            "title": "Thank You",
+            "elements": [
+                {
+                "type": "html",
+                "name": "thanks",
+                "html": "<p>Thank you for your feedback!</p><p>Your input is valuable and helps us improve future courses.</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "courseTitle": "Introduction to Data Science with Python",
+        "contentEvaluation": { "contentClarity": "5", "contentRelevance": "5", "materialQuality": "5", "pace": "4" },
+        "contentSatisfaction": 5,
+        "instructorName": "Dr. Sarah Mitchell",
+        "instructorEvaluation": { "knowledge": "5", "clarity": "5", "engagement": "5", "responsiveness": "4" },
+        "instructorSatisfaction": 5,
+        "overallExperience": 5,
+        "wouldRecommend": "Yes",
+        "finalComments": "One of the best online courses I've taken. Dr. Mitchell's ability to make complex statistical concepts approachable is exceptional. The Jupyter notebook exercises were perfectly calibrated."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "courseTitle": "Digital Marketing Fundamentals",
+        "contentEvaluation": { "contentClarity": "3", "contentRelevance": "4", "materialQuality": "3", "pace": "2" },
+        "contentSatisfaction": 2,
+        "lowContentFeedback": "The course moves too fast in weeks 3 and 4, covering SEO and paid ads in just two sessions. These topics deserve far more depth. The case studies are outdated — referencing 2018 campaigns.",
+        "instructorName": "Prof. James Nguyen",
+        "instructorEvaluation": { "knowledge": "4", "clarity": "3", "engagement": "3", "responsiveness": "2" },
+        "instructorSatisfaction": 3,
+        "lowInstructorFeedback": "Office hours are rarely available and email responses take 3-4 days. For a paid course, this responsiveness is not acceptable.",
+        "overallExperience": 3,
+        "wouldRecommend": "Not sure",
+        "finalComments": "The instructor knows the subject but needs to update the materials and improve student support."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "courseTitle": "UX Design Principles and Practice",
+        "contentEvaluation": { "contentClarity": "5", "contentRelevance": "5", "materialQuality": "4", "pace": "5" },
+        "contentSatisfaction": 5,
+        "instructorName": "Elena Vasquez",
+        "instructorEvaluation": { "knowledge": "5", "clarity": "4", "engagement": "5", "responsiveness": "5" },
+        "instructorSatisfaction": 5,
+        "overallExperience": 5,
+        "wouldRecommend": "Yes",
+        "finalComments": "The portfolio project component is what sets this course apart. I landed a junior UX role within 2 months of completing it. Highly recommended for anyone transitioning into design."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "courseTitle": "Financial Accounting for Non-Accountants",
+        "contentEvaluation": { "contentClarity": "4", "contentRelevance": "5", "materialQuality": "4", "pace": "3" },
+        "contentSatisfaction": 4,
+        "instructorName": "Robert Chang",
+        "instructorEvaluation": { "knowledge": "5", "clarity": "4", "engagement": "3", "responsiveness": "4" },
+        "instructorSatisfaction": 4,
+        "overallExperience": 4,
+        "wouldRecommend": "Yes",
+        "finalComments": "Very practical content — I now understand P&L statements and can read a balance sheet. The live Q&A sessions were valuable. Would benefit from more real-world examples in the video lectures."
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "courseTitle": "Agile Project Management",
+        "contentEvaluation": { "contentClarity": "2", "contentRelevance": "3", "materialQuality": "2", "pace": "4" },
+        "contentSatisfaction": 2,
+        "lowContentFeedback": "The content feels like a superficial overview rather than a practical guide. Too much time spent on theory, not enough on how Agile actually works in real teams.",
+        "instructorName": "Carol Patterson",
+        "instructorEvaluation": { "knowledge": "3", "clarity": "2", "engagement": "2", "responsiveness": "3" },
+        "instructorSatisfaction": 2,
+        "lowInstructorFeedback": "The instructor reads directly from slides without adding additional context or examples. The engagement is low and questions in the chat are often ignored.",
+        "overallExperience": 2,
+        "wouldRecommend": "No",
+        "finalComments": "Would not recommend in its current form. The certification it provides is not recognized by major employers, which was not disclosed upfront."
+      }
+    }
+  ]
+}

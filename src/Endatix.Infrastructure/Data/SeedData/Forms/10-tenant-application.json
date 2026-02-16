@@ -1,0 +1,329 @@
+{
+  "form": {
+    "name": "Tenant Application"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Tenant Rental Application",
+        "description": "Complete this form to apply for a rental unit.",
+        "pages": [
+            {
+            "name": "personal-information",
+            "title": "Personal Information",
+            "elements": [
+                {
+                "type": "text",
+                "name": "fullName",
+                "title": "Full Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "dob",
+                "title": "Date of Birth",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "text",
+                "name": "ssn",
+                "title": "Social Security Number (optional)",
+                "inputType": "password"
+                },
+                {
+                "type": "phone",
+                "name": "phone",
+                "title": "Phone Number",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "email",
+                "title": "Email Address",
+                "isRequired": true,
+                "inputType": "email"
+                },
+                {
+                "type": "file",
+                "name": "idUpload",
+                "title": "Upload a government-issued ID (PDF or image)",
+                "isRequired": true,
+                "waitForUpload": true,
+                "maxSize": 4096000
+                },
+                {
+                "type": "boolean",
+                "name": "hasCoApplicant",
+                "title": "Will there be a co-applicant?",
+                "swapOrder": true
+                },
+                {
+                "type": "text",
+                "name": "coApplicantName",
+                "visibleIf": "{hasCoApplicant} = true",
+                "title": "Co-applicant Full Name"
+                }
+            ]
+            },
+            {
+            "name": "employment-income",
+            "title": "Employment & Income",
+            "elements": [
+                {
+                "type": "text",
+                "name": "employerName",
+                "title": "Current Employer",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "jobTitle",
+                "title": "Job Title"
+                },
+                {
+                "type": "text",
+                "name": "monthlyIncome",
+                "title": "Monthly Income (in USD)",
+                "isRequired": true,
+                "inputType": "number"
+                },
+                {
+                "type": "file",
+                "name": "incomeProof",
+                "title": "Upload proof of income (pay stub or bank statement)",
+                "isRequired": true,
+                "waitForUpload": true,
+                "maxSize": 4096000
+                }
+            ]
+            },
+            {
+            "name": "rental-history",
+            "title": "Rental History",
+            "elements": [
+                {
+                "type": "paneldynamic",
+                "name": "pastResidences",
+                "title": "Previous Residences",
+                "templateElements": [
+                    {
+                    "type": "text",
+                    "name": "address",
+                    "title": "Address",
+                    "isRequired": true
+                    },
+                    {
+                    "type": "text",
+                    "name": "landlordName",
+                    "title": "Landlord/Manager Name"
+                    },
+                    {
+                    "type": "phone",
+                    "name": "landlordPhone",
+                    "title": "Landlord Phone"
+                    },
+                    {
+                    "type": "text",
+                    "name": "duration",
+                    "title": "How long did you live there?"
+                    }
+                ],
+                "addPanelText": "Add Residence"
+                }
+            ]
+            },
+            {
+            "name": "references-pets",
+            "title": "References & Pets",
+            "elements": [
+                {
+                "type": "paneldynamic",
+                "name": "references",
+                "title": "Personal or Professional References",
+                "templateElements": [
+                    {
+                    "type": "text",
+                    "name": "refName",
+                    "title": "Name",
+                    "isRequired": true
+                    },
+                    {
+                    "type": "phone",
+                    "name": "refPhone",
+                    "title": "Phone"
+                    },
+                    {
+                    "type": "text",
+                    "name": "refRelationship",
+                    "title": "Relationship"
+                    }
+                ],
+                "templateTitle": "Reference #{panelIndex}",
+                "addPanelText": "Add Reference"
+                },
+                {
+                "type": "boolean",
+                "name": "hasPets",
+                "title": "Do you have pets?",
+                "swapOrder": true
+                },
+                {
+                "type": "comment",
+                "name": "petDetails",
+                "visibleIf": "{hasPets} = true",
+                "title": "Please describe your pets (type, breed, size)"
+                }
+            ]
+            },
+            {
+            "name": "consent-signature",
+            "title": "Consent & Signature",
+            "elements": [
+                {
+                "type": "html",
+                "name": "consentText",
+                "html": "<p>I hereby declare that the information provided is true and authorize background and credit checks as part of this application.</p>"
+                },
+                {
+                "type": "signaturepad",
+                "name": "applicantSignature",
+                "title": "Signature",
+                "isRequired": true,
+                "waitForUpload": true
+                },
+                {
+                "type": "text",
+                "name": "signDate",
+                "title": "Date",
+                "defaultValueExpression": "today()",
+                "isRequired": true,
+                "inputType": "date"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Jasmine Carter",
+        "dob": "1991-04-17",
+        "phone": "+1 (415) 555-0923",
+        "email": "jasmine.carter@gmail.com",
+        "hasCoApplicant": false,
+        "employerName": "Salesforce",
+        "jobTitle": "Senior UX Designer",
+        "monthlyIncome": 9500,
+        "pastResidences": [
+          { "address": "540 Haight St, Apt 2, San Francisco, CA 94117", "landlordName": "Gary Sato", "landlordPhone": "+1 (415) 555-0612", "duration": "3 years" }
+        ],
+        "references": [
+          { "refName": "Marcus Webb", "refPhone": "+1 (510) 555-0381", "refRelationship": "Former landlord" },
+          { "refName": "Alicia Jordan", "refPhone": "+1 (415) 555-0557", "refRelationship": "Manager at Salesforce" }
+        ],
+        "hasPets": false,
+        "signDate": "2025-02-10"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Michael Kowalczyk",
+        "dob": "1985-09-03",
+        "phone": "+1 (312) 555-0174",
+        "email": "m.kowalczyk@hotmail.com",
+        "hasCoApplicant": true,
+        "coApplicantName": "Anna Kowalczyk",
+        "employerName": "University of Illinois at Chicago",
+        "jobTitle": "Associate Professor",
+        "monthlyIncome": 7800,
+        "pastResidences": [
+          { "address": "1802 W Chicago Ave, Chicago, IL 60622", "landlordName": "Riverside Properties LLC", "landlordPhone": "+1 (312) 555-0400", "duration": "5 years" },
+          { "address": "245 E Ontario St, Chicago, IL 60611", "landlordName": "Dan Moore", "landlordPhone": "+1 (312) 555-0289", "duration": "2 years" }
+        ],
+        "references": [
+          { "refName": "Dr. Patricia Simmons", "refPhone": "+1 (312) 555-0788", "refRelationship": "Department Chair, UIC" }
+        ],
+        "hasPets": true,
+        "petDetails": "One golden retriever, male, 4 years old, neutered, 65 lbs. Very well-trained, no barking issues.",
+        "signDate": "2025-02-12"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "fullName": "Destiny Monroe",
+        "dob": "1998-12-29",
+        "phone": "+1 (214) 555-0641",
+        "email": "destiny.m@outlook.com",
+        "hasCoApplicant": false,
+        "employerName": "Deloitte",
+        "jobTitle": "Business Analyst",
+        "monthlyIncome": 6200,
+        "pastResidences": [
+          { "address": "900 W Commerce St, Apt 1101, Dallas, TX 75208", "landlordName": "Cityview Apartments", "landlordPhone": "+1 (214) 555-0500", "duration": "1.5 years" }
+        ],
+        "references": [
+          { "refName": "David Chen", "refPhone": "+1 (214) 555-0890", "refRelationship": "Direct manager at Deloitte" },
+          { "refName": "Sandra Monroe", "refPhone": "+1 (512) 555-0213", "refRelationship": "Mother" }
+        ],
+        "hasPets": false,
+        "signDate": "2025-02-14"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "fullName": "Raymond Gutierrez",
+        "dob": "1979-06-11",
+        "phone": "+1 (305) 555-0487",
+        "email": "ray.gutierrez79@gmail.com",
+        "hasCoApplicant": true,
+        "coApplicantName": "Lucia Gutierrez",
+        "employerName": "Miami-Dade County Public Schools",
+        "jobTitle": "High School Principal",
+        "monthlyIncome": 8400,
+        "pastResidences": [
+          { "address": "6710 Bird Rd, Miami, FL 33155", "landlordName": "Harold Stein", "landlordPhone": "+1 (305) 555-0660", "duration": "7 years" }
+        ],
+        "references": [
+          { "refName": "Harold Stein", "refPhone": "+1 (305) 555-0660", "refRelationship": "Previous landlord" },
+          { "refName": "Superintendent James Park", "refPhone": "+1 (305) 555-0721", "refRelationship": "Employer" }
+        ],
+        "hasPets": true,
+        "petDetails": "Two cats, both indoor only, spayed/neutered, no damage history.",
+        "signDate": "2025-02-16"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Chloe Andersen",
+        "dob": "2000-03-05",
+        "phone": "+1 (617) 555-0249",
+        "email": "chloe.andersen@bu.edu",
+        "hasCoApplicant": false,
+        "employerName": "Boston University (Graduate Research)",
+        "jobTitle": "PhD Candidate / Research Assistant",
+        "monthlyIncome": 2800,
+        "pastResidences": [
+          { "address": "233 Bay State Road, Boston, MA 02215", "landlordName": "BU Off-Campus Housing", "landlordPhone": "+1 (617) 555-0100", "duration": "2 years" }
+        ],
+        "references": [
+          { "refName": "Prof. Henrik Larsen", "refPhone": "+1 (617) 555-0455", "refRelationship": "PhD Supervisor" },
+          { "refName": "Marta Andersen", "refPhone": "+1 (207) 555-0344", "refRelationship": "Parent / Emergency Contact" }
+        ],
+        "hasPets": false,
+        "signDate": "2025-02-18"
+      }
+    }
+  ]
+}

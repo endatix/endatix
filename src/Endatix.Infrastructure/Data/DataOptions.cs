@@ -19,9 +19,15 @@ public class DataOptions : EndatixOptionsBase
     public bool EnableAutoMigrations { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets whether sample data (including initial user) should be seeded automatically.
+    /// Gets or sets whether sample data seeding is enabled. Acts as the master switch for all data seeding, including the initial user.
     /// </summary>
     public bool SeedSampleData { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether sample forms and submissions should be seeded into the database.
+    /// Requires <see cref="SeedSampleData"/> to be enabled.
+    /// </summary>
+    public bool SeedSampleForms { get; set; } = false;
 
     /// <summary>
     /// Gets or sets options for the initial user.

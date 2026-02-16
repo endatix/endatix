@@ -34,6 +34,7 @@ const sidebars: SidebarsConfig = {
         "guides/webhooks",
         "guides/docker-setup",
         "guides/session-bridge",
+        "guides/customize-exports",
         "guides/external-authorization",
         "guides/api-permissions-reference",
         "guides/form-prefilling",
@@ -98,7 +99,9 @@ const sidebars: SidebarsConfig = {
             "configuration/settings/cors-settings",
             "configuration/settings/data-settings",
             "configuration/settings/health-checks",
+            "configuration/settings/hub-settings",
             "configuration/settings/persistence-settings",
+            "configuration/settings/storage-settings",
           ],
         },
       ],
@@ -153,6 +156,20 @@ const sidebars: SidebarsConfig = {
             "end-users/forms/form-builder/form-navigation",
             "end-users/forms/form-builder/question-loops",
             "end-users/forms/form-builder/randomization-of-choices",
+          ],
+        },
+        {
+          type: "category",
+          label: "Translation and Localization",
+          collapsed: false,
+          link: {
+            type: "doc",
+            id: "end-users/forms/translation-and-localization/index",
+          },
+          items: [
+            "end-users/forms/translation-and-localization/form-translation",
+            "end-users/forms/translation-and-localization/ai-translation",
+            "end-users/forms/translation-and-localization/excel-import",            
           ],
         }
       ],

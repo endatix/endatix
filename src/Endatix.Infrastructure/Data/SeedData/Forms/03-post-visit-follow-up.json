@@ -1,0 +1,255 @@
+{
+  "form": {
+    "name": "Post-Visit Follow-Up"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Post-Visit Feedback",
+        "description": "Please share your thoughts about your recent visit so we can continue improving our care.",
+        "pages": [
+            {
+            "name": "visit-context",
+            "title": "Visit Context",
+            "elements": [
+                {
+                "type": "text",
+                "name": "visitDate",
+                "title": "Date of Visit",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "dropdown",
+                "name": "providerSeen",
+                "title": "Which provider did you see?",
+                "choices": [
+                  "Dr. Sarah Mitchell (Family Medicine)",
+                  "Dr. James Chen (Internal Medicine)",
+                  "Dr. Emily Rodriguez (Pediatrics)",
+                  "Dr. Michael Thompson (Cardiology)",
+                  "Dr. Lisa Patel (Dermatology)",
+                  "Dr. Robert Williams (Orthopedics)",
+                  "No Preference"
+                ]
+                },
+                {
+                "type": "rating",
+                "name": "overallSatisfaction",
+                "title": "Overall, how satisfied were you with your visit?",
+                "isRequired": true
+                }
+            ]
+            },
+            {
+            "name": "detailed-feedback",
+            "title": "Detailed Feedback",
+            "elements": [
+                {
+                "type": "checkbox",
+                "name": "feedbackTopics",
+                "title": "What would you like to give feedback on?",
+                "choices": [
+                    "Reception & Check-In",
+                    "Wait Time",
+                    "Provider Interaction",
+                    "Facilities",
+                    "Billing & Insurance",
+                    "Other"
+                ]
+                },
+                {
+                "type": "paneldynamic",
+                "name": "topicFeedback",
+                "visibleIf": "{feedbackTopics} notempty",
+                "title": "Your Feedback",
+                "templateElements": [
+                    {
+                    "type": "dropdown",
+                    "name": "topic",
+                    "title": "Topic",
+                    "choicesFromQuestion": "feedbackTopics",
+                    "choices": [
+                        "Item 1",
+                        "Item 2",
+                        "Item 3"
+                    ]
+                    },
+                    {
+                    "type": "rating",
+                    "name": "rating",
+                    "title": "Rating"
+                    },
+                    {
+                    "type": "comment",
+                    "name": "comment",
+                    "title": "Comments"
+                    }
+                ],
+                "addPanelText": "Add Another Topic"
+                }
+            ]
+            },
+            {
+            "name": "additional-feedback",
+            "title": "Additional Feedback",
+            "elements": [
+                {
+                "type": "radiogroup",
+                "name": "wouldRecommend",
+                "title": "Would you recommend our clinic to others?",
+                "choices": [
+                    "Yes",
+                    "No",
+                    "Not Sure"
+                ]
+                },
+                {
+                "type": "radiogroup",
+                "name": "anyIssues",
+                "title": "Would you like to report an issue or share a compliment?",
+                "choices": [
+                    "No",
+                    "Issue",
+                    "Compliment"
+                ]
+                },
+                {
+                "type": "comment",
+                "name": "issueDetails",
+                "visibleIf": "{anyIssues} = 'Issue'",
+                "title": "Please describe the issue you experienced:"
+                },
+                {
+                "type": "comment",
+                "name": "complimentDetails",
+                "visibleIf": "{anyIssues} = 'Compliment'",
+                "title": "Who or what would you like to compliment?"
+                },
+                {
+                "type": "radiogroup",
+                "name": "requestFollowup",
+                "visibleIf": "{anyIssues} = 'Issue'",
+                "title": "Would you like someone from our team to contact you about your feedback?",
+                "choices": [
+                    "Yes",
+                    "No"
+                ]
+                },
+                {
+                "type": "phone",
+                "name": "contactPhone",
+                "visibleIf": "{requestFollowup} = 'Yes'",
+                "title": "Phone number to reach you"
+                }
+            ]
+            },
+            {
+            "name": "final-comments",
+            "title": "Final Comments",
+            "elements": [
+                {
+                "type": "comment",
+                "name": "finalThoughts",
+                "title": "Any final comments, questions, or suggestions?"
+                },
+                {
+                "type": "html",
+                "name": "thankYouNote",
+                "html": "<p>Thank you for your time and feedback. We appreciate your help in improving our care!</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "visitDate": "2025-02-28",
+        "overallSatisfaction": 5,
+        "feedbackTopics": ["Provider Interaction"],
+        "topicFeedback": [
+          { "topic": "Provider Interaction", "rating": 5, "comment": "Dr. Kim was thorough, patient, and genuinely listened. Best appointment I've had in years." }
+        ],
+        "wouldRecommend": "Yes",
+        "anyIssues": "Compliment",
+        "complimentDetails": "Dr. Kim and the nurse who took my vitals — both exceptionally kind and professional.",
+        "finalThoughts": "Truly a great experience. I felt heard and well cared for."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "visitDate": "2025-02-25",
+        "overallSatisfaction": 3,
+        "feedbackTopics": ["Wait Time", "Facilities"],
+        "topicFeedback": [
+          { "topic": "Wait Time", "rating": 2, "comment": "Waited over 45 minutes past my appointment time with no updates from staff." },
+          { "topic": "Facilities", "rating": 4, "comment": "Clean and comfortable waiting area, good magazines available." }
+        ],
+        "wouldRecommend": "Not Sure",
+        "anyIssues": "Issue",
+        "issueDetails": "The long wait made me late for work. A simple notification about delays would have been appreciated.",
+        "requestFollowup": "Yes",
+        "contactPhone": "+1 (310) 555-0743",
+        "finalThoughts": "The care itself was fine, but the scheduling needs improvement."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "visitDate": "2025-02-20",
+        "overallSatisfaction": 4,
+        "feedbackTopics": ["Reception & Check-In", "Provider Interaction"],
+        "topicFeedback": [
+          { "topic": "Reception & Check-In", "rating": 5, "comment": "Check-in was fast and the receptionist was very welcoming." },
+          { "topic": "Provider Interaction", "rating": 4, "comment": "The doctor explained everything clearly, though the visit felt a bit rushed." }
+        ],
+        "wouldRecommend": "Yes",
+        "anyIssues": "No",
+        "finalThoughts": "Overall positive experience. Would appreciate slightly longer appointment slots."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "visitDate": "2025-02-18",
+        "overallSatisfaction": 2,
+        "feedbackTopics": ["Billing & Insurance", "Wait Time"],
+        "topicFeedback": [
+          { "topic": "Billing & Insurance", "rating": 1, "comment": "Received an unexpected bill two weeks after visit. The billing staff gave conflicting information about what was covered." },
+          { "topic": "Wait Time", "rating": 3, "comment": "About 20-minute wait, which is acceptable." }
+        ],
+        "wouldRecommend": "No",
+        "anyIssues": "Issue",
+        "issueDetails": "The billing error has not been resolved after two phone calls. I was billed for a service that should be covered under my insurance plan.",
+        "requestFollowup": "Yes",
+        "contactPhone": "+1 (617) 555-0289",
+        "finalThoughts": "The medical care is good but the administrative side needs significant improvement."
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "visitDate": "2025-02-14",
+        "overallSatisfaction": 5,
+        "feedbackTopics": ["Reception & Check-In", "Provider Interaction", "Facilities"],
+        "topicFeedback": [
+          { "topic": "Reception & Check-In", "rating": 5, "comment": "Paperless check-in was seamless. Done in under 2 minutes." },
+          { "topic": "Provider Interaction", "rating": 5, "comment": "Dr. Okonkwo answered all my questions without making me feel rushed." },
+          { "topic": "Facilities", "rating": 4, "comment": "Modern equipment and clean rooms. Parking was slightly difficult." }
+        ],
+        "wouldRecommend": "Yes",
+        "anyIssues": "No",
+        "finalThoughts": "This is now my preferred clinic. Will definitely be back."
+      }
+    }
+  ]
+}
