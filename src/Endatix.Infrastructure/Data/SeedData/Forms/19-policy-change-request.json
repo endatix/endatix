@@ -1,0 +1,286 @@
+{
+  "form": {
+    "name": "Policy Change Request"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Policy Change Request",
+        "description": "Use this form to request changes to your existing insurance policy.",
+        "pages": [
+            {
+            "name": "policy-contact-info",
+            "title": "Policy & Contact Info",
+            "elements": [
+                {
+                "type": "text",
+                "name": "policyNumber",
+                "title": "Policy Number",
+                "isRequired": true
+                },
+                {
+                "type": "dropdown",
+                "name": "policyType",
+                "title": "Type of Policy",
+                "isRequired": true,
+                "choices": [
+                    "Auto",
+                    "Home",
+                    "Life",
+                    "Health"
+                ],
+                "showOtherItem": true
+                },
+                {
+                "type": "text",
+                "name": "fullName",
+                "title": "Full Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "email",
+                "title": "Email Address",
+                "isRequired": true,
+                "inputType": "email"
+                },
+                {
+                "type": "phone",
+                "name": "phone"
+                }
+            ]
+            },
+            {
+            "name": "requested-change",
+            "title": "Requested Change",
+            "elements": [
+                {
+                "type": "checkbox",
+                "name": "changeType",
+                "title": "What would you like to change?",
+                "isRequired": true,
+                "choices": [
+                    "Update Contact Info",
+                    "Change Coverage Amount",
+                    "Change Beneficiary",
+                    "Add/Remove Insured Item"
+                ],
+                "showOtherItem": true
+                },
+                {
+                "type": "comment",
+                "name": "changeReason",
+                "title": "Please describe the reason for the change request (optional)"
+                }
+            ]
+            },
+            {
+            "name": "update-contact-info",
+            "visibleIf": "{changeType} contains 'Update Contact Info'",
+            "title": "Update Contact Info",
+            "elements": [
+                {
+                "type": "text",
+                "name": "newAddress",
+                "title": "New Address"
+                },
+                {
+                "type": "phone",
+                "name": "newPhone"
+                },
+                {
+                "type": "text",
+                "name": "newEmail",
+                "title": "New Email Address",
+                "inputType": "email"
+                }
+            ]
+            },
+            {
+            "name": "change-coverage",
+            "visibleIf": "{changeType} contains 'Change Coverage Amount'",
+            "title": "Change Coverage",
+            "elements": [
+                {
+                "type": "text",
+                "name": "currentCoverage",
+                "title": "Current Coverage Amount (USD)",
+                "inputType": "number"
+                },
+                {
+                "type": "text",
+                "name": "desiredCoverage",
+                "title": "New Coverage Amount (USD)",
+                "inputType": "number"
+                }
+            ]
+            },
+            {
+            "name": "change-beneficiary",
+            "visibleIf": "{changeType} contains 'Change Beneficiary'",
+            "title": "Change Beneficiary",
+            "elements": [
+                {
+                "type": "text",
+                "name": "newBeneficiaryName",
+                "title": "New Beneficiary Name"
+                },
+                {
+                "type": "text",
+                "name": "relationshipToBeneficiary",
+                "title": "Relationship to Beneficiary"
+                },
+                {
+                "type": "text",
+                "name": "beneficiaryDOB",
+                "title": "Beneficiary Date of Birth",
+                "inputType": "date"
+                }
+            ]
+            },
+            {
+            "name": "add-or-remove-insured-item",
+            "visibleIf": "{changeType} contains 'Add/Remove Insured Item'",
+            "title": "Add or Remove Insured Item",
+            "elements": [
+                {
+                "type": "radiogroup",
+                "name": "itemChangeType",
+                "title": "Would you like to add or remove an item?",
+                "choices": [
+                    "Add",
+                    "Remove"
+                ]
+                },
+                {
+                "type": "text",
+                "name": "itemDescription",
+                "title": "Description of Item"
+                },
+                {
+                "type": "text",
+                "name": "itemValue",
+                "title": "Value of Item (USD)",
+                "inputType": "number"
+                }
+            ]
+            },
+            {
+            "name": "supporting-documents",
+            "title": "Supporting Documents",
+            "elements": [
+                {
+                "type": "file",
+                "name": "supportingFiles",
+                "title": "Upload any supporting documents (e.g. proof of address, item appraisal)",
+                "allowMultiple": true,
+                "waitForUpload": true,
+                "maxSize": 10485760
+                },
+                {
+                "type": "comment",
+                "name": "additionalNotes",
+                "title": "Any additional notes or instructions?"
+                }
+            ]
+            },
+            {
+            "name": "confirmation",
+            "title": "Confirmation",
+            "elements": [
+                {
+                "type": "html",
+                "name": "confirmationText",
+                "html": "<h3>Request Submitted</h3><p>Your policy change request has been received. Our team will process it and follow up with you shortly.</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "policyNumber": "HOME-2021-445892",
+        "policyType": "Home",
+        "fullName": "Karen Whitfield",
+        "email": "k.whitfield@outlook.com",
+        "phone": "+1 (503) 555-0281",
+        "changeType": ["Update Contact Info"],
+        "changeReason": "Recently moved to a new address.",
+        "newAddress": "987 NW Westover Rd, Portland, OR 97210",
+        "newPhone": "+1 (503) 555-0299",
+        "newEmail": "karen.whitfield.new@gmail.com"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "policyNumber": "LIFE-2018-772341",
+        "policyType": "Life",
+        "fullName": "Anthony Reyes",
+        "email": "a.reyes@gmail.com",
+        "phone": "+1 (305) 555-0648",
+        "changeType": ["Change Beneficiary"],
+        "changeReason": "Recent divorce — removing ex-spouse as beneficiary and adding adult children.",
+        "newBeneficiaryName": "Sofia Reyes",
+        "relationshipToBeneficiary": "Daughter",
+        "beneficiaryDOB": "2001-03-17",
+        "additionalNotes": "Requesting equal split between Sofia Reyes and Carlos Reyes (DOB 1999-07-08). Please advise if a separate form is needed for the second beneficiary."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "policyNumber": "HOME-2020-118734",
+        "policyType": "Home",
+        "fullName": "Claire and David Hudson",
+        "email": "claire.hudson@comcast.net",
+        "phone": "+1 (415) 555-0912",
+        "changeType": ["Add/Remove Insured Item"],
+        "changeReason": "Purchased new high-value jewelry that we would like to add as a scheduled item.",
+        "itemChangeType": "Add",
+        "itemDescription": "Diamond engagement ring (GIA certified) and matching wedding band set.",
+        "itemValue": 18500,
+        "additionalNotes": "GIA certificates and recent appraisal report will be uploaded separately."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "policyNumber": "AUTO-2023-882015",
+        "policyType": "Auto",
+        "fullName": "Benjamin Torres",
+        "email": "b.torres@hotmail.com",
+        "phone": "+1 (713) 555-0433",
+        "changeType": ["Change Coverage Amount", "Update Contact Info"],
+        "changeReason": "Upgrading coverage after purchasing a new vehicle. Previous vehicle was a 2015 Civic; new vehicle is a 2025 Tesla Model Y.",
+        "currentCoverage": 100000,
+        "desiredCoverage": 300000,
+        "newAddress": "4122 Westheimer Rd, Houston, TX 77027",
+        "additionalNotes": "Please also update vehicle VIN on file to 5YJYGDEE9PF123456."
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "policyNumber": "HEALTH-2022-559302",
+        "policyType": "Health",
+        "fullName": "Miriam Osei",
+        "email": "miriam.osei@nhs.net",
+        "phone": "+44 77 555 01234",
+        "changeType": ["Add/Remove Insured Item"],
+        "changeReason": "Adding newborn daughter to health insurance policy following birth on February 10, 2025.",
+        "itemChangeType": "Add",
+        "itemDescription": "Dependent: Abena Osei, DOB 2025-02-10",
+        "additionalNotes": "Birth certificate will be provided within 30 days as required. Please confirm the effective coverage start date."
+      }
+    }
+  ]
+}

@@ -64,6 +64,13 @@ public class DataSeedingService : IHostedService
                 _options,
                 _logger);
 
+            if (_options.SeedSampleForms)
+            {
+                var dataSeeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
+                var appDbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await dataSeeder.SeedSampleDataAsync(appDbContext, cancellationToken);
+            }
+
             _logger.LogInformation("Initial data seeded successfully");
         }
         catch (Exception ex)

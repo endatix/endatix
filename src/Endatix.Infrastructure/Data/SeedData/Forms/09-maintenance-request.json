@@ -1,0 +1,331 @@
+{
+  "form": {
+    "name": "Maintenance Request"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Maintenance Request",
+        "description": "Use this form to report maintenance issues on the property.",
+        "pages": [
+            {
+            "name": "request-details",
+            "title": "Request Details",
+            "elements": [
+                {
+                "type": "text",
+                "name": "fullName",
+                "title": "Your Full Name",
+                "isRequired": true
+                },
+                {
+                "type": "phone",
+                "name": "contactPhone",
+                "title": "Phone Number",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "email",
+                "title": "Email Address",
+                "isRequired": true,
+                "inputType": "email"
+                },
+                {
+                "type": "text",
+                "name": "propertyAddress",
+                "title": "Property Address",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "unitNumber",
+                "title": "Unit or Apartment Number"
+                },
+                {
+                "type": "dropdown",
+                "name": "issueCategory",
+                "title": "Type of Issue",
+                "isRequired": true,
+                "choices": [
+                    "Plumbing",
+                    "Electrical",
+                    "Heating/Cooling",
+                    "Appliances",
+                    "Pest Control",
+                    "Structural/Damage"
+                ],
+                "showOtherItem": true
+                },
+                {
+                "type": "comment",
+                "name": "issueDescription",
+                "title": "Describe the issue in detail",
+                "isRequired": true
+                },
+                {
+                "type": "radiogroup",
+                "name": "urgency",
+                "title": "How urgent is this request?",
+                "isRequired": true,
+                "choices": [
+                    "Emergency (safety or property risk)",
+                    "Urgent (needs attention soon)",
+                    "Routine (not urgent)"
+                ]
+                },
+                {
+                "type": "file",
+                "name": "photos",
+                "title": "Upload photos or documents (optional)",
+                "allowMultiple": true,
+                "waitForUpload": true,
+                "maxSize": 4096000
+                }
+            ]
+            },
+            {
+            "name": "access-contact-preferences",
+            "title": "Access & Contact Preferences",
+            "elements": [
+                {
+                "type": "boolean",
+                "name": "accessPermission",
+                "title": "Do you allow maintenance staff to enter your unit if you're not present?",
+                "isRequired": true,
+                "swapOrder": true
+                },
+                {
+                "type": "comment",
+                "name": "accessInstructions",
+                "title": "Access instructions or special notes (e.g., pets, alarm code)"
+                },
+                {
+                "type": "radiogroup",
+                "name": "preferredContactMethod",
+                "title": "Preferred contact method if follow-up is needed:",
+                "choices": [
+                    "Phone",
+                    "Email",
+                    "Text Message"
+                ]
+                }
+            ]
+            },
+            {
+            "name": "confirmation",
+            "title": "Confirmation",
+            "elements": [
+                {
+                "type": "html",
+                "name": "thankYou",
+                "html": "<p>Thank you for your request. Our team will follow up as soon as possible.</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Karen Fischer",
+        "contactPhone": "+1 (503) 555-0481",
+        "email": "karen.fischer@gmail.com",
+        "propertyAddress": "822 Pine Street, Portland, OR 97205",
+        "unitNumber": "Apt 6",
+        "issueCategory": "Plumbing",
+        "issueDescription": "Kitchen faucet has been dripping constantly for the past week even when fully turned off. The drip rate seems to be increasing. I've placed a bucket but it fills up every few hours.",
+        "urgency": "Urgent (needs attention soon)",
+        "accessPermission": true,
+        "accessInstructions": "No pets. Front door key is with the building manager. Please call before entering.",
+        "preferredContactMethod": "Text Message"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Darnell Washington",
+        "contactPhone": "+1 (404) 555-0722",
+        "email": "d.washington@yahoo.com",
+        "propertyAddress": "1455 Peachtree St NE, Atlanta, GA 30309",
+        "unitNumber": "Unit 201",
+        "issueCategory": "Electrical",
+        "issueDescription": "The circuit breaker for the master bedroom keeps tripping every 1-2 hours. All outlets in that room are non-functional. I've unplugged everything but the breaker still trips. This is a safety concern.",
+        "urgency": "Emergency (safety or property risk)",
+        "accessPermission": true,
+        "accessInstructions": "Building entry code is 4417. Unit door will be unlocked if I'm not home.",
+        "preferredContactMethod": "Phone"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "fullName": "Maya Thornton",
+        "contactPhone": "+1 (312) 555-0156",
+        "email": "maya.thornton@outlook.com",
+        "propertyAddress": "3300 N Lake Shore Drive, Chicago, IL 60657",
+        "unitNumber": "Unit 8C",
+        "issueCategory": "Heating/Cooling",
+        "issueDescription": "The central A/C stopped working two days ago. The thermostat shows it's running but no cool air is coming from the vents. It's 88°F in the apartment. I have elderly relatives staying with me.",
+        "urgency": "Emergency (safety or property risk)",
+        "accessPermission": true,
+        "accessInstructions": "We are home most of the day. Please call 30 minutes ahead. We have a small dog (friendly).",
+        "preferredContactMethod": "Phone"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "fullName": "Trevor Nguyen",
+        "contactPhone": "+1 (713) 555-0334",
+        "email": "trevor.n@gmail.com",
+        "propertyAddress": "2010 Main St, Houston, TX 77002",
+        "unitNumber": "302",
+        "issueCategory": "Pest Control",
+        "issueDescription": "I've been finding cockroaches in the kitchen for the past 2 weeks. They appear at night near the stove and under the sink. I've used store-bought traps but the problem is getting worse. I believe there may be an infestation in the walls.",
+        "urgency": "Urgent (needs attention soon)",
+        "accessPermission": false,
+        "accessInstructions": "I work from home — please schedule a time and I will be present.",
+        "preferredContactMethod": "Email"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Patricia Olsen",
+        "contactPhone": "+1 (602) 555-0893",
+        "email": "pat.olsen55@hotmail.com",
+        "propertyAddress": "540 E Camelback Road, Phoenix, AZ 85018",
+        "issueCategory": "Appliances",
+        "issueDescription": "The built-in dishwasher makes a loud grinding noise during the wash cycle and leaves dishes dirty. It has been doing this for about two weeks. I've cleaned the filter but no improvement.",
+        "urgency": "Routine (not urgent)",
+        "accessPermission": true,
+        "accessInstructions": "Leave completed work order slip under the door if I'm not present.",
+        "preferredContactMethod": "Email"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Samuel Ogunyemi",
+        "contactPhone": "+1 (512) 555-0347",
+        "email": "s.ogunyemi@gmail.com",
+        "propertyAddress": "1102 Maple Ave, Austin, TX 78701",
+        "unitNumber": "Apt 4B",
+        "issueCategory": "Structural/Damage",
+        "issueDescription": "Water stain on the living room ceiling is spreading after recent rain. Appears to be a roof leak. No active dripping yet but I'm worried about mold developing.",
+        "urgency": "Urgent (needs attention soon)",
+        "accessPermission": true,
+        "preferredContactMethod": "Phone"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Linda Chen",
+        "contactPhone": "+1 (213) 555-0512",
+        "email": "linda.chen@gmail.com",
+        "propertyAddress": "4590 Wilshire Blvd, Los Angeles, CA 90010",
+        "unitNumber": "Unit 12",
+        "issueCategory": "Appliances",
+        "issueDescription": "Built-in oven heats unevenly — right side runs significantly hotter, baked items come out burnt on one side. Issue started about a month ago.",
+        "urgency": "Routine (not urgent)",
+        "accessPermission": true,
+        "accessInstructions": "Available weekdays after 6pm or anytime on weekends.",
+        "preferredContactMethod": "Email"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "fullName": "Marco Espinoza",
+        "contactPhone": "+1 (305) 555-0874",
+        "email": "marco.e@hotmail.com",
+        "propertyAddress": "720 Brickell Ave, Miami, FL 33131",
+        "unitNumber": "Apt 1805",
+        "issueCategory": "Heating/Cooling",
+        "issueDescription": "Hallway thermostat stopped responding last Tuesday. HVAC is running but temperature never changes — unit stuck at 76°F despite being set to 68°F.",
+        "urgency": "Urgent (needs attention soon)",
+        "accessPermission": true,
+        "accessInstructions": "Doorman at front desk. Please check in before coming up.",
+        "preferredContactMethod": "Phone"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "fullName": "Nadia Petrov",
+        "contactPhone": "+1 (312) 555-0291",
+        "email": "n.petrov@yahoo.com",
+        "propertyAddress": "888 Lakeview Dr, Chicago, IL 60611",
+        "unitNumber": "Unit 501",
+        "issueCategory": "Plumbing",
+        "issueDescription": "Hot water takes over 15 minutes to arrive in the master bathroom. Cold water is instant. Issue has worsened over the past month and only affects this bathroom.",
+        "urgency": "Routine (not urgent)",
+        "accessPermission": true,
+        "preferredContactMethod": "Text Message"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Kwame Asante",
+        "contactPhone": "+1 (313) 555-0663",
+        "email": "k.asante@gmail.com",
+        "propertyAddress": "331 Monroe Street, Detroit, MI 48226",
+        "unitNumber": "Apt 7",
+        "issueCategory": "Electrical",
+        "issueDescription": "Living room ceiling light flickers on and off, sometimes for several minutes. Bulb is new. Other lights on the same circuit work fine — may be a wiring issue.",
+        "urgency": "Urgent (needs attention soon)",
+        "accessPermission": false,
+        "accessInstructions": "I work nights and need at least 24 hours advance notice to be present.",
+        "preferredContactMethod": "Email"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Claudette Moreau",
+        "contactPhone": "+1 (504) 555-0188",
+        "email": "c.moreau@gmail.com",
+        "propertyAddress": "250 Royal St, New Orleans, LA 70130",
+        "unitNumber": "Unit 3A",
+        "issueCategory": "Pest Control",
+        "issueDescription": "Found rodent droppings in kitchen cabinets and hear scratching in the walls at night. Issue started about a week ago and seems to be getting worse.",
+        "urgency": "Urgent (needs attention soon)",
+        "accessPermission": true,
+        "accessInstructions": "Key is with the building super. Please let me know in advance.",
+        "preferredContactMethod": "Phone"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "fullName": "Raj Sharma",
+        "contactPhone": "+1 (713) 555-0549",
+        "email": "raj.sharma@outlook.com",
+        "propertyAddress": "9800 Westheimer Rd, Houston, TX 77042",
+        "unitNumber": "Unit 615",
+        "issueCategory": "Structural/Damage",
+        "issueDescription": "Front door latch doesn't catch unless the door is pulled hard. This is a security concern, especially at night. The lock itself seems fine — it's a door alignment issue.",
+        "urgency": "Urgent (needs attention soon)",
+        "accessPermission": true,
+        "preferredContactMethod": "Text Message"
+      }
+    }
+  ]
+}

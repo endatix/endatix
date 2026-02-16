@@ -1,0 +1,375 @@
+{
+  "form": {
+    "name": "Student Registration"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Student Registration Form",
+        "description": "Please complete the form below to register as a student.",
+        "pages": [
+            {
+            "name": "personal-information",
+            "title": "Personal Information",
+            "elements": [
+                {
+                "type": "text",
+                "name": "firstName",
+                "title": "First Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "lastName",
+                "title": "Last Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "dob",
+                "title": "Date of Birth",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "radiogroup",
+                "name": "gender",
+                "title": "Gender",
+                "choices": [
+                    "Male",
+                    "Female"
+                ]
+                },
+                {
+                "type": "text",
+                "name": "nationality",
+                "title": "Nationality"
+                },
+                {
+                "type": "file",
+                "name": "idUpload",
+                "title": "Upload ID or Passport",
+                "isRequired": true,
+                "waitForUpload": true,
+                "maxSize": 4096000
+                }
+            ]
+            },
+            {
+            "name": "contact-information",
+            "title": "Contact Information",
+            "elements": [
+                {
+                "type": "text",
+                "name": "email",
+                "title": "Email",
+                "isRequired": true,
+                "inputType": "email"
+                },
+                {
+                "type": "phone",
+                "name": "phone",
+                "title": "Phone Number"
+                },
+                {
+                "type": "text",
+                "name": "address",
+                "title": "Street Address"
+                },
+                {
+                "type": "text",
+                "name": "city",
+                "title": "City"
+                },
+                {
+                "type": "text",
+                "name": "postalCode",
+                "title": "Postal Code"
+                },
+                {
+                "type": "text",
+                "name": "country",
+                "title": "Country"
+                }
+            ]
+            },
+            {
+            "name": "academic-background",
+            "title": "Academic Background",
+            "elements": [
+                {
+                "type": "text",
+                "name": "currentSchool",
+                "title": "Current or Most Recent School/Institution"
+                },
+                {
+                "type": "dropdown",
+                "name": "highestEducation",
+                "title": "Highest Level of Education Completed",
+                "choices": [
+                    "Primary",
+                    "Secondary",
+                    "High School",
+                    "Associate Degree",
+                    "Bachelor’s Degree",
+                    "Master’s Degree",
+                    "Doctorate"
+                ]
+                },
+                {
+                "type": "file",
+                "name": "transcriptUpload",
+                "title": "Upload Transcript (optional)",
+                "waitForUpload": true
+                }
+            ]
+            },
+            {
+            "name": "course-selection",
+            "title": "Course Selection",
+            "elements": [
+                {
+                "type": "dropdown",
+                "name": "programType",
+                "title": "Program or Course Type",
+                "isRequired": true,
+                "choices": [
+                    "Full-time",
+                    "Part-time",
+                    "Online",
+                    "Self-paced"
+                ]
+                },
+                {
+                "type": "dropdown",
+                "name": "courseInterest",
+                "title": "Course of Interest",
+                "isRequired": true,
+                "choices": [
+                    "Item 1",
+                    "Item 2",
+                    "Item 3"
+                ],
+                "choicesByUrl": {
+                    "url": "https://api.example.com/courses",
+                    "valueName": "id",
+                    "titleName": "name"
+                }
+                },
+                {
+                "type": "text",
+                "name": "preferredStartDate",
+                "title": "Preferred Start Date",
+                "inputType": "date"
+                }
+            ]
+            },
+            {
+            "name": "emergency-contact",
+            "title": "Emergency Contact",
+            "elements": [
+                {
+                "type": "text",
+                "name": "emergencyName",
+                "title": "Emergency Contact Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "emergencyRelation",
+                "title": "Relationship to Student"
+                },
+                {
+                "type": "phone",
+                "name": "emergencyPhone",
+                "title": "Emergency Phone Number",
+                "isRequired": true
+                }
+            ]
+            },
+            {
+            "name": "medical-consent",
+            "title": "Medical & Consent",
+            "elements": [
+                {
+                "type": "boolean",
+                "name": "hasMedicalConditions",
+                "title": "Do you have any medical conditions we should be aware of?",
+                "swapOrder": true
+                },
+                {
+                "type": "comment",
+                "name": "medicalDetails",
+                "visibleIf": "{hasMedicalConditions} = true",
+                "title": "Please describe your medical conditions"
+                },
+                {
+                "type": "signaturepad",
+                "name": "signature",
+                "title": "Signature (for consent)",
+                "isRequired": true,
+                "waitForUpload": true
+                },
+                {
+                "type": "text",
+                "name": "signatureDate",
+                "title": "Date of Signature",
+                "defaultValueExpression": "today()",
+                "isRequired": true,
+                "inputType": "date"
+                }
+            ]
+            },
+            {
+            "name": "confirmation",
+            "title": "Confirmation",
+            "elements": [
+                {
+                "type": "html",
+                "name": "thankYou",
+                "html": "<p>Thank you for registering. We will review your application and contact you shortly.</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "firstName": "Lena",
+        "lastName": "Schneider",
+        "dob": "2003-05-18",
+        "gender": "Female",
+        "nationality": "German",
+        "email": "lena.schneider@student.de",
+        "phone": "+49 176 5551234",
+        "address": "Hauptstraße 42",
+        "city": "Munich",
+        "postalCode": "80331",
+        "country": "Germany",
+        "currentSchool": "Ludwig Maximilian University of Munich",
+        "highestEducation": "High School",
+        "programType": "Full-time",
+        "courseInterest": "Item 1",
+        "preferredStartDate": "2025-09-01",
+        "emergencyName": "Klaus Schneider",
+        "emergencyRelation": "Father",
+        "emergencyPhone": "+49 176 5550001",
+        "hasMedicalConditions": false,
+        "signatureDate": "2025-02-05"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "firstName": "Marcus",
+        "lastName": "Obi",
+        "dob": "1997-11-02",
+        "gender": "Male",
+        "nationality": "Nigerian",
+        "email": "marcus.obi@gmail.com",
+        "phone": "+1 (646) 555-0382",
+        "address": "890 Amsterdam Ave, Apt 3F",
+        "city": "New York",
+        "postalCode": "10025",
+        "country": "United States",
+        "currentSchool": "Columbia University",
+        "highestEducation": "Bachelor's Degree",
+        "programType": "Part-time",
+        "courseInterest": "Item 2",
+        "preferredStartDate": "2025-09-15",
+        "emergencyName": "Ngozi Obi",
+        "emergencyRelation": "Mother",
+        "emergencyPhone": "+234 803 555 0101",
+        "hasMedicalConditions": false,
+        "signatureDate": "2025-02-07"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "firstName": "Yuki",
+        "lastName": "Tanaka",
+        "dob": "2001-08-30",
+        "gender": "Female",
+        "nationality": "Japanese",
+        "email": "yuki.tanaka@softbank.ne.jp",
+        "phone": "+81 90 5551234",
+        "address": "3-7 Shibuya",
+        "city": "Tokyo",
+        "postalCode": "150-0002",
+        "country": "Japan",
+        "currentSchool": "Waseda University",
+        "highestEducation": "Bachelor's Degree",
+        "programType": "Online",
+        "courseInterest": "Item 3",
+        "preferredStartDate": "2025-10-01",
+        "emergencyName": "Hiroshi Tanaka",
+        "emergencyRelation": "Father",
+        "emergencyPhone": "+81 90 5550099",
+        "hasMedicalConditions": true,
+        "medicalDetails": "Mild hearing impairment in left ear. May require front-row seating in in-person sessions and captioning for video content.",
+        "signatureDate": "2025-02-09"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "firstName": "Noah",
+        "lastName": "Petersen",
+        "dob": "2005-01-14",
+        "gender": "Male",
+        "nationality": "Danish",
+        "email": "noah.petersen@school.dk",
+        "phone": "+45 20 555123",
+        "address": "Nørrebrogade 55",
+        "city": "Copenhagen",
+        "postalCode": "2200",
+        "country": "Denmark",
+        "currentSchool": "Nørrebro Gymnasium",
+        "highestEducation": "Secondary",
+        "programType": "Self-paced",
+        "courseInterest": "Item 1",
+        "preferredStartDate": "2025-06-01",
+        "emergencyName": "Sofie Petersen",
+        "emergencyRelation": "Mother",
+        "emergencyPhone": "+45 20 555001",
+        "hasMedicalConditions": false,
+        "signatureDate": "2025-02-11"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "firstName": "Ananya",
+        "lastName": "Sharma",
+        "dob": "1994-07-22",
+        "gender": "Female",
+        "nationality": "Indian",
+        "email": "ananya.sharma@infosys.com",
+        "phone": "+91 98765 55012",
+        "address": "14 MG Road, Apartment 7B",
+        "city": "Bangalore",
+        "postalCode": "560001",
+        "country": "India",
+        "currentSchool": "Indian Institute of Science",
+        "highestEducation": "Master's Degree",
+        "programType": "Online",
+        "courseInterest": "Item 2",
+        "preferredStartDate": "2025-07-01",
+        "emergencyName": "Vikram Sharma",
+        "emergencyRelation": "Spouse",
+        "emergencyPhone": "+91 98765 55099",
+        "hasMedicalConditions": false,
+        "signatureDate": "2025-02-13"
+      }
+    }
+  ]
+}

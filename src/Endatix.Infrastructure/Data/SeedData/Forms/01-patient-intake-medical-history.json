@@ -1,0 +1,443 @@
+{
+  "form": {
+    "name": "Patient Intake & Medical History"
+  },
+  "definition": {
+    "jsonSchema": {
+      "title": "Patient Intake &amp; Medical History",
+      "pages": [
+        {
+          "name": "basic-information",
+          "title": "Basic Information",
+          "elements": [
+            {
+              "type": "text",
+              "name": "fullName",
+              "title": "Full Name",
+              "isRequired": true
+            },
+            {
+              "type": "text",
+              "name": "dob",
+              "title": "Date of Birth",
+              "isRequired": true,
+              "inputType": "date"
+            },
+            {
+              "type": "radiogroup",
+              "name": "sex",
+              "title": "Sex",
+              "isRequired": true,
+              "choices": [
+                "Male",
+                "Female"
+              ]
+            },
+            {
+              "type": "text",
+              "name": "email",
+              "title": "Email Address",
+              "isRequired": true,
+              "inputType": "email"
+            },
+            {
+              "type": "phone",
+              "name": "phone",
+              "isRequired": true
+            },
+            {
+              "type": "text",
+              "name": "address",
+              "title": "Home Address"
+            }
+          ]
+        },
+        {
+          "name": "insurance-information",
+          "title": "Insurance Information",
+          "elements": [
+            {
+              "type": "radiogroup",
+              "name": "hasInsurance",
+              "title": "Do you have health insurance?",
+              "isRequired": true,
+              "choices": [
+                "Yes",
+                "No"
+              ]
+            },
+            {
+              "type": "panel",
+              "name": "insuranceDetails",
+              "visibleIf": "{hasInsurance} = 'Yes'",
+              "title": "Insurance Details",
+              "elements": [
+                {
+                  "type": "text",
+                  "name": "insuranceProvider",
+                  "title": "Insurance Provider"
+                },
+                {
+                  "type": "text",
+                  "name": "insuranceId",
+                  "title": "Insurance ID"
+                },
+                {
+                  "type": "file",
+                  "name": "insuranceCard",
+                  "title": "Upload a photo of your insurance card",
+                  "maxSize": 5242880
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "current-concerns",
+          "title": "Current Concerns",
+          "elements": [
+            {
+              "type": "comment",
+              "name": "mainComplaint",
+              "title": "What is the main reason for your visit today?",
+              "isRequired": true
+            },
+            {
+              "type": "signaturepad",
+              "name": "problemAreas",
+              "title": "Indicate any areas on the body where you are experiencing pain or discomfort",
+              "description": "Use your finger or mouse to mark specific body parts where you're feeling symptoms. You can mark multiple areas.",
+              "signatureWidth": 600,
+              "signatureHeight": 600,
+              "showPlaceholder": false,
+              "backgroundImage": "https://endatixstorageci.blob.core.windows.net/content/f/1384452362923409408/c24665a2-31c0-44a2-a687-39188c6d8e99.jpg",
+              "penColor": "#ff0000",
+              "waitForUpload": true
+            },
+            {
+              "type": "rating",
+              "name": "painLevel",
+              "title": "On a scale of 1 to 10, how severe is your pain or discomfort?",
+              "rateCount": 10,
+              "rateMax": 10,
+              "minRateDescription": "No pain",
+              "maxRateDescription": "Worst pain imaginable"
+            }
+          ]
+        },
+        {
+          "name": "medical-history",
+          "title": "Medical History",
+          "elements": [
+            {
+              "type": "checkbox",
+              "name": "medicalConditions",
+              "title": "Have you ever had any of the following conditions?",
+              "isRequired": true,
+              "choices": [
+                "Diabetes",
+                "Hypertension",
+                "Heart Disease",
+                "Asthma",
+                "Cancer",
+                "Kidney Disease",
+                "Liver Disease",
+                "None of the above"
+              ]
+            },
+            {
+              "type": "comment",
+              "name": "otherConditions",
+              "title": "Please list any other medical conditions not mentioned above:"
+            },
+            {
+              "type": "matrixdropdown",
+              "name": "familyHistory",
+              "title": "Family Medical History",
+              "columns": [
+                {
+                  "name": "father",
+                  "title": "Father"
+                },
+                {
+                  "name": "mother",
+                  "title": "Mother"
+                },
+                {
+                  "name": "sibling",
+                  "title": "Sibling(s)"
+                }
+              ],
+              "choices": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "cellType": "boolean",
+              "rows": [
+                "Diabetes",
+                "Hypertension",
+                "Heart Disease",
+                "Cancer"
+              ]
+            },
+            {
+              "type": "radiogroup",
+              "name": "smoking",
+              "title": "Do you currently smoke or use tobacco?",
+              "choices": [
+                "Yes",
+                "No",
+                "Former smoker"
+              ]
+            },
+            {
+              "type": "radiogroup",
+              "name": "alcohol",
+              "title": "Do you consume alcohol?",
+              "choices": [
+                "Yes",
+                "No"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "allergies-medications",
+          "title": "Allergies & Medications",
+          "elements": [
+            {
+              "type": "checkbox",
+              "name": "allergies",
+              "title": "Do you have any allergies?",
+              "choices": [
+                "Penicillin",
+                "Latex",
+                "Peanuts",
+                "Shellfish",
+                "Pollen"
+              ],
+              "showOtherItem": true
+            },
+            {
+              "type": "comment",
+              "name": "allergyDetails",
+              "visibleIf": "{allergies} notempty",
+              "title": "Please describe your allergic reactions:"
+            },
+            {
+              "type": "paneldynamic",
+              "name": "medications",
+              "title": "Current Medications",
+              "templateElements": [
+                {
+                  "type": "text",
+                  "name": "name",
+                  "title": "Medication Name"
+                },
+                {
+                  "type": "text",
+                  "name": "dosage",
+                  "title": "Dosage & Frequency"
+                }
+              ],
+              "templateTitle": "Medication #{panelIndex}",
+              "addPanelText": "Add Medication"
+            }
+          ]
+        },
+        {
+          "name": "consent-signature",
+          "title": "Consent & Signature",
+          "elements": [
+            {
+              "type": "html",
+              "name": "consentText",
+              "html": "<p>Please read and accept the consent form to proceed.</p><p>I consent to the use and sharing of my medical data as required for medical care.</p>"
+            },
+            {
+              "type": "radiogroup",
+              "name": "consentGiven",
+              "title": "Do you give consent?",
+              "isRequired": true,
+              "choices": [
+                "Yes",
+                "No"
+              ]
+            },
+            {
+              "type": "signaturepad",
+              "name": "signature",
+              "visibleIf": "{consentGiven} = 'Yes'",
+              "title": "Signature"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Margaret Chen",
+        "dob": "1966-03-14",
+        "sex": "Female",
+        "email": "margaret.chen@email.com",
+        "phone": "+1 (415) 555-0182",
+        "address": "742 Evergreen Terrace, San Francisco, CA 94102",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Blue Shield of California",
+        "insuranceId": "BSC-78234561",
+        "mainComplaint": "Increased fatigue and frequent headaches over the past 3 weeks. Blood pressure readings at home have been higher than usual.",
+        "painLevel": 4,
+        "medicalConditions": ["Diabetes", "Hypertension"],
+        "familyHistory": {
+          "Diabetes": { "father": true, "mother": true, "sibling": false },
+          "Hypertension": { "father": true, "mother": false, "sibling": false },
+          "Heart Disease": { "father": false, "mother": false, "sibling": false },
+          "Cancer": { "father": false, "mother": false, "sibling": false }
+        },
+        "smoking": "No",
+        "alcohol": "No",
+        "allergies": ["Penicillin"],
+        "allergyDetails": "Developed rash and hives after taking penicillin as a child.",
+        "medications": [
+          { "name": "Metformin", "dosage": "1000mg twice daily with meals" },
+          { "name": "Lisinopril", "dosage": "10mg once daily" }
+        ],
+        "consentGiven": "Yes"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "fullName": "James Okafor",
+        "dob": "1989-07-22",
+        "sex": "Male",
+        "email": "j.okafor@gmail.com",
+        "phone": "+1 (312) 555-0347",
+        "address": "1520 N. Michigan Ave, Apt 4B, Chicago, IL 60610",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Aetna",
+        "insuranceId": "AET-45678901",
+        "mainComplaint": "Annual wellness checkup. No specific complaints. Would like to review cholesterol levels and discuss preventive health measures.",
+        "painLevel": 1,
+        "medicalConditions": ["None of the above"],
+        "familyHistory": {
+          "Diabetes": { "father": false, "mother": false, "sibling": false },
+          "Hypertension": { "father": true, "mother": false, "sibling": false },
+          "Heart Disease": { "father": true, "mother": false, "sibling": false },
+          "Cancer": { "father": false, "mother": false, "sibling": false }
+        },
+        "smoking": "No",
+        "alcohol": "Yes",
+        "consentGiven": "Yes"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "fullName": "Sofia Martinez",
+        "dob": "1979-11-05",
+        "sex": "Female",
+        "email": "sofia.martinez@hotmail.com",
+        "phone": "+1 (214) 555-0619",
+        "address": "3310 Oak Cliff Blvd, Dallas, TX 75208",
+        "hasInsurance": "No",
+        "mainComplaint": "Sharp lower back pain that started two weeks ago after lifting furniture. Pain radiates down my left leg. Difficulty sitting for more than 30 minutes.",
+        "painLevel": 7,
+        "medicalConditions": ["None of the above"],
+        "otherConditions": "Mild scoliosis diagnosed at age 16.",
+        "familyHistory": {
+          "Diabetes": { "father": false, "mother": true, "sibling": false },
+          "Hypertension": { "father": false, "mother": false, "sibling": false },
+          "Heart Disease": { "father": false, "mother": false, "sibling": false },
+          "Cancer": { "father": false, "mother": false, "sibling": false }
+        },
+        "smoking": "Former smoker",
+        "alcohol": "No",
+        "allergies": ["Pollen"],
+        "allergyDetails": "Seasonal allergic rhinitis, primarily in spring. Takes OTC antihistamines as needed.",
+        "medications": [
+          { "name": "Ibuprofen", "dosage": "400mg as needed for pain, max 3x daily" }
+        ],
+        "consentGiven": "Yes"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "fullName": "Robert Williams",
+        "dob": "1957-01-30",
+        "sex": "Male",
+        "email": "rwilliams57@yahoo.com",
+        "phone": "+1 (404) 555-0284",
+        "address": "85 Peachtree Road NE, Atlanta, GA 30309",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Medicare",
+        "insuranceId": "MCD-1A2B3C4D5",
+        "mainComplaint": "Routine follow-up for heart condition. Shortness of breath when climbing stairs over the past month. Occasional chest tightness.",
+        "painLevel": 5,
+        "medicalConditions": ["Heart Disease", "Hypertension"],
+        "familyHistory": {
+          "Diabetes": { "father": false, "mother": false, "sibling": false },
+          "Hypertension": { "father": true, "mother": true, "sibling": true },
+          "Heart Disease": { "father": true, "mother": false, "sibling": true },
+          "Cancer": { "father": false, "mother": false, "sibling": false }
+        },
+        "smoking": "Former smoker",
+        "alcohol": "No",
+        "allergies": ["Latex"],
+        "allergyDetails": "Contact dermatitis when exposed to latex gloves. Please use latex-free gloves during examination.",
+        "medications": [
+          { "name": "Atorvastatin", "dosage": "40mg once daily at bedtime" },
+          { "name": "Aspirin", "dosage": "81mg once daily with breakfast" },
+          { "name": "Metoprolol", "dosage": "25mg twice daily" },
+          { "name": "Amlodipine", "dosage": "5mg once daily" }
+        ],
+        "consentGiven": "Yes"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Emily Thompson",
+        "dob": "1996-08-18",
+        "sex": "Female",
+        "email": "emily.t@outlook.com",
+        "phone": "+1 (617) 555-0531",
+        "address": "22 Commonwealth Ave, Apt 7, Boston, MA 02116",
+        "hasInsurance": "Yes",
+        "insuranceProvider": "Harvard Pilgrim Health Care",
+        "insuranceId": "HP-29384756",
+        "mainComplaint": "Asthma is poorly controlled this season. Using rescue inhaler more than 3 times a week. Would like to review treatment plan and possibly adjust medications.",
+        "painLevel": 3,
+        "medicalConditions": ["Asthma"],
+        "familyHistory": {
+          "Diabetes": { "father": false, "mother": false, "sibling": false },
+          "Hypertension": { "father": false, "mother": false, "sibling": false },
+          "Heart Disease": { "father": false, "mother": false, "sibling": false },
+          "Cancer": { "father": false, "mother": true, "sibling": false }
+        },
+        "smoking": "No",
+        "alcohol": "Yes",
+        "allergies": ["Peanuts", "Pollen"],
+        "allergyDetails": "Peanut allergy causes anaphylaxis — carry EpiPen. Pollen worsens asthma symptoms.",
+        "medications": [
+          { "name": "Albuterol (ProAir)", "dosage": "2 puffs as needed (rescue inhaler)" },
+          { "name": "Fluticasone (Flovent)", "dosage": "110mcg 2 puffs twice daily (maintenance)" },
+          { "name": "Cetirizine", "dosage": "10mg once daily for seasonal allergies" }
+        ],
+        "consentGiven": "Yes"
+      }
+    }
+  ]
+}
