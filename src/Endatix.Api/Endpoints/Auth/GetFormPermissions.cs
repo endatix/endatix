@@ -9,15 +9,15 @@ namespace Endatix.Api.Endpoints.Auth;
 /// Endpoint for getting form permissions.
 /// </summary>
 public class GetFormPermissions(
-    ISubmissionAuthorizationService authorizationService
-) : Endpoint<GetFormPermissionsRequest, Results<Ok<GetFormPermissionsResponse>, ProblemHttpResult>>
+    ISubmissionAccessControl submissionAccessControl
+) : Endpoint<GetFormPermissionsRequest, Results<Ok<ResourceAccessData>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
     public override void Configure()
     {
-        Get("auth/permissions/form");
+        Get("auth/permissions/submission");
         AllowAnonymous();
         Summary(s =>
         {
@@ -31,32 +31,17 @@ public class GetFormPermissions(
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<GetFormPermissionsResponse>, ProblemHttpResult>> ExecuteAsync(
+    public override async Task<Results<Ok<ResourceAccessData>, ProblemHttpResult>> ExecuteAsync(
         GetFormPermissionsRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await authorizationService.GetPermissionsAsync(
-            request.FormId,
-            request.SubmissionId,
-            request.Token,
+        var accessDataResult = await submissionAccessControl.GetAccessDataAsync(
+            new SubmissionAccessContext(request.FormId, request.SubmissionId, request.Token),
             cancellationToken);
 
 
         return TypedResultsBuilder
-            .MapResult(result, result => MapFormPermissions(result))
-            .SetTypedResults<Ok<GetFormPermissionsResponse>, ProblemHttpResult>();
-    }
-
-    private static GetFormPermissionsResponse MapFormPermissions(SubmissionPermissionResult permissions)
-    {
-        return new GetFormPermissionsResponse
-        {
-            ResourceId = permissions.ResourceId,
-            ResourceType = permissions.ResourceType,
-            Permissions = permissions.Permissions,
-            CachedAt = permissions.CachedAt,
-            ExpiresAt = permissions.ExpiresAt,
-            ETag = permissions.ETag
-        };
+            .FromResult(accessDataResult)
+            .SetTypedResults<Ok<ResourceAccessData>, ProblemHttpResult>();
     }
 }
