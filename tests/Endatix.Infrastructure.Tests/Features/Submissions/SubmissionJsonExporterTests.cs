@@ -1,6 +1,8 @@
+using System.Buffers;
 using System.IO.Pipelines;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -11,12 +13,18 @@ namespace Endatix.Infrastructure.Tests.Features.Submissions;
 public sealed class SubmissionJsonExporterTests
 {
     private readonly ILogger<SubmissionJsonExporter> _logger;
+    private readonly IEnumerable<IValueTransformer> _globalTransformers;
     private readonly SubmissionJsonExporter _sut;
 
     public SubmissionJsonExporterTests()
     {
         _logger = Substitute.For<ILogger<SubmissionJsonExporter>>();
-        _sut = new SubmissionJsonExporter(_logger);
+        var transformer = Substitute.For<IValueTransformer>();
+        transformer
+            .Transform(Arg.Any<JsonNode?>(), Arg.Any<TransformationContext<SubmissionExportRow>>())
+            .Returns(callInfo => (JsonNode?)callInfo[0]);
+        _globalTransformers = new[] { transformer };
+        _sut = new SubmissionJsonExporter(_logger, _globalTransformers);
     }
 
     [Fact]
@@ -209,11 +217,9 @@ public sealed class SubmissionJsonExporterTests
     }
 
     [Fact]
-    public async Task StreamExportAsync_ShouldNotApplyTransformers_ForJsonExport()
+    public async Task StreamExportAsync_ShouldApplyFormatters_ForJsonExport()
     {
         // Arrange
-        // Note: JSON exporter uses ExtractValue which doesn't apply transformers
-        // Transformers are for formatted string output (CSV), not raw JSON values
         var records = CreateTestRecords(
             new SubmissionExportRow
             {
@@ -224,7 +230,7 @@ public sealed class SubmissionJsonExporterTests
         );
         var options = new ExportOptions
         {
-            Transformers = new Dictionary<string, Func<object?, string>>
+            Formatters = new Dictionary<string, Func<object?, string>>
             {
                 { "Id", v => $"ID-{v}" }
             }
@@ -239,8 +245,8 @@ public sealed class SubmissionJsonExporterTests
         var content = await ReadPipeContent(pipe.Reader);
         var json = JsonDocument.Parse(content);
         var firstObject = json.RootElement[0];
-        // JSON exports use raw values, not transformed strings
-        Assert.Equal(42, firstObject.GetProperty("id").GetInt64());
+        // JSON exports use transformed strings via options.Formatters
+        Assert.Equal("ID-42", firstObject.GetProperty("id").GetString());
     }
 
     [Fact]
@@ -456,7 +462,7 @@ public sealed class SubmissionJsonExporterTests
     {
         var result = await reader.ReadAsync();
         var buffer = result.Buffer;
-        var content = Encoding.UTF8.GetString(buffer.FirstSpan);
+        var content = Encoding.UTF8.GetString(buffer.ToArray());
         reader.AdvanceTo(buffer.End);
         await reader.CompleteAsync();
         return content;

@@ -6,7 +6,7 @@ using CsvHelper.Configuration;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Exporting.ColumnDefinitions;
+using Endatix.Infrastructure.Exporting.Formatters;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -14,7 +14,9 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 /// <summary>
 /// CSV exporter for submission data, optimized for streaming and low memory usage.
 /// </summary>
-public sealed class SubmissionCsvExporter(ILogger<SubmissionCsvExporter> logger) : SubmissionExporterBase(logger)
+public sealed class SubmissionCsvExporter(
+    ILogger<SubmissionCsvExporter> logger,
+    IEnumerable<IValueTransformer> globalTransformers) : SubmissionExporterBase(logger, globalTransformers)
 {
     public override string Format => "csv";
     public override string ContentType => "text/csv";
@@ -36,7 +38,7 @@ public sealed class SubmissionCsvExporter(ILogger<SubmissionCsvExporter> logger)
             SubmissionExportRow? firstRow = null;
             var headerWritten = false;
 
-            await foreach (var (row, doc, columns) in GetStreamContextAsync(records, options, cancellationToken))
+            await foreach ((var row, var doc, var columns) in GetStreamContextAsync(records, options, cancellationToken))
             {
                 using (doc)
                 {
@@ -52,9 +54,20 @@ public sealed class SubmissionCsvExporter(ILogger<SubmissionCsvExporter> logger)
                         headerWritten = true;
                     }
 
+                    var context = new TransformationContext<SubmissionExportRow>(row, doc, _logger);
                     foreach (var col in columns)
                     {
-                        csv.WriteField(col.GetFormattedValue(row, doc));
+                        try
+                        {
+                            var value = col.GetValue(context);
+
+                            csv.WriteField(new DefaultCsvFormatter().Format(value, context));
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error processing column {ColumnName} for row {RowId}", col.Name, row.Id);
+                            csv.WriteField(NOT_AVAILABLE_VALUE);
+                        }
                     }
                     await csv.NextRecordAsync();
                 }

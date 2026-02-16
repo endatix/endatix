@@ -1,5 +1,7 @@
+using System.Buffers;
 using System.IO.Pipelines;
 using System.Text;
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -10,12 +12,18 @@ namespace Endatix.Infrastructure.Tests.Features.Submissions;
 public sealed class SubmissionCsvExporterTests
 {
     private readonly ILogger<SubmissionCsvExporter> _logger;
+    private readonly IEnumerable<IValueTransformer> _globalTransformers;
     private readonly SubmissionCsvExporter _sut;
 
     public SubmissionCsvExporterTests()
     {
         _logger = Substitute.For<ILogger<SubmissionCsvExporter>>();
-        _sut = new SubmissionCsvExporter(_logger);
+        var transformer = Substitute.For<IValueTransformer>();
+        transformer
+            .Transform(Arg.Any<JsonNode?>(), Arg.Any<TransformationContext<SubmissionExportRow>>())
+            .Returns(callInfo => (JsonNode?)callInfo[0]);
+        _globalTransformers = new[] { transformer };
+        _sut = new SubmissionCsvExporter(_logger, _globalTransformers);
     }
 
     [Fact]
@@ -144,7 +152,7 @@ public sealed class SubmissionCsvExporterTests
 
         var options = new ExportOptions
         {
-            Transformers = new Dictionary<string, Func<object?, string>>
+            Formatters = new Dictionary<string, Func<object?, string>>
             {
                 { "Id", v => $"ID-{v}" }
             }
@@ -329,7 +337,7 @@ public sealed class SubmissionCsvExporterTests
     {
         var result = await reader.ReadAsync();
         var buffer = result.Buffer;
-        var content = Encoding.UTF8.GetString(buffer.FirstSpan);
+        var content = Encoding.UTF8.GetString(buffer.ToArray());
         reader.AdvanceTo(buffer.End);
         await reader.CompleteAsync();
         return content;
