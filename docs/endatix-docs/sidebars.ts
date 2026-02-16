@@ -160,12 +160,10 @@ const sidebars: SidebarsConfig = {
           label: "Translation and Localization",
           collapsed: false,
           link: {
-            type: "generated-index",
-            slug: "translation-and-localization",
-            title: "Translation and Localization",
+            type: "doc",
+            id: "end-users/forms/translation-and-localization/index",
           },
           items: [
-            "end-users/forms/translation-and-localization/localization-overview",
             "end-users/forms/translation-and-localization/form-translation",
             "end-users/forms/translation-and-localization/ai-translation",
             "end-users/forms/translation-and-localization/excel-import",            
