@@ -1,9 +1,9 @@
 namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
-/// Request model for getting form permissions.
+/// Request model for getting form access permissions.
 /// </summary>
-public class GetFormPermissionsRequest
+public class GetFormAccessRequest
 {
     /// <summary>
     /// The form ID (required)

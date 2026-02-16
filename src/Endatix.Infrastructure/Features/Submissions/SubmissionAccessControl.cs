@@ -9,10 +9,9 @@ using Endatix.Core.Specifications;
 namespace Endatix.Infrastructure.Features.Submissions;
 
 /// <summary>
-/// Implementation of ISubmissionAccessControl that composes cached RBAC with dynamic resource scopes.
-/// Follows the "Cached Identity, Dynamic Scopes" pattern:
-/// - Identity (RBAC): Stable, User-Centric, Long Cache (Session)
-/// - Scopes (ReBAC): Volatile, Request-Centric, Computed on demand
+/// Implementation of ISubmissionAccessControl that computes contextual submission authorization.
+/// Returns simplified flat permission arrays for O(1) client-side access.
+/// Identity (who the user is) should be fetched from /auth/me endpoint.
 /// </summary>
 public class SubmissionAccessControl(
     ICurrentUserAuthorizationService authorizationService,
@@ -20,7 +19,7 @@ public class SubmissionAccessControl(
     ISubmissionTokenService tokenService
 ) : ISubmissionAccessControl
 {
-    public async Task<Result<ResourceAccessData>> GetAccessDataAsync(
+    public async Task<Result<FormAccessData>> GetAccessDataAsync(
         SubmissionAccessContext context,
         CancellationToken cancellationToken)
     {
@@ -28,54 +27,53 @@ public class SubmissionAccessControl(
         if (!identityResult.IsSuccess)
         {
             var errorMessage = identityResult.Errors?.FirstOrDefault() ?? "Failed to get authorization data";
-            return Result<ResourceAccessData>.Error(errorMessage);
+            return Result<FormAccessData>.Error(errorMessage);
         }
 
         var identity = identityResult.Value;
-        var scopes = new List<ResourceScope>();
+        var formPermissions = new HashSet<string>();
+        var submissionPermissions = new HashSet<string>();
 
         var isAdmin = await CheckIsAdminAsync(cancellationToken);
         if (isAdmin)
         {
-            scopes.Add(new ResourceScope(ResourceTypes.Form, context.FormId.ToString(), SubmissionPermissions.GetAllForResourceType(ResourceTypes.Form)));
+            formPermissions.UnionWith(SubmissionPermissions.GetAllForResourceType(ResourceTypes.Form));
 
             if (context.SubmissionId.HasValue)
             {
-                scopes.Add(new ResourceScope(ResourceTypes.Submission, context.SubmissionId.Value.ToString(), SubmissionPermissions.GetAllForResourceType(ResourceTypes.Submission)));
+                submissionPermissions.UnionWith(SubmissionPermissions.GetAllForResourceType(ResourceTypes.Submission));
             }
             else
             {
-                scopes.Add(new ResourceScope(ResourceTypes.Submission, "new", [SubmissionPermissions.Submission.Create]));
+                submissionPermissions.Add(SubmissionPermissions.Submission.Create);
             }
 
-            return Result<ResourceAccessData>.Success(new ResourceAccessData
+            return Result<FormAccessData>.Success(new FormAccessData
             {
-                Identity = identity,
-                Scopes = scopes
+                FormPermissions = formPermissions,
+                SubmissionPermissions = submissionPermissions
             });
         }
 
-        var formPermissions = await EvaluateFormLevelAccessAsync(context, identity, cancellationToken);
-        scopes.Add(formPermissions);
+        await EvaluateFormLevelAccessAsync(context, identity, formPermissions, cancellationToken);
 
         if (context.SubmissionId.HasValue)
         {
-            var subPermissions = await EvaluateSubmissionLevelAccessAsync(context, identity, cancellationToken);
-            scopes.Add(subPermissions);
+            await EvaluateSubmissionLevelAccessAsync(context, identity, submissionPermissions, cancellationToken);
         }
         else
         {
             var hasSubmissionCreate = await authorizationService.HasPermissionAsync(Actions.Submissions.Create, cancellationToken);
             if (hasSubmissionCreate.IsSuccess && hasSubmissionCreate.Value)
             {
-                scopes.Add(new ResourceScope(ResourceTypes.Submission, "new", [SubmissionPermissions.Submission.Create]));
+                submissionPermissions.Add(SubmissionPermissions.Submission.Create);
             }
         }
 
-        return Result<ResourceAccessData>.Success(new ResourceAccessData
+        return Result<FormAccessData>.Success(new FormAccessData
         {
-            Identity = identity,
-            Scopes = scopes
+            FormPermissions = formPermissions,
+            SubmissionPermissions = submissionPermissions
         });
     }
 
@@ -91,13 +89,12 @@ public class SubmissionAccessControl(
         return isAdmin.IsSuccess && isAdmin.Value;
     }
 
-    private async Task<ResourceScope> EvaluateFormLevelAccessAsync(
+    private async Task EvaluateFormLevelAccessAsync(
         SubmissionAccessContext context,
         AuthorizationData identity,
+        HashSet<string> permissions,
         CancellationToken cancellationToken)
     {
-        var permissions = new HashSet<string>();
-
         var isPublic = await IsFormPublicAsync(context.FormId, cancellationToken);
         if (isPublic)
         {
@@ -112,18 +109,14 @@ public class SubmissionAccessControl(
                 permissions.Add(SubmissionPermissions.Form.Design);
             }
         }
-
-        return new ResourceScope(ResourceTypes.Form, context.FormId.ToString(), permissions.ToArray());
     }
 
-    private async Task<ResourceScope> EvaluateSubmissionLevelAccessAsync(
+    private async Task EvaluateSubmissionLevelAccessAsync(
         SubmissionAccessContext context,
         AuthorizationData identity,
+        HashSet<string> permissions,
         CancellationToken cancellationToken)
     {
-        var permissions = new HashSet<string>();
-        var subIdStr = context.SubmissionId!.Value.ToString();
-
         if (!string.IsNullOrEmpty(context.AccessToken))
         {
             var tokenResult = await tokenService.ResolveTokenAsync(context.AccessToken, cancellationToken);
@@ -152,8 +145,6 @@ public class SubmissionAccessControl(
                 permissions.Add(SubmissionPermissions.Submission.DeleteFile);
             }
         }
-
-        return new ResourceScope(ResourceTypes.Submission, subIdStr, permissions.ToArray());
     }
 
     private async Task<bool> IsFormPublicAsync(long formId, CancellationToken cancellationToken)
