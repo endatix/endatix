@@ -1,0 +1,111 @@
+{
+  "form": {
+    "name": "Customer Satisfaction Survey"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "We’d Love Your Feedback!",
+        "description": "Tell us how we did so we can keep improving.",
+        "pages": [
+            {
+            "name": "page1",
+            "elements": [
+                {
+                "type": "rating",
+                "name": "satisfaction",
+                "title": "How satisfied are you with your recent experience?",
+                "isRequired": true,
+                "minRateDescription": "Very Dissatisfied",
+                "maxRateDescription": "Very Satisfied"
+                },
+                {
+                "type": "comment",
+                "name": "feedback",
+                "visibleIf": "{satisfaction} <= 3",
+                "title": "What can we improve?"
+                },
+                {
+                "type": "comment",
+                "name": "highlight",
+                "visibleIf": "{satisfaction} >= 4",
+                "title": "What did you enjoy the most?"
+                },
+                {
+                "type": "radiogroup",
+                "name": "contactPermission",
+                "visibleIf": "{satisfaction} <= 3",
+                "title": "Would you like us to follow up on your feedback?",
+                "choices": [
+                    "Yes",
+                    "No"
+                ]
+                },
+                {
+                "type": "text",
+                "name": "contactEmail",
+                "visibleIf": "{contactPermission} = 'Yes'",
+                "title": "Your email address (optional)",
+                "inputType": "email"
+                }
+            ]
+            },
+            {
+            "name": "page2",
+            "elements": [
+                {
+                "type": "html",
+                "name": "thankYouMessage",
+                "html": "<p>Thank you for your time! Your feedback helps us improve.</p>"
+                }
+            ]
+            }
+        ]
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "satisfaction": 5,
+        "highlight": "The support team resolved my issue in under 10 minutes. The agent was knowledgeable, friendly, and didn't put me on hold once. Genuinely impressed."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "satisfaction": 2,
+        "feedback": "The delivery was 4 days late with no proactive communication. I had to contact support twice just to get a status update. Disappointing for a first-time order.",
+        "contactPermission": "Yes",
+        "contactEmail": "t.brennan@outlook.com"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "satisfaction": 4,
+        "highlight": "Checkout process was smooth and the product arrived well-packaged. Would have given 5 stars but the shipping took longer than estimated."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "satisfaction": 1,
+        "feedback": "Wrong item sent. Return process is confusing and requires printing a label I don't have access to. Still waiting for resolution after a week.",
+        "contactPermission": "Yes",
+        "contactEmail": "nina.roberts82@gmail.com"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "satisfaction": 5,
+        "highlight": "Everything was exactly as described. Fast shipping, great quality, and the unboxing experience was a nice touch. Will definitely order again."
+      }
+    }
+  ]
+}

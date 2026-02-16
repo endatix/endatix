@@ -1,0 +1,352 @@
+{
+  "form": {
+    "name": "Account Opening"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Account Opening Form",
+        "description": "Please complete the form below to open your new account.",
+        "pages": [
+            {
+            "name": "personal-details",
+            "title": "Personal Details",
+            "elements": [
+                {
+                "type": "text",
+                "name": "fullName",
+                "title": "Full Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "dateOfBirth",
+                "title": "Date of Birth",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "boolean",
+                "name": "residencyStatus",
+                "title": "Are you a resident of this country?",
+                "isRequired": true,
+                "swapOrder": true
+                },
+                {
+                "type": "dropdown",
+                "name": "citizenship",
+                "title": "Country of Citizenship",
+                "isRequired": true,
+                "choicesByUrl": {
+                    "url": "https://surveyjs.io/api/CountriesExample",
+                    "valueName": "name"
+                }
+                },
+                {
+                "type": "text",
+                "name": "nationalId",
+                "title": "National ID or Passport Number",
+                "isRequired": true
+                },
+                {
+                "type": "file",
+                "name": "idUpload",
+                "title": "Upload ID or Passport (PDF or image)",
+                "isRequired": true,
+                "waitForUpload": true,
+                "maxSize": 4096000
+                }
+            ]
+            },
+            {
+            "name": "contact-information",
+            "title": "Contact Information",
+            "elements": [
+                {
+                "type": "text",
+                "name": "email",
+                "title": "Email Address",
+                "isRequired": true,
+                "inputType": "email"
+                },
+                {
+                "type": "phone",
+                "name": "phoneNumber",
+                "title": "Mobile Phone Number",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "addressLine1",
+                "title": "Street Address",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "city",
+                "title": "City",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "postalCode",
+                "title": "Postal Code",
+                "isRequired": true
+                },
+                {
+                "type": "dropdown",
+                "name": "country",
+                "title": "Country",
+                "isRequired": true,
+                "choicesByUrl": {
+                    "url": "https://surveyjs.io/api/CountriesExample",
+                    "valueName": "name"
+                }
+                }
+            ]
+            },
+            {
+            "name": "account-preferences",
+            "title": "Account Preferences",
+            "elements": [
+                {
+                "type": "dropdown",
+                "name": "accountType",
+                "title": "Account Type",
+                "isRequired": true,
+                "choices": [
+                    "Checking",
+                    "Savings",
+                    "Business",
+                    "Joint"
+                ]
+                },
+                {
+                "type": "checkbox",
+                "name": "services",
+                "title": "Additional Services",
+                "choices": [
+                    "Debit Card",
+                    "Online Banking",
+                    "SMS Alerts",
+                    "Overdraft Protection"
+                ]
+                },
+                {
+                "type": "boolean",
+                "name": "jointAccount",
+                "title": "Is this a joint account?",
+                "isRequired": true,
+                "swapOrder": true
+                },
+                {
+                "type": "panel",
+                "name": "jointHolderInfo",
+                "visibleIf": "{jointAccount} = true",
+                "title": "Joint Account Holder Information",
+                "elements": [
+                    {
+                    "type": "text",
+                    "name": "jointHolderName",
+                    "title": "Full Name",
+                    "isRequired": true
+                    },
+                    {
+                    "type": "text",
+                    "name": "jointHolderId",
+                    "title": "National ID or Passport Number",
+                    "isRequired": true
+                    }
+                ]
+                }
+            ]
+            },
+            {
+            "name": "declarations",
+            "title": "Declarations",
+            "elements": [
+                {
+                "type": "boolean",
+                "name": "isPEP",
+                "title": "Are you or a close associate a Politically Exposed Person (PEP)?",
+                "isRequired": true
+                },
+                {
+                "type": "boolean",
+                "name": "isTaxResidentUS",
+                "title": "Are you a tax resident of the United States (FATCA)?",
+                "isRequired": true
+                },
+                {
+                "type": "comment",
+                "name": "otherInfo",
+                "title": "Other information or comments"
+                },
+                {
+                "type": "signaturepad",
+                "name": "signature",
+                "title": "Digital Signature",
+                "isRequired": true,
+                "waitForUpload": true
+                },
+                {
+                "type": "text",
+                "name": "signatureDate",
+                "title": "Date",
+                "defaultValueExpression": "today()",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "checkbox",
+                "name": "termsAgreement",
+                "title": "I agree to the Terms and Conditions",
+                "isRequired": true,
+                "choices": [
+                    "Yes"
+                ]
+                }
+            ]
+            },
+            {
+            "name": "confirmation",
+            "title": "Confirmation",
+            "elements": [
+                {
+                "type": "html",
+                "name": "confirmationText",
+                "html": "<p>Thank you. Your application has been submitted for review. We will contact you shortly.</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Thomas Bergman",
+        "dateOfBirth": "1982-09-14",
+        "residencyStatus": true,
+        "citizenship": "Sweden",
+        "nationalId": "820914-1234",
+        "email": "t.bergman@gmail.com",
+        "phoneNumber": "+46 70 555 1234",
+        "addressLine1": "Kungsgatan 28",
+        "city": "Stockholm",
+        "postalCode": "11121",
+        "country": "Sweden",
+        "accountType": "Checking",
+        "services": ["Debit Card", "Online Banking", "SMS Alerts"],
+        "jointAccount": false,
+        "isPEP": false,
+        "isTaxResidentUS": false,
+        "signatureDate": "2025-02-03",
+        "termsAgreement": ["Yes"]
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Fatima Al-Rashidi",
+        "dateOfBirth": "1990-03-28",
+        "residencyStatus": true,
+        "citizenship": "United Arab Emirates",
+        "nationalId": "784-1990-1234567-8",
+        "email": "fatima.rashidi@emirates.net",
+        "phoneNumber": "+971 50 555 9876",
+        "addressLine1": "Al Wasl Road, Villa 15",
+        "city": "Dubai",
+        "postalCode": "00000",
+        "country": "United Arab Emirates",
+        "accountType": "Savings",
+        "services": ["Online Banking", "SMS Alerts", "Overdraft Protection"],
+        "jointAccount": true,
+        "jointHolderName": "Ahmed Al-Rashidi",
+        "jointHolderId": "784-1988-9876543-2",
+        "isPEP": false,
+        "isTaxResidentUS": false,
+        "otherInfo": "Joint account with spouse. Both signatories required for withdrawals above AED 10,000.",
+        "signatureDate": "2025-02-05",
+        "termsAgreement": ["Yes"]
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "fullName": "Carlos Mendez",
+        "dateOfBirth": "1975-06-07",
+        "residencyStatus": false,
+        "citizenship": "Mexico",
+        "nationalId": "MEDC750607HDFNRL05",
+        "email": "carlos.mendez@consultora.mx",
+        "phoneNumber": "+52 55 5555 0132",
+        "addressLine1": "Av. Paseo de la Reforma 222",
+        "city": "Mexico City",
+        "postalCode": "06600",
+        "country": "Mexico",
+        "accountType": "Business",
+        "services": ["Online Banking", "SMS Alerts"],
+        "jointAccount": false,
+        "isPEP": false,
+        "isTaxResidentUS": false,
+        "otherInfo": "Non-resident account for international business transactions. Business registration documents available on request.",
+        "signatureDate": "2025-02-07",
+        "termsAgreement": ["Yes"]
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "fullName": "Rebecca Lawson",
+        "dateOfBirth": "1999-12-01",
+        "residencyStatus": true,
+        "citizenship": "Canada",
+        "nationalId": "LR 456 789",
+        "email": "becca.lawson@outlook.ca",
+        "phoneNumber": "+1 (416) 555-0384",
+        "addressLine1": "550 Bay Street, Apt 2201",
+        "city": "Toronto",
+        "postalCode": "M5G 1N8",
+        "country": "Canada",
+        "accountType": "Savings",
+        "services": ["Debit Card", "Online Banking"],
+        "jointAccount": false,
+        "isPEP": false,
+        "isTaxResidentUS": false,
+        "signatureDate": "2025-02-09",
+        "termsAgreement": ["Yes"]
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "fullName": "Hans Weber",
+        "dateOfBirth": "1958-04-19",
+        "residencyStatus": true,
+        "citizenship": "Germany",
+        "nationalId": "DE-L01X00T47",
+        "email": "hans.weber58@web.de",
+        "phoneNumber": "+49 89 555 4321",
+        "addressLine1": "Maximilianstraße 10",
+        "city": "Munich",
+        "postalCode": "80539",
+        "country": "Germany",
+        "accountType": "Checking",
+        "services": ["Debit Card", "Online Banking", "Overdraft Protection"],
+        "jointAccount": false,
+        "isPEP": false,
+        "isTaxResidentUS": false,
+        "otherInfo": "Transferring primary account from Deutsche Bank. Please contact me to discuss migration of standing orders.",
+        "signatureDate": "2025-02-11",
+        "termsAgreement": ["Yes"]
+      }
+    }
+  ]
+}

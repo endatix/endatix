@@ -1,0 +1,285 @@
+{
+  "form": {
+    "name": "Brand Awareness & Perception Survey"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Brand Awareness &amp; Perception Survey",
+        "description": "We’d like your honest thoughts about brands in this industry.",
+        "pages": [
+            {
+            "name": "screening",
+            "title": "Screening",
+            "elements": [
+                {
+                "type": "radiogroup",
+                "name": "usedCategoryRecently",
+                "title": "Have you purchased or used any products in this category in the past 6 months?",
+                "isRequired": true,
+                "choices": [
+                    "Yes",
+                    "No"
+                ]
+                }
+            ]
+            },
+            {
+            "name": "brand-awareness",
+            "visibleIf": "{usedCategoryRecently} = 'Yes'",
+            "title": "Brand Awareness",
+            "elements": [
+                {
+                "type": "comment",
+                "name": "unaidedAwareness",
+                "title": "Which brands come to mind when you think of this product category?"
+                },
+                {
+                "type": "checkbox",
+                "name": "aidedAwareness",
+                "title": "Which of the following brands have you heard of?",
+                "isRequired": true,
+                "choices": [
+                    "Brand X",
+                    "Brand Y",
+                    "Brand Z"
+                ],
+                "showOtherItem": true,
+                "showNoneItem": true,
+                "noneText": "None of the above",
+                "otherText": "Other"
+                }
+            ]
+            },
+            {
+            "name": "brand-perception",
+            "visibleIf": "{usedCategoryRecently} = 'Yes'",
+            "title": "Brand Perception",
+            "elements": [
+                {
+                "type": "dropdown",
+                "name": "familiarBrand",
+                "title": "Which brand are you most familiar with?",
+                "isRequired": true,
+                "choicesFromQuestion": "aidedAwareness",
+                "choices": [
+                    "Item 1",
+                    "Item 2",
+                    "Item 3"
+                ]
+                },
+                {
+                "type": "imagepicker",
+                "name": "brandFeel",
+                "title": "Which of these images best represents how you feel about Brand X?",
+                "choices": [
+                    {
+                    "value": "innovative",
+                    "text": "Innovative",
+                    "imageLink": "https://example.com/img/innovative.jpg"
+                    },
+                    {
+                    "value": "traditional",
+                    "text": "Traditional",
+                    "imageLink": "https://example.com/img/traditional.jpg"
+                    },
+                    {
+                    "value": "fun",
+                    "text": "Fun",
+                    "imageLink": "https://example.com/img/fun.jpg"
+                    },
+                    {
+                    "value": "boring",
+                    "text": "Boring",
+                    "imageLink": "https://example.com/img/boring.jpg"
+                    }
+                ],
+                "showLabel": true
+                },
+                {
+                "type": "matrix",
+                "name": "brandAttributes",
+                "title": "How would you rate Brand X on the following attributes?",
+                "columns": [
+                    {
+                    "value": "1",
+                    "text": "Very Poor"
+                    },
+                    {
+                    "value": "2",
+                    "text": "Poor"
+                    },
+                    {
+                    "value": "3",
+                    "text": "Average"
+                    },
+                    {
+                    "value": "4",
+                    "text": "Good"
+                    },
+                    {
+                    "value": "5",
+                    "text": "Excellent"
+                    }
+                ],
+                "rows": [
+                    {
+                    "value": "quality",
+                    "text": "Product Quality"
+                    },
+                    {
+                    "value": "value",
+                    "text": "Value for Money"
+                    },
+                    {
+                    "value": "innovation",
+                    "text": "Innovation"
+                    },
+                    {
+                    "value": "trust",
+                    "text": "Trustworthiness"
+                    },
+                    {
+                    "value": "customerService",
+                    "text": "Customer Service"
+                    }
+                ]
+                },
+                {
+                "type": "comment",
+                "name": "brandWords",
+                "title": "What three words would you use to describe Brand X?"
+                },
+                {
+                "type": "radiogroup",
+                "name": "recommendation",
+                "title": "Would you recommend Brand X to a friend?",
+                "choices": [
+                    "Yes",
+                    "No",
+                    "Not sure"
+                ]
+                }
+            ]
+            },
+            {
+            "name": "comparative-perception",
+            "visibleIf": "{usedCategoryRecently} = 'Yes'",
+            "title": "Comparative Perception",
+            "elements": [
+                {
+                "type": "ranking",
+                "name": "brandRanking",
+                "title": "Rank up to 5 brands from most to least favorable in your opinion. (You may skip some)",
+                "choicesFromQuestion": "aidedAwareness",
+                "choices": [
+                    "Item 1",
+                    "Item 2",
+                    "Item 3"
+                ],
+                "choicesFromQuestionMode": "selected"
+                },
+                {
+                "type": "comment",
+                "name": "brandPreferenceReason",
+                "title": "What influenced your top choice the most?"
+                }
+            ]
+            },
+            {
+            "name": "wrap-up",
+            "title": "Wrap-Up",
+            "elements": [
+                {
+                "type": "comment",
+                "name": "finalThoughts",
+                "title": "Any final thoughts on this category or any brand not mentioned?"
+                },
+                {
+                "type": "html",
+                "name": "thanks",
+                "html": "<p>Thank you for your feedback!</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "usedCategoryRecently": "Yes",
+        "unaidedAwareness": "Brand X, Brand Y, and a newer one called NovaCrest that I've been seeing ads for.",
+        "aidedAwareness": ["Brand X", "Brand Y", "Brand Z"],
+        "familiarBrand": "Brand X",
+        "brandFeel": "innovative",
+        "brandAttributes": { "quality": "5", "value": "3", "innovation": "5", "trust": "4", "customerService": "4" },
+        "brandWords": "Cutting-edge, reliable, premium",
+        "recommendation": "Yes",
+        "brandRanking": ["Brand X", "Brand Z", "Brand Y"],
+        "brandPreferenceReason": "Brand X consistently releases features ahead of competitors and their build quality is noticeably better.",
+        "finalThoughts": "Brand Z has been improving lately — worth watching. Brand Y feels stagnant."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "usedCategoryRecently": "Yes",
+        "unaidedAwareness": "Mainly Brand Y — it's the one I see advertised most.",
+        "aidedAwareness": ["Brand Y", "Brand Z"],
+        "familiarBrand": "Brand Y",
+        "brandFeel": "traditional",
+        "brandAttributes": { "quality": "3", "value": "4", "innovation": "2", "trust": "4", "customerService": "3" },
+        "brandWords": "Dependable, affordable, outdated",
+        "recommendation": "Not sure",
+        "brandRanking": ["Brand Y", "Brand Z"],
+        "brandPreferenceReason": "Brand Y has the best price-to-quality ratio even if the design feels dated.",
+        "finalThoughts": "None of the listed brands feel particularly exciting to me right now."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "usedCategoryRecently": "No"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "usedCategoryRecently": "Yes",
+        "unaidedAwareness": "Brand X is the first that comes to mind, then Brand Z.",
+        "aidedAwareness": ["Brand X", "Brand Z"],
+        "familiarBrand": "Brand Z",
+        "brandFeel": "fun",
+        "brandAttributes": { "quality": "4", "value": "5", "innovation": "3", "trust": "4", "customerService": "5" },
+        "brandWords": "Friendly, great value, responsive",
+        "recommendation": "Yes",
+        "brandRanking": ["Brand Z", "Brand X"],
+        "brandPreferenceReason": "Brand Z's customer service is exceptional — they replaced a defective unit immediately with no questions asked.",
+        "finalThoughts": "I wish Brand Z had more product variety. Their current range is limited."
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "usedCategoryRecently": "Yes",
+        "unaidedAwareness": "Honestly I can't name many off the top of my head — I just search online when I need something.",
+        "aidedAwareness": ["Brand X", "Brand Y", "Brand Z"],
+        "familiarBrand": "Brand X",
+        "brandFeel": "boring",
+        "brandAttributes": { "quality": "3", "value": "2", "innovation": "2", "trust": "3", "customerService": "2" },
+        "brandWords": "Overpriced, overhyped, average",
+        "recommendation": "No",
+        "brandRanking": ["Brand Y", "Brand Z", "Brand X"],
+        "brandPreferenceReason": "Brand Y offers similar quality at nearly half the price. Brand X charges for the logo, not the product.",
+        "finalThoughts": "This category needs a strong challenger brand. None of these three are doing enough to earn loyalty."
+      }
+    }
+  ]
+}

@@ -1,0 +1,252 @@
+{
+  "form": {
+    "name": "Property Inspection Form"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Property Inspection Report",
+        "description": "Use this form to document the condition of a property during routine or move-in/out inspections.",
+        "pages": [
+            {
+            "name": "property-info",
+            "title": "Property Info",
+            "elements": [
+                {
+                "type": "text",
+                "name": "propertyAddress",
+                "title": "Property Address",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "unitNumber",
+                "title": "Unit Number"
+                },
+                {
+                "type": "dropdown",
+                "name": "inspectionType",
+                "title": "Inspection Type",
+                "isRequired": true,
+                "choices": [
+                    "Move-In",
+                    "Move-Out",
+                    "Routine",
+                    "Maintenance Check"
+                ],
+                "showOtherItem": true
+                },
+                {
+                "type": "text",
+                "name": "inspectionDate",
+                "title": "Inspection Date",
+                "defaultValueExpression": "today()",
+                "isRequired": true,
+                "inputType": "date"
+                }
+            ]
+            },
+            {
+            "name": "room-inspection",
+            "title": "Room Inspection",
+            "elements": [
+                {
+                "type": "paneldynamic",
+                "name": "rooms",
+                "title": "Room Inspection",
+                "templateElements": [
+                    {
+                    "type": "text",
+                    "name": "roomName",
+                    "title": "Room Name (e.g., Living Room, Bedroom 1)",
+                    "isRequired": true
+                    },
+                    {
+                    "type": "rating",
+                    "name": "condition",
+                    "title": "General Condition",
+                    "minRateDescription": "Poor",
+                    "maxRateDescription": "Excellent"
+                    },
+                    {
+                    "type": "boolean",
+                    "name": "hasIssues",
+                    "title": "Any visible issues?",
+                    "swapOrder": true
+                    },
+                    {
+                    "type": "comment",
+                    "name": "issueDescription",
+                    "visibleIf": "{panel.hasIssues} = true",
+                    "title": "Describe the issue(s)"
+                    },
+                    {
+                    "type": "file",
+                    "name": "roomPhotos",
+                    "visibleIf": "{panel.hasIssues} = true",
+                    "title": "Upload photos",
+                    "allowMultiple": true,
+                    "waitForUpload": true,
+                    "maxSize": 4096000
+                    }
+                ],
+                "templateTitle": "Room #{panelIndex}",
+                "panelCount": 1,
+                "minPanelCount": 1,
+                "addPanelText": "Add Room",
+                "removePanelText": "Remove Room"
+                }
+            ]
+            },
+            {
+            "name": "overall-assessment",
+            "title": "Overall Assessment",
+            "elements": [
+                {
+                "type": "rating",
+                "name": "overallCondition",
+                "title": "Overall Property Condition",
+                "minRateDescription": "Poor",
+                "maxRateDescription": "Excellent"
+                },
+                {
+                "type": "comment",
+                "name": "recommendations",
+                "title": "Recommendations or required repairs"
+                }
+            ]
+            },
+            {
+            "name": "inspector-confirmation",
+            "title": "Inspector Confirmation",
+            "elements": [
+                {
+                "type": "text",
+                "name": "inspectorName",
+                "title": "Inspector Name",
+                "isRequired": true
+                },
+                {
+                "type": "signaturepad",
+                "name": "signature",
+                "title": "Signature",
+                "isRequired": true,
+                "waitForUpload": true
+                },
+                {
+                "type": "text",
+                "name": "signDate",
+                "title": "Date Signed",
+                "defaultValueExpression": "today()",
+                "isRequired": true,
+                "inputType": "date"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "propertyAddress": "2847 Maple Street, Portland, OR 97201",
+        "unitNumber": "Apt 3B",
+        "inspectionType": "Move-In",
+        "inspectionDate": "2025-02-01",
+        "rooms": [
+          { "roomName": "Living Room", "condition": 4, "hasIssues": false },
+          { "roomName": "Master Bedroom", "condition": 5, "hasIssues": false },
+          { "roomName": "Kitchen", "condition": 4, "hasIssues": true, "issueDescription": "Small chip in countertop near the sink, pre-existing. Documented for move-out comparison." },
+          { "roomName": "Bathroom", "condition": 4, "hasIssues": false }
+        ],
+        "overallCondition": 4,
+        "recommendations": "Minor countertop chip in kitchen should be noted on tenant agreement to avoid dispute at move-out.",
+        "inspectorName": "Sandra Kowalski",
+        "signDate": "2025-02-01"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "propertyAddress": "510 Riverside Drive, Nashville, TN 37201",
+        "unitNumber": "Unit 12",
+        "inspectionType": "Move-Out",
+        "inspectionDate": "2025-01-31",
+        "rooms": [
+          { "roomName": "Living Room", "condition": 3, "hasIssues": true, "issueDescription": "Large scuff marks on wall near entrance, likely from furniture moving. Will require repainting." },
+          { "roomName": "Bedroom 1", "condition": 4, "hasIssues": false },
+          { "roomName": "Bedroom 2", "condition": 2, "hasIssues": true, "issueDescription": "Carpet stains (multiple, appear to be wine or coffee). Carpet likely needs replacing." },
+          { "roomName": "Bathroom", "condition": 3, "hasIssues": true, "issueDescription": "Mold visible in grout lines around shower. Needs professional cleaning or re-grouting." },
+          { "roomName": "Kitchen", "condition": 4, "hasIssues": false }
+        ],
+        "overallCondition": 3,
+        "recommendations": "Deductions recommended: wall repainting (~$200), carpet replacement bedroom 2 (~$600), bathroom grout treatment (~$150). Security deposit partially withheld per lease agreement.",
+        "inspectorName": "Marcus Delgado",
+        "signDate": "2025-01-31"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "propertyAddress": "1120 Oak Park Avenue, Chicago, IL 60304",
+        "inspectionType": "Routine",
+        "inspectionDate": "2025-02-10",
+        "rooms": [
+          { "roomName": "Living Room", "condition": 5, "hasIssues": false },
+          { "roomName": "Kitchen", "condition": 5, "hasIssues": false },
+          { "roomName": "Master Bedroom", "condition": 5, "hasIssues": false },
+          { "roomName": "Bathroom", "condition": 4, "hasIssues": true, "issueDescription": "Slow drain in bathtub, minor. Likely needs a hair trap cleaning." }
+        ],
+        "overallCondition": 5,
+        "recommendations": "Property in excellent condition. Recommend clearing bathtub drain — low priority, tenant can self-resolve.",
+        "inspectorName": "Janelle Brooks",
+        "signDate": "2025-02-10"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "propertyAddress": "78 Sunset Boulevard, Los Angeles, CA 90028",
+        "unitNumber": "Suite 4A",
+        "inspectionType": "Maintenance Check",
+        "inspectionDate": "2025-02-07",
+        "rooms": [
+          { "roomName": "Living Room", "condition": 3, "hasIssues": true, "issueDescription": "Window seal is broken — condensation visible between panes. Needs window replacement." },
+          { "roomName": "Kitchen", "condition": 4, "hasIssues": true, "issueDescription": "Dishwasher leaking from door seal. Currently inoperable." },
+          { "roomName": "Bedroom", "condition": 4, "hasIssues": false },
+          { "roomName": "Bathroom", "condition": 3, "hasIssues": true, "issueDescription": "Toilet running continuously, wasting water. Flapper valve needs replacing." }
+        ],
+        "overallCondition": 3,
+        "recommendations": "Priority items: (1) Replace dishwasher door gasket — urgent due to water damage risk. (2) Fix toilet flapper — low cost, high water waste. (3) Schedule window replacement — non-urgent but required before winter.",
+        "inspectorName": "Tyler Reeves",
+        "signDate": "2025-02-07"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "propertyAddress": "340 Birchwood Lane, Austin, TX 78701",
+        "inspectionType": "Move-In",
+        "inspectionDate": "2025-02-15",
+        "rooms": [
+          { "roomName": "Living Room", "condition": 5, "hasIssues": false },
+          { "roomName": "Kitchen", "condition": 5, "hasIssues": false },
+          { "roomName": "Master Bedroom", "condition": 5, "hasIssues": false },
+          { "roomName": "Second Bedroom", "condition": 5, "hasIssues": false },
+          { "roomName": "Bathroom 1", "condition": 5, "hasIssues": false },
+          { "roomName": "Bathroom 2", "condition": 4, "hasIssues": true, "issueDescription": "Minor caulk discoloration around bath — cosmetic only, not structural." }
+        ],
+        "overallCondition": 5,
+        "recommendations": "Property presented in excellent condition. Caulk discoloration noted for record — no action required at this time.",
+        "inspectorName": "Priscilla Tan",
+        "signDate": "2025-02-15"
+      }
+    }
+  ]
+}

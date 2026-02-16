@@ -1,0 +1,307 @@
+{
+  "form": {
+    "name": "Claims Submission"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Insurance Claims Submission",
+        "description": "Please fill out the form below to submit your claim.",
+        "pages": [
+            {
+            "name": "claim-type",
+            "title": "Claim Type",
+            "elements": [
+                {
+                "type": "dropdown",
+                "name": "claimType",
+                "title": "What type of claim are you submitting?",
+                "isRequired": true,
+                "choices": [
+                    "Auto",
+                    "Home",
+                    "Life",
+                    "Health"
+                ]
+                },
+                {
+                "type": "text",
+                "name": "policyNumber",
+                "title": "Policy Number",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "fullName",
+                "title": "Full Name",
+                "isRequired": true
+                },
+                {
+                "type": "text",
+                "name": "email",
+                "title": "Email Address",
+                "isRequired": true,
+                "inputType": "email"
+                },
+                {
+                "type": "phone",
+                "name": "phone"
+                }
+            ]
+            },
+            {
+            "name": "incident-details",
+            "title": "Incident Details",
+            "elements": [
+                {
+                "type": "text",
+                "name": "incidentDate",
+                "title": "Date of Incident",
+                "isRequired": true,
+                "inputType": "date"
+                },
+                {
+                "type": "comment",
+                "name": "incidentDescription",
+                "title": "Describe what happened",
+                "isRequired": true
+                },
+                {
+                "type": "file",
+                "name": "incidentPhotos",
+                "title": "Upload photos or documents related to the incident",
+                "allowMultiple": true,
+                "waitForUpload": true,
+                "maxSize": 10485760
+                }
+            ]
+            },
+            {
+            "name": "auto-claim-details",
+            "visibleIf": "{claimType} = 'Auto'",
+            "title": "Auto Claim Details",
+            "elements": [
+                {
+                "type": "text",
+                "name": "vehicleMake",
+                "title": "Vehicle Make"
+                },
+                {
+                "type": "text",
+                "name": "vehicleModel",
+                "title": "Vehicle Model"
+                },
+                {
+                "type": "text",
+                "name": "licensePlate",
+                "title": "License Plate Number"
+                },
+                {
+                "type": "boolean",
+                "name": "wasPoliceReportFiled",
+                "title": "Was a police report filed?",
+                "swapOrder": true
+                }
+            ]
+            },
+            {
+            "name": "home-claim-details",
+            "visibleIf": "{claimType} = 'Home'",
+            "title": "Home Claim Details",
+            "elements": [
+                {
+                "type": "text",
+                "name": "propertyAddress",
+                "title": "Property Address"
+                },
+                {
+                "type": "boolean",
+                "name": "isHomeHabitable",
+                "title": "Is the home currently habitable?",
+                "swapOrder": true
+                },
+                {
+                "type": "text",
+                "name": "estimatedDamageCost",
+                "title": "Estimated Damage Cost (USD)",
+                "inputType": "number"
+                }
+            ]
+            },
+            {
+            "name": "life-claim-details",
+            "visibleIf": "{claimType} = 'Life'",
+            "title": "Life Claim Details",
+            "elements": [
+                {
+                "type": "text",
+                "name": "deceasedName",
+                "title": "Name of the Deceased"
+                },
+                {
+                "type": "text",
+                "name": "deceasedDOB",
+                "title": "Date of Birth",
+                "inputType": "date"
+                },
+                {
+                "type": "text",
+                "name": "dateOfDeath",
+                "title": "Date of Death",
+                "inputType": "date"
+                },
+                {
+                "type": "file",
+                "name": "deathCertificate",
+                "title": "Upload Death Certificate",
+                "waitForUpload": true,
+                "maxSize": 10485760
+                }
+            ]
+            },
+            {
+            "name": "health-claim-details",
+            "visibleIf": "{claimType} = 'Health'",
+            "title": "Health Claim Details",
+            "elements": [
+                {
+                "type": "text",
+                "name": "patientName",
+                "title": "Patient's Name"
+                },
+                {
+                "type": "text",
+                "name": "serviceDate",
+                "title": "Date of Service",
+                "inputType": "date"
+                },
+                {
+                "type": "text",
+                "name": "providerName",
+                "title": "Healthcare Provider Name"
+                },
+                {
+                "type": "file",
+                "name": "medicalBills",
+                "title": "Upload Bills or Receipts",
+                "allowMultiple": true,
+                "waitForUpload": true,
+                "maxSize": 10485760
+                }
+            ]
+            },
+            {
+            "name": "additional-notes",
+            "title": "Additional Notes",
+            "elements": [
+                {
+                "type": "comment",
+                "name": "additionalInfo",
+                "title": "Any additional information you would like to provide?"
+                }
+            ]
+            },
+            {
+            "name": "submission-confirmation",
+            "title": "Submission Confirmation",
+            "elements": [
+                {
+                "type": "html",
+                "name": "confirmation",
+                "html": "<h3>Thank you for your submission!</h3><p>Our team will review your claim and get back to you as soon as possible.</p>"
+                }
+            ]
+            }
+        ],
+        "showProgressBar": true
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "claimType": "Auto",
+        "policyNumber": "AUTO-2024-774521",
+        "fullName": "Marcus Fleming",
+        "email": "m.fleming@gmail.com",
+        "phone": "+1 (312) 555-0981",
+        "incidentDate": "2025-01-28",
+        "incidentDescription": "Vehicle was rear-ended while stopped at a traffic light on N Michigan Ave. The other driver admitted fault at the scene. Rear bumper and trunk lid are damaged. Car is drivable but rear camera is non-functional.",
+        "vehicleMake": "Honda",
+        "vehicleModel": "Accord",
+        "licensePlate": "IL-ZYX-4421",
+        "wasPoliceReportFiled": true,
+        "additionalInfo": "Police report number: CPD-2025-01-28-4421. Other driver's insurance: State Farm, policy TBD."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "claimType": "Home",
+        "policyNumber": "HOME-2023-991047",
+        "fullName": "Theresa Bloom",
+        "email": "t.bloom@yahoo.com",
+        "phone": "+1 (206) 555-0347",
+        "incidentDate": "2025-01-15",
+        "incidentDescription": "Burst pipe in the kitchen ceiling during the cold snap on January 14-15. Water caused significant damage to kitchen ceiling, flooring, and cabinets. Emergency plumber was called same night to shut off water.",
+        "propertyAddress": "3302 Burke Ave N, Seattle, WA 98103",
+        "isHomeHabitable": true,
+        "estimatedDamageCost": 22000,
+        "additionalInfo": "Plumber's invoice and initial contractor estimate attached. Temporary repairs made to prevent further damage."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "claimType": "Health",
+        "policyNumber": "HEALTH-2024-223819",
+        "fullName": "Roberto Sanchez",
+        "email": "r.sanchez@hotmail.com",
+        "phone": "+1 (214) 555-0724",
+        "incidentDate": "2025-02-03",
+        "incidentDescription": "Emergency appendectomy performed at Baylor University Medical Center on February 3, 2025. Pre-authorization was not possible due to emergency nature of admission.",
+        "patientName": "Roberto Sanchez",
+        "serviceDate": "2025-02-03",
+        "providerName": "Baylor University Medical Center",
+        "additionalInfo": "Total billed: $38,400. Expected out-of-pocket based on EOB: ~$2,200. Requesting timely processing given the emergency nature of this claim."
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "claimType": "Auto",
+        "policyNumber": "AUTO-2022-558809",
+        "fullName": "Nina Kowalski",
+        "email": "nina.kowalski@wp.pl",
+        "phone": "+48 600 555 234",
+        "incidentDate": "2025-01-22",
+        "incidentDescription": "Car broken into overnight while parked outside my apartment. The passenger window was smashed. Laptop bag, camera, and other personal items were stolen from the back seat. Total estimated value of stolen items: ~$3,800.",
+        "vehicleMake": "Volkswagen",
+        "vehicleModel": "Golf",
+        "licensePlate": "WA 12345",
+        "wasPoliceReportFiled": true,
+        "additionalInfo": "Police report filed at Wola Police Station on January 22. Reference number: KPP-WA-2025-1122."
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "claimType": "Life",
+        "policyNumber": "LIFE-2019-334412",
+        "fullName": "Margaret Donovan",
+        "email": "m.donovan@eircom.net",
+        "phone": "+353 86 555 7821",
+        "incidentDate": "2025-02-01",
+        "incidentDescription": "Claim submitted on behalf of the estate of Patrick Donovan, policy holder. Mr. Donovan passed away on February 1, 2025, following a cardiac event. Beneficiary is the spouse, Margaret Donovan.",
+        "deceasedName": "Patrick Donovan",
+        "deceasedDOB": "1952-04-16",
+        "dateOfDeath": "2025-02-01",
+        "additionalInfo": "Death certificate and probate documentation will be submitted by post within 10 business days as per policy requirements."
+      }
+    }
+  ]
+}

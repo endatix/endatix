@@ -1,0 +1,189 @@
+{
+  "form": {
+    "name": "Student Assessment Quiz"
+  },
+  "definition": {
+    "jsonSchema": {
+        "title": "Science Knowledge Check",
+        "description": "Answer the questions below to test your understanding.",
+        "completedHtmlOnCondition": [
+            {
+            "expression": "{correctAnswers} >= 4",
+            "html": "<h4>Great job!</h4><p>You scored {correctAnswers} out of {questionCount}.</p>"
+            },
+            {
+            "expression": "{correctAnswers} < 4",
+            "html": "<h4>Thanks for trying!</h4><p>You scored {correctAnswers} out of {questionCount}. Keep practicing!</p>"
+            }
+        ],
+        "pages": [
+            {
+            "name": "page1",
+            "elements": [
+                {
+                "type": "html",
+                "name": "intro",
+                "html": "<p>This short quiz will test your basic science knowledge.</p><p>Click 'Start Quiz' when you're ready.</p>"
+                }
+            ]
+            },
+            {
+            "name": "page2",
+            "title": "Question 1",
+            "elements": [
+                {
+                "type": "radiogroup",
+                "name": "q1",
+                "title": "What planet is known as the Red Planet?",
+                "correctAnswer": "Mars",
+                "isRequired": true,
+                "choices": [
+                    "Earth",
+                    "Venus",
+                    "Mars",
+                    "Jupiter"
+                ]
+                }
+            ]
+            },
+            {
+            "name": "page3",
+            "title": "Question 2",
+            "elements": [
+                {
+                "type": "radiogroup",
+                "name": "q2",
+                "title": "Water boils at 100 degrees on which temperature scale?",
+                "correctAnswer": "Celsius",
+                "isRequired": true,
+                "choices": [
+                    "Celsius",
+                    "Fahrenheit",
+                    "Kelvin"
+                ]
+                }
+            ]
+            },
+            {
+            "name": "page4",
+            "title": "Question 3",
+            "elements": [
+                {
+                "type": "imagepicker",
+                "name": "q3",
+                "title": "Which of the following is a mammal?",
+                "correctAnswer": "dolphin",
+                "choices": [
+                    {
+                    "value": "dolphin",
+                    "imageLink": "https://example.com/img/dolphin.jpg"
+                    },
+                    {
+                    "value": "shark",
+                    "imageLink": "https://example.com/img/shark.jpg"
+                    },
+                    {
+                    "value": "octopus",
+                    "imageLink": "https://example.com/img/octopus.jpg"
+                    }
+                ],
+                "showLabel": true
+                }
+            ]
+            },
+            {
+            "name": "page5",
+            "title": "Question 4",
+            "elements": [
+                {
+                "type": "boolean",
+                "name": "q4",
+                "title": "True or False: The Sun is a star.",
+                "correctAnswer": true,
+                "isRequired": true,
+                "labelTrue": "True",
+                "labelFalse": "False",
+                "swapOrder": true
+                }
+            ]
+            },
+            {
+            "name": "page6",
+            "title": "Question 5",
+            "elements": [
+                {
+                "type": "text",
+                "name": "q5",
+                "title": "What gas do plants absorb from the atmosphere?",
+                "correctAnswer": "carbon dioxide",
+                "isRequired": true
+                }
+            ]
+            }
+        ],
+        "showQuestionNumbers": "on",
+        "showProgressBar": true,
+        "startSurveyText": "Start Quiz",
+        "firstPageIsStartPage": true,
+        "showPreviewBeforeComplete": true,
+        "previewMode": "answeredQuestions"
+        }
+  },
+  "submissions": [
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "q1": "Mars",
+        "q2": "Celsius",
+        "q3": "dolphin",
+        "q4": true,
+        "q5": "carbon dioxide"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "new",
+      "jsonData": {
+        "q1": "Mars",
+        "q2": "Celsius",
+        "q3": "dolphin",
+        "q4": true,
+        "q5": "CO2"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "read",
+      "jsonData": {
+        "q1": "Venus",
+        "q2": "Celsius",
+        "q3": "dolphin",
+        "q4": true,
+        "q5": "carbon dioxide"
+      }
+    },
+    {
+      "isComplete": true,
+      "status": "approved",
+      "jsonData": {
+        "q1": "Mars",
+        "q2": "Fahrenheit",
+        "q3": "shark",
+        "q4": false,
+        "q5": "oxygen"
+      }
+    },
+    {
+      "isComplete": false,
+      "status": "new",
+      "jsonData": {
+        "q1": "Jupiter",
+        "q2": "Kelvin",
+        "q3": "octopus",
+        "q4": true,
+        "q5": "nitrogen"
+      }
+    }
+  ]
+}
