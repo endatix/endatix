@@ -89,7 +89,7 @@ public class InfrastructureBuilder
         Services.AddWebHookProcessing();
         Services.AddMultitenancyConfiguration();
         Services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
-        Services.AddScoped<ISubmissionAuthorizationService, SubmissionAuthorizationService>();
+        Services.AddScoped<ISubmissionAccessControl, SubmissionAccessControl>();
         Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
         Data.UseDefaults();
