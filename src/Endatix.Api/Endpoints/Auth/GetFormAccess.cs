@@ -35,11 +35,11 @@ public class GetFormAccess(
     /// <inheritdoc/>
     public override async Task<Results<Ok<FormAccessData>, ProblemHttpResult>> ExecuteAsync(
         GetFormAccessRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var accessDataResult = await submissionAccessControl.GetAccessDataAsync(
             new SubmissionAccessContext(request.FormId, request.SubmissionId, request.Token),
-            cancellationToken);
+            ct);
 
 
         return TypedResultsBuilder
