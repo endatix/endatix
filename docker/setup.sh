@@ -39,11 +39,14 @@ USER_PASSWORD=${USER_PASSWORD:-P@ssw0rd}
 
 read -p "Seed sample forms and submissions into the database? Enter 'y' or 'n' (skip to use the default value 'y'): " SEED_SAMPLE_FORMS_INPUT
 SEED_SAMPLE_FORMS_INPUT=${SEED_SAMPLE_FORMS_INPUT:-y}
-if [[ "${SEED_SAMPLE_FORMS_INPUT,,}" == "y" ]]; then
-  SEED_SAMPLE_FORMS="true"
-else
-  SEED_SAMPLE_FORMS="false"
-fi
+case "$SEED_SAMPLE_FORMS_INPUT" in
+    [yY]) 
+        SEED_SAMPLE_FORMS="true" 
+        ;;
+    *) 
+        SEED_SAMPLE_FORMS="false" 
+        ;;
+esac
 
 # Create the .env file with the exact structure and values
 cat > .env << EOF
