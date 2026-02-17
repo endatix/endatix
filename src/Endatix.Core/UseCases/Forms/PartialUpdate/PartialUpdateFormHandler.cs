@@ -24,6 +24,7 @@ public class PartialUpdateFormHandler(
         form.Name = request.Name ?? form.Name;
         form.Description = request.Description ?? form.Description;
         form.IsEnabled = request.IsEnabled ?? form.IsEnabled;
+        form.IsPublic = request.IsPublic ?? form.IsPublic;
 
         if (request.ThemeId.HasValue && form.ThemeId != request.ThemeId)
         {

@@ -23,6 +23,7 @@ public sealed class FormsWithSubmissionsCountSpec : Specification<Form, FormDto>
                 Name = form.Name,
                 Description = form.Description,
                 IsEnabled = form.IsEnabled,
+                IsPublic = form.IsPublic,
                 CreatedAt = form.CreatedAt,
                 ModifiedAt = form.ModifiedAt,
                 SubmissionsCount = form.FormDefinitions.SelectMany(fd => fd.Submissions).Count()

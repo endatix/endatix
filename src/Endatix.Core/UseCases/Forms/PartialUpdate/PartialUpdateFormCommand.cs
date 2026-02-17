@@ -14,10 +14,11 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
     public string? Name { get; init; }
     public string? Description { get; init; }
     public bool? IsEnabled { get; init; }
+    public bool? IsPublic { get; init; }
     public long? ThemeId { get; init; }
     public string? WebHookSettingsJson { get; init; }
 
-    public PartialUpdateFormCommand(long formId, string? name, string? description, bool? isEnabled, long? themeId, string? webHookSettingsJson = null)
+    public PartialUpdateFormCommand(long formId, string? name, string? description, bool? isEnabled, bool? isPublic, long? themeId, string? webHookSettingsJson = null)
     {
         Guard.Against.NegativeOrZero(formId);
 
@@ -25,6 +26,7 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
+        IsPublic = isPublic;
         ThemeId = themeId;
         WebHookSettingsJson = webHookSettingsJson;
     }
