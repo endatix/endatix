@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
@@ -46,32 +45,40 @@ public class SubmissionAccessControl(
             else
             {
                 submissionPermissions.Add(SubmissionPermissions.Submission.Create);
+                submissionPermissions.Add(SubmissionPermissions.Submission.UploadFile);
             }
 
             return Result<FormAccessData>.Success(new FormAccessData
             {
+                FormId = context.FormId.ToString(),
+                SubmissionId = context.SubmissionId?.ToString(),
                 FormPermissions = formPermissions,
                 SubmissionPermissions = submissionPermissions
             });
         }
 
-        await EvaluateFormLevelAccessAsync(context, identity, formPermissions, cancellationToken);
+        var isFormPublic = await IsFormPublicAsync(context.FormId, cancellationToken);
+        if (isFormPublic)
+        {
+            formPermissions.Add(SubmissionPermissions.Form.View);
+        }
+
+        await EvaluateFormLevelAccessAsync(formPermissions, cancellationToken);
 
         if (context.SubmissionId.HasValue)
         {
             await EvaluateSubmissionLevelAccessAsync(context, identity, submissionPermissions, cancellationToken);
         }
-        else
+        else if (isFormPublic)
         {
-            var hasSubmissionCreate = await authorizationService.HasPermissionAsync(Actions.Submissions.Create, cancellationToken);
-            if (hasSubmissionCreate.IsSuccess && hasSubmissionCreate.Value)
-            {
-                submissionPermissions.Add(SubmissionPermissions.Submission.Create);
-            }
+            submissionPermissions.Add(SubmissionPermissions.Submission.Create);
+            submissionPermissions.Add(SubmissionPermissions.Submission.UploadFile);
         }
 
         return Result<FormAccessData>.Success(new FormAccessData
         {
+            FormId = context.FormId.ToString(),
+            SubmissionId = context.SubmissionId?.ToString(),
             FormPermissions = formPermissions,
             SubmissionPermissions = submissionPermissions
         });
@@ -90,24 +97,13 @@ public class SubmissionAccessControl(
     }
 
     private async Task EvaluateFormLevelAccessAsync(
-        SubmissionAccessContext context,
-        AuthorizationData identity,
         HashSet<string> permissions,
         CancellationToken cancellationToken)
     {
-        var isPublic = await IsFormPublicAsync(context.FormId, cancellationToken);
-        if (isPublic)
+        var hasFormEdit = await authorizationService.HasPermissionAsync(Actions.Forms.Edit, cancellationToken);
+        if (hasFormEdit.IsSuccess && hasFormEdit.Value)
         {
-            permissions.Add(SubmissionPermissions.Form.View);
-        }
-
-        if (identity.UserId != "anonymous")
-        {
-            var hasFormEdit = await authorizationService.HasPermissionAsync(Actions.Forms.Edit, cancellationToken);
-            if (hasFormEdit.IsSuccess && hasFormEdit.Value)
-            {
-                permissions.Add(SubmissionPermissions.Form.Design);
-            }
+            permissions.Add(SubmissionPermissions.Form.Design);
         }
     }
 

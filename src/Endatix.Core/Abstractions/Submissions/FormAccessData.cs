@@ -8,6 +8,16 @@ namespace Endatix.Core.Abstractions.Submissions;
 public class FormAccessData
 {
     /// <summary>
+    /// The form ID this access data applies to.
+    /// </summary>
+    public string FormId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The submission ID if applicable (null for new submissions).
+    /// </summary>
+    public string? SubmissionId { get; init; }
+
+    /// <summary>
     /// Permissions for the form resource.
     /// </summary>
     public IEnumerable<string> FormPermissions { get; init; } = [];
