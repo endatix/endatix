@@ -26,6 +26,11 @@ public class PartialUpdateFormRequest
     public bool? IsEnabled { get; set; }
 
     /// <summary>
+    /// Indicates if the form is publicly accessible.
+    /// </summary>
+    public bool? IsPublic { get; set; }
+
+    /// <summary>
     /// The ID of the theme to update.
     /// </summary>
     public long? ThemeId { get; set; }

@@ -28,6 +28,11 @@ public class FormModel
     public bool IsEnabled { get; set; }
 
     /// <summary>
+    /// Indicates if the form is publicly accessible.
+    /// </summary>
+    public bool IsPublic { get; set; }
+
+    /// <summary>
     /// The ID of the theme associated with the form.
     /// </summary>
     public string? ThemeId { get; set; }

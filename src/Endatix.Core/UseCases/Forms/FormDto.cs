@@ -26,6 +26,11 @@ public record FormDto
     public bool IsEnabled { get; init; }
 
     /// <summary>
+    /// Indicates if the form is publicly accessible.
+    /// </summary>
+    public bool IsPublic { get; init; }
+
+    /// <summary>
     /// The ID of the theme associated with the form.
     /// </summary>
     public string? ThemeId { get; init; }
