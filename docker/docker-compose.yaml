@@ -62,6 +62,7 @@ services:
       NODE_ENV: "production"
       PORT: "8000"
       ENDATIX_API_URL: "http://endatix-api:${ENDATIX_API_PORT}/api"
+      ENDATIX_BASE_URL: "http://endatix-api:${ENDATIX_API_PORT}"
       SESSION_SECRET: "Tr9YJeqVsIicqvNgpcn+iJVGq6l4qU95b+GuP/xziMs="
       NEXT_OTEL_VERBOSE: "0"
       AUTH_SECRET: "edukEVrf9XA1GRDN44/BnB+6xeO1xLUWeKRWS7RWoYo="
