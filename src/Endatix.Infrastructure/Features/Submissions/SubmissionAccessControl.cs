@@ -139,7 +139,7 @@ public class SubmissionAccessControl(
             var hasSubmissionDelete = await authorizationService.HasPermissionAsync(Actions.Submissions.Delete, cancellationToken);
             if (hasSubmissionDelete.IsSuccess && hasSubmissionDelete.Value)
             {
-                permissions.Add(ResourcePermissions.Submission.Delete);
+                permissions.Add(ResourcePermissions.Submission.DeleteFile);
             }
         }
     }
