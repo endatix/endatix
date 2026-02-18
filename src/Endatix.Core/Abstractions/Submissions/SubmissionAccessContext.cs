@@ -8,6 +8,7 @@ public class SubmissionAccessContext
     public long FormId { get; init; }
     public long? SubmissionId { get; init; }
     public string? AccessToken { get; init; }
+    public bool IsNewSubmission => !SubmissionId.HasValue;
 
     public SubmissionAccessContext(long formId, long? submissionId = null, string? accessToken = null)
     {
