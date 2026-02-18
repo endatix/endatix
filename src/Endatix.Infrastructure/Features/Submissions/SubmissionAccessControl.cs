@@ -1,3 +1,4 @@
+using Ardalis.Specification;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
@@ -103,7 +104,7 @@ public class SubmissionAccessControl(
         var hasFormEdit = await authorizationService.HasPermissionAsync(Actions.Forms.Edit, cancellationToken);
         if (hasFormEdit.IsSuccess && hasFormEdit.Value)
         {
-            permissions.Add(ResourcePermissions.Form.Design);
+            permissions.Add(ResourcePermissions.Form.Edit);
         }
     }
 
@@ -118,14 +119,10 @@ public class SubmissionAccessControl(
             var tokenResult = await tokenService.ResolveTokenAsync(context.AccessToken, cancellationToken);
             if (tokenResult.IsSuccess && tokenResult.Value == context.SubmissionId.Value)
             {
-                permissions.Add(ResourcePermissions.Submission.View);
-                permissions.Add(ResourcePermissions.Submission.ViewFiles);
-                permissions.Add(ResourcePermissions.Submission.Edit);
-                permissions.Add(ResourcePermissions.Submission.UploadFile);
-                permissions.Add(ResourcePermissions.Submission.DeleteFile);
+                permissions.UnionWith(ResourcePermissions.Submission.Sets.ReviewSubmission);
             }
         }
-        else if (identity.UserId != "anonymous")
+        else if (identity.UserId != AuthorizationData.ANONYMOUS_USER_ID)
         {
             var hasSubmissionView = await authorizationService.HasPermissionAsync(Actions.Submissions.View, cancellationToken);
             if (hasSubmissionView.IsSuccess && hasSubmissionView.Value)
@@ -136,17 +133,23 @@ public class SubmissionAccessControl(
             var hasSubmissionEdit = await authorizationService.HasPermissionAsync(Actions.Submissions.Edit, cancellationToken);
             if (hasSubmissionEdit.IsSuccess && hasSubmissionEdit.Value)
             {
-                permissions.Add(ResourcePermissions.Submission.Edit);
-                permissions.Add(ResourcePermissions.Submission.UploadFile);
-                permissions.Add(ResourcePermissions.Submission.DeleteFile);
+                permissions.UnionWith(ResourcePermissions.Submission.Sets.EditSubmission);
+            }
+
+            var hasSubmissionDelete = await authorizationService.HasPermissionAsync(Actions.Submissions.Delete, cancellationToken);
+            if (hasSubmissionDelete.IsSuccess && hasSubmissionDelete.Value)
+            {
+                permissions.Add(ResourcePermissions.Submission.Delete);
             }
         }
     }
 
     private async Task<bool> IsFormPublicAsync(long formId, CancellationToken cancellationToken)
     {
-        var formSpec = new FormSpecifications.ByIdWithRelated(formId);
-        var form = await formRepository.FirstOrDefaultAsync(formSpec, cancellationToken);
-        return form?.IsPublic ?? false;
+        var byIdSpec = new FormSpecifications.ById(formId);
+        var isPublicDtoSpec = new FormProjections.IsPublicDtoSpec();
+
+        var formDto = await formRepository.FirstOrDefaultAsync(byIdSpec.WithProjectionOf(isPublicDtoSpec), cancellationToken);
+        return formDto?.IsPublic ?? false;
     }
 }

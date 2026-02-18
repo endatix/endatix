@@ -14,7 +14,7 @@ public static class PermissionSets
     {
         public static readonly string[] None = [];
         public static readonly string[] ViewOnly = [ResourcePermissions.Form.View];
-        public static readonly string[] ViewAndDesign = [ResourcePermissions.Form.View, ResourcePermissions.Form.Design];
+        public static readonly string[] ViewAndDesign = [ResourcePermissions.Form.View, ResourcePermissions.Form.Edit];
     }
 
     public static class Submission
@@ -46,6 +46,7 @@ public static class PermissionSets
             ResourcePermissions.Submission.Create,
             ResourcePermissions.Submission.View,
             ResourcePermissions.Submission.Edit,
+            ResourcePermissions.Submission.Delete,
             ResourcePermissions.Submission.ViewFiles,
             ResourcePermissions.Submission.UploadFile,
             ResourcePermissions.Submission.DeleteFile

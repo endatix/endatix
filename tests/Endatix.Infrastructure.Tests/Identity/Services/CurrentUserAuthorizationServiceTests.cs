@@ -120,7 +120,7 @@ public sealed class CurrentUserAuthorizationServiceTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value!.UserId.Should().Be("anonymous");
+        result.Value!.UserId.Should().Be(AuthorizationData.ANONYMOUS_USER_ID);
         result.Value.Roles.Should().Contain(SystemRole.Public.Name);
     }
 
@@ -142,7 +142,7 @@ public sealed class CurrentUserAuthorizationServiceTests
         // When there's no identity, GetUserId returns null, so it returns anonymous user
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value!.UserId.Should().Be("anonymous");
+        result.Value!.UserId.Should().Be(AuthorizationData.ANONYMOUS_USER_ID);
         result.Value.Roles.Should().Contain(SystemRole.Public.Name);
     }
 

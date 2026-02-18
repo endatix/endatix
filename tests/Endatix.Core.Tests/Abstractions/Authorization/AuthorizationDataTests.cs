@@ -15,7 +15,7 @@ public sealed class AuthorizationDataTests
         var data = AuthorizationData.ForAnonymousUser(tenantId);
 
         // Assert
-        data.UserId.Should().Be("anonymous");
+        data.UserId.Should().Be(AuthorizationData.ANONYMOUS_USER_ID);
         data.TenantId.Should().Be(tenantId);
         data.Roles.Should().Contain(SystemRole.Public.Name);
         data.Permissions.Should().AllBeEquivalentTo(SystemRole.Public.Permissions);
