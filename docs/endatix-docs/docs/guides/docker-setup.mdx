@@ -109,24 +109,26 @@ chmod +x setup.sh
 </TabItem>
 </Tabs>
 
-### Step 4: Enter Admin Credentials
+### Step 4: Configure Your Setup
 
 The script will prompt you for:
 
 - **Admin Email**: Default is `admin@endatix.com`
 - **Admin Password**: Default is `P@ssw0rd`
+- **Seed sample forms**: Whether to load sample forms and submissions into the database. Default is `y` (yes)
 
 :::info
-**Note:** For testing purposes, you can use the defaults. Change these credentials before any production use.
+**Note:** For testing purposes, you can use the defaults. Change the admin credentials before any production use. Sample forms give you pre-built examples to explore the platform right away.
 :::
 
 Press Enter to use defaults, or type your own values.
 
-The script will automatically:
+The script will automatically initiate the actions to:
 
 1. Download the required Docker images
 2. Create and start all containers
 3. Set up the database and initial admin user
+4. Optionally seed sample forms and submissions
 
 ---
 
