@@ -2,8 +2,9 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
 
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.AccessControl;
 
 /// <summary>
 /// Endpoint for getting form access permissions.
@@ -11,15 +12,15 @@ namespace Endatix.Api.Endpoints.Auth;
 /// Identity (who the user is) should be fetched from /auth/me endpoint.
 /// </summary>
 public class GetFormAccess(
-    ISubmissionAccessControl submissionAccessControl
-) : Endpoint<GetFormAccessRequest, Results<Ok<FormAccessData>, ProblemHttpResult>>
+    IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext> submissionAccessControl
+) : Endpoint<GetFormAccessRequest, Results<Ok<GetFormAccessResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
     public override void Configure()
     {
-        Get("auth/access/form");
+        Get("access-control/submission");
         AllowAnonymous();
         Summary(s =>
         {
@@ -33,17 +34,16 @@ public class GetFormAccess(
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<FormAccessData>, ProblemHttpResult>> ExecuteAsync(
+    public override async Task<Results<Ok<GetFormAccessResponse>, ProblemHttpResult>> ExecuteAsync(
         GetFormAccessRequest request,
         CancellationToken ct)
     {
-        var accessDataResult = await submissionAccessControl.GetAccessDataAsync(
+        var accessDataResult = await submissionAccessControl.GetAccessData(
             new SubmissionAccessContext(request.FormId, request.SubmissionId, request.Token),
             ct);
 
-
         return TypedResultsBuilder
-            .FromResult(accessDataResult)
-            .SetTypedResults<Ok<FormAccessData>, ProblemHttpResult>();
+            .MapResult(accessDataResult, GetFormAccessResponse.FromCached)
+            .SetTypedResults<Ok<GetFormAccessResponse>, ProblemHttpResult>();
     }
 }
