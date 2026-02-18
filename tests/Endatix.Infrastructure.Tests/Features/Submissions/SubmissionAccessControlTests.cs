@@ -13,42 +13,42 @@ public static class PermissionSets
     public static class Form
     {
         public static readonly string[] None = [];
-        public static readonly string[] ViewOnly = [SubmissionPermissions.Form.View];
-        public static readonly string[] ViewAndDesign = [SubmissionPermissions.Form.View, SubmissionPermissions.Form.Design];
+        public static readonly string[] ViewOnly = [ResourcePermissions.Form.View];
+        public static readonly string[] ViewAndDesign = [ResourcePermissions.Form.View, ResourcePermissions.Form.Design];
     }
 
     public static class Submission
     {
         public static readonly string[] None = [];
-        public static readonly string[] CreateOnly = [SubmissionPermissions.Submission.Create];
-        public static readonly string[] CreateAndUpload = [SubmissionPermissions.Submission.Create, SubmissionPermissions.Submission.UploadFile];
-        public static readonly string[] ViewOnly = [SubmissionPermissions.Submission.View];
-        public static readonly string[] ViewAndEdit = [SubmissionPermissions.Submission.View, SubmissionPermissions.Submission.Edit];
+        public static readonly string[] CreateOnly = [ResourcePermissions.Submission.Create];
+        public static readonly string[] CreateAndUpload = [ResourcePermissions.Submission.Create, ResourcePermissions.Submission.UploadFile];
+        public static readonly string[] ViewOnly = [ResourcePermissions.Submission.View];
+        public static readonly string[] ViewAndEdit = [ResourcePermissions.Submission.View, ResourcePermissions.Submission.Edit];
         public static readonly string[] EditAndFileOps = [
-            SubmissionPermissions.Submission.Edit,
-            SubmissionPermissions.Submission.UploadFile,
-            SubmissionPermissions.Submission.DeleteFile
+            ResourcePermissions.Submission.Edit,
+            ResourcePermissions.Submission.UploadFile,
+            ResourcePermissions.Submission.DeleteFile
         ];
         public static readonly string[] ViewAndEditAndFileOps = [
-            SubmissionPermissions.Submission.View,
-            SubmissionPermissions.Submission.Edit,
-            SubmissionPermissions.Submission.UploadFile,
-            SubmissionPermissions.Submission.DeleteFile
+            ResourcePermissions.Submission.View,
+            ResourcePermissions.Submission.Edit,
+            ResourcePermissions.Submission.UploadFile,
+            ResourcePermissions.Submission.DeleteFile
         ];
         public static readonly string[] FullAccess = [
-            SubmissionPermissions.Submission.View,
-            SubmissionPermissions.Submission.Edit,
-            SubmissionPermissions.Submission.ViewFiles,
-            SubmissionPermissions.Submission.UploadFile,
-            SubmissionPermissions.Submission.DeleteFile
+            ResourcePermissions.Submission.View,
+            ResourcePermissions.Submission.Edit,
+            ResourcePermissions.Submission.ViewFiles,
+            ResourcePermissions.Submission.UploadFile,
+            ResourcePermissions.Submission.DeleteFile
         ];
         public static readonly string[] FullAccessWithCreate = [
-            SubmissionPermissions.Submission.Create,
-            SubmissionPermissions.Submission.View,
-            SubmissionPermissions.Submission.Edit,
-            SubmissionPermissions.Submission.ViewFiles,
-            SubmissionPermissions.Submission.UploadFile,
-            SubmissionPermissions.Submission.DeleteFile
+            ResourcePermissions.Submission.Create,
+            ResourcePermissions.Submission.View,
+            ResourcePermissions.Submission.Edit,
+            ResourcePermissions.Submission.ViewFiles,
+            ResourcePermissions.Submission.UploadFile,
+            ResourcePermissions.Submission.DeleteFile
         ];
     }
 }
