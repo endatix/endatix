@@ -4,7 +4,7 @@ namespace Endatix.Core.Abstractions.Authorization;
 /// Defines granular permissions for form and submission resources.
 /// These are computed at runtime based on context (RBAC, tokens, public access).
 /// </summary>
-public static class SubmissionPermissions
+public static class ResourcePermissions
 {
     /// <summary>
     /// Form-level permissions (Context: ResourceType.Form)

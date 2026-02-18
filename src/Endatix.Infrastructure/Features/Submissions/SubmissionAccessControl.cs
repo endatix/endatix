@@ -36,16 +36,16 @@ public class SubmissionAccessControl(
         var isAdmin = await CheckIsAdminAsync(cancellationToken);
         if (isAdmin)
         {
-            formPermissions.UnionWith(SubmissionPermissions.GetAllForResourceType(ResourceTypes.Form));
+            formPermissions.UnionWith(ResourcePermissions.GetAllForResourceType(ResourceTypes.Form));
 
             if (context.SubmissionId.HasValue)
             {
-                submissionPermissions.UnionWith(SubmissionPermissions.GetAllForResourceType(ResourceTypes.Submission));
+                submissionPermissions.UnionWith(ResourcePermissions.GetAllForResourceType(ResourceTypes.Submission));
             }
             else
             {
-                submissionPermissions.Add(SubmissionPermissions.Submission.Create);
-                submissionPermissions.Add(SubmissionPermissions.Submission.UploadFile);
+                submissionPermissions.Add(ResourcePermissions.Submission.Create);
+                submissionPermissions.Add(ResourcePermissions.Submission.UploadFile);
             }
 
             return Result<FormAccessData>.Success(new FormAccessData
@@ -60,7 +60,7 @@ public class SubmissionAccessControl(
         var isFormPublic = await IsFormPublicAsync(context.FormId, cancellationToken);
         if (isFormPublic)
         {
-            formPermissions.Add(SubmissionPermissions.Form.View);
+            formPermissions.Add(ResourcePermissions.Form.View);
         }
 
         await EvaluateFormLevelAccessAsync(formPermissions, cancellationToken);
@@ -71,8 +71,8 @@ public class SubmissionAccessControl(
         }
         else if (isFormPublic)
         {
-            submissionPermissions.Add(SubmissionPermissions.Submission.Create);
-            submissionPermissions.Add(SubmissionPermissions.Submission.UploadFile);
+            submissionPermissions.Add(ResourcePermissions.Submission.Create);
+            submissionPermissions.Add(ResourcePermissions.Submission.UploadFile);
         }
 
         return Result<FormAccessData>.Success(new FormAccessData
@@ -103,7 +103,7 @@ public class SubmissionAccessControl(
         var hasFormEdit = await authorizationService.HasPermissionAsync(Actions.Forms.Edit, cancellationToken);
         if (hasFormEdit.IsSuccess && hasFormEdit.Value)
         {
-            permissions.Add(SubmissionPermissions.Form.Design);
+            permissions.Add(ResourcePermissions.Form.Design);
         }
     }
 
@@ -118,11 +118,11 @@ public class SubmissionAccessControl(
             var tokenResult = await tokenService.ResolveTokenAsync(context.AccessToken, cancellationToken);
             if (tokenResult.IsSuccess && tokenResult.Value == context.SubmissionId.Value)
             {
-                permissions.Add(SubmissionPermissions.Submission.View);
-                permissions.Add(SubmissionPermissions.Submission.ViewFiles);
-                permissions.Add(SubmissionPermissions.Submission.Edit);
-                permissions.Add(SubmissionPermissions.Submission.UploadFile);
-                permissions.Add(SubmissionPermissions.Submission.DeleteFile);
+                permissions.Add(ResourcePermissions.Submission.View);
+                permissions.Add(ResourcePermissions.Submission.ViewFiles);
+                permissions.Add(ResourcePermissions.Submission.Edit);
+                permissions.Add(ResourcePermissions.Submission.UploadFile);
+                permissions.Add(ResourcePermissions.Submission.DeleteFile);
             }
         }
         else if (identity.UserId != "anonymous")
@@ -130,15 +130,15 @@ public class SubmissionAccessControl(
             var hasSubmissionView = await authorizationService.HasPermissionAsync(Actions.Submissions.View, cancellationToken);
             if (hasSubmissionView.IsSuccess && hasSubmissionView.Value)
             {
-                permissions.Add(SubmissionPermissions.Submission.View);
+                permissions.Add(ResourcePermissions.Submission.View);
             }
 
             var hasSubmissionEdit = await authorizationService.HasPermissionAsync(Actions.Submissions.Edit, cancellationToken);
             if (hasSubmissionEdit.IsSuccess && hasSubmissionEdit.Value)
             {
-                permissions.Add(SubmissionPermissions.Submission.Edit);
-                permissions.Add(SubmissionPermissions.Submission.UploadFile);
-                permissions.Add(SubmissionPermissions.Submission.DeleteFile);
+                permissions.Add(ResourcePermissions.Submission.Edit);
+                permissions.Add(ResourcePermissions.Submission.UploadFile);
+                permissions.Add(ResourcePermissions.Submission.DeleteFile);
             }
         }
     }
