@@ -1,4 +1,4 @@
-namespace Endatix.Api.Endpoints.Auth;
+namespace Endatix.Api.Endpoints.AccessControl;
 
 /// <summary>
 /// Request model for getting form access permissions.

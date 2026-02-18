@@ -2,40 +2,78 @@ using Ardalis.Specification;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Infrastructure.Features.Submissions;
 
-/// <summary>
-/// Implementation of ISubmissionAccessControl that computes contextual submission authorization.
-/// Returns simplified flat permission arrays for O(1) client-side access.
-/// Identity (who the user is) should be fetched from /auth/me endpoint.
-/// </summary>
 public class SubmissionAccessControl(
     ICurrentUserAuthorizationService authorizationService,
     IRepository<Form> formRepository,
-    ISubmissionTokenService tokenService
-) : ISubmissionAccessControl
+    ISubmissionTokenService tokenService,
+    HybridCache cache
+) : IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext>
 {
-    public async Task<Result<FormAccessData>> GetAccessDataAsync(
+    private const int CACHE_MINUTES = 10;
+
+    public async Task<Result<Cached<SubmissionAccessData>>> GetAccessData(
+        SubmissionAccessContext context,
+        CancellationToken cancellationToken)
+    {
+        var cacheKey = $"auth:sub:{context.FormId}:{context.SubmissionId}:{context.AccessToken}";
+
+        var cachedEnvelope = await cache.GetOrCreateAsync(
+            key: cacheKey,
+            factory: async ct => await GetFormAccessDataAsync(context, ct),
+            options: new HybridCacheEntryOptions
+            {
+                Expiration = TimeSpan.FromMinutes(CACHE_MINUTES),
+                LocalCacheExpiration = TimeSpan.FromMinutes(CACHE_MINUTES)
+            },
+            tags: ["permissions", $"form:{context.FormId}"],
+            cancellationToken: cancellationToken
+        );
+
+        return cachedEnvelope != null
+            ? Result<Cached<SubmissionAccessData>>.Success(cachedEnvelope)
+            : Result<Cached<SubmissionAccessData>>.Error("Failed to compute access");
+    }
+
+    private async Task<Cached<SubmissionAccessData>> GetFormAccessDataAsync(
+        SubmissionAccessContext context,
+        CancellationToken cancellationToken)
+    {
+        var data = await GetFormAccessDataInternalAsync(context, cancellationToken);
+
+        return new Cached<SubmissionAccessData>(
+            data,
+            TimeSpan.FromMinutes(CACHE_MINUTES),
+            Guid.NewGuid().ToString("N")
+        );
+    }
+
+    private async Task<SubmissionAccessData> GetFormAccessDataInternalAsync(
         SubmissionAccessContext context,
         CancellationToken cancellationToken)
     {
         var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
         if (!identityResult.IsSuccess)
         {
-            var errorMessage = identityResult.Errors?.FirstOrDefault() ?? "Failed to get authorization data";
-            return Result<FormAccessData>.Error(errorMessage);
+            return new SubmissionAccessData
+            {
+                FormId = context.FormId.ToString(),
+                SubmissionId = context.SubmissionId?.ToString()
+            };
         }
 
         var identity = identityResult.Value;
         var formPermissions = new HashSet<string>();
         var submissionPermissions = new HashSet<string>();
 
-        var isAdmin = await CheckIsAdminAsync(cancellationToken);
-        if (isAdmin)
+        if (identity.IsAdmin)
         {
             formPermissions.UnionWith(ResourcePermissions.GetAllForResourceType(ResourceTypes.Form));
 
@@ -49,13 +87,13 @@ public class SubmissionAccessControl(
                 submissionPermissions.Add(ResourcePermissions.Submission.UploadFile);
             }
 
-            return Result<FormAccessData>.Success(new FormAccessData
+            return new SubmissionAccessData
             {
                 FormId = context.FormId.ToString(),
                 SubmissionId = context.SubmissionId?.ToString(),
                 FormPermissions = formPermissions,
                 SubmissionPermissions = submissionPermissions
-            });
+            };
         }
 
         var isFormPublic = await IsFormPublicAsync(context.FormId, cancellationToken);
@@ -76,25 +114,13 @@ public class SubmissionAccessControl(
             submissionPermissions.Add(ResourcePermissions.Submission.UploadFile);
         }
 
-        return Result<FormAccessData>.Success(new FormAccessData
+        return new SubmissionAccessData
         {
             FormId = context.FormId.ToString(),
             SubmissionId = context.SubmissionId?.ToString(),
             FormPermissions = formPermissions,
             SubmissionPermissions = submissionPermissions
-        });
-    }
-
-    private async Task<bool> CheckIsAdminAsync(CancellationToken cancellationToken)
-    {
-        var isPlatformAdmin = await authorizationService.IsPlatformAdminAsync(cancellationToken);
-        if (isPlatformAdmin.IsSuccess && isPlatformAdmin.Value)
-        {
-            return true;
-        }
-
-        var isAdmin = await authorizationService.IsAdminAsync(cancellationToken);
-        return isAdmin.IsSuccess && isAdmin.Value;
+        };
     }
 
     private async Task EvaluateFormLevelAccessAsync(

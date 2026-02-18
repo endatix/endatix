@@ -46,7 +46,6 @@ public static class PermissionSets
             ResourcePermissions.Submission.Create,
             ResourcePermissions.Submission.View,
             ResourcePermissions.Submission.Edit,
-            ResourcePermissions.Submission.Delete,
             ResourcePermissions.Submission.ViewFiles,
             ResourcePermissions.Submission.UploadFile,
             ResourcePermissions.Submission.DeleteFile
