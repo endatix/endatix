@@ -83,6 +83,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddOptions<EmailTemplateSettings>()
                 .BindConfiguration("Endatix:EmailTemplates")
+                .PostConfigure<IOptions<HubSettings>>(HandleLegacyHubUrl)
                 .ValidateOnStart();
 
         services.AddScoped<IEmailTemplateService, EmailTemplateService>();
@@ -182,5 +183,20 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IExporter>(sp => sp.GetRequiredService<TExporter>());
 
         return services;
+    }
+
+
+    [Obsolete("Sets the HubUrl from the HubSettings.HubBaseUrl if the HubUrl is not set. Will be removed in the future.")]
+    private static void HandleLegacyHubUrl(EmailTemplateSettings options, IOptions<HubSettings> hubSettings)
+    {
+        if (!string.IsNullOrWhiteSpace(options.HubUrl))
+        {
+            return;
+        }
+
+        if (hubSettings.Value.HubBaseUrl is { Length: > 0 } hubBaseUrl)
+        {
+            options.HubUrl = hubBaseUrl;
+        }
     }
 }
