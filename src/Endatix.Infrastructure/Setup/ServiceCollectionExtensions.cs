@@ -83,6 +83,9 @@ public static class ServiceCollectionExtensions
     {
         services.AddOptions<EmailTemplateSettings>()
                 .BindConfiguration("Endatix:EmailTemplates")
+                .PostConfigure<IOptions<HubSettings>>((options, hubSettings) =>{
+                    options.HubUrl = hubSettings.Value.HubBaseUrl;
+                })
                 .ValidateOnStart();
 
         services.AddScoped<IEmailTemplateService, EmailTemplateService>();
