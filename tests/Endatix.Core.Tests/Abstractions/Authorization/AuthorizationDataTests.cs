@@ -1,5 +1,4 @@
 using Endatix.Core.Abstractions.Authorization;
-using NSubstitute.Core;
 
 namespace Endatix.Core.Tests.Abstractions.Authorization;
 

@@ -16,7 +16,9 @@ using Endatix.Infrastructure.Features.Account;
 using Endatix.Core.Abstractions.Account;
 using Endatix.Infrastructure.Identity.Services;
 using Endatix.Infrastructure.Identity.Repositories;
-using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Authorization.Models;
+using Endatix.Core.Authorization;
+using Endatix.Infrastructure.Features.AccessControl;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -99,7 +101,7 @@ public static class IdentityServiceCollectionExtensions
         // Register submission access token service
         services.AddScoped<ISubmissionAccessTokenService, SubmissionAccessTokenService>();
         services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
-        services.AddScoped<IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext>, SubmissionAccessControl>();
+        services.AddScoped<IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext>, SubmissionPublicAccessPolicy>();
         services.AddEndatixOptions<SubmissionAccessTokenOptions>(configuration);
 
         // Register email verification options

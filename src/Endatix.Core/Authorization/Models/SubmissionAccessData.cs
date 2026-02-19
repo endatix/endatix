@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Endatix.Core.Abstractions.Authorization;
+namespace Endatix.Core.Authorization.Models;
 
 /// <summary>
 /// Authorization data for form/submission access with O(1) permission checks.

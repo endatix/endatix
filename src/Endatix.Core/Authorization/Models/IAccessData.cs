@@ -1,4 +1,4 @@
-namespace Endatix.Core.Abstractions.Authorization;
+namespace Endatix.Core.Authorization.Models;
 
 /// <summary>
 /// Interface for access data that contains permission evaluation methods.
