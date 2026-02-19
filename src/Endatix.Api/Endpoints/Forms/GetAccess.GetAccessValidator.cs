@@ -1,11 +1,11 @@
 using FastEndpoints;
 using FluentValidation;
 
-namespace Endatix.Api.Endpoints.AccessControl;
+namespace Endatix.Api.Endpoints.Forms;
 
-public class GetFormAccessValidator : Validator<GetFormAccessRequest>
+public class GetAccessValidator : Validator<GetAccessRequest>
 {
-    public GetFormAccessValidator()
+    public GetAccessValidator()
     {
         RuleFor(x => x.FormId)
             .GreaterThan(0);
