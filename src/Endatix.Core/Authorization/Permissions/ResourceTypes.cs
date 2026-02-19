@@ -1,4 +1,4 @@
-namespace Endatix.Core.Abstractions.Authorization;
+namespace Endatix.Core.Authorization.Permissions;
 
 /// <summary>
 /// Defines resource type constants for scope-based authorization.
@@ -6,6 +6,6 @@ namespace Endatix.Core.Abstractions.Authorization;
 public static class ResourceTypes
 {
     public const string Form = "form";
-    
+
     public const string Submission = "submission";
 }

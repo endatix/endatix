@@ -1,6 +1,5 @@
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Data;
-using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Authorization.Models;
 using Endatix.Core.Infrastructure.Caching;
 
 namespace Endatix.Api.Endpoints.AccessControl;

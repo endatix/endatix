@@ -1,8 +1,9 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Core.Abstractions.Submissions;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Authorization;
+using Endatix.Core.Authorization.Models;
 
 namespace Endatix.Api.Endpoints.AccessControl;
 

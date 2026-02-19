@@ -1,10 +1,15 @@
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Authorization.Models;
+using Endatix.Core.Authorization.Permissions;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Ardalis.Specification;
 using Endatix.Core.Specifications;
-using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Infrastructure.Features.AccessControl;
+using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Infrastructure.Tests.Features.Submissions;
 
@@ -15,6 +20,7 @@ public static class PermissionSets
         public static readonly string[] None = [];
         public static readonly string[] ViewOnly = [ResourcePermissions.Form.View];
         public static readonly string[] ViewAndDesign = [ResourcePermissions.Form.View, ResourcePermissions.Form.Edit];
+        public static readonly string[] All = [.. ResourcePermissions.Form.Sets.All];
     }
 
     public static class Submission
@@ -58,14 +64,21 @@ public partial class SubmissionAccessControlTests
     private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly IRepository<Form> _formRepository;
     private readonly ISubmissionTokenService _tokenService;
-    private readonly SubmissionAccessControl _handler;
+    private readonly HybridCache _cache;
+    private readonly SubmissionAccessStrategy _handler;
 
     public SubmissionAccessControlTests()
     {
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
         _formRepository = Substitute.For<IRepository<Form>>();
         _tokenService = Substitute.For<ISubmissionTokenService>();
-        _handler = new SubmissionAccessControl(_authorizationService, _formRepository, _tokenService);
+        _cache = Substitute.For<HybridCache>();
+        _cache
+            .GetOrCreateAsync(Arg.Any<string>(), Arg.Any<Func<CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>(), Arg.Any<HybridCacheEntryOptions>(), Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>().Invoke(callInfo.Arg<CancellationToken>()));
+        var publicPolicy = new SubmissionPublicAccessPolicy(_formRepository, _tokenService, _cache);
+        var managementPolicy = new SubmissionManagementAccessPolicy(_authorizationService, _formRepository, _cache);
+        _handler = new SubmissionAccessStrategy(publicPolicy, managementPolicy, _authorizationService, _cache);
     }
 
     #region Helper Methods
@@ -107,6 +120,9 @@ public partial class SubmissionAccessControlTests
         var form = new Form(1, "test", "test@test.com") { Id = formId, IsPublic = isPublic };
         _formRepository.FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelated>(), TestContext.Current.CancellationToken)
             .Returns(form);
+        // Public policy uses ById.WithProjectionOf(IsPublicDtoSpec) and expects FormDtos.IsPublicDto
+        _formRepository.FirstOrDefaultAsync(Arg.Any<ISpecification<Form, FormDtos.IsPublicDto>>(), TestContext.Current.CancellationToken)
+            .Returns(new FormDtos.IsPublicDto(isPublic, formId));
         return Task.CompletedTask;
     }
 
@@ -142,14 +158,14 @@ public partial class SubmissionAccessControlTests : IClassFixture<SubmissionAcce
         await SetupFormAsync(formId, isPublic: true);
 
         // Act
-        var result = await _handler.GetAccessDataAsync(context, TestContext.Current.CancellationToken);
+        var result = await _handler.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.FormId.Should().Be(formId.ToString());
-        result.Value.SubmissionId.Should().BeNull();
-        result.Value.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.ViewOnly);
-        result.Value.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.CreateAndUpload);
+        result.Value.Data.FormId.Should().Be(formId.ToString());
+        result.Value.Data.SubmissionId.Should().BeNull();
+        result.Value.Data.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.ViewOnly);
+        result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.CreateAndUpload);
     }
 
     [Fact]
@@ -164,12 +180,12 @@ public partial class SubmissionAccessControlTests : IClassFixture<SubmissionAcce
         await SetupFormAsync(formId, isPublic: true);
 
         // Act
-        var result = await _handler.GetAccessDataAsync(context, TestContext.Current.CancellationToken);
+        var result = await _handler.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.ViewOnly);
-        result.Value.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.None);
+        result.Value.Data.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.ViewOnly);
+        result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.None);
     }
 
     #endregion
@@ -187,12 +203,12 @@ public partial class SubmissionAccessControlTests : IClassFixture<SubmissionAcce
         await SetupFormAsync(formId, isPublic: false);
 
         // Act
-        var result = await _handler.GetAccessDataAsync(context, TestContext.Current.CancellationToken);
+        var result = await _handler.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.FormPermissions.Should().BeEquivalentTo(PermissionSets.Submission.None);
-        result.Value.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.None);
+        result.Value.Data.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.None);
+        result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.None);
     }
 
     [Fact]
@@ -209,11 +225,11 @@ public partial class SubmissionAccessControlTests : IClassFixture<SubmissionAcce
         SetupHasPermission(Actions.Submissions.Edit, hasPermission: true);
 
         // Act
-        var result = await _handler.GetAccessDataAsync(context, TestContext.Current.CancellationToken);
+        var result = await _handler.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.ViewAndEditAndFileOps);
+        result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.EditSubmission);
     }
 
     #endregion
@@ -234,11 +250,11 @@ public partial class SubmissionAccessControlTests : IClassFixture<SubmissionAcce
         SetupTokenResolve(accessToken, submissionId);
 
         // Act
-        var result = await _handler.GetAccessDataAsync(context, TestContext.Current.CancellationToken);
+        var result = await _handler.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.FullAccess);
+        result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.ReviewSubmission);
     }
 
     [Fact]
@@ -255,11 +271,11 @@ public partial class SubmissionAccessControlTests : IClassFixture<SubmissionAcce
         SetupTokenResolve(accessToken, resolvedSubmissionId: 999L);
 
         // Act
-        var result = await _handler.GetAccessDataAsync(context, TestContext.Current.CancellationToken);
+        var result = await _handler.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.None);
+        result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.None);
     }
 
     #endregion
@@ -277,12 +293,12 @@ public partial class SubmissionAccessControlTests : IClassFixture<SubmissionAcce
         await SetupFormAsync(formId, isPublic: false);
 
         // Act
-        var result = await _handler.GetAccessDataAsync(context, TestContext.Current.CancellationToken);
+        var result = await _handler.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.ViewAndDesign);
-        result.Value.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.CreateAndUpload);
+        result.Value.Data.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.All);
+        result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.CreateAndUpload);
     }
 
     [Fact]
@@ -297,12 +313,12 @@ public partial class SubmissionAccessControlTests : IClassFixture<SubmissionAcce
         await SetupFormAsync(formId, isPublic: false);
 
         // Act
-        var result = await _handler.GetAccessDataAsync(context, TestContext.Current.CancellationToken);
+        var result = await _handler.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.ViewAndDesign);
-        result.Value.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.FullAccessWithCreate);
+        result.Value.Data.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.All);
+        result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(PermissionSets.Submission.FullAccessWithCreate);
     }
 
     #endregion

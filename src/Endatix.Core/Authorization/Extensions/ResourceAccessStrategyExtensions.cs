@@ -1,4 +1,6 @@
-namespace Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Authorization.Models;
+
+namespace Endatix.Core.Authorization.Extensions;
 
 public static class ResourceAccessStrategyExtensions
 {
