@@ -2,9 +2,9 @@ using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Authorization.Models;
 using Endatix.Core.Infrastructure.Caching;
 
-namespace Endatix.Api.Endpoints.AccessControl;
+namespace Endatix.Api.Endpoints.Forms;
 
-public record GetFormAccessResponse(
+public record GetAccessResponse(
     string FormId,
     string? SubmissionId,
     HashSet<string> FormPermissions,
@@ -14,6 +14,6 @@ public record GetFormAccessResponse(
     string ETag
 ) : ICachedData
 {
-    public static GetFormAccessResponse FromCached(Cached<SubmissionAccessData> cached)
+    public static GetAccessResponse FromCached(Cached<SubmissionAccessData> cached)
         => new(cached.Data.FormId, cached.Data.SubmissionId, cached.Data.FormPermissions, cached.Data.SubmissionPermissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
 }
