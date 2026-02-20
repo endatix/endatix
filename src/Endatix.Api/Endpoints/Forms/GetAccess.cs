@@ -9,9 +9,10 @@ namespace Endatix.Api.Endpoints.Forms;
 /// <summary>
 /// Public endpoint for form/submission access (anonymous or token-based).
 /// Returns permissions for public forms and valid submission tokens only.
+/// Use FormId + Token + TokenType (no SubmissionId; submission is resolved from token).
 /// </summary>
 public class GetAccess(
-    SubmissionPublicAccessPolicy publicAccessPolicy
+    SubmissionAccessPolicy submissionAccessPolicy
 ) : Endpoint<GetAccessRequest, Results<Ok<GetAccessResponse>, ProblemHttpResult>>
 {
     public override void Configure()
@@ -32,8 +33,8 @@ public class GetAccess(
         GetAccessRequest request,
         CancellationToken ct)
     {
-        var context = new SubmissionAccessContext(request.FormId, request.SubmissionId, request.Token);
-        var accessDataResult = await publicAccessPolicy.GetAccessData(context, ct);
+        var context = new SubmissionAccessContext(request.FormId, request.Token, request.TokenType);
+        var accessDataResult = await submissionAccessPolicy.GetAccessData(context, ct);
 
         return TypedResultsBuilder
             .MapResult(accessDataResult, GetAccessResponse.FromCached)

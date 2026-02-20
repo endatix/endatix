@@ -32,7 +32,7 @@ public class GetPermissions(
         GetPermissionsRequest request,
         CancellationToken ct)
     {
-        var context = new SubmissionAccessContext(request.FormId, request.SubmissionId, accessToken: null);
+        var context = new SubmissionAccessContext(request.FormId, token: null, tokenType: null);
         var accessDataResult = await managementAccessPolicy.GetAccessData(context, ct);
 
         return TypedResultsBuilder

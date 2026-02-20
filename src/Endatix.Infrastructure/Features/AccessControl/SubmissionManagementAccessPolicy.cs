@@ -1,4 +1,3 @@
-using Ardalis.Specification;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization;
@@ -8,7 +7,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Specifications;
 using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Infrastructure.Features.AccessControl;
