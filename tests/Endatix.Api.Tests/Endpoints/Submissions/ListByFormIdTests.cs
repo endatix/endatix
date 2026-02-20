@@ -20,13 +20,13 @@ public class ListByFormIdTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_InvalidRequest_ReturnsBadRequest()
+    public async Task ExecuteAsync_InvalidRequest_ReturnsProblemDetails()
     {
         // Arrange
         var formId = 1L;
         var request = new ListByFormIdRequest { FormId = formId };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<ListByFormIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -34,12 +34,12 @@ public class ListByFormIdTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
-        badRequestResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
     }
 
     [Fact]
-    public async Task ExecuteAsync_FormNotFound_ReturnsNotFound()
+    public async Task ExecuteAsync_FormNotFound_ReturnsProblemDetails()
     {
         // Arrange
         var formId = 1L;
@@ -53,8 +53,8 @@ public class ListByFormIdTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var notFoundResult = response.Result as NotFound;
-        notFoundResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
     }
 
     [Fact]
@@ -63,10 +63,10 @@ public class ListByFormIdTests
         // Arrange
         var formId = 1L;
         var request = new ListByFormIdRequest { FormId = formId, Page = 1, PageSize = 10 };
-        var submissions = new List<SubmissionDto> 
-        { 
-            new(3, false, [], 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null),
-            new(4, false, [], 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7"),
+        var submissions = new List<SubmissionDto>
+        {
+            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null),
+            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7"),
         };
         var result = Result.Success(submissions.AsEnumerable());
 
@@ -77,7 +77,7 @@ public class ListByFormIdTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var okResult = response.Result as Ok<IEnumerable<SubmissionDto>>;
+        var okResult = response.Result as Ok<IEnumerable<SubmissionModel>>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Count().Should().Be(2);

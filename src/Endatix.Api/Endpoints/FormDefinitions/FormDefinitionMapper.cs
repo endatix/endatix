@@ -51,4 +51,24 @@ public class FormDefinitionMapper
     /// <returns>A collection of mapped form definition API models.</returns>
     public static IEnumerable<T> Map<T>(IEnumerable<FormDefinition> formDefinitions) where T : FormDefinitionModel, new() =>
         formDefinitions.Select(Map<T>).ToList();
+
+    /// <summary>
+    /// Maps a definition field DTO to a definition field API model.
+    /// </summary>
+    /// <param name="dto">The definition field DTO.</param>
+    /// <returns>The mapped definition field API model.</returns>
+    public static DefinitionFieldModel Map(DefinitionFieldDto dto) => new()
+    {
+        Name = dto.Name,
+        Title = dto.Title,
+        Type = dto.Type
+    };
+
+    /// <summary>
+    /// Maps a collection of definition field DTOs to a collection of definition field API models.
+    /// </summary>
+    /// <param name="dtos">The collection of definition field DTOs.</param>
+    /// <returns>A collection of mapped definition field API models.</returns>
+    public static IEnumerable<DefinitionFieldModel> Map(IEnumerable<DefinitionFieldDto> dtos) =>
+        dtos.Select(Map).ToList();
 }
