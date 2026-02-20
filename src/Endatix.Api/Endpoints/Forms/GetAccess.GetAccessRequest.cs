@@ -1,3 +1,5 @@
+using Endatix.Core.Abstractions.Submissions;
+
 namespace Endatix.Api.Endpoints.Forms;
 
 /// <summary>
@@ -11,12 +13,12 @@ public class GetAccessRequest
     public long FormId { get; set; }
 
     /// <summary>
-    /// The submission ID (optional - for existing submission context).
-    /// </summary>
-    public long? SubmissionId { get; set; }
-
-    /// <summary>
-    /// Access token for token-based access (optional).
+    /// The token (access token or submission token). When set, TokenType must be set.
     /// </summary>
     public string? Token { get; set; }
+
+    /// <summary>
+    /// The type of token when Token is provided.
+    /// </summary>
+    public SubmissionTokenType? TokenType { get; set; }
 }
