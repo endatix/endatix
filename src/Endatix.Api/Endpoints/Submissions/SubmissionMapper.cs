@@ -1,9 +1,26 @@
 ﻿using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Submissions;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 public class SubmissionMapper
 {
+    public static SubmissionModel MapFromDto(SubmissionDto dto) => new SubmissionModel
+    {
+        Id = dto.Id.ToString(),
+        IsComplete = dto.IsComplete,
+        JsonData = dto.JsonData,
+        FormId = dto.FormId.ToString(),
+        FormDefinitionId = dto.FormDefinitionId.ToString(),
+        CurrentPage = dto.CurrentPage,
+        CompletedAt = dto.CompletedAt,
+        CreatedAt = dto.CreatedAt,
+        Metadata = dto.Metadata,
+        Status = dto.Status,
+        SubmittedBy = dto.SubmittedBy
+    };
+
+
     public static T Map<T>(Submission submission) where T : SubmissionModel, new() => new T
     {
         Id = submission.Id.ToString(),
