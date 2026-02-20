@@ -58,45 +58,89 @@ public class GetFormDefinitionFieldsHandler(
     {
         foreach (var element in elements.EnumerateArray())
         {
-            if (!element.TryGetProperty("type", out var typeProp))
+            if (!TryGetElementType(element, out var type))
             {
                 continue;
             }
 
-            var type = typeProp.GetString();
-            if (string.IsNullOrWhiteSpace(type))
+            if (TryHandlePanel(element, type, seen))
             {
                 continue;
             }
 
-            if (type.Equals("panel", StringComparison.OrdinalIgnoreCase))
-            {
-                if (element.TryGetProperty("elements", out var nested))
-                {
-                    ExtractFields(nested, seen);
-                }
-                continue;
-            }
-
-            if (!element.TryGetProperty("name", out var nameProp))
+            if (!TryGetElementName(element, out var name))
             {
                 continue;
             }
 
-            var name = nameProp.GetString();
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                continue;
-            }
-
-            if (!seen.ContainsKey(name))
-            {
-                var title = element.TryGetProperty("title", out var titleProp)
-                    ? titleProp.GetString() ?? name
-                    : name;
-
-                seen[name] = (title, type);
-            }
+            AddFieldIfNew(element, name, type, seen);
         }
+    }
+
+    private static bool TryGetElementType(JsonElement element, out string type)
+    {
+        type = string.Empty;
+
+        if (!element.TryGetProperty("type", out var typeProp))
+        {
+            return false;
+        }
+
+        var typeValue = typeProp.GetString();
+        if (string.IsNullOrWhiteSpace(typeValue))
+        {
+            return false;
+        }
+
+        type = typeValue;
+        return true;
+    }
+
+    private static bool TryHandlePanel(JsonElement element, string type, Dictionary<string, (string Title, string Type)> seen)
+    {
+        if (!type.Equals("panel", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (element.TryGetProperty("elements", out var nested))
+        {
+            ExtractFields(nested, seen);
+        }
+
+        return true;
+    }
+
+    private static bool TryGetElementName(JsonElement element, out string name)
+    {
+        name = string.Empty;
+
+        if (!element.TryGetProperty("name", out var nameProp))
+        {
+            return false;
+        }
+
+        var nameValue = nameProp.GetString();
+        if (string.IsNullOrWhiteSpace(nameValue))
+        {
+            return false;
+        }
+
+        name = nameValue;
+        return true;
+    }
+
+    private static void AddFieldIfNew(JsonElement element, string name, string type, Dictionary<string, (string Title, string Type)> seen)
+    {
+        if (seen.ContainsKey(name))
+        {
+            return;
+        }
+
+        var title = element.TryGetProperty("title", out var titleProp)
+            ? titleProp.GetString() ?? name
+            : name;
+
+        seen[name] = (title, type);
     }
 }
