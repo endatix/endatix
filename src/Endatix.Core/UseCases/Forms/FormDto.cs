@@ -36,6 +36,11 @@ public record FormDto
     public string? ThemeId { get; init; }
 
     /// <summary>
+    /// The ID of the active form definition.
+    /// </summary>
+    public string? ActiveDefinitionId { get; init; }
+
+    /// <summary>
     /// Timestamp when the form was created.
     /// </summary>
     public DateTime CreatedAt { get; init; }
