@@ -52,7 +52,7 @@ public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
         Query.Select(s => new SubmissionDto(
             s.Id,
             s.IsComplete,
-            new Dictionary<string, object>(),
+            s.JsonData,
             s.FormId,
             s.FormDefinitionId,
             s.CurrentPage,
