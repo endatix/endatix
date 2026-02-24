@@ -95,9 +95,9 @@ To provide context to the user within the loop, or to apply logic, you can use s
 
 **Text Piping Example**
 
-In the Title or Description of any question inside your Dynamic Panel, use the placeholder `{panel.item}`.
+In the Title or Description of any question inside your Dynamic Panel, use the placeholder `{panel.itemText}`.
 
-* **Example Title:** "How often do you use **`{panel.item}`**?"  
+* **Example Title:** "How often do you use **`{panel.itemText}`**?"  
 * **At Runtime:** If the loop is currently on "Nike", the user will see: "How often do you use **Nike**?"
 
 **Conditional Logic Example**
@@ -124,12 +124,12 @@ Advanced users and developers can configure loops directly in the survey JSON. T
     {  
       "type": "rating",  
       "name": "quality_rating",  
-      "title": "How would you rate the quality of {panel.item}?"  
+      "title": "How would you rate the quality of {panel.itemText}?"  
     },  
     {  
       "type": "comment",  
       "name": "feedback_text",  
-      "title": "Tell us more about {panel.item}:"  
+      "title": "Tell us more about {panel.itemText}:"  
     }  
   ]  
 }
