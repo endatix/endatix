@@ -10,6 +10,8 @@ namespace Endatix.Core.Abstractions.Authorization;
 /// </summary>
 public sealed record AuthorizationData
 {
+    public const string ANONYMOUS_USER_ID = "anonymous";
+    
     /// <summary>
     /// Parameterless constructor for JSON deserialization only (used by HybridCache).
     /// Application code should use factory methods: <see cref="ForAnonymousUser"/> or <see cref="ForAuthenticatedUser"/>.
@@ -48,7 +50,7 @@ public sealed record AuthorizationData
     public string ETag { get; init; } = string.Empty;
 
     public static AuthorizationData ForAnonymousUser(long tenantId) => new(
-        userId: "anonymous",
+        userId: ANONYMOUS_USER_ID,
         tenantId: tenantId,
         roles: [SystemRole.Public.Name],
         permissions: SystemRole.Public.Permissions,

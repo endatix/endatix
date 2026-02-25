@@ -23,6 +23,18 @@ public static class FormSpecifications
         }
     }
 
+
+    /// <summary>
+    /// Specification to get a form by ID
+    /// </summary>
+    public sealed class ById : Specification<Form>
+    {
+        public ById(long id)
+        {
+            Query.Where(f => f.Id == id);
+        }
+    }
+
     /// <summary>
     /// Specification to get forms by theme ID
     /// </summary>
@@ -56,4 +68,4 @@ public static class FormSpecifications
             Query.Where(f => f.Name.ToLower().Contains(searchString.ToLower()));
         }
     }
-} 
+}
