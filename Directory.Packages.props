@@ -26,11 +26,14 @@
     <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="$(AspNetVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(EFCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(EFCoreVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="$(AspNetVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="$(EFCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EFCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="$(EFCoreVersion)" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(EFCoreVersion)" />

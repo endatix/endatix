@@ -47,6 +47,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Persistence.Postgre
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Hosting", "src\Endatix.Hosting\Endatix.Hosting.csproj", "{D4F0315E-6F39-405E-AB9E-FB50EBEF599A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Endatix.Hosting.Tests", "tests\Endatix.Hosting.Tests\Endatix.Hosting.Tests.csproj", "{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -237,6 +239,18 @@ Global
 		{D4F0315E-6F39-405E-AB9E-FB50EBEF599A}.Release|x64.Build.0 = Release|Any CPU
 		{D4F0315E-6F39-405E-AB9E-FB50EBEF599A}.Release|x86.ActiveCfg = Release|Any CPU
 		{D4F0315E-6F39-405E-AB9E-FB50EBEF599A}.Release|x86.Build.0 = Release|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Debug|x64.Build.0 = Debug|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Debug|x86.Build.0 = Debug|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Release|x64.ActiveCfg = Release|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Release|x64.Build.0 = Release|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Release|x86.ActiveCfg = Release|Any CPU
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -257,5 +271,6 @@ Global
 		{683DB65A-53A8-4607-9A09-32EA40FB84C5} = {E3B33D6B-1675-484C-B459-D199D2B3A7CE}
 		{12CB0EBB-F33B-4E91-AA71-D8DF960FD997} = {1578700B-C9E2-4469-BA9B-29E27B22EA25}
 		{D4F0315E-6F39-405E-AB9E-FB50EBEF599A} = {1578700B-C9E2-4469-BA9B-29E27B22EA25}
+		{4CA5AEB8-5B9C-4735-95B2-98E9A2649172} = {E3B33D6B-1675-484C-B459-D199D2B3A7CE}
 	EndGlobalSection
 EndGlobal

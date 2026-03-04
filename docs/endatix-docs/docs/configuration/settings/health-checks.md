@@ -7,14 +7,15 @@ title: Health Checks
 
 Health checks are an important part of any application for monitoring its health and dependencies. Endatix provides built-in health check functionality that is configured automatically by default.
 
+This page focuses on **configuration and settings** (defaults, endpoint path, filtering, custom implementations). For **endpoints, JSON shape, and host/middleware API usage**, see [Health checks](/docs/developers/api/health-checks) in the API docs.
+
 ## Default Configuration
 
 When you use `builder.Host.ConfigureEndatix()`, the following health checks are automatically configured:
 
-- **Self-checks**: Basic application health check
-- **Process health**: Memory usage monitoring
-- **Disk space**: Checking available disk space (where supported)
-- **Database**: Connection to your configured database
+- **Self**: Basic application health check (skipped when Aspire ServiceDefaults are present)
+- **Database**: EF Core health check for the main app database when persistence is configured
+- **Identity-database**: EF Core health check for the identity database when identity persistence is configured
 
 These health checks are exposed through the following endpoints:
 
@@ -36,37 +37,9 @@ builder.Host.ConfigureEndatixWithDefaults(endatix => {
 });
 ```
 
-### Database-Specific Health Checks
+### Database health checks
 
-Endatix automatically adds the appropriate health check for your configured database provider:
-
-```csharp
-// SQL Server health check
-endatix.HealthChecks.AddSqlServer(
-    connectionString,
-    healthQuery: "SELECT 1;",
-    name: "database", 
-    tags: new[] { "db", "sql" });
-
-// PostgreSQL health check
-endatix.HealthChecks.AddNpgSql(
-    connectionString,
-    healthQuery: "SELECT 1;",
-    name: "database",
-    tags: new[] { "db", "postgresql" });
-```
-
-### Disabling Health Checks
-
-If you need to completely disable health checks:
-
-```csharp
-builder.Host.ConfigureEndatix(endatix => {
-    endatix.SkipHealthChecks();
-    
-    // Rest of your configuration...
-});
-```
+Endatix adds EF Core DbContext health checks automatically when persistence is configured (e.g. `UseDefaults()` or `UseSqlServer<AppDbContext>()`). The checks are named `database` and `identity-database` and use tags `db` and `ready`. No extra configuration is required.
 
 ### Configuring Health Check Endpoints
 
@@ -129,8 +102,8 @@ public class MyServiceHealthCheck : IHealthCheck
     }
 }
 
-// Then register it:
-endatix.HealthChecks.AddTypeActivatedCheck<MyServiceHealthCheck>("my-service");
+// Then register it via the underlying builder (framework extension method):
+endatix.HealthChecks.Builder.AddTypeActivatedCheck<MyServiceHealthCheck>("my-service");
 ```
 
 ## UI Enhancements

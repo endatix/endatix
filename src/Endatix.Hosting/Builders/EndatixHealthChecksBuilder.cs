@@ -1,3 +1,5 @@
+using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -40,7 +42,7 @@ public class EndatixHealthChecksBuilder
             AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "self" });
         }
 
-        // TODO: Add more health checks
+        AddDbContextHealthChecks();
 
         _defaultsApplied = true;
         return this;
@@ -67,7 +69,7 @@ public class EndatixHealthChecksBuilder
             name,
             healthCheck,
             failureStatus?.ToHealthStatus() ?? HealthStatus.Unhealthy,
-            tags);
+            tags ?? Array.Empty<string>());
         return this;
     }
 
@@ -77,6 +79,23 @@ public class EndatixHealthChecksBuilder
     public IHealthChecksBuilder Builder { get; }
 
     /// <summary>
+    /// Adds EF Core DbContext health checks for registered contexts (AppDbContext, AppIdentityDbContext).
+    /// Only adds a check when the context is registered in the service collection (e.g. by Persistence.UseDefaults).
+    /// </summary>
+    private void AddDbContextHealthChecks()
+    {
+        if (_parent.Services.Any(s => s.ServiceType == typeof(AppDbContext)))
+        {
+            Builder.AddDbContextCheck<AppDbContext>("database", failureStatus: HealthStatus.Unhealthy, tags: new[] { "db", "ready" });
+        }
+
+        if (_parent.Services.Any(s => s.ServiceType == typeof(AppIdentityDbContext)))
+        {
+            Builder.AddDbContextCheck<AppIdentityDbContext>("identity-database", failureStatus: HealthStatus.Unhealthy, tags: new[] { "db", "identity", "ready" });
+        }
+    }
+
+    /// <summary>
     /// Checks if Aspire ServiceDefaults are being used by looking for telemetry services.
     /// This helps avoid conflicts with Aspire's default health checks.
     /// </summary>
@@ -84,7 +103,7 @@ public class EndatixHealthChecksBuilder
     private bool IsAspireServiceDefaultsPresent()
     {
         // Look for OpenTelemetry services that are typically added by Aspire ServiceDefaults
-        return _parent.Services.Any(s => 
+        return _parent.Services.Any(s =>
             s.ServiceType.FullName?.Contains("OpenTelemetry") == true ||
             s.ServiceType.FullName?.Contains("ServiceDiscovery") == true);
     }
