@@ -1,0 +1,102 @@
+---
+title: 'Health Checks'
+description: 'Monitor application and dependency health via built-in endpoints and custom checks'
+sidebar_position: 2
+---
+
+# Health Checks
+
+Endatix exposes health check endpoints so you can monitor the application and its dependencies. With default configuration you get a self-check and database checks (when persistence is configured), plus a simple HTML UI and a detailed JSON report.
+
+This page focuses on **API usage** (endpoints, JSON shape, customizing checks and middleware). For **configuration options** (path via options, filtering by tags, custom `IHealthCheck` implementation), see [Health Checks Configuration](/docs/configuration/settings/health-checks).
+
+## Endpoints
+
+When health checks middleware is enabled (default with `app.UseEndatix()`), the following are available:
+
+| Path | Description |
+|------|-------------|
+| `{Path}` | Overall status: `Healthy`, `Degraded`, or `Unhealthy`. Default path is `/health`. |
+| `{Path}/detail` | JSON report with status, per-check results, and total duration. |
+| `{Path}/ui` | HTML page listing each check with status and duration. |
+
+Example with default path:
+
+- **`/health`** — Liveness/overall status
+- **`/health/detail`** — Full JSON (for CI/monitoring)
+- **`/health/ui`** — Human-readable UI
+
+## Default checks
+
+With `builder.Host.ConfigureEndatix()` and `app.UseEndatix()`:
+
+- **self** — Basic process-alive check (skipped when Aspire ServiceDefaults are present).
+- **database** — EF Core health check for the main `AppDbContext` when persistence is configured.
+- **identity-database** — EF Core health check for `AppIdentityDbContext` when identity persistence is configured.
+
+Database checks use tags `db` and `ready`, so you can add a dedicated readiness endpoint that only runs DB checks if needed.
+
+## JSON detail shape
+
+Use it to properly configure your health monitoring tool. When you request the health detail endpoint e.g. `GET /health/detail`, you will get JSON response with the following structure:
+
+```json
+{
+  "status": "Healthy",
+  "checks": [
+    {
+      "name": "self",
+      "status": "Healthy",
+      "description": null,
+      "data": {}
+    },
+    {
+      "name": "database",
+      "status": "Healthy",
+      "description": null,
+      "data": {}
+    }
+  ],
+  "totalDuration": "00:00:00.0423456"
+}
+```
+
+## Customizing checks (host)
+
+Use the health checks builder when configuring the host:
+
+```csharp
+builder.Host.ConfigureEndatix(endatix => endatix
+    .HealthChecks.UseDefaults()
+    .AddCheck("custom", () => HealthCheckResult.Healthy("OK")));
+```
+
+Or add checks after defaults:
+
+```csharp
+builder.Host.ConfigureEndatixWithDefaults(endatix => endatix
+    .HealthChecks.AddCheck("my-service", () => HealthCheckResult.Healthy()));
+```
+
+## Customizing middleware (path and writers)
+
+Customize the health check path or response writer when configuring the pipeline:
+
+```csharp
+app.UseEndatix(middleware => middleware
+    .UseHealthChecks("/healthz"));
+```
+
+With a custom response writer:
+
+```csharp
+app.UseEndatix(middleware => middleware
+    .UseHealthChecks("/health", opts => opts.WithResponseWriter(MyCustomWriter)));
+```
+
+## Best practices
+
+- Use **tags** (e.g. `db`, `ready`) to group checks and, if needed, add a separate readiness route that only runs a subset.
+- Rely on **`/health/detail`** in CI or monitoring for a stable JSON shape.
+- Add custom checks for critical dependencies via `AddCheck` or `Builder.Add...` on the health checks builder.
+- When you adopt Aspire, the existing DB and custom checks will compose with Aspire’s defaults; the self-check is already skipped when Aspire ServiceDefaults are present.
