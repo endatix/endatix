@@ -82,7 +82,8 @@ internal sealed partial class SubmissionJsonExporter(
         }
         catch (Exception ex)
         {
-            LogExportError(ex, _formId);
+            var formIdForLog = _formId ?? GetFormIdFromOptions(options);
+            LogExportError(ex, formIdForLog);
             return Result<FileExport>.Error($"Failed to export submissions: {ex.Message}");
         }
     }
@@ -92,4 +93,14 @@ internal sealed partial class SubmissionJsonExporter(
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Error exporting submissions to JSON for form {FormId:L}")]
     private partial void LogExportError(Exception ex, long? formId);
+
+    private static long? GetFormIdFromOptions(ExportOptions? options)
+    {
+        if (options?.Metadata is null || !options.Metadata.TryGetValue("FormId", out var value))
+        {
+            return null;
+        }
+        
+        return value as long?;
+    }
 }
