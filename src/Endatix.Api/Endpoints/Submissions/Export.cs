@@ -116,7 +116,7 @@ public partial class Export : Endpoint<ExportRequest>
 
             var fileExport = headersResult.Value;
 
-            // Set response headers before streaming
+            // Set response headers before streaming. Once we write to the body, the status code (200) is committed and cannot be changed on error.
             // Note: We intentionally don't set Content-Length here as this is a streaming response.
             // The response will automatically use chunked transfer encoding which is well-supported
             // by modern HTTP clients and allows for true streaming without buffering the entire output.
@@ -252,6 +252,7 @@ public partial class Export : Endpoint<ExportRequest>
     /// <summary>
     /// Sets the error response for the current HTTP context.
     /// When the response has already started or cannot be cleared, completes the pipe with the given exception if a pipe writer is provided.
+    /// Note: Once the response has started (e.g. during streaming), the HTTP status code cannot be changed; the client may still see 200 with a truncated/failed body.
     /// </summary>
     /// <param name="message">The error message for the response body or log.</param>
     /// <param name="statusCode">The status code to set when writing a JSON response.</param>
