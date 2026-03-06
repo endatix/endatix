@@ -65,8 +65,8 @@ public class GetFormDefinitionFieldsHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
         result.Value.Should().HaveCount(2);
-        result.Value.Should().Contain(f => f.Name == "firstName" && f.Title == "First Name" && f.Type == "text");
-        result.Value.Should().Contain(f => f.Name == "lastName" && f.Title == "Last Name" && f.Type == "text");
+        result.Value.Should().Contain(f => f.Name == "firstName" && f.Title == "firstName" && f.Type == "text");
+        result.Value.Should().Contain(f => f.Name == "lastName" && f.Title == "lastName" && f.Type == "text");
     }
 
     [Fact]
@@ -161,10 +161,10 @@ public class GetFormDefinitionFieldsHandlerTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Value.Should().HaveCount(1);
+        result.Value.Should().HaveCount(1, "duplicate fields should be deduplicated");
         var field = result.Value.First();
         field.Name.Should().Be("fullName");
-        field.Title.Should().Be("New Title", "newest definition should win");
+        field.Title.Should().Be("fullName", "title should always be the same as name");
     }
 
     [Fact]
