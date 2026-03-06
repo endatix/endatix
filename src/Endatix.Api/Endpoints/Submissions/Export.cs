@@ -18,12 +18,13 @@ using System.IO.Pipelines;
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
-/// Represents a validated export operation with resolved format, item type, and SQL function name.
+/// Represents a validated export operation with resolved format, item type, SQL function name, and optional page size.
 /// </summary>
 internal sealed record ValidatedExportOperation(
     string Format,
     Type ItemType,
-    string? SqlFunctionName
+    string? SqlFunctionName,
+    int? ExportPageSize = null
 );
 
 /// <summary>
@@ -129,7 +130,8 @@ public partial class Export : Endpoint<ExportRequest>
                 Exporter: exporter,
                 Options: options,
                 OutputWriter: pipeWriter,
-                SqlFunctionName: validatedExportOperation.SqlFunctionName
+                SqlFunctionName: validatedExportOperation.SqlFunctionName,
+                ExportPageSize: validatedExportOperation.ExportPageSize
             );
 
             var result = await _mediator.Send(exportQuery, cancellationToken);
@@ -210,13 +212,14 @@ public partial class Export : Endpoint<ExportRequest>
             var exportIdBasedOperation = new ValidatedExportOperation(
                 exportConfig.Format,
                 itemType,
-                exportConfig.SqlFunctionName);
+                exportConfig.SqlFunctionName,
+                exportConfig.ExportPageSize);
             return Result.Success(exportIdBasedOperation);
         }
 
         var format = string.IsNullOrWhiteSpace(request.ExportFormat) ? DEFAULT_EXPORT_FORMAT : request.ExportFormat;
-        var defaultItemType = typeof(Endatix.Core.Entities.SubmissionExportRow);
-        var formatBasedExportOperation = new ValidatedExportOperation(format, defaultItemType, null);
+        var defaultItemType = typeof(SubmissionExportRow);
+        var formatBasedExportOperation = new ValidatedExportOperation(format, defaultItemType, null, null);
         return Result.Success(formatBasedExportOperation);
     }
 

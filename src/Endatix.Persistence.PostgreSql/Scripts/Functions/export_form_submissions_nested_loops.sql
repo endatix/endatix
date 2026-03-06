@@ -9,7 +9,7 @@
 -- Database: PostgreSQL
 -- =============================================
 
-CREATE OR REPLACE FUNCTION public.export_form_submissions_nested_loops(target_form_id bigint DEFAULT NULL::bigint)
+CREATE OR REPLACE FUNCTION export_form_submissions_nested_loops(form_id bigint, after_id bigint DEFAULT NULL, page_size int DEFAULT NULL)
  RETURNS TABLE("FormId" bigint, "Id" bigint, "IsComplete" boolean, "CompletedAt" timestamp with time zone, "CreatedAt" timestamp with time zone, "ModifiedAt" timestamp with time zone, "AnswersModel" jsonb)
  LANGUAGE plpgsql
 AS $function$
@@ -17,8 +17,10 @@ DECLARE
     submission_cursor CURSOR FOR
         SELECT s."Id", s."FormId", s."IsComplete", s."CompletedAt", s."CreatedAt", s."ModifiedAt", s."JsonData"::jsonb
         FROM "Submissions" s
-        WHERE (target_form_id IS NULL OR s."FormId" = target_form_id)
-        ORDER BY s."FormId", s."Id";
+        WHERE s."FormId" = export_form_submissions_nested_loops.form_id
+          AND (export_form_submissions_nested_loops.after_id IS NULL OR s."Id" > export_form_submissions_nested_loops.after_id)
+        ORDER BY s."Id"
+        LIMIT export_form_submissions_nested_loops.page_size;
 
     submission_record RECORD;
     v_column_specs jsonb; -- Nested loop columns
@@ -36,7 +38,7 @@ BEGIN
             fd."FormId",
             fd."JsonData"::jsonb AS definition
         FROM "FormDefinitions" fd
-        WHERE (target_form_id IS NULL OR fd."FormId" = target_form_id)
+        WHERE fd."FormId" = export_form_submissions_nested_loops.form_id
           AND EXISTS (SELECT 1 FROM "Submissions" s WHERE s."FormId" = fd."FormId")
     ),
 
@@ -317,19 +319,19 @@ BEGIN
     -- Step 13: Aggregate metadata for reuse
     column_metadata AS (
         SELECT
-            target_form_id AS "FormId",
+            export_form_submissions_nested_loops.form_id AS "FormId",
             (
                 SELECT jsonb_agg(jsonb_build_object(
                     'column_name', cs.column_name,
                     'jsonpath_expression', cs.jsonpath_expression
                 ))
                 FROM column_specs_nested cs
-                WHERE cs."FormId" = target_form_id
+                WHERE cs."FormId" = export_form_submissions_nested_loops.form_id
             ) AS column_specs,
             (
                 SELECT jsonb_agg(sq.question_name)
                 FROM simple_questions sq
-                WHERE sq."FormId" = target_form_id
+                WHERE sq."FormId" = export_form_submissions_nested_loops.form_id
             ) AS simple_questions,
             (
                 SELECT jsonb_agg(jsonb_build_object(
@@ -338,17 +340,17 @@ BEGIN
                     'choice_value', ecs.choice_value
                 ))
                 FROM exploded_column_specs ecs
-                WHERE ecs."FormId" = target_form_id
+                WHERE ecs."FormId" = export_form_submissions_nested_loops.form_id
             ) AS exploded_specs,
             (
                 SELECT jsonb_agg(ac.col_name)
                 FROM all_columns ac
-                WHERE ac."FormId" = target_form_id
+                WHERE ac."FormId" = export_form_submissions_nested_loops.form_id
             ) AS all_columns,
 			(
 			    SELECT jsonb_agg(cv.calc_name)
 			    FROM calculated_values cv
-			    WHERE cv."FormId" = target_form_id
+			    WHERE cv."FormId" = export_form_submissions_nested_loops.form_id
 			) AS calculated_values
 		)
 

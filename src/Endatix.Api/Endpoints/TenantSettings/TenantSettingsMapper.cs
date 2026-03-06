@@ -70,7 +70,8 @@ public static class TenantSettingsMapper
         {
             Id = dto.Id.ToString(),
             Name = dto.Name,
-            SqlFunctionName = dto.SqlFunctionName
+            SqlFunctionName = dto.SqlFunctionName,
+            ExportPageSize = dto.ExportPageSize
         }).ToList();
     }
 }
