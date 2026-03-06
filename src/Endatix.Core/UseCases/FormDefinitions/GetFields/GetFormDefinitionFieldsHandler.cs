@@ -73,7 +73,10 @@ public class GetFormDefinitionFieldsHandler(
                 continue;
             }
 
-            AddFieldIfNew(element, name, type, seen);
+            if (!seen.ContainsKey(name))
+            {
+                seen[name] = (name, type);
+            }
         }
     }
 
@@ -128,19 +131,5 @@ public class GetFormDefinitionFieldsHandler(
 
         name = nameValue;
         return true;
-    }
-
-    private static void AddFieldIfNew(JsonElement element, string name, string type, Dictionary<string, (string Title, string Type)> seen)
-    {
-        if (seen.ContainsKey(name))
-        {
-            return;
-        }
-
-        var title = element.TryGetProperty("title", out var titleProp)
-            ? titleProp.GetString() ?? name
-            : name;
-
-        seen[name] = (title, type);
     }
 }
