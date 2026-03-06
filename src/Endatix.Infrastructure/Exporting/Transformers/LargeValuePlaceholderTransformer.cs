@@ -15,7 +15,8 @@ public sealed class LargeValuePlaceholderTransformer : IValueTransformer
     /// </summary>
     public const int DefaultMaxValueLength = 10_000;
 
-    private static readonly Regex DataUriPattern = new(@"^data:[^;]+;base64,", RegexOptions.Compiled);
+    private static readonly TimeSpan _regexMatchTimeout = TimeSpan.FromMilliseconds(100);
+    private static readonly Regex _dataUriPattern = new(@"^data:[^;]+;base64,", RegexOptions.Compiled, _regexMatchTimeout);
 
     private readonly int _maxValueLength;
 
@@ -111,7 +112,7 @@ public sealed class LargeValuePlaceholderTransformer : IValueTransformer
     {
         if (value.TryGetValue<string>(out var s))
         {
-            if (DataUriPattern.IsMatch(s))
+            if (_dataUriPattern.IsMatch(s))
             {
                 return JsonValue.Create("[file]");
             }
