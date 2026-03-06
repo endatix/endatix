@@ -137,10 +137,6 @@ public class GetFormDefinitionFieldsHandler(
             return;
         }
 
-        var title = element.TryGetProperty("title", out var titleProp)
-            ? titleProp.GetString() ?? name
-            : name;
-
-        seen[name] = (title, type);
+        seen[name] = (name, type);
     }
 }
