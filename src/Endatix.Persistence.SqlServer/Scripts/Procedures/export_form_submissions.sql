@@ -2,12 +2,16 @@
 -- Procedure: export_form_submissions
 -- Description: Exports form submissions with answers structured as a JSON model
 -- Parameters: @form_id - The ID of the form to export
+--             @after_id - Optional cursor (return rows with Id > after_id)
+--             @page_size - Optional limit (NULL = all)
 -- Returns: Dataset with submission details and structured answers
 -- Database: SQL Server
 -- =============================================
 
 CREATE OR ALTER PROCEDURE dbo.export_form_submissions
-    @form_id bigint
+    @form_id bigint,
+    @after_id bigint = NULL,
+    @page_size int = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -21,23 +25,39 @@ BEGIN
         CompletedAt datetime2,
         CreatedAt datetime2,
         ModifiedAt datetime2,
+        JsonData nvarchar(max), -- Store JsonData locally to avoid repeated lookups
         AnswersJson nvarchar(max)
     );
 
-    -- Step 2: Get all submissions first
+    -- Step 2: Get submissions (with paging)
+    ;WITH BaseSubmissions AS
+    (
+        SELECT
+            FormId,
+            Id,
+            IsComplete,
+            CompletedAt,
+            CreatedAt,
+            ModifiedAt,
+            JsonData,
+            '{}' AS AnswersJson
+        FROM dbo.Submissions
+        WHERE FormId = @form_id
+          AND (@after_id IS NULL OR Id > @after_id)
+    )
     INSERT INTO #Results
-        (FormId, Id, IsComplete, CompletedAt, CreatedAt, ModifiedAt, AnswersJson)
-    SELECT
+        (FormId, Id, IsComplete, CompletedAt, CreatedAt, ModifiedAt, JsonData, AnswersJson)
+    SELECT TOP (ISNULL(@page_size, 2147483647))
         FormId,
         Id,
         IsComplete,
         CompletedAt,
         CreatedAt,
         ModifiedAt,
-        '{}'
-    -- Start with empty JSON object
-    FROM dbo.Submissions
-    WHERE FormId = @form_id;
+        JsonData,
+        AnswersJson
+    FROM BaseSubmissions
+    ORDER BY Id;
 
     -- Step 3: Find all question names
     DECLARE @QuestionNames TABLE (name nvarchar(255));
@@ -97,7 +117,7 @@ BEGIN
                     SET AnswersJson = JSON_MODIFY(
                         AnswersJson, 
                         ''$."' + REPLACE(@name, N'''', N'''''') + N'"'',
-                        ISNULL(JSON_QUERY((SELECT JsonData FROM dbo.Submissions WHERE Id = r.Id), N''' + REPLACE(@path, N'''', N'''''') + N'''), ''""'')
+                        ISNULL(JSON_QUERY(r.JsonData, N''' + REPLACE(@path, N'''', N'''''') + N'''), ''""'')
                     )
                     FROM #Results r;';
 
@@ -118,7 +138,8 @@ BEGIN
         CreatedAt,
         ModifiedAt,
         AnswersJson AS AnswersModel
-    FROM #Results;
+    FROM #Results
+    ORDER BY Id;
 
     -- Clean up
     DROP TABLE #Results;

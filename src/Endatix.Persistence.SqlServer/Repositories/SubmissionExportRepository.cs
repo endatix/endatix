@@ -1,5 +1,7 @@
+using System.Runtime.CompilerServices;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +10,8 @@ namespace Endatix.Persistence.SqlServer.Repositories;
 
 public sealed class SubmissionExportRepository : ISubmissionExportRepository
 {
+    private const int DefaultExportPageSize = 500;
+
     private readonly AppDbContext _dbContext;
 
     public SubmissionExportRepository(AppDbContext dbContext)
@@ -15,14 +19,65 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         _dbContext = dbContext;
     }
 
-    public IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, CancellationToken cancellationToken) where T : class, IExportItem
+    public async IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, int? pageSize, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         var procedureName = sqlFunctionName ?? "export_form_submissions";
-        var sql = "EXEC dbo." + procedureName + " @form_id";
+        var effectivePageSize = pageSize ?? DefaultExportPageSize;
+        var usePaging = effectivePageSize != 0 && typeof(T) == typeof(SubmissionExportRow);
+        var stream = usePaging
+            ? StreamPagedAsync<T>(formId, procedureName, effectivePageSize, cancellationToken)
+            : StreamAllAsync<T>(formId, procedureName, cancellationToken);
 
-        return _dbContext.Set<T>()
+        await foreach (var row in stream)
+        {
+            yield return row;
+        }
+    }
+
+    private async IAsyncEnumerable<T> StreamAllAsync<T>(long formId, string procedureName, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
+    {
+        var sql = "EXEC dbo." + procedureName + " @form_id";
+        await foreach (var row in _dbContext.Set<T>()
             .FromSqlRaw(sql, new SqlParameter("@form_id", formId))
             .AsNoTracking()
-            .AsAsyncEnumerable();
+            .AsAsyncEnumerable()
+            .WithCancellation(cancellationToken))
+        {
+            yield return row;
+        }
+    }
+
+    private async IAsyncEnumerable<T> StreamPagedAsync<T>(long formId, string procedureName, int pageSize, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
+    {
+        long? afterId = null;
+        var sql = "EXEC dbo." + procedureName + " @form_id, @after_id, @page_size";
+
+        while (true)
+        {
+            var batch = await _dbContext.Set<T>()
+                .FromSqlRaw(sql,
+                    new SqlParameter("@form_id", formId),
+                    new SqlParameter("@after_id", (object?)afterId ?? DBNull.Value),
+                    new SqlParameter("@page_size", pageSize))
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+
+            foreach (var row in batch)
+            {
+                yield return row;
+            }
+
+            if (batch.Count < pageSize)
+            {
+                break;
+            }
+
+            if (batch[^1] is not SubmissionExportRow last)
+            {
+                break;
+            }
+
+            afterId = last.Id;
+        }
     }
 }

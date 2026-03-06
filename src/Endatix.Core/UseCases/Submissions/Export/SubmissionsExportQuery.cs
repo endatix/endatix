@@ -1,5 +1,4 @@
 using Endatix.Core.Abstractions.Exporting;
-using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using MediatR;
 using System.IO.Pipelines;
@@ -11,5 +10,6 @@ public sealed record SubmissionsExportQuery(
     IExporter Exporter,
     ExportOptions Options,
     PipeWriter OutputWriter,
-    string? SqlFunctionName = null
+    string? SqlFunctionName = null,
+    int? ExportPageSize = null
 ) : IRequest<Result<FileExport>>; 

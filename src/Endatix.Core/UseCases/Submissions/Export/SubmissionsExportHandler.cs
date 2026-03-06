@@ -34,14 +34,26 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
             }
 
             return await request.Exporter.StreamExportAsync(
-                getDataAsync: type => GetExportRowsByType(type, request.FormId, request.SqlFunctionName, cancellationToken),
+                getDataAsync: type => GetExportRowsByType(type, request.FormId, request.SqlFunctionName, request.ExportPageSize, cancellationToken),
                 options: request.Options,
                 cancellationToken: cancellationToken,
                 writer: request.OutputWriter);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error exporting submissions for form {FormId}", request.FormId);
+            if (ex is OperationCanceledException)
+            {
+                _logger.LogWarning(ex,
+                    "Export cancelled for form {FormId}. SqlFunctionName: {SqlFunctionName}, ItemType: {ItemType}",
+                    request.FormId, request.SqlFunctionName ?? "(default)", request.Exporter.ItemType.Name);
+            }
+            else
+            {
+                _logger.LogError(ex,
+                    "Error exporting submissions for form {FormId}. SqlFunctionName: {SqlFunctionName}, ItemType: {ItemType}, InnerException: {InnerMessage}",
+                    request.FormId, request.SqlFunctionName ?? "(default)", request.Exporter.ItemType.Name,
+                    ex.InnerException?.Message ?? "(none)");
+            }
             return Result<FileExport>.Error($"Export failed: {ex.Message}");
         }
     }
@@ -50,18 +62,19 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
         Type itemType,
         long formId,
         string? sqlFunctionName,
+        int? exportPageSize,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         if (itemType == typeof(SubmissionExportRow))
         {
-            await foreach (var item in _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, sqlFunctionName, cancellationToken))
+            await foreach (var item in _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, sqlFunctionName, exportPageSize, cancellationToken))
             {
                 yield return item;
             }
         }
         else if (itemType == typeof(DynamicExportRow))
         {
-            await foreach (var item in _exportRepository.GetExportRowsAsync<DynamicExportRow>(formId, sqlFunctionName, cancellationToken))
+            await foreach (var item in _exportRepository.GetExportRowsAsync<DynamicExportRow>(formId, sqlFunctionName, exportPageSize, cancellationToken))
             {
                 yield return item;
             }

@@ -135,7 +135,8 @@ public class GetTenantSettingsHandler(
         {
             Id = export.Id,
             Name = export.Name,
-            SqlFunctionName = export.SqlFunctionName
+            SqlFunctionName = export.SqlFunctionName,
+            ExportPageSize = export.ExportPageSize
         }).ToList();
     }
 }

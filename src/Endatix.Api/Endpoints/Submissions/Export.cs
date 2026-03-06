@@ -13,22 +13,24 @@ using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 using Endatix.Core.Entities;
+using System.IO.Pipelines;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
-/// Represents a validated export operation with resolved format, item type, and SQL function name.
+/// Represents a validated export operation with resolved format, item type, SQL function name, and optional page size.
 /// </summary>
 internal sealed record ValidatedExportOperation(
     string Format,
     Type ItemType,
-    string? SqlFunctionName
+    string? SqlFunctionName,
+    int? ExportPageSize = null
 );
 
 /// <summary>
 /// Endpoint for exporting form submissions.
 /// </summary>
-public class Export : Endpoint<ExportRequest>
+public partial class Export : Endpoint<ExportRequest>
 {
     private const string DEFAULT_EXPORT_FORMAT = "csv";
     private const string ERROR_MESSAGE_COULD_NOT_DETERMINE_EXPORT_FORMAT = "Could not determine export format. Either provide ExportFormat or a valid ExportId.";
@@ -72,6 +74,8 @@ public class Export : Endpoint<ExportRequest>
     /// <inheritdoc/>
     public override async Task HandleAsync(ExportRequest request, CancellationToken cancellationToken)
     {
+        PipeWriter? pipeWriter = null;
+
         try
         {
             var exportValidationResult = await ResolveExportConfigurationAsync(request, cancellationToken);
@@ -113,28 +117,31 @@ public class Export : Endpoint<ExportRequest>
 
             var fileExport = headersResult.Value;
 
-            // Set response headers before streaming
+            // Set response headers before streaming. Once we write to the body, the status code (200) is committed and cannot be changed on error.
             // Note: We intentionally don't set Content-Length here as this is a streaming response.
             // The response will automatically use chunked transfer encoding which is well-supported
             // by modern HTTP clients and allows for true streaming without buffering the entire output.
             HttpContext.Response.ContentType = fileExport.ContentType;
             HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileExport.FileName}";
 
-            // Execute the export
-            var pipeWriter = HttpContext.Response.BodyWriter;
+            pipeWriter = HttpContext.Response.BodyWriter;
             var exportQuery = new SubmissionsExportQuery(
                 FormId: request.FormId,
                 Exporter: exporter,
                 Options: options,
                 OutputWriter: pipeWriter,
-                SqlFunctionName: validatedExportOperation.SqlFunctionName
+                SqlFunctionName: validatedExportOperation.SqlFunctionName,
+                ExportPageSize: validatedExportOperation.ExportPageSize
             );
 
             var result = await _mediator.Send(exportQuery, cancellationToken);
 
             if (!result.IsSuccess)
             {
-                await SetErrorResponse(string.Join(", ", result.Errors), StatusCodes.Status500InternalServerError);
+                var errors = string.Join(", ", result.Errors);
+                LogExportFailedError(request.FormId, errors);
+
+                await SetErrorResponse(errors, StatusCodes.Status500InternalServerError, new InvalidOperationException(errors), pipeWriter);
                 return;
             }
 
@@ -145,7 +152,7 @@ public class Export : Endpoint<ExportRequest>
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled error in export endpoint");
-            await SetErrorResponse("An unexpected error occurred during export.");
+            await SetErrorResponse("An unexpected error occurred during export.", StatusCodes.Status500InternalServerError, ex, pipeWriter);
         }
     }
 
@@ -205,13 +212,14 @@ public class Export : Endpoint<ExportRequest>
             var exportIdBasedOperation = new ValidatedExportOperation(
                 exportConfig.Format,
                 itemType,
-                exportConfig.SqlFunctionName);
+                exportConfig.SqlFunctionName,
+                exportConfig.ExportPageSize);
             return Result.Success(exportIdBasedOperation);
         }
 
         var format = string.IsNullOrWhiteSpace(request.ExportFormat) ? DEFAULT_EXPORT_FORMAT : request.ExportFormat;
-        var defaultItemType = typeof(Endatix.Core.Entities.SubmissionExportRow);
-        var formatBasedExportOperation = new ValidatedExportOperation(format, defaultItemType, null);
+        var defaultItemType = typeof(SubmissionExportRow);
+        var formatBasedExportOperation = new ValidatedExportOperation(format, defaultItemType, null, null);
         return Result.Success(formatBasedExportOperation);
     }
 
@@ -246,15 +254,30 @@ public class Export : Endpoint<ExportRequest>
 
     /// <summary>
     /// Sets the error response for the current HTTP context.
+    /// When the response has already started or cannot be cleared, completes the pipe with the given exception if a pipe writer is provided.
+    /// Note: Once the response has started (e.g. during streaming), the HTTP status code cannot be changed; the client may still see 200 with a truncated/failed body.
     /// </summary>
-    /// <param name="message">The error message.</param>
-    /// <param name="statusCode">The status code to set.</param>
+    /// <param name="message">The error message for the response body or log.</param>
+    /// <param name="statusCode">The status code to set when writing a JSON response.</param>
+    /// <param name="exception">Optional exception; when response cannot be set, used to complete the pipe so the client sees the failure.</param>
+    /// <param name="pipeWriter">Optional pipe writer; when response has started or clear fails, completed with <paramref name="exception"/> (or a new one from <paramref name="message"/>).</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task SetErrorResponse(string message, int? statusCode = null)
+    private async Task SetErrorResponse(string message, int? statusCode = null, Exception? exception = null, PipeWriter? pipeWriter = null)
     {
-        if (!HttpContext.Response.HasStarted)
+        if (HttpContext.Response.HasStarted)
+        {
+            await CompletePipeIfNeeded(pipeWriter, exception, message);
+            return;
+        }
+
+        try
         {
             HttpContext.Response.Clear();
+        }
+        catch (InvalidOperationException)
+        {
+            await CompletePipeIfNeeded(pipeWriter, exception, message);
+            return;
         }
 
         HttpContext.Response.StatusCode = statusCode ?? StatusCodes.Status500InternalServerError;
@@ -268,4 +291,28 @@ public class Export : Endpoint<ExportRequest>
 
         await HttpContext.Response.WriteAsync(JsonSerializer.Serialize(problem));
     }
+
+    private async Task CompletePipeIfNeeded(PipeWriter? pipeWriter, Exception? exception, string fallbackMessage)
+    {
+        if (pipeWriter is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await pipeWriter.CompleteAsync(exception ?? new InvalidOperationException(fallbackMessage));
+        }
+        catch (Exception ex)
+        {
+            LogCompletePipeException(ex);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to complete pipe with exception after export error")]
+    private partial void LogCompletePipeException(Exception ex);
+
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Export failed. FormId: {FormId}, Errors: {Errors}")]
+    private partial void LogExportFailedError(long formId, string errors);
 }

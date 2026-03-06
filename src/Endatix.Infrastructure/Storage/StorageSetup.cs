@@ -1,5 +1,3 @@
-using Endatix.Core.Abstractions.Exporting;
-using Endatix.Core.Entities;
 using Endatix.Infrastructure.Exporting.Transformers;
 using Endatix.Infrastructure.Storage;
 
@@ -24,6 +22,7 @@ public static class StorageSetup
             .ValidateOnStart();
 
         services.AddExportTransformer<StorageUrlRewriteTransformer>();
+        services.AddExportTransformer<LargeValuePlaceholderTransformer>();
 
         return services;
     }

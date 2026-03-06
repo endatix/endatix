@@ -45,7 +45,7 @@ public class SubmissionsExportHandlerTests
             SqlFunctionName: null
         );
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<CancellationToken>())
+        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<int?>(), Arg.Any<CancellationToken>())
             .Returns(exportRows.ToAsyncEnumerable());
 
         exporter.StreamExportAsync(
@@ -74,6 +74,7 @@ public class SubmissionsExportHandlerTests
         _exportRepository.Received(1).GetExportRowsAsync<SubmissionExportRow>(
             formId,
             null,
+            Arg.Any<int?>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -102,7 +103,7 @@ public class SubmissionsExportHandlerTests
             SqlFunctionName: sqlFunctionName
         );
 
-        _exportRepository.GetExportRowsAsync<DynamicExportRow>(formId, sqlFunctionName, Arg.Any<CancellationToken>())
+        _exportRepository.GetExportRowsAsync<DynamicExportRow>(formId, sqlFunctionName, Arg.Any<int?>(), Arg.Any<CancellationToken>())
             .Returns(exportRows.ToAsyncEnumerable());
 
         SetupExporterToEnumerateData(exporter, typeof(DynamicExportRow), fileExport, options, pipeWriter);
@@ -118,6 +119,7 @@ public class SubmissionsExportHandlerTests
         _exportRepository.Received(1).GetExportRowsAsync<DynamicExportRow>(
             formId,
             sqlFunctionName,
+            Arg.Any<int?>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -151,6 +153,7 @@ public class SubmissionsExportHandlerTests
         _exportRepository.DidNotReceive().GetExportRowsAsync<SubmissionExportRow>(
             Arg.Any<long>(),
             Arg.Any<string?>(),
+            Arg.Any<int?>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -176,7 +179,7 @@ public class SubmissionsExportHandlerTests
             SqlFunctionName: null
         );
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<CancellationToken>())
+        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<int?>(), Arg.Any<CancellationToken>())
             .Returns(exportRows.ToAsyncEnumerable());
 
         SetupExporterToReturnError(exporter, "Export streaming failed", options, pipeWriter);
@@ -208,7 +211,7 @@ public class SubmissionsExportHandlerTests
             SqlFunctionName: null
         );
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<CancellationToken>())
+        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<int?>(), Arg.Any<CancellationToken>())
             .Returns(x => throw new Exception("Database connection failed"));
 
         SetupExporterToHandleException(exporter, typeof(SubmissionExportRow), options, pipeWriter);
@@ -281,7 +284,7 @@ public class SubmissionsExportHandlerTests
             SqlFunctionName: null
         );
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<CancellationToken>())
+        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<int?>(), Arg.Any<CancellationToken>())
             .Returns(exportRows.ToAsyncEnumerable());
 
         // Use custom setup to verify options are passed correctly
@@ -344,7 +347,7 @@ public class SubmissionsExportHandlerTests
             SqlFunctionName: sqlFunctionName
         );
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, sqlFunctionName, Arg.Any<CancellationToken>())
+        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, sqlFunctionName, Arg.Any<int?>(), Arg.Any<CancellationToken>())
             .Returns(exportRows.ToAsyncEnumerable());
 
         SetupExporterToEnumerateData(exporter, typeof(SubmissionExportRow), fileExport, options, pipeWriter);
@@ -357,6 +360,7 @@ public class SubmissionsExportHandlerTests
         _exportRepository.Received(1).GetExportRowsAsync<SubmissionExportRow>(
             formId,
             sqlFunctionName,
+            Arg.Any<int?>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -384,7 +388,7 @@ public class SubmissionsExportHandlerTests
             SqlFunctionName: null
         );
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<CancellationToken>())
+        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<int?>(), Arg.Any<CancellationToken>())
             .Returns(exportRows.ToAsyncEnumerable());
 
         Func<Type, IAsyncEnumerable<IExportItem>>? capturedGetDataAsync = null;

@@ -30,4 +30,10 @@ public class CustomExportConfiguration
     /// Used to uniquely identify the exporter when multiple exporters share the same format.
     /// </summary>
     public string? ItemTypeName { get; set; }
+
+    /// <summary>
+    /// Optional export page size for paged export functions. When null, default (500) is used.
+    /// When 0, paging is disabled (full result set). When greater than 0, that page size is used.
+    /// </summary>
+    public int? ExportPageSize { get; set; }
 }

@@ -23,7 +23,19 @@ public class PostgreSqlOptions
     /// Gets or sets the command timeout in seconds.
     /// </summary>
     public int? CommandTimeout { get; set; }
-    
+
+    /// <summary>
+    /// Gets or sets the command timeout in seconds for submissions export queries.
+    /// When set, export uses this value instead of <see cref="CommandTimeout"/> so large exports can complete.
+    /// </summary>
+    public int? ExportCommandTimeout { get; set; }
+
+    /// <summary>
+    /// Gets or sets the page size for paged export queries (export_form_submissions and export_form_submissions_nested_loops).
+    /// When null, the repository default (500) is used. Smaller values increase total export time due to round-trip overhead.
+    /// </summary>
+    public int? ExportPageSize { get; set; }
+
     /// <summary>
     /// Gets or sets the maximum number of retry attempts.
     /// </summary>

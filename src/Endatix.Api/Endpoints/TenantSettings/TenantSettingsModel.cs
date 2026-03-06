@@ -124,4 +124,9 @@ public class CustomExportConfigurationModel
     /// The name of the SQL function to call for the custom export.
     /// </summary>
     public required string SqlFunctionName { get; set; }
+
+    /// <summary>
+    /// Optional export page size. Null = default (500), 0 = no paging, &gt;0 = that page size.
+    /// </summary>
+    public int? ExportPageSize { get; set; }
 }
