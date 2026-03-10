@@ -31,7 +31,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormTemplateRequest, Re
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateFormTemplateResponse>, BadRequest>> ExecuteAsync(CreateFormTemplateRequest request, CancellationToken cancellationToken)
     {
-        var createCommand = new CreateFormTemplateCommand(request.Name!, request.Description, request.JsonData!, request.IsEnabled!.Value!);
+        var createCommand = new CreateFormTemplateCommand(request.Name!, request.Description, request.JsonData!);
         var result = await mediator.Send(createCommand, cancellationToken);
 
         return TypedResultsBuilder

@@ -29,7 +29,6 @@ public class ListFormTemplatesHandlerTests
                 Id = "1",
                 Name = SampleData.FORM_NAME_1,
                 Description = SampleData.FORM_DESCRIPTION_1,
-                IsEnabled = true,
                 CreatedAt = DateTime.UtcNow,
                 ModifiedAt = DateTime.UtcNow
             },
@@ -38,7 +37,6 @@ public class ListFormTemplatesHandlerTests
                 Id = "2",
                 Name = SampleData.FORM_NAME_2,
                 Description = SampleData.FORM_DESCRIPTION_2,
-                IsEnabled = false,
                 CreatedAt = DateTime.UtcNow,
                 ModifiedAt = null
             }

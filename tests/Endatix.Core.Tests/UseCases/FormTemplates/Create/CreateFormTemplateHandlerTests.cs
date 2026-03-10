@@ -28,16 +28,14 @@ public class CreateFormTemplateHandlerTests
         var request = new CreateFormTemplateCommand(
             SampleData.FORM_NAME_1,
             SampleData.FORM_DESCRIPTION_1,
-            SampleData.FORM_DEFINITION_JSON_DATA_1,
-            true
+            SampleData.FORM_DEFINITION_JSON_DATA_1
         );
 
         var createdTemplate = new FormTemplate(
             SampleData.TENANT_ID,
             request.Name,
             request.Description,
-            request.JsonData,
-            request.IsEnabled
+            request.JsonData
         );
 
         _repository.AddAsync(
@@ -56,15 +54,13 @@ public class CreateFormTemplateHandlerTests
         result.Value.Name.Should().Be(request.Name);
         result.Value.Description.Should().Be(request.Description);
         result.Value.JsonData.Should().Be(request.JsonData);
-        result.Value.IsEnabled.Should().Be(request.IsEnabled);
         result.Value.TenantId.Should().Be(SampleData.TENANT_ID);
-        
+
         await _repository.Received(1).AddAsync(
-            Arg.Is<FormTemplate>(ft => 
+            Arg.Is<FormTemplate>(ft =>
                 ft.Name == request.Name &&
                 ft.Description == request.Description &&
-                ft.JsonData == request.JsonData &&
-                ft.IsEnabled == request.IsEnabled
+                ft.JsonData == request.JsonData
             ),
             Arg.Any<CancellationToken>()
         );
@@ -77,8 +73,7 @@ public class CreateFormTemplateHandlerTests
         var request = new CreateFormTemplateCommand(
             SampleData.FORM_NAME_1,
             SampleData.FORM_DESCRIPTION_1,
-            SampleData.FORM_DEFINITION_JSON_DATA_1,
-            true
+            SampleData.FORM_DEFINITION_JSON_DATA_1
         );
         _tenantContext.TenantId.Returns(0);
 
@@ -89,4 +84,4 @@ public class CreateFormTemplateHandlerTests
         await act.Should().ThrowAsync<ArgumentException>()
             .WithMessage(GetErrorMessage("tenantContext.TenantId", ZeroOrNegative));
     }
-} 
+}

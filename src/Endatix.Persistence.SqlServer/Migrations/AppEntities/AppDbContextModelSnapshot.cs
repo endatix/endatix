@@ -233,9 +233,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("bit");
-
                     b.Property<string>("JsonData")
                         .IsRequired()
                         .HasColumnType("json");

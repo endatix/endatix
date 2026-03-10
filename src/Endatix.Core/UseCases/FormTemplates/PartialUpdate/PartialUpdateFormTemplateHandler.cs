@@ -19,7 +19,6 @@ public class PartialUpdateFormTemplateHandler(IRepository<FormTemplate> reposito
         formTemplate.Name = request.Name ?? formTemplate.Name;
         formTemplate.Description = request.Description ?? formTemplate.Description;
         formTemplate.JsonData = request.JsonData ?? formTemplate.JsonData;
-        formTemplate.IsEnabled = request.IsEnabled ?? formTemplate.IsEnabled;
 
         await repository.UpdateAsync(formTemplate, cancellationToken);
         return Result.Success(formTemplate);

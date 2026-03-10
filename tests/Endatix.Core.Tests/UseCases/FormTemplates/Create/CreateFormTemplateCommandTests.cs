@@ -13,10 +13,9 @@ public class CreateFormTemplateCommandTests
         var name = "";
         var description = "Description";
         var jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
-        var isEnabled = true;
 
         // Act
-        Action act = () => new CreateFormTemplateCommand(name!, description, jsonData, isEnabled);
+        Action act = () => new CreateFormTemplateCommand(name!, description, jsonData);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -30,10 +29,9 @@ public class CreateFormTemplateCommandTests
         var name = SampleData.FORM_NAME_1;
         var description = SampleData.FORM_DESCRIPTION_1;
         var jsonData = "";
-        var isEnabled = true;
 
         // Act
-        Action act = () => new CreateFormTemplateCommand(name, description, jsonData!, isEnabled);
+        Action act = () => new CreateFormTemplateCommand(name, description, jsonData!);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -47,15 +45,13 @@ public class CreateFormTemplateCommandTests
         var name = SampleData.FORM_NAME_1;
         var description = SampleData.FORM_DESCRIPTION_1;
         var jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
-        var isEnabled = true;
 
         // Act
-        var command = new CreateFormTemplateCommand(name, description, jsonData, isEnabled);
+        var command = new CreateFormTemplateCommand(name, description, jsonData);
 
         // Assert
         command.Name.Should().Be(name);
         command.Description.Should().Be(description);
         command.JsonData.Should().Be(jsonData);
-        command.IsEnabled.Should().Be(isEnabled);
     }
 } 

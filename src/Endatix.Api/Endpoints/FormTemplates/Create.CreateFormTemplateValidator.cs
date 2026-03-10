@@ -19,9 +19,6 @@ public class CreateFormTemplateValidator : Validator<CreateFormTemplateRequest>
             .MinimumLength(DataSchemaConstants.MIN_NAME_LENGTH)
             .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
 
-        RuleFor(x => x.IsEnabled)
-            .NotEmpty();
-
         RuleFor(x => x.JsonData)
             .NotEmpty()
             .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH);

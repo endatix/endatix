@@ -18,8 +18,7 @@ public class CreateFormTemplateHandler(IRepository<FormTemplate> repository, ITe
             tenantContext.TenantId,
             request.Name,
             request.Description,
-            request.JsonData,
-            request.IsEnabled
+            request.JsonData
         );
 
         await repository.AddAsync(formTemplate, cancellationToken);

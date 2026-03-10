@@ -23,7 +23,6 @@ public static class FormTemplateMapper
         Name = formTemplate.Name,
         Description = formTemplate.Description,
         JsonData = formTemplate.JsonData,
-        IsEnabled = formTemplate.IsEnabled,
         CreatedAt = formTemplate.CreatedAt,
         ModifiedAt = formTemplate.ModifiedAt
     };
@@ -54,7 +53,6 @@ public static class FormTemplateMapperExtensions
         Id = formTemplateDto.Id,
         Name = formTemplateDto.Name,
         Description = formTemplateDto.Description,
-        IsEnabled = formTemplateDto.IsEnabled,
         CreatedAt = formTemplateDto.CreatedAt,
         ModifiedAt = formTemplateDto.ModifiedAt
     };
