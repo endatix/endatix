@@ -21,11 +21,6 @@ public class FormTemplateModelWithoutJsonData
     public string? Description { get; set; }
 
     /// <summary>
-    /// Indicates if the form template is enabled.
-    /// </summary>
-    public bool IsEnabled { get; set; }
-
-    /// <summary>
     /// The date and time when the form template was created.
     /// </summary>
     public DateTime CreatedAt { get; set; }

@@ -27,7 +27,6 @@ public class CreateTests
         {
             Name = "Test Template",
             Description = "Test Description",
-            IsEnabled = true,
             JsonData = "{ }"
         };
 
@@ -37,7 +36,7 @@ public class CreateTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var badRequestResult = response.Result as BadRequest;
@@ -52,7 +51,6 @@ public class CreateTests
         {
             Name = "Test Template",
             Description = "Test Description",
-            IsEnabled = true,
             JsonData = "{ }"
         };
 
@@ -63,7 +61,7 @@ public class CreateTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = response.Result as Created<CreateFormTemplateResponse>;
@@ -81,7 +79,6 @@ public class CreateTests
         {
             Name = "Test Template",
             Description = "Test Description",
-            IsEnabled = true,
             JsonData = "{ }"
         };
         var result = Result<FormTemplate>.Created(new FormTemplate(SampleData.TENANT_ID, "Test Template"));
@@ -97,7 +94,6 @@ public class CreateTests
             Arg.Is<CreateFormTemplateCommand>(cmd =>
                 cmd.Name == request.Name &&
                 cmd.Description == request.Description &&
-                cmd.IsEnabled == request.IsEnabled &&
                 cmd.JsonData == request.JsonData
             ),
             Arg.Any<CancellationToken>()

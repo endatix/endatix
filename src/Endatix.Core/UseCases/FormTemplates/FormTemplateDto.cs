@@ -20,10 +20,6 @@ public record FormTemplateDto
     /// </summary>
     public string? Description { get; init; }
 
-    /// <summary>
-    /// Indicates if the form template is currently enabled.
-    /// </summary>
-    public bool IsEnabled { get; init; }
 
     /// <summary>
     /// Timestamp when the form template was created.

@@ -14,9 +14,8 @@ public record PartialUpdateFormTemplateCommand : ICommand<Result<FormTemplate>>
     public string? Name { get; init; }
     public string? Description { get; init; }
     public string? JsonData { get; init; }
-    public bool? IsEnabled { get; init; }
 
-    public PartialUpdateFormTemplateCommand(long formTemplateId, string? name, string? description, string? jsonData, bool? isEnabled)
+    public PartialUpdateFormTemplateCommand(long formTemplateId, string? name, string? description, string? jsonData)
     {
         Guard.Against.NegativeOrZero(formTemplateId);
 
@@ -24,6 +23,5 @@ public record PartialUpdateFormTemplateCommand : ICommand<Result<FormTemplate>>
         Name = name;
         Description = description;
         JsonData = jsonData;
-        IsEnabled = isEnabled;
     }
 }

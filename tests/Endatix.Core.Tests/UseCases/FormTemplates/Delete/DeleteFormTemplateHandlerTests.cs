@@ -41,8 +41,7 @@ public class DeleteFormTemplateHandlerTests
         {
             Id = 1,
             Description = SampleData.FORM_DESCRIPTION_1,
-            JsonData = SampleData.FORM_DEFINITION_JSON_DATA_1,
-            IsEnabled = true
+            JsonData = SampleData.FORM_DEFINITION_JSON_DATA_1
         };
         var request = new DeleteFormTemplateCommand(1);
         

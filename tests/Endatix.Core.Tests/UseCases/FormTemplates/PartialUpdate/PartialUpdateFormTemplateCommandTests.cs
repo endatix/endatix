@@ -14,10 +14,9 @@ public class PartialUpdateFormTemplateCommandTests
         var name = SampleData.FORM_NAME_1;
         var description = SampleData.FORM_DESCRIPTION_1;
         var jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
-        var isEnabled = true;
 
         // Act
-        Action act = () => new PartialUpdateFormTemplateCommand(formTemplateId, name, description, jsonData, isEnabled);
+        Action act = () => new PartialUpdateFormTemplateCommand(formTemplateId, name, description, jsonData);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -32,17 +31,15 @@ public class PartialUpdateFormTemplateCommandTests
         var name = SampleData.FORM_NAME_1;
         var description = SampleData.FORM_DESCRIPTION_1;
         var jsonData = SampleData.FORM_DEFINITION_JSON_DATA_1;
-        var isEnabled = true;
 
         // Act
-        var command = new PartialUpdateFormTemplateCommand(formTemplateId, name, description, jsonData, isEnabled);
+        var command = new PartialUpdateFormTemplateCommand(formTemplateId, name, description, jsonData);
 
         // Assert
         command.FormTemplateId.Should().Be(formTemplateId);
         command.Name.Should().Be(name);
         command.Description.Should().Be(description);
         command.JsonData.Should().Be(jsonData);
-        command.IsEnabled.Should().Be(isEnabled);
     }
 
     [Fact]
@@ -53,16 +50,14 @@ public class PartialUpdateFormTemplateCommandTests
         string? name = null;
         string? description = null;
         string? jsonData = null;
-        bool? isEnabled = null;
 
         // Act
-        var command = new PartialUpdateFormTemplateCommand(formTemplateId, name, description, jsonData, isEnabled);
+        var command = new PartialUpdateFormTemplateCommand(formTemplateId, name, description, jsonData);
 
         // Assert
         command.FormTemplateId.Should().Be(formTemplateId);
         command.Name.Should().BeNull();
         command.Description.Should().BeNull();
         command.JsonData.Should().BeNull();
-        command.IsEnabled.Should().BeNull();
     }
 } 

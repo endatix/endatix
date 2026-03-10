@@ -13,9 +13,8 @@ public record CreateFormTemplateCommand : ICommand<Result<FormTemplate>>
     public string Name { get; init; }
     public string? Description { get; init; }
     public string? JsonData { get; init; }
-    public bool IsEnabled { get; init; }
 
-    public CreateFormTemplateCommand(string name, string? description, string jsonData, bool isEnabled)
+    public CreateFormTemplateCommand(string name, string? description, string jsonData)
     {
         Guard.Against.NullOrWhiteSpace(name);
         Guard.Against.NullOrWhiteSpace(jsonData);
@@ -23,6 +22,5 @@ public record CreateFormTemplateCommand : ICommand<Result<FormTemplate>>
         Name = name;
         Description = description;
         JsonData = jsonData;
-        IsEnabled = isEnabled;
     }
 }

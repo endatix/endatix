@@ -21,7 +21,7 @@ public class PartialUpdateFormTemplateHandlerTests
     {
         // Arrange
         FormTemplate? notFoundTemplate = null;
-        var request = new PartialUpdateFormTemplateCommand(1, null, null, null, null);
+        var request = new PartialUpdateFormTemplateCommand(1, null, null, null);
         _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
                    .Returns(notFoundTemplate);
 
@@ -42,16 +42,14 @@ public class PartialUpdateFormTemplateHandlerTests
         {
             Id = 1,
             Description = SampleData.FORM_DESCRIPTION_1,
-            JsonData = SampleData.FORM_DEFINITION_JSON_DATA_1,
-            IsEnabled = false
+            JsonData = SampleData.FORM_DEFINITION_JSON_DATA_1
         };
 
         var request = new PartialUpdateFormTemplateCommand(
             1,
             SampleData.FORM_NAME_2,
             SampleData.FORM_DESCRIPTION_2,
-            SampleData.FORM_DEFINITION_JSON_DATA_2,
-            true
+            SampleData.FORM_DEFINITION_JSON_DATA_2
         );
 
         _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
@@ -67,15 +65,13 @@ public class PartialUpdateFormTemplateHandlerTests
         result.Value.Name.Should().Be(request.Name);
         result.Value.Description.Should().Be(request.Description);
         result.Value.JsonData.Should().Be(request.JsonData);
-        result.Value.IsEnabled.Should().Be(request.IsEnabled!.Value);
 
         await _repository.Received(1).UpdateAsync(
             Arg.Is<FormTemplate>(ft =>
                 ft.Id == formTemplate.Id &&
                 ft.Name == request.Name &&
                 ft.Description == request.Description &&
-                ft.JsonData == request.JsonData &&
-                ft.IsEnabled == request.IsEnabled!.Value
+                ft.JsonData == request.JsonData
             ),
             Arg.Any<CancellationToken>()
         );
@@ -89,11 +85,10 @@ public class PartialUpdateFormTemplateHandlerTests
         {
             Id = 1,
             Description = SampleData.FORM_DESCRIPTION_1,
-            JsonData = SampleData.FORM_DEFINITION_JSON_DATA_1,
-            IsEnabled = false
+            JsonData = SampleData.FORM_DEFINITION_JSON_DATA_1
         };
 
-        var request = new PartialUpdateFormTemplateCommand(1, null, SampleData.FORM_DESCRIPTION_2, null, null);
+        var request = new PartialUpdateFormTemplateCommand(1, null, SampleData.FORM_DESCRIPTION_2, null);
 
         _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
                    .Returns(formTemplate);
@@ -108,6 +103,5 @@ public class PartialUpdateFormTemplateHandlerTests
         result.Value.Name.Should().Be(formTemplate.Name);
         result.Value.Description.Should().Be(request.Description);
         result.Value.JsonData.Should().Be(formTemplate.JsonData);
-        result.Value.IsEnabled.Should().Be(formTemplate.IsEnabled);
     }
 } 

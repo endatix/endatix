@@ -48,7 +48,6 @@ public class PartialUpdateTests
             FormTemplateId = formTemplateId,
             Name = "Updated Template",
             Description = "Updated Description",
-            IsEnabled = true,
             JsonData = "{ }"
         };
         var result = Result.NotFound("Form template not found.");
@@ -74,7 +73,6 @@ public class PartialUpdateTests
             FormTemplateId = formTemplateId,
             Name = "Updated Template",
             Description = "Updated Description",
-            IsEnabled = true,
             JsonData = "{ }"
         };
         
@@ -104,7 +102,6 @@ public class PartialUpdateTests
             FormTemplateId = 123,
             Name = "Updated Template",
             Description = "Updated Description",
-            IsEnabled = true,
             JsonData = "{ }"
         };
         var result = Result.Success(new FormTemplate(SampleData.TENANT_ID, "Updated Template"));
@@ -121,7 +118,6 @@ public class PartialUpdateTests
                 cmd.FormTemplateId == request.FormTemplateId &&
                 cmd.Name == request.Name &&
                 cmd.Description == request.Description &&
-                cmd.IsEnabled == request.IsEnabled &&
                 cmd.JsonData == request.JsonData
             ),
             Arg.Any<CancellationToken>()

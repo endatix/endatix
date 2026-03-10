@@ -21,7 +21,6 @@ public class FormTemplatesSpec : Specification<FormTemplate, FormTemplateDto>
                 Id = formTemplate.Id.ToString(),
                 Name = formTemplate.Name,
                 Description = formTemplate.Description,
-                IsEnabled = formTemplate.IsEnabled,
                 CreatedAt = formTemplate.CreatedAt,
                 ModifiedAt = formTemplate.ModifiedAt
             });
