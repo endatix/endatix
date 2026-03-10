@@ -12,6 +12,8 @@ public class PartialUpdateFormHandler(
     IRepository<Theme> themeRepository,
     IMediator mediator) : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
 {
+    private const long DEFAULT_THEME_ID = 0; // ThemeId of 0 means clear the theme (set to default)
+
     public async Task<Result<Form>> Handle(PartialUpdateFormCommand request, CancellationToken cancellationToken)
     {
         var form = await repository.GetByIdAsync(request.FormId, cancellationToken);
@@ -28,12 +30,19 @@ public class PartialUpdateFormHandler(
 
         if (request.ThemeId.HasValue && form.ThemeId != request.ThemeId)
         {
-            var theme = await themeRepository.GetByIdAsync(request.ThemeId.Value, cancellationToken);
-            if (theme == null)
+            if (request.ThemeId.Value == DEFAULT_THEME_ID)
             {
-                return Result.NotFound("Form Theme not found.");
+                form.SetTheme(null);
             }
-            form.SetTheme(theme);
+            else
+            {
+                var theme = await themeRepository.GetByIdAsync(request.ThemeId.Value, cancellationToken);
+                if (theme == null)
+                {
+                    return Result.NotFound("Form Theme not found.");
+                }
+                form.SetTheme(theme);
+            }
         }
 
         if (request.WebHookSettingsJson != null)
