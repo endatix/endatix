@@ -11,6 +11,9 @@ namespace Endatix.Persistence.SqlServer.Repositories;
 /// </summary>
 public sealed class StorageStatsRepository : IStorageStatsRepository
 {
+    /// <summary>Sentinel tenant id for "all tenants". Keeps the optional filter param typed (consistent with PostgreSQL implementation).</summary>
+    private const long AllTenantsSentinel = -1;
+
     private readonly AppDbContext _dbContext;
 
     public StorageStatsRepository(AppDbContext dbContext)
@@ -33,24 +36,21 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         var versionsTable = GetFullTableName<SubmissionVersion>();
         var subName = _dbContext.Model.FindEntityType(typeof(Submission))?.GetTableName() ?? "Submissions";
         var verName = _dbContext.Model.FindEntityType(typeof(SubmissionVersion))?.GetTableName() ?? "SubmissionVersions";
-
-        var tenantFilter = tenantId.HasValue ? $@"WHERE TenantId = {tenantId.Value}" : "";
-        var versionTenantJoin = tenantId.HasValue ? $@"WHERE s.TenantId = {tenantId.Value}" : "";
         var effectiveTenantId = tenantId ?? 0;
 
+        // Single SQL: {0}/{1} = -1 means all tenants; otherwise filter in CTEs. Sentinel keeps param typed.
+        var tenantParam = tenantId ?? AllTenantsSentinel;
         var sql = $@"
             WITH submission_counts AS (
-                SELECT
-                    COUNT(*) AS submission_count
+                SELECT COUNT(*) AS submission_count
                 FROM {submissionsTable}
-                {tenantFilter}
+                WHERE ({{0}} = {AllTenantsSentinel} OR TenantId = {{0}})
             ),
             version_counts AS (
-                SELECT
-                    COUNT(*) AS version_count
+                SELECT COUNT(*) AS version_count
                 FROM {versionsTable} sv
                 JOIN {submissionsTable} s ON s.Id = sv.SubmissionId
-                {versionTenantJoin}
+                WHERE ({{1}} = {AllTenantsSentinel} OR s.TenantId = {{1}})
             ),
             submission_table AS (
                 SELECT
@@ -67,22 +67,21 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
                 WHERE object_id = OBJECT_ID('{verName}')
             )
             SELECT
-                {effectiveTenantId} AS TenantId,
+                {{2}} AS TenantId,
                 sc.submission_count AS SubmissionCount,
                 vc.version_count AS VersionCount,
                 CAST((
                     sc.submission_count * CAST(st.total_bytes AS FLOAT) / NULLIF(st.total_rows, 0)
-                    +
-                    vc.version_count * CAST(vt.total_bytes AS FLOAT) / NULLIF(vt.total_rows, 0)
+                    + vc.version_count * CAST(vt.total_bytes AS FLOAT) / NULLIF(vt.total_rows, 0)
                 ) AS BIGINT) AS EstimatedStorageBytes
             FROM submission_counts sc
             CROSS JOIN version_counts vc
             CROSS JOIN submission_table st
             CROSS JOIN version_table vt";
 
-        var result = await _dbContext.Database.SqlQueryRaw<TenantStorageStats>(sql)
+        var result = await _dbContext.Database
+            .SqlQueryRaw<TenantStorageStats>(sql, tenantParam, tenantParam, effectiveTenantId)
             .FirstOrDefaultAsync(cancellationToken);
-
         return result ?? new TenantStorageStats(effectiveTenantId, 0, 0, 0);
     }
 
@@ -94,21 +93,20 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         var subName = _dbContext.Model.FindEntityType(typeof(Submission))?.GetTableName() ?? "Submissions";
         var verName = _dbContext.Model.FindEntityType(typeof(SubmissionVersion))?.GetTableName() ?? "SubmissionVersions";
 
+        // Single SQL: {0}/{1} = -1 means all tenants; otherwise filter in CTEs. Sentinel keeps param typed.
+        var tenantParam = tenantId ?? AllTenantsSentinel;
         var sql = $@"
             WITH submission_counts AS (
-                SELECT
-                    FormId,
-                    TenantId,
-                    COUNT(*) AS submission_count
+                SELECT FormId, TenantId, COUNT(*) AS submission_count
                 FROM {submissionsTable}
+                WHERE ({{0}} = {AllTenantsSentinel} OR TenantId = {{0}})
                 GROUP BY FormId, TenantId
             ),
             version_counts AS (
-                SELECT
-                    s.FormId,
-                    COUNT(*) AS version_count
+                SELECT s.FormId, COUNT(*) AS version_count
                 FROM {versionsTable} sv
                 JOIN {submissionsTable} s ON s.Id = sv.SubmissionId
+                WHERE ({{1}} = {AllTenantsSentinel} OR s.TenantId = {{1}})
                 GROUP BY s.FormId
             ),
             submission_table AS (
@@ -133,8 +131,7 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
                 COALESCE(vc.version_count, 0) AS VersionCount,
                 CAST((
                     sc.submission_count * CAST(st.total_bytes AS FLOAT) / NULLIF(st.total_rows, 0)
-                    +
-                    COALESCE(vc.version_count, 0) * CAST(vt.total_bytes AS FLOAT) / NULLIF(vt.total_rows, 0)
+                    + COALESCE(vc.version_count, 0) * CAST(vt.total_bytes AS FLOAT) / NULLIF(vt.total_rows, 0)
                 ) AS BIGINT) AS EstimatedStorageBytes
             FROM submission_counts sc
             LEFT JOIN version_counts vc ON sc.FormId = vc.FormId
@@ -142,14 +139,10 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
             CROSS JOIN submission_table st
             CROSS JOIN version_table vt";
 
-        var query = _dbContext.Database.SqlQueryRaw<FormStorageStats>(sql);
-
-        if (tenantId.HasValue)
-        {
-            query = query.Where(f => f.TenantId == tenantId.Value);
-        }
-
-        return await query.OrderByDescending(f => f.EstimatedStorageBytes).ToListAsync(cancellationToken);
+        return await _dbContext.Database
+            .SqlQueryRaw<FormStorageStats>(sql, tenantParam, tenantParam)
+            .OrderByDescending(f => f.EstimatedStorageBytes)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<TableStorageStats>> GetTableStats(CancellationToken cancellationToken = default)

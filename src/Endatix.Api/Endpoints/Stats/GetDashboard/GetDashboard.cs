@@ -25,7 +25,7 @@ public class GetDashboard(IMediator mediator, ITenantContext tenantContext) : En
     public override async Task<Results<Ok<StorageDashboardModel>, ProblemHttpResult>> ExecuteAsync(CancellationToken ct)
     {
         var tenantId = tenantContext.TenantId;
-
+        
         var query = new GetStorageDashboardQuery(tenantId == 0 ? null : tenantId);
         var result = await mediator.Send(query, ct);
 
