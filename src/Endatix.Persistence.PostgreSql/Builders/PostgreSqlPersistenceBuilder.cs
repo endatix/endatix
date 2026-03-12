@@ -110,6 +110,7 @@ public class PostgreSqlPersistenceBuilder
     public PostgreSqlPersistenceBuilder AddDbSpecificRepositories()
     {
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
+        Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
         return this;
     }
 

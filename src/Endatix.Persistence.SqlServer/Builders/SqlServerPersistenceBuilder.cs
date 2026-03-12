@@ -108,6 +108,7 @@ public class SqlServerPersistenceBuilder
     public SqlServerPersistenceBuilder AddDbSpecificRepositories()
     {
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
+        Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
         return this;
     }
 
