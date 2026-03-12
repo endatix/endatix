@@ -36,9 +36,9 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         var submissionsTable = GetFullTableName<Submission>();
         var versionsTable = GetFullTableName<SubmissionVersion>();
         var effectiveTenantId = tenantId ?? 0;
-
-        // Single SQL: {0}/{1} = -1 means all tenants; otherwise filter in CTEs. Sentinel keeps param typed as bigint (Npgsql/PostgreSQL require known type).
         var tenantParam = tenantId ?? AllTenantsSentinel;
+
+        // Table names inlined (from EF model, not user input); only tenant/sentinel are parameterized (PostgreSQL cannot use params for FROM/regclass).
         var sql = $@"
             WITH submission_counts AS (
                 SELECT COUNT(*) AS submission_count
@@ -89,9 +89,9 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         var submissionsTable = GetFullTableName<Submission>();
         var versionsTable = GetFullTableName<SubmissionVersion>();
         var formsTable = GetFullTableName<Form>();
-
-        // Single SQL: {0}/{1} = -1 means all tenants; otherwise filter in CTEs. Sentinel keeps param typed as bigint (Npgsql/PostgreSQL require known type).
         var tenantParam = tenantId ?? AllTenantsSentinel;
+
+        // Table names inlined (from EF model); only tenant/sentinel parameterized (PostgreSQL cannot use params for FROM/regclass).
         var sql = $@"
             WITH submission_counts AS (
                 SELECT ""FormId"", ""TenantId"", COUNT(*) AS submission_count
@@ -149,6 +149,7 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         var versionsTable = GetFullTableName<SubmissionVersion>();
         var tenantsTable = GetFullTableName<TenantSettings>();
 
+        // No parameters; table names inlined for regclass (from EF model).
         var sql = $@"
             SELECT
                 relname AS ""TableName"",
@@ -157,13 +158,14 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
                 pg_total_relation_size(relid) AS ""TotalSizeBytes""
             FROM pg_catalog.pg_statio_user_tables
             WHERE relid IN (
-                '{formsTable}'::regclass, 
-                '{submissionsTable}'::regclass, 
-                '{versionsTable}'::regclass, 
+                '{formsTable}'::regclass,
+                '{submissionsTable}'::regclass,
+                '{versionsTable}'::regclass,
                 '{tenantsTable}'::regclass
             )";
 
-        return await _dbContext.Database.SqlQueryRaw<TableStorageStats>(sql)
+        return await _dbContext.Database
+            .SqlQueryRaw<TableStorageStats>(sql)
             .OrderByDescending(t => t.TotalSizeBytes)
             .ToListAsync(cancellationToken);
     }

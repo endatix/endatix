@@ -37,9 +37,9 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         var subName = _dbContext.Model.FindEntityType(typeof(Submission))?.GetTableName() ?? "Submissions";
         var verName = _dbContext.Model.FindEntityType(typeof(SubmissionVersion))?.GetTableName() ?? "SubmissionVersions";
         var effectiveTenantId = tenantId ?? 0;
-
-        // Single SQL: {0}/{1} = -1 means all tenants; otherwise filter in CTEs. Sentinel keeps param typed.
         var tenantParam = tenantId ?? AllTenantsSentinel;
+
+        // Table names inlined (from EF model); only tenant/sentinel parameterized (SQL Server cannot use params for FROM/OBJECT_ID).
         var sql = $@"
             WITH submission_counts AS (
                 SELECT COUNT(*) AS submission_count
@@ -92,9 +92,9 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         var formsTable = GetFullTableName<Form>();
         var subName = _dbContext.Model.FindEntityType(typeof(Submission))?.GetTableName() ?? "Submissions";
         var verName = _dbContext.Model.FindEntityType(typeof(SubmissionVersion))?.GetTableName() ?? "SubmissionVersions";
-
-        // Single SQL: {0}/{1} = -1 means all tenants; otherwise filter in CTEs. Sentinel keeps param typed.
         var tenantParam = tenantId ?? AllTenantsSentinel;
+
+        // Table names inlined (from EF model); only tenant/sentinel parameterized.
         var sql = $@"
             WITH submission_counts AS (
                 SELECT FormId, TenantId, COUNT(*) AS submission_count
@@ -152,8 +152,9 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         var versionsName = _dbContext.Model.FindEntityType(typeof(SubmissionVersion))?.GetTableName() ?? "SubmissionVersions";
         var tenantsName = _dbContext.Model.FindEntityType(typeof(TenantSettings))?.GetTableName() ?? "TenantSettings";
 
+        // No parameters; table names inlined (from EF model).
         var sql = $@"
-            SELECT 
+            SELECT
                 t.NAME AS TableName,
                 SUM(CASE WHEN i.index_id <= 1 THEN a.used_pages ELSE 0 END) * 8 * 1024 AS TableSizeBytes,
                 SUM(CASE WHEN i.index_id > 1 THEN a.used_pages ELSE 0 END) * 8 * 1024 AS IndexSizeBytes,
@@ -165,7 +166,8 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
             WHERE t.NAME IN ('{formsName}', '{submissionsName}', '{versionsName}', '{tenantsName}', 'Users')
             GROUP BY t.NAME";
 
-        return await _dbContext.Database.SqlQueryRaw<TableStorageStats>(sql)
+        return await _dbContext.Database
+            .SqlQueryRaw<TableStorageStats>(sql)
             .OrderByDescending(t => t.TotalSizeBytes)
             .ToListAsync(cancellationToken);
     }
