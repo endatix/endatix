@@ -21,6 +21,10 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
     public PartialUpdateFormCommand(long formId, string? name, string? description, bool? isEnabled, bool? isPublic, long? themeId, string? webHookSettingsJson = null)
     {
         Guard.Against.NegativeOrZero(formId);
+        if (themeId.HasValue)
+        {
+            Guard.Against.Negative(themeId.Value);
+        }
 
         FormId = formId;
         Name = name;

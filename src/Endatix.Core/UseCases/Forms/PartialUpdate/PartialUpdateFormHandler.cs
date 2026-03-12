@@ -12,6 +12,8 @@ public class PartialUpdateFormHandler(
     IRepository<Theme> themeRepository,
     IMediator mediator) : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
 {
+    private const long DEFAULT_THEME_ID = 0; // ThemeId of 0 means clear the theme (set to default)
+
     public async Task<Result<Form>> Handle(PartialUpdateFormCommand request, CancellationToken cancellationToken)
     {
         var form = await repository.GetByIdAsync(request.FormId, cancellationToken);
@@ -28,33 +30,24 @@ public class PartialUpdateFormHandler(
 
         if (request.ThemeId.HasValue && form.ThemeId != request.ThemeId)
         {
-            var theme = await themeRepository.GetByIdAsync(request.ThemeId.Value, cancellationToken);
-            if (theme == null)
+            if (request.ThemeId.Value == DEFAULT_THEME_ID)
             {
-                return Result.NotFound("Form Theme not found.");
+                form.SetTheme(null);
             }
-            form.SetTheme(theme);
+            else
+            {
+                var theme = await themeRepository.GetByIdAsync(request.ThemeId.Value, cancellationToken);
+                if (theme == null)
+                {
+                    return Result.NotFound("Form Theme not found.");
+                }
+                form.SetTheme(theme);
+            }
         }
 
         if (request.WebHookSettingsJson != null)
         {
-            WebHookConfiguration? webHookConfig;
-
-            if (request.WebHookSettingsJson.Trim() == string.Empty)
-            {
-                webHookConfig = null;
-            }
-            else
-            {
-                webHookConfig = System.Text.Json.JsonSerializer.Deserialize<WebHookConfiguration>(request.WebHookSettingsJson);
-
-                if (webHookConfig?.Events == null || webHookConfig.Events.Count == 0)
-                {
-                    webHookConfig = null;
-                }
-            }
-
-            form.UpdateWebHookSettings(webHookConfig);
+            UpdateWebHookSettings(request, form);
         }
 
         await repository.UpdateAsync(form, cancellationToken);
@@ -67,5 +60,26 @@ public class PartialUpdateFormHandler(
         }
 
         return Result.Success(form);
+    }
+
+    private static void UpdateWebHookSettings(PartialUpdateFormCommand request, Form form)
+    {
+        WebHookConfiguration? webHookConfig;
+
+        if (request.WebHookSettingsJson!.Trim() == string.Empty)
+        {
+            webHookConfig = null;
+        }
+        else
+        {
+            webHookConfig = System.Text.Json.JsonSerializer.Deserialize<WebHookConfiguration>(request.WebHookSettingsJson);
+
+            if (webHookConfig?.Events == null || webHookConfig.Events.Count == 0)
+            {
+                webHookConfig = null;
+            }
+        }
+
+        form.UpdateWebHookSettings(webHookConfig);
     }
 }
