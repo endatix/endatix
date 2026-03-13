@@ -23,7 +23,7 @@ jobs:
       - name: 📦 Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.x"
+          dotnet-version: "10.x"
 
       - name: Restore dependencies
         run: dotnet restore
@@ -32,7 +32,7 @@ jobs:
         run: dotnet build --no-restore
 
       - name: 🧪 Run .NET tests
-        run: dotnet test --no-build --collect:"XPlat Code Coverage;Format=cobertura" --results-directory:".coverage --settings coverlet.runsettings"
+        run: dotnet test --no-build --collect:"XPlat Code Coverage;Format=cobertura" --results-directory:.coverage --settings coverlet.runsettings
 
       - name: Install DotNet Coverage
         run: dotnet tool update --global dotnet-coverage
