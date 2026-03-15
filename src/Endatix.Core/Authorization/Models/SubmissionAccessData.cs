@@ -31,6 +31,11 @@ public class SubmissionAccessData : IAccessData
     /// </summary>
     public HashSet<string> SubmissionPermissions { get; init; } = [];
 
+    /// <summary>
+    /// The date and time the access data expires.
+    /// </summary>
+    public DateTimeOffset? ExpiresAt { get; init; }
+
     /// <inheritdoc/>
     public bool Has(string permission)
     {

@@ -32,7 +32,7 @@ public sealed class SubmissionAccessPolicy(
 
     private enum AccessRoute { AccessToken, SubmissionToken, PublicForm, PrivateForm }
 
-    private record CacheInstruction(string Key, TimeSpan Expiration, AccessRoute Route);
+    private record CacheInstruction(string Key, TimeSpan Expiration, AccessRoute Route, AuthorizationData? AuthData = null);
 
     public async Task<Result<Cached<SubmissionAccessData>>> GetAccessData(
         SubmissionAccessContext context,
@@ -100,7 +100,8 @@ public sealed class SubmissionAccessPolicy(
         return Result<CacheInstruction>.Success(new(
             $"auth:sub:form:{context.FormId}:user:{identityResult.Value.UserId}",
             _defaultTtl,
-            AccessRoute.PrivateForm));
+            AccessRoute.PrivateForm,
+            identityResult.Value));
     }
 
     private async ValueTask<Cached<SubmissionAccessData>> ExecutePureLogicAsync(
@@ -114,7 +115,7 @@ public sealed class SubmissionAccessPolicy(
             AccessRoute.AccessToken => ComputeAccessTokenLogic(context, out instruction),
             AccessRoute.SubmissionToken => await ComputeSubmissionTokenLogicAsync(context, ct),
             AccessRoute.PublicForm => ComputePublicFormLogic(context),
-            AccessRoute.PrivateForm => await ComputePrivateFormLogicAsync(context, ct),
+            AccessRoute.PrivateForm => ComputePrivateFormLogic(context, instruction.AuthData),
             _ => throw new InvalidOperationException("Unknown route")
         };
 
@@ -179,10 +180,15 @@ public sealed class SubmissionAccessPolicy(
         });
     }
 
-    private async Task<Result<SubmissionAccessData>> ComputePrivateFormLogicAsync(SubmissionAccessContext context, CancellationToken cancellationToken)
+    private Result<SubmissionAccessData> ComputePrivateFormLogic(SubmissionAccessContext context, AuthorizationData? authData)
     {
-        var hasView = await authorizationService.HasPermissionAsync(Actions.Forms.View, cancellationToken);
-        if (!hasView.IsSuccess || !hasView.Value)
+        if (authData is null)
+        {
+            return Result<SubmissionAccessData>.Error("Authorization data is missing");
+        }
+
+        var hasView = authData.IsAdmin || authData.Permissions.Contains(Actions.Forms.View);
+        if (!hasView)
         {
             return Result<SubmissionAccessData>.Error("Forbidden");
         }
@@ -191,7 +197,7 @@ public sealed class SubmissionAccessPolicy(
         {
             FormId = context.FormId.ToString(),
             SubmissionId = null,
-            FormPermissions = [],
+            FormPermissions = [ResourcePermissions.Form.View],
             SubmissionPermissions = [ResourcePermissions.Submission.Create, ResourcePermissions.Submission.UploadFile]
         });
     }

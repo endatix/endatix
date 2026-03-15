@@ -25,4 +25,9 @@ public interface IAccessData
     /// Checks if all of the specified permissions are present.
     /// </summary>
     bool HasAll(IEnumerable<string> permissions);
+
+    /// <summary>
+    /// The date and time the access data expires.
+    /// </summary>
+    DateTimeOffset? ExpiresAt { get; init; }
 }
