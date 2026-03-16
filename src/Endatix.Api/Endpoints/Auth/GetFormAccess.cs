@@ -1,18 +1,19 @@
-using FastEndpoints;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Submissions;
-using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Core.Authorization;
+using Endatix.Core.Authorization.Models;
+using FastEndpoints;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
-/// Public endpoint for form/submission access (anonymous or token-based).
-/// Returns permissions for public forms and valid submission tokens only.
+/// Public endpoint for ReBAC (resource based access control) for form/submission related access control (JWT or access token based) on public pages that are used for submission, prefilling and forms sharing.
 /// Use FormId + Token + TokenType (no SubmissionId; submission is resolved from token).
+/// Returns the permissions for the form and its submissions in public/token context (no auth).
 /// </summary>
 public class GetFormAccess(
-    SubmissionAccessPolicy submissionAccessPolicy
+    IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext> submissionAccessPolicy
 ) : Endpoint<GetFormAccessRequest, Results<Ok<GetFormAccessResponse>, ProblemHttpResult>>
 {
     public override void Configure()

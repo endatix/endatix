@@ -14,6 +14,11 @@ public record GetFormAccessResponse(
     string ETag
 ) : ICachedData
 {
+    /// <summary>
+    /// Creates a new instance of the <see cref="GetFormAccessResponse"/> from a cached <see cref="SubmissionAccessData"/>.
+    /// </summary>
+    /// <param name="cached">The cached <see cref="SubmissionAccessData"/>.</param>
+    /// <returns>The <see cref="GetFormAccessResponse"/>.</returns>
     public static GetFormAccessResponse FromCached(Cached<SubmissionAccessData> cached)
         => new(cached.Data.FormId, cached.Data.SubmissionId, cached.Data.FormPermissions, cached.Data.SubmissionPermissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
 }
