@@ -1,11 +1,11 @@
 using Endatix.Core.Abstractions.Submissions;
 
-namespace Endatix.Api.Endpoints.Forms;
+namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
 /// Request model for getting public form access (anonymous/token).
 /// </summary>
-public class GetAccessRequest
+public class GetFormAccessRequest
 {
     /// <summary>
     /// The form ID (from route).

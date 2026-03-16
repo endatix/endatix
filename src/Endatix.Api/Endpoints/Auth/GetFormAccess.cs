@@ -4,20 +4,20 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Infrastructure.Features.AccessControl;
 
-namespace Endatix.Api.Endpoints.Forms;
+namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
 /// Public endpoint for form/submission access (anonymous or token-based).
 /// Returns permissions for public forms and valid submission tokens only.
 /// Use FormId + Token + TokenType (no SubmissionId; submission is resolved from token).
 /// </summary>
-public class GetAccess(
+public class GetFormAccess(
     SubmissionAccessPolicy submissionAccessPolicy
-) : Endpoint<GetAccessRequest, Results<Ok<GetAccessResponse>, ProblemHttpResult>>
+) : Endpoint<GetFormAccessRequest, Results<Ok<GetFormAccessResponse>, ProblemHttpResult>>
 {
     public override void Configure()
     {
-        Get("forms/{formId}/access");
+        Get("auth/access/form/{formId}");
         AllowAnonymous();
         Summary(s =>
         {
@@ -29,15 +29,15 @@ public class GetAccess(
         });
     }
 
-    public override async Task<Results<Ok<GetAccessResponse>, ProblemHttpResult>> ExecuteAsync(
-        GetAccessRequest request,
+    public override async Task<Results<Ok<GetFormAccessResponse>, ProblemHttpResult>> ExecuteAsync(
+        GetFormAccessRequest request,
         CancellationToken ct)
     {
         var context = new SubmissionAccessContext(request.FormId, request.Token, request.TokenType);
         var accessDataResult = await submissionAccessPolicy.GetAccessData(context, ct);
 
         return TypedResultsBuilder
-            .MapResult(accessDataResult, GetAccessResponse.FromCached)
-            .SetTypedResults<Ok<GetAccessResponse>, ProblemHttpResult>();
+            .MapResult(accessDataResult, GetFormAccessResponse.FromCached)
+            .SetTypedResults<Ok<GetFormAccessResponse>, ProblemHttpResult>();
     }
 }

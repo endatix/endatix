@@ -1,15 +1,14 @@
 using FastEndpoints;
 using FluentValidation;
 
-namespace Endatix.Api.Endpoints.Forms;
+namespace Endatix.Api.Endpoints.Auth;
 
-public class GetAccessValidator : Validator<GetAccessRequest>
+public class GetFormAccessValidator : Validator<GetFormAccessRequest>
 {
-    public GetAccessValidator()
+    public GetFormAccessValidator()
     {
         RuleFor(x => x.FormId)
             .GreaterThan(0);
-
 
         RuleFor(x => x.Token)
             .NotEmpty()
