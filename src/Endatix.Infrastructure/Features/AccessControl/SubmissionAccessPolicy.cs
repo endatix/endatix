@@ -1,4 +1,5 @@
 using Ardalis.Specification;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization;
@@ -22,6 +23,7 @@ public sealed class SubmissionAccessPolicy(
     ISubmissionTokenService tokenService,
     ISubmissionAccessTokenService accessTokenService,
     ICurrentUserAuthorizationService authorizationService,
+    IDateTimeProvider dateTimeProvider,
     HybridCache cache
 ) : IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext>
 {
@@ -124,13 +126,7 @@ public sealed class SubmissionAccessPolicy(
             throw new UnauthorizedAccessException(dataResult.Errors.FirstOrDefault());
         }
 
-        return new Cached<SubmissionAccessData>
-        {
-            Data = dataResult.Value!,
-            CachedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.Add(instruction.Expiration),
-            ETag = Guid.NewGuid().ToString("N")
-        };
+        return Cached<SubmissionAccessData>.Create(dataResult.Value, dateTimeProvider.Now.UtcDateTime, instruction.Expiration);
     }
 
     private Result<SubmissionAccessData> ComputeAccessTokenLogic(SubmissionAccessContext context, out CacheInstruction updatedInstruction)

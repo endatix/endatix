@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization;
@@ -18,7 +19,8 @@ namespace Endatix.Infrastructure.Features.AccessControl;
 public sealed class SubmissionManagementAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
     IRepository<Form> formRepository,
-    HybridCache cache
+    HybridCache cache,
+    IDateTimeProvider dateTimeProvider
 ) : IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext>
 {
     private const int CACHE_MINUTES = 10;
@@ -58,11 +60,12 @@ public sealed class SubmissionManagementAccessPolicy(
         CancellationToken cancellationToken)
     {
         var data = await ComputeAsync(context, identity, cancellationToken);
-        return new Cached<SubmissionAccessData>(
+
+        return Cached<SubmissionAccessData>.Create(
             data,
-            TimeSpan.FromMinutes(CACHE_MINUTES),
-            Guid.NewGuid().ToString("N")
-        );
+            dateTimeProvider.Now.UtcDateTime,
+            TimeSpan.FromMinutes(CACHE_MINUTES)
+            );
     }
 
     private async Task<SubmissionAccessData> ComputeAsync(

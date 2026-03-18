@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Data;
 
 namespace Endatix.Core.Infrastructure.Caching;
@@ -6,17 +7,43 @@ namespace Endatix.Core.Infrastructure.Caching;
 /// <summary>
 /// Immutable envelope containing the data and its caching metadata.
 /// </summary>
-public record Cached<T> : ICachedData<T> where T : class
+public sealed record Cached<T> : ICachedData<T> where T : class
 {
-    public Cached() { }
-
-    // private Cached() : this(default!, DateTime.UtcNow, DateTime.UtcNow, Guid.NewGuid().ToString("N")) { }
-    public Cached(T data, TimeSpan ttl, string? etag = null)
+    [JsonConstructor]
+    private Cached(
+        T data,
+        DateTime cachedAt,
+        DateTime expiresAt,
+        string? etag)
     {
+        Guard.Against.Expression(dateTime => dateTime.Kind != DateTimeKind.Utc, cachedAt, "cachedAt must be in UTC");
+        Guard.Against.Expression(dateTime => dateTime.Kind != DateTimeKind.Utc, expiresAt, "expiresAt must be in UTC");
+        Guard.Against.Expression(_ => expiresAt < cachedAt, cachedAt, "expiresAt must be greater than or equal to cachedAt");
+        Guard.Against.Null(data, nameof(data), "data cannot be null");
+
         Data = data;
-        CachedAt = DateTime.UtcNow;
-        ExpiresAt = DateTime.UtcNow.Add(ttl);
-        ETag = etag ?? Guid.NewGuid().ToString("N");
+        CachedAt = cachedAt;
+        ExpiresAt = expiresAt;
+        ETag = string.IsNullOrWhiteSpace(etag) ? Guid.NewGuid().ToString("N") : etag;
+    }
+
+    /// <summary>
+    /// Creates a new instance of the <see cref="Cached{T}"/> class.
+    /// </summary>
+    /// <param name="data">The data to cache.</param>
+    /// <param name="utcNow">The UTC date and time the data was cached.</param>
+    /// <param name="ttl">The time to live for the cached data.</param>
+    /// <param name="etag">The ETag for the cached data.</param>
+    public Cached(T data, DateTime utcNow, TimeSpan ttl, string? etag = null)
+    {
+        Guard.Against.Expression(dateTime => dateTime.Kind != DateTimeKind.Utc, utcNow, "utcNow must be in UTC");
+        Guard.Against.Negative(ttl.TotalSeconds, nameof(ttl), "ttl must be a positive time span");
+        Guard.Against.Null(data, nameof(data), "data cannot be null");
+
+        Data = data;
+        CachedAt = utcNow;
+        ExpiresAt = utcNow.Add(ttl);
+        ETag = string.IsNullOrWhiteSpace(etag) ? Guid.NewGuid().ToString("N") : etag;
     }
 
     public T Data { get; init; }
@@ -24,5 +51,17 @@ public record Cached<T> : ICachedData<T> where T : class
     public DateTime ExpiresAt { get; init; }
     public string ETag { get; init; }
 
-    public bool IsExpired => DateTime.UtcNow > ExpiresAt;
+    /// <summary>
+    /// Checks if the cached data is expired.
+    /// </summary>
+    /// <param name="utcNow">The UTC date and time to check if the data is expired.</param>
+    /// <returns>True if the data is expired, false otherwise.</returns>
+    public bool IsExpired(DateTime utcNow)
+    {
+        Guard.Against.Expression(dateTime => dateTime.Kind != DateTimeKind.Utc, utcNow, "utcNow must be in UTC");
+
+        return utcNow > ExpiresAt;
+    }
+
+    public static Cached<T> Create(T data, DateTime utcNow, TimeSpan ttl, string? etag = null) => new(data, utcNow, ttl, etag);
 }
