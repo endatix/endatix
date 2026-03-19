@@ -4,9 +4,9 @@ using Endatix.Core.Authorization.Access;
 namespace Endatix.Core.Authorization.Access;
 
 /// <summary>
-/// Authorization data for form/submission access with O(1) permission checks.
+/// Authorization data for public form/submission access control
 /// </summary>
-public class SubmissionAccessData : IAccessData
+public class PublicFormAccessData : IAccessData
 {
     /// <inheritdoc/>
     [JsonIgnore]

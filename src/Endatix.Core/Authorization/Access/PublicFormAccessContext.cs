@@ -1,12 +1,12 @@
 namespace Endatix.Core.Authorization.Access;
 
 /// <summary>
-/// Context for computing submission access permissions.
+/// Context for computing form/submission access permissions.
 /// Public/token flows only: use FormId + Token + TokenType (submission is resolved from token).
 /// </summary>
-public class SubmissionAccessContext
+public class PublicFormAccessContext
 {
-    public SubmissionAccessContext(long formId, string? token = null, SubmissionTokenType? tokenType = null)
+    public PublicFormAccessContext(long formId, string? token = null, SubmissionTokenType? tokenType = null)
     {
         FormId = formId;
         Token = token;

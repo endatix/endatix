@@ -12,7 +12,7 @@ using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermission
 
 namespace Endatix.Infrastructure.Tests.Features.AccessControl;
 
-public static class PermissionSets
+internal static class TestPermissionSets
 {
     public static class Form
     {
@@ -58,7 +58,7 @@ public static class PermissionSets
     }
 }
 
-public partial class SubmissionAccessPolicyTests
+public partial class PublicFormAccessPolicyTests
 {
     private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly IRepository<Form> _formRepository;
@@ -66,9 +66,9 @@ public partial class SubmissionAccessPolicyTests
     private readonly ISubmissionAccessTokenService _accessTokenService;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HybridCache _cache;
-    private readonly SubmissionAccessPolicy _policy;
+    private readonly PublicFormAccessPolicy _policy;
 
-    public SubmissionAccessPolicyTests()
+    public PublicFormAccessPolicyTests()
     {
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
         _formRepository = Substitute.For<IRepository<Form>>();
@@ -95,18 +95,18 @@ public partial class SubmissionAccessPolicyTests
         _cache
             .GetOrCreateAsync(
                 Arg.Any<string>(),
-                Arg.Any<Func<CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>();
                 var token = callInfo.Arg<CancellationToken>();
                 return factory(token);
             });
 
-        _policy = new SubmissionAccessPolicy(_formRepository, _tokenService, _accessTokenService, _authorizationService, _dateTimeProvider, _cache);
+        _policy = new PublicFormAccessPolicy(_formRepository, _tokenService, _accessTokenService, _authorizationService, _dateTimeProvider, _cache);
     }
 
     #region Helper Methods
@@ -165,7 +165,7 @@ public partial class SubmissionAccessPolicyTests
         var formId = 1L;
         var submissionId = 100L;
         var token = "valid-submission-token";
-        var context = new SubmissionAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
+        var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
 
         SetupAnonymousUser();
         SetupTokenResolve(token, submissionId);
@@ -175,7 +175,7 @@ public partial class SubmissionAccessPolicyTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Data.FormId.Should().Be(formId.ToString());
         result.Value.Data.SubmissionId.Should().Be(submissionId.ToString());
-        result.Value.Data.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.None);
+        result.Value.Data.FormPermissions.Should().BeEquivalentTo(TestPermissionSets.Form.None);
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.ReviewSubmission);
     }
 
@@ -184,7 +184,7 @@ public partial class SubmissionAccessPolicyTests
     {
         var formId = 1L;
         var token = "invalid-submission-token";
-        var context = new SubmissionAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
+        var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
 
         SetupAnonymousUser();
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())
@@ -211,7 +211,7 @@ public partial class SubmissionAccessPolicyTests
             [SubmissionAccessTokenPermissions.View.Name],
             DateTime.UtcNow.AddHours(1)
         );
-        var context = new SubmissionAccessContext(formId, token, SubmissionTokenType.AccessToken);
+        var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.AccessToken);
 
         SetupAccessTokenValidation(token, true, claims);
 
@@ -220,7 +220,7 @@ public partial class SubmissionAccessPolicyTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Data.FormId.Should().Be(formId.ToString());
         result.Value.Data.SubmissionId.Should().Be(submissionId.ToString());
-        result.Value.Data.FormPermissions.Should().BeEquivalentTo(PermissionSets.Form.None);
+        result.Value.Data.FormPermissions.Should().BeEquivalentTo(TestPermissionSets.Form.None);
         result.Value.Data.SubmissionPermissions.Should().Contain(ResourcePermissions.Submission.View);
         result.Value.Data.SubmissionPermissions.Should().Contain(ResourcePermissions.Submission.ViewFiles);
     }
@@ -236,7 +236,7 @@ public partial class SubmissionAccessPolicyTests
             [SubmissionAccessTokenPermissions.Edit.Name],
             DateTime.UtcNow.AddHours(1)
         );
-        var context = new SubmissionAccessContext(formId, token, SubmissionTokenType.AccessToken);
+        var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.AccessToken);
 
         SetupAccessTokenValidation(token, true, claims);
 
@@ -257,7 +257,7 @@ public partial class SubmissionAccessPolicyTests
             [SubmissionAccessTokenPermissions.Export.Name],
             DateTime.UtcNow.AddHours(1)
         );
-        var context = new SubmissionAccessContext(formId, token, SubmissionTokenType.AccessToken);
+        var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.AccessToken);
 
         SetupAccessTokenValidation(token, true, claims);
 
@@ -272,7 +272,7 @@ public partial class SubmissionAccessPolicyTests
     {
         var formId = 1L;
         var token = "invalid-jwt-token";
-        var context = new SubmissionAccessContext(formId, token, SubmissionTokenType.AccessToken);
+        var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.AccessToken);
 
         SetupAccessTokenValidation(token, false);
 
@@ -288,7 +288,7 @@ public partial class SubmissionAccessPolicyTests
         var formId = 1L;
         var token = "expired-jwt-token";
         var claims = new SubmissionAccessTokenClaims(1L, [SubmissionAccessTokenPermissions.View.Name], DateTime.UtcNow.AddSeconds(-10));
-        var context = new SubmissionAccessContext(formId, token, SubmissionTokenType.AccessToken);
+        var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.AccessToken);
 
         SetupAccessTokenValidation(token, true, claims);
 
@@ -307,7 +307,7 @@ public partial class SubmissionAccessPolicyTests
     {
         var formId = 1L;
         var token = "some-token";
-        var context = new SubmissionAccessContext(formId, token, (SubmissionTokenType)999);
+        var context = new PublicFormAccessContext(formId, token, (SubmissionTokenType)999);
 
         SetupAnonymousUser();
 

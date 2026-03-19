@@ -8,41 +8,48 @@ using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Infrastructure.Features.AccessControl;
 using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Infrastructure.Features.AccessControl;
 
 /// <summary>
-/// Single policy for public/respondent submission access.
+/// Single policy for public form/submission access control.
 /// Uses a two-tiered caching strategy and internal routing to separate cache orchestration from business logic.
 /// </summary>
-public sealed class SubmissionAccessPolicy(
+public sealed class PublicFormAccessPolicy(
     IRepository<Form> formRepository,
     ISubmissionTokenService tokenService,
     ISubmissionAccessTokenService accessTokenService,
     ICurrentUserAuthorizationService authorizationService,
     IDateTimeProvider dateTimeProvider,
     HybridCache cache
-) : IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>
+) : IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>
 {
     private static readonly TimeSpan _defaultTtl = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan _tokenTtl = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan _formMetadataTtl = TimeSpan.FromHours(1);
     private static readonly TimeSpan _safetyMargin = TimeSpan.FromSeconds(10);
 
-    private enum AccessRoute { AccessToken, SubmissionToken, PublicForm, PrivateForm }
+    /// <summary>
+    /// The access policy route for resolving the access data.
+    /// </summary>
+    internal enum AccessPolicyRoute { ForPublicForm, ForPrivateForm, ByAccessToken, BySubmissionToken }
 
-    private record CacheInstruction(string Key, TimeSpan Expiration, AccessRoute Route, AuthorizationData? AuthData = null);
+    /// <summary>
+    /// The cache instruction for the access data.
+    /// Allows for dynamic cache keys, expiration that can adapt to the access context
+    /// </summary>
+    internal record CacheInstruction(string Key, TimeSpan Expiration, AccessPolicyRoute Route, AuthorizationData? AuthData = null);
 
-    public async Task<Result<Cached<SubmissionAccessData>>> GetAccessData(
-        SubmissionAccessContext context,
+    /// <inheritdoc/>
+    public async Task<Result<Cached<PublicFormAccessData>>> GetAccessData(
+        PublicFormAccessContext context,
         CancellationToken cancellationToken)
     {
-        var instructionResult = await DetermineRouteAsync(context, cancellationToken);
+        var instructionResult = await ResolvePolicyRouteAsync(context, cancellationToken);
         if (!instructionResult.IsSuccess)
         {
-            return Result<Cached<SubmissionAccessData>>.Error(string.Join(", ", instructionResult.Errors));
+            return Result<Cached<PublicFormAccessData>>.Error(string.Join(", ", instructionResult.Errors));
         }
 
         var instruction = instructionResult.Value!;
@@ -57,24 +64,27 @@ public sealed class SubmissionAccessPolicy(
                 cancellationToken: cancellationToken
             );
 
-            return Result<Cached<SubmissionAccessData>>.Success(cachedEnvelope);
+            return Result<Cached<PublicFormAccessData>>.Success(cachedEnvelope);
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Result<Cached<SubmissionAccessData>>.Error(ex.Message);
+            return Result<Cached<PublicFormAccessData>>.Error(ex.Message);
         }
     }
 
-    private async Task<Result<CacheInstruction>> DetermineRouteAsync(SubmissionAccessContext context, CancellationToken cancellationToken)
+    /// <summary>
+    /// Resolves the policy route for the access data.
+    /// </summary>
+    internal async Task<Result<CacheInstruction>> ResolvePolicyRouteAsync(PublicFormAccessContext context, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrWhiteSpace(context.Token))
         {
             return context.TokenType switch
             {
                 SubmissionTokenType.AccessToken =>
-                    Result<CacheInstruction>.Success(new($"auth:sub:jwt:{context.Token}", _defaultTtl, AccessRoute.AccessToken)),
+                    Result<CacheInstruction>.Success(new($"auth:sub:jwt:{context.Token}", _defaultTtl, AccessPolicyRoute.ByAccessToken)),
                 SubmissionTokenType.SubmissionToken =>
-                    Result<CacheInstruction>.Success(new($"auth:sub:token:{context.Token}", _tokenTtl, AccessRoute.SubmissionToken)),
+                    Result<CacheInstruction>.Success(new($"auth:sub:token:{context.Token}", _tokenTtl, AccessPolicyRoute.BySubmissionToken)),
                 _ => Result<CacheInstruction>.Error("Unknown token type")
             };
         }
@@ -89,7 +99,7 @@ public sealed class SubmissionAccessPolicy(
 
         if (isFormPublic)
         {
-            return Result<CacheInstruction>.Success(new($"auth:sub:form:{context.FormId}:public", _defaultTtl, AccessRoute.PublicForm));
+            return Result<CacheInstruction>.Success(new($"auth:sub:form:{context.FormId}:public", _defaultTtl, AccessPolicyRoute.ForPublicForm));
         }
 
         var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
@@ -101,22 +111,22 @@ public sealed class SubmissionAccessPolicy(
         return Result<CacheInstruction>.Success(new(
             $"auth:sub:form:{context.FormId}:user:{identityResult.Value.UserId}",
             _defaultTtl,
-            AccessRoute.PrivateForm,
+            AccessPolicyRoute.ForPrivateForm,
             identityResult.Value));
     }
 
-    private async ValueTask<Cached<SubmissionAccessData>> ExecutePureLogicAsync(
-        SubmissionAccessContext context,
+    private async ValueTask<Cached<PublicFormAccessData>> ExecutePureLogicAsync(
+        PublicFormAccessContext context,
         CacheInstruction instruction,
         CancellationToken ct)
     {
         // Dispatch to pure logic based on the enum
         var dataResult = instruction.Route switch
         {
-            AccessRoute.AccessToken => ComputeAccessTokenLogic(context, out instruction),
-            AccessRoute.SubmissionToken => await ComputeSubmissionTokenLogicAsync(context, ct),
-            AccessRoute.PublicForm => ComputePublicFormLogic(context),
-            AccessRoute.PrivateForm => ComputePrivateFormLogic(context, instruction.AuthData),
+            AccessPolicyRoute.ByAccessToken => ComputeAccessTokenLogic(context, out instruction),
+            AccessPolicyRoute.BySubmissionToken => await ComputeSubmissionTokenLogicAsync(context, ct),
+            AccessPolicyRoute.ForPublicForm => ComputePublicFormLogic(context),
+            AccessPolicyRoute.ForPrivateForm => ComputePrivateFormLogic(context, instruction.AuthData),
             _ => throw new InvalidOperationException("Unknown route")
         };
 
@@ -125,16 +135,16 @@ public sealed class SubmissionAccessPolicy(
             throw new UnauthorizedAccessException(dataResult.Errors.FirstOrDefault());
         }
 
-        return Cached<SubmissionAccessData>.Create(dataResult.Value, dateTimeProvider.Now.UtcDateTime, instruction.Expiration);
+        return Cached<PublicFormAccessData>.Create(dataResult.Value, dateTimeProvider.Now.UtcDateTime, instruction.Expiration);
     }
 
-    private Result<SubmissionAccessData> ComputeAccessTokenLogic(SubmissionAccessContext context, out CacheInstruction updatedInstruction)
+    private Result<PublicFormAccessData> ComputeAccessTokenLogic(PublicFormAccessContext context, out CacheInstruction updatedInstruction)
     {
         updatedInstruction = default!;
         var accessResult = accessTokenService.ValidateAccessToken(context.Token!);
         if (!accessResult.IsSuccess)
         {
-            return Result<SubmissionAccessData>.Error("Invalid access token");
+            return Result<PublicFormAccessData>.Error("Invalid access token");
         }
 
 
@@ -142,20 +152,20 @@ public sealed class SubmissionAccessPolicy(
         var dynamicTtl = TimeSpan.FromSeconds(Math.Max(1, (claims.ExpiresAt - DateTime.UtcNow - _safetyMargin).TotalSeconds));
 
         // Update the instruction so the envelope gets the correct dynamic TTL
-        updatedInstruction = new CacheInstruction("", dynamicTtl, AccessRoute.AccessToken);
+        updatedInstruction = new CacheInstruction("", dynamicTtl, AccessPolicyRoute.ByAccessToken);
 
-        return Result<SubmissionAccessData>.Success(BuildAccessTokenData(context.FormId, claims));
+        return Result<PublicFormAccessData>.Success(BuildAccessTokenData(context.FormId, claims));
     }
 
-    private async Task<Result<SubmissionAccessData>> ComputeSubmissionTokenLogicAsync(SubmissionAccessContext context, CancellationToken cancellationToken)
+    private async Task<Result<PublicFormAccessData>> ComputeSubmissionTokenLogicAsync(PublicFormAccessContext context, CancellationToken cancellationToken)
     {
         var tokenResult = await tokenService.ResolveTokenAsync(context.Token!, cancellationToken);
         if (!tokenResult.IsSuccess)
         {
-            return Result<SubmissionAccessData>.Error("Invalid or expired submission token");
+            return Result<PublicFormAccessData>.Error("Invalid or expired submission token");
         }
 
-        return Result<SubmissionAccessData>.Success(new SubmissionAccessData
+        return Result<PublicFormAccessData>.Success(new PublicFormAccessData
         {
             FormId = context.FormId.ToString(),
             SubmissionId = tokenResult.Value.ToString(),
@@ -164,9 +174,9 @@ public sealed class SubmissionAccessPolicy(
         });
     }
 
-    private Result<SubmissionAccessData> ComputePublicFormLogic(SubmissionAccessContext context)
+    private Result<PublicFormAccessData> ComputePublicFormLogic(PublicFormAccessContext context)
     {
-        return Result<SubmissionAccessData>.Success(new SubmissionAccessData
+        return Result<PublicFormAccessData>.Success(new PublicFormAccessData
         {
             FormId = context.FormId.ToString(),
             SubmissionId = null,
@@ -175,20 +185,20 @@ public sealed class SubmissionAccessPolicy(
         });
     }
 
-    private Result<SubmissionAccessData> ComputePrivateFormLogic(SubmissionAccessContext context, AuthorizationData? authData)
+    private Result<PublicFormAccessData> ComputePrivateFormLogic(PublicFormAccessContext context, AuthorizationData? authData)
     {
         if (authData is null)
         {
-            return Result<SubmissionAccessData>.Error("Authorization data is missing");
+            return Result<PublicFormAccessData>.Error("Authorization data is missing");
         }
 
         var hasView = authData.IsAdmin || authData.Permissions.Contains(Actions.Forms.View);
         if (!hasView)
         {
-            return Result<SubmissionAccessData>.Error("Forbidden");
+            return Result<PublicFormAccessData>.Error("Forbidden");
         }
 
-        return Result<SubmissionAccessData>.Success(new SubmissionAccessData
+        return Result<PublicFormAccessData>.Success(new PublicFormAccessData
         {
             FormId = context.FormId.ToString(),
             SubmissionId = null,
@@ -207,7 +217,7 @@ public sealed class SubmissionAccessPolicy(
         return formDto?.IsPublic ?? false;
     }
 
-    private static SubmissionAccessData BuildAccessTokenData(long formId, SubmissionAccessTokenClaims claims)
+    private static PublicFormAccessData BuildAccessTokenData(long formId, SubmissionAccessTokenClaims claims)
     {
         var submissionPermissions = new HashSet<string>();
         if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.View.Name, StringComparer.OrdinalIgnoreCase))
@@ -226,7 +236,7 @@ public sealed class SubmissionAccessPolicy(
             submissionPermissions.Add(ResourcePermissions.Submission.Export);
         }
 
-        return new SubmissionAccessData
+        return new PublicFormAccessData
         {
             FormId = formId.ToString(),
             SubmissionId = claims.SubmissionId.ToString(),

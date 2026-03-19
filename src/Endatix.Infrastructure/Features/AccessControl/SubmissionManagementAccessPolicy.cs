@@ -18,18 +18,18 @@ public sealed class SubmissionManagementAccessPolicy(
     IRepository<Form> formRepository,
     HybridCache cache,
     IDateTimeProvider dateTimeProvider
-) : IResourceAccessQuery<SubmissionAccessData, SubmissionManagementAccessContext>
+) : IResourceAccessQuery<PublicFormAccessData, SubmissionManagementAccessContext>
 {
     private const int CACHE_MINUTES = 10;
 
-    public async Task<Result<Cached<SubmissionAccessData>>> GetAccessData(
+    public async Task<Result<Cached<PublicFormAccessData>>> GetAccessData(
         SubmissionManagementAccessContext context,
         CancellationToken cancellationToken)
     {
         var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
         if (!identityResult.IsSuccess)
         {
-            return Result<Cached<SubmissionAccessData>>.Error("Unauthorized");
+            return Result<Cached<PublicFormAccessData>>.Error("Unauthorized");
         }
 
         var cacheKey = $"auth:sub:mgmt:{identityResult.Value.UserId}:{context.FormId}:{context.SubmissionId}";
@@ -47,25 +47,25 @@ public sealed class SubmissionManagementAccessPolicy(
         );
 
         return cachedEnvelope != null
-            ? Result<Cached<SubmissionAccessData>>.Success(cachedEnvelope)
-            : Result<Cached<SubmissionAccessData>>.Error("Failed to compute access");
+            ? Result<Cached<PublicFormAccessData>>.Success(cachedEnvelope)
+            : Result<Cached<PublicFormAccessData>>.Error("Failed to compute access");
     }
 
-    private async Task<Cached<SubmissionAccessData>> ComputeAndWrapAsync(
+    private async Task<Cached<PublicFormAccessData>> ComputeAndWrapAsync(
         SubmissionManagementAccessContext context,
         AuthorizationData identity,
         CancellationToken cancellationToken)
     {
         var data = await ComputeAsync(context, identity, cancellationToken);
 
-        return Cached<SubmissionAccessData>.Create(
+        return Cached<PublicFormAccessData>.Create(
             data,
             dateTimeProvider.Now.UtcDateTime,
             TimeSpan.FromMinutes(CACHE_MINUTES)
             );
     }
 
-    private async Task<SubmissionAccessData> ComputeAsync(
+    private async Task<PublicFormAccessData> ComputeAsync(
         SubmissionManagementAccessContext context,
         AuthorizationData identity,
         CancellationToken cancellationToken)
@@ -79,7 +79,7 @@ public sealed class SubmissionManagementAccessPolicy(
 
             submissionPermissions.UnionWith(ResourcePermissions.GetAllForResourceType(ResourceTypes.Submission));
 
-            return new SubmissionAccessData
+            return new PublicFormAccessData
             {
                 FormId = context.FormId.ToString(),
                 SubmissionId = context.SubmissionId.ToString(),
@@ -90,7 +90,7 @@ public sealed class SubmissionManagementAccessPolicy(
 
         if (identity.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
-            return new SubmissionAccessData
+            return new PublicFormAccessData
             {
                 FormId = context.FormId.ToString(),
                 SubmissionId = context.SubmissionId.ToString(),
@@ -123,7 +123,7 @@ public sealed class SubmissionManagementAccessPolicy(
             submissionPermissions.Add(ResourcePermissions.Submission.DeleteFile);
         }
 
-        return new SubmissionAccessData
+        return new PublicFormAccessData
         {
             FormId = context.FormId.ToString(),
             SubmissionId = context.SubmissionId.ToString(),

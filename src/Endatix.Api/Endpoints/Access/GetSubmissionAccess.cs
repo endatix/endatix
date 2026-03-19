@@ -13,7 +13,7 @@ namespace Endatix.Api.Endpoints.Access;
 /// Authenticated endpoint for backend management access data for form/submission actions.
 /// </summary>
 public class GetSubmissionAccess(
-    IResourceAccessQuery<SubmissionAccessData, SubmissionManagementAccessContext> submissionManagementAccessPolicy
+    IResourceAccessQuery<PublicFormAccessData, SubmissionManagementAccessContext> submissionManagementAccessPolicy
 ) : Endpoint<GetSubmissionAccessRequest, Results<Ok<GetSubmissionAccessResponse>, ProblemHttpResult>>
 {
     public override void Configure()
@@ -96,11 +96,11 @@ public record GetSubmissionAccessResponse(
 ) : ICachedData
 {
     /// <summary>
-    /// Creates a new instance of the <see cref="GetSubmissionAccessResponse"/> from a cached <see cref="SubmissionAccessData"/>.
+    /// Creates a new instance of the <see cref="GetSubmissionAccessResponse"/> from a cached <see cref="PublicFormAccessData"/>.
     /// </summary>
-    /// <param name="cached">The cached <see cref="SubmissionAccessData"/>.</param>
+    /// <param name="cached">The cached <see cref="PublicFormAccessData"/>.</param>
     /// <returns>The <see cref="GetSubmissionAccessResponse"/>.</returns>
-    public static GetSubmissionAccessResponse FromCached(Cached<SubmissionAccessData> cached)
+    public static GetSubmissionAccessResponse FromCached(Cached<PublicFormAccessData> cached)
         => new(cached.Data.FormId, cached.Data.SubmissionId, cached.Data.FormPermissions, cached.Data.SubmissionPermissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
 }
 

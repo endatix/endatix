@@ -11,12 +11,12 @@ namespace Endatix.Api.Tests.Endpoints.Access;
 
 public class GetFormAccessTests
 {
-    private readonly IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext> _accessStrategy;
+    private readonly IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> _accessStrategy;
     private readonly GetFormPublicAccess _endpoint;
 
     public GetFormAccessTests()
     {
-        _accessStrategy = Substitute.For<IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>>();
+        _accessStrategy = Substitute.For<IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>>();
         _endpoint = Factory.Create<GetFormPublicAccess>(_accessStrategy);
     }
 
@@ -43,7 +43,7 @@ public class GetFormAccessTests
             TokenType = SubmissionTokenType.AccessToken
         };
 
-        var accessData = new SubmissionAccessData
+        var accessData = new PublicFormAccessData
         {
             FormId = request.FormId.ToString(),
             SubmissionId = "sub-1",
@@ -51,11 +51,11 @@ public class GetFormAccessTests
             SubmissionPermissions = new HashSet<string> { "submissions:view" }
         };
 
-        var cached = new Cached<SubmissionAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");
+        var cached = new Cached<PublicFormAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");
 
         _accessStrategy
-            .GetAccessData(Arg.Any<SubmissionAccessContext>(), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<SubmissionAccessData>>.Success(cached));
+            .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Cached<PublicFormAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -82,9 +82,9 @@ public class GetFormAccessTests
             TokenType = SubmissionTokenType.AccessToken
         };
 
-        var errorResult = Result<Cached<SubmissionAccessData>>.Invalid(new ValidationError("access denied"));
+        var errorResult = Result<Cached<PublicFormAccessData>>.Invalid(new ValidationError("access denied"));
         _accessStrategy
-            .GetAccessData(Arg.Any<SubmissionAccessContext>(), Arg.Any<CancellationToken>())
+            .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
 
         // Act
@@ -108,9 +108,9 @@ public class GetFormAccessTests
             TokenType = SubmissionTokenType.AccessToken
         };
 
-        var errorResult = Result<Cached<SubmissionAccessData>>.Error("unexpected error");
+        var errorResult = Result<Cached<PublicFormAccessData>>.Error("unexpected error");
         _accessStrategy
-            .GetAccessData(Arg.Any<SubmissionAccessContext>(), Arg.Any<CancellationToken>())
+            .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
 
         // Act

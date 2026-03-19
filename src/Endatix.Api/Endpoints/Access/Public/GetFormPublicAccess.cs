@@ -15,7 +15,7 @@ namespace Endatix.Api.Endpoints.Access;
 /// Uses FormId + Token + TokenType (no SubmissionId; submission is resolved from token).
 /// </summary>
 public class GetFormPublicAccess(
-    IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext> submissionAccessPolicy
+    IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> submissionAccessPolicy
 ) : Endpoint<GetFormPublicAccessRequest, Results<Ok<GetFormPublicAccessResponse>, ProblemHttpResult>>
 {
     public override void Configure()
@@ -36,7 +36,7 @@ public class GetFormPublicAccess(
         GetFormPublicAccessRequest request,
         CancellationToken ct)
     {
-        var context = new SubmissionAccessContext(request.FormId, request.Token, request.TokenType);
+        var context = new PublicFormAccessContext(request.FormId, request.Token, request.TokenType);
         var accessDataResult = await submissionAccessPolicy.GetAccessData(context, ct);
 
         return TypedResultsBuilder
@@ -108,11 +108,11 @@ public record GetFormPublicAccessResponse(
 ) : ICachedData
 {
     /// <summary>
-    /// Creates a new instance of the <see cref="GetFormPublicAccessResponse"/> from a cached <see cref="SubmissionAccessData"/>.
+    /// Creates a new instance of the <see cref="GetFormPublicAccessResponse"/> from a cached <see cref="PublicFormAccessData"/>.
     /// </summary>
-    /// <param name="cached">The cached <see cref="SubmissionAccessData"/>.</param>
+    /// <param name="cached">The cached <see cref="PublicFormAccessData"/>.</param>
     /// <returns>The <see cref="GetFormPublicAccessResponse"/>.</returns>
-    public static GetFormPublicAccessResponse FromCached(Cached<SubmissionAccessData> cached)
+    public static GetFormPublicAccessResponse FromCached(Cached<PublicFormAccessData> cached)
         => new(cached.Data.FormId, cached.Data.SubmissionId, cached.Data.FormPermissions, cached.Data.SubmissionPermissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
 }
 

@@ -102,11 +102,11 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<ISubmissionAccessTokenService, SubmissionAccessTokenService>();
         services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
 
-        services.AddScoped<SubmissionAccessPolicy>();
-        services.AddScoped<IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>>(sp => sp.GetRequiredService<SubmissionAccessPolicy>());
+        services.AddScoped<PublicFormAccessPolicy>();
+        services.AddScoped<IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>>(sp => sp.GetRequiredService<PublicFormAccessPolicy>());
 
         services.AddScoped<SubmissionManagementAccessPolicy>();
-        services.AddScoped<IResourceAccessQuery<SubmissionAccessData, SubmissionManagementAccessContext>>(sp => sp.GetRequiredService<SubmissionManagementAccessPolicy>());
+        services.AddScoped<IResourceAccessQuery<PublicFormAccessData, SubmissionManagementAccessContext>>(sp => sp.GetRequiredService<SubmissionManagementAccessPolicy>());
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()
