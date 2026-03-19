@@ -1,4 +1,4 @@
-namespace Endatix.Core.Abstractions.Data;
+namespace Endatix.Core.Infrastructure.Caching;
 
 /// <summary>
 /// Interface for cached data.
