@@ -27,7 +27,7 @@ public sealed class PublicFormAccessPolicy(
 {
     private static readonly TimeSpan _defaultTtl = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan _tokenTtl = TimeSpan.FromMinutes(15);
-    private static readonly TimeSpan _formMetadataTtl = TimeSpan.FromHours(1);
+    private static readonly TimeSpan _formMetadataTtl = TimeSpan.FromHours(15);
     private static readonly TimeSpan _safetyMargin = TimeSpan.FromSeconds(10);
 
     internal static class CacheKeysGenerator
@@ -57,6 +57,8 @@ public sealed class PublicFormAccessPolicy(
         internal static CacheInstruction ByAccessToken(string token, TimeSpan? ttl) => new(CacheKeysGenerator.ByToken(token), ttl ?? _defaultTtl, AccessPolicyRoute.ByAccessToken);
 
         internal static CacheInstruction BySubmissionToken(string token, TimeSpan? ttl) => new(CacheKeysGenerator.ByToken(token), ttl ?? _tokenTtl, AccessPolicyRoute.BySubmissionToken);
+
+        internal static CacheInstruction ForPublicForm(long formId) => new($"meta:f:{formId}:is_public", _defaultTtl, AccessPolicyRoute.ForPublicForm);
     }
 
     /// <inheritdoc/>
@@ -100,15 +102,15 @@ public sealed class PublicFormAccessPolicy(
             return context.TokenType switch
             {
                 SubmissionTokenType.AccessToken =>
-                    Result<CacheInstruction>.Success(CacheInstruction.ByAccessToken(context.Token, _defaultTtl)),
+                    Result.Success(CacheInstruction.ByAccessToken(context.Token, _defaultTtl)),
                 SubmissionTokenType.SubmissionToken =>
-                    Result<CacheInstruction>.Success(CacheInstruction.BySubmissionToken(context.Token, _tokenTtl)),
-                _ => Result<CacheInstruction>.Error("Unknown token type")
+                    Result.Success(CacheInstruction.BySubmissionToken(context.Token, _tokenTtl)),
+                _ => Result.Error("Unknown token type")
             };
         }
 
         var isFormPublic = await cache.GetOrCreateAsync(
-            $"meta:form:{context.FormId}:is_public",
+            $"meta:f:{context.FormId}:is_public",
             async token => await IsFormPublicFromDbAsync(context.FormId, token),
             new HybridCacheEntryOptions { Expiration = _formMetadataTtl },
             tags: [$"form:{context.FormId}"],
@@ -117,7 +119,7 @@ public sealed class PublicFormAccessPolicy(
 
         if (isFormPublic)
         {
-            return Result<CacheInstruction>.Success(new($"auth:sub:form:{context.FormId}:public", _defaultTtl, AccessPolicyRoute.ForPublicForm));
+            return Result.Success(CacheInstruction.ForPublicForm(context.FormId));
         }
 
         var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
@@ -162,15 +164,14 @@ public sealed class PublicFormAccessPolicy(
         var accessResult = accessTokenService.ValidateAccessToken(context.Token!);
         if (!accessResult.IsSuccess)
         {
-            return Result<PublicFormAccessData>.Error("Invalid access token");
+            return Result.Invalid(SubmissionAccessTokenErrors.ValidationErrors.InvalidToken);
         }
-
 
         var claims = accessResult.Value!;
         var dynamicTtl = TimeSpan.FromSeconds(Math.Max(1, (claims.ExpiresAt - DateTime.UtcNow - _safetyMargin).TotalSeconds));
 
         // Update the instruction so the envelope gets the correct dynamic TTL
-        updatedInstruction = new CacheInstruction("", dynamicTtl, AccessPolicyRoute.ByAccessToken);
+        updatedInstruction = CacheInstruction.ByAccessToken(context.Token!, dynamicTtl);
 
         return Result<PublicFormAccessData>.Success(BuildAccessTokenData(context.FormId, claims));
     }
@@ -180,10 +181,10 @@ public sealed class PublicFormAccessPolicy(
         var tokenResult = await tokenService.ResolveTokenAsync(context.Token!, cancellationToken);
         if (!tokenResult.IsSuccess)
         {
-            return Result<PublicFormAccessData>.Error("Invalid or expired submission token");
+            return Result.Invalid(SubmissonTokenErrors.ValidationErrors.SubmissionTokenInvalid);
         }
 
-        return Result<PublicFormAccessData>.Success(new PublicFormAccessData
+        return Result.Success(new PublicFormAccessData
         {
             FormId = context.FormId.ToString(),
             SubmissionId = tokenResult.Value.ToString(),
@@ -194,7 +195,7 @@ public sealed class PublicFormAccessPolicy(
 
     private Result<PublicFormAccessData> ComputePublicFormLogic(PublicFormAccessContext context)
     {
-        return Result<PublicFormAccessData>.Success(new PublicFormAccessData
+        return Result.Success(new PublicFormAccessData
         {
             FormId = context.FormId.ToString(),
             SubmissionId = null,
@@ -207,16 +208,16 @@ public sealed class PublicFormAccessPolicy(
     {
         if (authData is null)
         {
-            return Result<PublicFormAccessData>.Error("Authorization data is missing");
+            return Result.Error("Authorization data is missing");
         }
 
         var hasView = authData.IsAdmin || authData.Permissions.Contains(Actions.Forms.View);
         if (!hasView)
         {
-            return Result<PublicFormAccessData>.Error("Forbidden");
+            return Result.Forbidden();
         }
 
-        return Result<PublicFormAccessData>.Success(new PublicFormAccessData
+        return Result.Success(new PublicFormAccessData
         {
             FormId = context.FormId.ToString(),
             SubmissionId = null,
