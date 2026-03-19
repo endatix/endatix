@@ -158,7 +158,7 @@ public sealed class PublicFormAccessPolicy(
 
         if (!dataResult.IsSuccess)
         {
-            throw new UnauthorizedAccessException(dataResult.Errors.FirstOrDefault());
+            return dataResult.ToErrorResult<Cached<PublicFormAccessData>>();
         }
 
         return Cached<PublicFormAccessData>.Create(dataResult.Value, dateTimeProvider.Now.UtcDateTime, instruction.Expiration);
@@ -179,7 +179,7 @@ public sealed class PublicFormAccessPolicy(
         // Update the instruction so the envelope gets the correct dynamic TTL
         updatedInstruction = CacheInstruction.ByAccessToken(context.Token!, dynamicTtl);
 
-        return Result<PublicFormAccessData>.Success(BuildAccessTokenData(context.FormId, claims));
+        return Result.Success(BuildAccessTokenData(context.FormId, claims));
     }
 
     private async Task<Result<PublicFormAccessData>> ComputeSubmissionTokenLogicAsync(PublicFormAccessContext context, CancellationToken cancellationToken)
@@ -250,18 +250,18 @@ public sealed class PublicFormAccessPolicy(
     private static PublicFormAccessData BuildAccessTokenData(long formId, SubmissionAccessTokenClaims claims)
     {
         var submissionPermissions = new HashSet<string>();
-        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.View.Name, StringComparer.OrdinalIgnoreCase))
+        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.View.Name))
         {
             submissionPermissions.Add(ResourcePermissions.Submission.View);
             submissionPermissions.Add(ResourcePermissions.Submission.ViewFiles);
         }
 
-        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Edit.Name, StringComparer.OrdinalIgnoreCase))
+        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Edit.Name))
         {
             submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.EditSubmission);
         }
 
-        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Export.Name, StringComparer.OrdinalIgnoreCase))
+        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Export.Name))
         {
             submissionPermissions.Add(ResourcePermissions.Submission.Export);
         }
