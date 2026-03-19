@@ -30,16 +30,18 @@ public sealed class PublicFormAccessPolicy(
     private static readonly TimeSpan _formMetadataTtl = TimeSpan.FromHours(15);
     private static readonly TimeSpan _safetyMargin = TimeSpan.FromSeconds(10);
 
-    internal static class CacheKeysGenerator
+    internal static class CacheKeyGenerator
     {
-        private const string CACHE_KEY_PREFIX = "ac:pf";
-
         /// <summary>
         /// Generates a cache key for public form access data by token.
         /// </summary>
         /// <param name="token">The token to generate a cache key for.</param>
         /// <returns>The cache key for the token.</returns>
-        internal static string ByToken(string token) => $"{CACHE_KEY_PREFIX}:t:{token}";
+        internal static string ByToken(string token) => $"ac:form:token:{token}";
+
+        internal static string ForPrivateForm(long formId, string userId) => $"ac:form:{formId}:user:{userId}";
+
+        internal static string ForPublicForm(long formId) => $"ac:form:public:{formId}";
     }
 
 
@@ -54,11 +56,17 @@ public sealed class PublicFormAccessPolicy(
     /// </summary>
     internal sealed record CacheInstruction(string Key, TimeSpan Expiration, AccessPolicyRoute Route, AuthorizationData? AuthData = null)
     {
-        internal static CacheInstruction ByAccessToken(string token, TimeSpan? ttl) => new(CacheKeysGenerator.ByToken(token), ttl ?? _defaultTtl, AccessPolicyRoute.ByAccessToken);
+        internal static CacheInstruction ByAccessToken(string token, TimeSpan? ttl) => new(CacheKeyGenerator.ByToken(token), ttl ?? _defaultTtl, AccessPolicyRoute.ByAccessToken);
 
-        internal static CacheInstruction BySubmissionToken(string token, TimeSpan? ttl) => new(CacheKeysGenerator.ByToken(token), ttl ?? _tokenTtl, AccessPolicyRoute.BySubmissionToken);
+        internal static CacheInstruction BySubmissionToken(string token, TimeSpan? ttl) => new(CacheKeyGenerator.ByToken(token), ttl ?? _tokenTtl, AccessPolicyRoute.BySubmissionToken);
 
-        internal static CacheInstruction ForPublicForm(long formId) => new($"meta:f:{formId}:is_public", _defaultTtl, AccessPolicyRoute.ForPublicForm);
+        internal static CacheInstruction ForPublicForm(long formId) => new(CacheKeyGenerator.ForPublicForm(formId), _defaultTtl, AccessPolicyRoute.ForPublicForm);
+
+        internal static CacheInstruction ForPrivateForm(long formId, string userId, AuthorizationData authData) => new(
+                    CacheKeyGenerator.ForPrivateForm(formId, userId),
+                    _defaultTtl,
+                    AccessPolicyRoute.ForPrivateForm,
+                    authData);
     }
 
     /// <inheritdoc/>
@@ -110,8 +118,8 @@ public sealed class PublicFormAccessPolicy(
         }
 
         var isFormPublic = await cache.GetOrCreateAsync(
-            $"meta:f:{context.FormId}:is_public",
-            async token => await IsFormPublicFromDbAsync(context.FormId, token),
+            $"meta:form:is_public:{context.FormId}",
+            async ct => await IsFormPublicFromDbAsync(context.FormId, ct),
             new HybridCacheEntryOptions { Expiration = _formMetadataTtl },
             tags: [$"form:{context.FormId}"],
             cancellationToken: cancellationToken
@@ -122,17 +130,15 @@ public sealed class PublicFormAccessPolicy(
             return Result.Success(CacheInstruction.ForPublicForm(context.FormId));
         }
 
-        var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
-        if (!identityResult.IsSuccess || identityResult.Value!.UserId == AuthorizationData.ANONYMOUS_USER_ID)
+        var authDataResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
+        if (!authDataResult.IsSuccess)
         {
-            return Result<CacheInstruction>.Unauthorized("Form is private. Authentication required.");
+            return Result.Error("Failed to get authorization data");
         }
 
-        return Result<CacheInstruction>.Success(new(
-            $"auth:sub:form:{context.FormId}:user:{identityResult.Value.UserId}",
-            _defaultTtl,
-            AccessPolicyRoute.ForPrivateForm,
-            identityResult.Value));
+        var authData = authDataResult.Value;
+
+        return Result.Success(CacheInstruction.ForPrivateForm(context.FormId, authData.UserId, authData));
     }
 
     private async ValueTask<Cached<PublicFormAccessData>> ExecutePureLogicAsync(
@@ -211,10 +217,15 @@ public sealed class PublicFormAccessPolicy(
             return Result.Error("Authorization data is missing");
         }
 
-        var hasView = authData.IsAdmin || authData.Permissions.Contains(Actions.Forms.View);
-        if (!hasView)
+        if (authData.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
-            return Result.Forbidden();
+            return Result.Unauthorized("You must be authenticated to access this form");
+        }
+
+        var canAccessPrivateForm = authData.IsAdmin || authData.Permissions.Contains(Actions.Access.PrivateForms);
+        if (!canAccessPrivateForm)
+        {
+            return Result.Forbidden("You are not allowed to access this form");
         }
 
         return Result.Success(new PublicFormAccessData
