@@ -30,6 +30,19 @@ public sealed class PublicFormAccessPolicy(
     private static readonly TimeSpan _formMetadataTtl = TimeSpan.FromHours(1);
     private static readonly TimeSpan _safetyMargin = TimeSpan.FromSeconds(10);
 
+    internal static class CacheKeysGenerator
+    {
+        private const string CACHE_KEY_PREFIX = "ac:pf";
+
+        /// <summary>
+        /// Generates a cache key for public form access data by token.
+        /// </summary>
+        /// <param name="token">The token to generate a cache key for.</param>
+        /// <returns>The cache key for the token.</returns>
+        internal static string ByToken(string token) => $"{CACHE_KEY_PREFIX}:t:{token}";
+    }
+
+
     /// <summary>
     /// The access policy route for resolving the access data.
     /// </summary>
@@ -39,7 +52,12 @@ public sealed class PublicFormAccessPolicy(
     /// The cache instruction for the access data.
     /// Allows for dynamic cache keys, expiration that can adapt to the access context
     /// </summary>
-    internal record CacheInstruction(string Key, TimeSpan Expiration, AccessPolicyRoute Route, AuthorizationData? AuthData = null);
+    internal sealed record CacheInstruction(string Key, TimeSpan Expiration, AccessPolicyRoute Route, AuthorizationData? AuthData = null)
+    {
+        internal static CacheInstruction ByAccessToken(string token, TimeSpan? ttl) => new(CacheKeysGenerator.ByToken(token), ttl ?? _defaultTtl, AccessPolicyRoute.ByAccessToken);
+
+        internal static CacheInstruction BySubmissionToken(string token, TimeSpan? ttl) => new(CacheKeysGenerator.ByToken(token), ttl ?? _tokenTtl, AccessPolicyRoute.BySubmissionToken);
+    }
 
     /// <inheritdoc/>
     public async Task<Result<Cached<PublicFormAccessData>>> GetAccessData(
@@ -49,7 +67,7 @@ public sealed class PublicFormAccessPolicy(
         var instructionResult = await ResolvePolicyRouteAsync(context, cancellationToken);
         if (!instructionResult.IsSuccess)
         {
-            return Result<Cached<PublicFormAccessData>>.Error(string.Join(", ", instructionResult.Errors));
+            return instructionResult.ToErrorResult<Cached<PublicFormAccessData>>();
         }
 
         var instruction = instructionResult.Value!;
@@ -82,9 +100,9 @@ public sealed class PublicFormAccessPolicy(
             return context.TokenType switch
             {
                 SubmissionTokenType.AccessToken =>
-                    Result<CacheInstruction>.Success(new($"auth:sub:jwt:{context.Token}", _defaultTtl, AccessPolicyRoute.ByAccessToken)),
+                    Result<CacheInstruction>.Success(CacheInstruction.ByAccessToken(context.Token, _defaultTtl)),
                 SubmissionTokenType.SubmissionToken =>
-                    Result<CacheInstruction>.Success(new($"auth:sub:token:{context.Token}", _tokenTtl, AccessPolicyRoute.BySubmissionToken)),
+                    Result<CacheInstruction>.Success(CacheInstruction.BySubmissionToken(context.Token, _tokenTtl)),
                 _ => Result<CacheInstruction>.Error("Unknown token type")
             };
         }
@@ -105,7 +123,7 @@ public sealed class PublicFormAccessPolicy(
         var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
         if (!identityResult.IsSuccess || identityResult.Value!.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
-            return Result<CacheInstruction>.Error("Form is private. Authentication required.");
+            return Result<CacheInstruction>.Unauthorized("Form is private. Authentication required.");
         }
 
         return Result<CacheInstruction>.Success(new(

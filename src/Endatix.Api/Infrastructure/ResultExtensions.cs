@@ -10,10 +10,14 @@ namespace Endatix.Api.Infrastructure;
 #if NET7_0_OR_GREATER
 public static partial class ResultExtensions
 {
-    private const string DEFAULT_NOT_FOUND_TITLE = "Resource not found.";
-
-    private const string DEFAULT_UNEXPECTED_ERROR_TITLE = "An unexpected error occurred.";
-    private const string DEFAULT_BAD_REQUEST_TITLE = "There was a problem with your request.";
+    public static class ResultTitles
+    {
+        public const string NOT_FOUND = "Resource not found";
+        public const string UNAUTHORIZED = "Unauthorized access";
+        public const string FORBIDDEN = "Forbidden access";
+        public const string BAD_REQUEST = "There was a problem with your request";
+        public const string INTERNAL_SERVER_ERROR = "An unexpected error occurred";
+    }
 
     /// <summary>
     /// Converts an IResult from an operation to a NotFound HTTP IResult with ProblemDetails.
@@ -33,12 +37,12 @@ public static partial class ResultExtensions
         }
         else
         {
-            details.Append("* ").Append(DEFAULT_NOT_FOUND_TITLE).AppendLine();
+            details.Append("* ").Append(ResultTitles.NOT_FOUND).AppendLine();
         }
 
         return TypedResults.NotFound(new ProblemDetails
         {
-            Title = DEFAULT_NOT_FOUND_TITLE,
+            Title = ResultTitles.NOT_FOUND,
             Detail = details.ToString(),
             Status = StatusCodes.Status404NotFound
         });
@@ -55,7 +59,7 @@ public static partial class ResultExtensions
     /// <returns>A BadRequest HTTP IResult with ProblemDetails.</returns>
     public static BadRequest<ProblemDetails> ToBadRequest(this AppDomain.IResult result, string? title = null)
     {
-        var details = DEFAULT_BAD_REQUEST_TITLE;
+        var details = ResultTitles.BAD_REQUEST;
         var validationError = result.ValidationErrors.FirstOrDefault();
         if (validationError != null)
         {
@@ -64,7 +68,7 @@ public static partial class ResultExtensions
 
         var problemDetails = new ProblemDetails
         {
-            Title = title ?? DEFAULT_BAD_REQUEST_TITLE,
+            Title = title ?? ResultTitles.BAD_REQUEST,
             Detail = details.ToString(),
             Status = StatusCodes.Status400BadRequest
         };
@@ -79,18 +83,18 @@ public static partial class ResultExtensions
 
     public static ProblemHttpResult ToProblem(this AppDomain.IResult result, string? title = null)
     {
-        var status = result.Status switch
+        var (status, defaultTitle) = result.Status switch
         {
-            ResultStatus.Invalid => StatusCodes.Status400BadRequest,
-            ResultStatus.NotFound => StatusCodes.Status404NotFound,
-            ResultStatus.Unauthorized => StatusCodes.Status401Unauthorized,
-            ResultStatus.Forbidden => StatusCodes.Status403Forbidden,
-            ResultStatus.Error => StatusCodes.Status500InternalServerError,
-            _ => StatusCodes.Status500InternalServerError
+            ResultStatus.Invalid => (StatusCodes.Status400BadRequest, ResultTitles.BAD_REQUEST),
+            ResultStatus.NotFound => (StatusCodes.Status404NotFound, ResultTitles.NOT_FOUND),
+            ResultStatus.Unauthorized => (StatusCodes.Status401Unauthorized, ResultTitles.UNAUTHORIZED),
+            ResultStatus.Forbidden => (StatusCodes.Status403Forbidden, ResultTitles.FORBIDDEN),
+            ResultStatus.Error => (StatusCodes.Status500InternalServerError, ResultTitles.INTERNAL_SERVER_ERROR),
+            _ => (StatusCodes.Status500InternalServerError, ResultTitles.INTERNAL_SERVER_ERROR)
         };
 
         var problemResult = TypedResults.Problem(
-            title: title ?? DEFAULT_UNEXPECTED_ERROR_TITLE,
+            title: title ?? defaultTitle,
             statusCode: status);
 
         var details = new StringBuilder();
@@ -102,7 +106,6 @@ public static partial class ResultExtensions
 
         if (result.IsInvalid())
         {
-            problemResult.ProblemDetails.Title = title ?? DEFAULT_BAD_REQUEST_TITLE;
             foreach (var error in result.ValidationErrors)
             {
                 details.Append(error.ErrorMessage).AppendLine();
@@ -163,7 +166,7 @@ public static partial class ResultExtensions
 
         return TypedResults.UnprocessableEntity(new ProblemDetails
         {
-            Title = DEFAULT_UNEXPECTED_ERROR_TITLE,
+            Title = ResultTitles.INTERNAL_SERVER_ERROR,
             Detail = details.ToString()
         });
     }
@@ -227,7 +230,7 @@ public static partial class ResultExtensions
 
             return TypedResults.Problem(new ProblemDetails()
             {
-                Title = DEFAULT_UNEXPECTED_ERROR_TITLE,
+                Title = ResultTitles.INTERNAL_SERVER_ERROR,
                 Detail = details.ToString(),
                 Status = StatusCodes.Status500InternalServerError
             });
