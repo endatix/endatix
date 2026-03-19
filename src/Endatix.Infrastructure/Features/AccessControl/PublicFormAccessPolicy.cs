@@ -96,7 +96,7 @@ public sealed class PublicFormAccessPolicy(
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Result<Cached<PublicFormAccessData>>.Invalid(new ValidationError(ex.Message));
+            return Result<Cached<PublicFormAccessData>>.Error(ex.Message);
         }
     }
 
@@ -158,11 +158,7 @@ public sealed class PublicFormAccessPolicy(
 
         if (!dataResult.IsSuccess)
         {
-            if (dataResult.ValidationErrors.Any())
-            {
-                throw new UnauthorizedAccessException(dataResult.ValidationErrors.First().ErrorMessage);
-            }
-            throw new UnauthorizedAccessException(dataResult.Errors.FirstOrDefault() ?? "Unauthorized access");
+            return dataResult.ToErrorResult<Cached<PublicFormAccessData>>();
         }
 
         return Cached<PublicFormAccessData>.Create(dataResult.Value, dateTimeProvider.Now.UtcDateTime, instruction.Expiration);
