@@ -73,7 +73,7 @@ public sealed class CurrentUserAuthorizationServiceTests
     #region GetAuthorizationDataAsync Tests
 
     [Fact]
-    public async Task GetAuthorizationDataAsync_NullHttpContext_ReturnsError()
+    public async Task GetAuthorizationDataAsync_NullHttpContext_ReturnsUnauthorized()
     {
         // Arrange
         _httpContextAccessor.HttpContext.Returns((HttpContext?)null);
@@ -83,12 +83,12 @@ public sealed class CurrentUserAuthorizationServiceTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.IsError().Should().BeTrue();
+        result.IsUnauthorized().Should().BeTrue();
         result.Errors.First().Should().Contain("No current user found");
     }
 
     [Fact]
-    public async Task GetAuthorizationDataAsync_NoUser_ReturnsError()
+    public async Task GetAuthorizationDataAsync_NoUser_ReturnsUnauthorized()
     {
         // Arrange
         var httpContext = Substitute.For<HttpContext>();
@@ -100,7 +100,7 @@ public sealed class CurrentUserAuthorizationServiceTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.IsError().Should().BeTrue();
+        result.IsUnauthorized().Should().BeTrue();
         result.Errors.First().Should().Contain("No current user found");
     }
 

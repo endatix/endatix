@@ -133,7 +133,7 @@ public sealed class PublicFormAccessPolicy(
         var authDataResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
         if (!authDataResult.IsSuccess)
         {
-            return Result.Error("Failed to get authorization data");
+            return authDataResult.ToErrorResult<CacheInstruction>();
         }
 
         var authData = authDataResult.Value;
@@ -232,7 +232,7 @@ public sealed class PublicFormAccessPolicy(
         {
             FormId = context.FormId.ToString(),
             SubmissionId = null,
-            FormPermissions = [ResourcePermissions.Form.View],
+            FormPermissions = [ResourcePermissions.Form.View, ResourcePermissions.Form.ViewFiles],
             SubmissionPermissions = [ResourcePermissions.Submission.Create, ResourcePermissions.Submission.UploadFile]
         });
     }

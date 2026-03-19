@@ -193,7 +193,7 @@ public partial class PublicFormAccessPolicyTests
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain("Invalid or expired submission token");
+        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == "Invalid or expired submission token");
     }
 
     #endregion
@@ -279,7 +279,7 @@ public partial class PublicFormAccessPolicyTests
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain("Invalid access token");
+        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == "Invalid access token");
     }
 
     [Fact]

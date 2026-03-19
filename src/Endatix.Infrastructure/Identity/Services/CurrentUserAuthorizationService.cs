@@ -41,7 +41,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         var currentPrincipal = _httpContextAccessor.HttpContext?.User;
         if (currentPrincipal is null)
         {
-            return Result.Error("No current user found");
+            return Result.Unauthorized("No current user found");
         }
 
         var userId = currentPrincipal.GetUserId();
