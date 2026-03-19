@@ -5,7 +5,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Features.AccessControl.Contracts;
 using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Infrastructure.Features.AccessControl;

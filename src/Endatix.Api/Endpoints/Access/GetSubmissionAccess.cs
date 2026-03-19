@@ -1,9 +1,8 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure.Caching;
-using Endatix.Infrastructure.Features.AccessControl.Contracts;
+using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;

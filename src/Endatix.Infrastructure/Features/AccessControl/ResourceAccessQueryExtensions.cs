@@ -1,6 +1,6 @@
-using Endatix.Core.Authorization.Access.Contracts;
+using Endatix.Core.Authorization.Access;
 
-namespace Endatix.Infrastructure.Features.AccessControl.Contracts;
+namespace Endatix.Infrastructure.Features.AccessControl;
 
 public static class ResourceAccessQueryExtensions
 {

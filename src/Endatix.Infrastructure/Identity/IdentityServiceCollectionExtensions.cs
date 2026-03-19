@@ -18,7 +18,6 @@ using Endatix.Infrastructure.Identity.Services;
 using Endatix.Infrastructure.Identity.Repositories;
 using Endatix.Infrastructure.Features.AccessControl;
 using Endatix.Core.Authorization.Access;
-using Endatix.Infrastructure.Features.AccessControl.Contracts;
 
 namespace Endatix.Infrastructure.Identity;
 

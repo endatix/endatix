@@ -6,13 +6,11 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Ardalis.Specification;
-using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.AccessControl;
 using Microsoft.Extensions.Caching.Hybrid;
 using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
 
-namespace Endatix.Infrastructure.Tests.Features.AccessPolicy;
+namespace Endatix.Infrastructure.Tests.Features.AccessControl;
 
 public static class PermissionSets
 {
@@ -79,7 +77,7 @@ public partial class SubmissionAccessPolicyTests
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _cache = Substitute.For<HybridCache>();
         _dateTimeProvider.Now.Returns(DateTimeOffset.UtcNow);
-        
+
         _cache
             .GetOrCreateAsync(
                 Arg.Any<string>(),
@@ -93,7 +91,7 @@ public partial class SubmissionAccessPolicyTests
                 var token = callInfo.Arg<CancellationToken>();
                 return factory(token);
             });
-        
+
         _cache
             .GetOrCreateAsync(
                 Arg.Any<string>(),
@@ -107,7 +105,7 @@ public partial class SubmissionAccessPolicyTests
                 var token = callInfo.Arg<CancellationToken>();
                 return factory(token);
             });
-        
+
         _policy = new SubmissionAccessPolicy(_formRepository, _tokenService, _accessTokenService, _authorizationService, _dateTimeProvider, _cache);
     }
 

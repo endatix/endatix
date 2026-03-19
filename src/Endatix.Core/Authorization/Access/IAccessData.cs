@@ -1,4 +1,4 @@
-namespace Endatix.Core.Authorization.Access.Contracts;
+namespace Endatix.Core.Authorization.Access;
 
 /// <summary>
 /// Interface for access data that contains permission evaluation methods.

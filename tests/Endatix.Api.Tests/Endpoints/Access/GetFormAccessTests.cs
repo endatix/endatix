@@ -2,7 +2,7 @@ using Endatix.Api.Endpoints.Access;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Features.AccessControl.Contracts;
+using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;

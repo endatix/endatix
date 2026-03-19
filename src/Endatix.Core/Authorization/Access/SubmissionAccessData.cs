@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using Endatix.Core.Authorization.Access.Contracts;
+using Endatix.Core.Authorization.Access;
 
 namespace Endatix.Core.Authorization.Access;
 

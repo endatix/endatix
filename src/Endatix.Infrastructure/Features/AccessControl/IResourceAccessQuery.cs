@@ -1,7 +1,7 @@
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Infrastructure.Features.AccessControl.Contracts;
+namespace Endatix.Infrastructure.Features.AccessControl;
 
 /// <summary>
 /// Defines a read-model query contract for computing contextual permissions for a resource scenario.
