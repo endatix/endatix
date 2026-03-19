@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization.Models;
@@ -65,6 +66,7 @@ public partial class SubmissionAccessPolicyTests
     private readonly IRepository<Form> _formRepository;
     private readonly ISubmissionTokenService _tokenService;
     private readonly ISubmissionAccessTokenService _accessTokenService;
+    private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HybridCache _cache;
     private readonly SubmissionAccessPolicy _policy;
 
@@ -74,7 +76,9 @@ public partial class SubmissionAccessPolicyTests
         _formRepository = Substitute.For<IRepository<Form>>();
         _tokenService = Substitute.For<ISubmissionTokenService>();
         _accessTokenService = Substitute.For<ISubmissionAccessTokenService>();
+        _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _cache = Substitute.For<HybridCache>();
+        _dateTimeProvider.Now.Returns(DateTimeOffset.UtcNow);
         
         _cache
             .GetOrCreateAsync(
@@ -104,7 +108,7 @@ public partial class SubmissionAccessPolicyTests
                 return factory(token);
             });
         
-        _policy = new SubmissionAccessPolicy(_formRepository, _tokenService, _accessTokenService, _authorizationService, _cache);
+        _policy = new SubmissionAccessPolicy(_formRepository, _tokenService, _accessTokenService, _authorizationService, _dateTimeProvider, _cache);
     }
 
     #region Helper Methods

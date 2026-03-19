@@ -1,4 +1,4 @@
-using Endatix.Api.Endpoints.Auth;
+using Endatix.Api.Endpoints.Access;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization;
 using Endatix.Core.Authorization.Models;
@@ -8,17 +8,17 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace Endatix.Api.Tests.Endpoints.Auth;
+namespace Endatix.Api.Tests.Endpoints.Access;
 
 public class GetFormAccessTests
 {
     private readonly IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext> _accessStrategy;
-    private readonly GetFormAccess _endpoint;
+    private readonly GetFormPublicAccess _endpoint;
 
     public GetFormAccessTests()
     {
         _accessStrategy = Substitute.For<IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext>>();
-        _endpoint = Factory.Create<GetFormAccess>(_accessStrategy);
+        _endpoint = Factory.Create<GetFormPublicAccess>(_accessStrategy);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public class GetFormAccessTests
     public async Task ExecuteAsync_WithSuccessfulAccess_ReturnsOkResult()
     {
         // Arrange
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 123,
             Token = "token",
@@ -52,13 +52,7 @@ public class GetFormAccessTests
             SubmissionPermissions = new HashSet<string> { "submissions:view" }
         };
 
-        var cached = new Cached<SubmissionAccessData>
-        {
-            Data = accessData,
-            CachedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(10),
-            ETag = "etag-123"
-        };
+        var cached = new Cached<SubmissionAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");
 
         _accessStrategy
             .GetAccessData(Arg.Any<SubmissionAccessContext>(), Arg.Any<CancellationToken>())
@@ -68,7 +62,7 @@ public class GetFormAccessTests
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var okResult = response.Result.As<Ok<GetFormAccessResponse>>();
+        var okResult = response.Result.As<Ok<GetFormPublicAccessResponse>>();
         okResult.Should().NotBeNull();
         okResult.Value.Should().NotBeNull();
         okResult.Value!.FormId.Should().Be(accessData.FormId);
@@ -82,7 +76,7 @@ public class GetFormAccessTests
     public async Task ExecuteAsync_WithFailedAccess_ReturnsProblemResult()
     {
         // Arrange
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 123,
             Token = "token",
@@ -108,7 +102,7 @@ public class GetFormAccessTests
     public async Task ExecuteAsync_WithUnexpectedError_ReturnsProblemResult()
     {
         // Arrange
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 123,
             Token = "token",
@@ -130,3 +124,4 @@ public class GetFormAccessTests
         problemResult.ProblemDetails.Detail.Should().Contain("unexpected error");
     }
 }
+

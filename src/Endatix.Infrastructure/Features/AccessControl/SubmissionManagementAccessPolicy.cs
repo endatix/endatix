@@ -21,12 +21,12 @@ public sealed class SubmissionManagementAccessPolicy(
     IRepository<Form> formRepository,
     HybridCache cache,
     IDateTimeProvider dateTimeProvider
-) : IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext>
+) : IResourceAccessStrategy<SubmissionAccessData, SubmissionManagementAccessContext>
 {
     private const int CACHE_MINUTES = 10;
 
     public async Task<Result<Cached<SubmissionAccessData>>> GetAccessData(
-        SubmissionAccessContext context,
+        SubmissionManagementAccessContext context,
         CancellationToken cancellationToken)
     {
         var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
@@ -55,7 +55,7 @@ public sealed class SubmissionManagementAccessPolicy(
     }
 
     private async Task<Cached<SubmissionAccessData>> ComputeAndWrapAsync(
-        SubmissionAccessContext context,
+        SubmissionManagementAccessContext context,
         AuthorizationData identity,
         CancellationToken cancellationToken)
     {
@@ -69,7 +69,7 @@ public sealed class SubmissionManagementAccessPolicy(
     }
 
     private async Task<SubmissionAccessData> ComputeAsync(
-        SubmissionAccessContext context,
+        SubmissionManagementAccessContext context,
         AuthorizationData identity,
         CancellationToken cancellationToken)
     {

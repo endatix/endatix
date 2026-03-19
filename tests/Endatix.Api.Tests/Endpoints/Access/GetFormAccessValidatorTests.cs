@@ -1,12 +1,12 @@
-using Endatix.Api.Endpoints.Auth;
+using Endatix.Api.Endpoints.Access;
 using Endatix.Core.Abstractions.Submissions;
 using FluentValidation.TestHelper;
 
-namespace Endatix.Api.Tests.Endpoints.Auth;
+namespace Endatix.Api.Tests.Endpoints.Access;
 
 public class GetFormAccessValidatorTests
 {
-    private readonly GetFormAccessValidator _validator;
+    private readonly GetFormPublicAccessValidator _validator;
 
     public GetFormAccessValidatorTests()
     {
@@ -19,7 +19,7 @@ public class GetFormAccessValidatorTests
     [InlineData(999999)]
     public void Validate_ValidFormId_PassesValidation(long formId)
     {
-        var request = new GetFormAccessRequest { FormId = formId };
+        var request = new GetFormPublicAccessRequest { FormId = formId };
 
         var result = _validator.TestValidate(request);
 
@@ -32,7 +32,7 @@ public class GetFormAccessValidatorTests
     [InlineData(-100)]
     public void Validate_InvalidFormId_ReturnsError(long formId)
     {
-        var request = new GetFormAccessRequest { FormId = formId };
+        var request = new GetFormPublicAccessRequest { FormId = formId };
 
         var result = _validator.TestValidate(request);
 
@@ -43,7 +43,7 @@ public class GetFormAccessValidatorTests
     [Fact]
     public void Validate_MinimalValidRequest_PassesValidation()
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 1
         };
@@ -56,7 +56,7 @@ public class GetFormAccessValidatorTests
     [Fact]
     public void Validate_TokenWithTokenType_PassesValidation()
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 1,
             Token = "12345.1234567890.r.signature",
@@ -72,7 +72,7 @@ public class GetFormAccessValidatorTests
     [Fact]
     public void Validate_TokenWithSubmissionTokenType_PassesValidation()
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 1,
             Token = "12345.1234567890.r.signature",
@@ -88,7 +88,7 @@ public class GetFormAccessValidatorTests
     [Fact]
     public void Validate_TokenWithoutTokenType_ReturnsError()
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 1,
             Token = "valid.token",
@@ -106,7 +106,7 @@ public class GetFormAccessValidatorTests
     [InlineData(SubmissionTokenType.SubmissionToken)]
     public void Validate_ValidTokenType_PassesValidation(SubmissionTokenType tokenType)
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 1,
             Token = "valid.token",
@@ -121,7 +121,7 @@ public class GetFormAccessValidatorTests
     [Fact]
     public void Validate_EmptyTokenWithNullTokenType_PassesValidation()
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 1,
             Token = null,
@@ -136,7 +136,7 @@ public class GetFormAccessValidatorTests
     [Fact]
     public void Validate_OnlyFormId_PassesValidation()
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 100
         };
@@ -149,7 +149,7 @@ public class GetFormAccessValidatorTests
     [Fact]
     public void Validate_PublicFormRequest_PassesValidation()
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 1,
             Token = null,
@@ -164,7 +164,7 @@ public class GetFormAccessValidatorTests
     [Fact]
     public void Validate_AccessTokenRequest_PassesValidation()
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 1,
             Token = "12345.1234567890.r.signature",
@@ -179,7 +179,7 @@ public class GetFormAccessValidatorTests
     [Fact]
     public void Validate_SubmissionTokenRequest_PassesValidation()
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 1,
             Token = "long-lived-submission-token",
@@ -194,7 +194,7 @@ public class GetFormAccessValidatorTests
     [Fact]
     public void Validate_InvalidTokenTypeValue_ReturnsError()
     {
-        var request = new GetFormAccessRequest
+        var request = new GetFormPublicAccessRequest
         {
             FormId = 1,
             Token = "valid.token",
@@ -206,3 +206,4 @@ public class GetFormAccessValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.TokenType);
     }
 }
+

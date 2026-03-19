@@ -105,6 +105,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<SubmissionManagementAccessPolicy>();
         services.AddEndatixOptions<SubmissionAccessTokenOptions>(configuration);
         services.AddScoped<IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext>>(sp => sp.GetRequiredService<SubmissionAccessPolicy>());
+        services.AddScoped<IResourceAccessStrategy<SubmissionAccessData, SubmissionManagementAccessContext>>(sp => sp.GetRequiredService<SubmissionManagementAccessPolicy>());
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()

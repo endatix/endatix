@@ -2,8 +2,7 @@ namespace Endatix.Core.Abstractions.Submissions;
 
 /// <summary>
 /// Context for computing submission access permissions.
-/// For public/token flows: use FormId + Token + TokenType (submission is resolved from token).
-/// For management flows: use FormId + SubmissionId (authenticated user).
+/// Public/token flows only: use FormId + Token + TokenType (submission is resolved from token).
 /// </summary>
 public class SubmissionAccessContext
 {
@@ -23,11 +22,6 @@ public class SubmissionAccessContext
     /// The token required for public/token flows.
     /// </summary>
     public string? Token { get; init; }
-
-    /// <summary>
-    /// The submission ID for management flows.
-    /// </summary>
-    public long? SubmissionId { get; set; }
 
     /// <summary>
     /// The type of token when Token is set.
