@@ -1,9 +1,8 @@
 using Endatix.Api.Endpoints.Access;
-using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Authorization;
-using Endatix.Core.Authorization.Models;
+using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Features.AccessControl.Contracts;
 using FastEndpoints;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -12,12 +11,12 @@ namespace Endatix.Api.Tests.Endpoints.Access;
 
 public class GetSubmissionManagementAccessTests
 {
-    private readonly IResourceAccessStrategy<SubmissionAccessData, SubmissionManagementAccessContext> _accessStrategy;
+    private readonly IResourceAccessQuery<SubmissionAccessData, SubmissionManagementAccessContext> _accessStrategy;
     private readonly GetSubmissionAccess _endpoint;
 
     public GetSubmissionManagementAccessTests()
     {
-        _accessStrategy = Substitute.For<IResourceAccessStrategy<SubmissionAccessData, SubmissionManagementAccessContext>>();
+        _accessStrategy = Substitute.For<IResourceAccessQuery<SubmissionAccessData, SubmissionManagementAccessContext>>();
         _endpoint = Factory.Create<GetSubmissionAccess>(_accessStrategy);
     }
 

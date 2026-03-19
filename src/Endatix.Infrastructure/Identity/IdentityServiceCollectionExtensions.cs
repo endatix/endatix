@@ -17,8 +17,8 @@ using Endatix.Core.Abstractions.Account;
 using Endatix.Infrastructure.Identity.Services;
 using Endatix.Infrastructure.Identity.Repositories;
 using Endatix.Infrastructure.Features.AccessControl;
-using Endatix.Core.Authorization.Access.Contracts;
 using Endatix.Core.Authorization.Access;
+using Endatix.Infrastructure.Features.AccessControl.Contracts;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -104,10 +104,10 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
 
         services.AddScoped<SubmissionAccessPolicy>();
-        services.AddScoped<IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext>>(sp => sp.GetRequiredService<SubmissionAccessPolicy>());
+        services.AddScoped<IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>>(sp => sp.GetRequiredService<SubmissionAccessPolicy>());
 
         services.AddScoped<SubmissionManagementAccessPolicy>();
-        services.AddScoped<IResourceAccessStrategy<SubmissionAccessData, SubmissionManagementAccessContext>>(sp => sp.GetRequiredService<SubmissionManagementAccessPolicy>());
+        services.AddScoped<IResourceAccessQuery<SubmissionAccessData, SubmissionManagementAccessContext>>(sp => sp.GetRequiredService<SubmissionManagementAccessPolicy>());
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()

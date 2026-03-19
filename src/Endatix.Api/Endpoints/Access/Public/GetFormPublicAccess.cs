@@ -1,8 +1,8 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Authorization.Access;
-using Endatix.Core.Authorization.Access.Contracts;
 using Endatix.Core.Infrastructure.Caching;
+using Endatix.Infrastructure.Features.AccessControl.Contracts;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -15,7 +15,7 @@ namespace Endatix.Api.Endpoints.Access;
 /// Uses FormId + Token + TokenType (no SubmissionId; submission is resolved from token).
 /// </summary>
 public class GetFormPublicAccess(
-    IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext> submissionAccessPolicy
+    IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext> submissionAccessPolicy
 ) : Endpoint<GetFormPublicAccessRequest, Results<Ok<GetFormPublicAccessResponse>, ProblemHttpResult>>
 {
     public override void Configure()

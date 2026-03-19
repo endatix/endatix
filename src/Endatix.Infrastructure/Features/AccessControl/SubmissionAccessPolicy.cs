@@ -3,12 +3,12 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization.Access;
-using Endatix.Core.Authorization.Access.Contracts;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Infrastructure.Features.AccessControl.Contracts;
 using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Infrastructure.Features.AccessControl;
@@ -24,7 +24,7 @@ public sealed class SubmissionAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
     IDateTimeProvider dateTimeProvider,
     HybridCache cache
-) : IResourceAccessStrategy<SubmissionAccessData, SubmissionAccessContext>
+) : IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>
 {
     private static readonly TimeSpan _defaultTtl = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan _tokenTtl = TimeSpan.FromMinutes(15);

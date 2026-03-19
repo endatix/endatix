@@ -1,11 +1,11 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
-using Endatix.Core.Authorization.Access.Contracts;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Features.AccessControl.Contracts;
 using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Infrastructure.Features.AccessControl;
@@ -19,7 +19,7 @@ public sealed class SubmissionManagementAccessPolicy(
     IRepository<Form> formRepository,
     HybridCache cache,
     IDateTimeProvider dateTimeProvider
-) : IResourceAccessStrategy<SubmissionAccessData, SubmissionManagementAccessContext>
+) : IResourceAccessQuery<SubmissionAccessData, SubmissionManagementAccessContext>
 {
     private const int CACHE_MINUTES = 10;
 

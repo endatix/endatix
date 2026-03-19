@@ -1,5 +1,5 @@
 using Endatix.Api.Endpoints.Access;
-using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Authorization.Access;
 using FluentValidation.TestHelper;
 
 namespace Endatix.Api.Tests.Endpoints.Access;
@@ -10,7 +10,7 @@ public class GetFormAccessValidatorTests
 
     public GetFormAccessValidatorTests()
     {
-        _validator = new GetFormAccessValidator();
+        _validator = new GetFormPublicAccessValidator();
     }
 
     [Theory]

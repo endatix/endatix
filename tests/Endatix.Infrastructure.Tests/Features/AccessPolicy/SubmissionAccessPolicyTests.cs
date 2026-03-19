@@ -1,7 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Authorization.Models;
+using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
@@ -10,7 +10,7 @@ using Ardalis.Specification;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.AccessControl;
 using Microsoft.Extensions.Caching.Hybrid;
-using ResourcePermissions = Endatix.Core.Authorization.Permissions.ResourcePermissions;
+using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
 
 namespace Endatix.Infrastructure.Tests.Features.AccessPolicy;
 

@@ -2,8 +2,8 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Authorization.Access;
-using Endatix.Core.Authorization.Access.Contracts;
 using Endatix.Core.Infrastructure.Caching;
+using Endatix.Infrastructure.Features.AccessControl.Contracts;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -14,7 +14,7 @@ namespace Endatix.Api.Endpoints.Access;
 /// Authenticated endpoint for backend management access data for form/submission actions.
 /// </summary>
 public class GetSubmissionAccess(
-    IResourceAccessStrategy<SubmissionAccessData, SubmissionManagementAccessContext> submissionManagementAccessPolicy
+    IResourceAccessQuery<SubmissionAccessData, SubmissionManagementAccessContext> submissionManagementAccessPolicy
 ) : Endpoint<GetSubmissionAccessRequest, Results<Ok<GetSubmissionAccessResponse>, ProblemHttpResult>>
 {
     public override void Configure()
