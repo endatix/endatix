@@ -1,4 +1,4 @@
-namespace Endatix.Core.Abstractions.Submissions;
+namespace Endatix.Core.Authorization.Access;
 
 /// <summary>
 /// The type of token used for submission access.

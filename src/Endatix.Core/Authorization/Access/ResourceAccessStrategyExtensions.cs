@@ -1,6 +1,6 @@
-using Endatix.Core.Authorization.Models;
+using Endatix.Core.Authorization.Access.Contracts;
 
-namespace Endatix.Core.Authorization.Extensions;
+namespace Endatix.Core.Authorization.Access;
 
 public static class ResourceAccessStrategyExtensions
 {

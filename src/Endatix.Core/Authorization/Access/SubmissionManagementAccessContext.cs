@@ -1,4 +1,4 @@
-namespace Endatix.Core.Abstractions.Submissions;
+namespace Endatix.Core.Authorization.Access;
 
 /// <summary>
 /// Context for computing submission management access permissions for authenticated users.

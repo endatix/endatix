@@ -1,4 +1,4 @@
-namespace Endatix.Core.Authorization.Permissions;
+namespace Endatix.Core.Authorization.Access;
 
 /// <summary>
 /// Defines resource type constants for scope-based authorization.

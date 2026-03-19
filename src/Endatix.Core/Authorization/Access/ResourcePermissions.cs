@@ -1,4 +1,4 @@
-namespace Endatix.Core.Authorization.Permissions;
+namespace Endatix.Core.Authorization.Access;
 
 /// <summary>
 /// Defines granular permissions for form and submission resources.

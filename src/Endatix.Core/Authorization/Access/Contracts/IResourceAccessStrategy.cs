@@ -1,7 +1,7 @@
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Core.Authorization;
+namespace Endatix.Core.Authorization.Access.Contracts;
 
 /// <summary>
 /// Defines a contract for computing contextual permissions for a specific resource scenario.

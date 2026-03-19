@@ -1,9 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Authorization;
-using Endatix.Core.Authorization.Models;
-using Endatix.Core.Authorization.Permissions;
+using Endatix.Core.Authorization.Access;
+using Endatix.Core.Authorization.Access.Contracts;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
@@ -79,20 +77,13 @@ public sealed class SubmissionManagementAccessPolicy(
         if (identity.IsAdmin)
         {
             formPermissions.UnionWith(ResourcePermissions.GetAllForResourceType(ResourceTypes.Form));
-            if (context.SubmissionId.HasValue)
-            {
-                submissionPermissions.UnionWith(ResourcePermissions.GetAllForResourceType(ResourceTypes.Submission));
-            }
-            else
-            {
-                submissionPermissions.Add(ResourcePermissions.Submission.Create);
-                submissionPermissions.Add(ResourcePermissions.Submission.UploadFile);
-            }
+
+            submissionPermissions.UnionWith(ResourcePermissions.GetAllForResourceType(ResourceTypes.Submission));
 
             return new SubmissionAccessData
             {
                 FormId = context.FormId.ToString(),
-                SubmissionId = context.SubmissionId?.ToString(),
+                SubmissionId = context.SubmissionId.ToString(),
                 FormPermissions = formPermissions,
                 SubmissionPermissions = submissionPermissions
             };
@@ -103,7 +94,7 @@ public sealed class SubmissionManagementAccessPolicy(
             return new SubmissionAccessData
             {
                 FormId = context.FormId.ToString(),
-                SubmissionId = context.SubmissionId?.ToString(),
+                SubmissionId = context.SubmissionId.ToString(),
                 FormPermissions = formPermissions,
                 SubmissionPermissions = submissionPermissions
             };
@@ -115,31 +106,28 @@ public sealed class SubmissionManagementAccessPolicy(
             formPermissions.Add(ResourcePermissions.Form.Edit);
         }
 
-        if (context.SubmissionId.HasValue)
+        var hasSubmissionView = await authorizationService.HasPermissionAsync(Actions.Submissions.View, cancellationToken);
+        if (hasSubmissionView.IsSuccess && hasSubmissionView.Value)
         {
-            var hasSubmissionView = await authorizationService.HasPermissionAsync(Actions.Submissions.View, cancellationToken);
-            if (hasSubmissionView.IsSuccess && hasSubmissionView.Value)
-            {
-                submissionPermissions.Add(ResourcePermissions.Submission.View);
-            }
+            submissionPermissions.Add(ResourcePermissions.Submission.View);
+        }
 
-            var hasSubmissionEdit = await authorizationService.HasPermissionAsync(Actions.Submissions.Edit, cancellationToken);
-            if (hasSubmissionEdit.IsSuccess && hasSubmissionEdit.Value)
-            {
-                submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.EditSubmission);
-            }
+        var hasSubmissionEdit = await authorizationService.HasPermissionAsync(Actions.Submissions.Edit, cancellationToken);
+        if (hasSubmissionEdit.IsSuccess && hasSubmissionEdit.Value)
+        {
+            submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.EditSubmission);
+        }
 
-            var hasSubmissionDelete = await authorizationService.HasPermissionAsync(Actions.Submissions.Delete, cancellationToken);
-            if (hasSubmissionDelete.IsSuccess && hasSubmissionDelete.Value)
-            {
-                submissionPermissions.Add(ResourcePermissions.Submission.DeleteFile);
-            }
+        var hasSubmissionDelete = await authorizationService.HasPermissionAsync(Actions.Submissions.Delete, cancellationToken);
+        if (hasSubmissionDelete.IsSuccess && hasSubmissionDelete.Value)
+        {
+            submissionPermissions.Add(ResourcePermissions.Submission.DeleteFile);
         }
 
         return new SubmissionAccessData
         {
             FormId = context.FormId.ToString(),
-            SubmissionId = context.SubmissionId?.ToString(),
+            SubmissionId = context.SubmissionId.ToString(),
             FormPermissions = formPermissions,
             SubmissionPermissions = submissionPermissions
         };

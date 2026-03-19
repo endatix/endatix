@@ -1,9 +1,8 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Data;
-using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Authorization;
-using Endatix.Core.Authorization.Models;
+using Endatix.Core.Authorization.Access;
+using Endatix.Core.Authorization.Access.Contracts;
 using Endatix.Core.Infrastructure.Caching;
 using FastEndpoints;
 using FluentValidation;
