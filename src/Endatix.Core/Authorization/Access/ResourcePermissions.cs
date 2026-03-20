@@ -63,6 +63,11 @@ public static class ResourcePermissions
             public static IReadOnlyCollection<string> ViewOnly => [View, ViewFiles];
 
             /// <summary>
+            /// Permissions required to create a new submission
+            /// </summary>
+            public static IReadOnlyCollection<string> CreateSubmission => [Create, UploadFile];
+
+            /// <summary>
             /// Permissions required to fill in an existing submission
             /// </summary>
             public static IReadOnlyCollection<string> FillInSubmission => [View, ViewFiles, DeleteFile, UploadFile];
