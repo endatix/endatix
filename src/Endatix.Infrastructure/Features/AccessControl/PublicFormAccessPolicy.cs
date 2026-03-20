@@ -142,19 +142,16 @@ public sealed class PublicFormAccessPolicy(
         return Result.Success(new AccessPolicyRoute($"ac:form:{formId}:token:{token}", dynamicTtl, RouteType.AccessToken, Claims: claims));
     }
 
-    private async Task<Result<PublicFormAccessData>> ExecuteAccessRouteAsync(PublicFormAccessContext context, AccessPolicyRoute route, CancellationToken ct)
+    private async Task<Result<PublicFormAccessData>> ExecuteAccessRouteAsync(PublicFormAccessContext context, AccessPolicyRoute route, CancellationToken ct) => route.Type switch
     {
-        return route.Type switch
-        {
-            RouteType.PublicForm => BuildPublicFormAccessData(context.FormId),
-            RouteType.PrivateForm => BuildPrivateFormAccessData(context.FormId, route.AuthData!),
-            RouteType.AccessToken => await BuildAccessTokenDataAsync(context.FormId, route.Claims!, ct),
-            RouteType.SubmissionToken => await BuildSubmissionTokenDataAsync(context, route, ct),
-            _ => Result.Error("Unknown route type")
-        };
-    }
+        RouteType.PublicForm => BuildPublicFormAccessData(context.FormId),
+        RouteType.PrivateForm => BuildPrivateFormAccessData(context.FormId, route.AuthData!),
+        RouteType.AccessToken => await BuildAccessTokenDataAsync(context.FormId, route.Claims!, ct),
+        RouteType.SubmissionToken => await BuildSubmissionTokenDataAsync(context, route, ct),
+        _ => Result.Error("Unknown route type")
+    };
 
-    private Result<PublicFormAccessData> BuildPrivateFormAccessData(long formId, AuthorizationData? authData)
+    private static Result<PublicFormAccessData> BuildPrivateFormAccessData(long formId, AuthorizationData? authData)
     {
         var canAccessFormResult = CanAccessForm(isPublic: false, authData);
         if (!canAccessFormResult.IsSuccess)
@@ -165,10 +162,7 @@ public sealed class PublicFormAccessPolicy(
         return BuildPublicFormAccessData(formId);
     }
 
-    private static Result<PublicFormAccessData> BuildPublicFormAccessData(long formId)
-    {
-        return Result.Success(PublicFormAccessData.CreatePublicForm(formId));
-    }
+    private static Result<PublicFormAccessData> BuildPublicFormAccessData(long formId) => Result.Success(PublicFormAccessData.CreatePublicForm(formId));
 
     private async Task<Result<PublicFormAccessData>> BuildAccessTokenDataAsync(
         long formId,

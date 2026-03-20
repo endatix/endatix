@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -34,29 +35,18 @@ public sealed class SubmissionAccessPolicyTests
     private void SetupCacheMiss()
     {
         _cache
-            .GetOrCreateAsync<object, Cached<SubmissionAccessData>>(
+            .GetOrCreateAsync<ICachedData<SubmissionAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>(),
-                Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
-                Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                var factory = callInfo.Arg<Func<object, CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>();
-                var ct = callInfo.Arg<CancellationToken>();
-                var state = callInfo.Arg<object>();
-                return factory(state, ct);
-            });
-
-        _cache
-            .SetAsync(
-                Arg.Any<string>(),
-                Arg.Any<Cached<SubmissionAccessData>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<SubmissionAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(ValueTask.CompletedTask);
+            .Returns(callInfo =>
+            {
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<SubmissionAccessData>>>>();
+                var ct = callInfo.Arg<CancellationToken>();
+                return factory(ct);
+            });
 
         _submissionRepository
             .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
@@ -90,18 +80,6 @@ public sealed class SubmissionAccessPolicyTests
             .GetAuthorizationDataAsync(TestContext.Current.CancellationToken)
             .Returns(Result.Success(authData));
 
-        string? capturedCacheKey = null;
-        HybridCacheEntryOptions? capturedOptions = null;
-
-        _cache
-            .SetAsync(
-                Arg.Do<string>(k => capturedCacheKey = k),
-                Arg.Any<Cached<SubmissionAccessData>>(),
-                Arg.Do<HybridCacheEntryOptions?>(o => capturedOptions = o),
-                Arg.Any<IEnumerable<string>?>(),
-                Arg.Any<CancellationToken>())
-            .Returns(ValueTask.CompletedTask);
-
         var expectedTtl = authData.ComputeAuthTtl(utcNow);
         var expectedExpiresAt = utcNow.Add(expectedTtl);
         var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:user:{userId}";
@@ -116,9 +94,12 @@ public sealed class SubmissionAccessPolicyTests
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.EditSubmission);
         result.Value.ExpiresAt.Should().Be(expectedExpiresAt);
 
-        capturedCacheKey.Should().Be(expectedCacheKey);
-        capturedOptions.Should().NotBeNull();
-        capturedOptions!.Expiration.Should().Be(expectedTtl);
+        await _cache.Received(1).GetOrCreateAsync<ICachedData<SubmissionAccessData>>(
+            expectedCacheKey,
+            Arg.Any<Func<CancellationToken, ValueTask<ICachedData<SubmissionAccessData>>>>(),
+            Arg.Is<HybridCacheEntryOptions>(o => o != null && o.Expiration == expectedTtl),
+            Arg.Any<IEnumerable<string>?>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -160,10 +141,10 @@ public sealed class SubmissionAccessPolicyTests
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.ViewOnly);
         result.Value.ExpiresAt.Should().Be(utcNow.Add(expectedTtl));
 
-        await _cache.Received(1).SetAsync(
+        await _cache.Received(1).GetOrCreateAsync<ICachedData<SubmissionAccessData>>(
             expectedCacheKey,
-            Arg.Any<Cached<SubmissionAccessData>>(),
-            Arg.Any<HybridCacheEntryOptions?>(),
+            Arg.Any<Func<CancellationToken, ValueTask<ICachedData<SubmissionAccessData>>>>(),
+            Arg.Is<HybridCacheEntryOptions>(o => o != null && o.Expiration == expectedTtl),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
     }
@@ -207,10 +188,10 @@ public sealed class SubmissionAccessPolicyTests
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.EditSubmission);
         result.Value.ExpiresAt.Should().Be(utcNow.Add(expectedTtl));
 
-        await _cache.Received(1).SetAsync(
+        await _cache.Received(1).GetOrCreateAsync<ICachedData<SubmissionAccessData>>(
             expectedCacheKey,
-            Arg.Any<Cached<SubmissionAccessData>>(),
-            Arg.Any<HybridCacheEntryOptions?>(),
+            Arg.Any<Func<CancellationToken, ValueTask<ICachedData<SubmissionAccessData>>>>(),
+            Arg.Is<HybridCacheEntryOptions>(o => o != null && o.Expiration == expectedTtl),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
     }
@@ -247,6 +228,7 @@ public sealed class SubmissionAccessPolicyTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
+        result.IsForbidden().Should().BeTrue();
         result.Errors.Should().Contain("You are not authorized to access this submission.");
 
         await _cache.DidNotReceive().SetAsync(
@@ -274,6 +256,7 @@ public sealed class SubmissionAccessPolicyTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
+        result.IsError().Should().BeTrue();
         result.Errors.Should().Contain("Authorization service unavailable");
 
         await _cache.DidNotReceive().SetAsync(
@@ -285,7 +268,7 @@ public sealed class SubmissionAccessPolicyTests
     }
 
     [Fact]
-    public async Task GetAccessDataAsync_ForbiddenForAnonymousUser_ReturnsForbidden_AndDoesNotCache()
+    public async Task GetAccessDataAsync_UnauthorizedForAnonymousUser_ReturnsUnauthorized_AndDoesNotCache()
     {
         // Arrange
         var formId = 10L;
@@ -307,6 +290,7 @@ public sealed class SubmissionAccessPolicyTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
+        result.IsUnauthorized().Should().BeTrue();
         result.Errors.Should().Contain("You are not authorized to access this submission.");
 
         await _cache.DidNotReceive().SetAsync(

@@ -8,7 +8,7 @@ namespace Endatix.Infrastructure.Caching;
 /// Initializes a new instance of the <see cref="FailedResultException{T}"/> class.
 /// </remarks>
 /// <param name="result">The result that caused the exception.</param>
-internal sealed class FailedResultException<T>(Endatix.Core.Infrastructure.Result.Result<T> result) : Exception("Cached factory returned unsuccessful result.")
+public sealed class FailedResultException<T>(Endatix.Core.Infrastructure.Result.Result<T> result) : Exception("Cached factory returned unsuccessful result.")
 {
     /// <summary>
     /// The result that caused the exception.
