@@ -74,7 +74,7 @@ public sealed class GetFormTemplateAccessValidator : Validator<GetFormTemplateAc
 /// </summary>
 public sealed record GetFormTemplateAccessResponse(
     string TemplateId,
-    HashSet<string> Permissions,
+    IReadOnlySet<string> Permissions,
     DateTime CachedAt,
     DateTime ExpiresAt,
     string ETag
@@ -83,7 +83,7 @@ public sealed record GetFormTemplateAccessResponse(
     /// <summary>
     /// Creates a new instance of the <see cref="GetFormTemplateAccessResponse"/> from a cached <see cref="FormTemplateAccessData"/>.
     /// </summary>
-    public static GetFormTemplateAccessResponse FromCached(Cached<FormTemplateAccessData> cached)
+    public static GetFormTemplateAccessResponse FromCached(ICachedData<FormTemplateAccessData> cached)
         => new(cached.Data.TemplateId, cached.Data.Permissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
 }
 

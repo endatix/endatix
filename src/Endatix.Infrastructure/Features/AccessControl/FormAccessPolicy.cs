@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -16,14 +17,14 @@ public sealed class FormAccessPolicy(
     IDateTimeProvider dateTimeProvider
 ) : IResourceAccessQuery<FormAccessData, FormAccessContext>
 {
-    public async Task<Result<Cached<FormAccessData>>> GetAccessData(
+    public async Task<Result<ICachedData<FormAccessData>>> GetAccessData(
         FormAccessContext context,
         CancellationToken cancellationToken)
     {
         var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
         if (!identityResult.IsSuccess)
         {
-            return identityResult.ToErrorResult<Cached<FormAccessData>>();
+            return identityResult.ToErrorResult<ICachedData<FormAccessData>>();
         }
 
         var authData = identityResult.Value;

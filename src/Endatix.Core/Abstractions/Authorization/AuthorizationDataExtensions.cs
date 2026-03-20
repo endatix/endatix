@@ -49,23 +49,25 @@ public static class AuthorizationDataExtensions
         return authData.Permissions.Contains(permission);
     }
 
+    /// <summary>
     /// Checks if the authorization data has expired based on the current UTC time.
     /// </summary>
     /// <param name="permissions">The permissions to check for.</param>
     /// <returns>A dictionary of permissions and their presence in the authorization data.</returns>
     public Dictionary<string, bool> HasPermissions(IEnumerable<string> permissions)
     {
+        var uniquePermissions = permissions.Distinct().ToArray();
         if (authData is null)
         {
-            return permissions.ToDictionary(p => p, _ => false);
+            return uniquePermissions.ToDictionary(p => p, _ => false);
         }
 
         if (authData.IsAdmin)
         {
-            return permissions.ToDictionary(p => p, _ => true);
+            return uniquePermissions.ToDictionary(p => p, _ => true);
         }
 
-        return permissions.ToDictionary(p => p, authData.Permissions.Contains);
+        return uniquePermissions.ToDictionary(p => p, authData.Permissions.Contains);
     }
 }
 }

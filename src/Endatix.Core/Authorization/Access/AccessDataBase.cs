@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace Endatix.Core.Authorization.Access;
 
 /// <summary>
@@ -5,8 +7,16 @@ namespace Endatix.Core.Authorization.Access;
 /// </summary>
 public abstract class AccessDataBase : IAccessData
 {
+    protected static readonly ImmutableHashSet<string> EmptyPermissions = ImmutableHashSet<string>.Empty;
+
+    protected static ImmutableHashSet<string> ToImmutableSet(IEnumerable<string> permissions)
+    {
+        ArgumentNullException.ThrowIfNull(permissions);
+        return permissions.ToImmutableHashSet();
+    }
+
     /// <inheritdoc/>
-    public abstract HashSet<string> Permissions { get; init; }
+    public abstract ImmutableHashSet<string> Permissions { get; init; }
 
     /// <summary>
     /// The date and time the access data expires.
@@ -15,19 +25,13 @@ public abstract class AccessDataBase : IAccessData
 
     /// <inheritdoc/>
     public bool Has(string permission)
-    {
-        return Permissions.Contains(permission);
-    }
+        => Permissions.Contains(permission);
 
     /// <inheritdoc/>
     public bool HasAny(IEnumerable<string> permissions)
-    {
-        return permissions.Any(Has);
-    }
+        => permissions.Any(Has);
 
     /// <inheritdoc/>
     public bool HasAll(IEnumerable<string> permissions)
-    {
-        return permissions.All(Has);
-    }
+        => permissions.All(Has);
 }

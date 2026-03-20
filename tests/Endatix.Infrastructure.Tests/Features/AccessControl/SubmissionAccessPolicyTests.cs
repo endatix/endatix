@@ -1,7 +1,10 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -12,6 +15,7 @@ namespace Endatix.Infrastructure.Tests.Features.AccessControl;
 public sealed class SubmissionAccessPolicyTests
 {
     private readonly ICurrentUserAuthorizationService _authorizationService;
+    private readonly IRepository<Submission> _submissionRepository;
     private readonly HybridCache _cache;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly SubmissionAccessPolicy _policy;
@@ -19,10 +23,11 @@ public sealed class SubmissionAccessPolicyTests
     public SubmissionAccessPolicyTests()
     {
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
+        _submissionRepository = Substitute.For<IRepository<Submission>>();
         _cache = Substitute.For<HybridCache>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
 
-        _policy = new SubmissionAccessPolicy(_authorizationService, _cache, _dateTimeProvider);
+        _policy = new SubmissionAccessPolicy(_authorizationService, _submissionRepository, _cache, _dateTimeProvider);
         SetupCacheMiss();
     }
 
@@ -52,6 +57,10 @@ public sealed class SubmissionAccessPolicyTests
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(ValueTask.CompletedTask);
+
+        _submissionRepository
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
     }
 
     [Fact]

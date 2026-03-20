@@ -1,4 +1,4 @@
-# Access Boundry: Auth vs Access endpoints
+# Access Boundary: Auth vs Access endpoints
 
 ## `Endpoints/Auth/*`
 

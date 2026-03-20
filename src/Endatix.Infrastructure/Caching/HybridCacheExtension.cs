@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Caching.Hybrid;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Infrastructure;
 
 namespace Endatix.Infrastructure.Caching;
 
@@ -28,14 +29,11 @@ internal static class HybridCacheExtensions
     /// This relies on <see cref="HybridCacheEntryFlags.DisableUnderlyingData"/> so HybridCache becomes effectively "read-only".
     /// </remarks>
     public static async Task<T?> GetOrDefaultAsync<T>(this HybridCache cache, string key, CancellationToken cancellationToken)
-        where T : class
-    {
-        return await cache.GetOrCreateAsync(
+        where T : class => await cache.GetOrCreateAsync(
             key,
             _ => ValueTask.FromResult<T?>(null),
             _disableCreateFactoryOptions,
             cancellationToken: cancellationToken);
-    }
 
     /// <summary>
     /// Gets a cached value if it exists; otherwise invokes the factory and caches only if the result is successful.
@@ -56,20 +54,30 @@ internal static class HybridCacheExtensions
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var (exists, cachedValue) = await cache.TryGetValueAsync<T>(key, cancellationToken);
-        if (exists)
+        try
         {
-            return Result.Success(cachedValue!);
-        }
+            var cachedOrCreated = await cache.GetOrCreateAsync(
+                key,
+                async ct =>
+                {
+                    var result = await factory(ct);
+                    if (!result.IsSuccess)
+                    {
+                        throw new FailedResultException<T>(result);
+                    }
 
-        var result = await factory(cancellationToken);
-        if (!result.IsSuccess)
+                    return result.Value;
+                },
+                options,
+                tags,
+                cancellationToken);
+
+            return Result.Success(cachedOrCreated);
+        }
+        catch (FailedResultException<T> ex)
         {
-            return result;
+            return ex.Result;
         }
-
-        await cache.SetAsync(key, result.Value, options, tags, cancellationToken);
-        return result;
     }
 
     /// <summary>
@@ -85,7 +93,7 @@ internal static class HybridCacheExtensions
     /// <returns>The cached or newly created result.</returns>
     /// </summary>
     /// <typeparam name="T">The type of the value of the item in the cache.</typeparam>
-    public static async Task<Result<Cached<T>>> GetOrCreateCachedResultAsync<T>(
+    public static async Task<Result<ICachedData<T>>> GetOrCreateCachedResultAsync<T>(
         this HybridCache cache,
         string key,
         Func<CancellationToken, Task<Result<T>>> factory,
@@ -95,28 +103,30 @@ internal static class HybridCacheExtensions
         CancellationToken cancellationToken = default)
         where T : class
     {
-        var (exists, cachedEnvelope) = await cache.TryGetValueAsync<Cached<T>>(key, cancellationToken);
-        if (exists && cachedEnvelope is not null)
+        try
         {
-            return Result.Success(cachedEnvelope);
-        }
+            var cachedOrCreated = await cache.GetOrCreateAsync(
+                key,
+                async ct =>
+                {
+                    var result = await factory(ct);
+                    if (!result.IsSuccess)
+                    {
+                        throw new FailedResultException<T>(result);
+                    }
 
-        var result = await factory(cancellationToken);
-        if (!result.IsSuccess)
+                    return Cached<T>.Create(result.Value, utcNow, ttl);
+                },
+                new HybridCacheEntryOptions { Expiration = ttl },
+                tags,
+                cancellationToken);
+
+            return Result.Success(cachedOrCreated);
+        }
+        catch (FailedResultException<T> ex)
         {
-            return result.ToErrorResult<Cached<T>>();
+            return ex.Result.ToErrorResult<ICachedData<T>>();
         }
-
-        var cachedData = Cached<T>.Create(result.Value, utcNow, ttl);
-
-        await cache.SetAsync(
-            key,
-            cachedData,
-            new HybridCacheEntryOptions { Expiration = ttl },
-            tags,
-            cancellationToken);
-
-        return Result.Success(cachedData);
     }
 
     /// <summary>

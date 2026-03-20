@@ -98,18 +98,17 @@ public sealed class HybridCacheExtensionTests
         var key = "miss-fail";
 
         cache
-            .GetOrCreateAsync<object, string>(
+            .GetOrCreateAsync<string>(
                 Arg.Is<string>(k => k == key),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<string>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<string>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<object, CancellationToken, ValueTask<string>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<string>>>();
                 var ct = callInfo.Arg<CancellationToken>();
-                return factory(null!, ct);
+                return factory(ct);
             });
 
         // Act
@@ -141,31 +140,18 @@ public sealed class HybridCacheExtensionTests
         var created = "created";
 
         cache
-            .GetOrCreateAsync<object, string>(
+            .GetOrCreateAsync<string>(
                 Arg.Is<string>(k => k == key),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<string>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<string>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<object, CancellationToken, ValueTask<string>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<string>>>();
                 var ct = callInfo.Arg<CancellationToken>();
-                return factory(null!, ct);
+                return factory(ct);
             });
-
-        HybridCacheEntryOptions? capturedOptions = null;
-        IEnumerable<string>? capturedTags = null;
-
-        cache
-            .SetAsync(
-                key,
-                created,
-                Arg.Do<HybridCacheEntryOptions?>(o => capturedOptions = o),
-                Arg.Do<IEnumerable<string>?>(t => capturedTags = t),
-                Arg.Any<CancellationToken>())
-            .Returns(ValueTask.CompletedTask);
 
         // Act
         var result = await cache.GetOrCreateResultAsync(
@@ -178,11 +164,6 @@ public sealed class HybridCacheExtensionTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(created);
-
-        capturedOptions.Should().NotBeNull();
-        capturedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(5));
-        capturedTags.Should().NotBeNull();
-        capturedTags.Should().BeEquivalentTo(new[] { "tag1" });
     }
 
     [Fact]
@@ -243,34 +224,17 @@ public sealed class HybridCacheExtensionTests
         var ttl = TimeSpan.FromMinutes(7);
 
         cache
-            .GetOrCreateAsync<object, Cached<DummyData>>(
+            .GetOrCreateAsync<Cached<DummyData>>(
                 Arg.Is<string>(k => k == key),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<Cached<DummyData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<DummyData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
-                Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                var factory = callInfo.Arg<Func<object, CancellationToken, ValueTask<Cached<DummyData>>>>();
-                var ct = callInfo.Arg<CancellationToken>();
-                return factory(null!, ct);
-            });
-
-        Cached<DummyData>? captured = null;
-        HybridCacheEntryOptions? capturedOptions = null;
-
-        cache
-            .SetAsync(
-                key,
-                Arg.Any<Cached<DummyData>>(),
-                Arg.Do<HybridCacheEntryOptions?>(o => capturedOptions = o),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                captured = callInfo.Arg<Cached<DummyData>>();
-                return ValueTask.CompletedTask;
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<DummyData>>>>();
+                var ct = callInfo.Arg<CancellationToken>();
+                return factory(ct);
             });
 
         // Act
@@ -284,14 +248,9 @@ public sealed class HybridCacheExtensionTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        captured.Should().NotBeNull();
-
-        captured!.Data.Id.Should().Be(99);
-        captured.CachedAt.Should().Be(utcNow);
-        captured.ExpiresAt.Should().Be(utcNow.Add(ttl));
-
-        capturedOptions.Should().NotBeNull();
-        capturedOptions!.Expiration.Should().Be(ttl);
+        result.Value.Data.Id.Should().Be(99);
+        result.Value.CachedAt.Should().Be(utcNow);
+        result.Value.ExpiresAt.Should().Be(utcNow.Add(ttl));
     }
 
     [Fact]

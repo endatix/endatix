@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace Endatix.Core.Authorization.Access;
 
 /// <summary>
@@ -9,7 +11,7 @@ public interface IAccessData
     /// The permissions associated with the access data.
     /// They are used to provide a list of permissions that the user has access to for that resource.
     /// </summary>
-    HashSet<string> Permissions { get; }
+    ImmutableHashSet<string> Permissions { get; }
 
     /// <summary>
     /// Checks if the specific permission is present.

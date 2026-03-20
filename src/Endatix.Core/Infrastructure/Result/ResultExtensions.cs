@@ -1,33 +1,31 @@
 namespace Endatix.Core.Infrastructure.Result;
 
+/// <summary>
+/// Extension methods for the Result class.
+/// </summary>
 public static class ResultExtensions
 {
     /// <summary>
     /// Transforms a Result's type from a source type to a destination type. If the Result is successful, the func parameter is invoked on the Result's source value to map it to a destination type.
     /// </summary>
-    /// <typeparam name="TSource"></typeparam>
-    /// <typeparam name="TDestination"></typeparam>
-    /// <param name="result"></param>
-    /// <param name="func"></param>
-    /// <returns></returns>
-    /// <exception cref="NotSupportedException"></exception>
+    /// <typeparam name="TSource">The source type.</typeparam>
+    /// <typeparam name="TDestination">The destination type.</typeparam>
+    /// <param name="result">The result to map.</param>
+    /// <param name="func">The function to map the result.</param>
+    /// <returns>The mapped result.</returns>
     public static Result<TDestination> Map<TSource, TDestination>(this Result<TSource> result, Func<TSource, TDestination> func)
     {
         if (result.IsSuccess)
         {
-            switch (result.Status)
+            return result.Status switch
             {
-                case ResultStatus.Ok:
-                    return func(result.Value);
-                case ResultStatus.Created:
-                    return string.IsNullOrEmpty(result.Location)
-                        ? Result<TDestination>.Created(func(result.Value))
-                        : Result<TDestination>.Created(func(result.Value), result.Location);
-                case ResultStatus.NoContent:
-                    return Result<TDestination>.NoContent();
-                default:
-                    throw new NotSupportedException($"Result {result.Status} conversion is not supported.");
-            }
+                ResultStatus.Ok => (Result<TDestination>)func(result.Value),
+                ResultStatus.Created => string.IsNullOrEmpty(result.Location)
+                                        ? Result<TDestination>.Created(func(result.Value))
+                                        : Result<TDestination>.Created(func(result.Value), result.Location),
+                ResultStatus.NoContent => Result<TDestination>.NoContent(),
+                _ => throw new NotSupportedException($"Result {result.Status} conversion is not supported."),
+            };
         }
 
         return result.ToErrorResult<TDestination>();
@@ -60,38 +58,34 @@ public static class ResultExtensions
         ResultStatus status,
         IEnumerable<string> errors,
         IEnumerable<ValidationError> validationErrors,
-        string correlationId)
-    {
-        switch (status)
+        string correlationId) => status switch
         {
-            case ResultStatus.NotFound:
-                return errors.Any()
-                    ? Result<TDestination>.NotFound(errors.ToArray())
-                    : Result<TDestination>.NotFound();
-            case ResultStatus.Unauthorized:
-                return errors.Any()
-                                    ? Result<TDestination>.Unauthorized(errors.ToArray())
-                                    : Result<TDestination>.Unauthorized();
-            case ResultStatus.Forbidden:
-                return errors.Any()
-                                    ? Result<TDestination>.Forbidden(errors.ToArray())
-                                    : Result<TDestination>.Forbidden();
-            case ResultStatus.Invalid:
-                return Result<TDestination>.Invalid(validationErrors);
-            case ResultStatus.Error:
-                return Result<TDestination>.Error(new ErrorList(errors.ToArray(), correlationId));
-            case ResultStatus.Conflict:
-                return errors.Any()
-                                    ? Result<TDestination>.Conflict(errors.ToArray())
-                                    : Result<TDestination>.Conflict();
-            case ResultStatus.CriticalError:
-                return Result<TDestination>.CriticalError(errors.ToArray());
-            case ResultStatus.Unavailable:
-                return Result<TDestination>.Unavailable(errors.ToArray());
-            default:
-                throw new NotSupportedException($"Result {status} conversion is not supported.");
-        }
-    }
+            ResultStatus.NotFound => errors.Any()
+                                ? Result<TDestination>.NotFound([.. errors])
+                                : Result<TDestination>.NotFound(),
+            ResultStatus.Unauthorized => errors.Any()
+                                ? Result<TDestination>.Unauthorized([.. errors])
+                                : Result<TDestination>.Unauthorized(),
+            ResultStatus.Forbidden => errors.Any()
+                                ? Result<TDestination>.Forbidden([.. errors])
+                                : Result<TDestination>.Forbidden(),
+            ResultStatus.Invalid => validationErrors.Any()
+                                ? Result<TDestination>.Invalid([.. validationErrors])
+                                : Result<TDestination>.Invalid(),
+            ResultStatus.Error => errors.Any()
+                                ? Result<TDestination>.Error(new ErrorList([.. errors], correlationId))
+                                : Result<TDestination>.Error(new ErrorList([], correlationId)),
+            ResultStatus.Conflict => errors.Any()
+                                ? Result<TDestination>.Conflict([.. errors])
+                                : Result<TDestination>.Conflict(),
+            ResultStatus.CriticalError => errors.Any()
+                                ? Result<TDestination>.CriticalError([.. errors])
+                                : Result<TDestination>.CriticalError(),
+            ResultStatus.Unavailable => errors.Any()
+                                ? Result<TDestination>.Unavailable([.. errors])
+                                : Result<TDestination>.Unavailable(),
+            _ => throw new NotSupportedException($"Result {status} conversion is not supported."),
+        };
 
     private static string TryGetCorrelationId(IResult result)
     {

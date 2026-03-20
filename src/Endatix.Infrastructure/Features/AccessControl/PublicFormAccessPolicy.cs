@@ -4,6 +4,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -18,6 +19,7 @@ namespace Endatix.Infrastructure.Features.AccessControl;
 /// </summary>
 public sealed class PublicFormAccessPolicy(
     IRepository<Form> formRepository,
+    IRepository<Submission> submissionRepository,
     ISubmissionTokenService tokenService,
     ISubmissionAccessTokenService accessTokenService,
     ICurrentUserAuthorizationService authorizationService,
@@ -33,14 +35,14 @@ public sealed class PublicFormAccessPolicy(
     private const string FORBIDDEN_MESSAGE = "You are not allowed to access this form";
 
     /// <inheritdoc/>
-    public async Task<Result<Cached<PublicFormAccessData>>> GetAccessData(
+    public async Task<Result<ICachedData<PublicFormAccessData>>> GetAccessData(
         PublicFormAccessContext context,
         CancellationToken cancellationToken)
     {
         var routeResult = await DetermineAccessRouteAsync(context, cancellationToken);
         if (!routeResult.IsSuccess)
         {
-            return routeResult.ToErrorResult<Cached<PublicFormAccessData>>();
+            return routeResult.ToErrorResult<ICachedData<PublicFormAccessData>>();
         }
 
         var accessRoute = routeResult.Value;
@@ -65,7 +67,7 @@ public sealed class PublicFormAccessPolicy(
         }
         if (hasToken && context.TokenType == SubmissionTokenType.AccessToken)
         {
-            return ResolveAccessTokenRoute(context.Token!);
+            return ResolveAccessTokenRoute(context.FormId, context.Token!);
         }
 
         var isFormPublicResult = await IsFormPublicAsync(context.FormId, cancellationToken);
@@ -80,7 +82,7 @@ public sealed class PublicFormAccessPolicy(
         if (isPublic)
         {
             return hasSubmissionToken
-            ? ResolveSubmissionTokenRoute(context.Token!, isPublic: true, authData: null)
+            ? ResolveSubmissionTokenRoute(context.FormId, context.Token!, isPublic: true, authData: null)
             : ResolveFormOnlyRoute(context.FormId, isPublic: true);
         }
 
@@ -92,7 +94,7 @@ public sealed class PublicFormAccessPolicy(
 
         var authData = authDataResult.Value;
         return hasSubmissionToken
-        ? ResolveSubmissionTokenRoute(context.Token!, isPublic: false, authData: authData)
+        ? ResolveSubmissionTokenRoute(context.FormId, context.Token!, isPublic: false, authData: authData)
         : ResolveFormOnlyRoute(context.FormId, isPublic: false, authData: authData);
     }
 
@@ -117,15 +119,15 @@ public sealed class PublicFormAccessPolicy(
                 AuthData: authData));
     }
 
-    private Result<AccessPolicyRoute> ResolveSubmissionTokenRoute(string token, bool isPublic, AuthorizationData? authData = null) => Result.Success(new AccessPolicyRoute(
-                $"ac:sub_token:{token}:userId:{authData?.UserId ?? AuthorizationData.ANONYMOUS_USER_ID}",
-                authData.ComputeAuthTtl(dateTimeProvider.Now.UtcDateTime),
+    private Result<AccessPolicyRoute> ResolveSubmissionTokenRoute(long formId, string token, bool isPublic, AuthorizationData? authData = null) => Result.Success(new AccessPolicyRoute(
+                $"ac:sub_token:form:{formId}:token:{token}:userId:{authData?.UserId ?? AuthorizationData.ANONYMOUS_USER_ID}",
+                authData is not null ? authData.ComputeAuthTtl(dateTimeProvider.Now.UtcDateTime) : _defaultTtl,
                 RouteType.SubmissionToken,
                 IsPublic: isPublic,
                 AuthData: authData)
                 );
 
-    private Result<AccessPolicyRoute> ResolveAccessTokenRoute(string token)
+    private Result<AccessPolicyRoute> ResolveAccessTokenRoute(long formId, string token)
     {
         var accessResult = accessTokenService.ValidateAccessToken(token);
         if (!accessResult.IsSuccess)
@@ -137,7 +139,7 @@ public sealed class PublicFormAccessPolicy(
         var tokenSafeExpirationTtl = (claims.ExpiresAt - dateTimeProvider.Now.UtcDateTime).TotalSeconds;
         var dynamicTtl = TimeSpan.FromSeconds(Math.Max(_immediateTtl.TotalSeconds, tokenSafeExpirationTtl));
 
-        return Result.Success(new AccessPolicyRoute($"ac:form:token:{token}", dynamicTtl, RouteType.AccessToken, Claims: claims));
+        return Result.Success(new AccessPolicyRoute($"ac:form:{formId}:token:{token}", dynamicTtl, RouteType.AccessToken, Claims: claims));
     }
 
     private async Task<Result<PublicFormAccessData>> ExecuteAccessRouteAsync(PublicFormAccessContext context, AccessPolicyRoute route, CancellationToken ct)
@@ -146,7 +148,7 @@ public sealed class PublicFormAccessPolicy(
         {
             RouteType.PublicForm => BuildPublicFormAccessData(context.FormId),
             RouteType.PrivateForm => BuildPrivateFormAccessData(context.FormId, route.AuthData!),
-            RouteType.AccessToken => Result.Success(BuildAccessTokenData(context.FormId, route.Claims!)),
+            RouteType.AccessToken => await BuildAccessTokenDataAsync(context.FormId, route.Claims!, ct),
             RouteType.SubmissionToken => await BuildSubmissionTokenDataAsync(context, route, ct),
             _ => Result.Error("Unknown route type")
         };
@@ -168,9 +170,18 @@ public sealed class PublicFormAccessPolicy(
         return Result.Success(PublicFormAccessData.CreatePublicForm(formId));
     }
 
-    private static PublicFormAccessData BuildAccessTokenData(long formId, SubmissionAccessTokenClaims claims)
+    private async Task<Result<PublicFormAccessData>> BuildAccessTokenDataAsync(
+        long formId,
+        SubmissionAccessTokenClaims claims,
+        CancellationToken cancellationToken)
     {
-        return PublicFormAccessData.CreateWithAccessTokenClaims(formId, claims);
+        var relationResult = await ValidateSubmissionRelationAsync(formId, claims.SubmissionId, cancellationToken);
+        if (!relationResult.IsSuccess)
+        {
+            return relationResult.ToErrorResult<PublicFormAccessData>();
+        }
+
+        return Result.Success(PublicFormAccessData.CreateWithAccessTokenClaims(formId, claims));
     }
 
     private async Task<Result<PublicFormAccessData>> BuildSubmissionTokenDataAsync(PublicFormAccessContext context, AccessPolicyRoute route, CancellationToken cancellationToken)
@@ -187,22 +198,37 @@ public sealed class PublicFormAccessPolicy(
             return canAccessFormResult.ToErrorResult<PublicFormAccessData>();
         }
 
+        var relationResult = await ValidateSubmissionRelationAsync(context.FormId, tokenResult.Value, cancellationToken);
+        if (!relationResult.IsSuccess)
+        {
+            return relationResult.ToErrorResult<PublicFormAccessData>();
+        }
+
         return Result.Success(PublicFormAccessData.CreateWithSubmissionToken(context.FormId, tokenResult.Value));
     }
 
-    private async Task<Result<bool>> IsFormPublicAsync(long formId, CancellationToken cancellationToken)
+    private async Task<Result<bool>> ValidateSubmissionRelationAsync(
+        long formId,
+        long submissionId,
+        CancellationToken cancellationToken)
     {
-        return await cache.GetOrCreateResultAsync(
+        var spec = new SubmissionByFormIdAndSubmissionIdSpec(formId, submissionId);
+        var relationExists = await submissionRepository.AnyAsync(spec, cancellationToken);
+        return relationExists
+            ? Result.Success(true)
+            : Result.NotFound("Submission not found");
+    }
+
+    private async Task<Result<bool>> IsFormPublicAsync(long formId, CancellationToken cancellationToken) => await cache.GetOrCreateResultAsync(
             $"meta:form:is_public:{formId}",
             ct => IsFormPublicFromDbAsync(formId, ct),
             new HybridCacheEntryOptions { Expiration = _formMetadataTtl },
             tags: [$"form:{formId}"],
             cancellationToken: cancellationToken);
-    }
 
     private async Task<Result<bool>> IsFormPublicFromDbAsync(long formId, CancellationToken cancellationToken)
     {
-        var spec = new FormSpecifications.ById(formId).WithProjectionOf(new FormProjections.IsPublicDtoSpec());
+        var spec = new FormProjections.IsPublicDtoSpec(formId);
         var formDto = await formRepository.FirstOrDefaultAsync(spec, cancellationToken);
 
         return formDto is not null ? Result.Success(formDto.IsPublic) : Result.NotFound("Form not found");

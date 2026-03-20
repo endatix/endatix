@@ -1,6 +1,7 @@
 # Endatix OSS - Agent Instructions
 
 ## 1. Architecture stance
+
 Use practical Vertical Slices inside Clean Architecture.
 
 * Keep the project boundaries: `Endatix.Api`, `Endatix.Core`, `Endatix.Infrastructure`.
@@ -10,12 +11,13 @@ Use practical Vertical Slices inside Clean Architecture.
   * `Endatix.Core/Authorization/Access/...`
   * `Endatix.Infrastructure/Features/AccessControl/...`
 
-## 2. CQRS: write strict, read fast
+
 * **Commands/Writes:** enforce invariants through Core use cases/domain.
 * **Queries/Reads:** for single-slice read models, API endpoints may depend directly on Infrastructure query services.
 * Use MediatR where it adds real value (cross-slice orchestration, reusable flows), not as mandatory ceremony.
 
 ## 3. Anti-fake-abstraction rules
+
 Avoid creating abstractions that exist only to satisfy layering.
 
 * Do not introduce Core interfaces for a read-only path with a single implementation and single consumer.
@@ -23,6 +25,7 @@ Avoid creating abstractions that exist only to satisfy layering.
 * Move contracts to Core only when they represent stable domain policy or need multiple implementations/reuse.
 
 ## 4. Access feature conventions
+
 * Treat Access as its own feature umbrella for now.
 * Keep shared access types under `Core/Authorization/Access`:
   * contexts
@@ -34,6 +37,7 @@ Avoid creating abstractions that exist only to satisfy layering.
   * mapping/caching orchestration
 
 ## 5. Naming and testing
+
 * Endpoint, validator, and test names must describe the exact access mode (`Public`, `Management`, etc.).
 * Follow AAA in tests with explicit `Arrange`, `Act`, `Assert` sections.
 * Prefer integration tests for endpoint behavior and focused unit tests for access policy/query logic.

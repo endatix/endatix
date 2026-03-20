@@ -18,7 +18,7 @@ public sealed record Cached<T> : ICachedData<T> where T : class
     {
         Guard.Against.Expression(dateTime => dateTime.Kind != DateTimeKind.Utc, cachedAt, "cachedAt must be in UTC");
         Guard.Against.Expression(dateTime => dateTime.Kind != DateTimeKind.Utc, expiresAt, "expiresAt must be in UTC");
-        Guard.Against.Expression(_ => expiresAt < cachedAt, cachedAt, "expiresAt must be greater than or equal to cachedAt");
+        Guard.Against.Expression(_ => expiresAt < cachedAt, expiresAt, "expiresAt must be greater than or equal to cachedAt");
         Guard.Against.Null(data);
 
         Data = data;
@@ -63,5 +63,5 @@ public sealed record Cached<T> : ICachedData<T> where T : class
         return utcNow > ExpiresAt;
     }
 
-    public static Cached<T> Create(T data, DateTime utcNow, TimeSpan ttl, string? etag = null) => new(data, utcNow, ttl, etag);
+    public static ICachedData<T> Create(T data, DateTime utcNow, TimeSpan ttl, string? etag = null) => new Cached<T>(data, utcNow, ttl, etag);
 }

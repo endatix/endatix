@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Endatix.Api.Endpoints.Access;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure.Result;
@@ -36,7 +37,7 @@ public class GetFormAccessTests
         var accessData = new FormAccessData
         {
             FormId = request.FormId.ToString(),
-            Permissions = [.. ResourcePermissions.Form.Sets.ViewForm]
+            Permissions = ResourcePermissions.Form.Sets.ViewForm.ToImmutableHashSet()
         };
 
         var cached = new Cached<FormAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");

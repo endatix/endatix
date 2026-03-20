@@ -85,7 +85,7 @@ public static class ResourcePermissions
             /// <summary>
             /// Permissions required to edit a submission
             /// </summary>
-            public static IReadOnlyCollection<string> All => [Create, View, Edit, UploadFile, DeleteFile, ViewFiles];
+            public static IReadOnlyCollection<string> All => [Create, View, Edit, UploadFile, DeleteFile, ViewFiles, Export];
         }
     }
 
@@ -125,14 +125,11 @@ public static class ResourcePermissions
     /// <summary>
     /// Gets all permissions for a given resource type.
     /// </summary>
-    public static IReadOnlyCollection<string> GetAllForResourceType(string resourceType)
+    public static IReadOnlyCollection<string> GetAllForResourceType(string resourceType) => resourceType switch
     {
-        return resourceType switch
-        {
-            ResourceTypes.Form => Form.Sets.All,
-            ResourceTypes.Submission => Submission.Sets.All,
-            ResourceTypes.Template => Template.Sets.All,
-            _ => []
-        };
-    }
+        ResourceTypes.Form => Form.Sets.All,
+        ResourceTypes.Submission => Submission.Sets.All,
+        ResourceTypes.Template => Template.Sets.All,
+        _ => []
+    };
 }

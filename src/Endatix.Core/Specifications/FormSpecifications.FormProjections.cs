@@ -3,6 +3,9 @@ using Endatix.Core.Entities;
 
 namespace Endatix.Core.Specifications;
 
+/// <summary>
+/// Projection specifications for lightweight form reads.
+/// </summary>
 public static class FormProjections
 {
     /// <summary>
@@ -10,9 +13,15 @@ public static class FormProjections
     /// </summary>
     public sealed class IsPublicDtoSpec : Specification<Form, FormDtos.IsPublicDto>
     {
-        public IsPublicDtoSpec()
+        /// <summary>
+        /// Constructor for the IsPublicDtoSpec
+        /// </summary>
+        /// <param name="formId">The id of the form to get the IsPublic property for</param>
+        public IsPublicDtoSpec(long formId)
         {
+            Query.Where(form => form.Id == formId);
             Query.Select(form => new FormDtos.IsPublicDto(form.IsPublic, form.Id));
+            Query.AsNoTracking();
         }
-    }
+    }   
 }

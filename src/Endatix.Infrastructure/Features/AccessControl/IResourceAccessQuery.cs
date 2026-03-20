@@ -1,3 +1,4 @@
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 
@@ -15,5 +16,5 @@ public interface IResourceAccessQuery<TAccessData, in TAccessContext>
     /// <summary>
     /// Gets the cached access data for the given context wrapped in an envelope.
     /// </summary>
-    Task<Result<Cached<TAccessData>>> GetAccessData(TAccessContext context, CancellationToken cancellationToken);
+    Task<Result<ICachedData<TAccessData>>> GetAccessData(TAccessContext context, CancellationToken cancellationToken);
 }

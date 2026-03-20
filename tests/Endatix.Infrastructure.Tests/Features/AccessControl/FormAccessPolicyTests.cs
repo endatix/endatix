@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
@@ -311,7 +312,7 @@ public class FormAccessPolicyTests
         var cachedData = new FormAccessData
         {
             FormId = formId.ToString(),
-            Permissions = [.. ResourcePermissions.Form.Sets.ViewForm]
+            Permissions = ResourcePermissions.Form.Sets.ViewForm.ToImmutableHashSet()
         };
         var cachedEnvelope = Cached<FormAccessData>.Create(cachedData, _dateTimeProvider.Now.UtcDateTime, TimeSpan.FromMinutes(10));
 

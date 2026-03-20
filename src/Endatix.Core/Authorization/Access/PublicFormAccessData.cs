@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json.Serialization;
 using Endatix.Core.Abstractions.Submissions;
 
@@ -8,13 +9,28 @@ namespace Endatix.Core.Authorization.Access;
 /// </summary>
 public class PublicFormAccessData : AccessDataBase
 {
+    public PublicFormAccessData() { }
+
+    private PublicFormAccessData(
+        string formId,
+        string? submissionId,
+        IEnumerable<string> formPermissions,
+        IEnumerable<string> submissionPermissions)
+    {
+        FormId = formId;
+        SubmissionId = submissionId;
+
+        var normalizedFormPermissions = ToImmutableSet(formPermissions);
+        var normalizedSubmissionPermissions = ToImmutableSet(submissionPermissions);
+
+        FormPermissions = normalizedFormPermissions;
+        SubmissionPermissions = normalizedSubmissionPermissions;
+        Permissions = ToImmutableSet(normalizedFormPermissions.Union(normalizedSubmissionPermissions));
+    }
+
     /// <inheritdoc/>
     [JsonIgnore]
-    public override HashSet<string> Permissions
-    {
-        get => FormPermissions.Union(SubmissionPermissions).ToHashSet();
-        init => _ = value;
-    }
+    public override ImmutableHashSet<string> Permissions { get; init; } = EmptyPermissions;
 
     /// <summary>
     /// The form ID this access data applies to.
@@ -29,29 +45,27 @@ public class PublicFormAccessData : AccessDataBase
     /// <summary>
     /// Permissions for the form resource.
     /// </summary>
-    public HashSet<string> FormPermissions { get; init; } = [];
+    public ImmutableHashSet<string> FormPermissions { get; init; } = EmptyPermissions;
 
     /// <summary>
     /// Permissions for the submission resource (or "new" submission when no submissionId provided).
     /// </summary>
-    public HashSet<string> SubmissionPermissions { get; init; } = [];
+    public ImmutableHashSet<string> SubmissionPermissions { get; init; } = EmptyPermissions;
 
 
-    public static PublicFormAccessData CreatePublicForm(long formId) => new()
-    {
-        FormId = formId.ToString(),
-        SubmissionId = null,
-        FormPermissions = [.. ResourcePermissions.Form.Sets.ViewForm],
-        SubmissionPermissions = [.. ResourcePermissions.Submission.Sets.CreateSubmission]
-    };
+    public static PublicFormAccessData CreatePublicForm(long formId)
+        => new(
+            formId.ToString(),
+            null,
+            ResourcePermissions.Form.Sets.ViewForm,
+            ResourcePermissions.Submission.Sets.CreateSubmission);
 
-    public static PublicFormAccessData CreateWithSubmissionToken(long formId, long submissionId) => new()
-    {
-        FormId = formId.ToString(),
-        SubmissionId = submissionId.ToString(),
-        FormPermissions = [.. ResourcePermissions.Form.Sets.ViewForm],
-        SubmissionPermissions = [.. ResourcePermissions.Submission.Sets.FillInSubmission]
-    };
+    public static PublicFormAccessData CreateWithSubmissionToken(long formId, long submissionId)
+        => new(
+            formId.ToString(),
+            submissionId.ToString(),
+            ResourcePermissions.Form.Sets.ViewForm,
+            ResourcePermissions.Submission.Sets.FillInSubmission);
 
     public static PublicFormAccessData CreateWithAccessTokenClaims(
         long formId,
@@ -74,12 +88,10 @@ public class PublicFormAccessData : AccessDataBase
             submissionPermissions.Add(ResourcePermissions.Submission.Export);
         }
 
-        return new PublicFormAccessData
-        {
-            FormId = formId.ToString(),
-            SubmissionId = claims.SubmissionId.ToString(),
-            FormPermissions = [.. ResourcePermissions.Form.Sets.ViewForm],
-            SubmissionPermissions = submissionPermissions
-        };
+        return new PublicFormAccessData(
+            formId.ToString(),
+            claims.SubmissionId.ToString(),
+            ResourcePermissions.Form.Sets.ViewForm,
+            submissionPermissions);
     }
 }

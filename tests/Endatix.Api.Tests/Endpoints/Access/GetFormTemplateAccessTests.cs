@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Endatix.Api.Endpoints.Access;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
@@ -36,7 +37,7 @@ public class GetFormTemplateAccessTests
         var accessData = new FormTemplateAccessData
         {
             TemplateId = request.TemplateId.ToString(),
-            Permissions = [.. ResourcePermissions.Template.Sets.EditTemplate]
+            Permissions = ResourcePermissions.Template.Sets.EditTemplate.ToImmutableHashSet()
         };
 
         var cached = new Cached<FormTemplateAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");

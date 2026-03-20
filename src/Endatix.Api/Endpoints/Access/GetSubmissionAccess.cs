@@ -89,8 +89,8 @@ public class GetSubmissionAccessValidator : Validator<GetSubmissionAccessRequest
 public record GetSubmissionAccessResponse(
     string FormId,
     string? SubmissionId,
-    HashSet<string> FormPermissions,
-    HashSet<string> SubmissionPermissions,
+    IReadOnlySet<string> FormPermissions,
+    IReadOnlySet<string> SubmissionPermissions,
     DateTime CachedAt,
     DateTime ExpiresAt,
     string ETag
@@ -101,7 +101,7 @@ public record GetSubmissionAccessResponse(
     /// </summary>
     /// <param name="cached">The cached <see cref="SubmissionAccessData"/>.</param>
     /// <returns>The <see cref="GetSubmissionAccessResponse"/>.</returns>
-    public static GetSubmissionAccessResponse FromCached(Cached<SubmissionAccessData> cached)
+    public static GetSubmissionAccessResponse FromCached(ICachedData<SubmissionAccessData> cached)
         => new(cached.Data.FormId, cached.Data.SubmissionId, cached.Data.FormPermissions, cached.Data.SubmissionPermissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
 }
 

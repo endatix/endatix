@@ -100,8 +100,8 @@ public class GetFormPublicAccessValidator : Validator<GetFormPublicAccessRequest
 public record GetFormPublicAccessResponse(
     string FormId,
     string? SubmissionId,
-    HashSet<string> FormPermissions,
-    HashSet<string> SubmissionPermissions,
+    IReadOnlySet<string> FormPermissions,
+    IReadOnlySet<string> SubmissionPermissions,
     DateTime CachedAt,
     DateTime ExpiresAt,
     string ETag
@@ -112,7 +112,7 @@ public record GetFormPublicAccessResponse(
     /// </summary>
     /// <param name="cached">The cached <see cref="PublicFormAccessData"/>.</param>
     /// <returns>The <see cref="GetFormPublicAccessResponse"/>.</returns>
-    public static GetFormPublicAccessResponse FromCached(Cached<PublicFormAccessData> cached)
+    public static GetFormPublicAccessResponse FromCached(ICachedData<PublicFormAccessData> cached)
         => new(cached.Data.FormId, cached.Data.SubmissionId, cached.Data.FormPermissions, cached.Data.SubmissionPermissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
 }
 

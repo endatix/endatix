@@ -1,7 +1,11 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
 using Microsoft.Extensions.Caching.Hybrid;
 
@@ -13,18 +17,20 @@ namespace Endatix.Infrastructure.Features.AccessControl;
 /// </summary>
 public sealed class SubmissionAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
+    IRepository<Submission> submissionRepository,
     HybridCache cache,
     IDateTimeProvider dateTimeProvider
 ) : IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>
 {
-    public async Task<Result<Cached<SubmissionAccessData>>> GetAccessData(
+    /// <inheritdoc/>
+    public async Task<Result<ICachedData<SubmissionAccessData>>> GetAccessData(
         SubmissionAccessContext context,
         CancellationToken cancellationToken)
     {
         var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
         if (!identityResult.IsSuccess)
         {
-            return identityResult.ToErrorResult<Cached<SubmissionAccessData>>();
+            return identityResult.ToErrorResult<ICachedData<SubmissionAccessData>>();
         }
 
         var authData = identityResult.Value;
@@ -35,7 +41,7 @@ public sealed class SubmissionAccessPolicy(
 
         return await cache.GetOrCreateCachedResultAsync(
             key: cacheKey,
-            factory: _ => Task.FromResult(ComputeResourceAccess(context, authData)),
+            factory: ct => ComputeResourceAccessAsync(context, authData, ct),
             ttl: ttl,
             utcNow: now,
             tags: ["permissions", $"submission:{context.SubmissionId}"],
@@ -43,10 +49,20 @@ public sealed class SubmissionAccessPolicy(
         );
     }
 
-    private Result<SubmissionAccessData> ComputeResourceAccess(
+    private async Task<Result<SubmissionAccessData>> ComputeResourceAccessAsync(
         SubmissionAccessContext context,
-        AuthorizationData authData)
+        AuthorizationData authData,
+        CancellationToken cancellationToken)
     {
+        var relationResult = await ValidateSubmissionRelationAsync(
+            context.FormId,
+            context.SubmissionId,
+            cancellationToken);
+        if (!relationResult.IsSuccess)
+        {
+            return relationResult.ToErrorResult<SubmissionAccessData>();
+        }
+
         if (authData is null || authData.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
             return Result.Unauthorized("You are not authorized to access this submission.");
@@ -68,5 +84,17 @@ public sealed class SubmissionAccessPolicy(
         }
 
         return Result.Forbidden("You are not authorized to access this submission.");
+    }
+
+    private async Task<Result<bool>> ValidateSubmissionRelationAsync(
+        long formId,
+        long submissionId,
+        CancellationToken cancellationToken)
+    {
+        var spec = new SubmissionByFormIdAndSubmissionIdSpec(formId, submissionId);
+        var relationExists = await submissionRepository.AnyAsync(spec, cancellationToken);
+        return relationExists
+            ? Result.Success(true)
+            : Result.NotFound("Submission not found");
     }
 }

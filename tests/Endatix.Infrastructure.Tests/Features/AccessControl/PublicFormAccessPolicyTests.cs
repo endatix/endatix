@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Ardalis.Specification;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
@@ -6,6 +7,7 @@ using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -63,6 +65,7 @@ public partial class PublicFormAccessPolicyTests
 {
     private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly IRepository<Form> _formRepository;
+    private readonly IRepository<Submission> _submissionRepository;
     private readonly ISubmissionTokenService _tokenService;
     private readonly ISubmissionAccessTokenService _accessTokenService;
     private readonly IDateTimeProvider _dateTimeProvider;
@@ -73,6 +76,7 @@ public partial class PublicFormAccessPolicyTests
     {
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
         _formRepository = Substitute.For<IRepository<Form>>();
+        _submissionRepository = Substitute.For<IRepository<Submission>>();
         _tokenService = Substitute.For<ISubmissionTokenService>();
         _accessTokenService = Substitute.For<ISubmissionAccessTokenService>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
@@ -91,6 +95,10 @@ public partial class PublicFormAccessPolicyTests
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(true));
 
+        _submissionRepository
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
         _cache
             .GetOrCreateAsync(
                 Arg.Any<string>(),
@@ -105,7 +113,7 @@ public partial class PublicFormAccessPolicyTests
                 return factory(token);
             });
 
-        _policy = new PublicFormAccessPolicy(_formRepository, _tokenService, _accessTokenService, _authorizationService, _dateTimeProvider, _cache);
+        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _authorizationService, _dateTimeProvider, _cache);
     }
 
     #region Helper Methods
@@ -542,7 +550,7 @@ public partial class PublicFormAccessPolicyTests
         // Assert
         result.IsSuccess.Should().BeTrue();
 
-        capturedCacheKey.Should().Be($"ac:sub_token:{token}:userId:{userId}");
+        capturedCacheKey.Should().Be($"ac:sub_token:form:{formId}:token:{token}:userId:{userId}");
         capturedOptions.Should().NotBeNull();
         capturedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(30));
     }
@@ -588,7 +596,7 @@ public partial class PublicFormAccessPolicyTests
         // Assert
         result.IsSuccess.Should().BeTrue();
 
-        capturedCacheKey.Should().Be($"ac:sub_token:{token}:userId:{AuthorizationData.ANONYMOUS_USER_ID}");
+        capturedCacheKey.Should().Be($"ac:sub_token:form:{formId}:token:{token}:userId:{AuthorizationData.ANONYMOUS_USER_ID}");
         capturedOptions.Should().NotBeNull();
         capturedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(10));
     }
@@ -937,8 +945,8 @@ public partial class PublicFormAccessPolicyTests
         {
             FormId = formId.ToString(),
             SubmissionId = null,
-            FormPermissions = [.. ResourcePermissions.Form.Sets.ViewForm],
-            SubmissionPermissions = [.. ResourcePermissions.Submission.Sets.CreateSubmission],
+            FormPermissions = ResourcePermissions.Form.Sets.ViewForm.ToImmutableHashSet(),
+            SubmissionPermissions = ResourcePermissions.Submission.Sets.CreateSubmission.ToImmutableHashSet(),
             ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
         };
         var cachedEnvelope = Cached<PublicFormAccessData>.Create(cachedData, _dateTimeProvider.Now.UtcDateTime, TimeSpan.FromMinutes(10));
