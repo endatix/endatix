@@ -12,6 +12,7 @@ using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using Microsoft.Extensions.Caching.Hybrid;
+using NSubstitute.Core;
 using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
 
 namespace Endatix.Infrastructure.Tests.Features.AccessControl;
@@ -100,11 +101,11 @@ public partial class PublicFormAccessPolicyTests
             .Returns(true);
 
         _cache
-            .GetOrCreateAsync(
+            .GetOrCreateAsync<ICachedData<PublicFormAccessData>>(
                 Arg.Any<string>(),
                 Arg.Any<Func<CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<IEnumerable<string>>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
@@ -201,12 +202,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(true));
 
@@ -214,13 +214,19 @@ public partial class PublicFormAccessPolicyTests
         string? capturedCacheKey = null;
 
         _cache
-            .SetAsync(
-                Arg.Do<string>(k => capturedCacheKey = k),
-                Arg.Any<Cached<PublicFormAccessData>>(),
-                Arg.Do<HybridCacheEntryOptions?>(o => capturedOptions = o),
+            .GetOrCreateAsync<object, ICachedData<PublicFormAccessData>>(
+                Arg.Any<string>(),
+                Arg.Any<object>(),
+                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(ValueTask.CompletedTask);
+            .Returns(callInfo =>
+            {
+                capturedCacheKey = (string)callInfo[0];
+                capturedOptions = (HybridCacheEntryOptions?)callInfo[3];
+                return InvokeHybridCacheGetOrCreateFactory(callInfo);
+            });
 
         // Act
         await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -243,12 +249,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(false));
 
@@ -272,12 +277,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(false));
 
@@ -311,12 +315,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(false));
 
@@ -345,12 +348,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(false));
 
@@ -374,12 +376,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(false));
 
@@ -397,13 +398,19 @@ public partial class PublicFormAccessPolicyTests
         string? capturedCacheKey = null;
 
         _cache
-            .SetAsync(
-                Arg.Do<string>(k => capturedCacheKey = k),
-                Arg.Any<Cached<PublicFormAccessData>>(),
-                Arg.Do<HybridCacheEntryOptions?>(o => capturedOptions = o),
+            .GetOrCreateAsync<object, ICachedData<PublicFormAccessData>>(
+                Arg.Any<string>(),
+                Arg.Any<object>(),
+                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(ValueTask.CompletedTask);
+            .Returns(callInfo =>
+            {
+                capturedCacheKey = (string)callInfo[0];
+                capturedOptions = (HybridCacheEntryOptions?)callInfo[3];
+                return InvokeHybridCacheGetOrCreateFactory(callInfo);
+            });
 
         // Act
         await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -428,12 +435,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(false));
 
@@ -458,12 +464,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(false));
 
@@ -516,12 +521,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(false));
 
@@ -535,13 +539,19 @@ public partial class PublicFormAccessPolicyTests
         string? capturedCacheKey = null;
 
         _cache
-            .SetAsync(
-                Arg.Do<string>(k => capturedCacheKey = k),
-                Arg.Any<Cached<PublicFormAccessData>>(),
-                Arg.Do<HybridCacheEntryOptions?>(o => capturedOptions = o),
+            .GetOrCreateAsync<object, ICachedData<PublicFormAccessData>>(
+                Arg.Any<string>(),
+                Arg.Any<object>(),
+                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(ValueTask.CompletedTask);
+            .Returns(callInfo =>
+            {
+                capturedCacheKey = (string)callInfo[0];
+                capturedOptions = (HybridCacheEntryOptions?)callInfo[3];
+                return InvokeHybridCacheGetOrCreateFactory(callInfo);
+            });
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -565,12 +575,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(true));
 
@@ -581,13 +590,19 @@ public partial class PublicFormAccessPolicyTests
         string? capturedCacheKey = null;
 
         _cache
-            .SetAsync(
-                Arg.Do<string>(k => capturedCacheKey = k),
-                Arg.Any<Cached<PublicFormAccessData>>(),
-                Arg.Do<HybridCacheEntryOptions?>(o => capturedOptions = o),
+            .GetOrCreateAsync<object, ICachedData<PublicFormAccessData>>(
+                Arg.Any<string>(),
+                Arg.Any<object>(),
+                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(ValueTask.CompletedTask);
+            .Returns(callInfo =>
+            {
+                capturedCacheKey = (string)callInfo[0];
+                capturedOptions = (HybridCacheEntryOptions?)callInfo[3];
+                return InvokeHybridCacheGetOrCreateFactory(callInfo);
+            });
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -875,18 +890,17 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<object, CancellationToken, ValueTask<bool>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<bool>>>();
                 var ct = callInfo.Arg<CancellationToken>();
-                return factory(null!, ct);
+                return factory(ct);
             });
 
         _formRepository
@@ -910,12 +924,11 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(false));
 
@@ -952,26 +965,22 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId);
 
         _cache
-            .GetOrCreateAsync<object, bool>(
+            .GetOrCreateAsync<bool>(
                 Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<bool>(true));
 
         _cache
-            .GetOrCreateAsync(
+            .GetOrCreateAsync<ICachedData<PublicFormAccessData>>(
                 Arg.Is<string>(k => k.StartsWith("ac:form:")),
                 Arg.Any<Func<CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<IEnumerable<string>>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                return new ValueTask<ICachedData<PublicFormAccessData>>(cachedEnvelope);
-            });
+            .Returns(new ValueTask<ICachedData<PublicFormAccessData>>(cachedEnvelope));
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -982,4 +991,20 @@ public partial class PublicFormAccessPolicyTests
     }
 
     #endregion
+
+    /// <summary>
+    /// Invokes the HybridCache factory used by <c>GetOrCreateCachedResultAsync</c> (stateful
+    /// <c>GetOrCreateAsync</c> overload). Handles either <see cref="Task{T}"/> or <see cref="ValueTask{T}"/> results.
+    /// </summary>
+    private static ValueTask<ICachedData<PublicFormAccessData>> InvokeHybridCacheGetOrCreateFactory(CallInfo callInfo)
+    {
+        var factory = (Delegate)callInfo[2]!;
+        var invokeResult = factory.DynamicInvoke(callInfo[1], callInfo[5]);
+        return invokeResult switch
+        {
+            ValueTask<ICachedData<PublicFormAccessData>> vt => vt,
+            Task<ICachedData<PublicFormAccessData>> t => new ValueTask<ICachedData<PublicFormAccessData>>(t.GetAwaiter().GetResult()),
+            _ => throw new InvalidOperationException($"Unexpected factory result type: {invokeResult?.GetType().FullName}")
+        };
+    }
 }

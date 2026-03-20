@@ -178,12 +178,11 @@ public sealed class HybridCacheExtensionTests
         var cachedEnvelope = Cached<DummyData>.Create(new DummyData { Id = 42 }, utcNow, ttl);
 
         cache
-            .GetOrCreateAsync<object, ICachedData<DummyData>>(
+            .GetOrCreateAsync<ICachedData<DummyData>>(
                 Arg.Is<string>(k => k == key),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<DummyData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<DummyData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
-                Arg.Any<string[]>(),
+                Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<ICachedData<DummyData>>(cachedEnvelope));
 
@@ -225,15 +224,15 @@ public sealed class HybridCacheExtensionTests
         var ttl = TimeSpan.FromMinutes(7);
 
         cache
-            .GetOrCreateAsync<Cached<DummyData>>(
+            .GetOrCreateAsync<ICachedData<DummyData>>(
                 Arg.Is<string>(k => k == key),
-                Arg.Any<Func<CancellationToken, ValueTask<Cached<DummyData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<DummyData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<DummyData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<DummyData>>>>();
                 var ct = callInfo.Arg<CancellationToken>();
                 return factory(ct);
             });

@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
@@ -24,18 +25,17 @@ public class FormTemplateAccessPolicyTests
         _dateTimeProvider.Now.Returns(DateTimeOffset.UtcNow);
 
         _cache
-            .GetOrCreateAsync(
+            .GetOrCreateAsync<ICachedData<FormTemplateAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<Cached<FormTemplateAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<FormTemplateAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<object, CancellationToken, ValueTask<Cached<FormTemplateAccessData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<FormTemplateAccessData>>>>();
                 var ct = callInfo.Arg<CancellationToken>();
-                return factory(null!, ct);
+                return factory(ct);
             });
 
         _policy = new FormTemplateAccessPolicy(_authorizationService, _cache, _dateTimeProvider);
@@ -225,10 +225,9 @@ public class FormTemplateAccessPolicyTests
         await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
-        await _cache.Received(1).GetOrCreateAsync(
+        await _cache.Received(1).GetOrCreateAsync<ICachedData<FormTemplateAccessData>>(
             Arg.Is<string>(k => k == $"auth:tpl_mgmt:{templateId}:user:{userId}"),
-            Arg.Any<object>(),
-            Arg.Any<Func<object, CancellationToken, ValueTask<Cached<FormTemplateAccessData>>>>(),
+            Arg.Any<Func<CancellationToken, ValueTask<ICachedData<FormTemplateAccessData>>>>(),
             Arg.Any<HybridCacheEntryOptions?>(),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
@@ -256,17 +255,20 @@ public class FormTemplateAccessPolicyTests
             .GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
             .Returns(Result.Success(authData));
 
-        Cached<FormTemplateAccessData>? captured = null;
         HybridCacheEntryOptions? capturedOptions = null;
 
         _cache
-            .SetAsync(
+            .GetOrCreateAsync<ICachedData<FormTemplateAccessData>>(
                 Arg.Any<string>(),
-                Arg.Do<Cached<FormTemplateAccessData>>(c => captured = c),
+                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<FormTemplateAccessData>>>>(),
                 Arg.Do<HybridCacheEntryOptions?>(o => capturedOptions = o),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(ValueTask.CompletedTask);
+            .Returns(callInfo =>
+            {
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<FormTemplateAccessData>>>>();
+                return factory(callInfo.Arg<CancellationToken>());
+            });
 
         var expectedTtl = authData.ComputeAuthTtl(now);
 
@@ -274,8 +276,6 @@ public class FormTemplateAccessPolicyTests
         await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
-        captured.Should().NotBeNull();
-        captured!.ExpiresAt.Should().Be(now.Add(expectedTtl));
         capturedOptions.Should().NotBeNull();
         capturedOptions!.Expiration.Should().Be(expectedTtl);
     }

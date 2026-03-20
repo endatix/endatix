@@ -26,18 +26,17 @@ public class FormAccessPolicyTests
         _dateTimeProvider.Now.Returns(DateTimeOffset.UtcNow);
 
         _cache
-            .GetOrCreateAsync(
+            .GetOrCreateAsync<ICachedData<FormAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<Cached<FormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<FormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<object, CancellationToken, ValueTask<Cached<FormAccessData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<FormAccessData>>>>();
                 var ct = callInfo.Arg<CancellationToken>();
-                return factory(null!, ct);
+                return factory(ct);
             });
 
         _policy = new FormAccessPolicy(_authorizationService, _cache, _dateTimeProvider);
@@ -284,10 +283,9 @@ public class FormAccessPolicyTests
         await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
-        await _cache.Received(1).GetOrCreateAsync(
+        await _cache.Received(1).GetOrCreateAsync<ICachedData<FormAccessData>>(
             Arg.Is<string>(k => k == $"auth:form_mgmt:{formId}:user:{userId}"),
-            Arg.Any<object>(),
-            Arg.Any<Func<object, CancellationToken, ValueTask<Cached<FormAccessData>>>>(),
+            Arg.Any<Func<CancellationToken, ValueTask<ICachedData<FormAccessData>>>>(),
             Arg.Any<HybridCacheEntryOptions?>(),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
@@ -318,10 +316,9 @@ public class FormAccessPolicyTests
         var cachedEnvelope = Cached<FormAccessData>.Create(cachedData, _dateTimeProvider.Now.UtcDateTime, TimeSpan.FromMinutes(10));
 
         _cache
-            .GetOrCreateAsync(
+            .GetOrCreateAsync<ICachedData<FormAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<FormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<FormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
@@ -361,10 +358,9 @@ public class FormAccessPolicyTests
         await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
-        await _cache.Received(1).GetOrCreateAsync(
+        await _cache.Received(1).GetOrCreateAsync<ICachedData<FormAccessData>>(
             Arg.Is<string>(k => k.StartsWith($"auth:form_mgmt:{formId}:")),
-            Arg.Any<object>(),
-            Arg.Any<Func<object, CancellationToken, ValueTask<Cached<FormAccessData>>>>(),
+            Arg.Any<Func<CancellationToken, ValueTask<ICachedData<FormAccessData>>>>(),
             Arg.Any<HybridCacheEntryOptions?>(),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
