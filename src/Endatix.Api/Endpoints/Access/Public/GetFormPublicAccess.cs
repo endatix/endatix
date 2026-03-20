@@ -84,6 +84,11 @@ public class GetFormPublicAccessValidator : Validator<GetFormPublicAccessRequest
             .NotNull()
             .IsInEnum()
             .When(x => !string.IsNullOrEmpty(x.Token));
+
+        RuleFor(x => x.TokenType)
+            .Null()
+            .When(x => string.IsNullOrEmpty(x.Token))
+            .WithMessage("Token must be provided when Token Type is specified.");
     }
 }
 

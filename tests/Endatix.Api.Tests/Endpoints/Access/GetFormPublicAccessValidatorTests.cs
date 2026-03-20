@@ -131,7 +131,27 @@ public class GetFormPublicAccessValidatorTests
         var result = _validator.TestValidate(request);
 
         // Assert
-        result.ShouldNotHaveValidationErrorFor(x => x.FormId);
+        result.ShouldHaveValidationErrorFor(x => x.TokenType)
+            .WithErrorMessage("Token must be provided when Token Type is specified.");
+    }
+
+    [Fact]
+    public void Validate_TokenTypeWithEmptyToken_ReturnsError()
+    {
+        // Arrange
+        var request = new GetFormPublicAccessRequest
+        {
+            FormId = 1,
+            Token = string.Empty,
+            TokenType = SubmissionTokenType.SubmissionToken
+        };
+
+        // Act
+        var result = _validator.TestValidate(request);
+
+        // Assert
+        result.ShouldHaveValidationErrorFor(x => x.TokenType)
+            .WithErrorMessage("Token must be provided when Token Type is specified.");
     }
 
     [Fact]

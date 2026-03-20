@@ -225,7 +225,7 @@ public class FormAccessPolicyTests
 
     #endregion
 
-    #region Permission Priority (View takes precedence)
+    #region Permission Priority (Edit takes precedence over View)
 
     [Fact]
     public async Task GetAccessDataAsync_UserWithBothViewAndEditPermissions_ReturnsEditPermissions()

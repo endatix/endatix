@@ -65,17 +65,4 @@ public class GetFormAccessValidatorTests
         // Assert
         result.ShouldNotHaveValidationErrorFor(x => x.FormId);
     }
-
-    [Fact]
-    public void Validate_One_PassesValidation()
-    {
-        // Arrange
-        var request = new GetFormAccessRequest { FormId = 1 };
-
-        // Act
-        var result = _validator.TestValidate(request);
-
-        // Assert
-        result.ShouldNotHaveValidationErrorFor(x => x.FormId);
-    }
 }
