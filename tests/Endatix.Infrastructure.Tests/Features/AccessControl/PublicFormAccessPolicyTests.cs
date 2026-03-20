@@ -3,9 +3,9 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using Microsoft.Extensions.Caching.Hybrid;
 using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
@@ -151,7 +151,7 @@ public partial class PublicFormAccessPolicyTests
         else
         {
             _accessTokenService.ValidateAccessToken(token)
-                .Returns(Result<SubmissionAccessTokenClaims>.Error("Invalid access token"));
+                .Returns(Result<SubmissionAccessTokenClaims>.Unauthorized("Invalid access token"));
         }
     }
 
@@ -188,12 +188,12 @@ public partial class PublicFormAccessPolicyTests
 
         SetupAnonymousUser();
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())
-            .Returns(Result<long>.Error("Invalid or expired token"));
+            .Returns(Result<long>.Unauthorized("Invalid or expired submission token"));
 
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
-        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == "Invalid or expired submission token");
+        result.IsUnauthorized().Should().BeTrue();
     }
 
     #endregion
@@ -279,7 +279,7 @@ public partial class PublicFormAccessPolicyTests
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
-        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == "Invalid access token");
+        result.IsUnauthorized().Should().BeTrue();
     }
 
     [Fact]

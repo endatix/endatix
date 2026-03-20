@@ -2,9 +2,9 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Caching;
 using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Infrastructure.Features.AccessControl;
@@ -34,35 +34,18 @@ public sealed class SubmissionManagementAccessPolicy(
 
         var cacheKey = $"auth:sub:mgmt:{identityResult.Value.UserId}:{context.FormId}:{context.SubmissionId}";
 
-        var cachedEnvelope = await cache.GetOrCreateAsync(
-            key: cacheKey,
-            factory: async ct => await ComputeAndWrapAsync(context, identityResult.Value, ct),
-            options: new HybridCacheEntryOptions
+        return await cache.GetOrCreateCachedResultAsync(
+            cacheKey,
+            async ct => 
             {
-                Expiration = TimeSpan.FromMinutes(CACHE_MINUTES),
-                LocalCacheExpiration = TimeSpan.FromMinutes(CACHE_MINUTES)
+                var data = await ComputeAsync(context, identityResult.Value, ct);
+                return Result.Success(data);
             },
+            TimeSpan.FromMinutes(CACHE_MINUTES),
+            dateTimeProvider.Now.UtcDateTime,
             tags: ["permissions", $"form:{context.FormId}"],
             cancellationToken: cancellationToken
         );
-
-        return cachedEnvelope != null
-            ? Result<Cached<PublicFormAccessData>>.Success(cachedEnvelope)
-            : Result<Cached<PublicFormAccessData>>.Error("Failed to compute access");
-    }
-
-    private async Task<Cached<PublicFormAccessData>> ComputeAndWrapAsync(
-        SubmissionManagementAccessContext context,
-        AuthorizationData identity,
-        CancellationToken cancellationToken)
-    {
-        var data = await ComputeAsync(context, identity, cancellationToken);
-
-        return Cached<PublicFormAccessData>.Create(
-            data,
-            dateTimeProvider.Now.UtcDateTime,
-            TimeSpan.FromMinutes(CACHE_MINUTES)
-            );
     }
 
     private async Task<PublicFormAccessData> ComputeAsync(

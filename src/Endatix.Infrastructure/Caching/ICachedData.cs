@@ -1,4 +1,4 @@
-namespace Endatix.Core.Infrastructure.Caching;
+namespace Endatix.Infrastructure.Caching;
 
 /// <summary>
 /// Interface for cached data.

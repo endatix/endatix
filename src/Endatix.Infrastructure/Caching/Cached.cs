@@ -1,8 +1,7 @@
 using System.Text.Json.Serialization;
 using Ardalis.GuardClauses;
-using Endatix.Core.Abstractions.Data;
 
-namespace Endatix.Core.Infrastructure.Caching;
+namespace Endatix.Infrastructure.Caching;
 
 /// <summary>
 /// Immutable envelope containing the data and its caching metadata.

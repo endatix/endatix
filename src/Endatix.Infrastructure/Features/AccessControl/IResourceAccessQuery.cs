@@ -1,5 +1,5 @@
-using Endatix.Core.Infrastructure.Caching;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Caching;
 
 namespace Endatix.Infrastructure.Features.AccessControl;
 
