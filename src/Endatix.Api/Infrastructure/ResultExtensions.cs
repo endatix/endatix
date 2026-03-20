@@ -278,7 +278,7 @@ public static partial class ResultExtensions
 
             return TypedResults.Problem(new ProblemDetails
             {
-                Title = "Forbidden.",
+                Title = ResultTitles.FORBIDDEN,
                 Detail = details.ToString(),
                 Status = StatusCodes.Status403Forbidden
             });
@@ -302,7 +302,7 @@ public static partial class ResultExtensions
 
             return TypedResults.Problem(new ProblemDetails
             {
-                Title = "Unauthorized.",
+                Title = ResultTitles.UNAUTHORIZED,
                 Detail = details.ToString(),
                 Status = StatusCodes.Status401Unauthorized
             });
