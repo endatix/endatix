@@ -57,6 +57,12 @@ public sealed class PublicFormAccessPolicy(
     private async Task<Result<AccessPolicyRoute>> DetermineAccessRouteAsync(PublicFormAccessContext context, CancellationToken cancellationToken)
     {
         var hasToken = !string.IsNullOrWhiteSpace(context.Token) && context.TokenType is not null;
+        if (hasToken
+            && context.TokenType is not SubmissionTokenType.AccessToken
+            && context.TokenType is not SubmissionTokenType.SubmissionToken)
+        {
+            return Result.Error("Unknown token type");
+        }
         if (hasToken && context.TokenType == SubmissionTokenType.AccessToken)
         {
             return ResolveAccessTokenRoute(context.Token!);
@@ -105,7 +111,7 @@ public sealed class PublicFormAccessPolicy(
         return Result.Success(
             new AccessPolicyRoute(
                 $"ac:form:{formId}:user:{authData.UserId}",
-                ComputeAuthTtl(authData),
+                authData.ComputeAuthTtl(dateTimeProvider.Now.UtcDateTime),
                 RouteType.PrivateForm,
                 IsPublic: false,
                 AuthData: authData));
@@ -113,7 +119,7 @@ public sealed class PublicFormAccessPolicy(
 
     private Result<AccessPolicyRoute> ResolveSubmissionTokenRoute(string token, bool isPublic, AuthorizationData? authData = null) => Result.Success(new AccessPolicyRoute(
                 $"ac:sub_token:{token}:userId:{authData?.UserId ?? AuthorizationData.ANONYMOUS_USER_ID}",
-                ComputeAuthTtl(authData),
+                authData.ComputeAuthTtl(dateTimeProvider.Now.UtcDateTime),
                 RouteType.SubmissionToken,
                 IsPublic: isPublic,
                 AuthData: authData)
@@ -255,17 +261,6 @@ public sealed class PublicFormAccessPolicy(
         }
 
         return Result.Success(true);
-    }
-
-    private TimeSpan ComputeAuthTtl(AuthorizationData? authData)
-    {
-        if (authData is null)
-        {
-            return _defaultTtl;
-        }
-
-        var authDataSafeTtl = authData.ExpiresAt - dateTimeProvider.Now.UtcDateTime;
-        return TimeSpan.FromSeconds(Math.Max(_immediateTtl.TotalSeconds, authDataSafeTtl.TotalSeconds));
     }
 
     private enum RouteType { PublicForm, PrivateForm, AccessToken, SubmissionToken }
