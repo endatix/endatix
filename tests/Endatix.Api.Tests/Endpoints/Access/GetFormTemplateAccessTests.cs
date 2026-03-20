@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Endatix.Api.Endpoints.Access;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
@@ -44,7 +45,7 @@ public class GetFormTemplateAccessTests
 
         _accessPolicy
             .GetAccessData(Arg.Any<FormTemplateAccessContext>(), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<FormTemplateAccessData>>.Success(cached));
+            .Returns(Result<ICachedData<FormTemplateAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -66,7 +67,7 @@ public class GetFormTemplateAccessTests
         // Arrange
         var request = new GetFormTemplateAccessRequest { TemplateId = 123L };
 
-        var errorResult = Result<Cached<FormTemplateAccessData>>.Unauthorized("You are not authorized to access this form template.");
+        var errorResult = Result<ICachedData<FormTemplateAccessData>>.Unauthorized("You are not authorized to access this form template.");
         _accessPolicy
             .GetAccessData(Arg.Any<FormTemplateAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -87,7 +88,7 @@ public class GetFormTemplateAccessTests
         // Arrange
         var request = new GetFormTemplateAccessRequest { TemplateId = 123L };
 
-        var errorResult = Result<Cached<FormTemplateAccessData>>.Forbidden("You are not authorized to access this form template.");
+        var errorResult = Result<ICachedData<FormTemplateAccessData>>.Forbidden("You are not authorized to access this form template.");
         _accessPolicy
             .GetAccessData(Arg.Any<FormTemplateAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -108,7 +109,7 @@ public class GetFormTemplateAccessTests
         // Arrange
         var request = new GetFormTemplateAccessRequest { TemplateId = 123L };
 
-        var errorResult = Result<Cached<FormTemplateAccessData>>.Error("unexpected error");
+        var errorResult = Result<ICachedData<FormTemplateAccessData>>.Error("unexpected error");
         _accessPolicy
             .GetAccessData(Arg.Any<FormTemplateAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -135,7 +136,7 @@ public class GetFormTemplateAccessTests
 
         _accessPolicy
             .GetAccessData(Arg.Is<FormTemplateAccessContext>(c => c.TemplateId == templateId), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<FormTemplateAccessData>>.Success(cached));
+            .Returns(Result<ICachedData<FormTemplateAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -159,7 +160,7 @@ public class GetFormTemplateAccessTests
 
         _accessPolicy
             .GetAccessData(Arg.Is<FormTemplateAccessContext>(c => c.TemplateId == templateId), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<FormTemplateAccessData>>.Success(cached));
+            .Returns(Result<ICachedData<FormTemplateAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);

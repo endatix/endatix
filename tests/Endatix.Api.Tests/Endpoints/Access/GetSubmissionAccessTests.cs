@@ -1,5 +1,6 @@
 using Endatix.Api.Endpoints.Access;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
@@ -42,7 +43,7 @@ public class GetSubmissionAccessTests
 
         _accessPolicy
             .GetAccessData(Arg.Any<SubmissionAccessContext>(), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<SubmissionAccessData>>.Success(cached));
+            .Returns(Result<ICachedData<SubmissionAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -70,7 +71,7 @@ public class GetSubmissionAccessTests
             SubmissionId = 321
         };
 
-        var errorResult = Result<Cached<SubmissionAccessData>>.Unauthorized("You are not authorized to access this submission.");
+        var errorResult = Result<ICachedData<SubmissionAccessData>>.Unauthorized("You are not authorized to access this submission.");
         _accessPolicy
             .GetAccessData(Arg.Any<SubmissionAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -95,7 +96,7 @@ public class GetSubmissionAccessTests
             SubmissionId = 321
         };
 
-        var errorResult = Result<Cached<SubmissionAccessData>>.Forbidden("You are not authorized to access this submission.");
+        var errorResult = Result<ICachedData<SubmissionAccessData>>.Forbidden("You are not authorized to access this submission.");
         _accessPolicy
             .GetAccessData(Arg.Any<SubmissionAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -120,7 +121,7 @@ public class GetSubmissionAccessTests
             SubmissionId = 321
         };
 
-        var errorResult = Result<Cached<SubmissionAccessData>>.Error("unexpected error");
+        var errorResult = Result<ICachedData<SubmissionAccessData>>.Error("unexpected error");
         _accessPolicy
             .GetAccessData(Arg.Any<SubmissionAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -148,7 +149,7 @@ public class GetSubmissionAccessTests
 
         _accessPolicy
             .GetAccessData(Arg.Is<SubmissionAccessContext>(c => c.FormId == formId && c.SubmissionId == submissionId), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<SubmissionAccessData>>.Success(cached));
+            .Returns(Result<ICachedData<SubmissionAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);

@@ -5,6 +5,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -102,13 +103,13 @@ public partial class PublicFormAccessPolicyTests
         _cache
             .GetOrCreateAsync(
                 Arg.Any<string>(),
-                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>();
                 var token = callInfo.Arg<CancellationToken>();
                 return factory(token);
             });
@@ -965,24 +966,24 @@ public partial class PublicFormAccessPolicyTests
         _cache
             .GetOrCreateAsync(
                 Arg.Is<string>(k => k.StartsWith("ac:form:")),
-                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new ValueTask<Cached<PublicFormAccessData>>(cachedEnvelope));
+            .Returns(new ValueTask<ICachedData<PublicFormAccessData>>(cachedEnvelope));
 
         var factoryInvoked = false;
 
         _cache
             .GetOrCreateAsync(
                 Arg.Is<string>(k => k.StartsWith("ac:form:")),
-                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>();
                 var ct = callInfo.Arg<CancellationToken>();
                 factoryInvoked = true;
                 return factory(ct);

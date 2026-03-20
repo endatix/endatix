@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Endatix.Api.Endpoints.Access;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
@@ -43,7 +44,7 @@ public class GetFormPublicAccessTests
 
         _accessPolicy
             .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<PublicFormAccessData>>.Success(cached));
+            .Returns(Result<ICachedData<PublicFormAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -85,7 +86,7 @@ public class GetFormPublicAccessTests
 
         _accessPolicy
             .GetAccessData(Arg.Is<PublicFormAccessContext>(c => c.FormId == formId), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<PublicFormAccessData>>.Success(cached));
+            .Returns(Result<ICachedData<PublicFormAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -104,7 +105,7 @@ public class GetFormPublicAccessTests
         // Arrange
         var request = new GetFormPublicAccessRequest { FormId = 123 };
 
-        var errorResult = Result<Cached<PublicFormAccessData>>.Unauthorized("You must be authenticated to access this form");
+        var errorResult = Result<ICachedData<PublicFormAccessData>>.Unauthorized("You must be authenticated to access this form");
         _accessPolicy
             .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -125,7 +126,7 @@ public class GetFormPublicAccessTests
         // Arrange
         var request = new GetFormPublicAccessRequest { FormId = 123 };
 
-        var errorResult = Result<Cached<PublicFormAccessData>>.Forbidden("You are not allowed to access this form");
+        var errorResult = Result<ICachedData<PublicFormAccessData>>.Forbidden("You are not allowed to access this form");
         _accessPolicy
             .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -146,7 +147,7 @@ public class GetFormPublicAccessTests
         // Arrange
         var request = new GetFormPublicAccessRequest { FormId = 999 };
 
-        var errorResult = Result<Cached<PublicFormAccessData>>.NotFound("Form not found");
+        var errorResult = Result<ICachedData<PublicFormAccessData>>.NotFound("Form not found");
         _accessPolicy
             .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -167,7 +168,7 @@ public class GetFormPublicAccessTests
         // Arrange
         var request = new GetFormPublicAccessRequest { FormId = 123 };
 
-        var errorResult = Result<Cached<PublicFormAccessData>>.Error("unexpected error");
+        var errorResult = Result<ICachedData<PublicFormAccessData>>.Error("unexpected error");
         _accessPolicy
             .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);

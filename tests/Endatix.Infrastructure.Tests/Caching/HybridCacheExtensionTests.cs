@@ -1,3 +1,4 @@
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -177,14 +178,14 @@ public sealed class HybridCacheExtensionTests
         var cachedEnvelope = Cached<DummyData>.Create(new DummyData { Id = 42 }, utcNow, ttl);
 
         cache
-            .GetOrCreateAsync<object, Cached<DummyData>>(
+            .GetOrCreateAsync<object, ICachedData<DummyData>>(
                 Arg.Is<string>(k => k == key),
                 Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<Cached<DummyData>>>>(),
+                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<DummyData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<string[]>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new ValueTask<Cached<DummyData>>(cachedEnvelope));
+            .Returns(new ValueTask<ICachedData<DummyData>>(cachedEnvelope));
 
         var factoryInvoked = false;
 

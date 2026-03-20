@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
@@ -320,11 +321,11 @@ public class FormAccessPolicyTests
             .GetOrCreateAsync(
                 Arg.Any<string>(),
                 Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<Cached<FormAccessData>>>>(),
+                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<FormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new ValueTask<Cached<FormAccessData>>(cachedEnvelope));
+            .Returns(new ValueTask<ICachedData<FormAccessData>>(cachedEnvelope));
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);

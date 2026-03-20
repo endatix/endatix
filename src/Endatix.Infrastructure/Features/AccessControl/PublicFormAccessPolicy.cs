@@ -234,7 +234,7 @@ public sealed class PublicFormAccessPolicy(
         return formDto is not null ? Result.Success(formDto.IsPublic) : Result.NotFound("Form not found");
     }
 
-    private Result<bool> CanAccessForm(bool isPublic, AuthorizationData? authData = null)
+    private static Result<bool> CanAccessForm(bool isPublic, AuthorizationData? authData = null)
     {
         if (isPublic)
         {
@@ -255,5 +255,5 @@ public sealed class PublicFormAccessPolicy(
     }
 
     private enum RouteType { PublicForm, PrivateForm, AccessToken, SubmissionToken }
-    private record AccessPolicyRoute(string CacheKey, TimeSpan Ttl, RouteType Type, bool IsPublic = false, AuthorizationData? AuthData = null, SubmissionAccessTokenClaims? Claims = null);
+    private sealed record AccessPolicyRoute(string CacheKey, TimeSpan Ttl, RouteType Type, bool IsPublic = false, AuthorizationData? AuthData = null, SubmissionAccessTokenClaims? Claims = null);
 }

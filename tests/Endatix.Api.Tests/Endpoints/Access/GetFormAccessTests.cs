@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Endatix.Api.Endpoints.Access;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
@@ -44,7 +45,7 @@ public class GetFormAccessTests
 
         _accessPolicy
             .GetAccessData(Arg.Any<FormAccessContext>(), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<FormAccessData>>.Success(cached));
+            .Returns(Result<ICachedData<FormAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -66,7 +67,7 @@ public class GetFormAccessTests
         // Arrange
         var request = new GetFormAccessRequest { FormId = 123 };
 
-        var errorResult = Result<Cached<FormAccessData>>.Unauthorized("You are not authorized to access this form.");
+        var errorResult = Result<ICachedData<FormAccessData>>.Unauthorized("You are not authorized to access this form.");
         _accessPolicy
             .GetAccessData(Arg.Any<FormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -87,7 +88,7 @@ public class GetFormAccessTests
         // Arrange
         var request = new GetFormAccessRequest { FormId = 123 };
 
-        var errorResult = Result<Cached<FormAccessData>>.Forbidden("You are not authorized to access this form.");
+        var errorResult = Result<ICachedData<FormAccessData>>.Forbidden("You are not authorized to access this form.");
         _accessPolicy
             .GetAccessData(Arg.Any<FormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -108,7 +109,7 @@ public class GetFormAccessTests
         // Arrange
         var request = new GetFormAccessRequest { FormId = 123 };
 
-        var errorResult = Result<Cached<FormAccessData>>.Error("unexpected error");
+        var errorResult = Result<ICachedData<FormAccessData>>.Error("unexpected error");
         _accessPolicy
             .GetAccessData(Arg.Any<FormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
@@ -135,7 +136,7 @@ public class GetFormAccessTests
 
         _accessPolicy
             .GetAccessData(Arg.Is<FormAccessContext>(c => c.FormId == formId), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<FormAccessData>>.Success(cached));
+            .Returns(Result<ICachedData<FormAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -159,7 +160,7 @@ public class GetFormAccessTests
 
         _accessPolicy
             .GetAccessData(Arg.Is<FormAccessContext>(c => c.FormId == formId), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<FormAccessData>>.Success(cached));
+            .Returns(Result<ICachedData<FormAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
