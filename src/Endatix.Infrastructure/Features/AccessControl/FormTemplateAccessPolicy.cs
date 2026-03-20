@@ -50,17 +50,17 @@ public sealed class FormTemplateAccessPolicy(
             return Result.Unauthorized("You are not authorized to access this form template.");
         }
 
-        if (!authData.Permissions.Contains(Actions.Access.Hub))
+        if (!authData.HasPermission(Actions.Access.Hub))
         {
             return Result.Forbidden("You are not authorized to access this form template.");
         }
 
-        if (authData.IsAdmin || authData.Permissions.Contains(Actions.Templates.Edit))
+        if (authData.HasPermission(Actions.Templates.Edit))
         {
             return FormTemplateAccessData.CreateWithEditAccess(context.TemplateId);
         }
 
-        if (authData.Permissions.Contains(Actions.Templates.View))
+        if (authData.HasPermission(Actions.Templates.View))
         {
             return FormTemplateAccessData.CreateWithViewAccess(context.TemplateId);
         }

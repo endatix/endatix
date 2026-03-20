@@ -200,10 +200,10 @@ public sealed class PublicFormAccessPolicy(
             cancellationToken: cancellationToken);
     }
 
-    private async Task<Result<bool>> IsFormPublicFromDbAsync(long formId, CancellationToken cancellationtoken)
+    private async Task<Result<bool>> IsFormPublicFromDbAsync(long formId, CancellationToken cancellationToken)
     {
         var spec = new FormSpecifications.ById(formId).WithProjectionOf(new FormProjections.IsPublicDtoSpec());
-        var formDto = await formRepository.FirstOrDefaultAsync(spec, cancellationtoken);
+        var formDto = await formRepository.FirstOrDefaultAsync(spec, cancellationToken);
 
         return formDto is not null ? Result.Success(formDto.IsPublic) : Result.NotFound("Form not found");
     }
@@ -220,7 +220,7 @@ public sealed class PublicFormAccessPolicy(
             return Result.Unauthorized(UNAUTHORIZED_MESSAGE);
         }
 
-        if (!authData.IsAdmin && !authData.Permissions.Contains(Actions.Access.PrivateForms))
+        if (!authData.HasPermission(Actions.Access.PrivateForms))
         {
             return Result.Forbidden(FORBIDDEN_MESSAGE);
         }

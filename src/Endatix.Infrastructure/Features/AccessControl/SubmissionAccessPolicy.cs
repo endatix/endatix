@@ -52,17 +52,17 @@ public sealed class SubmissionAccessPolicy(
             return Result.Unauthorized("You are not authorized to access this submission.");
         }
 
-        if (!authData.Permissions.Contains(Actions.Access.Hub))
+        if (!authData.HasPermission(Actions.Access.Hub))
         {
             return Result.Forbidden("You are not authorized to access this submission.");
         }
 
-        if (authData.IsAdmin || authData.Permissions.Contains(Actions.Submissions.Edit))
+        if (authData.HasPermission(Actions.Submissions.Edit))
         {
             return SubmissionAccessData.CreateWithEditAccess(context.FormId, context.SubmissionId);
         }
 
-        if (authData.Permissions.Contains(Actions.Submissions.View))
+        if (authData.HasPermission(Actions.Submissions.View))
         {
             return SubmissionAccessData.CreateWithViewAccess(context.FormId, context.SubmissionId);
         }
