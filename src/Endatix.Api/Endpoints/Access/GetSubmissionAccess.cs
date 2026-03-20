@@ -13,7 +13,7 @@ namespace Endatix.Api.Endpoints.Access;
 /// Authenticated endpoint for backend management access data for form/submission actions.
 /// </summary>
 public class GetSubmissionAccess(
-    IResourceAccessQuery<SubmissionManagementAccessData, SubmissionManagementAccessContext> submissionManagementAccessPolicy
+    IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext> submissionAccessPolicy
 ) : Endpoint<GetSubmissionAccessRequest, Results<Ok<GetSubmissionAccessResponse>, ProblemHttpResult>>
 {
     public override void Configure()
@@ -35,8 +35,8 @@ public class GetSubmissionAccess(
         GetSubmissionAccessRequest request,
         CancellationToken ct)
     {
-        var context = new SubmissionManagementAccessContext(request.FormId, request.SubmissionId);
-        var accessDataResult = await submissionManagementAccessPolicy.GetAccessData(context, ct);
+        var context = new SubmissionAccessContext(request.FormId, request.SubmissionId);
+        var accessDataResult = await submissionAccessPolicy.GetAccessData(context, ct);
 
         return TypedResultsBuilder
             .MapResult(accessDataResult, GetSubmissionAccessResponse.FromCached)
@@ -96,11 +96,11 @@ public record GetSubmissionAccessResponse(
 ) : ICachedData
 {
     /// <summary>
-    /// Creates a new instance of the <see cref="GetSubmissionAccessResponse"/> from a cached <see cref="SubmissionManagementAccessData"/>.
+    /// Creates a new instance of the <see cref="GetSubmissionAccessResponse"/> from a cached <see cref="SubmissionAccessData"/>.
     /// </summary>
-    /// <param name="cached">The cached <see cref="SubmissionManagementAccessData"/>.</param>
+    /// <param name="cached">The cached <see cref="SubmissionAccessData"/>.</param>
     /// <returns>The <see cref="GetSubmissionAccessResponse"/>.</returns>
-    public static GetSubmissionAccessResponse FromCached(Cached<SubmissionManagementAccessData> cached)
+    public static GetSubmissionAccessResponse FromCached(Cached<SubmissionAccessData> cached)
         => new(cached.Data.FormId, cached.Data.SubmissionId, cached.Data.FormPermissions, cached.Data.SubmissionPermissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
 }
 

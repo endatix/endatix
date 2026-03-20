@@ -1,51 +1,44 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
-using FluentAssertions;
 using Microsoft.Extensions.Caching.Hybrid;
-using NSubstitute;
-using Xunit;
 using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
 
 namespace Endatix.Infrastructure.Tests.Features.AccessControl;
 
-public sealed class SubmissionManagementAccessPolicyTests
+public sealed class SubmissionAccessPolicyTests
 {
     private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly HybridCache _cache;
     private readonly IDateTimeProvider _dateTimeProvider;
-    private readonly SubmissionManagementAccessPolicy _policy;
+    private readonly SubmissionAccessPolicy _policy;
 
-    public SubmissionManagementAccessPolicyTests()
+    public SubmissionAccessPolicyTests()
     {
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
         _cache = Substitute.For<HybridCache>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
 
-        _policy = new SubmissionManagementAccessPolicy(_authorizationService, _cache, _dateTimeProvider);
+        _policy = new SubmissionAccessPolicy(_authorizationService, _cache, _dateTimeProvider);
         SetupCacheMiss();
     }
 
     private void SetupCacheMiss()
     {
         _cache
-            .GetOrCreateAsync<object, Cached<SubmissionManagementAccessData>>(
+            .GetOrCreateAsync<object, Cached<SubmissionAccessData>>(
                 Arg.Any<string>(),
                 Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<Cached<SubmissionManagementAccessData>>>>(),
+                Arg.Any<Func<object, CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<string[]>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<object, CancellationToken, ValueTask<Cached<SubmissionManagementAccessData>>>>();
+                var factory = callInfo.Arg<Func<object, CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>();
                 var ct = callInfo.Arg<CancellationToken>();
                 var state = callInfo.Arg<object>();
                 return factory(state, ct);
@@ -54,7 +47,7 @@ public sealed class SubmissionManagementAccessPolicyTests
         _cache
             .SetAsync(
                 Arg.Any<string>(),
-                Arg.Any<Cached<SubmissionManagementAccessData>>(),
+                Arg.Any<Cached<SubmissionAccessData>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
@@ -82,10 +75,10 @@ public sealed class SubmissionManagementAccessPolicyTests
             cachedAt: utcNow,
             expiresAt: expiresAt);
 
-        var context = new SubmissionManagementAccessContext(formId, submissionId);
+        var context = new SubmissionAccessContext(formId, submissionId);
 
         _authorizationService
-            .GetAuthorizationDataAsync(CancellationToken.None)
+            .GetAuthorizationDataAsync(TestContext.Current.CancellationToken)
             .Returns(Result.Success(authData));
 
         string? capturedCacheKey = null;
@@ -94,7 +87,7 @@ public sealed class SubmissionManagementAccessPolicyTests
         _cache
             .SetAsync(
                 Arg.Do<string>(k => capturedCacheKey = k),
-                Arg.Any<Cached<SubmissionManagementAccessData>>(),
+                Arg.Any<Cached<SubmissionAccessData>>(),
                 Arg.Do<HybridCacheEntryOptions?>(o => capturedOptions = o),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
@@ -105,7 +98,7 @@ public sealed class SubmissionManagementAccessPolicyTests
         var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:user:{userId}";
 
         // Act
-        var result = await _policy.GetAccessData(context, CancellationToken.None);
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -140,17 +133,17 @@ public sealed class SubmissionManagementAccessPolicyTests
             cachedAt: utcNow,
             expiresAt: expiresAt);
 
-        var context = new SubmissionManagementAccessContext(formId, submissionId);
+        var context = new SubmissionAccessContext(formId, submissionId);
 
         _authorizationService
-            .GetAuthorizationDataAsync(CancellationToken.None)
+            .GetAuthorizationDataAsync(TestContext.Current.CancellationToken)
             .Returns(Result.Success(authData));
 
         var expectedTtl = authData.ComputeAuthTtl(utcNow);
         var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:user:{userId}";
 
         // Act
-        var result = await _policy.GetAccessData(context, CancellationToken.None);
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -158,9 +151,9 @@ public sealed class SubmissionManagementAccessPolicyTests
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.ViewOnly);
         result.Value.ExpiresAt.Should().Be(utcNow.Add(expectedTtl));
 
-        _cache.Received(1).SetAsync(
+        await _cache.Received(1).SetAsync(
             expectedCacheKey,
-            Arg.Any<Cached<SubmissionManagementAccessData>>(),
+            Arg.Any<Cached<SubmissionAccessData>>(),
             Arg.Any<HybridCacheEntryOptions?>(),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
@@ -187,17 +180,17 @@ public sealed class SubmissionManagementAccessPolicyTests
             cachedAt: utcNow,
             expiresAt: expiresAt);
 
-        var context = new SubmissionManagementAccessContext(formId, submissionId);
+        var context = new SubmissionAccessContext(formId, submissionId);
 
         _authorizationService
-            .GetAuthorizationDataAsync(CancellationToken.None)
+            .GetAuthorizationDataAsync(TestContext.Current.CancellationToken)
             .Returns(Result.Success(authData));
 
         var expectedTtl = authData.ComputeAuthTtl(utcNow);
         var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:user:{userId}";
 
         // Act
-        var result = await _policy.GetAccessData(context, CancellationToken.None);
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -205,9 +198,9 @@ public sealed class SubmissionManagementAccessPolicyTests
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.EditSubmission);
         result.Value.ExpiresAt.Should().Be(utcNow.Add(expectedTtl));
 
-        _cache.Received(1).SetAsync(
+        await _cache.Received(1).SetAsync(
             expectedCacheKey,
-            Arg.Any<Cached<SubmissionManagementAccessData>>(),
+            Arg.Any<Cached<SubmissionAccessData>>(),
             Arg.Any<HybridCacheEntryOptions?>(),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
@@ -234,22 +227,22 @@ public sealed class SubmissionManagementAccessPolicyTests
             cachedAt: utcNow,
             expiresAt: expiresAt);
 
-        var context = new SubmissionManagementAccessContext(formId, submissionId);
+        var context = new SubmissionAccessContext(formId, submissionId);
 
         _authorizationService
-            .GetAuthorizationDataAsync(CancellationToken.None)
+            .GetAuthorizationDataAsync(TestContext.Current.CancellationToken)
             .Returns(Result.Success(authData));
 
         // Act
-        var result = await _policy.GetAccessData(context, CancellationToken.None);
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().Contain("You are not authorized to access this submission.");
 
-        _cache.DidNotReceive().SetAsync(
+        await _cache.DidNotReceive().SetAsync(
             Arg.Any<string>(),
-            Arg.Any<Cached<SubmissionManagementAccessData>>(),
+            Arg.Any<Cached<SubmissionAccessData>>(),
             Arg.Any<HybridCacheEntryOptions?>(),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
@@ -267,22 +260,22 @@ public sealed class SubmissionManagementAccessPolicyTests
         _dateTimeProvider.Now.Returns(new DateTimeOffset(utcNow, TimeSpan.Zero));
 
         var authData = AuthorizationData.ForAnonymousUser(tenantId);
-        var context = new SubmissionManagementAccessContext(formId, submissionId);
+        var context = new SubmissionAccessContext(formId, submissionId);
 
         _authorizationService
-            .GetAuthorizationDataAsync(CancellationToken.None)
+            .GetAuthorizationDataAsync(TestContext.Current.CancellationToken)
             .Returns(Result.Success(authData));
 
         // Act
-        var result = await _policy.GetAccessData(context, CancellationToken.None);
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().Contain("You are not authorized to access this submission.");
 
-        _cache.DidNotReceive().SetAsync(
+        await _cache.DidNotReceive().SetAsync(
             Arg.Any<string>(),
-            Arg.Any<Cached<SubmissionManagementAccessData>>(),
+            Arg.Any<Cached<SubmissionAccessData>>(),
             Arg.Any<HybridCacheEntryOptions?>(),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());

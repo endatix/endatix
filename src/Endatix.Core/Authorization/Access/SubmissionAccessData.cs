@@ -1,10 +1,10 @@
 namespace Endatix.Core.Authorization.Access;
 
-public class SubmissionManagementAccessData : PublicFormAccessData
+public class SubmissionAccessData : PublicFormAccessData
 {
-    public static SubmissionManagementAccessData CreateWithViewAccess(long formId, long submissionId)
+    public static SubmissionAccessData CreateWithViewAccess(long formId, long submissionId)
     {
-        return new SubmissionManagementAccessData
+        return new SubmissionAccessData
         {
             FormId = formId.ToString(),
             SubmissionId = submissionId.ToString(),
@@ -13,9 +13,9 @@ public class SubmissionManagementAccessData : PublicFormAccessData
         };
     }
 
-    public static SubmissionManagementAccessData CreateWithEditAccess(long formId, long submissionId)
+    public static SubmissionAccessData CreateWithEditAccess(long formId, long submissionId)
     {
-        return new SubmissionManagementAccessData
+        return new SubmissionAccessData
         {
             FormId = formId.ToString(),
             SubmissionId = submissionId.ToString(),

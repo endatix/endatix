@@ -8,4 +8,6 @@ public static class ResourceTypes
     public const string Form = "form";
 
     public const string Submission = "submission";
+
+    public const string Template = "template";
 }

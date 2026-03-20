@@ -11,20 +11,20 @@ namespace Endatix.Infrastructure.Features.AccessControl;
 /// Evaluates submission access for backend/admin: RBAC-based form and submission permissions.
 /// Used when the current user is authenticated; no token or public-form logic.
 /// </summary>
-public sealed class SubmissionManagementAccessPolicy(
+public sealed class SubmissionAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
     HybridCache cache,
     IDateTimeProvider dateTimeProvider
-) : IResourceAccessQuery<SubmissionManagementAccessData, SubmissionManagementAccessContext>
+) : IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>
 {
-    public async Task<Result<Cached<SubmissionManagementAccessData>>> GetAccessData(
-        SubmissionManagementAccessContext context,
+    public async Task<Result<Cached<SubmissionAccessData>>> GetAccessData(
+        SubmissionAccessContext context,
         CancellationToken cancellationToken)
     {
         var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
         if (!identityResult.IsSuccess)
         {
-            return identityResult.ToErrorResult<Cached<SubmissionManagementAccessData>>();
+            return identityResult.ToErrorResult<Cached<SubmissionAccessData>>();
         }
 
         var authData = identityResult.Value;
@@ -43,8 +43,8 @@ public sealed class SubmissionManagementAccessPolicy(
         );
     }
 
-    private Result<SubmissionManagementAccessData> ComputeResourceAccess(
-        SubmissionManagementAccessContext context,
+    private Result<SubmissionAccessData> ComputeResourceAccess(
+        SubmissionAccessContext context,
         AuthorizationData authData)
     {
         if (authData is null || authData.UserId == AuthorizationData.ANONYMOUS_USER_ID)
@@ -59,12 +59,12 @@ public sealed class SubmissionManagementAccessPolicy(
 
         if (authData.IsAdmin || authData.Permissions.Contains(Actions.Submissions.Edit))
         {
-            return SubmissionManagementAccessData.CreateWithEditAccess(context.FormId, context.SubmissionId);
+            return SubmissionAccessData.CreateWithEditAccess(context.FormId, context.SubmissionId);
         }
 
         if (authData.Permissions.Contains(Actions.Submissions.View))
         {
-            return SubmissionManagementAccessData.CreateWithViewAccess(context.FormId, context.SubmissionId);
+            return SubmissionAccessData.CreateWithViewAccess(context.FormId, context.SubmissionId);
         }
 
         return Result.Forbidden("You are not authorized to access this submission.");

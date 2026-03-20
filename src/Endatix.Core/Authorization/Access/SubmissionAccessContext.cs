@@ -3,9 +3,9 @@ namespace Endatix.Core.Authorization.Access;
 /// <summary>
 /// Context for computing submission management access permissions for authenticated users.
 /// </summary>
-public class SubmissionManagementAccessContext
+public class SubmissionAccessContext
 {
-    public SubmissionManagementAccessContext(long formId, long submissionId)
+    public SubmissionAccessContext(long formId, long submissionId)
     {
         FormId = formId;
         SubmissionId = submissionId;

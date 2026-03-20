@@ -9,14 +9,14 @@ using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Tests.Endpoints.Access;
 
-public class GetSubmissionManagementAccessTests
+public class GetSubmissionAccessTests
 {
-    private readonly IResourceAccessQuery<SubmissionManagementAccessData, SubmissionManagementAccessContext> _accessStrategy;
+    private readonly IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext> _accessStrategy;
     private readonly GetSubmissionAccess _endpoint;
 
-    public GetSubmissionManagementAccessTests()
+    public GetSubmissionAccessTests()
     {
-        _accessStrategy = Substitute.For<IResourceAccessQuery<SubmissionManagementAccessData, SubmissionManagementAccessContext>>();
+        _accessStrategy = Substitute.For<IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>>();
         _endpoint = Factory.Create<GetSubmissionAccess>(_accessStrategy);
     }
 
@@ -30,7 +30,7 @@ public class GetSubmissionManagementAccessTests
             SubmissionId = 321
         };
 
-        var accessData = new SubmissionManagementAccessData
+        var accessData = new SubmissionAccessData
         {
             FormId = request.FormId.ToString(),
             SubmissionId = request.SubmissionId.ToString(),
@@ -38,11 +38,11 @@ public class GetSubmissionManagementAccessTests
             SubmissionPermissions = new HashSet<string> { "submissions:edit" }
         };
 
-        var cached = new Cached<SubmissionManagementAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");
+        var cached = new Cached<SubmissionAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");
 
         _accessStrategy
-            .GetAccessData(Arg.Any<SubmissionManagementAccessContext>(), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<SubmissionManagementAccessData>>.Success(cached));
+            .GetAccessData(Arg.Any<SubmissionAccessContext>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Cached<SubmissionAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -68,9 +68,9 @@ public class GetSubmissionManagementAccessTests
             SubmissionId = 321
         };
 
-        var errorResult = Result<Cached<SubmissionManagementAccessData>>.Invalid(new ValidationError("Forbidden"));
+        var errorResult = Result<Cached<SubmissionAccessData>>.Invalid(new ValidationError("Forbidden"));
         _accessStrategy
-            .GetAccessData(Arg.Any<SubmissionManagementAccessContext>(), Arg.Any<CancellationToken>())
+            .GetAccessData(Arg.Any<SubmissionAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
 
         // Act

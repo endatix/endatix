@@ -90,6 +90,39 @@ public static class ResourcePermissions
     }
 
     /// <summary>
+    /// Template-level permissions (Context: ResourceType.Template)
+    /// </summary>
+    public static class Template
+    {
+        public const string View = "template.view";
+        public const string Edit = "template.edit";
+        public const string DeleteFile = "template.file.delete";
+        public const string ViewFiles = "template.file.view";
+        public const string UploadFile = "template.file.upload";
+
+        /// <summary>
+        /// Pre-defined sets of permissions for the template resource
+        /// </summary>
+        public static class Sets
+        {
+            /// <summary>
+            /// View only permissions
+            /// </summary>
+            public static IReadOnlyCollection<string> ViewTemplate => [View, ViewFiles];
+
+            /// <summary>
+            /// Permissions required to edit a template
+            /// </summary>
+            public static IReadOnlyCollection<string> EditTemplate => [View, Edit, UploadFile, DeleteFile, ViewFiles];
+
+            /// <summary>
+            /// All permissions
+            /// </summary>
+            public static IReadOnlyCollection<string> All => [View, Edit, UploadFile, DeleteFile, ViewFiles];
+        }
+    }
+
+    /// <summary>
     /// Gets all permissions for a given resource type.
     /// </summary>
     public static IReadOnlyCollection<string> GetAllForResourceType(string resourceType)
@@ -98,6 +131,7 @@ public static class ResourcePermissions
         {
             ResourceTypes.Form => Form.Sets.All,
             ResourceTypes.Submission => Submission.Sets.All,
+            ResourceTypes.Template => Template.Sets.All,
             _ => []
         };
     }
