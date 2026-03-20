@@ -165,41 +165,12 @@ public sealed class PublicFormAccessPolicy(
 
     private static Result<PublicFormAccessData> BuildPublicFormAccessData(long formId)
     {
-        return Result.Success(new PublicFormAccessData
-        {
-            FormId = formId.ToString(),
-            SubmissionId = null,
-            FormPermissions = [.. ResourcePermissions.Form.Sets.ViewForm],
-            SubmissionPermissions = [.. ResourcePermissions.Submission.Sets.CreateSubmission]
-        });
+        return Result.Success(PublicFormAccessData.CreatePublicForm(formId));
     }
 
     private static PublicFormAccessData BuildAccessTokenData(long formId, SubmissionAccessTokenClaims claims)
     {
-        var submissionPermissions = new HashSet<string>();
-
-        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.View.Name))
-        {
-            submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.ViewOnly);
-        }
-
-        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Edit.Name))
-        {
-            submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.EditSubmission);
-        }
-
-        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Export.Name))
-        {
-            submissionPermissions.Add(ResourcePermissions.Submission.Export);
-        }
-
-        return new PublicFormAccessData
-        {
-            FormId = formId.ToString(),
-            SubmissionId = claims.SubmissionId.ToString(),
-            FormPermissions = [.. ResourcePermissions.Form.Sets.ViewForm],
-            SubmissionPermissions = submissionPermissions
-        };
+        return PublicFormAccessData.CreateWithAccessTokenClaims(formId, claims);
     }
 
     private async Task<Result<PublicFormAccessData>> BuildSubmissionTokenDataAsync(PublicFormAccessContext context, AccessPolicyRoute route, CancellationToken cancellationToken)
@@ -216,13 +187,7 @@ public sealed class PublicFormAccessPolicy(
             return canAccessFormResult.ToErrorResult<PublicFormAccessData>();
         }
 
-        return Result.Success(new PublicFormAccessData
-        {
-            FormId = context.FormId.ToString(),
-            SubmissionId = tokenResult.Value.ToString(),
-            FormPermissions = [.. ResourcePermissions.Form.Sets.ViewForm],
-            SubmissionPermissions = [.. ResourcePermissions.Submission.Sets.FillInSubmission]
-        });
+        return Result.Success(PublicFormAccessData.CreateWithSubmissionToken(context.FormId, tokenResult.Value));
     }
 
     private async Task<Result<bool>> IsFormPublicAsync(long formId, CancellationToken cancellationToken)

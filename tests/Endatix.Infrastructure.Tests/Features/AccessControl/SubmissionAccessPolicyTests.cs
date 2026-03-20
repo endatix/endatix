@@ -249,6 +249,33 @@ public sealed class SubmissionAccessPolicyTests
     }
 
     [Fact]
+    public async Task GetAccessDataAsync_AuthorizationServiceFails_ReturnsError_AndDoesNotCache()
+    {
+        // Arrange
+        var formId = 10L;
+        var submissionId = 20L;
+        var context = new SubmissionAccessContext(formId, submissionId);
+
+        _authorizationService
+            .GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Error("Authorization service unavailable"));
+
+        // Act
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain("Authorization service unavailable");
+
+        await _cache.DidNotReceive().SetAsync(
+            Arg.Any<string>(),
+            Arg.Any<Cached<SubmissionAccessData>>(),
+            Arg.Any<HybridCacheEntryOptions?>(),
+            Arg.Any<IEnumerable<string>?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task GetAccessDataAsync_ForbiddenForAnonymousUser_ReturnsForbidden_AndDoesNotCache()
     {
         // Arrange
