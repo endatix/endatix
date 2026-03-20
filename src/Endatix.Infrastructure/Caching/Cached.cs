@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Ardalis.GuardClauses;
+using Endatix.Core.Infrastructure;
 
 namespace Endatix.Infrastructure.Caching;
 

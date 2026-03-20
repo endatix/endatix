@@ -13,8 +13,7 @@ public class PublicFormAccessData : AccessDataBase
     public override HashSet<string> Permissions
     {
         get => FormPermissions.Union(SubmissionPermissions).ToHashSet();
-        // Keep the computed permissions behavior while satisfying the base `init` signature.
-        init { }
+        init => _ = value;
     }
 
     /// <summary>
