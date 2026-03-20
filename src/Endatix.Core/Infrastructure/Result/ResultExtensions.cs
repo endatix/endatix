@@ -69,7 +69,7 @@ public static class ResultExtensions
             ResultStatus.Forbidden => errors.Any()
                                 ? Result<TDestination>.Forbidden([.. errors])
                                 : Result<TDestination>.Forbidden(),
-            ResultStatus.Invalid => Result<TDestination>.Invalid([.. validationErrors]),
+            ResultStatus.Invalid => Result<TDestination>.Invalid(validationErrors),
             ResultStatus.Error => errors.Any()
                                 ? Result<TDestination>.Error(new ErrorList([.. errors], correlationId))
                                 : Result<TDestination>.Error(new ErrorList([], correlationId)),
