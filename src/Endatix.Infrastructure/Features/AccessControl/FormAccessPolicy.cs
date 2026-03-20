@@ -55,14 +55,14 @@ public sealed class FormAccessPolicy(
             return Result.Forbidden("You are not authorized to access this form.");
         }
 
-        if (authData.IsAdmin || authData.Permissions.Contains(Actions.Forms.View))
-        {
-            return FormAccessData.CreateWithViewAccess(context.FormId);
-        }
-
         if (authData.IsAdmin || authData.Permissions.Contains(Actions.Forms.Edit))
         {
             return FormAccessData.CreateWithEditAccess(context.FormId);
+        }
+
+        if (authData.Permissions.Contains(Actions.Forms.View))
+        {
+            return FormAccessData.CreateWithViewAccess(context.FormId);
         }
 
         return Result.Forbidden("You are not authorized to access this form.");

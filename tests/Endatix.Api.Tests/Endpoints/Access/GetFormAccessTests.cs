@@ -6,18 +6,19 @@ using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
 
 namespace Endatix.Api.Tests.Endpoints.Access;
 
 public class GetFormAccessTests
 {
-    private readonly IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> _accessStrategy;
-    private readonly GetFormPublicAccess _endpoint;
+    private readonly IResourceAccessQuery<FormAccessData, FormAccessContext> _accessPolicy;
+    private readonly GetFormAccess _endpoint;
 
     public GetFormAccessTests()
     {
-        _accessStrategy = Substitute.For<IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>>();
-        _endpoint = Factory.Create<GetFormPublicAccess>(_accessStrategy);
+        _accessPolicy = Substitute.For<IResourceAccessQuery<FormAccessData, FormAccessContext>>();
+        _endpoint = Factory.Create<GetFormAccess>(_accessPolicy);
     }
 
     [Fact]
@@ -27,64 +28,46 @@ public class GetFormAccessTests
     }
 
     [Fact]
-    public void Endpoint_AcceptsAccessStrategy()
-    {
-        _endpoint.Should().NotBeNull();
-    }
-
-    [Fact]
     public async Task ExecuteAsync_WithSuccessfulAccess_ReturnsOkResult()
     {
         // Arrange
-        var request = new GetFormPublicAccessRequest
-        {
-            FormId = 123,
-            Token = "token",
-            TokenType = SubmissionTokenType.AccessToken
-        };
+        var request = new GetFormAccessRequest { FormId = 123 };
 
-        var accessData = new PublicFormAccessData
+        var accessData = new FormAccessData
         {
             FormId = request.FormId.ToString(),
-            SubmissionId = "sub-1",
-            FormPermissions = new HashSet<string> { "forms:view" },
-            SubmissionPermissions = new HashSet<string> { "submissions:view" }
+            Permissions = [.. ResourcePermissions.Form.Sets.ViewForm]
         };
 
-        var cached = new Cached<PublicFormAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");
+        var cached = new Cached<FormAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");
 
-        _accessStrategy
-            .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
-            .Returns(Result<Cached<PublicFormAccessData>>.Success(cached));
+        _accessPolicy
+            .GetAccessData(Arg.Any<FormAccessContext>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Cached<FormAccessData>>.Success(cached));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var okResult = response.Result.As<Ok<GetFormPublicAccessResponse>>();
+        var okResult = response.Result.As<Ok<GetFormAccessResponse>>();
         okResult.Should().NotBeNull();
         okResult.Value.Should().NotBeNull();
         okResult.Value!.FormId.Should().Be(accessData.FormId);
-        okResult.Value!.SubmissionId.Should().Be(accessData.SubmissionId);
-        okResult.Value!.FormPermissions.Should().BeEquivalentTo(accessData.FormPermissions);
-        okResult.Value!.SubmissionPermissions.Should().BeEquivalentTo(accessData.SubmissionPermissions);
+        okResult.Value!.Permissions.Should().BeEquivalentTo(accessData.Permissions);
         okResult.Value!.ETag.Should().Be(cached.ETag);
+        okResult.Value!.CachedAt.Should().Be(cached.CachedAt);
+        okResult.Value!.ExpiresAt.Should().Be(cached.ExpiresAt);
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithFailedAccess_ReturnsProblemResult()
+    public async Task ExecuteAsync_WithUnauthorized_ReturnsProblemResult()
     {
         // Arrange
-        var request = new GetFormPublicAccessRequest
-        {
-            FormId = 123,
-            Token = "token",
-            TokenType = SubmissionTokenType.AccessToken
-        };
+        var request = new GetFormAccessRequest { FormId = 123 };
 
-        var errorResult = Result<Cached<PublicFormAccessData>>.Invalid(new ValidationError("access denied"));
-        _accessStrategy
-            .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
+        var errorResult = Result<Cached<FormAccessData>>.Unauthorized("You are not authorized to access this form.");
+        _accessPolicy
+            .GetAccessData(Arg.Any<FormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
 
         // Act
@@ -93,24 +76,40 @@ public class GetFormAccessTests
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
         problemResult.Should().NotBeNull();
-        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
-        problemResult.ProblemDetails.Detail.Should().Contain("access denied");
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problemResult.ProblemDetails.Detail.Should().Contain("You are not authorized");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithForbidden_ReturnsProblemResult()
+    {
+        // Arrange
+        var request = new GetFormAccessRequest { FormId = 123 };
+
+        var errorResult = Result<Cached<FormAccessData>>.Forbidden("You are not authorized to access this form.");
+        _accessPolicy
+            .GetAccessData(Arg.Any<FormAccessContext>(), Arg.Any<CancellationToken>())
+            .Returns(errorResult);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        problemResult.ProblemDetails.Detail.Should().Contain("You are not authorized");
     }
 
     [Fact]
     public async Task ExecuteAsync_WithUnexpectedError_ReturnsProblemResult()
     {
         // Arrange
-        var request = new GetFormPublicAccessRequest
-        {
-            FormId = 123,
-            Token = "token",
-            TokenType = SubmissionTokenType.AccessToken
-        };
+        var request = new GetFormAccessRequest { FormId = 123 };
 
-        var errorResult = Result<Cached<PublicFormAccessData>>.Error("unexpected error");
-        _accessStrategy
-            .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
+        var errorResult = Result<Cached<FormAccessData>>.Error("unexpected error");
+        _accessPolicy
+            .GetAccessData(Arg.Any<FormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
 
         // Act
@@ -122,5 +121,52 @@ public class GetFormAccessTests
         problemResult!.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
         problemResult.ProblemDetails.Detail.Should().Contain("unexpected error");
     }
-}
 
+    [Fact]
+    public async Task ExecuteAsync_WithViewAccess_ReturnsPermissionsWithViewOnly()
+    {
+        // Arrange
+        var formId = 456L;
+        var request = new GetFormAccessRequest { FormId = formId };
+
+        var accessData = FormAccessData.CreateWithViewAccess(formId);
+        var cached = new Cached<FormAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(5), "etag-view");
+
+        _accessPolicy
+            .GetAccessData(Arg.Is<FormAccessContext>(c => c.FormId == formId), Arg.Any<CancellationToken>())
+            .Returns(Result<Cached<FormAccessData>>.Success(cached));
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = response.Result.As<Ok<GetFormAccessResponse>>();
+        okResult.Should().NotBeNull();
+        okResult.Value!.FormId.Should().Be(formId.ToString());
+        okResult.Value!.Permissions.Should().BeEquivalentTo(ResourcePermissions.Form.Sets.ViewForm);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithEditAccess_ReturnsPermissionsWithEditAccess()
+    {
+        // Arrange
+        var formId = 789L;
+        var request = new GetFormAccessRequest { FormId = formId };
+
+        var accessData = FormAccessData.CreateWithEditAccess(formId);
+        var cached = new Cached<FormAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(5), "etag-edit");
+
+        _accessPolicy
+            .GetAccessData(Arg.Is<FormAccessContext>(c => c.FormId == formId), Arg.Any<CancellationToken>())
+            .Returns(Result<Cached<FormAccessData>>.Success(cached));
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = response.Result.As<Ok<GetFormAccessResponse>>();
+        okResult.Should().NotBeNull();
+        okResult.Value!.FormId.Should().Be(formId.ToString());
+        okResult.Value!.Permissions.Should().BeEquivalentTo(ResourcePermissions.Form.Sets.EditForm);
+    }
+}

@@ -72,9 +72,7 @@ public sealed class GetFormAccessValidator : Validator<GetFormAccessRequest>
 /// </summary>
 public sealed record GetFormAccessResponse(
     string FormId,
-    string? SubmissionId,
-    HashSet<string> FormPermissions,
-    HashSet<string> SubmissionPermissions,
+    HashSet<string> Permissions,
     DateTime CachedAt,
     DateTime ExpiresAt,
     string ETag
@@ -86,9 +84,7 @@ public sealed record GetFormAccessResponse(
     public static GetFormAccessResponse FromCached(Cached<FormAccessData> cached)
         => new(
             cached.Data.FormId,
-            cached.Data.SubmissionId,
-            cached.Data.FormPermissions,
-            cached.Data.SubmissionPermissions,
+            cached.Data.Permissions,
             cached.CachedAt,
             cached.ExpiresAt,
             cached.ETag);
