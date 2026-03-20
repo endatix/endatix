@@ -14,7 +14,7 @@ namespace Endatix.Api.Endpoints.Access;
 /// Uses FormId + Token + TokenType (no SubmissionId; submission is resolved from token).
 /// </summary>
 public class GetFormPublicAccess(
-    IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> submissionAccessPolicy
+    IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> publicFormAccessPolicy
 ) : Endpoint<GetFormPublicAccessRequest, Results<Ok<GetFormPublicAccessResponse>, ProblemHttpResult>>
 {
     public override void Configure()
@@ -36,7 +36,7 @@ public class GetFormPublicAccess(
         CancellationToken ct)
     {
         var context = new PublicFormAccessContext(request.FormId, request.Token, request.TokenType);
-        var accessDataResult = await submissionAccessPolicy.GetAccessData(context, ct);
+        var accessDataResult = await publicFormAccessPolicy.GetAccessData(context, ct);
 
         return TypedResultsBuilder
             .MapResult(accessDataResult, GetFormPublicAccessResponse.FromCached)

@@ -1,8 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
-using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -15,103 +13,60 @@ namespace Endatix.Infrastructure.Features.AccessControl;
 /// </summary>
 public sealed class SubmissionManagementAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
-    IRepository<Form> formRepository,
     HybridCache cache,
     IDateTimeProvider dateTimeProvider
-) : IResourceAccessQuery<PublicFormAccessData, SubmissionManagementAccessContext>
+) : IResourceAccessQuery<SubmissionManagementAccessData, SubmissionManagementAccessContext>
 {
-    private const int CACHE_MINUTES = 10;
-
-    public async Task<Result<Cached<PublicFormAccessData>>> GetAccessData(
+    public async Task<Result<Cached<SubmissionManagementAccessData>>> GetAccessData(
         SubmissionManagementAccessContext context,
         CancellationToken cancellationToken)
     {
         var identityResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
         if (!identityResult.IsSuccess)
         {
-            return Result<Cached<PublicFormAccessData>>.Error("Unauthorized");
+            return identityResult.ToErrorResult<Cached<SubmissionManagementAccessData>>();
         }
 
-        var cacheKey = $"auth:sub:mgmt:{identityResult.Value.UserId}:{context.FormId}:{context.SubmissionId}";
+        var authData = identityResult.Value;
+        var now = dateTimeProvider.Now.UtcDateTime;
+        var ttl = authData.ComputeAuthTtl(now);
+        var cacheKey =
+            $"auth:sb_mgmt:form:{context.FormId}:sub:{context.SubmissionId}:user:{authData.UserId}";
 
         return await cache.GetOrCreateCachedResultAsync(
-            cacheKey,
-            async ct => 
-            {
-                var data = await ComputeAsync(context, identityResult.Value, ct);
-                return Result.Success(data);
-            },
-            TimeSpan.FromMinutes(CACHE_MINUTES),
-            dateTimeProvider.Now.UtcDateTime,
-            tags: ["permissions", $"form:{context.FormId}"],
+            key: cacheKey,
+            factory: _ => Task.FromResult(ComputeResourceAccess(context, authData)),
+            ttl: ttl,
+            utcNow: now,
+            tags: ["permissions", $"submission:{context.SubmissionId}"],
             cancellationToken: cancellationToken
         );
     }
 
-    private async Task<PublicFormAccessData> ComputeAsync(
+    private Result<SubmissionManagementAccessData> ComputeResourceAccess(
         SubmissionManagementAccessContext context,
-        AuthorizationData identity,
-        CancellationToken cancellationToken)
+        AuthorizationData authData)
     {
-        var formPermissions = new HashSet<string>();
-        var submissionPermissions = new HashSet<string>();
-
-        if (identity.IsAdmin)
+        if (authData is null || authData.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
-            formPermissions.UnionWith(ResourcePermissions.GetAllForResourceType(ResourceTypes.Form));
-
-            submissionPermissions.UnionWith(ResourcePermissions.GetAllForResourceType(ResourceTypes.Submission));
-
-            return new PublicFormAccessData
-            {
-                FormId = context.FormId.ToString(),
-                SubmissionId = context.SubmissionId.ToString(),
-                FormPermissions = formPermissions,
-                SubmissionPermissions = submissionPermissions
-            };
+            return Result.Unauthorized("You are not authorized to access this submission.");
         }
 
-        if (identity.UserId == AuthorizationData.ANONYMOUS_USER_ID)
+        if (!authData.Permissions.Contains(Actions.Access.Hub))
         {
-            return new PublicFormAccessData
-            {
-                FormId = context.FormId.ToString(),
-                SubmissionId = context.SubmissionId.ToString(),
-                FormPermissions = formPermissions,
-                SubmissionPermissions = submissionPermissions
-            };
+            return Result.Forbidden("You are not authorized to access this submission.");
         }
 
-        var hasFormEdit = await authorizationService.HasPermissionAsync(Actions.Forms.Edit, cancellationToken);
-        if (hasFormEdit.IsSuccess && hasFormEdit.Value)
+        if (authData.IsAdmin || authData.Permissions.Contains(Actions.Submissions.Edit))
         {
-            formPermissions.Add(ResourcePermissions.Form.Edit);
+            return SubmissionManagementAccessData.CreateWithEditAccess(context.FormId, context.SubmissionId);
         }
 
-        var hasSubmissionView = await authorizationService.HasPermissionAsync(Actions.Submissions.View, cancellationToken);
-        if (hasSubmissionView.IsSuccess && hasSubmissionView.Value)
+        if (authData.Permissions.Contains(Actions.Submissions.View))
         {
-            submissionPermissions.Add(ResourcePermissions.Submission.View);
+            return SubmissionManagementAccessData.CreateWithViewAccess(context.FormId, context.SubmissionId);
         }
 
-        var hasSubmissionEdit = await authorizationService.HasPermissionAsync(Actions.Submissions.Edit, cancellationToken);
-        if (hasSubmissionEdit.IsSuccess && hasSubmissionEdit.Value)
-        {
-            submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.EditSubmission);
-        }
-
-        var hasSubmissionDelete = await authorizationService.HasPermissionAsync(Actions.Submissions.Delete, cancellationToken);
-        if (hasSubmissionDelete.IsSuccess && hasSubmissionDelete.Value)
-        {
-            submissionPermissions.Add(ResourcePermissions.Submission.DeleteFile);
-        }
-
-        return new PublicFormAccessData
-        {
-            FormId = context.FormId.ToString(),
-            SubmissionId = context.SubmissionId.ToString(),
-            FormPermissions = formPermissions,
-            SubmissionPermissions = submissionPermissions
-        };
+        return Result.Forbidden("You are not authorized to access this submission.");
     }
 }

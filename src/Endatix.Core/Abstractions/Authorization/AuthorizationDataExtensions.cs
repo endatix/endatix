@@ -7,16 +7,16 @@ namespace Endatix.Core.Abstractions.Authorization;
 /// </summary>
 public static class AuthorizationDataExtensions
 {
+    private static readonly TimeSpan _defaultTtl = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan _immediateTtl = TimeSpan.FromSeconds(1);
 
     public static TimeSpan ComputeAuthTtl(
         this AuthorizationData? authData,
-        DateTime utcNow,
-        TimeSpan? defaultTtl = null)
+        DateTime utcNow)
     {
         if (authData is null)
         {
-            return defaultTtl ?? _immediateTtl;
+            return _defaultTtl;
         }
 
         var authDataSafeTtl = authData.ExpiresAt - utcNow;
