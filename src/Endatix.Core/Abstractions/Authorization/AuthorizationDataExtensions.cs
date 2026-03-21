@@ -10,7 +10,7 @@ public static class AuthorizationDataExtensions
     private static readonly TimeSpan _defaultTtl = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan _immediateTtl = TimeSpan.FromSeconds(1);
 
-    extension(AuthorizationData authData)
+    extension(AuthorizationData? authData)
     {
         /// <summary>
         /// Computes the TTL for the authorization data, ensuring it does not exceed the expiration time.
