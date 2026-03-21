@@ -6,6 +6,7 @@ using Endatix.Api.Endpoints.Auth;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.Register;
 using Microsoft.AspNetCore.Http;
+using static Endatix.Api.Infrastructure.ResultExtensions;
 
 namespace Endatix.Api.Tests.Endpoints.Auth;
 
@@ -62,6 +63,6 @@ public class RegisterTests
         badResponse!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
         badResponse!.Value!.Status.Should().Be(StatusCodes.Status400BadRequest);
         badResponse!.Value!.Title.Should().Be("Registration failed. Please check your input and try again.");
-        badResponse!.Value!.Detail.Should().Be("There was a problem with your request.");
+        badResponse!.Value!.Detail.Should().Be(ResultTitles.BAD_REQUEST);
     }
 }

@@ -129,13 +129,18 @@ public class EndatixMiddlewareBuilder
 
         var optionsProvider = App.ApplicationServices.GetService<IOptions<ApiOptions>>();
         var options = optionsProvider?.Value ?? new ApiOptions();
-        
+
         _logger?.LogInformation("Loaded ApiOptions from configuration: UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
             options.UseSwagger,
             options.SwaggerPath);
-        
+
         // Apply any additional configuration if provided
         configureApi?.Invoke(options);
+
+        if (options.UseExceptionHandler)
+        {
+            App.UseDefaultExceptionHandler();
+        }
 
         UseFastEndpoints(config =>
         {

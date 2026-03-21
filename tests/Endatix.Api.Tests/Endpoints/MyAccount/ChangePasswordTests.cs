@@ -6,6 +6,7 @@ using FastEndpoints;
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
+using static Endatix.Api.Infrastructure.ResultExtensions;
 
 namespace Endatix.Api.Tests.Endpoints.MyAccount;
 
@@ -69,7 +70,7 @@ public class ChangePasswordTests
         Assert.NotNull(problemDetailsResult);
         Assert.NotNull(problemDetailsResult.ProblemDetails);
 
-        problemDetailsResult.ProblemDetails.Title.Should().Be("There was a problem with your request.");
+        problemDetailsResult.ProblemDetails.Title.Should().Be(ResultTitles.BAD_REQUEST);
         problemDetailsResult.ProblemDetails.Detail.Should().Contain("Invalid current password");
         problemDetailsResult.ProblemDetails.Status.Should().Be(400);
     }
@@ -94,7 +95,7 @@ public class ChangePasswordTests
 
         Assert.NotNull(problemDetailsResult);
         Assert.NotNull(problemDetailsResult.ProblemDetails);
-        problemDetailsResult.ProblemDetails.Title.Should().Be("An unexpected error occurred.");
+        problemDetailsResult.ProblemDetails.Title.Should().Be(ResultTitles.INTERNAL_SERVER_ERROR);
         problemDetailsResult.ProblemDetails.Detail.Should().Contain("Failed to change password");
         problemDetailsResult.ProblemDetails.Status.Should().Be(500);
     }
