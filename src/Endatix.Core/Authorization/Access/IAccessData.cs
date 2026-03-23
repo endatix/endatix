@@ -1,0 +1,35 @@
+using System.Collections.Immutable;
+
+namespace Endatix.Core.Authorization.Access;
+
+/// <summary>
+/// Interface for access data that contains permission evaluation methods.
+/// </summary>
+public interface IAccessData
+{
+    /// <summary>
+    /// The permissions associated with the access data.
+    /// They are used to provide a list of permissions that the user has access to for that resource.
+    /// </summary>
+    ImmutableHashSet<string> Permissions { get; }
+
+    /// <summary>
+    /// Checks if the specific permission is present.
+    /// </summary>
+    bool Has(string permission);
+
+    /// <summary>
+    /// Checks if any of the specified permissions are present.
+    /// </summary>
+    bool HasAny(IEnumerable<string> permissions);
+
+    /// <summary>
+    /// Checks if all of the specified permissions are present.
+    /// </summary>
+    bool HasAll(IEnumerable<string> permissions);
+
+    /// <summary>
+    /// The date and time the access data expires.
+    /// </summary>
+    DateTimeOffset? ExpiresAt { get; init; }
+}

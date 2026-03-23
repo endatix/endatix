@@ -6,8 +6,6 @@ namespace Endatix.Core.Abstractions.Authorization;
 /// </summary>
 public static class Actions
 {
-
-
     /// <summary>
     /// Access-level permissions (not action based permissions)
     /// </summary>
@@ -22,6 +20,11 @@ public static class Actions
         /// User has access to the Hub application.
         /// </summary>
         public const string Hub = "access.apps.hub";
+
+        /// <summary>
+        /// User has private forms (not public) access.
+        /// </summary>
+        public static readonly string PrivateForms = Authenticated;
     }
 
     /// <summary>

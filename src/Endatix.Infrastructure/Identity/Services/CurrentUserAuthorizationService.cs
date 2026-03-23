@@ -41,7 +41,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         var currentPrincipal = _httpContextAccessor.HttpContext?.User;
         if (currentPrincipal is null)
         {
-            return Result.Error("No current user found");
+            return Result.Unauthorized("No current user found");
         }
 
         var userId = currentPrincipal.GetUserId();
@@ -92,39 +92,29 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
     /// <inheritdoc />
     public async Task<Result<bool>> HasPermissionAsync(string permission, CancellationToken cancellationToken)
     {
-        var permissionsInfoResult = await GetAuthorizationDataAsync(cancellationToken);
-        if (!permissionsInfoResult.IsSuccess)
+        var authDataResult = await GetAuthorizationDataAsync(cancellationToken);
+        if (!authDataResult.IsSuccess)
         {
             return Result.Error("Failed to get user permissions info");
         }
 
-        var permissionInfo = permissionsInfoResult.Value;
+        var authData = authDataResult.Value;
 
-        if (permissionInfo.IsAdmin)
-        {
-            return Result.Success(true);
-        }
-
-        return Result.Success(permissionInfo.Permissions.Contains(permission));
+        return Result.Success(authData.HasPermission(permission));
     }
 
     /// <inheritdoc />
     public async Task<Result<Dictionary<string, bool>>> HasPermissionsAsync(IEnumerable<string> permissions, CancellationToken cancellationToken)
     {
-        var permissionsInfoResult = await GetAuthorizationDataAsync(cancellationToken);
-        if (!permissionsInfoResult.IsSuccess)
+        var authDataResult = await GetAuthorizationDataAsync(cancellationToken);
+        if (!authDataResult.IsSuccess)
         {
             return Result.Error("Failed to get user permissions info");
         }
 
-        var permissionInfo = permissionsInfoResult.Value;
+        var authData = authDataResult.Value;
 
-        if (permissionInfo.IsAdmin)
-        {
-            return Result.Success(permissions.ToDictionary(p => p, _ => true));
-        }
-
-        return Result.Success(permissions.ToDictionary(p => p, permissionInfo.Permissions.Contains));
+        return Result.Success(authData.HasPermissions(permissions));
     }
 
     /// <inheritdoc />

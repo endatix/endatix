@@ -16,6 +16,8 @@ using Endatix.Infrastructure.Features.Account;
 using Endatix.Core.Abstractions.Account;
 using Endatix.Infrastructure.Identity.Services;
 using Endatix.Infrastructure.Identity.Repositories;
+using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Core.Authorization.Access;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -96,9 +98,21 @@ public static class IdentityServiceCollectionExtensions
         services.AddKeyedScoped<IUnitOfWork, IdentityUnitOfWork>("identity");
 
         // Register submission access token service
+        services.AddEndatixOptions<SubmissionAccessTokenOptions>(configuration);
         services.AddScoped<ISubmissionAccessTokenService, SubmissionAccessTokenService>();
         services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
-        services.AddEndatixOptions<SubmissionAccessTokenOptions>(configuration);
+
+        services.AddScoped<PublicFormAccessPolicy>();
+        services.AddScoped<IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>>(sp => sp.GetRequiredService<PublicFormAccessPolicy>());
+
+        services.AddScoped<SubmissionAccessPolicy>();
+        services.AddScoped<IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>>(sp => sp.GetRequiredService<SubmissionAccessPolicy>());
+
+        services.AddScoped<FormAccessPolicy>();
+        services.AddScoped<IResourceAccessQuery<FormAccessData, FormAccessContext>>(sp => sp.GetRequiredService<FormAccessPolicy>());
+
+        services.AddScoped<FormTemplateAccessPolicy>();
+        services.AddScoped<IResourceAccessQuery<FormTemplateAccessData, FormTemplateAccessContext>>(sp => sp.GetRequiredService<FormTemplateAccessPolicy>());
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()

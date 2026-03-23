@@ -73,7 +73,7 @@ public sealed class CurrentUserAuthorizationServiceTests
     #region GetAuthorizationDataAsync Tests
 
     [Fact]
-    public async Task GetAuthorizationDataAsync_NullHttpContext_ReturnsError()
+    public async Task GetAuthorizationDataAsync_NullHttpContext_ReturnsUnauthorized()
     {
         // Arrange
         _httpContextAccessor.HttpContext.Returns((HttpContext?)null);
@@ -83,12 +83,12 @@ public sealed class CurrentUserAuthorizationServiceTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.IsError().Should().BeTrue();
+        result.IsUnauthorized().Should().BeTrue();
         result.Errors.First().Should().Contain("No current user found");
     }
 
     [Fact]
-    public async Task GetAuthorizationDataAsync_NoUser_ReturnsError()
+    public async Task GetAuthorizationDataAsync_NoUser_ReturnsUnauthorized()
     {
         // Arrange
         var httpContext = Substitute.For<HttpContext>();
@@ -100,7 +100,7 @@ public sealed class CurrentUserAuthorizationServiceTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.IsError().Should().BeTrue();
+        result.IsUnauthorized().Should().BeTrue();
         result.Errors.First().Should().Contain("No current user found");
     }
 
@@ -120,7 +120,7 @@ public sealed class CurrentUserAuthorizationServiceTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value!.UserId.Should().Be("anonymous");
+        result.Value!.UserId.Should().Be(AuthorizationData.ANONYMOUS_USER_ID);
         result.Value.Roles.Should().Contain(SystemRole.Public.Name);
     }
 
@@ -142,7 +142,7 @@ public sealed class CurrentUserAuthorizationServiceTests
         // When there's no identity, GetUserId returns null, so it returns anonymous user
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value!.UserId.Should().Be("anonymous");
+        result.Value!.UserId.Should().Be(AuthorizationData.ANONYMOUS_USER_ID);
         result.Value.Roles.Should().Contain(SystemRole.Public.Name);
     }
 

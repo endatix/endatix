@@ -31,13 +31,13 @@ public class GetActive(IMediator mediator, IUserContext userContext) : Endpoint<
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<FormDefinitionModel>, ProblemHttpResult>> ExecuteAsync(GetActiveFormDefinitionRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<FormDefinitionModel>, ProblemHttpResult>> ExecuteAsync(GetActiveFormDefinitionRequest request, CancellationToken ct)
     {
         var userId = userContext.GetCurrentUserId();
 
         var result = await mediator.Send(
-            new GetActiveFormDefinitionQuery(request.FormId, userId, Actions.Access.Authenticated),
-            cancellationToken);
+            new GetActiveFormDefinitionQuery(request.FormId, userId, Actions.Access.PrivateForms),
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, FormDefinitionMapper.Map<FormDefinitionModel>)

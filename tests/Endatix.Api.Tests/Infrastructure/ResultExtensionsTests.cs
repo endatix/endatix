@@ -3,13 +3,17 @@ using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using static Endatix.Api.Infrastructure.ResultExtensions;
 
 namespace Endatix.Api.Tests.Infrastructure;
 
 public class ResultExtensionsTests
 {
-    internal const string DEFAULT_UNEXPECTED_ERROR_TITLE = "An unexpected error occurred.";
-    internal const string DEFAULT_BAD_REQUEST_TITLE = "There was a problem with your request.";
+    private const string DEFAULT_UNEXPECTED_ERROR_TITLE = ResultTitles.INTERNAL_SERVER_ERROR;
+    private const string DEFAULT_BAD_REQUEST_TITLE = ResultTitles.BAD_REQUEST;
+    private const string DEFAULT_NOT_FOUND_TITLE = ResultTitles.NOT_FOUND;
+    private const string DEFAULT_UNAUTHORIZED_TITLE = ResultTitles.UNAUTHORIZED;
+    private const string DEFAULT_FORBIDDEN_TITLE = ResultTitles.FORBIDDEN;
 
     [Fact]
     public void ToNotFound_WithErrors_ReturnsProblemDetailsWithErrors()
@@ -29,7 +33,7 @@ public class ResultExtensionsTests
         {
             Assert.Fail("Problem details are null");
         }
-        problemDetails.Title.Should().Be("Resource not found.");
+        problemDetails.Title.Should().Be(DEFAULT_NOT_FOUND_TITLE);
         problemDetails.Status.Should().Be(StatusCodes.Status404NotFound);
         problemDetails.Detail.Should().Contain("Resource not found");
         problemDetails.Detail.Should().Contain("Additional error");
@@ -53,9 +57,9 @@ public class ResultExtensionsTests
         {
             Assert.Fail("Problem details are null");
         }
-        problemDetails.Title.Should().Be("Resource not found.");
+        problemDetails.Title.Should().Be(DEFAULT_NOT_FOUND_TITLE);
         problemDetails.Status.Should().Be(StatusCodes.Status404NotFound);
-        problemDetails.Detail.Should().Contain("Resource not found.");
+        problemDetails.Detail.Should().Contain(DEFAULT_NOT_FOUND_TITLE);
     }
 
     [Fact]
@@ -77,7 +81,7 @@ public class ResultExtensionsTests
         {
             Assert.Fail("Problem details are null");
         }
-        problemDetails.Title.Should().Be("There was a problem with your request.");
+        problemDetails.Title.Should().Be(DEFAULT_BAD_REQUEST_TITLE);
         problemDetails.Status.Should().Be(StatusCodes.Status400BadRequest);
         problemDetails.Detail.Should().Be("Invalid field value");
         problemDetails.Extensions.Should().ContainKey("errorCode");
@@ -126,14 +130,16 @@ public class ResultExtensionsTests
         {
             Assert.Fail("Problem details are null");
         }
-        problemDetails.Title.Should().Be("There was a problem with your request.");
+        problemDetails.Title.Should().Be(DEFAULT_BAD_REQUEST_TITLE);
         problemDetails.Status.Should().Be(StatusCodes.Status400BadRequest);
-        problemDetails.Detail.Should().Be("There was a problem with your request.");
+        problemDetails.Detail.Should().Be(DEFAULT_BAD_REQUEST_TITLE);
     }
 
     [Theory]
     [InlineData(ResultStatus.Invalid, StatusCodes.Status400BadRequest)]
     [InlineData(ResultStatus.NotFound, StatusCodes.Status404NotFound)]
+    [InlineData(ResultStatus.Unauthorized, StatusCodes.Status401Unauthorized)]
+    [InlineData(ResultStatus.Forbidden, StatusCodes.Status403Forbidden)]
     [InlineData(ResultStatus.Error, StatusCodes.Status500InternalServerError)]
     public void ToProblem_WithDifferentStatuses_ReturnsCorrectHttpStatusCode(ResultStatus status, int expectedStatusCode)
     {
@@ -284,6 +290,34 @@ public class ResultExtensionsTests
         }
         problemDetails.Title.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
         problemDetails.Detail.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ToProblem_Unauthorized_UsesUnauthorizedDefaultTitle()
+    {
+        // Arrange
+        var result = Result.Unauthorized("Unauthorized");
+
+        // Act
+        var httpResult = result.ToProblem();
+
+        // Assert
+        httpResult.ProblemDetails.Title.Should().Be(DEFAULT_UNAUTHORIZED_TITLE);
+        httpResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
+    [Fact]
+    public void ToProblem_Forbidden_UsesForbiddenDefaultTitle()
+    {
+        // Arrange
+        var result = Result.Forbidden("Forbidden");
+
+        // Act
+        var httpResult = result.ToProblem();
+
+        // Assert
+        httpResult.ProblemDetails.Title.Should().Be(DEFAULT_FORBIDDEN_TITLE);
+        httpResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
     [Fact]
@@ -450,6 +484,8 @@ public class ResultExtensionsTests
         {
             ResultStatus.Invalid => Result.Invalid(new ValidationError("Field", "Validation error", "ERROR_CODE", ValidationSeverity.Error)),
             ResultStatus.NotFound => Result.NotFound(errors),
+            ResultStatus.Unauthorized => Result.Unauthorized(errors),
+            ResultStatus.Forbidden => Result.Forbidden(errors),
             ResultStatus.Error => Result.Error(errors.FirstOrDefault() ?? "Error occurred"),
             ResultStatus.Ok => Result.Success("Success"),
             _ => Result.Error("Unknown status")
