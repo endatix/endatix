@@ -732,8 +732,8 @@ packages:
     resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/runtime@7.28.6':
-    resolution: {integrity: sha512-05WQkdpL9COIMz4LjTxGpPNCdlpyimKppYNoJ5Di5EUObifl8t4tuLuUBBZEpoLYOmfvIWrsp9fCl0HoPRVTdA==}
+  '@babel/runtime@7.29.2':
+    resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.27.2':
@@ -5821,8 +5821,8 @@ packages:
   yaml-ast-parser@0.0.43:
     resolution: {integrity: sha512-2PTINUwsRqSd+s8XxKaJWQlUuEMHJQyEuh2edBbW8KNJz0SJPwUSD2zRWqezFEdN7IzAgeuYHFUCF7o8zRdZ0A==}
 
-  yaml@1.10.2:
-    resolution: {integrity: sha512-r3vXyErRCYJ7wg28yvBY5VSoAF8ZvlcW9/BwUzEtUsjvX/DKs24dIkuwjtuprwJJHsbyUbLApepYTR1BN4uHrg==}
+  yaml@1.10.3:
+    resolution: {integrity: sha512-vIYeF1u3CjlhAFekPPAk2h/Kv4T3mAkMox5OymRiJQB0spDP10LHvt+K7G9Ny6NuuMAb25/6n1qyUjAcGNf/AA==}
     engines: {node: '>= 6'}
 
   yargs-parser@21.1.1:
@@ -6717,7 +6717,7 @@ snapshots:
 
   '@babel/runtime@7.28.4': {}
 
-  '@babel/runtime@7.28.6': {}
+  '@babel/runtime@7.29.2': {}
 
   '@babel/template@7.27.2':
     dependencies:
@@ -8081,7 +8081,7 @@ snapshots:
 
   '@slorber/react-helmet-async@1.3.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
     dependencies:
-      '@babel/runtime': 7.28.6
+      '@babel/runtime': 7.29.2
       invariant: 2.2.4
       prop-types: 15.8.1
       react: 19.1.1
@@ -8440,7 +8440,7 @@ snapshots:
   '@types/react-router@5.1.20':
     dependencies:
       '@types/history': 4.7.11
-      '@types/react': 19.1.9
+      '@types/react': 19.2.14
 
   '@types/react@19.1.9':
     dependencies:
@@ -10160,7 +10160,7 @@ snapshots:
 
   history@4.10.1:
     dependencies:
-      '@babel/runtime': 7.28.6
+      '@babel/runtime': 7.28.4
       loose-envify: 1.4.0
       resolve-pathname: 3.0.0
       tiny-invariant: 1.3.3
@@ -11290,14 +11290,14 @@ snapshots:
     dependencies:
       '@exodus/schemasafe': 1.3.0
       should: 13.2.3
-      yaml: 1.10.2
+      yaml: 1.10.3
 
   oas-resolver@2.5.6:
     dependencies:
       node-fetch-h2: 2.3.0
       oas-kit-common: 1.0.8
       reftools: 1.1.9
-      yaml: 1.10.2
+      yaml: 1.10.3
       yargs: 17.7.2
 
   oas-schema-walker@1.1.5: {}
@@ -11311,7 +11311,7 @@ snapshots:
       oas-schema-walker: 1.1.5
       reftools: 1.1.9
       should: 13.2.3
-      yaml: 1.10.2
+      yaml: 1.10.3
 
   object-assign@4.1.1: {}
 
@@ -11504,7 +11504,7 @@ snapshots:
 
   polished@4.3.1:
     dependencies:
-      '@babel/runtime': 7.28.6
+      '@babel/runtime': 7.29.2
 
   postcss-attribute-case-insensitive@7.0.1(postcss@8.5.6):
     dependencies:
@@ -12746,7 +12746,7 @@ snapshots:
       oas-schema-walker: 1.1.5
       oas-validator: 5.0.8
       reftools: 1.1.9
-      yaml: 1.10.2
+      yaml: 1.10.3
       yargs: 17.7.2
     transitivePeerDependencies:
       - encoding
@@ -13218,7 +13218,7 @@ snapshots:
 
   yaml-ast-parser@0.0.43: {}
 
-  yaml@1.10.2: {}
+  yaml@1.10.3: {}
 
   yargs-parser@21.1.1: {}
 
