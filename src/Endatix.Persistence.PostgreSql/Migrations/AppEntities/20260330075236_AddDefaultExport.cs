@@ -19,7 +19,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-
+            // No down migration needed as we are recovering not adding the function.
         }
     }
 }
