@@ -55,7 +55,7 @@
       "qs": "^6.14.2",
       "fast-xml-parser": "^5.5.7",
       "minimatch": "^3.1.4",
-      "serialize-javascript": "^7.0.4",
+      "serialize-javascript": "^7.0.5",
       "svgo": "^3.3.3",
       "lodash": "^4.18.0",
       "lodash-es": "^4.18.0",
@@ -66,7 +66,7 @@
       "brace-expansion": "^1.1.13"
     },
     "comments": {
-      "overrides": "[node-forge] to version 1.4.0 to fix CVE-2026-33895, CVE-2026-33894, CVE-2026-33896 & CVE-2026-33891. Remove on @docusaurus 4x bump | [qs] to 6.14.1 to fix GHSA-6rw7-vpxm-498p & CVE-2026-2391. Remove on @docusaurus 4x bump | [fast-xml-parser] to 5.5.7 to fix CVE-2026-2512, CVE-2026-25896, CVE-2026-27942, CVE-2026-33036 & CVE-2026-33349. Remove on next redocusaurus bump | [minimatch] to 3.1.4 to fix multiple CVEs. Remove on @docusaurus 4x bump | [serialize-javascript] to 7.0.4 to fix CVE-2020-7660. Remove on @docusaurus 4x bump | [svgo] to 3.3.3 to fix CVE-2026-29074. Remove on @docusaurus 4x bump | [lodash] to 4.18.0 to fix CVE-2025-13465, CVE-2026-2950 & CVE-2026-4800. Remove on @docusaurus 4x bump | [lodash-es] to 4.18.0 to fix CVE-2025-13465, CVE-2026-4800 & CVE-2026-2950. Remove on @docusaurus 4x bump | [dompurify] to 3.3.3 to fix CVE-2026-0540. Remove on next redocusaurus bump | [webpack] to 5.105.4 to fix CVE-2025-68458 & CVE-2025-68157. Remove on @docusaurus 4x bump | [picomatch] to 2.3.2 to fix CVE-2026-33672 & CVE-2026-33671. Remove on @docusaurus 4x bump | [path-to-regexp] to 0.1.13 to fix CVE-2026-4867. Remove on @docusaurus 4x bump | [brace-expansion] to 1.1.13 to address CVE-2026-33750. Remove on @docusaurus 4x bump"
+      "overrides": "[node-forge] to version 1.4.0 to fix CVE-2026-33895, CVE-2026-33894, CVE-2026-33896 & CVE-2026-33891. Remove on @docusaurus 4x bump | [qs] to 6.14.1 to fix GHSA-6rw7-vpxm-498p & CVE-2026-2391. Remove on @docusaurus 4x bump | [fast-xml-parser] to 5.5.7 to fix CVE-2026-2512, CVE-2026-25896, CVE-2026-27942, CVE-2026-33036 & CVE-2026-33349. Remove on next redocusaurus bump | [minimatch] to 3.1.4 to fix multiple CVEs. Remove on @docusaurus 4x bump | [serialize-javascript] to 7.0.4 to fix CVE-2020-7660 & CVE-2026-34043. Remove on @docusaurus 4x bump | [svgo] to 3.3.3 to fix CVE-2026-29074. Remove on @docusaurus 4x bump | [lodash] to 4.18.0 to fix CVE-2025-13465, CVE-2026-2950 & CVE-2026-4800. Remove on @docusaurus 4x bump | [lodash-es] to 4.18.0 to fix CVE-2025-13465, CVE-2026-4800 & CVE-2026-2950. Remove on @docusaurus 4x bump | [dompurify] to 3.3.3 to fix CVE-2026-0540. Remove on next redocusaurus bump | [webpack] to 5.105.4 to fix CVE-2025-68458 & CVE-2025-68157. Remove on @docusaurus 4x bump | [picomatch] to 2.3.2 to fix CVE-2026-33672 & CVE-2026-33671. Remove on @docusaurus 4x bump | [path-to-regexp] to 0.1.13 to fix CVE-2026-4867. Remove on @docusaurus 4x bump | [brace-expansion] to 1.1.13 to address CVE-2026-33750. Remove on @docusaurus 4x bump"
     },
     "onlyBuiltDependencies": [
       "core-js",
