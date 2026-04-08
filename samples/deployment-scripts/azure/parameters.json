@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resource_prefix": {
+      "value": "try-"
+    },
+    "environment": {
+      "value": "sandbox"
+    },
+    "branch": {
+      "value": "main"
+    },
+    "hubRepositoryUrl": {
+      "value": "https://github.com/endatix/endatix-hub"
+    },
+    "apiRepositoryUrl": {
+      "value": "https://github.com/endatix/endatix"
+    },
+    "apiDeploymentBranch": {
+      "value": "main"
+    },
+    "postgres_admin_username": {
+      "value": "adminuser_prod"
+    },
+    "postgres_admin_password": {
+      "value": "YourSecurePassword123!"
+    },
+    "hubEnvironmentVariables": {
+      "value": {
+        "NEXT_PUBLIC_API_URL": "https://api-prod.example.com",
+        "NEXT_PUBLIC_ENVIRONMENT": "production"
+      }
+    },
+    "hubAppSettings": {
+      "value": {
+        "CUSTOM_HUB_SETTING": "value"
+      }
+    },
+    "apiAppSettings": {
+      "value": {
+        "ASPNETCORE_ENVIRONMENT": "Production",
+        "LOG_LEVEL": "Information"
+      }
+    },
+    "apiConnectionStrings": {
+      "value": {}
+    },
+    "enablePostgresqlHA": {
+      "value": false
+    },
+    "storageIsPrivate": {
+      "value": false
+    },
+    "enableFailureAnomalyAlerts": {
+      "value": false
+    }
+  }
+}

@@ -1,4 +1,3 @@
-
 /*
 Endatix App Insights Bicep module
 */
@@ -7,6 +6,9 @@ param location string
 param tags object
 param workspaceName string = 'endatix-appinsights-ws'
 param appInsightsName string = 'endatix-appinsights'
+
+@description('Enable automatic failure anomaly alerts (requires Microsoft.AlertsManagement provider registration)')
+param enableFailureAnomalyAlerts bool = false
 
 resource app_insights_workspace 'Microsoft.OperationalInsights/workspaces@2025-07-01' = {
   name: workspaceName
@@ -43,7 +45,53 @@ resource app_insights 'microsoft.insights/components@2020-02-02' = {
     WorkspaceResourceId: app_insights_workspace.id
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
+    DisableIpMasking: false
+  }
+}
+
+// Optional: Failure Anomaly Alert Rule (requires Microsoft.AlertsManagement provider)
+resource app_insights_smart_detection 'Microsoft.Insights/actionGroups@2023-01-01' = if (enableFailureAnomalyAlerts) {
+  name: '${appInsightsName}-smart-detection'
+  location: 'Global'
+  tags: tags
+  properties: {
+    groupShortName: 'SmartDetect'
+    enabled: true
+    emailReceivers: []
+    smsReceivers: []
+    webhookReceivers: []
+    eventHubReceivers: []
+    itsmReceivers: []
+    azureAppPushReceivers: []
+    automationRunbookReceivers: []
+    voiceReceivers: []
+    logicAppReceivers: []
+    azureFunctionReceivers: []
+  }
+  dependsOn: [app_insights]
+}
+
+resource app_insights_smart_alerts_rule 'microsoft.alertsManagement/smartDetectorAlertRules@2021-04-01' = if (enableFailureAnomalyAlerts) {
+  name: '${appInsightsName}smart-alerts'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Failure Anomalies notifies you of an unusual rise in the rate of failed HTTP requests or dependency calls.'
+    state: 'Enabled'
+    severity: 'Sev3'
+    frequency: 'PT1M'
+    detector: {
+      id: 'FailureAnomaliesDetector'
+    }
+    scope: [app_insights.id]
+    actionGroups: {
+      groupIds: [app_insights.id]
+    }
   }
 }
 
 output appInsightsId string = app_insights.id
+@secure()
+output appInsightsConnectionString string = app_insights.properties.ConnectionString
+@secure()
+output appInsightsInstrumentationKey string = app_insights.properties.InstrumentationKey

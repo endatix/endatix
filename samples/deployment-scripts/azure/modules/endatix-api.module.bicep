@@ -1,16 +1,43 @@
 /*
 Endatix Web App Bicep module
+
+This module deploys an App Service to host the Endatix API backend with optional git-based deployment.
 */
 
+@description('Azure region for deployment')
 param location string
+
+@description('Azure resource tags')
 param tags object
+
+@description('Web App resource name')
 param webAppName string = 'endatix-api'
+
+@description('App Service Plan name')
 param webAppServicePlanName string = 'endatix-serviceplan'
+
+@description('App Insights resource ID')
 param appInsightsId string
+
 @secure()
+@description('App Insights instrumentation key')
 param appInsightsInstrumentationKey string
+
 @secure()
+@description('App Insights connection string')
 param appInsightsConnectionString string
+
+@description('GitHub repository URL for the API application (default: official Endatix API repo)')
+param repositoryUrl string = 'https://github.com/endatix/endatix'
+
+@description('Git branch to deploy (default: main)')
+param deploymentBranch string = 'main'
+
+@description('App settings for the Web App')
+param appSettings object = {}
+
+@description('Connection strings for the Web App')
+param connectionStrings object = {}
 
 var endatixApiTags = union(
   {
@@ -180,6 +207,40 @@ resource endatix_api_web_app_web 'Microsoft.Web/sites/config@2025-03-01' = {
     minimumElasticInstanceCount: 1
     azureStorageAccounts: {}
     http20ProxyFlag: 0
+  }
+}
+
+// App Settings Configuration
+resource webAppAppSettings 'Microsoft.Web/sites/config@2025-03-01' = {
+  parent: endatix_api_web_app
+  name: 'appsettings'
+  properties: union(
+    {
+      APPINSIGHTS_INSTRUMENTATIONKEY: appInsightsInstrumentationKey
+      APPLICATIONINSIGHTS_CONNECTION_STRING: appInsightsConnectionString
+      ASPNETCORE_ENVIRONMENT: 'Production'
+    },
+    appSettings
+  )
+}
+
+// Connection Strings Configuration
+resource webAppConnectionStrings 'Microsoft.Web/sites/config@2025-03-01' = if (length(connectionStrings) > 0) {
+  parent: endatix_api_web_app
+  name: 'connectionstrings'
+  properties: connectionStrings
+}
+
+// Git Source Control Deployment (if repository URL is provided)
+resource webAppSourceControl 'Microsoft.Web/sites/sourceControls@2025-03-01' = if (repositoryUrl != '') {
+  parent: endatix_api_web_app
+  name: 'web'
+  properties: {
+    repoUrl: repositoryUrl
+    branch: deploymentBranch
+    isManualIntegration: false
+    deploymentRollbackEnabled: true
+    isMercurial: false
   }
 }
 

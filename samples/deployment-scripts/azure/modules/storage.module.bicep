@@ -1,11 +1,25 @@
 
 /*
-Endatix Hub Bicep module
+Endatix Blob Storage Bicep module
+
+This module deploys Azure Blob Storage for storing forms and submissions.
+CORS configuration is handled via app settings rather than at deployment time
+to avoid circular dependencies between resources.
 */
 
+@description('Azure region for deployment')
 param location string
+
+@description('Storage account name')
 param storageAccountName string = 'endatixstorage'
+
+@description('Azure resource tags')
 param tags object
+
+@description('Whether the storage account is private (no public blob access)')
+param isPrivate bool = false
+
+@description('Allowed origins for CORS (e.g., Hub and API hostnames)')
 param allowedOrigins array = []
 
 resource endatix_storage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
@@ -22,7 +36,7 @@ resource endatix_storage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
     publicNetworkAccess: 'Enabled'
     allowCrossTenantReplication: false
     minimumTlsVersion: 'TLS1_2'
-    allowBlobPublicAccess: true
+    allowBlobPublicAccess: !isPrivate
     allowSharedKeyAccess: true
     networkAcls: {
       ipv6Rules: []
@@ -57,7 +71,7 @@ resource endatix_storage_default 'Microsoft.Storage/storageAccounts/blobServices
       enabled: true
       days: 7
     }
-    cors: {
+    cors: allowedOrigins != [] ? {
       corsRules: [
         {
           allowedOrigins: allowedOrigins
@@ -79,7 +93,7 @@ resource endatix_storage_default 'Microsoft.Storage/storageAccounts/blobServices
           ]
         }
       ]
-    }
+    } : null
     deleteRetentionPolicy: {
       allowPermanentDelete: false
       enabled: true
@@ -116,10 +130,12 @@ resource endatix_storage_default_user_files 'Microsoft.Storage/storageAccounts/b
 
 // Determine our connection string
 var blobStorageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${endatix_storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${endatix_storage.listKeys().keys[0].value}'
+var storageAccountKey = endatix_storage.listKeys().keys[0].value
 
-// Output our variable
+// Outputs
 output storageAccountId string = endatix_storage.id
 output storageAccountName string = endatix_storage.name
+output storageAccountKey string = storageAccountKey
 output storageAccountBlobEndpoint string = endatix_storage.properties.primaryEndpoints.blob
 output blobStorageConnectionString string = blobStorageConnectionString
 
