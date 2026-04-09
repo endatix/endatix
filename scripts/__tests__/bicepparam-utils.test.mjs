@@ -42,3 +42,22 @@ test('applyStringParamReplacements applies replacements in order', () => {
   assert.match(updated, /param initialUserPassword = 'new-password'/);
   assert.match(updated, /param hubAuthSecret = 'new-auth-secret'/);
 });
+
+test('applyStringParamReplacements preserves comments and non-target lines', () => {
+  const content = [
+    "using './endatix-azure.template.bicep'",
+    '',
+    '// Keep this command comment',
+    "// az deployment group create ... > deployment-outputs.json",
+    "param initialUserPassword = 'old1'",
+    '',
+  ].join('\n');
+
+  const updated = applyStringParamReplacements(content, [
+    ['initialUserPassword', 'new-password'],
+  ]);
+
+  assert.match(updated, /\/\/ Keep this command comment/);
+  assert.match(updated, /deployment-outputs\.json/);
+  assert.match(updated, /param initialUserPassword = 'new-password'/);
+});

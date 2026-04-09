@@ -1,6 +1,13 @@
 using './endatix-azure.template.bicep'
 
-param resource_prefix = 'try-'
+// Quickstart note:
+// Keep deployment outputs persisted locally - do not delete deployment-outputs.json.
+// Example infra deployment command:
+// az deployment group create --resource-group rg-endatix-sandbox-us --parameters parameters.deploy.bicepparam --mode Complete --query properties.outputs -o json > deployment-outputs.json
+// The build-env step reads this file:
+// node ./generate-quickstart-secrets.mjs build-env --outputs-file ./deployment-outputs.json
+
+param resource_prefix = 'test-'
 param environment = 'sandbox'
 param hubDeploymentMode = 'static-site'
 param branch = 'main'
