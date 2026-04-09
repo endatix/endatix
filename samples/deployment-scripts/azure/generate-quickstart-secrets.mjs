@@ -22,7 +22,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const bicepParametersPath = path.join(__dirname, "parameters.bicepparam");
-const localParametersPath = path.join(__dirname, "parameters.deploy.bicepparam");
+const localParametersPath = path.join(
+  __dirname,
+  "parameters.deploy.bicepparam",
+);
 const deploymentOutputsPath = path.join(__dirname, "deployment-outputs.json");
 const hubDeployEnvPath = path.join(
   __dirname,
@@ -33,6 +36,13 @@ const hubDeployEnvPath = path.join(
   "endatix-hub",
   ".env.deploy",
 );
+
+class UserFacingError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "UserFacingError";
+  }
+}
 
 function usageText() {
   return [
@@ -61,7 +71,7 @@ function parseArgs(argv) {
 async function assertFileDoesNotExist(filePath, fileLabel) {
   try {
     await access(filePath);
-    throw new Error(
+    throw new UserFacingError(
       `${fileLabel} already exists at '${filePath}'. Remove it first to avoid overwriting existing values.`,
     );
   } catch (error) {
@@ -81,7 +91,7 @@ async function writeBuildEnvFromOutputs(outputsFilePath) {
     "hubSessionSecret",
   );
   if (!sessionSecret) {
-    throw new Error(
+    throw new UserFacingError(
       `Unable to read 'hubSessionSecret' from '${localParametersPath}'. Run 'node ./generate-quickstart-secrets.mjs predeploy' first.`,
     );
   }
@@ -227,11 +237,15 @@ async function main() {
     await writeBuildEnvFromOutputs(outputsFile);
     return;
   }
-  throw new Error(`Unknown command '${command}'.\n\n${usageText()}`);
+  throw new UserFacingError(`Unknown command '${command}'.\n\n${usageText()}`);
 }
 
 main().catch((error) => {
   console.error("Failed to generate quickstart secrets.");
-  console.error(error);
+  if (error instanceof UserFacingError) {
+    console.error(error.message);
+  } else {
+    console.error(error);
+  }
   process.exit(1);
 });
