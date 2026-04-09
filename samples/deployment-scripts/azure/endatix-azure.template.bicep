@@ -14,11 +14,11 @@ param environment string = 'dev'
 @description('Git branch to deploy for the Hub static site')
 param branch string = 'main'
 
-@description('GitHub repository URL for the Hub frontend application')
-param hubRepositoryUrl string = 'https://github.com/endatix/endatix-hub'
+@description('GitHub repository URL for the Hub frontend application (leave empty for local SWA CLI / zip deploy; set for GitHub CI/CD)')
+param hubRepositoryUrl string = ''
 
 @description('GitHub repository URL for the API backend application (leave empty for manual deployment)')
-param apiRepositoryUrl string = 'https://github.com/endatix/endatix-api'
+param apiRepositoryUrl string = ''
 
 @description('Git branch to deploy for the API backend')
 param apiDeploymentBranch string = 'main'
@@ -43,9 +43,7 @@ param hubAppSettings object = {}
 param hubEnvironmentVariables object = {}
 
 @description('Application settings for the API (Web App)')
-param apiAppSettings object = {
-  ASPNETCORE_ENVIRONMENT: 'Production'
-}
+param apiAppSettings object = {}
 
 @description('Connection strings for the API (Web App)')
 param apiConnectionStrings object = {}
@@ -65,12 +63,28 @@ param storageIsPrivate bool = false
 @description('[OPTIONAL] Enable automatic failure anomaly alerts (requires subscription registration of Microsoft.AlertsManagement provider)')
 param enableFailureAnomalyAlerts bool = false
 
+@allowed([
+  'static-site'
+  'web-app'
+])
+@description('The deployment mode for the Endatix Hub frontend (web-app for Next.js standalone on App Service; static-site only for static SPAs)')
+param hubDeploymentMode string = 'web-app'
+
 // Resource naming variables
 var endatixAppInsightsName = '${resource_prefix}endatix-appinsights'
-var endatixHubStaticSiteName = '${resource_prefix}endatix-hub'
+var endatixHubName = '${resource_prefix}endatix-hub'
 var endatixApiName = '${resource_prefix}endatix-api'
 var endatixServicePlanName = '${resource_prefix}endatix-serviceplan'
 var endatixStorageAccountName = '${replace(resource_prefix, '-', '')}endatixstorage'
+
+// Calculate allowed origins for CORS based on hub deployment mode
+var allowedOrigins = hubDeploymentMode == 'static-site' ? [
+  '${endatixHubName}.azurestaticapps.net'
+  '${endatixApiName}.azurewebsites.net'
+] : [
+  '${endatixHubName}.azurewebsites.net'
+  '${endatixApiName}.azurewebsites.net'
+]
 
 // App Insights
 module appInsights './modules/app-insights.module.bicep' = {
@@ -92,21 +106,18 @@ module endatixStorage './modules/storage.module.bicep' = {
     storageAccountName: endatixStorageAccountName
     tags: tags
     isPrivate: storageIsPrivate
-    allowedOrigins: [
-      '${endatixHubStaticSiteName}.azurestaticapps.net'
-      '${endatixApiName}.azurewebsites.net'
-    ]
+    allowedOrigins: allowedOrigins
   }
 }
 
-// Endatix Hub
-module endatixHub './modules/static-site.module.bicep' = {
+// Endatix Hub - Static Web App (default)
+module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMode == 'static-site') {
   name: '${resource_prefix}endatix-hub'
   params: {
     location: location
     branch: branch
     repositoryUrl: hubRepositoryUrl
-    staticSiteName: endatixHubStaticSiteName
+    staticSiteName: endatixHubName
     tags: tags
     hubCustomDomainName: ''
     appInsightsId: appInsights.outputs.appInsightsId
@@ -120,8 +131,27 @@ module endatixHub './modules/static-site.module.bicep' = {
   }
 }
 
+// Endatix Hub - Web App (Node.js)
+module endatixHubWebApp './modules/web-app.module.bicep' = if (hubDeploymentMode == 'web-app') {
+  name: '${resource_prefix}endatix-hub'
+  params: {
+    location: location
+    tags: tags
+    webAppName: endatixHubName
+    webAppServicePlanName: endatixServicePlanName
+    appInsightsId: appInsights.outputs.appInsightsId
+    appInsightsConnectionString: appInsights.outputs.appInsightsConnectionString
+    appInsightsInstrumentationKey: appInsights.outputs.appInsightsInstrumentationKey
+    repositoryUrl: hubRepositoryUrl
+    deploymentBranch: branch
+    linuxFxVersion: 'NODE|22-lts'
+    appSettings: hubAppSettings
+    connectionStrings: {}
+  }
+}
+
 // Endatix API
-module endatixApi './modules/endatix-api.module.bicep' = {
+module endatixApi './modules/web-app.module.bicep' = {
   name: 'endatixApiModule'
   params: {
     location: location
@@ -133,7 +163,10 @@ module endatixApi './modules/endatix-api.module.bicep' = {
     appInsightsInstrumentationKey: appInsights.outputs.appInsightsInstrumentationKey
     repositoryUrl: apiRepositoryUrl
     deploymentBranch: apiDeploymentBranch
-    appSettings: apiAppSettings
+    linuxFxVersion: 'DOTNETCORE|10.0'
+    appSettings: union(apiAppSettings, {
+      ASPNETCORE_ENVIRONMENT: 'Production'
+    })
     connectionStrings: union(apiConnectionStrings, {
       DefaultConnection: {
         value: postgresqlModule.outputs.postgresqlConnectionString

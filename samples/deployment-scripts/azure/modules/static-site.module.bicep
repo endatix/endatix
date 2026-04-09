@@ -13,8 +13,8 @@ param branch string = 'main'
 @description('Static Web App resource name')
 param staticSiteName string = 'endatix-hub'
 
-@description('GitHub repository URL for the Hub application (default: official Endatix Hub repo)')
-param repositoryUrl string = 'https://github.com/endatix/endatix-hub'
+@description('GitHub repository URL for the Hub application (leave empty for manual deploy via SWA CLI)')
+param repositoryUrl string = ''
 
 @description('Azure resource tags')
 param tags object
@@ -62,8 +62,8 @@ resource static_site 'Microsoft.Web/staticSites@2025-03-01' = {
   name: staticSiteName
   properties: {
     allowConfigFileUpdates: true
-    repositoryUrl: repositoryUrl
-    branch: branch
+    repositoryUrl: empty(repositoryUrl) ? null : repositoryUrl
+    branch: empty(repositoryUrl) ? null : (empty(branch) ? null : branch)
     buildProperties: {
       skipGithubActionWorkflowGeneration: true
     }

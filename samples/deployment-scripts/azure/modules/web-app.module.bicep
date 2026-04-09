@@ -1,7 +1,7 @@
 /*
-Endatix Web App Bicep module
+Generic Web App Bicep module
 
-This module deploys an App Service to host the Endatix API backend with optional git-based deployment.
+This module deploys an App Service to host applications with optional git-based deployment.
 */
 
 @description('Azure region for deployment')
@@ -11,10 +11,10 @@ param location string
 param tags object
 
 @description('Web App resource name')
-param webAppName string = 'endatix-api'
+param webAppName string
 
 @description('App Service Plan name')
-param webAppServicePlanName string = 'endatix-serviceplan'
+param webAppServicePlanName string
 
 @description('App Insights resource ID')
 param appInsightsId string
@@ -27,11 +27,14 @@ param appInsightsInstrumentationKey string
 @description('App Insights connection string')
 param appInsightsConnectionString string
 
-@description('GitHub repository URL for the API application (default: official Endatix API repo)')
-param repositoryUrl string = 'https://github.com/endatix/endatix'
+@description('GitHub repository URL for the application (leave empty if not deploying via source control)')
+param repositoryUrl string = ''
 
 @description('Git branch to deploy (default: main)')
 param deploymentBranch string = 'main'
+
+@description('The runtime stack to use for the app (e.g. "DOTNETCORE|10.0" or "NODE|22-lts")')
+param linuxFxVersion string = 'DOTNETCORE|10.0'
 
 @description('App settings for the Web App')
 param appSettings object = {}
@@ -39,7 +42,7 @@ param appSettings object = {}
 @description('Connection strings for the Web App')
 param connectionStrings object = {}
 
-var endatixApiTags = union(
+var appServiceTags = union(
   {
     'hidden-link: /app-insights-resource-id': appInsightsId
     'hidden-link: /app-insights-instrumentation-key': appInsightsInstrumentationKey
@@ -75,10 +78,10 @@ resource web_app_service_plan 'Microsoft.Web/serverfarms@2025-03-01' = {
   }
 }
 
-resource endatix_api_web_app 'Microsoft.Web/sites@2025-03-01' = {
+resource app_service_web_app 'Microsoft.Web/sites@2025-03-01' = {
   name: webAppName
   location: location
-  tags: endatixApiTags
+  tags: appServiceTags
   kind: 'app,linux'
   properties: {
     enabled: true
@@ -96,7 +99,7 @@ resource endatix_api_web_app 'Microsoft.Web/sites@2025-03-01' = {
     }
     siteConfig: {
       numberOfWorkers: 1
-      linuxFxVersion: 'DOTNETCORE|10.0'
+      linuxFxVersion: linuxFxVersion
       acrUseManagedIdentityCreds: false
       alwaysOn: true
       http20Enabled: false
@@ -123,24 +126,24 @@ resource endatix_api_web_app 'Microsoft.Web/sites@2025-03-01' = {
   }
 }
 
-resource endatix_api_web_app_ftp_policy 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2025-03-01' = {
-  parent: endatix_api_web_app
+resource app_service_web_app_ftp_policy 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2025-03-01' = {
+  parent: app_service_web_app
   name: 'ftp'
   properties: {
     allow: false
   }
 }
 
-resource endatix_api_web_app_scm 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2025-03-01' = {
-  parent: endatix_api_web_app
+resource app_service_web_app_scm 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2025-03-01' = {
+  parent: app_service_web_app
   name: 'scm'
   properties: {
     allow: false
   }
 }
 
-resource endatix_api_web_app_web 'Microsoft.Web/sites/config@2025-03-01' = {
-  parent: endatix_api_web_app
+resource app_service_web_app_web 'Microsoft.Web/sites/config@2025-03-01' = {
+  parent: app_service_web_app
   name: 'web'
   properties: {
     numberOfWorkers: 1
@@ -149,7 +152,7 @@ resource endatix_api_web_app_web 'Microsoft.Web/sites/config@2025-03-01' = {
       'index.html'
     ]
     netFrameworkVersion: 'v4.0'
-    linuxFxVersion: 'DOTNETCORE|10.0'
+    linuxFxVersion: linuxFxVersion
     requestTracingEnabled: false
     remoteDebuggingEnabled: false
     httpLoggingEnabled: false
@@ -212,13 +215,12 @@ resource endatix_api_web_app_web 'Microsoft.Web/sites/config@2025-03-01' = {
 
 // App Settings Configuration
 resource webAppAppSettings 'Microsoft.Web/sites/config@2025-03-01' = {
-  parent: endatix_api_web_app
+  parent: app_service_web_app
   name: 'appsettings'
   properties: union(
     {
       APPINSIGHTS_INSTRUMENTATIONKEY: appInsightsInstrumentationKey
       APPLICATIONINSIGHTS_CONNECTION_STRING: appInsightsConnectionString
-      ASPNETCORE_ENVIRONMENT: 'Production'
     },
     appSettings
   )
@@ -226,14 +228,14 @@ resource webAppAppSettings 'Microsoft.Web/sites/config@2025-03-01' = {
 
 // Connection Strings Configuration
 resource webAppConnectionStrings 'Microsoft.Web/sites/config@2025-03-01' = if (length(connectionStrings) > 0) {
-  parent: endatix_api_web_app
+  parent: app_service_web_app
   name: 'connectionstrings'
   properties: connectionStrings
 }
 
 // Git Source Control Deployment (if repository URL is provided)
 resource webAppSourceControl 'Microsoft.Web/sites/sourceControls@2025-03-01' = if (repositoryUrl != '') {
-  parent: endatix_api_web_app
+  parent: app_service_web_app
   name: 'web'
   properties: {
     repoUrl: repositoryUrl
@@ -244,6 +246,6 @@ resource webAppSourceControl 'Microsoft.Web/sites/sourceControls@2025-03-01' = i
   }
 }
 
-output endatixAppId string = endatix_api_web_app.id
-output endatixAppName string = endatix_api_web_app.name
-output endatixAppDefaultHostName string = endatix_api_web_app.properties.defaultHostName
+output appId string = app_service_web_app.id
+output appName string = app_service_web_app.name
+output appDefaultHostName string = app_service_web_app.properties.defaultHostName

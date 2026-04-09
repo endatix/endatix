@@ -12,13 +12,13 @@
       "value": "main"
     },
     "hubRepositoryUrl": {
-      "value": "https://github.com/endatix/endatix-hub"
+      "value": ""
     },
     "apiRepositoryUrl": {
-      "value": "https://github.com/endatix/endatix"
+      "value": ""
     },
     "apiDeploymentBranch": {
-      "value": "main"
+      "value": ""
     },
     "postgres_admin_username": {
       "value": "adminuser_prod"
