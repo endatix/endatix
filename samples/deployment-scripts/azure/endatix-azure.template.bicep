@@ -103,13 +103,17 @@ var endatixHubName = '${resource_prefix}endatix-hub'
 var endatixApiName = '${resource_prefix}endatix-api'
 var endatixServicePlanName = '${resource_prefix}endatix-serviceplan'
 var endatixStorageAccountName = '${replace(resource_prefix, '-', '')}endatixstorage'
-var hubDefaultHostName = hubDeploymentMode == 'static-site'
+// Predicted hub hostname is used only where a pre-module value is required
+// (for example, module params and pre-hub dependency settings).
+var predictedHubDefaultHostName = hubDeploymentMode == 'static-site'
   ? '${endatixHubName}.azurestaticapps.net'
   : '${endatixHubName}.azurewebsites.net'
-var hubBaseUrl = 'https://${hubDefaultHostName}'
-var apiDefaultHostName = '${endatixApiName}.azurewebsites.net'
-var apiBaseUrl = 'https://${apiDefaultHostName}'
+var predictedHubBaseUrl = 'https://${predictedHubDefaultHostName}'
 var storageHostName = '${endatixStorageAccountName}.blob.${az.environment().suffixes.storage}'
+var resolvedHubDefaultHostName = hubDeploymentMode == 'static-site'
+  ? endatixHubSWA!.outputs.staticWebAppDefaultHostName
+  : endatixHubWebApp!.outputs.appDefaultHostName
+var resolvedHubBaseUrl = 'https://${resolvedHubDefaultHostName}'
 
 // Calculate allowed origins for CORS based on hub deployment mode
 var allowedOrigins = hubDeploymentMode == 'static-site' ? [
@@ -158,10 +162,10 @@ module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMod
     appInsightsConnectionString: appInsights.outputs.appInsightsConnectionString
     appInsightsInstrumentationKey: appInsights.outputs.appInsightsInstrumentationKey
     appSettings: union({
-      AUTH_URL: hubBaseUrl
-      ENDATIX_BASE_URL: apiBaseUrl
-      NEXT_PUBLIC_API_URL: '${apiBaseUrl}/api'
-      ROBOTS_ALLOWED_DOMAINS: hubDefaultHostName
+      AUTH_URL: predictedHubBaseUrl
+      ENDATIX_BASE_URL: 'https://${endatixApi.outputs.appDefaultHostName}'
+      NEXT_PUBLIC_API_URL: 'https://${endatixApi.outputs.appDefaultHostName}/api'
+      ROBOTS_ALLOWED_DOMAINS: predictedHubDefaultHostName
       AZURE_STORAGE_ACCOUNT_NAME: endatixStorage.outputs.storageAccountName
       AZURE_STORAGE_CUSTOM_DOMAIN: storageHostName
       SESSION_SECRET: hubSessionSecret
@@ -170,7 +174,7 @@ module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMod
       HUB_ADMIN_USERNAME: initialUserEmail
     }, hubAppSettings)
     environmentVariables: union({
-      NEXT_PUBLIC_API_URL: '${apiBaseUrl}/api'
+      NEXT_PUBLIC_API_URL: 'https://${endatixApi.outputs.appDefaultHostName}/api'
     }, hubEnvironmentVariables)
     storageAccountName: endatixStorage.outputs.storageAccountName
     storageAccountKey: endatixStorage.outputs.storageAccountKey
@@ -193,10 +197,10 @@ module endatixHubWebApp './modules/web-app.module.bicep' = if (hubDeploymentMode
     deploymentBranch: branch
     linuxFxVersion: 'NODE|22-lts'
     appSettings: union({
-      AUTH_URL: hubBaseUrl
-      ENDATIX_BASE_URL: apiBaseUrl
-      NEXT_PUBLIC_API_URL: '${apiBaseUrl}/api'
-      ROBOTS_ALLOWED_DOMAINS: hubDefaultHostName
+      AUTH_URL: predictedHubBaseUrl
+      ENDATIX_BASE_URL: 'https://${endatixApi.outputs.appDefaultHostName}'
+      NEXT_PUBLIC_API_URL: 'https://${endatixApi.outputs.appDefaultHostName}/api'
+      ROBOTS_ALLOWED_DOMAINS: predictedHubDefaultHostName
       AZURE_STORAGE_ACCOUNT_NAME: endatixStorage.outputs.storageAccountName
       AZURE_STORAGE_CUSTOM_DOMAIN: storageHostName
       SESSION_SECRET: hubSessionSecret
@@ -224,9 +228,7 @@ module endatixApi './modules/web-app.module.bicep' = {
     linuxFxVersion: 'DOTNETCORE|10.0'
     appSettings: union(apiAppSettings, {
       ASPNETCORE_ENVIRONMENT: 'Production'
-      Endatix__Hub__HubBaseUrl: hubDeploymentMode == 'static-site'
-        ? 'https://${endatixHubSWA!.outputs.staticWebAppDefaultHostName}'
-        : 'https://${endatixHubWebApp!.outputs.appDefaultHostName}'
+      Endatix__Hub__HubBaseUrl: predictedHubBaseUrl
       Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
       Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
       Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
@@ -248,6 +250,28 @@ module endatixApi './modules/web-app.module.bicep' = {
         value: endatixStorage.outputs.blobStorageConnectionString
         type: 'Custom'
       }
+    })
+  }
+}
+
+// Endatix API - Finalize app settings with resolved Hub hostname
+module endatixApiFinalize './modules/web-app-appsettings-update.module.bicep' = {
+  name: 'endatixApiFinalize'
+  dependsOn: [
+    endatixApi
+  ]
+  params: {
+    webAppName: endatixApiName
+    appSettings: union(apiAppSettings, {
+      APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.outputs.appInsightsInstrumentationKey
+      APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.outputs.appInsightsConnectionString
+      ASPNETCORE_ENVIRONMENT: 'Production'
+      Endatix__Hub__HubBaseUrl: resolvedHubBaseUrl
+      Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
+      Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
+      Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
+      Endatix__Data__InitialUser__Email: initialUserEmail
+      Endatix__Data__InitialUser__Password: initialUserPassword
     })
   }
 }

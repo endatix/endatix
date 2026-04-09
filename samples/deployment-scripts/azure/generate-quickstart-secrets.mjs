@@ -244,12 +244,12 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Failed to generate quickstart secrets.");
   if (error instanceof UserFacingError) {
     console.error(`${RED}[ERROR]${RESET} ${error.message}`);
   } else {
+    console.error(`${RED}✖ Failed to generate quickstart secrets.${RESET}`);
     console.error(`${RED}[ERROR]${RESET} ${error}`);
   }
-  console.error("❌ Stopping script execution...");
+  console.error(`${RED}✖ Stopping script execution...${RESET}`);
   process.exit(1);
 });
