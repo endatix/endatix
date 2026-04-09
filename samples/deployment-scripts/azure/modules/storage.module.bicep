@@ -18,9 +18,6 @@ param tags object
 @description('Whether the storage account is private (no public blob access)')
 param isPrivate bool = false
 
-@description('Allowed origins for CORS (e.g., Hub and API hostnames)')
-param allowedOrigins array = []
-
 resource endatix_storage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
   name: storageAccountName
   location: location
@@ -62,70 +59,6 @@ resource endatix_storage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
   }
 }
 
-resource endatix_storage_default 'Microsoft.Storage/storageAccounts/blobServices@2025-06-01' = {
-  parent: endatix_storage
-  name: 'default'
-  properties: {
-    containerDeleteRetentionPolicy: {
-      enabled: true
-      days: 7
-    }
-    cors: allowedOrigins != [] ? {
-      corsRules: [
-        {
-          allowedOrigins: allowedOrigins
-          allowedMethods: [
-            'DELETE'
-            'GET'
-            'HEAD'
-            'MERGE'
-            'POST'
-            'OPTIONS'
-            'PUT'
-          ]
-          maxAgeInSeconds: 86400
-          exposedHeaders: [
-            '*'
-          ]
-          allowedHeaders: [
-            '*'
-          ]
-        }
-      ]
-    } : null
-    deleteRetentionPolicy: {
-      allowPermanentDelete: false
-      enabled: true
-      days: 7
-    }
-  }
-}
-
-resource endatix_storage_default_content 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: endatix_storage_default
-  name: 'content'
-  properties: {
-    immutableStorageWithVersioning: {
-      enabled: false
-    }
-    defaultEncryptionScope: '$account-encryption-key'
-    denyEncryptionScopeOverride: false
-    publicAccess: 'Blob'
-  }
-}
-
-resource endatix_storage_default_user_files 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: endatix_storage_default
-  name: 'user-files'
-  properties: {
-    immutableStorageWithVersioning: {
-      enabled: false
-    }
-    defaultEncryptionScope: '$account-encryption-key'
-    denyEncryptionScopeOverride: false
-    publicAccess: 'Blob'
-  }
-}
 
 // Determine our connection string
 var blobStorageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${endatix_storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${endatix_storage.listKeys().keys[0].value}'

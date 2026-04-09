@@ -27,7 +27,7 @@ const __dirname = path.dirname(__filename);
 const bicepParametersPath = path.join(__dirname, "parameters.bicepparam");
 const localParametersPath = path.join(
   __dirname,
-  "parameters.deploy.bicepparam",
+  "parameters.production.bicepparam",
 );
 const deploymentOutputsPath = path.join(__dirname, "deployment-outputs.json");
 const hubDeployEnvPath = path.join(
@@ -37,7 +37,7 @@ const hubDeployEnvPath = path.join(
   "..",
   "..",
   "endatix-hub",
-  ".env.deploy",
+  ".env.production",
 );
 
 class UserFacingError extends Error {
@@ -54,8 +54,8 @@ function usageText() {
     "  node ./generate-quickstart-secrets.mjs build-env [--outputs-file <path>]",
     "",
     "Commands:",
-    "  predeploy   Generate parameters.deploy.bicepparam with secure values.",
-    "  build-env   Generate endatix-hub/.env.deploy from Bicep deployment outputs JSON.",
+    "  predeploy   Generate parameters.production.bicepparam with secure values.",
+    "  build-env   Generate endatix-hub/.env.production from Bicep deployment outputs JSON.",
   ].join("\n");
 }
 
@@ -86,7 +86,7 @@ async function assertFileDoesNotExist(filePath, fileLabel) {
 }
 
 async function writeBuildEnvFromOutputs(outputsFilePath) {
-  await assertFileDoesNotExist(hubDeployEnvPath, ".env.deploy");
+  await assertFileDoesNotExist(hubDeployEnvPath, ".env.production");
   const outputs = await readDeploymentOutputsFromFile(outputsFilePath);
   const parametersDeployContent = await readFile(localParametersPath, "utf8");
   const sessionSecret = readStringParamFromBicepParam(
@@ -132,11 +132,9 @@ async function writeBuildEnvFromOutputs(outputsFilePath) {
 
   printGeneratedFiles([hubDeployEnvPath]);
   printNextSteps([
-    "  1) Copy build env into local Hub env file:",
-    formatCommandSnippet("cp .env.deploy .env"),
-    "  2) Build API zip, then deploy API:",
+    "  1) Build API zip, then deploy API:",
     formatCommandSnippet(deployApiCommand),
-    "  3) Build Hub standalone, then from Hub repo: cd .next/standalone and deploy:",
+    "  2) Build Hub standalone, then from Hub repo: cd .next/standalone and deploy:",
     formatCommandSnippet(deployHubCommand),
   ]);
 }
@@ -153,7 +151,7 @@ function normalizeResourcePrefix(resourcePrefix) {
 async function runPredeploy() {
   await assertFileDoesNotExist(
     localParametersPath,
-    "parameters.deploy.bicepparam",
+    "parameters.production.bicepparam",
   );
   const baseBicepParameters = await readFile(bicepParametersPath, "utf8");
   const configuredPrefix =
@@ -194,7 +192,7 @@ async function runPredeploy() {
   const deployInfraCommand = [
     "az deployment group create",
     "--resource-group RESOURCE_GROUP_NAME",
-    "--parameters parameters.deploy.bicepparam",
+    "--parameters parameters.production.bicepparam",
     "--mode Complete",
     `--query properties.outputs -o json > ${path.basename(deploymentOutputsPath)}`,
   ].join(" ");

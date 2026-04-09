@@ -45,3 +45,29 @@ resource blobDefault 'Microsoft.Storage/storageAccounts/blobServices@2025-06-01'
     }
   }
 }
+
+resource endatix_storage_default_content 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
+  parent: blobDefault
+  name: 'content'
+  properties: {
+    immutableStorageWithVersioning: {
+      enabled: false
+    }
+    defaultEncryptionScope: '$account-encryption-key'
+    denyEncryptionScopeOverride: false
+    publicAccess: 'Blob'
+  }
+}
+
+resource endatix_storage_default_user_files 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
+  parent: blobDefault
+  name: 'user-files'
+  properties: {
+    immutableStorageWithVersioning: {
+      enabled: false
+    }
+    defaultEncryptionScope: '$account-encryption-key'
+    denyEncryptionScopeOverride: false
+    publicAccess: 'Blob'
+  }
+}
