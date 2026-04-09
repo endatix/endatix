@@ -9,6 +9,8 @@ import {
 } from "../../../scripts/lib/bicepparam-utils.mjs";
 import {
   formatCommandSnippet,
+  infoText,
+  errorText,
   printGeneratedFiles,
   printNextSteps,
 } from "../../../scripts/lib/console-format.mjs";
@@ -37,8 +39,6 @@ const hubDeployEnvPath = path.join(
   "endatix-hub",
   ".env.deploy",
 );
-const RED = "\x1b[31m";
-const RESET = "\x1b[0m";
 
 class UserFacingError extends Error {
   constructor(message) {
@@ -75,7 +75,7 @@ async function assertFileDoesNotExist(filePath, fileLabel) {
   try {
     await access(filePath);
     throw new UserFacingError(
-      `${fileLabel} already exists at '${filePath}'. Remove it first to avoid overwriting existing values.`,
+      `${fileLabel} already exists at '${filePath}'.${NEWLINE} ${infoText("If this is intentional, remove it first to avoid overwriting existing values.")}`,
     );
   } catch (error) {
     if (error?.code === "ENOENT") {
@@ -245,11 +245,11 @@ async function main() {
 
 main().catch((error) => {
   if (error instanceof UserFacingError) {
-    console.error(`${RED}[ERROR]${RESET} ${error.message}`);
+    console.error(`${errorText("[ERROR]")} ${error.message}`);
   } else {
-    console.error(`${RED}✖ Failed to generate quickstart secrets.${RESET}`);
-    console.error(`${RED}[ERROR]${RESET} ${error}`);
+    console.error(`${errorText("✖ Failed to generate quickstart secrets.")}`);
+    console.error(`${errorText("[ERROR]")} ${error}`);
   }
-  console.error(`${RED}✖ Stopping script execution...${RESET}`);
+  console.error(`${errorText("✖ Stopping script execution...")}`);
   process.exit(1);
 });

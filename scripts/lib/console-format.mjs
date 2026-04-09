@@ -3,7 +3,9 @@ const CYAN_INFO = "\x1b[36mℹ\x1b[0m";
 const YELLOW_WARN = "\x1b[33m⚠\x1b[0m";
 const GREEN_PROMPT = "\x1b[1;32m>\x1b[0m";
 const RETRO_BEIGE_CODE = "\x1b[38;5;223m";
+const RED = "\x1b[31m";
 const RESET = "\x1b[0m";
+const NEWLINE = "\n";
 
 export function printGeneratedFiles(files) {
   console.log("\n🔐 Endatix Azure quickstart secrets generated:");
@@ -22,7 +24,15 @@ export function printNextSteps(lines) {
 }
 
 export function warningText(text) {
-  return `${YELLOW_WARN} ${text}`;
+  return `${YELLOW_WARN} ${text}${RESET}`;
+}
+
+export function infoText(text) {
+  return `${CYAN_INFO} ${text}${RESET}`;
+}
+
+export function errorText(text) {
+  return `${RED} ${text}${RESET}`;
 }
 
 export function formatCommandSnippet(command) {
