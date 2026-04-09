@@ -258,3 +258,10 @@ module postgresqlModule './modules/postgres.module.bicep' = {
     enableHighAvailability: enablePostgresqlHA
   }
 }
+
+/* ********* Outputs ********** */
+output hubBaseUrl string = hubBaseUrl
+output apiBaseUrl string = apiBaseUrl
+output nextPublicApiUrl string = '${apiBaseUrl}/api'
+output hubDefaultHostName string = hubDefaultHostName
+output apiDefaultHostName string = apiDefaultHostName
