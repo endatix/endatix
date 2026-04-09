@@ -225,8 +225,8 @@ module endatixApi './modules/web-app.module.bicep' = {
     appSettings: union(apiAppSettings, {
       ASPNETCORE_ENVIRONMENT: 'Production'
       Endatix__Hub__HubBaseUrl: hubDeploymentMode == 'static-site'
-        ? 'https://${endatixHubSWA.outputs.staticWebAppDefaultHostName}'
-        : 'https://${endatixHubWebApp.outputs.appDefaultHostName}'
+        ? 'https://${endatixHubSWA!.outputs.staticWebAppDefaultHostName}'
+        : 'https://${endatixHubWebApp!.outputs.appDefaultHostName}'
       Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
       Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
       Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
@@ -263,11 +263,11 @@ module postgresqlModule './modules/postgres.module.bicep' = {
 
 /* ********* Outputs ********** */
 output hubBaseUrl string = hubDeploymentMode == 'static-site'
-  ? 'https://${endatixHubSWA.outputs.staticWebAppDefaultHostName}'
-  : 'https://${endatixHubWebApp.outputs.appDefaultHostName}'
+  ? 'https://${endatixHubSWA!.outputs.staticWebAppDefaultHostName}'
+  : 'https://${endatixHubWebApp!.outputs.appDefaultHostName}'
 output apiBaseUrl string = 'https://${endatixApi.outputs.appDefaultHostName}'
 output nextPublicApiUrl string = 'https://${endatixApi.outputs.appDefaultHostName}/api'
 output hubDefaultHostName string = hubDeploymentMode == 'static-site'
-  ? endatixHubSWA.outputs.staticWebAppDefaultHostName
-  : endatixHubWebApp.outputs.appDefaultHostName
+  ? endatixHubSWA!.outputs.staticWebAppDefaultHostName
+  : endatixHubWebApp!.outputs.appDefaultHostName
 output apiDefaultHostName string = endatixApi.outputs.appDefaultHostName
