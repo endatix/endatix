@@ -230,13 +230,19 @@ module endatixApi './modules/web-app.module.bicep' = {
       Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
       Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
       Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
+      Endatix__Data__SeedSampleData: true
+      Endatix__Data__SeedSampleForms: true
       Endatix__Data__InitialUser__Email: initialUserEmail
       Endatix__Data__InitialUser__Password: initialUserPassword
     })
     connectionStrings: union(apiConnectionStrings, {
       DefaultConnection: {
         value: postgresqlModule.outputs.postgresqlConnectionString
-        type: 'PostgreSQL'
+        type: 'custom'
+      }
+      DefaultConnection_DbProvider: {
+        value: 'postgresql'
+        type: 'custom'
       }
       StorageConnection: {
         value: endatixStorage.outputs.blobStorageConnectionString
@@ -271,3 +277,6 @@ output hubDefaultHostName string = hubDeploymentMode == 'static-site'
   ? endatixHubSWA!.outputs.staticWebAppDefaultHostName
   : endatixHubWebApp!.outputs.appDefaultHostName
 output apiDefaultHostName string = endatixApi.outputs.appDefaultHostName
+output resourceGroupName string = resourceGroup().name
+output apiAppName string = endatixApiName
+output hubAppName string = endatixHubName

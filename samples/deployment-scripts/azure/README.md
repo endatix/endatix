@@ -55,10 +55,10 @@ Why generate `parameters.deploy.bicepparam`?
 ### 3) Deploy infrastructure (Bicep) and save outputs
 
 ```bash
-az group create --name rg-endatix-eval --location eastus
+az group create --name RESOURCE_GROUP_NAME --location AZURE_LOCATION
 
 az deployment group create \
-  --resource-group rg-endatix-eval \
+  --resource-group RESOURCE_GROUP_NAME \
   --parameters parameters.deploy.bicepparam \
   --mode Complete \
   --query properties.outputs -o json > deployment-outputs.json
@@ -74,6 +74,8 @@ This creates:
 
 - `endatix-hub/.env.deploy` (build-only Hub values such as `NEXT_PUBLIC_*`)
 
+The command output from this step includes exact copy-paste deploy commands (with real app names and resource group) derived from `deployment-outputs.json`. Use those exact commands for API and Hub deploy.
+
 ### 5) Build and deploy API
 
 ```bash
@@ -84,8 +86,8 @@ cd publish
 zip -r ../../api.zip .
 
 az webapp deploy \
-  --resource-group rg-endatix-eval \
-  --name eval-endatix-api \
+  --resource-group RESOURCE_GROUP_NAME \
+  --name API_APP_NAME \
   --src-path ../../api.zip \
   --type zip
 ```
@@ -100,8 +102,8 @@ pnpm build:standalone
 swa deploy \
   --output-location .next/standalone \
   --env production \
-  --resource-group rg-endatix-eval \
-  --app-name eval-endatix-hub \
+  --resource-group RESOURCE_GROUP_NAME \
+  --app-name HUB_APP_NAME \
   --api-language node \
   --api-version 22
 ```
@@ -179,13 +181,13 @@ pnpm build:standalone
 ( cd .next/standalone && zip -r ../hub-standalone.zip . )
 
 az webapp config set \
-  --resource-group rg-endatix-eval \
-  --name eval-endatix-hub \
+  --resource-group RESOURCE_GROUP_NAME \
+  --name HUB_APP_NAME \
   --startup-file "node server.js"
 
 az webapp deploy \
-  --resource-group rg-endatix-eval \
-  --name eval-endatix-hub \
+  --resource-group RESOURCE_GROUP_NAME \
+  --name HUB_APP_NAME \
   --src-path hub-standalone.zip \
   --type zip
 ```
@@ -196,8 +198,8 @@ az webapp deploy \
 2. Rebuild API and Hub
 3. Redeploy API and Hub
 4. Verify:
-  - `az webapp log tail --resource-group rg-endatix-eval --name eval-endatix-api`
-  - `az staticwebapp environment list --name eval-endatix-hub --resource-group rg-endatix-eval -o table`
+  - `az webapp log tail --resource-group RESOURCE_GROUP_NAME --name API_APP_NAME`
+  - `az staticwebapp environment list --name HUB_APP_NAME --resource-group RESOURCE_GROUP_NAME -o table`
 
 ## Quick Troubleshooting
 

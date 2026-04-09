@@ -18,5 +18,8 @@ export async function readDeploymentOutputsFromFile(filePath) {
     hubBaseUrl: extractOutputValue(parsed, 'hubBaseUrl'),
     apiBaseUrl: extractOutputValue(parsed, 'apiBaseUrl'),
     nextPublicApiUrl: extractOutputValue(parsed, 'nextPublicApiUrl'),
+    resourceGroupName: extractOutputValue(parsed, 'resourceGroupName'),
+    apiAppName: extractOutputValue(parsed, 'apiAppName'),
+    hubAppName: extractOutputValue(parsed, 'hubAppName'),
   };
 }
