@@ -67,8 +67,8 @@ param enableFailureAnomalyAlerts bool = false
   'static-site'
   'web-app'
 ])
-@description('The deployment mode for the Endatix Hub frontend (web-app for Next.js standalone on App Service; static-site only for static SPAs)')
-param hubDeploymentMode string = 'web-app'
+@description('The deployment mode for the Endatix Hub frontend (recommended: static-site for fastest evaluation; use web-app if you explicitly want App Service hosting)')
+param hubDeploymentMode string = 'static-site'
 
 // Resource naming variables
 var endatixAppInsightsName = '${resource_prefix}endatix-appinsights'
