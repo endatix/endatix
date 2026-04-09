@@ -22,7 +22,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const bicepParametersPath = path.join(__dirname, "parameters.bicepparam");
-const localParametersPath = path.join(__dirname, "parameters.local.bicepparam");
+const localParametersPath = path.join(__dirname, "parameters.deploy.bicepparam");
 const hubDeployEnvPath = path.join(
   __dirname,
   "..",
@@ -118,7 +118,7 @@ async function main() {
   const deployInfraCommand = [
     "az deployment group create",
     `--resource-group ${resourceGroupName}`,
-    "--parameters parameters.local.bicepparam",
+    "--parameters parameters.deploy.bicepparam",
     "--mode Complete",
   ].join(" ");
   const deployApiCommand = [
@@ -142,7 +142,7 @@ async function main() {
   printNextSteps([
     "  1) Review generated values and rotate any secrets if needed.",
     "  2) Fill missing values (for example AZURE_STORAGE_ACCOUNT_KEY and HUB_ADMIN_PASSWORD in hub/.env.deploy).",
-    `     ${warningText("postgres_admin_password was generated into parameters.local.bicepparam.")}`,
+    `     ${warningText("postgres_admin_password was generated into parameters.deploy.bicepparam.")}`,
     "  3) Run infrastructure deployment:",
     `     ${deployInfraCommand}`,
     "  4) Build API zip, then deploy API:",

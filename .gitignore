@@ -4,6 +4,7 @@ node_modules/
 # .NET
 **/bin/
 **/obj/
+**/publish/
 
 # Compiled Java class files
 *.class
@@ -50,14 +51,14 @@ Thumbs.db
 
 # Remove local nuget packages created during testing
 .artifacts/
+*.zip
 
 # Environment variables & secrets
 .env
 
 # Test coverage reports
 .coverage/
-
 .secrets
 
 # Azure quickstart local overrides
-samples/deployment-scripts/azure/parameters.local.bicepparam
+samples/deployment-scripts/azure/parameters.deploy.bicepparam
