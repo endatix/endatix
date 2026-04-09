@@ -37,6 +37,8 @@ const hubDeployEnvPath = path.join(
   "endatix-hub",
   ".env.deploy",
 );
+const RED = "\x1b[31m";
+const RESET = "\x1b[0m";
 
 class UserFacingError extends Error {
   constructor(message) {
@@ -192,7 +194,7 @@ async function runPredeploy() {
 
   const deployInfraCommand = [
     "az deployment group create",
-    `--resource-group ${resourceGroupName}`,
+    "--resource-group RESOURCE_GROUP_NAME",
     "--parameters parameters.deploy.bicepparam",
     "--mode Complete",
     `--query properties.outputs -o json > ${path.basename(deploymentOutputsPath)}`,
@@ -244,9 +246,9 @@ async function main() {
 main().catch((error) => {
   console.error("Failed to generate quickstart secrets.");
   if (error instanceof UserFacingError) {
-    console.error(`[ERROR] ${error.message}`);
+    console.error(`${RED}[ERROR]${RESET} ${error.message}`);
   } else {
-    console.error(`[ERROR] ${error}`);
+    console.error(`${RED}[ERROR]${RESET} ${error}`);
   }
   console.error("❌ Stopping script execution...");
   process.exit(1);

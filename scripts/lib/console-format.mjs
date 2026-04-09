@@ -1,7 +1,7 @@
 const GREEN_CHECK = "\x1b[32m✓\x1b[0m";
 const CYAN_INFO = "\x1b[36mℹ\x1b[0m";
 const YELLOW_WARN = "\x1b[33m⚠\x1b[0m";
-const GREEN_PROMPT = "\x1b[32m﹥\x1b[0m";
+const GREEN_PROMPT = "\x1b[1;32m>\x1b[0m";
 const RETRO_BEIGE_CODE = "\x1b[38;5;223m";
 const RESET = "\x1b[0m";
 
