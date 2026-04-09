@@ -75,7 +75,7 @@ async function assertFileDoesNotExist(filePath, fileLabel) {
   try {
     await access(filePath);
     throw new UserFacingError(
-      `${fileLabel} already exists at '${filePath}'. \n\n ${infoText("If this is intentional, remove it first to avoid overwriting existing values.")}`,
+      `${fileLabel} already exists at '${filePath}'. \n ${infoText("If this is intentional, remove it first to avoid overwriting existing values.")}`,
     );
   } catch (error) {
     if (error?.code === "ENOENT") {
@@ -250,6 +250,7 @@ main().catch((error) => {
     console.error(`${errorText("✖")} Failed to generate quickstart secrets.`);
     console.error(`${errorText("[ERROR]")} ${error}`);
   }
-  console.error(`${errorText("✖")} Stopping script execution...`);
+  
+  console.error(`\n\n${errorText("✖")} Stopping script execution...`);
   process.exit(1);
 });
