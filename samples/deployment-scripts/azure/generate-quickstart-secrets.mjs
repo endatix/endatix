@@ -1,15 +1,27 @@
 #!/usr/bin/env node
 
-import { randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  applyStringParamReplacements,
+  readStringParamFromBicepParam,
+} from "../../../scripts/lib/bicepparam-utils.mjs";
+import {
+  printGeneratedFiles,
+  printNextSteps,
+  warningText,
+} from "../../../scripts/lib/console-format.mjs";
+import {
+  randomBase64,
+  randomHex,
+  randomSigningKey,
+} from "../../../scripts/lib/secret-generation.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const bicepParametersPath = path.join(__dirname, "parameters.bicepparam");
-const legacyJsonParametersPath = path.join(__dirname, "parameters.json");
 const localParametersPath = path.join(__dirname, "parameters.local.bicepparam");
 const hubDeployEnvPath = path.join(
   __dirname,
@@ -17,72 +29,34 @@ const hubDeployEnvPath = path.join(
   "..",
   "..",
   "..",
-  "hub",
+  "endatix-hub",
   ".env.deploy",
 );
-
-function randomBase64(bytes) {
-  return randomBytes(bytes).toString("base64");
-}
-
-function randomHex(bytes) {
-  return randomBytes(bytes).toString("hex");
-}
-
-function randomSigningKey(length) {
-  const alphabet =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_!@#$%^&*+=";
-  const bytes = randomBytes(length);
-  let key = "";
-  for (let i = 0; i < length; i += 1) {
-    key += alphabet[bytes[i] % alphabet.length];
-  }
-  return key;
-}
-
-async function readResourcePrefix() {
-  try {
-    const bicepParamFile = await readFile(bicepParametersPath, "utf8");
-    const match = bicepParamFile.match(/param\s+resource_prefix\s*=\s*'([^']+)'/);
-    if (match?.[1]) {
-      return String(match[1]);
-    }
-  } catch {
-    // fall back to legacy JSON parameter file
-  }
-
-  try {
-    const parametersFile = await readFile(legacyJsonParametersPath, "utf8");
-    const parameters = JSON.parse(parametersFile);
-    const prefix = parameters?.parameters?.resource_prefix?.value;
-    if (prefix) {
-      return String(prefix);
-    }
-  } catch {
-    // use default fallback
-  }
-
-  return "eval-";
-}
 
 function stripDashes(value) {
   return value.replace(/-/g, "");
 }
 
-function readStringParamFromBicepParam(content, paramName) {
-  const regex = new RegExp(`param\\s+${paramName}\\s*=\\s*'([^']*)'`);
-  const match = content.match(regex);
-  return match?.[1];
+function deriveResourceGroupName(environmentName) {
+  const normalizedEnv = (environmentName ?? "temp").toLowerCase();
+  return `rg-endatix-${normalizedEnv}-us`;
 }
 
-function replaceStringParamInBicepParam(content, paramName, value) {
-  const regex = new RegExp(`(param\\s+${paramName}\\s*=\\s*)'[^']*'`);
-  return content.replace(regex, `$1'${value}'`);
+function normalizeResourcePrefix(resourcePrefix) {
+  return resourcePrefix.endsWith("-") ? resourcePrefix : `${resourcePrefix}-`;
 }
 
 async function main() {
   const baseBicepParameters = await readFile(bicepParametersPath, "utf8");
-  const resourcePrefix = await readResourcePrefix();
+  const configuredPrefix =
+    readStringParamFromBicepParam(baseBicepParameters, "resource_prefix") ??
+    "eval-";
+  const resourcePrefix = normalizeResourcePrefix(configuredPrefix);
+  const environmentName =
+    readStringParamFromBicepParam(baseBicepParameters, "environment") ?? "temp";
+  const resourceGroupName = deriveResourceGroupName(environmentName);
+  const apiAppName = `${resourcePrefix}endatix-api`;
+  const hubAppName = `${resourcePrefix}endatix-hub`;
   const apiHost = `https://${resourcePrefix}endatix-api.azurewebsites.net`;
   const hubHost = `https://${resourcePrefix}endatix-hub.azurestaticapps.net`;
   const storageAccountName = `${stripDashes(resourcePrefix)}endatixstorage`;
@@ -98,41 +72,19 @@ async function main() {
     "admin@endatix.com";
   const initialUserPassword = randomSigningKey(24);
 
-  let localParametersBicep = baseBicepParameters;
-  localParametersBicep = replaceStringParamInBicepParam(
-    localParametersBicep,
-    "postgres_admin_password",
-    postgresAdminPassword,
-  );
-  localParametersBicep = replaceStringParamInBicepParam(
-    localParametersBicep,
-    "initialUserPassword",
-    initialUserPassword,
-  );
-  localParametersBicep = replaceStringParamInBicepParam(
-    localParametersBicep,
-    "endatixJwtSigningKey",
-    endatixJwtSigningKey,
-  );
-  localParametersBicep = replaceStringParamInBicepParam(
-    localParametersBicep,
-    "submissionsAccessTokenSigningKey",
-    submissionsAccessTokenSigningKey,
-  );
-  localParametersBicep = replaceStringParamInBicepParam(
-    localParametersBicep,
-    "hubSessionSecret",
-    sessionSecret,
-  );
-  localParametersBicep = replaceStringParamInBicepParam(
-    localParametersBicep,
-    "hubAuthSecret",
-    authSecret,
-  );
-  localParametersBicep = replaceStringParamInBicepParam(
-    localParametersBicep,
-    "nextServerActionsEncryptionKey",
-    nextServerActionsEncryptionKey,
+  const generatedReplacements = [
+    ["postgres_admin_password", postgresAdminPassword],
+    ["initialUserPassword", initialUserPassword],
+    ["endatixJwtSigningKey", endatixJwtSigningKey],
+    ["submissionsAccessTokenSigningKey", submissionsAccessTokenSigningKey],
+    ["hubSessionSecret", sessionSecret],
+    ["hubAuthSecret", authSecret],
+    ["nextServerActionsEncryptionKey", nextServerActionsEncryptionKey],
+  ];
+
+  const localParametersBicep = applyStringParamReplacements(
+    baseBicepParameters,
+    generatedReplacements,
   );
 
   await writeFile(localParametersPath, localParametersBicep, "utf8");
@@ -163,28 +115,41 @@ async function main() {
   await mkdir(path.dirname(hubDeployEnvPath), { recursive: true });
   await writeFile(hubDeployEnvPath, envDeployContent, "utf8");
 
-  const greenCheck = "\x1b[32m✓\x1b[0m";
-  const cyanInfo = "\x1b[36mℹ\x1b[0m";
-  const yellowWarn = "\x1b[33m⚠\x1b[0m";
+  const deployInfraCommand = [
+    "az deployment group create",
+    `--resource-group ${resourceGroupName}`,
+    "--parameters parameters.local.bicepparam",
+    "--mode Complete",
+  ].join(" ");
+  const deployApiCommand = [
+    "az webapp deploy",
+    `--resource-group ${resourceGroupName}`,
+    `--name ${apiAppName}`,
+    "--src-path ../../api.zip",
+    "--type zip",
+  ].join(" ");
+  const deployHubCommand = [
+    "swa deploy",
+    "--output-location .next/standalone",
+    "--env production",
+    `--resource-group ${resourceGroupName}`,
+    `--app-name ${hubAppName}`,
+    "--api-language node",
+    "--api-version 22",
+  ].join(" ");
 
-  console.log("\n🔐 Endatix Azure quickstart secrets generated:");
-  console.log(`  ${greenCheck} ${localParametersPath}`);
-  console.log(`  ${greenCheck} ${hubDeployEnvPath}`);
-  console.log("");
-  console.log(`${cyanInfo} Next steps`);
-  console.log("  1) Review generated values and rotate any secrets if needed.");
-  console.log(
+  printGeneratedFiles([localParametersPath, hubDeployEnvPath]);
+  printNextSteps([
+    "  1) Review generated values and rotate any secrets if needed.",
     "  2) Fill missing values (for example AZURE_STORAGE_ACCOUNT_KEY and HUB_ADMIN_PASSWORD in hub/.env.deploy).",
-  );
-  console.log(
-    `     ${yellowWarn} postgres_admin_password was generated into parameters.local.bicepparam.`,
-  );
-  console.log("  3) Deploy infra with the merged local parameter file:");
-  console.log(
-    "     az deployment group create --resource-group <rg> --parameters parameters.local.bicepparam --mode Complete",
-  );
-  console.log("  4) Build and deploy API and Hub.");
-  console.log("");
+    `     ${warningText("postgres_admin_password was generated into parameters.local.bicepparam.")}`,
+    "  3) Run infrastructure deployment:",
+    `     ${deployInfraCommand}`,
+    "  4) Build API zip, then deploy API:",
+    `     ${deployApiCommand}`,
+    "  5) Build Hub standalone, then deploy Hub:",
+    `     ${deployHubCommand}`,
+  ]);
 }
 
 main().catch((error) => {
