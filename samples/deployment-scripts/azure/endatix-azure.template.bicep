@@ -107,6 +107,8 @@ var hubDefaultHostName = hubDeploymentMode == 'static-site'
   ? '${endatixHubName}.azurestaticapps.net'
   : '${endatixHubName}.azurewebsites.net'
 var hubBaseUrl = 'https://${hubDefaultHostName}'
+var apiDefaultHostName = '${endatixApiName}.azurewebsites.net'
+var apiBaseUrl = 'https://${apiDefaultHostName}'
 var storageHostName = '${endatixStorageAccountName}.blob.${az.environment().suffixes.storage}'
 
 // Calculate allowed origins for CORS based on hub deployment mode
@@ -157,8 +159,8 @@ module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMod
     appInsightsInstrumentationKey: appInsights.outputs.appInsightsInstrumentationKey
     appSettings: union({
       AUTH_URL: hubBaseUrl
-      ENDATIX_BASE_URL: 'https://${endatixApi.outputs.appDefaultHostName}'
-      NEXT_PUBLIC_API_URL: 'https://${endatixApi.outputs.appDefaultHostName}/api'
+      ENDATIX_BASE_URL: apiBaseUrl
+      NEXT_PUBLIC_API_URL: '${apiBaseUrl}/api'
       ROBOTS_ALLOWED_DOMAINS: hubDefaultHostName
       AZURE_STORAGE_ACCOUNT_NAME: endatixStorage.outputs.storageAccountName
       AZURE_STORAGE_CUSTOM_DOMAIN: storageHostName
@@ -168,7 +170,7 @@ module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMod
       HUB_ADMIN_USERNAME: initialUserEmail
     }, hubAppSettings)
     environmentVariables: union({
-      NEXT_PUBLIC_API_URL: 'https://${endatixApi.outputs.appDefaultHostName}/api'
+      NEXT_PUBLIC_API_URL: '${apiBaseUrl}/api'
     }, hubEnvironmentVariables)
     storageAccountName: endatixStorage.outputs.storageAccountName
     storageAccountKey: endatixStorage.outputs.storageAccountKey
@@ -192,8 +194,8 @@ module endatixHubWebApp './modules/web-app.module.bicep' = if (hubDeploymentMode
     linuxFxVersion: 'NODE|22-lts'
     appSettings: union({
       AUTH_URL: hubBaseUrl
-      ENDATIX_BASE_URL: 'https://${endatixApi.outputs.appDefaultHostName}'
-      NEXT_PUBLIC_API_URL: 'https://${endatixApi.outputs.appDefaultHostName}/api'
+      ENDATIX_BASE_URL: apiBaseUrl
+      NEXT_PUBLIC_API_URL: '${apiBaseUrl}/api'
       ROBOTS_ALLOWED_DOMAINS: hubDefaultHostName
       AZURE_STORAGE_ACCOUNT_NAME: endatixStorage.outputs.storageAccountName
       AZURE_STORAGE_CUSTOM_DOMAIN: storageHostName
@@ -222,7 +224,9 @@ module endatixApi './modules/web-app.module.bicep' = {
     linuxFxVersion: 'DOTNETCORE|10.0'
     appSettings: union(apiAppSettings, {
       ASPNETCORE_ENVIRONMENT: 'Production'
-      Endatix__Hub__HubBaseUrl: hubBaseUrl
+      Endatix__Hub__HubBaseUrl: hubDeploymentMode == 'static-site'
+        ? 'https://${endatixHubSWA.outputs.staticWebAppDefaultHostName}'
+        : 'https://${endatixHubWebApp.outputs.appDefaultHostName}'
       Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
       Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
       Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
@@ -258,8 +262,12 @@ module postgresqlModule './modules/postgres.module.bicep' = {
 }
 
 /* ********* Outputs ********** */
-output hubBaseUrl string = hubBaseUrl
+output hubBaseUrl string = hubDeploymentMode == 'static-site'
+  ? 'https://${endatixHubSWA.outputs.staticWebAppDefaultHostName}'
+  : 'https://${endatixHubWebApp.outputs.appDefaultHostName}'
 output apiBaseUrl string = 'https://${endatixApi.outputs.appDefaultHostName}'
 output nextPublicApiUrl string = 'https://${endatixApi.outputs.appDefaultHostName}/api'
-output hubDefaultHostName string = hubDefaultHostName
+output hubDefaultHostName string = hubDeploymentMode == 'static-site'
+  ? endatixHubSWA.outputs.staticWebAppDefaultHostName
+  : endatixHubWebApp.outputs.appDefaultHostName
 output apiDefaultHostName string = endatixApi.outputs.appDefaultHostName
