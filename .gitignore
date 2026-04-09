@@ -60,4 +60,4 @@ Thumbs.db
 .secrets
 
 # Azure quickstart local overrides
-samples/deployment-scripts/azure/parameters.local.json
+samples/deployment-scripts/azure/parameters.local.bicepparam

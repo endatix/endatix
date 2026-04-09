@@ -2,7 +2,7 @@
 
 Use this guide to get Endatix running quickly on Azure with Bicep.
 
-`parameters.json` is the primary source of truth for runtime configuration.  
+`parameters.bicepparam` is the primary source of truth for runtime configuration.  
 Runtime URLs and hostnames are derived automatically from deployment resource names/default hostnames.
 
 ## Prerequisites
@@ -22,7 +22,7 @@ Runtime URLs and hostnames are derived automatically from deployment resource na
 
 ### 1) Start from defaults
 
-Use `samples/deployment-scripts/azure/parameters.json` as baseline.  
+Use `samples/deployment-scripts/azure/parameters.bicepparam` as baseline.  
 Only change what you need (prefix, environment, postgres credentials, optional runtime settings).
 
 ### 2) Generate local secrets overrides
@@ -35,16 +35,16 @@ node ./generate-quickstart-secrets.mjs
 
 This creates:
 
-- `parameters.local.json` (secure Bicep parameter overrides)
+- `parameters.local.bicepparam` (secure Bicep parameter overrides)
 - `hub/.env.deploy` (minimal Hub build-time values)
 
 Both are local-only files and should not be committed.
 
 Why two parameter files?
 - This is the recommended flow for quickstart.
-- Keep non-secret defaults in `parameters.json`.
-- Keep generated/secret overrides in `parameters.local.json`.
-- Azure CLI applies parameters in order, so later files override earlier ones (`parameters.local.json` overrides `parameters.json`).
+- Keep non-secret defaults in `parameters.bicepparam`.
+- Keep generated/secret overrides in `parameters.local.bicepparam`.
+- Azure CLI applies parameters in order, so later files override earlier ones (`parameters.local.bicepparam` overrides `parameters.bicepparam`).
 
 ### 3) Deploy infrastructure (Bicep)
 
@@ -53,9 +53,8 @@ az group create --name rg-endatix-eval --location eastus
 
 az deployment group create \
   --resource-group rg-endatix-eval \
-  --template-file endatix-azure.template.bicep \
-  --parameters parameters.json \
-  --parameters parameters.local.json \
+  --parameters parameters.bicepparam \
+  --parameters parameters.local.bicepparam \
   --mode Complete
 ```
 
@@ -106,8 +105,8 @@ swa deploy \
 
 | Bucket                        | Source of truth                         | Where to set                                                                      |
 | ----------------------------- | --------------------------------------- | --------------------------------------------------------------------------------- |
-| Runtime infrastructure values | Bicep                                   | `parameters.json` (`hubEnvironmentVariables`, `hubAppSettings`, `apiAppSettings`) |
-| Runtime secrets               | Local override + Azure runtime settings | `parameters.local.json` (generated), then app settings                            |
+| Runtime infrastructure values | Bicep                                   | `parameters.bicepparam` (`hubEnvironmentVariables`, `hubAppSettings`, `apiAppSettings`) |
+| Runtime secrets               | Local override + Azure runtime settings | `parameters.local.bicepparam` (generated), then app settings                            |
 | Build-time Hub values         | Local env file only                     | `hub/.env.deploy` before `pnpm build:standalone`                                  |
 
 
@@ -127,7 +126,7 @@ The template computes hostnames from resource names/default hostnames and inject
 
 ### Generated Secrets and First Admin
 
-The script generates and writes these to `parameters.local.json`:
+The script generates and writes these to `parameters.local.bicepparam`:
 
 | Key | Generated value |
 |---|---|
@@ -169,7 +168,7 @@ az webapp deploy \
 
 ## Developer Loop
 
-1. Update `parameters.json` / `parameters.local.json` and `hub/.env.deploy`
+1. Update `parameters.bicepparam` / `parameters.local.bicepparam` and `hub/.env.deploy`
 2. Rebuild API and Hub
 3. Redeploy API and Hub
 4. Verify:
