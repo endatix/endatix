@@ -247,9 +247,9 @@ main().catch((error) => {
   if (error instanceof UserFacingError) {
     console.error(`${errorText("[ERROR]")} ${error.message}`);
   } else {
-    console.error(`${errorText("✖ Failed to generate quickstart secrets.")}`);
+    console.error(`${errorText("✖")} Failed to generate quickstart secrets.`);
     console.error(`${errorText("[ERROR]")} ${error}`);
   }
-  console.error(`${errorText("✖ Stopping script execution...")}`);
+  console.error(`${errorText("✖")} Stopping script execution...`);
   process.exit(1);
 });
