@@ -35,16 +35,15 @@ node ./generate-quickstart-secrets.mjs
 
 This creates:
 
-- `parameters.local.bicepparam` (secure Bicep parameter overrides)
+- `parameters.local.bicepparam` (merged secure parameter file, generated from `parameters.bicepparam`)
 - `hub/.env.deploy` (minimal Hub build-time values)
 
 Both are local-only files and should not be committed.
 
-Why two parameter files?
-- This is the recommended flow for quickstart.
-- Keep non-secret defaults in `parameters.bicepparam`.
-- Keep generated/secret overrides in `parameters.local.bicepparam`.
-- Azure CLI applies parameters in order, so later files override earlier ones (`parameters.local.bicepparam` overrides `parameters.bicepparam`).
+Why generate `parameters.local.bicepparam`?
+- Azure CLI allows only one `.bicepparam` in `--parameters`.
+- The script creates a merged local file from `parameters.bicepparam` and injects generated secrets.
+- You deploy using the merged local file only.
 
 ### 3) Deploy infrastructure (Bicep)
 
@@ -53,7 +52,6 @@ az group create --name rg-endatix-eval --location eastus
 
 az deployment group create \
   --resource-group rg-endatix-eval \
-  --parameters parameters.bicepparam \
   --parameters parameters.local.bicepparam \
   --mode Complete
 ```
@@ -168,7 +166,7 @@ az webapp deploy \
 
 ## Developer Loop
 
-1. Update `parameters.bicepparam` / `parameters.local.bicepparam` and `hub/.env.deploy`
+1. Update `parameters.bicepparam`, regenerate `parameters.local.bicepparam`, and review `hub/.env.deploy`
 2. Rebuild API and Hub
 3. Redeploy API and Hub
 4. Verify:

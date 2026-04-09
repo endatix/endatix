@@ -69,7 +69,19 @@ function stripDashes(value) {
   return value.replace(/-/g, "");
 }
 
+function readStringParamFromBicepParam(content, paramName) {
+  const regex = new RegExp(`param\\s+${paramName}\\s*=\\s*'([^']*)'`);
+  const match = content.match(regex);
+  return match?.[1];
+}
+
+function replaceStringParamInBicepParam(content, paramName, value) {
+  const regex = new RegExp(`(param\\s+${paramName}\\s*=\\s*)'[^']*'`);
+  return content.replace(regex, `$1'${value}'`);
+}
+
 async function main() {
+  const baseBicepParameters = await readFile(bicepParametersPath, "utf8");
   const resourcePrefix = await readResourcePrefix();
   const apiHost = `https://${resourcePrefix}endatix-api.azurewebsites.net`;
   const hubHost = `https://${resourcePrefix}endatix-hub.azurestaticapps.net`;
@@ -81,22 +93,47 @@ async function main() {
   const endatixJwtSigningKey = randomSigningKey(64);
   const submissionsAccessTokenSigningKey = randomSigningKey(64);
   const postgresAdminPassword = randomSigningKey(24);
-  const initialUserEmail = "admin@endatix.com";
+  const initialUserEmail =
+    readStringParamFromBicepParam(baseBicepParameters, "initialUserEmail") ??
+    "admin@endatix.com";
   const initialUserPassword = randomSigningKey(24);
 
-  const localParametersBicep = [
-    "using './endatix-azure.template.bicep'",
-    "",
-    `param postgres_admin_password = '${postgresAdminPassword}'`,
-    `param initialUserEmail = '${initialUserEmail}'`,
-    `param initialUserPassword = '${initialUserPassword}'`,
-    `param endatixJwtSigningKey = '${endatixJwtSigningKey}'`,
-    `param submissionsAccessTokenSigningKey = '${submissionsAccessTokenSigningKey}'`,
-    `param hubSessionSecret = '${sessionSecret}'`,
-    `param hubAuthSecret = '${authSecret}'`,
-    `param nextServerActionsEncryptionKey = '${nextServerActionsEncryptionKey}'`,
-    "",
-  ].join("\n");
+  let localParametersBicep = baseBicepParameters;
+  localParametersBicep = replaceStringParamInBicepParam(
+    localParametersBicep,
+    "postgres_admin_password",
+    postgresAdminPassword,
+  );
+  localParametersBicep = replaceStringParamInBicepParam(
+    localParametersBicep,
+    "initialUserPassword",
+    initialUserPassword,
+  );
+  localParametersBicep = replaceStringParamInBicepParam(
+    localParametersBicep,
+    "endatixJwtSigningKey",
+    endatixJwtSigningKey,
+  );
+  localParametersBicep = replaceStringParamInBicepParam(
+    localParametersBicep,
+    "submissionsAccessTokenSigningKey",
+    submissionsAccessTokenSigningKey,
+  );
+  localParametersBicep = replaceStringParamInBicepParam(
+    localParametersBicep,
+    "hubSessionSecret",
+    sessionSecret,
+  );
+  localParametersBicep = replaceStringParamInBicepParam(
+    localParametersBicep,
+    "hubAuthSecret",
+    authSecret,
+  );
+  localParametersBicep = replaceStringParamInBicepParam(
+    localParametersBicep,
+    "nextServerActionsEncryptionKey",
+    nextServerActionsEncryptionKey,
+  );
 
   await writeFile(localParametersPath, localParametersBicep, "utf8");
 
@@ -142,9 +179,9 @@ async function main() {
   console.log(
     `     ${yellowWarn} postgres_admin_password was generated into parameters.local.bicepparam.`,
   );
-  console.log("  3) Deploy infra with both parameter files:");
+  console.log("  3) Deploy infra with the merged local parameter file:");
   console.log(
-    "     az deployment group create --resource-group <rg> --parameters parameters.bicepparam --parameters parameters.local.bicepparam --mode Complete",
+    "     az deployment group create --resource-group <rg> --parameters parameters.local.bicepparam --mode Complete",
   );
   console.log("  4) Build and deploy API and Hub.");
   console.log("");
