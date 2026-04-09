@@ -40,6 +40,12 @@ This creates:
 
 Both are local-only files and should not be committed.
 
+Why two parameter files?
+- This is the recommended flow for quickstart.
+- Keep non-secret defaults in `parameters.json`.
+- Keep generated/secret overrides in `parameters.local.json`.
+- Azure CLI applies parameters in order, so later files override earlier ones (`parameters.local.json` overrides `parameters.json`).
+
 ### 3) Deploy infrastructure (Bicep)
 
 ```bash
@@ -175,4 +181,14 @@ az webapp deploy \
 - SWA warmup timeout: use `--output-location .next/standalone --api-language node --api-version 22`
 - Hub can open but API fails: check `NEXT_PUBLIC_API_URL` / `ENDATIX_BASE_URL` and API CORS
 - API starts but auth fails: verify generated secrets were applied and redeploy API
+
+## Optional: Generate ARM JSON From Bicep
+
+If you need the compiled ARM template for troubleshooting or other tooling:
+
+```bash
+az bicep build \
+  --file samples/deployment-scripts/azure/endatix-azure.template.bicep \
+  --outfile samples/deployment-scripts/azure/endatix-azure.template.json
+```
 

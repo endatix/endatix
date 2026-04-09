@@ -61,6 +61,7 @@ async function main() {
   const nextServerActionsEncryptionKey = randomBase64(32);
   const endatixJwtSigningKey = randomSigningKey(64);
   const submissionsAccessTokenSigningKey = randomSigningKey(64);
+  const postgresAdminPassword = randomSigningKey(24);
   const initialUserEmail = "admin@endatix.com";
   const initialUserPassword = randomSigningKey(24);
 
@@ -69,6 +70,9 @@ async function main() {
       "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
     contentVersion: "1.0.0.0",
     parameters: {
+      postgres_admin_password: {
+        value: postgresAdminPassword,
+      },
       initialUserEmail: {
         value: initialUserEmail,
       },
@@ -125,17 +129,28 @@ async function main() {
   await mkdir(path.dirname(hubDeployEnvPath), { recursive: true });
   await writeFile(hubDeployEnvPath, envDeployContent, "utf8");
 
-  console.log("Generated files:");
-  console.log(`- ${localParametersPath}`);
-  console.log(`- ${hubDeployEnvPath}`);
-  console.log("\nNext steps:");
-  console.log("1) Review generated values and rotate any secrets if needed.");
-  console.log("2) Fill missing values (for example AZURE_STORAGE_ACCOUNT_KEY and HUB_ADMIN_PASSWORD in hub/.env.deploy).");
-  console.log("3) Deploy infra with both parameter files:");
+  const greenCheck = "\x1b[32m✓\x1b[0m";
+  const cyanInfo = "\x1b[36mℹ\x1b[0m";
+  const yellowWarn = "\x1b[33m⚠\x1b[0m";
+
+  console.log("\n🔐 Endatix Azure quickstart secrets generated:");
+  console.log(`  ${greenCheck} ${localParametersPath}`);
+  console.log(`  ${greenCheck} ${hubDeployEnvPath}`);
+  console.log("");
+  console.log(`${cyanInfo} Next steps`);
+  console.log("  1) Review generated values and rotate any secrets if needed.");
   console.log(
-    "   az deployment group create --resource-group <rg> --template-file endatix-azure.template.bicep --parameters parameters.json --parameters parameters.local.json --mode Complete",
+    "  2) Fill missing values (for example AZURE_STORAGE_ACCOUNT_KEY and HUB_ADMIN_PASSWORD in hub/.env.deploy).",
   );
-  console.log("4) Build and deploy API and Hub.");
+  console.log(
+    `     ${yellowWarn} postgres_admin_password was generated into parameters.local.json.`,
+  );
+  console.log("  3) Deploy infra with both parameter files:");
+  console.log(
+    "     az deployment group create --resource-group <rg> --template-file endatix-azure.template.bicep --parameters parameters.json --parameters parameters.local.json --mode Complete",
+  );
+  console.log("  4) Build and deploy API and Hub.");
+  console.log("");
 }
 
 main().catch((error) => {

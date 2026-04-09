@@ -109,7 +109,7 @@ var hubDefaultHostName = hubDeploymentMode == 'static-site'
 var hubBaseUrl = 'https://${hubDefaultHostName}'
 var apiDefaultHostName = '${endatixApiName}.azurewebsites.net'
 var apiBaseUrl = 'https://${apiDefaultHostName}'
-var storageHostName = '${endatixStorageAccountName}.blob.core.windows.net'
+var storageHostName = '${endatixStorageAccountName}.blob.${az.environment().suffixes.storage}'
 
 // Calculate allowed origins for CORS based on hub deployment mode
 var allowedOrigins = hubDeploymentMode == 'static-site' ? [
