@@ -3,8 +3,7 @@
 Endatix Blob Storage Bicep module
 
 This module deploys Azure Blob Storage for storing forms and submissions.
-CORS configuration is handled via app settings rather than at deployment time
-to avoid circular dependencies between resources.
+Initial deploy skips blob CORS; a leaf module applies CORS after Hub/API hostnames resolve.
 */
 
 @description('Azure region for deployment')

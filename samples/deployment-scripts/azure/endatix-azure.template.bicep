@@ -115,14 +115,18 @@ var resolvedHubDefaultHostName = hubDeploymentMode == 'static-site'
   : endatixHubWebApp!.outputs.appDefaultHostName
 var resolvedHubBaseUrl = 'https://${resolvedHubDefaultHostName}'
 
-// Calculate allowed origins for CORS based on hub deployment mode
-var allowedOrigins = hubDeploymentMode == 'static-site' ? [
-  '${endatixHubName}.azurestaticapps.net'
-  '${endatixApiName}.azurewebsites.net'
-] : [
-  '${endatixHubName}.azurewebsites.net'
-  '${endatixApiName}.azurewebsites.net'
+// Blob CORS uses real hostnames; applied in leaf module after Hub + API exist.
+var resolvedStorageCorsOrigins = [
+  resolvedHubBaseUrl
+  'https://${endatixApi.outputs.appDefaultHostName}'
 ]
+
+// Serilog → Application Insights via app settings (Azure __ nesting)
+var apiSerilogApplicationInsightsSettings = {
+  Serilog__Using__0: 'Serilog.Sinks.ApplicationInsights'
+  Serilog__WriteTo__0__Name: 'ApplicationInsights'
+  Serilog__WriteTo__0__Args__telemetryConverter: 'Serilog.Sinks.ApplicationInsights.TelemetryConverters.TraceTelemetryConverter, Serilog.Sinks.ApplicationInsights'
+}
 
 // App Insights
 module appInsights './modules/app-insights.module.bicep' = {
@@ -144,7 +148,7 @@ module endatixStorage './modules/storage.module.bicep' = {
     storageAccountName: endatixStorageAccountName
     tags: tags
     isPrivate: storageIsPrivate
-    allowedOrigins: allowedOrigins
+    allowedOrigins: []
   }
 }
 
@@ -226,17 +230,21 @@ module endatixApi './modules/web-app.module.bicep' = {
     repositoryUrl: apiRepositoryUrl
     deploymentBranch: apiDeploymentBranch
     linuxFxVersion: 'DOTNETCORE|10.0'
-    appSettings: union(apiAppSettings, {
-      ASPNETCORE_ENVIRONMENT: 'Production'
-      Endatix__Hub__HubBaseUrl: predictedHubBaseUrl
-      Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
-      Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
-      Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
-      Endatix__Data__SeedSampleData: true
-      Endatix__Data__SeedSampleForms: true
-      Endatix__Data__InitialUser__Email: initialUserEmail
-      Endatix__Data__InitialUser__Password: initialUserPassword
-    })
+    appSettings: union(
+      apiAppSettings,
+      apiSerilogApplicationInsightsSettings,
+      {
+        ASPNETCORE_ENVIRONMENT: 'Production'
+        Endatix__Hub__HubBaseUrl: predictedHubBaseUrl
+        Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
+        Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
+        Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
+        Endatix__Data__SeedSampleData: true
+        Endatix__Data__SeedSampleForms: true
+        Endatix__Data__InitialUser__Email: initialUserEmail
+        Endatix__Data__InitialUser__Password: initialUserPassword
+      },
+    )
     connectionStrings: union(apiConnectionStrings, {
       DefaultConnection: {
         value: postgresqlModule.outputs.postgresqlConnectionString
@@ -262,17 +270,36 @@ module endatixApiFinalize './modules/web-app-appsettings-update.module.bicep' = 
   ]
   params: {
     webAppName: endatixApiName
-    appSettings: union(apiAppSettings, {
-      APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.outputs.appInsightsInstrumentationKey
-      APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.outputs.appInsightsConnectionString
-      ASPNETCORE_ENVIRONMENT: 'Production'
-      Endatix__Hub__HubBaseUrl: resolvedHubBaseUrl
-      Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
-      Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
-      Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
-      Endatix__Data__InitialUser__Email: initialUserEmail
-      Endatix__Data__InitialUser__Password: initialUserPassword
-    })
+    appSettings: union(
+      apiAppSettings,
+      apiSerilogApplicationInsightsSettings,
+      {
+        APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.outputs.appInsightsInstrumentationKey
+        APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.outputs.appInsightsConnectionString
+        ASPNETCORE_ENVIRONMENT: 'Production'
+        Endatix__Hub__HubBaseUrl: resolvedHubBaseUrl
+        Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
+        Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
+        Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
+        Endatix__Data__SeedSampleData: true
+        Endatix__Data__SeedSampleForms: true
+        Endatix__Data__InitialUser__Email: initialUserEmail
+        Endatix__Data__InitialUser__Password: initialUserPassword
+      },
+    )
+  }
+}
+
+// Storage blob CORS with resolved Hub + API origins (leaf step)
+module endatixStorageBlobCorsFinalize './modules/storage-blob-cors-finalize.module.bicep' = {
+  name: 'endatixStorageBlobCorsFinalize'
+  dependsOn: [
+    endatixStorage
+    endatixApi
+  ]
+  params: {
+    storageAccountName: endatixStorageAccountName
+    allowedOrigins: resolvedStorageCorsOrigins
   }
 }
 

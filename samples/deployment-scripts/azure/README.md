@@ -98,25 +98,26 @@ az webapp deploy \
 # from Hub repo root
 cp .env.deploy .env
 pnpm build:standalone
+cd .next/standalone
 
 swa deploy \
-  --output-location .next/standalone \
-  --env production \
   --resource-group RESOURCE_GROUP_NAME \
   --app-name HUB_APP_NAME \
+  --env production \
   --api-language node \
   --api-version 22
 ```
+
+Run `swa deploy` from `.next/standalone` so the CLI picks up the standalone app without `--output-location`. If you stay at the Hub repo root, add `--output-location .next/standalone` instead.
 
 Token-based variant (CI parity):
 
 ```bash
 swa deploy \
-  --output-location .next/standalone \
   --deployment-token "$HUB_DEPLOYMENT_TOKEN" \
+  --env production \
   --api-language node \
-  --api-version 22 \
-  --env production
+  --api-version 22
 ```
 
 ## Configuration Ownership (Important)
@@ -203,7 +204,7 @@ az webapp deploy \
 
 ## Quick Troubleshooting
 
-- SWA warmup timeout: use `--output-location .next/standalone --api-language node --api-version 22`
+- SWA warmup timeout: deploy from `.next/standalone` (or add `--output-location .next/standalone`) and use `--api-language node --api-version 22`
 - Hub can open but API fails: check `NEXT_PUBLIC_API_URL` and API CORS
 - API starts but auth fails: verify generated secrets were applied and redeploy API
 

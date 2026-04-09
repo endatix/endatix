@@ -123,10 +123,9 @@ async function writeBuildEnvFromOutputs(outputsFilePath) {
   ].join(" ");
   const deployHubCommand = [
     "swa deploy",
-    "--output-location .next/standalone",
-    "--env production",
     `--resource-group ${outputs.resourceGroupName}`,
     `--app-name ${outputs.hubAppName}`,
+    "--env production",
     "--api-language node",
     "--api-version 22",
   ].join(" ");
@@ -137,7 +136,7 @@ async function writeBuildEnvFromOutputs(outputsFilePath) {
     formatCommandSnippet("cp .env.deploy .env"),
     "  2) Build API zip, then deploy API:",
     formatCommandSnippet(deployApiCommand),
-    "  3) Build Hub standalone, then deploy Hub:",
+    "  3) Build Hub standalone, then from Hub repo: cd .next/standalone and deploy:",
     formatCommandSnippet(deployHubCommand),
   ]);
 }
@@ -208,10 +207,9 @@ async function runPredeploy() {
   ].join(" ");
   const deployHubCommand = [
     "swa deploy",
-    "--output-location .next/standalone",
-    "--env production",
     `--resource-group ${resourceGroupName}`,
     `--app-name ${hubAppName}`,
+    "--env production",
     "--api-language node",
     "--api-version 22",
   ].join(" ");
@@ -225,7 +223,7 @@ async function runPredeploy() {
     formatCommandSnippet("node ./generate-quickstart-secrets.mjs build-env"),
     "  4) Build API zip, then deploy API:",
     formatCommandSnippet(deployApiCommand),
-    "  5) Build Hub standalone, then deploy Hub:",
+    "  5) Build Hub standalone, then: cd .next/standalone and deploy:",
     formatCommandSnippet(deployHubCommand),
   ]);
 }
