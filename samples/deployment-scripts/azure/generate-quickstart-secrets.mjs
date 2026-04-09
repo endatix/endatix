@@ -245,12 +245,12 @@ async function main() {
 
 main().catch((error) => {
   if (error instanceof UserFacingError) {
-    console.error(`${errorText("[ERROR]")} ${error.message}`);
+    console.error(`\n${errorText("[ERROR]")} ${error.message}`);
   } else {
-    console.error(`${errorText("✖")} Failed to generate quickstart secrets.`);
+    console.error(`\n${errorText("✖")} Failed to generate quickstart secrets.`);
     console.error(`${errorText("[ERROR]")} ${error}`);
   }
-  
-  console.error(`\n\n${errorText("✖")} Stopping script execution...`);
+
+  console.error(`\n${errorText("✖")} Stopping script execution...`);
   process.exit(1);
 });
