@@ -58,38 +58,37 @@ async function main() {
 
   const authSecret = randomBase64(32);
   const sessionSecret = randomHex(32);
-  const accessTokenSigningKey = randomSigningKey(64);
+  const nextServerActionsEncryptionKey = randomBase64(32);
+  const endatixJwtSigningKey = randomSigningKey(64);
+  const submissionsAccessTokenSigningKey = randomSigningKey(64);
+  const initialUserEmail = "admin@endatix.com";
+  const initialUserPassword = randomSigningKey(24);
 
   const localParameters = {
     $schema:
       "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
     contentVersion: "1.0.0.0",
     parameters: {
-      hubEnvironmentVariables: {
-        value: {
-          NEXT_PUBLIC_API_URL: `${apiHost}/api`,
-          NEXT_PUBLIC_ENVIRONMENT: "production",
-        },
+      initialUserEmail: {
+        value: initialUserEmail,
       },
-      apiAppSettings: {
-        value: {
-          ASPNETCORE_ENVIRONMENT: "Production",
-          Endatix__Hub__HubBaseUrl: hubHost,
-          Endatix__Submissions__AccessTokenSigningKey: accessTokenSigningKey,
-        },
+      initialUserPassword: {
+        value: initialUserPassword,
       },
-      hubAppSettings: {
-        value: {
-          ENDATIX_BASE_URL: apiHost,
-          ENDATIX_API_PREFIX: "/api",
-          AUTH_SECRET: authSecret,
-          SESSION_SECRET: sessionSecret,
-          AUTH_TRUST_HOST: "true",
-          AUTH_URL: hubHost,
-          NEXT_PUBLIC_API_URL: `${apiHost}/api`,
-          NEXT_PUBLIC_ENVIRONMENT: "production",
-          AZURE_STORAGE_ACCOUNT_NAME: storageAccountName,
-        },
+      endatixJwtSigningKey: {
+        value: endatixJwtSigningKey,
+      },
+      submissionsAccessTokenSigningKey: {
+        value: submissionsAccessTokenSigningKey,
+      },
+      hubSessionSecret: {
+        value: sessionSecret,
+      },
+      hubAuthSecret: {
+        value: authSecret,
+      },
+      nextServerActionsEncryptionKey: {
+        value: nextServerActionsEncryptionKey,
       },
     },
   };
@@ -106,8 +105,11 @@ async function main() {
     "ENDATIX_API_PREFIX=/api",
     `SESSION_SECRET=${sessionSecret}`,
     `AUTH_SECRET=${authSecret}`,
+    `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${nextServerActionsEncryptionKey}`,
     "AUTH_TRUST_HOST=true",
     `AUTH_URL=${hubHost}`,
+    `HUB_ADMIN_USERNAME=${initialUserEmail}`,
+    "HUB_ADMIN_PASSWORD=",
     "SESSION_MAX_AGE_IN_MINUTES=900",
     `NEXT_PUBLIC_API_URL=${apiHost}/api`,
     "NEXT_PUBLIC_ENVIRONMENT=production",
@@ -127,14 +129,13 @@ async function main() {
   console.log(`- ${localParametersPath}`);
   console.log(`- ${hubDeployEnvPath}`);
   console.log("\nNext steps:");
-  console.log(
-    "1) Fill missing values (for example AZURE_STORAGE_ACCOUNT_KEY in hub/.env.deploy).",
-  );
-  console.log("2) Deploy infra with both parameter files:");
+  console.log("1) Review generated values and rotate any secrets if needed.");
+  console.log("2) Fill missing values (for example AZURE_STORAGE_ACCOUNT_KEY and HUB_ADMIN_PASSWORD in hub/.env.deploy).");
+  console.log("3) Deploy infra with both parameter files:");
   console.log(
     "   az deployment group create --resource-group <rg> --template-file endatix-azure.template.bicep --parameters parameters.json --parameters parameters.local.json --mode Complete",
   );
-  console.log("3) Build and deploy API and Hub.");
+  console.log("4) Build and deploy API and Hub.");
 }
 
 main().catch((error) => {

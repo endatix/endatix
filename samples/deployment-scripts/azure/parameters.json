@@ -29,9 +29,29 @@
     "postgres_admin_password": {
       "value": "CHANGE_ME_STRONG_PASSWORD"
     },
+    "initialUserEmail": {
+      "value": "admin@endatix.com"
+    },
+    "initialUserPassword": {
+      "value": "CHANGE_ME_INITIAL_ADMIN_PASSWORD"
+    },
+    "endatixJwtSigningKey": {
+      "value": "CHANGE_ME_ENDATIX_JWT_SIGNING_KEY"
+    },
+    "submissionsAccessTokenSigningKey": {
+      "value": "CHANGE_ME_SUBMISSIONS_SIGNING_KEY"
+    },
+    "hubSessionSecret": {
+      "value": "CHANGE_ME_HUB_SESSION_SECRET"
+    },
+    "hubAuthSecret": {
+      "value": "CHANGE_ME_HUB_AUTH_SECRET"
+    },
+    "nextServerActionsEncryptionKey": {
+      "value": "CHANGE_ME_NEXT_SERVER_ACTIONS_ENCRYPTION_KEY"
+    },
     "hubEnvironmentVariables": {
       "value": {
-        "NEXT_PUBLIC_API_URL": "https://try-endatix-api.azurewebsites.net/api",
         "NEXT_PUBLIC_ENVIRONMENT": "production"
       }
     },

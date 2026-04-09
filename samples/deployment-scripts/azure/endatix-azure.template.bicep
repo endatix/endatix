@@ -36,6 +36,33 @@ param postgres_admin_username string
 @description('PostgreSQL administrator password')
 param postgres_admin_password string
 
+@description('Initial admin user email for first-time API setup')
+param initialUserEmail string = 'admin@endatix.com'
+
+@secure()
+@description('Initial admin user password for first-time API setup')
+param initialUserPassword string
+
+@secure()
+@description('JWT signing key for Endatix API auth provider')
+param endatixJwtSigningKey string
+
+@secure()
+@description('Signing key for Endatix submission access tokens')
+param submissionsAccessTokenSigningKey string
+
+@secure()
+@description('Hub session secret')
+param hubSessionSecret string
+
+@secure()
+@description('Hub AUTH secret')
+param hubAuthSecret string
+
+@secure()
+@description('Hub Next.js server actions encryption key')
+param nextServerActionsEncryptionKey string
+
 @description('Application settings for the Hub (Static Web App)')
 param hubAppSettings object = {}
 
@@ -76,6 +103,13 @@ var endatixHubName = '${resource_prefix}endatix-hub'
 var endatixApiName = '${resource_prefix}endatix-api'
 var endatixServicePlanName = '${resource_prefix}endatix-serviceplan'
 var endatixStorageAccountName = '${replace(resource_prefix, '-', '')}endatixstorage'
+var hubDefaultHostName = hubDeploymentMode == 'static-site'
+  ? '${endatixHubName}.azurestaticapps.net'
+  : '${endatixHubName}.azurewebsites.net'
+var hubBaseUrl = 'https://${hubDefaultHostName}'
+var apiDefaultHostName = '${endatixApiName}.azurewebsites.net'
+var apiBaseUrl = 'https://${apiDefaultHostName}'
+var storageHostName = '${endatixStorageAccountName}.blob.core.windows.net'
 
 // Calculate allowed origins for CORS based on hub deployment mode
 var allowedOrigins = hubDeploymentMode == 'static-site' ? [
@@ -123,8 +157,21 @@ module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMod
     appInsightsId: appInsights.outputs.appInsightsId
     appInsightsConnectionString: appInsights.outputs.appInsightsConnectionString
     appInsightsInstrumentationKey: appInsights.outputs.appInsightsInstrumentationKey
-    appSettings: hubAppSettings
-    environmentVariables: hubEnvironmentVariables
+    appSettings: union({
+      AUTH_URL: hubBaseUrl
+      ENDATIX_BASE_URL: apiBaseUrl
+      NEXT_PUBLIC_API_URL: '${apiBaseUrl}/api'
+      ROBOTS_ALLOWED_DOMAINS: hubDefaultHostName
+      AZURE_STORAGE_ACCOUNT_NAME: endatixStorage.outputs.storageAccountName
+      AZURE_STORAGE_CUSTOM_DOMAIN: storageHostName
+      SESSION_SECRET: hubSessionSecret
+      AUTH_SECRET: hubAuthSecret
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: nextServerActionsEncryptionKey
+      HUB_ADMIN_USERNAME: initialUserEmail
+    }, hubAppSettings)
+    environmentVariables: union({
+      NEXT_PUBLIC_API_URL: '${apiBaseUrl}/api'
+    }, hubEnvironmentVariables)
     storageAccountName: endatixStorage.outputs.storageAccountName
     storageAccountKey: endatixStorage.outputs.storageAccountKey
     storageIsPrivate: storageIsPrivate
@@ -145,7 +192,18 @@ module endatixHubWebApp './modules/web-app.module.bicep' = if (hubDeploymentMode
     repositoryUrl: hubRepositoryUrl
     deploymentBranch: branch
     linuxFxVersion: 'NODE|22-lts'
-    appSettings: hubAppSettings
+    appSettings: union({
+      AUTH_URL: hubBaseUrl
+      ENDATIX_BASE_URL: apiBaseUrl
+      NEXT_PUBLIC_API_URL: '${apiBaseUrl}/api'
+      ROBOTS_ALLOWED_DOMAINS: hubDefaultHostName
+      AZURE_STORAGE_ACCOUNT_NAME: endatixStorage.outputs.storageAccountName
+      AZURE_STORAGE_CUSTOM_DOMAIN: storageHostName
+      SESSION_SECRET: hubSessionSecret
+      AUTH_SECRET: hubAuthSecret
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: nextServerActionsEncryptionKey
+      HUB_ADMIN_USERNAME: initialUserEmail
+    }, hubAppSettings)
     connectionStrings: {}
   }
 }
@@ -166,6 +224,12 @@ module endatixApi './modules/web-app.module.bicep' = {
     linuxFxVersion: 'DOTNETCORE|10.0'
     appSettings: union(apiAppSettings, {
       ASPNETCORE_ENVIRONMENT: 'Production'
+      Endatix__Hub__HubBaseUrl: hubBaseUrl
+      Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
+      Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
+      Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
+      Endatix__Data__InitialUser__Email: initialUserEmail
+      Endatix__Data__InitialUser__Password: initialUserPassword
     })
     connectionStrings: union(apiConnectionStrings, {
       DefaultConnection: {
