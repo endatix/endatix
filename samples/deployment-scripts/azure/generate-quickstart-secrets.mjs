@@ -75,7 +75,7 @@ async function assertFileDoesNotExist(filePath, fileLabel) {
   try {
     await access(filePath);
     throw new UserFacingError(
-      `${fileLabel} already exists at '${filePath}'.${NEWLINE} ${infoText("If this is intentional, remove it first to avoid overwriting existing values.")}`,
+      `${fileLabel} already exists at '${filePath}'. \n\n ${infoText("If this is intentional, remove it first to avoid overwriting existing values.")}`,
     );
   } catch (error) {
     if (error?.code === "ENOENT") {
