@@ -8,6 +8,7 @@ import {
   readStringParamFromBicepParam,
 } from "../../../scripts/lib/bicepparam-utils.mjs";
 import {
+  formatCommandSnippet,
   printGeneratedFiles,
   printNextSteps,
 } from "../../../scripts/lib/console-format.mjs";
@@ -131,11 +132,11 @@ async function writeBuildEnvFromOutputs(outputsFilePath) {
   printGeneratedFiles([hubDeployEnvPath]);
   printNextSteps([
     "  1) Copy build env into local Hub env file:",
-    "     cp .env.deploy .env",
+    formatCommandSnippet("cp .env.deploy .env"),
     "  2) Build API zip, then deploy API:",
-    `     ${deployApiCommand}`,
+    formatCommandSnippet(deployApiCommand),
     "  3) Build Hub standalone, then deploy Hub:",
-    `     ${deployHubCommand}`,
+    formatCommandSnippet(deployHubCommand),
   ]);
 }
 
@@ -217,13 +218,13 @@ async function runPredeploy() {
   printNextSteps([
     "  1) Review generated values and rotate any secrets if needed.",
     "  2) Run infrastructure deployment:",
-    `     ${deployInfraCommand}`,
+    formatCommandSnippet(deployInfraCommand),
     "  3) Generate Hub build env from deployment outputs:",
-    "     node ./generate-quickstart-secrets.mjs build-env",
+    formatCommandSnippet("node ./generate-quickstart-secrets.mjs build-env"),
     "  4) Build API zip, then deploy API:",
-    `     ${deployApiCommand}`,
+    formatCommandSnippet(deployApiCommand),
     "  5) Build Hub standalone, then deploy Hub:",
-    `     ${deployHubCommand}`,
+    formatCommandSnippet(deployHubCommand),
   ]);
 }
 
@@ -243,9 +244,9 @@ async function main() {
 main().catch((error) => {
   console.error("Failed to generate quickstart secrets.");
   if (error instanceof UserFacingError) {
-    console.error(`‼️ Error: ${error.message}`);
+    console.error(`[ERROR] ${error.message}`);
   } else {
-    console.error(`‼️ Error: ${error}`);
+    console.error(`[ERROR] ${error}`);
   }
   console.error("❌ Stopping script execution...");
   process.exit(1);
