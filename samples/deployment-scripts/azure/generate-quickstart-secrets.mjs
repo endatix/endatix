@@ -238,8 +238,10 @@ async function interactiveWizard() {
     "--api-version 22",
   ].join(" ");
 
+  console.log(`\n✅ Successfully generated ${path.basename(hubDeployEnvPath)}!`);
+  console.log(`📍 Path: ${hubDeployEnvPath}`);
+
   console.log(`\n${infoText("=== Step 2: Build & Deploy Apps ===")}`);
-  console.log(`✅ Successfully generated ${path.basename(hubDeployEnvPath)}!`);
 
   console.log(`\n${infoText("- Deploy Endatix Hub")}`);
   console.log(`  1. cd into your endatix-hub directory (make sure ${path.basename(hubDeployEnvPath)} is in the root)`);
