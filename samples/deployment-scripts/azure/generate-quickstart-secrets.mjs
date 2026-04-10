@@ -225,7 +225,7 @@ async function interactiveWizard() {
     "az webapp deploy",
     `--resource-group ${resourceGroupName}`,
     `--name ${outputs.apiAppName}`,
-    "--src-path api.zip",
+    "--src-path endatix-api.zip",
     "--type zip",
   ].join(" ");
 
@@ -248,14 +248,14 @@ async function interactiveWizard() {
   console.log(`  2. Build the app standalone:`);
   console.log(formatCommandSnippet("pnpm build:standalone"));
   console.log(`  3. Deploy the Next.js app to Azure:`);
-  console.log(formatCommandSnippet(`cd .next/standalone && ${deployHubCommand}`));
+  console.log(formatCommandSnippet(deployHubCommand));
 
   console.log(`\n${infoText("- Deploy Endatix API")}`);
   console.log(`  1. Return to your endatix root directory`);
   console.log(`  2. Publish the API:`);
-  console.log(formatCommandSnippet("dotnet publish endatix-api/src/Endatix.SaaS.WebHost -c Release -o ./publish"));
+  console.log(formatCommandSnippet("dotnet publish src/Endatix.WebHost -c Release -o ./publish"));
   console.log(`  3. Compress the published API:`);
-  console.log(formatCommandSnippet("cd publish && zip -r ../api.zip . && cd .."));
+  console.log(formatCommandSnippet("cd publish && zip -r ../endatix-api.zip . && cd .."));
   console.log(`  4. Deploy the zip to Azure App Service:`);
   console.log(formatCommandSnippet(deployApiCommand));
 
