@@ -3,6 +3,7 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createInterface } from "node:readline";
 import {
   applyStringParamReplacements,
   readStringParamFromBicepParam,
@@ -11,7 +12,6 @@ import {
   formatCommandSnippet,
   infoText,
   errorText,
-  printGeneratedFiles,
   printNextSteps,
 } from "../../../scripts/lib/console-format.mjs";
 import {
@@ -30,15 +30,6 @@ const localParametersPath = path.join(
   "parameters.production.bicepparam",
 );
 const deploymentOutputsPath = path.join(__dirname, "deployment-outputs.json");
-const hubDeployEnvPath = path.join(
-  __dirname,
-  "..",
-  "..",
-  "..",
-  "..",
-  "endatix-hub",
-  ".env.production",
-);
 
 class UserFacingError extends Error {
   constructor(message) {
@@ -47,57 +38,172 @@ class UserFacingError extends Error {
   }
 }
 
-function usageText() {
-  return [
-    "Usage:",
-    "  node ./generate-quickstart-secrets.mjs predeploy",
-    "  node ./generate-quickstart-secrets.mjs build-env [--outputs-file <path>]",
-    "",
-    "Commands:",
-    "  predeploy   Generate parameters.production.bicepparam with secure values.",
-    "  build-env   Generate endatix-hub/.env.production from Bicep deployment outputs JSON.",
-  ].join("\n");
-}
-
-function parseArgs(argv) {
-  const command = argv[2] ?? "predeploy";
-  const outputsFlag = "--outputs-file";
-  const flagIndex = argv.indexOf(outputsFlag);
-  const outputsFile =
-    flagIndex >= 0 && argv[flagIndex + 1]
-      ? path.resolve(argv[flagIndex + 1])
-      : deploymentOutputsPath;
-
-  return { command, outputsFile };
-}
-
-async function assertFileDoesNotExist(filePath, fileLabel) {
+async function fileExists(filePath) {
   try {
     await access(filePath);
-    throw new UserFacingError(
-      `${fileLabel} already exists at '${filePath}'. \n ${infoText("If this is intentional, remove it first to avoid overwriting existing values.")}`,
-    );
-  } catch (error) {
-    if (error?.code === "ENOENT") {
-      return;
-    }
-    throw error;
+    return true;
+  } catch {
+    return false;
   }
 }
 
-async function writeBuildEnvFromOutputs(outputsFilePath) {
-  await assertFileDoesNotExist(hubDeployEnvPath, ".env.production");
-  const outputs = await readDeploymentOutputsFromFile(outputsFilePath);
-  const parametersDeployContent = await readFile(localParametersPath, "utf8");
-  const sessionSecret = readStringParamFromBicepParam(
-    parametersDeployContent,
-    "hubSessionSecret",
-  );
-  if (!sessionSecret) {
-    throw new UserFacingError(
-      `Unable to read 'hubSessionSecret' from '${localParametersPath}'. Run 'node ./generate-quickstart-secrets.mjs predeploy' first.`,
-    );
+async function getHubDeployEnvPath() {
+  // Try 5 levels up if adjacent: endatix-api/oss/samples/deployment-scripts/azure -> endatix-hub
+  let hubPath = path.join(__dirname, "..", "..", "..", "..", "..", "endatix-hub");
+  if (!(await fileExists(hubPath))) {
+    // Fallback: 4 levels up if inside monorepo: hotfix-prep/oss/samples/deployment-scripts/azure -> hotfix-prep/hub
+    const fallbackPath = path.join(__dirname, "..", "..", "..", "..", "hub");
+    if (await fileExists(fallbackPath)) {
+      hubPath = fallbackPath;
+    }
   }
+  return path.join(hubPath, ".env.production");
+}
+
+function deriveResourceGroupName(environmentName) {
+  const normalizedEnv = (environmentName ?? "temp").toLowerCase();
+  return `rg-endatix-${normalizedEnv}-us`;
+}
+
+function normalizeResourcePrefix(resourcePrefix) {
+  return resourcePrefix.endsWith("-") ? resourcePrefix : `${resourcePrefix}-`;
+}
+
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+function question(query) {
+  return new Promise((resolve) => rl.question(query, resolve));
+}
+
+async function interactiveWizard() {
+  console.log(`\n${infoText("✦ Welcome to the Endatix Azure Quickstart! ✦")}`);
+  console.log("This wizard will help you configure your deployment and generate commands.\n");
+
+  let isReadOnly = process.argv.includes("--read-only");
+  let isForce = process.argv.includes("--force");
+  let skipSecretGen = false;
+
+  if (await fileExists(localParametersPath)) {
+    if (!isReadOnly && !isForce) {
+      console.log(`${infoText("Found existing")} ${path.basename(localParametersPath)}`);
+      const answer = await question("Do you want to [O]verwrite it, [R]euse values (Read-only mode), or [C]ancel? (O/R/C) [R]: ");
+      const choice = answer.trim().toLowerCase();
+      if (choice === "o") {
+        isForce = true;
+      } else if (choice === "c") {
+        console.log("Operation cancelled.");
+        process.exit(0);
+      } else {
+        isReadOnly = true;
+        skipSecretGen = true;
+      }
+    } else if (isReadOnly) {
+      skipSecretGen = true;
+    }
+  }
+
+  const baseBicepParameters = await readFile(bicepParametersPath, "utf8");
+  const configuredPrefix =
+    readStringParamFromBicepParam(baseBicepParameters, "resource_prefix") ?? "eval-";
+  const resourcePrefix = normalizeResourcePrefix(configuredPrefix);
+  const environmentName =
+    readStringParamFromBicepParam(baseBicepParameters, "environment") ?? "temp";
+
+  let resourceGroupName = "";
+  let rgLocation = "centralus";
+  let createRgCmd = "";
+
+  const hasRg = await question(`\nDo you have an existing Azure resource group? (y/N): `);
+  if (hasRg.trim().toLowerCase().startsWith("y")) {
+    resourceGroupName = await question("❯ Enter the resource group name: ");
+    if (!resourceGroupName.trim()) {
+      resourceGroupName = deriveResourceGroupName(environmentName);
+      console.log(`Using derived name: ${resourceGroupName}`);
+    }
+  } else {
+    resourceGroupName = deriveResourceGroupName(environmentName);
+    console.log(`\n${infoText("Hint:")} Need a location? Run this to see all Azure locations:`);
+    console.log(formatCommandSnippet('az account list-locations --query "[*].name" --out tsv | sort'));
+    const enteredLoc = await question(`❯ Enter Azure location to create the RG in [default: ${rgLocation}]: `);
+    if (enteredLoc.trim()) rgLocation = enteredLoc.trim();
+
+    createRgCmd = `az group create --name ${resourceGroupName} --location ${rgLocation}`;
+  }
+
+  resourceGroupName = resourceGroupName.trim();
+
+  if (!skipSecretGen) {
+    const authSecret = randomBase64(32);
+    const sessionSecret = randomHex(32);
+    const nextServerActionsEncryptionKey = randomBase64(32);
+    const endatixJwtSigningKey = randomSigningKey(64);
+    const submissionsAccessTokenSigningKey = randomSigningKey(64);
+    const postgresAdminPassword = randomSigningKey(24);
+    const initialUserPassword = randomSigningKey(24);
+
+    const generatedReplacements = [
+      ["postgres_admin_password", postgresAdminPassword],
+      ["initialUserPassword", initialUserPassword],
+      ["endatixJwtSigningKey", endatixJwtSigningKey],
+      ["submissionsAccessTokenSigningKey", submissionsAccessTokenSigningKey],
+      ["hubSessionSecret", sessionSecret],
+      ["hubAuthSecret", authSecret],
+      ["nextServerActionsEncryptionKey", nextServerActionsEncryptionKey],
+    ];
+
+    const localParametersBicep = applyStringParamReplacements(
+      baseBicepParameters,
+      generatedReplacements,
+    );
+
+    await writeFile(localParametersPath, localParametersBicep, "utf8");
+    console.log(`\n\u2705 Generated secure parameters dynamically in: ${path.basename(localParametersPath)}`);
+  } else {
+    console.log(`\n\u2705 Reusing values from: ${path.basename(localParametersPath)}`);
+  }
+
+  console.log(`\n${infoText("=== Step 1: Provision Infrastructure ===")}`);
+
+  const deployParamsFile = path.basename(localParametersPath);
+  const deployOutputsFile = path.basename(deploymentOutputsPath);
+
+  const deployInfraCommand = [
+    "az deployment group create",
+    `--resource-group ${resourceGroupName}`,
+    `--parameters ${deployParamsFile}`,
+    "--mode Complete",
+    `--query properties.outputs -o json > ${deployOutputsFile}`,
+  ].join(" ");
+
+  printNextSteps(
+    [
+      `1) Review generated parameters file (${deployParamsFile}) and adjust if needed.`,
+      createRgCmd ? "2) Create resource group (skip if it already exists):" : null,
+      createRgCmd ? formatCommandSnippet(createRgCmd) : null,
+      `${createRgCmd ? "3" : "2"}) Provision the resources:\n${formatCommandSnippet(deployInfraCommand)}`,
+    ].filter(Boolean)
+  );
+
+  console.log(`\n${infoText("⏳ Action Required:")}`);
+  console.log(`Please run the Azure commands above in another terminal.`);
+  await question(`Press [Enter] here ONLY once the deployment completes successfully to continue...`);
+
+  // Part 2: Build & Deploy
+  if (!(await fileExists(deploymentOutputsPath))) {
+    throw new UserFacingError(`Deployment outputs file not found: ${deploymentOutputsPath}. Did you run the deployment command?`);
+  }
+
+  const outputs = await readDeploymentOutputsFromFile(deploymentOutputsPath);
+  const parametersDeployContent = await readFile(localParametersPath, "utf8");
+  const sessionSecret = readStringParamFromBicepParam(parametersDeployContent, "hubSessionSecret");
+
+  if (!sessionSecret) {
+    throw new UserFacingError(`Unable to read 'hubSessionSecret' from '${localParametersPath}'.`);
+  }
+
   const envDeployContent = [
     "# Generated by generate-quickstart-secrets.mjs",
     "# Build-time values only. Runtime secrets/URLs come from Azure app settings via Bicep.",
@@ -111,132 +217,53 @@ async function writeBuildEnvFromOutputs(outputsFilePath) {
     "",
   ].join("\n");
 
+  const hubDeployEnvPath = await getHubDeployEnvPath();
   await mkdir(path.dirname(hubDeployEnvPath), { recursive: true });
   await writeFile(hubDeployEnvPath, envDeployContent, "utf8");
 
   const deployApiCommand = [
     "az webapp deploy",
-    `--resource-group ${outputs.resourceGroupName}`,
+    `--resource-group ${resourceGroupName}`,
     `--name ${outputs.apiAppName}`,
-    "--src-path ../../api.zip",
+    "--src-path api.zip",
     "--type zip",
   ].join(" ");
+
   const deployHubCommand = [
     "swa deploy",
-    `--resource-group ${outputs.resourceGroupName}`,
+    `--resource-group ${resourceGroupName}`,
     `--app-name ${outputs.hubAppName}`,
     "--env production",
     "--api-language node",
     "--api-version 22",
   ].join(" ");
 
-  printGeneratedFiles([hubDeployEnvPath]);
-  printNextSteps([
-    "  1) Build API zip, then deploy API:",
-    formatCommandSnippet(deployApiCommand),
-    "  2) Build Hub standalone, then from Hub repo: cd .next/standalone and deploy:",
-    formatCommandSnippet(deployHubCommand),
-  ]);
-}
+  console.log(`\n${infoText("=== Step 2: Build & Deploy Apps ===")}`);
+  console.log(`✅ Successfully generated ${path.basename(hubDeployEnvPath)}!`);
 
-function deriveResourceGroupName(environmentName) {
-  const normalizedEnv = (environmentName ?? "temp").toLowerCase();
-  return `rg-endatix-${normalizedEnv}-us`;
-}
+  console.log(`\n${infoText("- Deploy Endatix Hub")}`);
+  console.log(`  1. cd into your endatix-hub directory (make sure ${path.basename(hubDeployEnvPath)} is in the root)`);
+  console.log(`  2. Build the app standalone:`);
+  console.log(formatCommandSnippet("pnpm build:standalone"));
+  console.log(`  3. Deploy the Next.js app to Azure:`);
+  console.log(formatCommandSnippet(`cd .next/standalone && ${deployHubCommand}`));
 
-function normalizeResourcePrefix(resourcePrefix) {
-  return resourcePrefix.endsWith("-") ? resourcePrefix : `${resourcePrefix}-`;
-}
+  console.log(`\n${infoText("- Deploy Endatix API")}`);
+  console.log(`  1. Return to your endatix root directory`);
+  console.log(`  2. Publish the API:`);
+  console.log(formatCommandSnippet("dotnet publish endatix-api/src/Endatix.SaaS.WebHost -c Release -o ./publish"));
+  console.log(`  3. Compress the published API:`);
+  console.log(formatCommandSnippet("cd publish && zip -r ../api.zip . && cd .."));
+  console.log(`  4. Deploy the zip to Azure App Service:`);
+  console.log(formatCommandSnippet(deployApiCommand));
 
-async function runPredeploy() {
-  await assertFileDoesNotExist(
-    localParametersPath,
-    "parameters.production.bicepparam",
-  );
-  const baseBicepParameters = await readFile(bicepParametersPath, "utf8");
-  const configuredPrefix =
-    readStringParamFromBicepParam(baseBicepParameters, "resource_prefix") ??
-    "eval-";
-  const resourcePrefix = normalizeResourcePrefix(configuredPrefix);
-  const environmentName =
-    readStringParamFromBicepParam(baseBicepParameters, "environment") ?? "temp";
-  const resourceGroupName = deriveResourceGroupName(environmentName);
-  const apiAppName = `${resourcePrefix}endatix-api`;
-  const hubAppName = `${resourcePrefix}endatix-hub`;
+  console.log(`\n${infoText("✨ All Done! Check out your Hub at:")} ${outputs.hubBaseUrl}\n`);
 
-  const authSecret = randomBase64(32);
-  const sessionSecret = randomHex(32);
-  const nextServerActionsEncryptionKey = randomBase64(32);
-  const endatixJwtSigningKey = randomSigningKey(64);
-  const submissionsAccessTokenSigningKey = randomSigningKey(64);
-  const postgresAdminPassword = randomSigningKey(24);
-  const initialUserPassword = randomSigningKey(24);
-
-  const generatedReplacements = [
-    ["postgres_admin_password", postgresAdminPassword],
-    ["initialUserPassword", initialUserPassword],
-    ["endatixJwtSigningKey", endatixJwtSigningKey],
-    ["submissionsAccessTokenSigningKey", submissionsAccessTokenSigningKey],
-    ["hubSessionSecret", sessionSecret],
-    ["hubAuthSecret", authSecret],
-    ["nextServerActionsEncryptionKey", nextServerActionsEncryptionKey],
-  ];
-
-  const localParametersBicep = applyStringParamReplacements(
-    baseBicepParameters,
-    generatedReplacements,
-  );
-
-  await writeFile(localParametersPath, localParametersBicep, "utf8");
-
-  const deployInfraCommand = [
-    "az deployment group create",
-    "--resource-group RESOURCE_GROUP_NAME",
-    "--parameters parameters.production.bicepparam",
-    "--mode Complete",
-    `--query properties.outputs -o json > ${path.basename(deploymentOutputsPath)}`,
-  ].join(" ");
-  const deployApiCommand = [
-    "az webapp deploy",
-    `--resource-group ${resourceGroupName}`,
-    `--name ${apiAppName}`,
-    "--src-path ../../api.zip",
-    "--type zip",
-  ].join(" ");
-  const deployHubCommand = [
-    "swa deploy",
-    `--resource-group ${resourceGroupName}`,
-    `--app-name ${hubAppName}`,
-    "--env production",
-    "--api-language node",
-    "--api-version 22",
-  ].join(" ");
-
-  printGeneratedFiles([localParametersPath]);
-  printNextSteps([
-    "  1) Review generated values and rotate any secrets if needed.",
-    "  2) Run infrastructure deployment:",
-    formatCommandSnippet(deployInfraCommand),
-    "  3) Generate Hub build env from deployment outputs:",
-    formatCommandSnippet("node ./generate-quickstart-secrets.mjs build-env"),
-    "  4) Build API zip, then deploy API:",
-    formatCommandSnippet(deployApiCommand),
-    "  5) Build Hub standalone, then: cd .next/standalone and deploy:",
-    formatCommandSnippet(deployHubCommand),
-  ]);
+  rl.close();
 }
 
 async function main() {
-  const { command, outputsFile } = parseArgs(process.argv);
-  if (command === "predeploy") {
-    await runPredeploy();
-    return;
-  }
-  if (command === "build-env") {
-    await writeBuildEnvFromOutputs(outputsFile);
-    return;
-  }
-  throw new UserFacingError(`Unknown command '${command}'.\n\n${usageText()}`);
+  await interactiveWizard();
 }
 
 main().catch((error) => {
@@ -246,7 +273,5 @@ main().catch((error) => {
     console.error(`\n${errorText("✖")} Failed to generate quickstart secrets.`);
     console.error(`${errorText("[ERROR]")} ${error}`);
   }
-
-  console.error(`\n${errorText("✖")} Stopping script execution...`);
   process.exit(1);
 });
