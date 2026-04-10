@@ -48,10 +48,10 @@ async function fileExists(filePath) {
 }
 
 async function getHubDeployEnvPath() {
-  // Try 5 levels up if adjacent: endatix-api/oss/samples/deployment-scripts/azure -> endatix-hub
-  let hubPath = path.join(__dirname, "..", "..", "..", "..", "..", "endatix-hub");
+  // Try 4 levels up if adjacent: endatix/endatix-api/samples/deployment-scripts/azure -> endatix/endatix-hub
+  let hubPath = path.join(__dirname, "..", "..", "..", "..", "endatix-hub");
   if (!(await fileExists(hubPath))) {
-    // Fallback: 4 levels up if inside monorepo: hotfix-prep/oss/samples/deployment-scripts/azure -> hotfix-prep/hub
+    // Fallback: 4 levels up if inside submodules: endatix/oss/samples/deployment-scripts/azure -> endatix/hub
     const fallbackPath = path.join(__dirname, "..", "..", "..", "..", "hub");
     if (await fileExists(fallbackPath)) {
       hubPath = fallbackPath;
