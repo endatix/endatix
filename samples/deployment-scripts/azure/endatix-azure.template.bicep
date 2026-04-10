@@ -242,7 +242,7 @@ module endatixApi './modules/web-app.module.bicep' = {
         Endatix__Data__SeedSampleForms: true
         Endatix__Data__InitialUser__Email: initialUserEmail
         Endatix__Data__InitialUser__Password: initialUserPassword
-      },
+      }
     )
     connectionStrings: union(apiConnectionStrings, {
       DefaultConnection: {
@@ -266,9 +266,6 @@ module endatixApi './modules/web-app.module.bicep' = {
 // auto-generated hostnames. We must deploy the resources first to generate their URLs, then patch the settings.
 resource endatixApiFinalize 'Microsoft.Web/sites/config@2025-03-01' = {
   name: '${endatixApiName}/appsettings'
-  dependsOn: [
-    endatixApi
-  ]
   properties: union(
     apiAppSettings,
     apiSerilogApplicationInsightsSettings,
@@ -291,10 +288,6 @@ resource endatixApiFinalize 'Microsoft.Web/sites/config@2025-03-01' = {
 // Storage blob containers and CORS with resolved Hub + API origins
 module endatixStorageServices './modules/storage-blob-services.module.bicep' = {
   name: 'endatixStorageServices'
-  dependsOn: [
-    endatixStorage
-    endatixApi
-  ]
   params: {
     storageAccountName: endatixStorageAccountName
     allowedOrigins: resolvedStorageCorsOrigins
