@@ -106,6 +106,7 @@ resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (ena
 
   resource vnetLink 'virtualNetworkLinks' = {
     name: 'privatelink-postgres-vnet-link'
+    location: 'global'
     properties: {
       registrationEnabled: false
       virtualNetwork: {
