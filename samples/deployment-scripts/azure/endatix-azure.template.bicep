@@ -84,6 +84,21 @@ param postgresqlVersion string = '16'
 @description('Enable high availability for PostgreSQL')
 param enablePostgresqlHA bool = false
 
+@description('Enable private network access (VNet integration) for PostgreSQL')
+param enablePostgresqlPrivateNetwork bool = false
+
+@description('Existing VNet resource ID. Leave empty with enablePostgresqlPrivateNetwork to create a managed VNet (snet-app, snet-db, snet-pe).')
+param vnetResourceId string = ''
+
+@description('When enablePostgresqlPrivateNetwork and vnetResourceId is set: PostgreSQL delegated subnet name inside that VNet')
+param postgresSubnetName string = ''
+
+@description('When enablePostgresqlPrivateNetwork and vnetResourceId is set: subnet name for API App Service VNet integration (ignored if apiVirtualNetworkSubnetId is set)')
+param apiIntegrationSubnetName string = ''
+
+@description('Optional full ARM subnet ID for API App Service VNet integration (overrides apiIntegrationSubnetName when using your own VNet)')
+param apiVirtualNetworkSubnetId string = ''
+
 @description('[OPTIONAL] Set to true if storage account should be private (no public blob access)')
 param storageIsPrivate bool = false
 
@@ -103,6 +118,8 @@ var endatixHubName = '${resource_prefix}endatix-hub'
 var endatixApiName = '${resource_prefix}endatix-api'
 var endatixServicePlanName = '${resource_prefix}endatix-serviceplan'
 var endatixStorageAccountName = '${replace(resource_prefix, '-', '')}endatixstorage'
+var endatixVnetName = '${resource_prefix}endatix-vnet'
+var deployManagedVnet = enablePostgresqlPrivateNetwork && vnetResourceId == ''
 // Predicted hub hostname is used only where a pre-module value is required
 // (for example, module params and pre-hub dependency settings).
 var predictedHubDefaultHostName = hubDeploymentMode == 'static-site'
@@ -148,6 +165,16 @@ module endatixStorage './modules/storage.module.bicep' = {
     storageAccountName: endatixStorageAccountName
     tags: tags
     isPrivate: storageIsPrivate
+  }
+}
+
+// Managed VNet (private PostgreSQL + API integration) — only when no BYO VNet
+module vnetModule './modules/vnet.module.bicep' = if (deployManagedVnet) {
+  name: 'vnetModule'
+  params: {
+    location: location
+    vnetName: endatixVnetName
+    tags: tags
   }
 }
 
@@ -258,6 +285,7 @@ module endatixApi './modules/web-app.module.bicep' = {
         type: 'Custom'
       }
     })
+    virtualNetworkSubnetId: enablePostgresqlPrivateNetwork ? (deployManagedVnet ? vnetModule!.outputs.appSubnetId : (apiVirtualNetworkSubnetId != '' ? apiVirtualNetworkSubnetId : '${vnetResourceId}/subnets/${apiIntegrationSubnetName}')) : ''
   }
 }
 
@@ -306,6 +334,9 @@ module postgresqlModule './modules/postgres.module.bicep' = {
     postgresVersion: postgresqlVersion
     databaseName: postgresqlDatabaseName
     enableHighAvailability: enablePostgresqlHA
+    enablePrivateNetwork: enablePostgresqlPrivateNetwork
+    vnetResourceId: deployManagedVnet ? vnetModule!.outputs.vnetId : vnetResourceId
+    postgresDelegatedSubnetResourceId: enablePostgresqlPrivateNetwork ? (deployManagedVnet ? vnetModule!.outputs.postgresSubnetId : '${vnetResourceId}/subnets/${postgresSubnetName}') : ''
   }
 }
 

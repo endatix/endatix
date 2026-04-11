@@ -38,11 +38,11 @@ param backupRetentionDays int = 10
 @description('Enable private network access (VNet integration)')
 param enablePrivateNetwork bool = false
 
-@description('VNet resource ID (required if enablePrivateNetwork is true)')
+@description('VNet resource ID for private DNS zone link (required if enablePrivateNetwork is true)')
 param vnetResourceId string = ''
 
-@description('Subnet name for PostgreSQL (required if enablePrivateNetwork is true)')
-param postgresSubnetName string = ''
+@description('Full ARM resource ID of the delegated subnet for PostgreSQL Flexible Server (required if enablePrivateNetwork is true)')
+param postgresDelegatedSubnetResourceId string = ''
 
 // PostgreSQL Flexible Server
 resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2026-01-01-preview' = {
@@ -69,7 +69,7 @@ resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2026-01-01-previe
     }
     network: enablePrivateNetwork
       ? {
-          delegatedSubnetResourceId: resourceId('Microsoft.Network/virtualNetworks/subnets', split(vnetResourceId, '/')[8], split(vnetResourceId, '/')[10], postgresSubnetName)
+          delegatedSubnetResourceId: postgresDelegatedSubnetResourceId
           privateDnsZoneArmResourceId: privateDnsZone.id
         }
       : {

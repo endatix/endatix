@@ -42,6 +42,9 @@ param appSettings object = {}
 @description('Connection strings for the Web App')
 param connectionStrings object = {}
 
+@description('Virtual Network Subnet ID for Regional VNet Integration (optional)')
+param virtualNetworkSubnetId string = ''
+
 var appServiceTags = union(
   {
     'hidden-link: /app-insights-resource-id': appInsightsId
@@ -97,6 +100,7 @@ resource app_service_web_app 'Microsoft.Web/sites@2025-03-01' = {
       imagePullTraffic: false
       backupRestoreTraffic: false
     }
+    virtualNetworkSubnetId: virtualNetworkSubnetId != '' ? virtualNetworkSubnetId : null
     siteConfig: {
       numberOfWorkers: 1
       linuxFxVersion: linuxFxVersion
@@ -177,7 +181,7 @@ resource app_service_web_app_web 'Microsoft.Web/sites/config@2025-03-01' = {
       rampUpRules: []
     }
     autoHealEnabled: false
-    vnetRouteAllEnabled: false
+    vnetRouteAllEnabled: virtualNetworkSubnetId != '' ? true : false
     vnetPrivatePortsCount: 0
     publicNetworkAccess: 'Enabled'
     localMySqlEnabled: false

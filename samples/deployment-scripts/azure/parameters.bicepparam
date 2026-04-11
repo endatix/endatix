@@ -38,5 +38,17 @@ param apiAppSettings = {
 
 param apiConnectionStrings = {}
 param enablePostgresqlHA = false
+
+// --- PostgreSQL + VNet (see README "Private PostgreSQL") ---
+// Quickstart default: private network off — leave all of the following empty / false.
+// Managed VNet: set enablePostgresqlPrivateNetwork = true; keep vnetResourceId empty
+//   (template creates {resource_prefix}endatix-vnet with snet-app, snet-db, snet-pe).
+// BYO VNet: enablePostgresqlPrivateNetwork = true; set vnetResourceId + postgresSubnetName;
+//   set apiVirtualNetworkSubnetId OR apiIntegrationSubnetName for the API Web App subnet.
+param enablePostgresqlPrivateNetwork = false
+param vnetResourceId = ''
+param postgresSubnetName = ''
+param apiIntegrationSubnetName = ''
+param apiVirtualNetworkSubnetId = ''
 param storageIsPrivate = false
 param enableFailureAnomalyAlerts = false

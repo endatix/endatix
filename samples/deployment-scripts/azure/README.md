@@ -49,7 +49,7 @@ The script will guide you step-by-step:
 
 | Bucket                        | Source of truth                         | Where to set                                                                            |
 | ----------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
-| Runtime infrastructure values | Bicep                                   | `parameters.bicepparam` (`hubEnvironmentVariables`, `hubAppSettings`, `apiAppSettings`) |
+| Runtime infrastructure values | Bicep                                   | `parameters.bicepparam` (`hubEnvironmentVariables`, `hubAppSettings`, `apiAppSettings`, and VNet keys below when using private PostgreSQL) |
 | Runtime secrets               | Local override + Azure runtime settings | `parameters.production.bicepparam` (generated), then app settings                            |
 | Build-time Hub values         | Local env file only                     | `endatix-hub/.env.production` before `pnpm build:standalone` (`NEXT_PUBLIC_*` and UI build flags only) |
 
@@ -97,6 +97,15 @@ Notes:
 - Keep `hubRepositoryUrl` and `apiRepositoryUrl` empty for manual/local deployment.
 - `endatix-hub/.env.production` is intentionally minimal; runtime values like `AUTH_URL`, `ENDATIX_BASE_URL`, secrets, and admin identity come from Azure app settings provisioned by Bicep.
 
+## Private PostgreSQL (VNet integration)
+
+Defaults in `parameters.bicepparam` are correct for the public quickstart: `enablePostgresqlPrivateNetwork = false` and all VNet-related strings empty. Turn private networking on only when you want PostgreSQL off the public internet.
+
+Set `enablePostgresqlPrivateNetwork` to `true` when you need private access.
+
+- **Managed VNet:** leave `vnetResourceId` empty (and leave `postgresSubnetName`, `apiIntegrationSubnetName`, and `apiVirtualNetworkSubnetId` empty). The VNet name is `{resource_prefix}endatix-vnet` (for example `test-endatix-vnet` with the sample prefix). Subnets: `snet-app` (API / `Microsoft.Web/serverFarms`), `snet-db` (PostgreSQL / `Microsoft.DBforPostgreSQL/flexibleServers`), `snet-pe` (reserved). The API Web App uses regional VNet integration and routed outbound traffic to reach the database.
+- **Your own VNet:** set `vnetResourceId` to the VNet resource ID, `postgresSubnetName` to the PostgreSQL delegated subnet name, and either `apiVirtualNetworkSubnetId` (full ARM subnet ID; use when the subnet is in another resource group) or `apiIntegrationSubnetName` (subnet name in that VNet, delegated to `Microsoft.Web/serverFarms`).
+
 ## Alternative: Hub on Web App
 
 If you choose `hubDeploymentMode: "web-app"`:
@@ -137,9 +146,8 @@ az webapp deploy \
 If you need the compiled ARM template for troubleshooting or other tooling:
 
 ```bash
-az bicep build \
-  --file samples/deployment-scripts/azure/endatix-azure.template.bicep \
-  --outfile samples/deployment-scripts/azure/endatix-azure.template.json
+cd oss/samples/deployment-scripts/azure
+az bicep build --file endatix-azure.template.bicep
 ```
 
 ## Optional: OSS Root package.json Criteria
