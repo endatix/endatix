@@ -10,6 +10,7 @@ import {
 } from "../../../scripts/lib/bicepparam-utils.mjs";
 import {
   formatCommandSnippet,
+  tipText,
   infoText,
   errorText,
   printNextSteps,
@@ -125,7 +126,7 @@ async function interactiveWizard() {
     }
   } else {
     resourceGroupName = deriveResourceGroupName(environmentName);
-    console.log(`\n${infoText("Hint:")} Need a location? Run this to see all Azure locations:`);
+    console.log(`\n${tipText("Need a location? Run this to see all Azure locations:")}`);
     console.log(formatCommandSnippet('az account list-locations --query "[*].name" --out tsv | sort'));
     const enteredLoc = await question(`❯ Enter Azure location to create the RG in [default: ${rgLocation}]: `);
     if (enteredLoc.trim()) rgLocation = enteredLoc.trim();

@@ -4,6 +4,7 @@ const YELLOW_WARN = "\x1b[33m⚠\x1b[0m";
 const GREEN_PROMPT = "\x1b[1;32m>\x1b[0m";
 const RETRO_BEIGE_CODE = "\x1b[38;5;223m";
 const RED = "\x1b[31m";
+const DIM_GRAY = "\x1b[90m";
 const RESET = "\x1b[0m";
 const NEWLINE = "\n";
 
@@ -29,6 +30,11 @@ export function warningText(text) {
 
 export function infoText(text) {
   return `${CYAN_INFO} ${text}${RESET}`;
+}
+
+/** Muted tip line (lightbulb + gray) — distinct from cyan {@link infoText}. */
+export function tipText(text) {
+  return `${DIM_GRAY}💡 ${text}${RESET}`;
 }
 
 export function errorText(text) {

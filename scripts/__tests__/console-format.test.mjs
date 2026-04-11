@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  tipText,
   printGeneratedFiles,
   printNextSteps,
   warningText,
@@ -10,6 +11,13 @@ test('warningText includes warning symbol and text', () => {
   const message = warningText('example warning');
   assert.match(message, /example warning/);
   assert.match(message, /⚠/);
+});
+
+test('tipText includes lightbulb and message', () => {
+  const message = tipText('example tip');
+  assert.match(message, /example tip/);
+  assert.match(message, /💡/);
+  assert.match(message, /\x1b\[90m/);
 });
 
 test('print helpers emit expected headings', () => {
