@@ -11,10 +11,16 @@ export function randomHex(bytes) {
 export function randomSigningKey(length) {
   const alphabet =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_!@#$%^&*+=";
-  const bytes = randomBytes(length);
+  const alphabetLength = alphabet.length;
+  const maxValid = Math.floor(256 / alphabetLength) * alphabetLength;
+  const bytes = randomBytes(length * 2);
   let key = "";
-  for (let i = 0; i < length; i += 1) {
-    key += alphabet[bytes[i] % alphabet.length];
+  let pos = 0;
+  while (key.length < length) {
+    const byte = bytes[pos++];
+    if (byte < maxValid) {
+      key += alphabet[byte % alphabetLength];
+    }
   }
   return key;
 }

@@ -35,6 +35,15 @@ param enableHighAvailability bool = false
 @description('Backup retention days')
 param backupRetentionDays int = 10
 
+@description('Enable private network access (VNet integration)')
+param enablePrivateNetwork bool = false
+
+@description('VNet resource ID (required if enablePrivateNetwork is true)')
+param vnetResourceId string = ''
+
+@description('Subnet name for PostgreSQL (required if enablePrivateNetwork is true)')
+param postgresSubnetName string = ''
+
 // PostgreSQL Flexible Server
 resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2026-01-01-preview' = {
   name: '${resource_prefix}endatix-postgresql'
@@ -58,9 +67,14 @@ resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2026-01-01-previe
       storageSizeGB: storageSizeGB
       autoGrow: 'Disabled'
     }
-    network: {
-      publicNetworkAccess: 'Enabled'
-    }
+    network: enablePrivateNetwork
+      ? {
+          delegatedSubnetResourceId: resourceId('Microsoft.Network/virtualNetworks/subnets', split(vnetResourceId, '/')[8], split(vnetResourceId, '/')[10], postgresSubnetName)
+          privateDnsZoneArmResourceId: privateDnsZone.id
+        }
+      : {
+          publicNetworkAccess: 'Enabled'
+        }
     authConfig: {
       activeDirectoryAuth: 'Enabled'
       passwordAuth: 'Enabled'
@@ -83,6 +97,21 @@ resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2026-01-01-previe
       startMinute: 0
     }
     replicationRole: 'Primary'
+  }
+}
+
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (enablePrivateNetwork) {
+  name: 'privatelink.postgres.database.azure.com'
+  location: 'global'
+
+  resource vnetLink 'virtualNetworkLinks' = {
+    name: 'privatelink-postgres-vnet-link'
+    properties: {
+      registrationEnabled: false
+      virtualNetwork: {
+        id: vnetResourceId
+      }
+    }
   }
 }
 
@@ -115,8 +144,8 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2026-01-0
   }
 }
 
-// Firewall rule to allow Azure services
-resource firewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2026-01-01-preview' = {
+// Firewall rule to allow Azure services (only when not using private network)
+resource firewallRule 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2026-01-01-preview' = if (!enablePrivateNetwork) {
   parent: postgresql
   name: 'AllowAllAzureServices'
   properties: {
