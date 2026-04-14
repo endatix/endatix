@@ -42,6 +42,12 @@ param appSettings object = {}
 @description('Connection strings for the Web App')
 param connectionStrings object = {}
 
+@description('Enable App Service built-in authentication for the Web App')
+param enablePlatformAuth bool = false
+
+@description('Action for unauthenticated clients when App Service auth is configured')
+param unauthenticatedClientAction string = 'AllowAnonymous'
+
 @description('Virtual Network Subnet ID for Regional VNet Integration (optional)')
 param virtualNetworkSubnetId string = ''
 
@@ -86,6 +92,9 @@ resource app_service_web_app 'Microsoft.Web/sites@2025-03-01' = {
   location: location
   tags: appServiceTags
   kind: 'app,linux'
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     enabled: true
     serverFarmId: web_app_service_plan.id
@@ -112,7 +121,8 @@ resource app_service_web_app 'Microsoft.Web/sites@2025-03-01' = {
     scmSiteAlsoStopped: false
     clientAffinityEnabled: false
     clientAffinityProxyEnabled: false
-    clientCertEnabled: false
+    clientCertEnabled: true
+    clientCertMode: 'Optional'
     hostNamesDisabled: false
     ipMode: 'IPv4'
     containerSize: 0
@@ -212,6 +222,19 @@ resource app_service_web_app_web 'Microsoft.Web/sites/config@2025-03-01' = {
     minimumElasticInstanceCount: 1
     azureStorageAccounts: {}
     http20ProxyFlag: 0
+  }
+}
+
+resource webAppAuthSettingsV2 'Microsoft.Web/sites/config@2025-03-01' = {
+  parent: app_service_web_app
+  name: 'authsettingsV2'
+  properties: {
+    platform: {
+      enabled: enablePlatformAuth
+    }
+    login: {
+      unauthenticatedClientAction: unauthenticatedClientAction
+    }
   }
 }
 

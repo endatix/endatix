@@ -60,6 +60,9 @@ var staticSiteTags = union(
 resource static_site 'Microsoft.Web/staticSites@2025-03-01' = {
   location: location
   name: staticSiteName
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     allowConfigFileUpdates: true
     repositoryUrl: empty(repositoryUrl) ? null : repositoryUrl

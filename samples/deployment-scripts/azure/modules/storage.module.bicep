@@ -1,4 +1,3 @@
-
 /*
 Endatix Blob Storage Bicep module
 
@@ -20,6 +19,9 @@ param isPrivate bool = false
 
 resource endatix_storage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
   name: storageAccountName
+  identity: {
+    type: 'SystemAssigned'
+  }
   location: location
   tags: tags
   sku: {
@@ -59,7 +61,6 @@ resource endatix_storage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
   }
 }
 
-
 // Determine our connection string
 var blobStorageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${endatix_storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${endatix_storage.listKeys().keys[0].value}'
 var storageAccountKey = endatix_storage.listKeys().keys[0].value
@@ -70,4 +71,3 @@ output storageAccountName string = endatix_storage.name
 output storageAccountKey string = storageAccountKey
 output storageAccountBlobEndpoint string = endatix_storage.properties.primaryEndpoints.blob
 output blobStorageConnectionString string = blobStorageConnectionString
-

@@ -47,6 +47,9 @@ param postgresDelegatedSubnetResourceId string = ''
 // PostgreSQL Flexible Server
 resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2026-01-01-preview' = {
   name: '${resource_prefix}endatix-postgresql'
+  identity: {
+    type: 'SystemAssigned'
+  }
   location: location
   tags: tags
   sku: {
