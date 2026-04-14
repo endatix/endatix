@@ -142,6 +142,7 @@ var hubBaseSettings = {
   ENDATIX_BASE_URL: apiBaseUrl
   NEXT_PUBLIC_API_URL: apiPublicUrl
   AZURE_STORAGE_ACCOUNT_NAME: endatixStorage.outputs.storageAccountName
+  AZURE_STORAGE_ACCOUNT_KEY: endatixStorage.outputs.storageAccountKey
   AZURE_STORAGE_IS_PRIVATE: storageIsPrivate? 'true' : ''
   AZURE_STORAGE_CUSTOM_DOMAIN: storageHostName
   SESSION_SECRET: hubSessionSecret
