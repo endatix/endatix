@@ -20,6 +20,7 @@ import {
   randomHex,
   randomSigningKey,
 } from "../../../scripts/lib/secret-generation.mjs";
+import { normalizeProjectName } from "../../../scripts/lib/project-name-utils.mjs";
 import { readDeploymentOutputsFromFile } from "./lib/deployment-outputs.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -69,17 +70,6 @@ function deriveResourceGroupName(environmentName, projectName = "endatix") {
 
 function normalizeResourcePrefix(resourcePrefix) {
   return resourcePrefix.endsWith("-") ? resourcePrefix : `${resourcePrefix}-`;
-}
-
-function normalizeProjectName(projectName) {
-  const normalized = (projectName ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  return normalized || "endatix";
 }
 
 const rl = createInterface({
