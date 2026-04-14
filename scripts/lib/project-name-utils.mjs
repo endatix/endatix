@@ -1,10 +1,22 @@
-export function normalizeProjectName(projectName) {
-  const normalized = (projectName ?? '')
-    .trim()
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9-]/g, '-')
-    .replaceAll(/-+/g, '-')
-    .replaceAll(/^-+|-+$/g, '');
+const DEFAULT_PROJECT_NAME = "endatix";
+const PROJECT_NAME_INPUT_MAX_LENGTH = 24;
 
-  return normalized || 'endatix';
+/**
+ * Normalizes a project name to a consistent format.
+ * @param {string} projectName - The project name to normalize.
+ * @returns {string} The normalized project name.
+ */
+export function normalizeProjectName(projectName) {
+  const input = String(projectName ?? "")
+    .slice(0, PROJECT_NAME_INPUT_MAX_LENGTH)
+    .trim()
+    .toLowerCase();
+
+  if (!input) return DEFAULT_PROJECT_NAME;
+
+  const normalized = input
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^[-]+|[-]+$/g, "");
+
+  return normalized || DEFAULT_PROJECT_NAME;
 }

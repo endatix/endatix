@@ -7,6 +7,7 @@ test('normalizeProjectName returns fallback for empty input', () => {
   assert.equal(normalizeProjectName(''), 'endatix');
   assert.equal(normalizeProjectName('   '), 'endatix');
   assert.equal(normalizeProjectName(null), 'endatix');
+  assert.equal(normalizeProjectName('---___***---'), 'endatix');
 });
 
 test('normalizeProjectName lowercases and normalizes separators', () => {
@@ -17,4 +18,14 @@ test('normalizeProjectName lowercases and normalizes separators', () => {
 test('normalizeProjectName trims leading and trailing dashes', () => {
   assert.equal(normalizeProjectName('-endatix-'), 'endatix');
   assert.equal(normalizeProjectName('---endatix---'), 'endatix');
+});
+
+test('normalizeProjectName truncates input before normalization', () => {
+  const value = normalizeProjectName('Project Name With Very Very Long Identifier 1234567890');
+  assert.equal(value, 'project-name-with-very-v');
+});
+
+test('normalizeProjectName coerces non-string inputs', () => {
+  assert.equal(normalizeProjectName(12345), '12345');
+  assert.equal(normalizeProjectName(true), 'true');
 });
