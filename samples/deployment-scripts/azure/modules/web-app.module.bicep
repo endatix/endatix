@@ -45,9 +45,6 @@ param connectionStrings object = {}
 @description('Enable App Service built-in authentication for the Web App')
 param enablePlatformAuth bool = false
 
-@description('Action for unauthenticated clients when App Service auth is configured')
-param unauthenticatedClientAction string = 'AllowAnonymous'
-
 @description('Virtual Network Subnet ID for Regional VNet Integration (optional)')
 param virtualNetworkSubnetId string = ''
 
@@ -63,7 +60,6 @@ var appServiceTags = union(
 resource web_app_service_plan 'Microsoft.Web/serverfarms@2025-03-01' = {
   name: webAppServicePlanName
   location: location
-  tags: tags
   sku: {
     name: 'B2'
     tier: 'Basic'
@@ -72,6 +68,7 @@ resource web_app_service_plan 'Microsoft.Web/serverfarms@2025-03-01' = {
     capacity: 1
   }
   kind: 'linux'
+  tags: tags
   properties: {
     perSiteScaling: false
     elasticScaleEnabled: false
@@ -90,11 +87,11 @@ resource web_app_service_plan 'Microsoft.Web/serverfarms@2025-03-01' = {
 resource app_service_web_app 'Microsoft.Web/sites@2025-03-01' = {
   name: webAppName
   location: location
-  tags: appServiceTags
   kind: 'app,linux'
   identity: {
     type: 'SystemAssigned'
   }
+  tags: appServiceTags
   properties: {
     enabled: true
     serverFarmId: web_app_service_plan.id
@@ -185,9 +182,6 @@ resource app_service_web_app_web 'Microsoft.Web/sites/config@2025-03-01' = {
       }
     ]
     loadBalancing: 'LeastRequests'
-    experiments: {
-      rampUpRules: []
-    }
     autoHealEnabled: false
     vnetRouteAllEnabled: virtualNetworkSubnetId != '' ? true : false
     vnetPrivatePortsCount: 0
@@ -220,7 +214,6 @@ resource app_service_web_app_web 'Microsoft.Web/sites/config@2025-03-01' = {
     elasticWebAppScaleLimit: 0
     functionsRuntimeScaleMonitoringEnabled: false
     minimumElasticInstanceCount: 1
-    azureStorageAccounts: {}
     http20ProxyFlag: 0
   }
 }
@@ -231,9 +224,6 @@ resource webAppAuthSettingsV2 'Microsoft.Web/sites/config@2025-03-01' = {
   properties: {
     platform: {
       enabled: enablePlatformAuth
-    }
-    login: {
-      unauthenticatedClientAction: unauthenticatedClientAction
     }
   }
 }

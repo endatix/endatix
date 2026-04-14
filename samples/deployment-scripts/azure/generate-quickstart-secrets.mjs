@@ -79,98 +79,132 @@ function question(query) {
   return new Promise((resolve) => rl.question(query, resolve));
 }
 
-async function interactiveWizard() {
-  console.log(`\n${infoText("✦ Welcome to the Endatix Azure Quickstart! ✦")}`);
-  console.log("This wizard will help you configure your deployment and generate commands.\n");
-
+async function resolveSecretGenerationMode() {
   let isReadOnly = process.argv.includes("--read-only");
   let isForce = process.argv.includes("--force");
   let skipSecretGen = false;
 
-  if (await fileExists(localParametersPath)) {
-    if (!isReadOnly && !isForce) {
-      console.log(`${infoText("Found existing")} ${path.basename(localParametersPath)}`);
-      const answer = await question("Do you want to [O]verwrite it, [R]euse values (Read-only mode), or [C]ancel? (O/R/C) [R]: ");
-      const choice = answer.trim().toLowerCase();
-      if (choice === "o") {
-        isForce = true;
-      } else if (choice === "c") {
-        console.log("Operation cancelled.");
-        process.exit(0);
-      } else {
-        isReadOnly = true;
-        skipSecretGen = true;
-      }
-    } else if (isReadOnly) {
-      skipSecretGen = true;
-    }
+  if (!(await fileExists(localParametersPath))) {
+    return { isReadOnly, isForce, skipSecretGen };
   }
 
+  if (isReadOnly) {
+    return { isReadOnly, isForce, skipSecretGen: true };
+  }
+
+  if (isForce) {
+    return { isReadOnly, isForce, skipSecretGen };
+  }
+
+  console.log(`${infoText("Found existing")} ${path.basename(localParametersPath)}`);
+  const answer = await question("Do you want to [O]verwrite it, [R]euse values (Read-only mode), or [C]ancel? (O/R/C) [R]: ");
+  const choice = answer.trim().toLowerCase();
+
+  if (choice === "o") {
+    isForce = true;
+  } else if (choice === "c") {
+    console.log("Operation cancelled.");
+    process.exit(0);
+  } else {
+    isReadOnly = true;
+    skipSecretGen = true;
+  }
+
+  return { isReadOnly, isForce, skipSecretGen };
+}
+
+async function loadDeploymentConfig() {
   const baseBicepParameters = await readFile(bicepParametersPath, "utf8");
-  const configuredPrefix =
-    readStringParamFromBicepParam(baseBicepParameters, "resource_prefix") ?? "eval-";
-  const resourcePrefix = normalizeResourcePrefix(configuredPrefix);
-  const environmentName =
-    readStringParamFromBicepParam(baseBicepParameters, "environment") ?? "temp";
+  const configuredPrefix = readStringParamFromBicepParam(baseBicepParameters, "resource_prefix") ?? "eval-";
+  const environmentName = readStringParamFromBicepParam(baseBicepParameters, "environment") ?? "temp";
 
-  let resourceGroupName = "";
-  let rgLocation = "centralus";
-  let createRgCmd = "";
+  return {
+    baseBicepParameters,
+    resourcePrefix: normalizeResourcePrefix(configuredPrefix),
+    environmentName,
+  };
+}
 
+async function resolveResourceGroupInfo(environmentName) {
   const hasRg = await question(`\nDo you have an existing Azure resource group? (y/N): `);
+
   if (hasRg.trim().toLowerCase().startsWith("y")) {
-    resourceGroupName = await question("❯ Enter the resource group name: ");
+    let resourceGroupName = await question("❯ Enter the resource group name: ");
+
     if (!resourceGroupName.trim()) {
       resourceGroupName = deriveResourceGroupName(environmentName);
       console.log(`Using derived name: ${resourceGroupName}`);
     }
-  } else {
-    resourceGroupName = deriveResourceGroupName(environmentName);
-    console.log(`\n${tipText("Need a location? Run this to see all Azure locations:")}`);
-    console.log(formatCommandSnippet('az account list-locations --query "[*].name" --out tsv | sort'));
-    const enteredLoc = await question(`❯ Enter Azure location to create the RG in [default: ${rgLocation}]: `);
-    if (enteredLoc.trim()) rgLocation = enteredLoc.trim();
 
-    createRgCmd = `az group create --name ${resourceGroupName} --location ${rgLocation}`;
+    return {
+      resourceGroupName: resourceGroupName.trim(),
+      rgLocation: "centralus",
+      createRgCmd: "",
+    };
   }
 
-  resourceGroupName = resourceGroupName.trim();
+  const resourceGroupName = deriveResourceGroupName(environmentName);
+  let rgLocation = "centralus";
 
-  if (!skipSecretGen) {
-    const authSecret = randomBase64(32);
-    const sessionSecret = randomHex(32);
-    const nextServerActionsEncryptionKey = randomBase64(32);
-    const endatixJwtSigningKey = randomSigningKey(64);
-    const submissionsAccessTokenSigningKey = randomSigningKey(64);
-    const postgresAdminPassword = randomSigningKey(24);
-    const initialUserPassword = randomSigningKey(24);
+  console.log(`\n${tipText("Need a location? Run this to see all Azure locations:")}`);
+  console.log(formatCommandSnippet('az account list-locations --query "[*].name" --out tsv | sort'));
 
-    const generatedReplacements = [
-      ["postgres_admin_password", postgresAdminPassword],
-      ["initialUserPassword", initialUserPassword],
-      ["endatixJwtSigningKey", endatixJwtSigningKey],
-      ["submissionsAccessTokenSigningKey", submissionsAccessTokenSigningKey],
-      ["hubSessionSecret", sessionSecret],
-      ["hubAuthSecret", authSecret],
-      ["nextServerActionsEncryptionKey", nextServerActionsEncryptionKey],
-    ];
+  const enteredLoc = await question(`❯ Enter Azure location to create the RG in [default: ${rgLocation}]: `);
+  if (enteredLoc.trim()) {
+    rgLocation = enteredLoc.trim();
+  }
 
-    const localParametersBicep = applyStringParamReplacements(
-      baseBicepParameters,
-      generatedReplacements,
-    );
+  return {
+    resourceGroupName,
+    rgLocation,
+    createRgCmd: `az group create --name ${resourceGroupName} --location ${rgLocation}`,
+  };
+}
 
-    await writeFile(localParametersPath, localParametersBicep, "utf8");
-    console.log(`\n\u2705 Generated secure parameters dynamically in: ${path.basename(localParametersPath)}`);
-  } else {
+async function ensureLocalParameters(baseBicepParameters, skipSecretGen) {
+  if (skipSecretGen) {
     console.log(`\n\u2705 Reusing values from: ${path.basename(localParametersPath)}`);
+    return;
   }
+
+  const authSecret = randomBase64(32);
+  const sessionSecret = randomHex(32);
+  const nextServerActionsEncryptionKey = randomBase64(32);
+  const endatixJwtSigningKey = randomSigningKey(64);
+  const submissionsAccessTokenSigningKey = randomSigningKey(64);
+  const postgresAdminPassword = randomSigningKey(24);
+  const initialUserPassword = randomSigningKey(24);
+
+  const generatedReplacements = [
+    ["postgres_admin_password", postgresAdminPassword],
+    ["initialUserPassword", initialUserPassword],
+    ["endatixJwtSigningKey", endatixJwtSigningKey],
+    ["submissionsAccessTokenSigningKey", submissionsAccessTokenSigningKey],
+    ["hubSessionSecret", sessionSecret],
+    ["hubAuthSecret", authSecret],
+    ["nextServerActionsEncryptionKey", nextServerActionsEncryptionKey],
+  ];
+
+  const localParametersBicep = applyStringParamReplacements(baseBicepParameters, generatedReplacements);
+
+  await writeFile(localParametersPath, localParametersBicep, "utf8");
+  console.log(`\n\u2705 Generated secure parameters dynamically in: ${path.basename(localParametersPath)}`);
+}
+
+async function interactiveWizard() {
+  console.log(`\n${infoText("✦ Welcome to the Endatix Azure Quickstart! ✦")}`);
+  console.log("This wizard will help you configure your deployment and generate commands.\n");
+
+  const { skipSecretGen } = await resolveSecretGenerationMode();
+  const { baseBicepParameters, environmentName } = await loadDeploymentConfig();
+  const { resourceGroupName, createRgCmd } = await resolveResourceGroupInfo(environmentName);
+
+  await ensureLocalParameters(baseBicepParameters, skipSecretGen);
 
   console.log(`\n${infoText("=== Step 1: Provision Infrastructure ===")}`);
 
   const deployParamsFile = path.basename(localParametersPath);
   const deployOutputsFile = path.basename(deploymentOutputsPath);
-
   const deployInfraCommand = [
     "az deployment group create",
     `--resource-group ${resourceGroupName}`,
@@ -185,17 +219,12 @@ async function interactiveWizard() {
       createRgCmd ? "2) Create resource group (skip if it already exists):" : null,
       createRgCmd ? formatCommandSnippet(createRgCmd) : null,
       `${createRgCmd ? "3" : "2"}) Provision the resources:\n${formatCommandSnippet(deployInfraCommand)}`,
-    ].filter(Boolean)
+    ].filter(Boolean),
   );
 
   console.log(`\n${infoText("⏳ Action Required:")}`);
   console.log(`Please run the Azure commands above in another terminal.`);
   await question(`Press [Enter] here ONLY once the deployment completes successfully to continue...`);
-
-  // Part 2: Build & Deploy
-  if (!(await fileExists(deploymentOutputsPath))) {
-    throw new UserFacingError(`Deployment outputs file not found: ${deploymentOutputsPath}. Did you run the deployment command?`);
-  }
 
   const outputs = await readDeploymentOutputsFromFile(deploymentOutputsPath);
   const parametersDeployContent = await readFile(localParametersPath, "utf8");
