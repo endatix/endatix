@@ -36,19 +36,6 @@ param appInsightsConnectionString string
 @description('App settings for the Static Web App environment')
 param appSettings object = {}
 
-@description('Environment variables for the Static Web App')
-param environmentVariables object = {}
-
-@description('Azure Storage account name for client-side storage access')
-param storageAccountName string = ''
-
-@secure()
-@description('Azure Storage account key for client-side storage access')
-param storageAccountKey string = ''
-
-@description('Whether storage is private (no public blob access)')
-param storageIsPrivate bool = false
-
 var staticSiteTags = union(
   {
     'hidden-link: /app-insights-resource-id': appInsightsId
@@ -80,23 +67,10 @@ resource static_site 'Microsoft.Web/staticSites@2025-03-01' = {
   }
 }
 
-resource static_site_appsettings 'Microsoft.Web/staticSites/config@2025-03-01' = {
+resource static_site_app_settings 'Microsoft.Web/staticSites/config@2025-03-01' = {
   parent: static_site
   name: 'appsettings'
-  kind: 'string'
-  properties: union(
-    {
-      APPINSIGHTS_INSTRUMENTATIONKEY: appInsightsInstrumentationKey
-      APPLICATIONINSIGHTS_CONNECTION_STRING: appInsightsConnectionString
-    },
-    (storageAccountName != '') ? {
-      AZURE_STORAGE_ACCOUNT_NAME: storageAccountName
-      AZURE_STORAGE_ACCOUNT_KEY: storageAccountKey
-      AZURE_STORAGE_IS_PRIVATE: string(storageIsPrivate)
-    } : {},
-    appSettings,
-    environmentVariables
-  )
+  properties: appSettings
 }
 
 resource static_site_customdomain 'Microsoft.Web/staticSites/customDomains@2025-03-01' = if (hubCustomDomainName != '') {

@@ -63,9 +63,6 @@ param hubAuthSecret string
 @description('Hub Next.js server actions encryption key')
 param nextServerActionsEncryptionKey string
 
-@description('Application settings for the Hub (Static Web App)')
-param hubAppSettings object = {}
-
 @description('Environment variables for the Hub (Static Web App)')
 param hubEnvironmentVariables object = {}
 
@@ -120,17 +117,31 @@ var endatixServicePlanName = '${resourcePrefix}endatix-serviceplan'
 var endatixStorageAccountName = '${replace(resourcePrefix, '-', '')}endatixstorage'
 var endatixVnetName = '${resourcePrefix}endatix-vnet'
 var deployManagedVnet = enablePostgresqlPrivateNetwork && vnetResourceId == ''
-// Predicted hub hostname is used only where a pre-module value is required
-// (for example, module params and pre-hub dependency settings).
-var predictedHubDefaultHostName = hubDeploymentMode == 'static-site'
-  ? '${endatixHubName}.azurestaticapps.net'
-  : '${endatixHubName}.azurewebsites.net'
-var predictedHubBaseUrl = 'https://${predictedHubDefaultHostName}'
 var storageHostName = '${endatixStorageAccountName}.blob.${az.environment().suffixes.storage}'
 var resolvedHubDefaultHostName = hubDeploymentMode == 'static-site'
   ? endatixHubSWA!.outputs.staticWebAppDefaultHostName
   : endatixHubWebApp!.outputs.appDefaultHostName
 var resolvedHubBaseUrl = 'https://${resolvedHubDefaultHostName}'
+var apiBaseUrl = 'https://${endatixApi.outputs.appDefaultHostName}'
+var apiPublicUrl = '${apiBaseUrl}/api'
+
+// Shared Hub settings used by both deployment modes during initial provisioning.
+var hubBaseSettings = {
+  ENDATIX_BASE_URL: apiBaseUrl
+  NEXT_PUBLIC_API_URL: apiPublicUrl
+  AZURE_STORAGE_ACCOUNT_NAME: endatixStorage.outputs.storageAccountName
+  AZURE_STORAGE_IS_PRIVATE: storageIsPrivate? 'true' : ''
+  AZURE_STORAGE_CUSTOM_DOMAIN: storageHostName
+  SESSION_SECRET: hubSessionSecret
+  AUTH_SECRET: hubAuthSecret
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: nextServerActionsEncryptionKey
+  HUB_ADMIN_USERNAME: initialUserEmail
+}
+var hubInitialAppSettings = union(hubBaseSettings, hubEnvironmentVariables)
+var hubFinalizedAppSettings = union(hubInitialAppSettings, {
+  AUTH_URL: resolvedHubBaseUrl
+  ROBOTS_ALLOWED_DOMAINS: resolvedHubDefaultHostName
+})
 
 // Blob CORS uses real hostnames; applied in leaf module after Hub + API exist.
 var resolvedStorageCorsOrigins = [
@@ -159,7 +170,6 @@ resource endatixApiFinalize 'Microsoft.Web/sites/config@2025-03-01' = {
       APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.outputs.appInsightsInstrumentationKey
       APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.outputs.appInsightsConnectionString
       ASPNETCORE_ENVIRONMENT: 'Production'
-      Endatix__Hub__HubBaseUrl: resolvedHubBaseUrl
       Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
       Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
       Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
@@ -217,24 +227,7 @@ module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMod
     appInsightsId: appInsights.outputs.appInsightsId
     appInsightsConnectionString: appInsights.outputs.appInsightsConnectionString
     appInsightsInstrumentationKey: appInsights.outputs.appInsightsInstrumentationKey
-    appSettings: union({
-      AUTH_URL: predictedHubBaseUrl
-      ENDATIX_BASE_URL: 'https://${endatixApi.outputs.appDefaultHostName}'
-      NEXT_PUBLIC_API_URL: 'https://${endatixApi.outputs.appDefaultHostName}/api'
-      ROBOTS_ALLOWED_DOMAINS: predictedHubDefaultHostName
-      AZURE_STORAGE_ACCOUNT_NAME: endatixStorage.outputs.storageAccountName
-      AZURE_STORAGE_CUSTOM_DOMAIN: storageHostName
-      SESSION_SECRET: hubSessionSecret
-      AUTH_SECRET: hubAuthSecret
-      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: nextServerActionsEncryptionKey
-      HUB_ADMIN_USERNAME: initialUserEmail
-    }, hubAppSettings)
-    environmentVariables: union({
-      NEXT_PUBLIC_API_URL: 'https://${endatixApi.outputs.appDefaultHostName}/api'
-    }, hubEnvironmentVariables)
-    storageAccountName: endatixStorage.outputs.storageAccountName
-    storageAccountKey: endatixStorage.outputs.storageAccountKey
-    storageIsPrivate: storageIsPrivate
+    appSettings: hubInitialAppSettings
   }
 }
 
@@ -252,18 +245,7 @@ module endatixHubWebApp './modules/web-app.module.bicep' = if (hubDeploymentMode
     repositoryUrl: hubRepositoryUrl
     deploymentBranch: branch
     linuxFxVersion: 'NODE|22-lts'
-    appSettings: union({
-      AUTH_URL: predictedHubBaseUrl
-      ENDATIX_BASE_URL: 'https://${endatixApi.outputs.appDefaultHostName}'
-      NEXT_PUBLIC_API_URL: 'https://${endatixApi.outputs.appDefaultHostName}/api'
-      ROBOTS_ALLOWED_DOMAINS: predictedHubDefaultHostName
-      AZURE_STORAGE_ACCOUNT_NAME: endatixStorage.outputs.storageAccountName
-      AZURE_STORAGE_CUSTOM_DOMAIN: storageHostName
-      SESSION_SECRET: hubSessionSecret
-      AUTH_SECRET: hubAuthSecret
-      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: nextServerActionsEncryptionKey
-      HUB_ADMIN_USERNAME: initialUserEmail
-    }, hubAppSettings)
+    appSettings: hubInitialAppSettings
     connectionStrings: {}
   }
 }
@@ -287,7 +269,6 @@ module endatixApi './modules/web-app.module.bicep' = {
       apiSerilogApplicationInsightsSettings,
       {
         ASPNETCORE_ENVIRONMENT: 'Production'
-        Endatix__Hub__HubBaseUrl: predictedHubBaseUrl
         Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
         Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
         Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
@@ -313,6 +294,22 @@ module endatixApi './modules/web-app.module.bicep' = {
     })
     virtualNetworkSubnetId: enablePostgresqlPrivateNetwork ? (deployManagedVnet ? vnetModule!.outputs.appSubnetId : (apiVirtualNetworkSubnetId != '' ? apiVirtualNetworkSubnetId : '${vnetResourceId}/subnets/${apiIntegrationSubnetName}')) : ''
   }
+}
+
+resource endatixHubFinalize 'Microsoft.Web/sites/config@2025-03-01' = if (hubDeploymentMode == 'web-app') {
+  name: '${endatixHubName}/appsettings'
+  properties: union(
+    hubFinalizedAppSettings,
+    hubEnvironmentVariables
+  )
+}
+
+resource endatixHubSwaFinalize 'Microsoft.Web/staticSites/config@2025-03-01' = if (hubDeploymentMode == 'static-site') {
+  name: '${endatixHubName}/appsettings'
+  properties: union(
+    hubFinalizedAppSettings,
+    hubEnvironmentVariables
+  )
 }
 
 // Storage blob containers and CORS with resolved Hub + API origins
@@ -347,8 +344,8 @@ module postgresqlModule './modules/postgres.module.bicep' = {
 output hubBaseUrl string = hubDeploymentMode == 'static-site'
   ? 'https://${endatixHubSWA!.outputs.staticWebAppDefaultHostName}'
   : 'https://${endatixHubWebApp!.outputs.appDefaultHostName}'
-output apiBaseUrl string = 'https://${endatixApi.outputs.appDefaultHostName}'
-output nextPublicApiUrl string = 'https://${endatixApi.outputs.appDefaultHostName}/api'
+output apiBaseUrl string = apiBaseUrl
+output nextPublicApiUrl string = apiPublicUrl
 output hubDefaultHostName string = hubDeploymentMode == 'static-site'
   ? endatixHubSWA!.outputs.staticWebAppDefaultHostName
   : endatixHubWebApp!.outputs.appDefaultHostName

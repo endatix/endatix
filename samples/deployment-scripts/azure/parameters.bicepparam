@@ -30,8 +30,6 @@ param hubEnvironmentVariables = {
   NEXT_PUBLIC_ENVIRONMENT: 'production'
 }
 
-param hubAppSettings = {}
-
 param apiAppSettings = {
   ASPNETCORE_ENVIRONMENT: 'Production'
 }
