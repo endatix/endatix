@@ -97,10 +97,10 @@ Returns the current date, or a date shifted by a specific number of days. For in
 
 ### `year`, `month`, `day`, `weekday`
 Extracts specific parts of a given date:
-* `year(date?)`: Returns the year[cite: 81, 82].
-* `month(date?)`: Returns the month as a number from 1 to 12[cite: 86, 87].
-* `day(date?)`: Returns the day of the month from 1 to 31[cite: 91, 92].
-* `weekday(date?)`: Returns the day of the week from 0 (Sunday) to 6 (Saturday)[cite: 96, 97].
+* `year(date?)`: Returns the year.
+* `month(date?)`: Returns the month as a number from 1 to 12.
+* `day(date?)`: Returns the day of the month from 1 to 31.
+* `weekday(date?)`: Returns the day of the week from 0 (Sunday) to 6 (Saturday).
 
 ### `getDate`
 Converts a question's response into a usable Date format.
@@ -114,7 +114,7 @@ Adds or subtracts a specified amount of time (days, hours, minutes, seconds, mon
 
 ### `dateDiff`
 Returns the difference between two dates in days, hours, minutes, seconds, months, or years.
-* **Syntax:** `dateDiff(fromDate, toDate, interval)` [cite: 111, 112]
+* **Syntax:** `dateDiff(fromDate, toDate, interval)` 
 * **Example:** `"dateDiff({birthdate}, today(), 'months')"` 
 
 ---
@@ -138,7 +138,7 @@ Rounds a number to a specified number of decimal places. If precision is omitted
 ### `trunc`
 Truncates a number to a specified number of decimal places by simply chopping off the remaining digits without rounding.
 * **Syntax:** `trunc(num, precision?)` 
-* **Example:** `"trunc(2.175, 1)"` (Returns 2.1) [cite: 170, 171]
+* **Example:** `"trunc(2.175, 1)"` (Returns 2.1) 
 
 ---
 
@@ -152,7 +152,7 @@ Calculates the sum of numbers from a specific column or field inside a matrix. Y
 * **Example:** `"sumInArray({matrixdynamic}, 'total', {categoryId} = 1)"` 
 
 ### `maxInArray` & `minInArray`
-Finds the maximum or minimum number in a specific column of a matrix[cite: 190, 197].
+Finds the maximum or minimum number in a specific column of a matrix.
 * **Example:** `"minInArray({matrixdynamic}, 'quantity', {quantity} > 0)"` 
 
 ### `avgInArray`
@@ -175,7 +175,7 @@ Returns the human-readable display text of a question rather than its underlying
 * **Example:** `"displayValue('my-dropdown-question', 5)"` 
 
 :::info Dynamic Evaluation Note
-If you use `displayValue` inside a dynamic value expression (`setValueExpression`), you must also specify a `setValueIf` condition. Because you are passing the question name as a text string, the form won't automatically know to recalculate the expression when that question changes[cite: 227, 228]. Providing a `setValueIf` trigger ensures the value updates correctly[cite: 229, 230].
+If you use `displayValue` inside a dynamic value expression (`setValueExpression`), you must also specify a `setValueIf` condition. Because you are passing the question name as a text string, the form won't automatically know to recalculate the expression when that question changes. Providing a `setValueIf` trigger ensures the value updates correctly.
 :::
 
 ### `propertyValue` (Obsolete)
