@@ -8,6 +8,7 @@ using './endatix-azure.template.bicep'
 // node ./generate-quickstart-secrets.mjs build-env --outputs-file ./deployment-outputs.json
 
 param resourcePrefix = 'test-'
+param project = 'endatix'
 param environment = 'sandbox'
 param hubDeploymentMode = 'static-site'
 param branch = 'main'

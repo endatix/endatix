@@ -61,13 +61,25 @@ async function getHubDeployEnvPath() {
   return path.join(hubPath, ".env.production");
 }
 
-function deriveResourceGroupName(environmentName) {
+function deriveResourceGroupName(environmentName, projectName = "endatix") {
   const normalizedEnv = (environmentName ?? "temp").toLowerCase();
-  return `rg-endatix-${normalizedEnv}-us`;
+  const normalizedProject = normalizeProjectName(projectName);
+  return `rg-${normalizedProject}-${normalizedEnv}-us`;
 }
 
 function normalizeResourcePrefix(resourcePrefix) {
   return resourcePrefix.endsWith("-") ? resourcePrefix : `${resourcePrefix}-`;
+}
+
+function normalizeProjectName(projectName) {
+  const normalized = (projectName ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return normalized || "endatix";
 }
 
 const rl = createInterface({
@@ -124,15 +136,18 @@ async function loadDeploymentConfig() {
     "eval-";
   const environmentName =
     readStringParamFromBicepParam(baseBicepParameters, "environment") ?? "temp";
+  const projectName =
+    readStringParamFromBicepParam(baseBicepParameters, "project") ?? "endatix";
 
   return {
     baseBicepParameters,
     resourcePrefix: normalizeResourcePrefix(configuredPrefix),
     environmentName,
+    projectName: normalizeProjectName(projectName),
   };
 }
 
-async function resolveResourceGroupInfo(environmentName) {
+async function resolveResourceGroupInfo(environmentName, projectName) {
   const hasRg = await question(
     `\nDo you have an existing Azure resource group? (y/N): `,
   );
@@ -141,7 +156,7 @@ async function resolveResourceGroupInfo(environmentName) {
     let resourceGroupName = await question("❯ Enter the resource group name: ");
 
     if (!resourceGroupName.trim()) {
-      resourceGroupName = deriveResourceGroupName(environmentName);
+      resourceGroupName = deriveResourceGroupName(environmentName, projectName);
       console.log(`Using derived name: ${resourceGroupName}`);
     }
 
@@ -152,7 +167,7 @@ async function resolveResourceGroupInfo(environmentName) {
     };
   }
 
-  const resourceGroupName = deriveResourceGroupName(environmentName);
+  const resourceGroupName = deriveResourceGroupName(environmentName, projectName);
   let rgLocation = "centralus";
 
   console.log(
@@ -178,7 +193,11 @@ async function resolveResourceGroupInfo(environmentName) {
   };
 }
 
-async function ensureLocalParameters(baseBicepParameters, skipSecretGen) {
+async function ensureLocalParameters(
+  baseBicepParameters,
+  skipSecretGen,
+  shouldPromptForProjectOverride,
+) {
   if (skipSecretGen) {
     console.log(
       `\n\u2705 Reusing values from: ${path.basename(localParametersPath)}`,
@@ -204,6 +223,25 @@ async function ensureLocalParameters(baseBicepParameters, skipSecretGen) {
     ["nextServerActionsEncryptionKey", nextServerActionsEncryptionKey],
   ];
 
+  if (shouldPromptForProjectOverride) {
+    const configuredProject =
+      readStringParamFromBicepParam(baseBicepParameters, "project") ?? "endatix";
+    const overrideProject = await question(
+      `Override project name for this parameters file? (y/N): `,
+    );
+
+    if (overrideProject.trim().toLowerCase().startsWith("y")) {
+      const enteredProject = await question(
+        `❯ Enter project name [default: ${configuredProject}]: `,
+      );
+      const projectName = normalizeProjectName(
+        enteredProject.trim() || configuredProject,
+      );
+      generatedReplacements.push(["project", projectName]);
+      console.log(`Using normalized project: ${projectName}`);
+    }
+  }
+
   const localParametersBicep = applyStringParamReplacements(
     baseBicepParameters,
     generatedReplacements,
@@ -221,12 +259,13 @@ async function interactiveWizard() {
     "This wizard will help you configure your deployment and generate commands.\n",
   );
 
-  const { skipSecretGen } = await resolveSecretGenerationMode();
-  const { baseBicepParameters, environmentName } = await loadDeploymentConfig();
+  const { skipSecretGen, isForce } = await resolveSecretGenerationMode();
+  const { baseBicepParameters, environmentName, projectName } =
+    await loadDeploymentConfig();
   const { resourceGroupName, createRgCmd } =
-    await resolveResourceGroupInfo(environmentName);
+    await resolveResourceGroupInfo(environmentName, projectName);
 
-  await ensureLocalParameters(baseBicepParameters, skipSecretGen);
+  await ensureLocalParameters(baseBicepParameters, skipSecretGen, isForce);
 
   console.log(`\n${infoText("=== Step 1: Provision Infrastructure ===")}`);
 

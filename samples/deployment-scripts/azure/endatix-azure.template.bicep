@@ -11,6 +11,9 @@ param location string = resourceGroup().location
 @description('Environment name for tagging and identification (e.g., "dev", "uat", "prod")')
 param environment string = 'dev'
 
+@description('Project token used in service names (defaults to "endatix")')
+param project string = 'endatix'
+
 @description('Git branch to deploy for the Hub static site')
 param branch string = 'main'
 
@@ -110,12 +113,21 @@ param enableFailureAnomalyAlerts bool = false
 param hubDeploymentMode string = 'static-site'
 
 // Resource naming variables
-var endatixAppInsightsName = '${resourcePrefix}endatix-appinsights'
-var endatixHubName = '${resourcePrefix}endatix-hub'
-var endatixApiName = '${resourcePrefix}endatix-api'
-var endatixServicePlanName = '${resourcePrefix}endatix-serviceplan'
-var endatixStorageAccountName = '${replace(resourcePrefix, '-', '')}endatixfiles' // Storage account names must be globally unique and can only contain lowercase letters and numbers, max length 24
-var endatixVnetName = '${resourcePrefix}endatix-vnet'
+var projectLower = toLower(project)
+var projectServiceToken = replace(replace(replace(replace(projectLower, ' ', '-'), '_', '-'), '.', '-'), '--', '-')
+var projectStorageToken = replace(replace(replace(replace(projectLower, '-', ''), '_', ''), '.', ''), ' ', '')
+var prefixServiceToken = toLower(resourcePrefix)
+var prefixStorageToken = replace(prefixServiceToken, '-', '')
+var defaultStorageSuffix = take(uniqueString(subscription().id, resourceGroup().id, resourcePrefix), 8)
+
+var endatixAppInsightsName = '${prefixServiceToken}${projectServiceToken}-appinsights'
+var endatixHubName = '${prefixServiceToken}${projectServiceToken}-hub'
+var endatixApiName = '${prefixServiceToken}${projectServiceToken}-api'
+var endatixServicePlanName = '${prefixServiceToken}${projectServiceToken}-serviceplan'
+var endatixVnetName = '${prefixServiceToken}${projectServiceToken}-vnet'
+var endatixStorageAccountName = projectStorageToken == 'endatix'
+  ? '${prefixStorageToken}${projectStorageToken}${defaultStorageSuffix}'
+  : take('${prefixStorageToken}${projectStorageToken}', 24)
 var deployManagedVnet = enablePostgresqlPrivateNetwork && vnetResourceId == ''
 var storageHostName = '${endatixStorageAccountName}.blob.${az.environment().suffixes.storage}'
 var resolvedHubDefaultHostName = hubDeploymentMode == 'static-site'
@@ -190,13 +202,8 @@ resource endatixHubFinalize 'Microsoft.Web/sites/config@2025-03-01' = if (hubDep
   )
 }
 
-resource endatixHubSwaExisting 'Microsoft.Web/staticSites@2025-03-01' existing = if (hubDeploymentMode == 'static-site') {
-  name: endatixHubSWA!.outputs.staticWebAppName
-}
-
 resource endatixHubSwaFinalize 'Microsoft.Web/staticSites/config@2025-03-01' = if (hubDeploymentMode == 'static-site') {
-  parent: endatixHubSwaExisting
-  name: 'appsettings'
+  name: '${endatixHubName}/appsettings'
   properties: union(
     hubFinalizedAppSettings,
     hubEnvironmentVariables
@@ -211,7 +218,7 @@ module appInsights './modules/app-insights.module.bicep' = {
   params: {
     location: location
     tags: tags
-    workspaceName: '${resourcePrefix}endatix-appinsights-ws'
+    workspaceName: '${prefixServiceToken}${projectServiceToken}-appinsights-ws'
     appInsightsName: endatixAppInsightsName
     enableFailureAnomalyAlerts: enableFailureAnomalyAlerts
   }
@@ -240,7 +247,7 @@ module vnetModule './modules/vnet.module.bicep' = if (deployManagedVnet) {
 
 // Endatix Hub - Static Web App (default)
 module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMode == 'static-site') {
-  name: '${resourcePrefix}endatix-hub'
+  name: endatixHubName
   params: {
     location: location
     branch: branch
@@ -257,7 +264,7 @@ module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMod
 
 // Endatix Hub - Web App (Node.js)
 module endatixHubWebApp './modules/web-app.module.bicep' = if (hubDeploymentMode == 'web-app') {
-  name: '${resourcePrefix}endatix-hub'
+  name: endatixHubName
   params: {
     location: location
     tags: tags
@@ -336,6 +343,7 @@ module postgresqlModule './modules/postgres.module.bicep' = {
   params: {
     location: location
     resourcePrefix: resourcePrefix
+    project: projectServiceToken
     tags: tags
     postgresAdminUsername: postgresAdminUsername
     postgresAdminPassword: postgresAdminPassword

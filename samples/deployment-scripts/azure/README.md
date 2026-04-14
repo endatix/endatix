@@ -96,6 +96,7 @@ Notes:
 - Connection strings are template-managed (`DefaultConnection`, `StorageConnection`).
 - Keep `hubRepositoryUrl` and `apiRepositoryUrl` empty for manual/local deployment.
 - `endatix-hub/.env.production` is intentionally minimal; runtime values like `AUTH_URL`, `ENDATIX_BASE_URL`, secrets, and admin identity come from Azure app settings provisioned by Bicep.
+- `project` controls service naming (`{resourcePrefix}{project}-*`). Storage naming is special: default `project='endatix'` adds an 8-char unique suffix for global uniqueness; custom project names are normalized and used directly in storage-safe form.
 
 ## Private PostgreSQL (VNet integration)
 
