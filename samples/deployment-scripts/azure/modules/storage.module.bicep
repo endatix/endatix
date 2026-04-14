@@ -10,7 +10,7 @@ Initial deploy skips blob CORS; a leaf module applies CORS after Hub/API hostnam
 param location string
 
 @description('Storage account name')
-param storageAccountName string = 'endatixstorage'
+param storageAccountName string = 'assets'
 
 @description('Azure resource tags')
 param tags object
@@ -43,7 +43,7 @@ resource endatix_storage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
     }
     supportsHttpsTrafficOnly: true
     encryption: {
-      requireInfrastructureEncryption: false
+      requireInfrastructureEncryption: true
       services: {
         file: {
           keyType: 'Account'

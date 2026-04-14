@@ -1,6 +1,9 @@
 @description('Existing storage account name')
 param storageAccountName string
 
+@description('Whether the storage account is private (no public blob access)')
+param isPrivate bool = false
+
 @description('Allowed CORS origins (include scheme, e.g. https://myapp.azurestaticapps.net)')
 param allowedOrigins array
 
@@ -55,7 +58,7 @@ resource endatix_storage_default_content 'Microsoft.Storage/storageAccounts/blob
     }
     defaultEncryptionScope: '$account-encryption-key'
     denyEncryptionScopeOverride: false
-    publicAccess: 'Blob'
+    publicAccess: isPrivate ? 'None' : 'Blob'
   }
 }
 
@@ -68,6 +71,6 @@ resource endatix_storage_default_user_files 'Microsoft.Storage/storageAccounts/b
     }
     defaultEncryptionScope: '$account-encryption-key'
     denyEncryptionScopeOverride: false
-    publicAccess: 'Blob'
+    publicAccess: isPrivate ? 'None' : 'Blob'
   }
 }

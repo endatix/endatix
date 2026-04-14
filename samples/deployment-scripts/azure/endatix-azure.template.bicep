@@ -319,6 +319,7 @@ module endatixStorageServices './modules/storage-blob-services.module.bicep' = {
   params: {
     storageAccountName: endatixStorageAccountName
     allowedOrigins: resolvedStorageCorsOrigins
+    isPrivate: storageIsPrivate
   }
 }
 
