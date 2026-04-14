@@ -6,29 +6,20 @@ description: "Learn how to use Endatix logic functions within form and survey co
 
 # Logic Expressions
 
-When designing forms and surveys with a large number of questions, you may often need to show or hide an element based on whether *any* question within a specific group has been answered. 
+## Logical & State Functions
 
-Normally, this requires writing a long, complex condition in the **Logic** tab using multiple `notempty` checks:
-```text
-{brands_shoes_nike} notempty or {brands_shoes_adidas} notempty or {brands_shirts_puma} notempty
-```
+These functions help you evaluate conditions and check the current state of your form, its containers, or any of its questions.
 
-To simplify your form logic and improve performance on mobile devices, Endatix Hub provides two custom built-in functions: `anyAnswered` and `anyAnsweredByPrefix`.
-
-![Screenshot of the SurveyJS Creator Logic tab showing the anyAnswered function being used in a Visible If rule]
-
----
-
-## `anyAnswered`
+### `anyAnswered`
 
 The `anyAnswered` function checks a specific, explicit list of questions and returns `true` if at least one of them has a value (is not empty).
 
-### Syntax
+#### Syntax
 ```javascript
 anyAnswered({question_1}, {question_2}, {question_3})
 ```
 
-### JSON Example
+#### JSON Example
 If you want to show a comment box only if the user has answered at least one of three specific questions, you can set the `visibleIf` property to:
 ```json
 {
@@ -39,22 +30,20 @@ If you want to show a comment box only if the user has answered at least one of 
 }
 ```
 
----
-
-## `anyAnsweredByPrefix`
+### `anyAnsweredByPrefix`
 
 The `anyAnsweredByPrefix` function checks all questions in your form that start with a specific text prefix. It returns `true` if at least one matching question has been answered. This is highly recommended for large assessments or sectioned forms where questions share a common naming convention.
 
-### Syntax
+#### Syntax
 ```javascript
 anyAnsweredByPrefix('your_prefix_here')
 ```
 
 :::info Use Single Quotes Instead of Curly Braces
-Unlike expressions that require specific question names, `anyAnsweredByPrefix` requires you to pass the prefix as a string enclosed in single quotes `''`. 
+Unlike expressions that require specific question names, `anyAnsweredByPrefix` requires you to pass the prefix as a string enclosed in single quotes `''`.
 :::
 
-### JSON Example
+#### JSON Example
 If you have 50 questions that all start with the prefix `brands_sports_shoes_`, you can check if any of them are answered using a single, short statement:
 ```json
 {
@@ -65,5 +54,129 @@ If you have 50 questions that all start with the prefix `brands_sports_shoes_`, 
 }
 ```
 
-### Limitations with Dynamic Matrices
+#### Limitations with Dynamic Matrices
 If you use `anyAnsweredByPrefix` inside a **Dynamic Matrix** (`matrixdynamic`) or **Dynamic Panel** (`paneldynamic`), it will check the questions across the entire grid globally, rather than restricting its check to the specific row the user is currently interacting with. For row-specific logic, use the standard `anyAnswered({row.question_name})` syntax instead.
+
+---
+
+### `iif`
+Returns a specific value if a condition is true, and a different value if the condition is false.
+* **Syntax:** `iif(condition, valueIfTrue, valueIfFalse)` 
+* **Example:** `"iif({question1} + {question2} > 20, 'High', 'Low')"` 
+
+### `isContainerReady`
+Returns true if all questions in a given panel or page have valid input; otherwise, returns false. An empty question is considered valid as long as it is not marked as required and has no other validation rules.
+* **Syntax:** `isContainerReady(nameOfPanelOrPage)` 
+* **Example:** `"isContainerReady('page1')"` 
+
+### `isDisplayMode`
+Returns true if the survey is currently in display or preview mode.
+* **Syntax:** `isDisplayMode()` 
+* **Example:** `"isDisplayMode()"` 
+
+---
+
+## Date & Time Functions
+
+Use these functions to perform calculations based on dates, such as calculating ages or differences between two dates. 
+
+### `age`
+Returns the age based on a given birthdate.
+* **Syntax:** `age(birthdate)` 
+* **Example:** `"age({birthdate})"` 
+
+### `currentDate`
+Returns the current date and time.
+* **Syntax:** `currentDate()` 
+* **Example:** `"currentDate()"` 
+
+### `today`
+Returns the current date, or a date shifted by a specific number of days. For instance, `today(-1)` gives yesterday's date, and `today(1)` gives tomorrow's date.
+* **Syntax:** `today(daysToAdd?)` 
+* **Example:** `"today(2)"` 
+
+### `year`, `month`, `day`, `weekday`
+Extracts specific parts of a given date:
+* `year(date?)`: Returns the year[cite: 81, 82].
+* `month(date?)`: Returns the month as a number from 1 to 12[cite: 86, 87].
+* `day(date?)`: Returns the day of the month from 1 to 31[cite: 91, 92].
+* `weekday(date?)`: Returns the day of the week from 0 (Sunday) to 6 (Saturday)[cite: 96, 97].
+
+### `getDate`
+Converts a question's response into a usable Date format.
+* **Syntax:** `getDate(question)` 
+* **Example:** `"getDate({birthdate})"` 
+
+### `dateAdd`
+Adds or subtracts a specified amount of time (days, hours, minutes, seconds, months, or years) to a given date.
+* **Syntax:** `dateAdd(date, numberToAdd, interval)` 
+* **Example:** `"dateAdd({startDate}, 14, 'days')"` 
+
+### `dateDiff`
+Returns the difference between two dates in days, hours, minutes, seconds, months, or years.
+* **Syntax:** `dateDiff(fromDate, toDate, interval)` [cite: 111, 112]
+* **Example:** `"dateDiff({birthdate}, today(), 'months')"` 
+
+---
+
+## Math Functions
+
+Perform basic mathematical operations on question values.
+
+### `sum`, `max`, `min`, `avg`
+These functions take a list of numbers and calculate their combined result:
+* `sum(...)`: Returns the sum of passed numbers.
+* `max(...)`: Returns the highest number.
+* `min(...)`: Returns the lowest number.
+* `avg(...)`: Returns the average of the numbers.
+
+### `round`
+Rounds a number to a specified number of decimal places. If precision is omitted, it rounds to the nearest whole number.
+* **Syntax:** `round(num, precision?)` 
+* **Example:** `"round(1.005, 2)"` (Returns 1.01) 
+
+### `trunc`
+Truncates a number to a specified number of decimal places by simply chopping off the remaining digits without rounding.
+* **Syntax:** `trunc(num, precision?)` 
+* **Example:** `"trunc(2.175, 1)"` (Returns 2.1) [cite: 170, 171]
+
+---
+
+## Array & Matrix Functions
+
+These functions are highly useful for calculating values inside repetitive fields, such as Multi-Select Matrices, Dynamic Matrices, or Dynamic Panels.
+
+### `sumInArray`
+Calculates the sum of numbers from a specific column or field inside a matrix. You can optionally apply a filter to only include certain rows.
+* **Syntax:** `sumInArray(question, dataFieldName, filter?)` 
+* **Example:** `"sumInArray({matrixdynamic}, 'total', {categoryId} = 1)"` 
+
+### `maxInArray` & `minInArray`
+Finds the maximum or minimum number in a specific column of a matrix[cite: 190, 197].
+* **Example:** `"minInArray({matrixdynamic}, 'quantity', {quantity} > 0)"` 
+
+### `avgInArray`
+Calculates the average of numbers in a specific column of a matrix.
+* **Example:** `"avgInArray({matrixdynamic}, 'quantity', {quantity} > 0)"` 
+
+### `countInArray`
+Counts the total number of rows in a matrix where a specific column has been answered.
+* **Syntax:** `countInArray(question, dataFieldName, filter?)` 
+* **Example:** `"countInArray({matrixdynamic}, 'quantity', {quantity} > 0)"` 
+
+---
+
+## Display & Property Functions
+
+### `displayValue`
+Returns the human-readable display text of a question rather than its underlying value (e.g., the text of a dropdown choice instead of its ID). You can also pass a specific value to look up its corresponding display text.
+
+* **Syntax:** `displayValue(questionName, value?)` 
+* **Example:** `"displayValue('my-dropdown-question', 5)"` 
+
+:::info Dynamic Evaluation Note
+If you use `displayValue` inside a dynamic value expression (`setValueExpression`), you must also specify a `setValueIf` condition. Because you are passing the question name as a text string, the form won't automatically know to recalculate the expression when that question changes[cite: 227, 228]. Providing a `setValueIf` trigger ensures the value updates correctly[cite: 229, 230].
+:::
+
+### `propertyValue` (Obsolete)
+*Note: This function is obsolete.* To access property values, you should use the dollar sign (`$`) prefix instead.
