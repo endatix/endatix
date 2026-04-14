@@ -16,7 +16,8 @@ export function normalizeProjectName(projectName) {
 
   const normalized = input
     .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^[-]+|[-]+$/g, "");
+    .replace(/^(?=(-+))\1/, "") // Trims leading dashes via atomic grouping(?=(pattern))
+    .replace(/(?=(-+))\1$/, ""); // Trims trailing dashes via atomic grouping(?=(pattern))
 
   return normalized || DEFAULT_PROJECT_NAME;
 }
