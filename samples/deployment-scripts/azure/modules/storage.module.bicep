@@ -17,17 +17,22 @@ param tags object
 @description('Whether the storage account is private (no public blob access)')
 param isPrivate bool = false
 
+
+// Determine our connection string
+var blobStorageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${endatix_storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${endatix_storage.listKeys().keys[0].value}'
+var storageAccountKey = endatix_storage.listKeys().keys[0].value
+
 resource endatix_storage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
   name: storageAccountName
-  identity: {
-    type: 'SystemAssigned'
-  }
   location: location
-  tags: tags
   sku: {
     name: 'Standard_LRS'
   }
   kind: 'StorageV2'
+    identity: {
+    type: 'SystemAssigned'
+  }
+  tags: tags
   properties: {
     dnsEndpointType: 'Standard'
     defaultToOAuthAuthentication: false
@@ -37,10 +42,7 @@ resource endatix_storage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
     allowBlobPublicAccess: !isPrivate
     allowSharedKeyAccess: true
     networkAcls: {
-      ipv6Rules: []
       bypass: 'AzureServices'
-      virtualNetworkRules: []
-      ipRules: []
       defaultAction: 'Allow'
     }
     supportsHttpsTrafficOnly: true
@@ -60,10 +62,6 @@ resource endatix_storage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
     }
   }
 }
-
-// Determine our connection string
-var blobStorageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${endatix_storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${endatix_storage.listKeys().keys[0].value}'
-var storageAccountKey = endatix_storage.listKeys().keys[0].value
 
 // Outputs
 output storageAccountId string = endatix_storage.id

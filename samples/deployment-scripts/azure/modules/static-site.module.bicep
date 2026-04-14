@@ -60,6 +60,10 @@ var staticSiteTags = union(
 resource static_site 'Microsoft.Web/staticSites@2025-03-01' = {
   location: location
   name: staticSiteName
+  sku: {
+    name: 'Standard'
+    tier: 'Standard'
+  }
   identity: {
     type: 'SystemAssigned'
   }
@@ -73,17 +77,13 @@ resource static_site 'Microsoft.Web/staticSites@2025-03-01' = {
     enterpriseGradeCdnStatus: 'Disabled'
     stagingEnvironmentPolicy: 'Enabled'
   }
-  sku: {
-    name: 'Standard'
-    tier: 'Standard'
-  }
   tags: staticSiteTags
 }
 
 resource static_site_appsettings 'Microsoft.Web/staticSites/config@2025-03-01' = {
+  parent: static_site
   name: 'appsettings'
   kind: 'string'
-  parent: static_site
   properties: union(
     {
       APPINSIGHTS_INSTRUMENTATIONKEY: appInsightsInstrumentationKey
