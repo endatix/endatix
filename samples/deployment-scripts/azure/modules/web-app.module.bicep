@@ -92,7 +92,6 @@ resource app_service_web_app 'Microsoft.Web/sites@2025-03-01' = {
     reserved: true
     isXenon: false
     hyperV: false
-    dnsConfiguration: {}
     outboundVnetRouting: {
       allTraffic: false
       applicationTraffic: false
@@ -113,8 +112,7 @@ resource app_service_web_app 'Microsoft.Web/sites@2025-03-01' = {
     scmSiteAlsoStopped: false
     clientAffinityEnabled: false
     clientAffinityProxyEnabled: false
-    clientCertEnabled: true
-    clientCertMode: 'Optional'
+    clientCertEnabled: false
     hostNamesDisabled: false
     ipMode: 'IPv4'
     containerSize: 0
@@ -214,17 +212,6 @@ resource app_service_web_app_web 'Microsoft.Web/sites/config@2025-03-01' = {
     minimumElasticInstanceCount: 1
     azureStorageAccounts: {}
     http20ProxyFlag: 0
-  }
-}
-
-// Explicitly configure App Service built-in auth for clarity because authentication is handled by the deployed applications.
-resource app_service_web_app_authsettings_v2 'Microsoft.Web/sites/config@2025-03-01' = {
-  parent: app_service_web_app
-  name: 'authsettingsV2'
-  properties: {
-    platform: {
-      enabled: false
-    }
   }
 }
 
