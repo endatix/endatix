@@ -180,3 +180,139 @@ If you use `displayValue` inside a dynamic value expression (`setValueExpression
 
 ### `propertyValue` (Obsolete)
 *Note: This function is obsolete.* To access property values, you should use the dollar sign (`$`) prefix instead.
+
+---
+
+## Operators
+
+<table style={{ width: '100%', backgroundColor: 'var(--ifm-background-color)' }}>
+  <colgroup>
+    <col style={{ width: '25%' }} />
+    <col style={{ width: '40%' }} />
+    <col style={{ width: '35%' }} />
+  </colgroup>
+  <thead>
+    <tr>
+      <th style={{ textAlign: 'left' }}>Operator</th>
+      <th style={{ textAlign: 'left' }}>Description</th>
+      <th style={{ textAlign: 'left' }}>Expression Example</th>
+    </tr>
+  </thead>
+  <tbody style={{ backgroundColor: 'transparent' }}>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>empty</code></td>
+      <td>Returns true if the value is undefined or null.</td>
+      <td><code>"&#123;q1&#125; empty"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>notempty</code></td>
+      <td>Returns true if the value is different from undefined and null.</td>
+      <td><code>"&#123;q1&#125; notempty"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&#124;&#124;</code> / <code>or</code></td>
+      <td>Combines two or more conditions and returns true if any of them is true.</td>
+      <td><code>"&#123;q1&#125; empty or &#123;a2&#125; empty"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&amp;&amp;</code> / <code>and</code></td>
+      <td>Combines two or more conditions and returns true if all of them are true.</td>
+      <td><code>"&#123;q1&#125; empty and &#123;a2&#125; empty"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>!</code> / <code>negate</code></td>
+      <td>Returns true if the condition returns false, and vice versa.</td>
+      <td><code>!&#123;q1&#125;</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&lt;=</code> / <code>lessorequal</code></td>
+      <td>Compares two values and returns true if the first is less or equal to the second.</td>
+      <td><code>"&#123;q1&#125; &lt;= 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&gt;=</code> / <code>greaterorequal</code></td>
+      <td>Compares two values and returns true if the first is greater or equal to the second.</td>
+      <td><code>"&#123;q1&#125; &gt;= 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>==</code> / <code>equal</code></td>
+      <td>Compares two values and returns true if they are loosely equal (that is, their type is disregarded).</td>
+      <td><code>"&#123;q1&#125; = 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>!=</code> / <code>&lt;&gt;</code> / <code>notequal</code></td>
+      <td>Compares two values and returns true if they are not loosely equal.</td>
+      <td><code>"&#123;q1&#125; != 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&lt;</code> / <code>less</code></td>
+      <td>Compares two values and returns true if the first is less than the second.</td>
+      <td><code>"&#123;q1&#125; &lt; 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&gt;</code> / <code>greater</code></td>
+      <td>Compares two values and returns true if the first is greater than the second.</td>
+      <td><code>"&#123;q1&#125; &gt; 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>+</code></td>
+      <td>Adds up two values.</td>
+      <td><code>"&#123;a1&#125; + &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>-</code></td>
+      <td>Subtracts the second value from the first.</td>
+      <td><code>"&#123;q1&#125; - &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>*</code></td>
+      <td>Multiplies two values.</td>
+      <td><code>"&#123;a1&#125; * &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>/</code></td>
+      <td>Divides the first value by the second.</td>
+      <td><code>"&#123;q1&#125; / &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>%</code></td>
+      <td>Returns the remainder of the division of the first value by the second.</td>
+      <td><code>"&#123;q1&#125; % &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>^</code> / <code>power</code></td>
+      <td>Raises the first value to the power of the second.</td>
+      <td><code>"&#123;a1&#125; ^ &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>*=</code> / <code>contains</code> / <code>contain</code></td>
+      <td>Compares two values and returns true if the first value contains the second value within it.</td>
+      <td><code>"&#123;q1&#125; contains 'abc'"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>notcontains</code> / <code>notcontain</code></td>
+      <td>Compares two values and returns true if the first value doesn't contain the second value within it.</td>
+      <td><code>"&#123;q1&#125; notcontains 'abc'"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>anyof</code></td>
+      <td>Compares a value with an array of values and returns true if the value is present, or compares two arrays and returns true if the first array includes any value from the second.</td>
+      <td><code>"&#123;q1&#125; anyof ['value1', 'value2', 'value3']"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>noneof</code></td>
+      <td>Compares a value with an array of values and returns true if the value is absent, or compares two arrays and returns true if the first array includes none of the values from the second.</td>
+      <td><code>"&#123;q1&#125; noneof ['value1', 'value2', 'value3']"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>allof</code></td>
+      <td>Compares two arrays and returns true if the first array includes all values from the second.</td>
+      <td><code>"&#123;q1&#125; allof ['value1', 'value2', 'value3']"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>#</code></td>
+      <td>Disables type conversion for a referenced value (e.g., string values "true", "false", "123" won't be converted to corresponding Boolean and numeric values).</td>
+      <td><code>"&#123;#q1&#125;"</code></td>
+    </tr>
+  </tbody>
+</table>
