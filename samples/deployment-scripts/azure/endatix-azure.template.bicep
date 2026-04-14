@@ -181,6 +181,30 @@ resource endatixApiFinalize 'Microsoft.Web/sites/config@2025-03-01' = {
   )
 }
 
+
+resource endatixHubFinalize 'Microsoft.Web/sites/config@2025-03-01' = if (hubDeploymentMode == 'web-app') {
+  name: '${endatixHubName}/appsettings'
+  properties: union(
+    hubFinalizedAppSettings,
+    hubEnvironmentVariables
+  )
+}
+
+resource endatixHubSwaExisting 'Microsoft.Web/staticSites@2025-03-01' existing = if (hubDeploymentMode == 'static-site') {
+  name: endatixHubSWA!.outputs.staticWebAppName
+}
+
+resource endatixHubSwaFinalize 'Microsoft.Web/staticSites/config@2025-03-01' = if (hubDeploymentMode == 'static-site') {
+  parent: endatixHubSwaExisting
+  name: 'appsettings'
+  properties: union(
+    hubFinalizedAppSettings,
+    hubEnvironmentVariables
+  )
+}
+
+/* ********* Deployment Modules ********** */
+
 // App Insights
 module appInsights './modules/app-insights.module.bicep' = {
   name: 'app_insights'
@@ -294,22 +318,6 @@ module endatixApi './modules/web-app.module.bicep' = {
     })
     virtualNetworkSubnetId: enablePostgresqlPrivateNetwork ? (deployManagedVnet ? vnetModule!.outputs.appSubnetId : (apiVirtualNetworkSubnetId != '' ? apiVirtualNetworkSubnetId : '${vnetResourceId}/subnets/${apiIntegrationSubnetName}')) : ''
   }
-}
-
-resource endatixHubFinalize 'Microsoft.Web/sites/config@2025-03-01' = if (hubDeploymentMode == 'web-app') {
-  name: '${endatixHubName}/appsettings'
-  properties: union(
-    hubFinalizedAppSettings,
-    hubEnvironmentVariables
-  )
-}
-
-resource endatixHubSwaFinalize 'Microsoft.Web/staticSites/config@2025-03-01' = if (hubDeploymentMode == 'static-site') {
-  name: '${endatixHubName}/appsettings'
-  properties: union(
-    hubFinalizedAppSettings,
-    hubEnvironmentVariables
-  )
 }
 
 // Storage blob containers and CORS with resolved Hub + API origins
