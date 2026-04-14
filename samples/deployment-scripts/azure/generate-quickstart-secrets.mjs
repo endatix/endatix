@@ -96,8 +96,12 @@ async function resolveSecretGenerationMode() {
     return { isReadOnly, isForce, skipSecretGen };
   }
 
-  console.log(`${infoText("Found existing")} ${path.basename(localParametersPath)}`);
-  const answer = await question("Do you want to [O]verwrite it, [R]euse values (Read-only mode), or [C]ancel? (O/R/C) [R]: ");
+  console.log(
+    `${infoText("Found existing")} ${path.basename(localParametersPath)}`,
+  );
+  const answer = await question(
+    "Do you want to [O]verwrite it, [R]euse values (Read-only mode), or [C]ancel? (O/R/C) [R]: ",
+  );
   const choice = answer.trim().toLowerCase();
 
   if (choice === "o") {
@@ -115,8 +119,11 @@ async function resolveSecretGenerationMode() {
 
 async function loadDeploymentConfig() {
   const baseBicepParameters = await readFile(bicepParametersPath, "utf8");
-  const configuredPrefix = readStringParamFromBicepParam(baseBicepParameters, "resource_prefix") ?? "eval-";
-  const environmentName = readStringParamFromBicepParam(baseBicepParameters, "environment") ?? "temp";
+  const configuredPrefix =
+    readStringParamFromBicepParam(baseBicepParameters, "resource_prefix") ??
+    "eval-";
+  const environmentName =
+    readStringParamFromBicepParam(baseBicepParameters, "environment") ?? "temp";
 
   return {
     baseBicepParameters,
@@ -126,7 +133,9 @@ async function loadDeploymentConfig() {
 }
 
 async function resolveResourceGroupInfo(environmentName) {
-  const hasRg = await question(`\nDo you have an existing Azure resource group? (y/N): `);
+  const hasRg = await question(
+    `\nDo you have an existing Azure resource group? (y/N): `,
+  );
 
   if (hasRg.trim().toLowerCase().startsWith("y")) {
     let resourceGroupName = await question("❯ Enter the resource group name: ");
@@ -146,10 +155,18 @@ async function resolveResourceGroupInfo(environmentName) {
   const resourceGroupName = deriveResourceGroupName(environmentName);
   let rgLocation = "centralus";
 
-  console.log(`\n${tipText("Need a location? Run this to see all Azure locations:")}`);
-  console.log(formatCommandSnippet('az account list-locations --query "[*].name" --out tsv | sort'));
+  console.log(
+    `\n${tipText("Need a location? Run this to see all Azure locations:")}`,
+  );
+  console.log(
+    formatCommandSnippet(
+      'az account list-locations --query "[*].name" --out tsv | sort',
+    ),
+  );
 
-  const enteredLoc = await question(`❯ Enter Azure location to create the RG in [default: ${rgLocation}]: `);
+  const enteredLoc = await question(
+    `❯ Enter Azure location to create the RG in [default: ${rgLocation}]: `,
+  );
   if (enteredLoc.trim()) {
     rgLocation = enteredLoc.trim();
   }
@@ -163,7 +180,9 @@ async function resolveResourceGroupInfo(environmentName) {
 
 async function ensureLocalParameters(baseBicepParameters, skipSecretGen) {
   if (skipSecretGen) {
-    console.log(`\n\u2705 Reusing values from: ${path.basename(localParametersPath)}`);
+    console.log(
+      `\n\u2705 Reusing values from: ${path.basename(localParametersPath)}`,
+    );
     return;
   }
 
@@ -185,19 +204,27 @@ async function ensureLocalParameters(baseBicepParameters, skipSecretGen) {
     ["nextServerActionsEncryptionKey", nextServerActionsEncryptionKey],
   ];
 
-  const localParametersBicep = applyStringParamReplacements(baseBicepParameters, generatedReplacements);
+  const localParametersBicep = applyStringParamReplacements(
+    baseBicepParameters,
+    generatedReplacements,
+  );
 
   await writeFile(localParametersPath, localParametersBicep, "utf8");
-  console.log(`\n\u2705 Generated secure parameters dynamically in: ${path.basename(localParametersPath)}`);
+  console.log(
+    `\n\u2705 Generated secure parameters dynamically in: ${path.basename(localParametersPath)}`,
+  );
 }
 
 async function interactiveWizard() {
   console.log(`\n${infoText("✦ Welcome to the Endatix Azure Quickstart! ✦")}`);
-  console.log("This wizard will help you configure your deployment and generate commands.\n");
+  console.log(
+    "This wizard will help you configure your deployment and generate commands.\n",
+  );
 
   const { skipSecretGen } = await resolveSecretGenerationMode();
   const { baseBicepParameters, environmentName } = await loadDeploymentConfig();
-  const { resourceGroupName, createRgCmd } = await resolveResourceGroupInfo(environmentName);
+  const { resourceGroupName, createRgCmd } =
+    await resolveResourceGroupInfo(environmentName);
 
   await ensureLocalParameters(baseBicepParameters, skipSecretGen);
 
@@ -216,7 +243,9 @@ async function interactiveWizard() {
   printNextSteps(
     [
       `1) Review generated parameters file (${deployParamsFile}) and adjust if needed.`,
-      createRgCmd ? "2) Create resource group (skip if it already exists):" : null,
+      createRgCmd
+        ? "2) Create resource group (skip if it already exists):"
+        : null,
       createRgCmd ? formatCommandSnippet(createRgCmd) : null,
       `${createRgCmd ? "3" : "2"}) Provision the resources:\n${formatCommandSnippet(deployInfraCommand)}`,
     ].filter(Boolean),
@@ -224,14 +253,21 @@ async function interactiveWizard() {
 
   console.log(`\n${infoText("⏳ Action Required:")}`);
   console.log(`Please run the Azure commands above in another terminal.`);
-  await question(`Press [Enter] here ONLY once the deployment completes successfully to continue...`);
+  await question(
+    `Press [Enter] here ONLY once the deployment completes successfully to continue...`,
+  );
 
   const outputs = await readDeploymentOutputsFromFile(deploymentOutputsPath);
   const parametersDeployContent = await readFile(localParametersPath, "utf8");
-  const sessionSecret = readStringParamFromBicepParam(parametersDeployContent, "hubSessionSecret");
+  const sessionSecret = readStringParamFromBicepParam(
+    parametersDeployContent,
+    "hubSessionSecret",
+  );
 
   if (!sessionSecret) {
-    throw new UserFacingError(`Unable to read 'hubSessionSecret' from '${localParametersPath}'.`);
+    throw new UserFacingError(
+      `Unable to read 'hubSessionSecret' from '${localParametersPath}'.`,
+    );
   }
 
   const envDeployContent = [
@@ -268,13 +304,17 @@ async function interactiveWizard() {
     "--api-version 22",
   ].join(" ");
 
-  console.log(`\n✅ Successfully generated ${path.basename(hubDeployEnvPath)}!`);
+  console.log(
+    `\n✅ Successfully generated ${path.basename(hubDeployEnvPath)}!`,
+  );
   console.log(`📍 Path: ${hubDeployEnvPath}`);
 
   console.log(`\n${infoText("=== Step 2: Build & Deploy Apps ===")}`);
 
   console.log(`\n${infoText("- Deploy Endatix Hub")}`);
-  console.log(`  1. cd into your endatix-hub directory (make sure ${path.basename(hubDeployEnvPath)} is in the root)`);
+  console.log(
+    `  1. cd into your endatix-hub directory (make sure ${path.basename(hubDeployEnvPath)} is in the root)`,
+  );
   console.log(`  2. Build the app standalone:`);
   console.log(formatCommandSnippet("pnpm build:standalone"));
   console.log(`  3. Deploy the Next.js app to Azure:`);
@@ -283,13 +323,21 @@ async function interactiveWizard() {
   console.log(`\n${infoText("- Deploy Endatix API")}`);
   console.log(`  1. Return to your endatix root directory`);
   console.log(`  2. Publish the API:`);
-  console.log(formatCommandSnippet("dotnet publish src/Endatix.WebHost -c Release -o ./publish"));
+  console.log(
+    formatCommandSnippet(
+      "dotnet publish src/Endatix.WebHost -c Release -o ./publish",
+    ),
+  );
   console.log(`  3. Compress the published API:`);
-  console.log(formatCommandSnippet("cd publish && zip -r ../endatix-api.zip . && cd .."));
+  console.log(
+    formatCommandSnippet("cd publish && zip -r ../endatix-api.zip . && cd .."),
+  );
   console.log(`  4. Deploy the zip to Azure App Service:`);
   console.log(formatCommandSnippet(deployApiCommand));
 
-  console.log(`\n${infoText("✨ All Done! Check out your Hub at:")} ${outputs.hubBaseUrl}\n`);
+  console.log(
+    `\n${infoText("✨ All Done! Check out your Hub at:")} ${outputs.hubBaseUrl}\n`,
+  );
 
   rl.close();
 }
@@ -298,7 +346,9 @@ async function main() {
   await interactiveWizard();
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   if (error instanceof UserFacingError) {
     console.error(`\n${errorText("[ERROR]")} ${error.message}`);
   } else {
@@ -306,4 +356,4 @@ main().catch((error) => {
     console.error(`${errorText("[ERROR]")} ${error}`);
   }
   process.exit(1);
-});
+}

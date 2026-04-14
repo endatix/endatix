@@ -67,6 +67,7 @@ resource static_site 'Microsoft.Web/staticSites@2025-03-01' = {
   identity: {
     type: 'SystemAssigned'
   }
+  tags: staticSiteTags
   properties: {
     allowConfigFileUpdates: true
     repositoryUrl: empty(repositoryUrl) ? null : repositoryUrl
@@ -77,7 +78,6 @@ resource static_site 'Microsoft.Web/staticSites@2025-03-01' = {
     enterpriseGradeCdnStatus: 'Disabled'
     stagingEnvironmentPolicy: 'Enabled'
   }
-  tags: staticSiteTags
 }
 
 resource static_site_appsettings 'Microsoft.Web/staticSites/config@2025-03-01' = {

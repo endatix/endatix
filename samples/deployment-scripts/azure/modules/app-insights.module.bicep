@@ -34,8 +34,8 @@ resource app_insights_workspace 'Microsoft.OperationalInsights/workspaces@2025-0
 resource app_insights 'microsoft.insights/components@2020-02-02' = {
   name: appInsightsName
   location: location
-  tags: tags
   kind: 'web'
+  tags: tags
   properties: {
     Application_Type: 'web'
     Flow_Type: 'Redfield'
@@ -53,22 +53,12 @@ resource app_insights 'microsoft.insights/components@2020-02-02' = {
 resource app_insights_smart_detection 'Microsoft.Insights/actionGroups@2023-01-01' = if (enableFailureAnomalyAlerts) {
   name: '${appInsightsName}-smart-detection'
   location: 'Global'
+  dependsOn: [app_insights]
   tags: tags
   properties: {
     groupShortName: 'SmartDetect'
     enabled: true
-    emailReceivers: []
-    smsReceivers: []
-    webhookReceivers: []
-    eventHubReceivers: []
-    itsmReceivers: []
-    azureAppPushReceivers: []
-    automationRunbookReceivers: []
-    voiceReceivers: []
-    logicAppReceivers: []
-    azureFunctionReceivers: []
   }
-  dependsOn: [app_insights]
 }
 
 resource app_insights_smart_alerts_rule 'microsoft.alertsManagement/smartDetectorAlertRules@2021-04-01' = if (enableFailureAnomalyAlerts) {

@@ -11,7 +11,7 @@ param tags object
 
 @secure()
 @description('PostgreSQL administrator username')
-param postgres_admin_username string
+param postgresAdminUsername string
 
 @secure()
 @description('PostgreSQL administrator password')
@@ -84,7 +84,7 @@ resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2026-01-01-previe
       tenantId: tenant().tenantId
     }
     version: postgresVersion
-    administratorLogin: postgres_admin_username
+    administratorLogin: postgresAdminUsername
     administratorLoginPassword: postgresAdminPassword
     backup: {
       backupRetentionDays: backupRetentionDays
@@ -165,4 +165,4 @@ output databaseName string = databaseName
 output postgresqlPort int = 5432
 
 @secure()
-output postgresqlConnectionString string = 'Server=${postgresql.properties.fullyQualifiedDomainName};Port=5432;Database=${databaseName};User Id=${postgres_admin_username};Password=${postgresAdminPassword};SSL Mode=Require;'
+output postgresqlConnectionString string = 'Server=${postgresql.properties.fullyQualifiedDomainName};Port=5432;Database=${databaseName};User Id=${postgresAdminUsername};Password=${postgresAdminPassword};SSL Mode=Require;'

@@ -15,7 +15,7 @@ param hubRepositoryUrl = ''
 param apiRepositoryUrl = ''
 param apiDeploymentBranch = ''
 
-param postgres_admin_username = 'endatixadmin'
+param postgresAdminUsername = 'endatixadmin'
 param postgresAdminPassword = 'CHANGE_ME_STRONG_PASSWORD'
 
 param initialUserEmail = 'admin@endatix.com'

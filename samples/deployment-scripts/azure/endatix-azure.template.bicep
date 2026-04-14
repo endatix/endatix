@@ -30,7 +30,7 @@ param tags object = {
 
 @secure()
 @description('PostgreSQL administrator username')
-param postgres_admin_username string
+param postgresAdminUsername string
 
 @secure()
 @description('PostgreSQL administrator password')
@@ -143,6 +143,32 @@ var apiSerilogApplicationInsightsSettings = {
   Serilog__Using__0: 'Serilog.Sinks.ApplicationInsights'
   Serilog__WriteTo__0__Name: 'ApplicationInsights'
   Serilog__WriteTo__0__Args__telemetryConverter: 'Serilog.Sinks.ApplicationInsights.TelemetryConverters.TraceTelemetryConverter, Serilog.Sinks.ApplicationInsights'
+}
+
+/* ********* Finalize Existing Resources ********** */
+
+// Endatix API - Finalize app settings with resolved Hub hostname
+// NOTE: This finalizer pattern is required because Azure App Service and Static Web Apps use undeterministic 
+// auto-generated hostnames. We must deploy the resources first to generate their URLs, then patch the settings.
+resource endatixApiFinalize 'Microsoft.Web/sites/config@2025-03-01' = {
+  name: '${endatixApiName}/appsettings'
+  properties: union(
+    apiAppSettings,
+    apiSerilogApplicationInsightsSettings,
+    {
+      APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.outputs.appInsightsInstrumentationKey
+      APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.outputs.appInsightsConnectionString
+      ASPNETCORE_ENVIRONMENT: 'Production'
+      Endatix__Hub__HubBaseUrl: resolvedHubBaseUrl
+      Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
+      Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
+      Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
+      Endatix__Data__SeedSampleData: true
+      Endatix__Data__SeedSampleForms: true
+      Endatix__Data__InitialUser__Email: initialUserEmail
+      Endatix__Data__InitialUser__Password: initialUserPassword
+    }
+  )
 }
 
 // App Insights
@@ -289,30 +315,6 @@ module endatixApi './modules/web-app.module.bicep' = {
   }
 }
 
-// Endatix API - Finalize app settings with resolved Hub hostname
-// NOTE: This finalizer pattern is required because Azure App Service and Static Web Apps use undeterministic 
-// auto-generated hostnames. We must deploy the resources first to generate their URLs, then patch the settings.
-resource endatixApiFinalize 'Microsoft.Web/sites/config@2025-03-01' = {
-  name: '${endatixApiName}/appsettings'
-  properties: union(
-    apiAppSettings,
-    apiSerilogApplicationInsightsSettings,
-    {
-      APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.outputs.appInsightsInstrumentationKey
-      APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.outputs.appInsightsConnectionString
-      ASPNETCORE_ENVIRONMENT: 'Production'
-      Endatix__Hub__HubBaseUrl: resolvedHubBaseUrl
-      Endatix__Storage__Providers__AzureBlob__HostName: storageHostName
-      Endatix__Auth__Providers__EndatixJwt__SigningKey: endatixJwtSigningKey
-      Endatix__Submissions__AccessTokenSigningKey: submissionsAccessTokenSigningKey
-      Endatix__Data__SeedSampleData: true
-      Endatix__Data__SeedSampleForms: true
-      Endatix__Data__InitialUser__Email: initialUserEmail
-      Endatix__Data__InitialUser__Password: initialUserPassword
-    }
-  )
-}
-
 // Storage blob containers and CORS with resolved Hub + API origins
 module endatixStorageServices './modules/storage-blob-services.module.bicep' = {
   name: 'endatixStorageServices'
@@ -330,7 +332,7 @@ module postgresqlModule './modules/postgres.module.bicep' = {
     location: location
     resource_prefix: resource_prefix
     tags: tags
-    postgres_admin_username: postgres_admin_username
+    postgresAdminUsername: postgresAdminUsername
     postgresAdminPassword: postgresAdminPassword
     postgresVersion: postgresqlVersion
     databaseName: postgresqlDatabaseName
