@@ -114,7 +114,7 @@ var endatixAppInsightsName = '${resourcePrefix}endatix-appinsights'
 var endatixHubName = '${resourcePrefix}endatix-hub'
 var endatixApiName = '${resourcePrefix}endatix-api'
 var endatixServicePlanName = '${resourcePrefix}endatix-serviceplan'
-var endatixStorageAccountName = '${replace(resourcePrefix, '-', '')}endatixstorage'
+var endatixStorageAccountName = '${replace(resourcePrefix, '-', '')}endatixfiles' // Storage account names must be globally unique and can only contain lowercase letters and numbers, max length 24
 var endatixVnetName = '${resourcePrefix}endatix-vnet'
 var deployManagedVnet = enablePostgresqlPrivateNetwork && vnetResourceId == ''
 var storageHostName = '${endatixStorageAccountName}.blob.${az.environment().suffixes.storage}'
