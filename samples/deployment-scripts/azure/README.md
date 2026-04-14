@@ -1,162 +1,101 @@
 # Endatix Azure Deployment (Quickstart)
 
-Use this guide to get Endatix running quickly on Azure with Bicep.
+Use this guide to get Endatix running quickly on Azure so you can see it in action. This script provisions the required Azure resources and configures Endatix environment variables and secrets for the Azure App Services hosting model (non-containerized). If you want the containerized deployment model instead, use the [Install Endatix via Docker guide](https://docs.endatix.com/docs/getting-started/quick-start/#install-via-docker-container).
 
-`parameters.bicepparam` is the primary source of truth for runtime configuration.  
-Runtime URLs and hostnames are derived automatically from deployment resource names/default hostnames.
+> [!Note]
+> `parameters.bicepparam` is a bicep parameters template used to generate your bespoke Azure runtime configuration. You don't need to modify this file unless you want to change the base biceparam structure. As a typical flow, the CLI tool will generate your customized `parameters.production.bicepparam`, which you can use to provision, deploy and configure your ready-to-test Endatix solution
 
 ## Prerequisites
 
-- Azure CLI (`az`)
-- SWA CLI (`swa`) for Static Web App deployments
-- .NET 10 SDK
-- Node.js 22 + pnpm 10
+To follow this guide, you will need the ensure the following are intalled
+
+- **Azure CLI (`az`)** - the Azure Command-Line Interface to get you connected to Azure and provision the needed resources [[documentation link](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest)]
+- **SWA CLI (`swa`)** - Static Web Apps (SWA) CLI to execute your deployment for Azure Static Sites. [[documentation link](https://azure.github.io/static-web-apps-cli/docs/use/install)]
+
+...and from the Endatix System requirements:
+
+- **.NET 10 SDK** to build and publish the Endatix API
+- **Node.js 22 + pnpm 10** - to build your Endatix Hub application
 
 ### Directory Structure
-To ensure the deployment scripts correctly resolve paths for the Hub and API source code, clone the repositories into a shared root folder:
+
+Before you start, ensure the following directory structure, so that the scripts are able to correctly resolve paths for the Endatix Hub and Endatix API source codes. 
+
+```bash
+endatix/
+├── endatix-api/      # cloned from github.com:endatix/endatix.git
+├── endatix-hub/      # cloned from github.com:endatix/endatix-hub.git
+```
+
+To do so, execute the commands below
+
 ```bash
 mkdir endatix && cd endatix
 git clone git@github.com:endatix/endatix.git endatix-api
 git clone git@github.com:endatix/endatix-hub.git
 ```
 
-## Quickstart (Interactive CLI)
+## Using the Quickstart Interactice CLI
 
-We have provided an interactive script that streamlines the deployment process.
+We have provided an interactive script that streamlines the deployment process. It will guide you. To use it:
 
-1. Navigate to the Azure deployment scripts folder:
+1. Open your terminal and cd into the Azure deployment scripts folder (same folder as this README):
+
 ```bash
-cd endatix-api/oss/samples/deployment-scripts/azure
+cd endatix-api/samples/deployment-scripts/azure
 ```
 
-2. Run the interactive Quickstart Wizard:
+1. Run the interactive Quickstart Wizard and follow the instructions:
+
 ```bash
 node ./generate-quickstart-secrets.mjs
 ```
 
-The script will guide you step-by-step:
+The CLI won't provision any Azure resource, but instead will guide you step-by-step:
+
 1. It will assist you in selecting or creating an Azure Resource Group.
-2. It natively generates secure secrets into a local override file (`parameters.production.bicepparam`).
+2. It natively generates secure configs, passwords and secrets into a local file (`parameters.production.bicepparam`).
 3. It will provide the exact `az deployment group create` command to provision your Azure resources.
 4. While the script runs, it waits for you to complete the deployment in another terminal window.
 5. Once complete, it reads the Azure outputs to automatically map runtime URLs and automatically creates `.env.production` in your `endatix-hub` directory.
 6. Finally, the script will output the exact commands you need to correctly build and deploy both the Hub and the API from your `endatix` root directory.
+7. The entire process should take 5-10 minutes
 
-*Note: If you need to re-run the script after files have been generated, it will automatically prompt whether you want to overwrite or run in read-only mode, or you can add `--read-only` or `--force` flags directly.*
+## What gets provisioned (high level)
 
-## Configuration Ownership (Important)
+The Bicep template deploys into **your** resource group. It's meant to be simple, affordable, evaluation-ready setup, but it can be easily tunned to be production ready. By default you will get:
 
+- **Application Insights** (and linked Log Analytics workspace where applicable)
+- **Storage account** plus **containers** and **blob** configuration. BLOBs can be public or private depending on `storageIsPrivate`
+- **PostgreSQL Flexible Server** (database for the API)
+- **Endatix API** — **App Service (Linux Web App)** on a shared **App Service plan**
+- **Endatix Hub** — either **Azure Static Web Apps** or a second **App Service Web App**, depending on `hubDeploymentMode`
+- **VNet** [Optional] when `enablePostgresqlPrivateNetwork` is set to true, the template will secure the PostgreSQL with **managed VNet** (or integration with your VNet) for closer to production-ready recommended network level security.
 
-| Bucket                        | Source of truth                         | Where to set                                                                            |
-| ----------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
-| Runtime infrastructure values | Bicep                                   | `parameters.bicepparam` (`hubEnvironmentVariables`, `hubAppSettings`, `apiAppSettings`, and VNet keys below when using private PostgreSQL) |
-| Runtime secrets               | Local override + Azure runtime settings | `parameters.production.bicepparam` (generated), then app settings                            |
-| Build-time Hub values         | Local env file only                     | `endatix-hub/.env.production` before `pnpm build:standalone` (`NEXT_PUBLIC_*` and UI build flags only) |
+For exact resource types, naming, and conditional branches, see `[endatix-azure.template.bicep](./endatix-azure.template.bicep)` and the modules it references under `[modules/](./modules/)`.
 
+## Key parameters (quick reference)
 
-### Auto-Mapped Runtime Values (No Guessing)
-
-The template computes hostnames from resource names/default hostnames and injects these automatically:
-
-
-| Target key                                         | Auto source                                 |
-| -------------------------------------------------- | ------------------------------------------- |
-| `AUTH_URL`                                         | Hub default hostname (`https://<hub-host>`) |
-| `ENDATIX_BASE_URL`                                 | API default hostname (`https://<api-host>`) |
-| `NEXT_PUBLIC_API_URL`                              | `https://<api-host>/api`                    |
-| `ROBOTS_ALLOWED_DOMAINS`                           | Hub default hostname (host only)            |
-| `AZURE_STORAGE_ACCOUNT_NAME`                       | Storage account name from template          |
-| `Endatix__Hub__HubBaseUrl`                         | Hub default hostname URL                    |
-| `Endatix__Storage__Providers__AzureBlob__HostName` | `<storageAccount>.blob.<suffix>`            |
+Edit values in `[parameters.bicepparam](./parameters.bicepparam)` (or the generated `parameters.production.bicepparam` from the wizard). Parameter names and defaults are defined in the template; see `[endatix-azure.template.bicep](./endatix-azure.template.bicep)` for full descriptions and constraints.
 
 
-### Generated Secrets and First Admin
+| What you want                               | Parameter(s) to change                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hub on Static Web Apps vs App Service**   | `hubDeploymentMode`: `'static-site'` (default, fastest for evaluation) or `'web-app'`                                                                                                                                                                                                                                   |
+| **Private PostgreSQL + networking**         | `enablePostgresqlPrivateNetwork` — set `true` for private access. **Managed VNet:** leave `vnetResourceId` empty; template creates `{resourcePrefix}endatix-vnet`. **Your VNet:** set `vnetResourceId`, `postgresSubnetName`, and either `apiVirtualNetworkSubnetId` (full subnet ARM ID) or `apiIntegrationSubnetName` |
+| **Private storage (no public blob access)** | `storageIsPrivate` — set `true`                                                                                                                                                                                                                                                                                         |
+| **PostgreSQL high availability**            | `enablePostgresqlHA` — set `true`                                                                                                                                                                                                                                                                                       |
+| **Failure anomaly alerts**                  | `enableFailureAnomalyAlerts` — set `true` (requires provider registration; see template description)                                                                                                                                                                                                                    |
+| **Naming / tags**                           | `resourcePrefix`, `project`, `environment`                                                                                                                                                                                                                                                                              |
+| **Git deploy from GitHub (optional)**       | `hubRepositoryUrl`, `apiRepositoryUrl`, `branch`, `apiDeploymentBranch`                                                                                                                                                                                                                                                 |
 
-The script generates and writes these to `parameters.production.bicepparam`:
-
-
-| Key                                | Generated value                        |
-| ---------------------------------- | -------------------------------------- |
-| `hubSessionSecret`                 | signing secret                         |
-| `hubAuthSecret`                    | signing secret                         |
-| `nextServerActionsEncryptionKey`   | signing secret                         |
-| `endatixJwtSigningKey`             | signing secret                         |
-| `submissionsAccessTokenSigningKey` | signing secret                         |
-| `initialUserEmail`                 | default `admin@endatix.com` (editable) |
-| `initialUserPassword`              | generated random password              |
-
-
-These map at runtime to:
-
-- Hub: `SESSION_SECRET`, `AUTH_SECRET`, `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, `HUB_ADMIN_USERNAME`
-- API: `Endatix__Auth__Providers__EndatixJwt__SigningKey`, `Endatix__Submissions__AccessTokenSigningKey`, `Endatix__Data__InitialUser__Email`, `Endatix__Data__InitialUser__Password`
-
-Notes:
-
-- Connection strings are template-managed (`DefaultConnection`, `StorageConnection`).
-- Keep `hubRepositoryUrl` and `apiRepositoryUrl` empty for manual/local deployment.
-- `endatix-hub/.env.production` is intentionally minimal; runtime values like `AUTH_URL`, `ENDATIX_BASE_URL`, secrets, and admin identity come from Azure app settings provisioned by Bicep.
-- `project` controls service naming (`{resourcePrefix}{project}-*`). Storage naming is special: default `project='endatix'` adds an 8-char unique suffix for global uniqueness; custom project names are normalized and used directly in storage-safe form.
-
-## Private PostgreSQL (VNet integration)
-
-Defaults in `parameters.bicepparam` are correct for the public quickstart: `enablePostgresqlPrivateNetwork = false` and all VNet-related strings empty. Turn private networking on only when you want PostgreSQL off the public internet.
-
-Set `enablePostgresqlPrivateNetwork` to `true` when you need private access.
-
-- **Managed VNet:** leave `vnetResourceId` empty (and leave `postgresSubnetName`, `apiIntegrationSubnetName`, and `apiVirtualNetworkSubnetId` empty). The VNet name is `{resourcePrefix}endatix-vnet` (for example `test-endatix-vnet` with the sample prefix). Subnets: `snet-app` (API / `Microsoft.Web/serverFarms`), `snet-db` (PostgreSQL / `Microsoft.DBforPostgreSQL/flexibleServers`), `snet-pe` (reserved). The API Web App uses regional VNet integration and routed outbound traffic to reach the database.
-- **Your own VNet:** set `vnetResourceId` to the VNet resource ID, `postgresSubnetName` to the PostgreSQL delegated subnet name, and either `apiVirtualNetworkSubnetId` (full ARM subnet ID; use when the subnet is in another resource group) or `apiIntegrationSubnetName` (subnet name in that VNet, delegated to `Microsoft.Web/serverFarms`).
-
-To reach the VNet from your laptop (for example to connect to private PostgreSQL), provision a **point-to-site VPN** on an Azure **Virtual network gateway**
-
-## Alternative: Hub on Web App
-
-If you choose `hubDeploymentMode: "web-app"`:
-
-```bash
-pnpm build:standalone
-( cd .next/standalone && zip -r ../hub-standalone.zip . )
-
-az webapp config set \
-  --resource-group RESOURCE_GROUP_NAME \
-  --name HUB_APP_NAME \
-  --startup-file "node server.js"
-
-az webapp deploy \
-  --resource-group RESOURCE_GROUP_NAME \
-  --name HUB_APP_NAME \
-  --src-path hub-standalone.zip \
-  --type zip
-```
-
-## Developer Loop
-
-1. Update `parameters.bicepparam`, regenerate `parameters.production.bicepparam`, and review `endatix-hub/.env.production`
-2. Rebuild API and Hub
-3. Redeploy API and Hub
-4. Verify:
-  - `az webapp log tail --resource-group RESOURCE_GROUP_NAME --name API_APP_NAME`
-  - `az staticwebapp environment list --name HUB_APP_NAME --resource-group RESOURCE_GROUP_NAME -o table`
-
-## Quick Troubleshooting
-
-- SWA warmup timeout: deploy from `.next/standalone` (or add `--output-location .next/standalone`) and use `--api-language node --api-version 22`
-- Hub can open but API fails: check `NEXT_PUBLIC_API_URL` and API CORS
-- API starts but auth fails: verify generated secrets were applied and redeploy API
 
 ## Optional: Generate ARM JSON From Bicep
 
 If you need the compiled ARM template for troubleshooting or other tooling:
 
 ```bash
-cd oss/samples/deployment-scripts/azure
+cd endatix-api/samples/deployment-scripts/azure
 az bicep build --file endatix-azure.template.bicep
 ```
 
-## Optional: OSS Root package.json Criteria
-
-Do not add `oss/package.json` yet. Add it only when at least one of these becomes true:
-
-- Multiple OSS-wide scripts need stable aliases (for example `pnpm quickstart:azure`).
-- Shared script dependencies are required across two or more OSS areas.
-- Script test/lint automation is needed at OSS root.

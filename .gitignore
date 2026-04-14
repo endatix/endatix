@@ -59,7 +59,3 @@ Thumbs.db
 # Test coverage reports
 .coverage/
 .secrets
-
-# Azure quickstart local overrides
-samples/deployment-scripts/azure/parameters.production.bicepparam
-samples/deployment-scripts/azure/deployment-outputs.json

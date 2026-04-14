@@ -38,7 +38,7 @@ param apiAppSettings = {
 param apiConnectionStrings = {}
 param enablePostgresqlHA = false
 
-// --- PostgreSQL + VNet (see README "Private PostgreSQL") ---
+// --- PostgreSQL + VNet (see README "What gets provisioned" / "Key parameters") ---
 // Quickstart default: private network off — leave all of the following empty / false.
 // Managed VNet: set enablePostgresqlPrivateNetwork = true; keep vnetResourceId empty
 //   (template creates {resourcePrefix}endatix-vnet with snet-app, snet-db, snet-pe).
