@@ -193,11 +193,37 @@ async function resolveResourceGroupInfo(environmentName, projectName) {
   };
 }
 
-async function ensureLocalParameters(
-  baseBicepParameters,
-  skipSecretGen,
-  shouldPromptForProjectOverride,
-) {
+async function resolveProjectForCurrentRun(baseBicepParameters, skipSecretGen) {
+  const configuredProject =
+    readStringParamFromBicepParam(baseBicepParameters, "project") ?? "endatix";
+  const defaultProject = normalizeProjectName(configuredProject);
+
+  if (skipSecretGen) {
+    return { effectiveProject: defaultProject, projectOverride: null };
+  }
+
+  const overrideProject = await question(
+    `Override project name for this run? (y/N): `,
+  );
+
+  if (!overrideProject.trim().toLowerCase().startsWith("y")) {
+    return { effectiveProject: defaultProject, projectOverride: null };
+  }
+
+  const enteredProject = await question(
+    `❯ Enter project name [default: ${defaultProject}]: `,
+  );
+  const normalizedProject = normalizeProjectName(
+    enteredProject.trim() || defaultProject,
+  );
+  console.log(`Using normalized project: ${normalizedProject}`);
+  return {
+    effectiveProject: normalizedProject,
+    projectOverride: normalizedProject,
+  };
+}
+
+async function ensureLocalParameters(baseBicepParameters, skipSecretGen, projectOverride) {
   if (skipSecretGen) {
     console.log(
       `\n\u2705 Reusing values from: ${path.basename(localParametersPath)}`,
@@ -223,23 +249,8 @@ async function ensureLocalParameters(
     ["nextServerActionsEncryptionKey", nextServerActionsEncryptionKey],
   ];
 
-  if (shouldPromptForProjectOverride) {
-    const configuredProject =
-      readStringParamFromBicepParam(baseBicepParameters, "project") ?? "endatix";
-    const overrideProject = await question(
-      `Override project name for this parameters file? (y/N): `,
-    );
-
-    if (overrideProject.trim().toLowerCase().startsWith("y")) {
-      const enteredProject = await question(
-        `❯ Enter project name [default: ${configuredProject}]: `,
-      );
-      const projectName = normalizeProjectName(
-        enteredProject.trim() || configuredProject,
-      );
-      generatedReplacements.push(["project", projectName]);
-      console.log(`Using normalized project: ${projectName}`);
-    }
+  if (projectOverride) {
+    generatedReplacements.push(["project", projectOverride]);
   }
 
   const localParametersBicep = applyStringParamReplacements(
@@ -259,13 +270,17 @@ async function interactiveWizard() {
     "This wizard will help you configure your deployment and generate commands.\n",
   );
 
-  const { skipSecretGen, isForce } = await resolveSecretGenerationMode();
+  const { skipSecretGen } = await resolveSecretGenerationMode();
   const { baseBicepParameters, environmentName, projectName } =
     await loadDeploymentConfig();
+  const { effectiveProject, projectOverride } = await resolveProjectForCurrentRun(
+    baseBicepParameters,
+    skipSecretGen,
+  );
   const { resourceGroupName, createRgCmd } =
-    await resolveResourceGroupInfo(environmentName, projectName);
+    await resolveResourceGroupInfo(environmentName, effectiveProject || projectName);
 
-  await ensureLocalParameters(baseBicepParameters, skipSecretGen, isForce);
+  await ensureLocalParameters(baseBicepParameters, skipSecretGen, projectOverride);
 
   console.log(`\n${infoText("=== Step 1: Provision Infrastructure ===")}`);
 
