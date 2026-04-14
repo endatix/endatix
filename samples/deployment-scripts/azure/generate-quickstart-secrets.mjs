@@ -194,29 +194,30 @@ async function resolveResourceGroupInfo(environmentName, projectName) {
 }
 
 async function resolveProjectForCurrentRun(baseBicepParameters, skipSecretGen) {
-  const configuredProject =
-    readStringParamFromBicepParam(baseBicepParameters, "project") ?? "endatix";
-  const defaultProject = normalizeProjectName(configuredProject);
-
-  if (skipSecretGen) {
-    return { effectiveProject: defaultProject, projectOverride: null };
-  }
-
-  const overrideProject = await question(
-    `Override project name for this run? (y/N): `,
+  const configuredProject = normalizeProjectName(
+    readStringParamFromBicepParam(baseBicepParameters, "project") ?? "endatix",
   );
 
-  if (!overrideProject.trim().toLowerCase().startsWith("y")) {
-    return { effectiveProject: defaultProject, projectOverride: null };
+  if (skipSecretGen) {
+    return { effectiveProject: configuredProject, projectOverride: null };
+  }
+
+  let currentProject = configuredProject;
+  if (await fileExists(localParametersPath)) {
+    const localParameters = await readFile(localParametersPath, "utf8");
+    currentProject = normalizeProjectName(
+      readStringParamFromBicepParam(localParameters, "project") ??
+        configuredProject,
+    );
   }
 
   const enteredProject = await question(
-    `❯ Enter project name [default: ${defaultProject}]: `,
+    `❯ Enter project name [default: ${currentProject}]: `,
   );
   const normalizedProject = normalizeProjectName(
-    enteredProject.trim() || defaultProject,
+    enteredProject.trim() || currentProject,
   );
-  console.log(`Using normalized project: ${normalizedProject}`);
+  console.log(`Using project: ${normalizedProject}`);
   return {
     effectiveProject: normalizedProject,
     projectOverride: normalizedProject,

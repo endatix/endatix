@@ -175,6 +175,9 @@ var apiSerilogApplicationInsightsSettings = {
 // auto-generated hostnames. We must deploy the resources first to generate their URLs, then patch the settings.
 resource endatixApiFinalize 'Microsoft.Web/sites/config@2025-03-01' = {
   name: '${endatixApiName}/appsettings'
+  dependsOn: [
+    endatixApi
+  ]
   properties: union(
     apiAppSettings,
     apiSerilogApplicationInsightsSettings,
