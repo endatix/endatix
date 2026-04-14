@@ -1,0 +1,69 @@
+---
+title: "Logic Expressions"
+sidebar_label: "Logic Expressions"
+description: "Learn how to use Endatix logic functions within form and survey conditions that control visibility, dynamic default values, validation and more."
+---
+
+# Logic Expressions
+
+When designing forms and surveys with a large number of questions, you may often need to show or hide an element based on whether *any* question within a specific group has been answered. 
+
+Normally, this requires writing a long, complex condition in the **Logic** tab using multiple `notempty` checks:
+```text
+{brands_shoes_nike} notempty or {brands_shoes_adidas} notempty or {brands_shirts_puma} notempty
+```
+
+To simplify your form logic and improve performance on mobile devices, Endatix Hub provides two custom built-in functions: `anyAnswered` and `anyAnsweredByPrefix`.
+
+![Screenshot of the SurveyJS Creator Logic tab showing the anyAnswered function being used in a Visible If rule]
+
+---
+
+## `anyAnswered`
+
+The `anyAnswered` function checks a specific, explicit list of questions and returns `true` if at least one of them has a value (is not empty).
+
+### Syntax
+```javascript
+anyAnswered({question_1}, {question_2}, {question_3})
+```
+
+### JSON Example
+If you want to show a comment box only if the user has answered at least one of three specific questions, you can set the `visibleIf` property to:
+```json
+{
+  "type": "comment",
+  "name": "followUpQuestion",
+  "title": "Please provide more details:",
+  "visibleIf": "anyAnswered({brands_shoes_nike}, {brands_shoes_adidas}, {brands_shirts_puma})"
+}
+```
+
+---
+
+## `anyAnsweredByPrefix`
+
+The `anyAnsweredByPrefix` function checks all questions in your form that start with a specific text prefix. It returns `true` if at least one matching question has been answered. This is highly recommended for large assessments or sectioned forms where questions share a common naming convention.
+
+### Syntax
+```javascript
+anyAnsweredByPrefix('your_prefix_here')
+```
+
+:::info Use Single Quotes Instead of Curly Braces
+Unlike expressions that require specific question names, `anyAnsweredByPrefix` requires you to pass the prefix as a string enclosed in single quotes `''`. 
+:::
+
+### JSON Example
+If you have 50 questions that all start with the prefix `brands_sports_shoes_`, you can check if any of them are answered using a single, short statement:
+```json
+{
+  "type": "comment",
+  "name": "sectionFeedback",
+  "title": "Section Feedback",
+  "visibleIf": "anyAnsweredByPrefix('brands_sports_shoes_')"
+}
+```
+
+### Limitations with Dynamic Matrices
+If you use `anyAnsweredByPrefix` inside a **Dynamic Matrix** (`matrixdynamic`) or **Dynamic Panel** (`paneldynamic`), it will check the questions across the entire grid globally, rather than restricting its check to the specific row the user is currently interacting with. For row-specific logic, use the standard `anyAnswered({row.question_name})` syntax instead.
