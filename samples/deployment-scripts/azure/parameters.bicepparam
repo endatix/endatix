@@ -7,7 +7,7 @@ using './endatix-azure.template.bicep'
 // The build-env step reads this file:
 // node ./generate-quickstart-secrets.mjs build-env --outputs-file ./deployment-outputs.json
 
-param resource_prefix = 'test-'
+param resourcePrefix = 'test-'
 param environment = 'sandbox'
 param hubDeploymentMode = 'static-site'
 param branch = 'main'
@@ -42,7 +42,7 @@ param enablePostgresqlHA = false
 // --- PostgreSQL + VNet (see README "Private PostgreSQL") ---
 // Quickstart default: private network off — leave all of the following empty / false.
 // Managed VNet: set enablePostgresqlPrivateNetwork = true; keep vnetResourceId empty
-//   (template creates {resource_prefix}endatix-vnet with snet-app, snet-db, snet-pe).
+//   (template creates {resourcePrefix}endatix-vnet with snet-app, snet-db, snet-pe).
 // BYO VNet: enablePostgresqlPrivateNetwork = true; set vnetResourceId + postgresSubnetName;
 //   set apiVirtualNetworkSubnetId OR apiIntegrationSubnetName for the API Web App subnet.
 param enablePostgresqlPrivateNetwork = false

@@ -3,7 +3,7 @@
 @minLength(1)
 @maxLength(10)
 @description('Prefix for all resource names (e.g., "prod-", "dev-", "uat-")')
-param resource_prefix string = 'temp-'
+param resourcePrefix string = 'temp-'
 
 @description('Azure region for deploying resources')
 param location string = resourceGroup().location
@@ -113,12 +113,12 @@ param enableFailureAnomalyAlerts bool = false
 param hubDeploymentMode string = 'static-site'
 
 // Resource naming variables
-var endatixAppInsightsName = '${resource_prefix}endatix-appinsights'
-var endatixHubName = '${resource_prefix}endatix-hub'
-var endatixApiName = '${resource_prefix}endatix-api'
-var endatixServicePlanName = '${resource_prefix}endatix-serviceplan'
-var endatixStorageAccountName = '${replace(resource_prefix, '-', '')}endatixstorage'
-var endatixVnetName = '${resource_prefix}endatix-vnet'
+var endatixAppInsightsName = '${resourcePrefix}endatix-appinsights'
+var endatixHubName = '${resourcePrefix}endatix-hub'
+var endatixApiName = '${resourcePrefix}endatix-api'
+var endatixServicePlanName = '${resourcePrefix}endatix-serviceplan'
+var endatixStorageAccountName = '${replace(resourcePrefix, '-', '')}endatixstorage'
+var endatixVnetName = '${resourcePrefix}endatix-vnet'
 var deployManagedVnet = enablePostgresqlPrivateNetwork && vnetResourceId == ''
 // Predicted hub hostname is used only where a pre-module value is required
 // (for example, module params and pre-hub dependency settings).
@@ -177,7 +177,7 @@ module appInsights './modules/app-insights.module.bicep' = {
   params: {
     location: location
     tags: tags
-    workspaceName: '${resource_prefix}endatix-appinsights-ws'
+    workspaceName: '${resourcePrefix}endatix-appinsights-ws'
     appInsightsName: endatixAppInsightsName
     enableFailureAnomalyAlerts: enableFailureAnomalyAlerts
   }
@@ -206,7 +206,7 @@ module vnetModule './modules/vnet.module.bicep' = if (deployManagedVnet) {
 
 // Endatix Hub - Static Web App (default)
 module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMode == 'static-site') {
-  name: '${resource_prefix}endatix-hub'
+  name: '${resourcePrefix}endatix-hub'
   params: {
     location: location
     branch: branch
@@ -240,7 +240,7 @@ module endatixHubSWA './modules/static-site.module.bicep' = if (hubDeploymentMod
 
 // Endatix Hub - Web App (Node.js)
 module endatixHubWebApp './modules/web-app.module.bicep' = if (hubDeploymentMode == 'web-app') {
-  name: '${resource_prefix}endatix-hub'
+  name: '${resourcePrefix}endatix-hub'
   params: {
     location: location
     tags: tags
@@ -330,7 +330,7 @@ module postgresqlModule './modules/postgres.module.bicep' = {
   name: 'postgresqlModule'
   params: {
     location: location
-    resource_prefix: resource_prefix
+    resourcePrefix: resourcePrefix
     tags: tags
     postgresAdminUsername: postgresAdminUsername
     postgresAdminPassword: postgresAdminPassword

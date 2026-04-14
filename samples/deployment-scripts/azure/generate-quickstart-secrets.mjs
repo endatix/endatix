@@ -120,7 +120,7 @@ async function resolveSecretGenerationMode() {
 async function loadDeploymentConfig() {
   const baseBicepParameters = await readFile(bicepParametersPath, "utf8");
   const configuredPrefix =
-    readStringParamFromBicepParam(baseBicepParameters, "resource_prefix") ??
+    readStringParamFromBicepParam(baseBicepParameters, "resourcePrefix") ??
     "eval-";
   const environmentName =
     readStringParamFromBicepParam(baseBicepParameters, "environment") ?? "temp";

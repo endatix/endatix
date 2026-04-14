@@ -103,7 +103,7 @@ Defaults in `parameters.bicepparam` are correct for the public quickstart: `enab
 
 Set `enablePostgresqlPrivateNetwork` to `true` when you need private access.
 
-- **Managed VNet:** leave `vnetResourceId` empty (and leave `postgresSubnetName`, `apiIntegrationSubnetName`, and `apiVirtualNetworkSubnetId` empty). The VNet name is `{resource_prefix}endatix-vnet` (for example `test-endatix-vnet` with the sample prefix). Subnets: `snet-app` (API / `Microsoft.Web/serverFarms`), `snet-db` (PostgreSQL / `Microsoft.DBforPostgreSQL/flexibleServers`), `snet-pe` (reserved). The API Web App uses regional VNet integration and routed outbound traffic to reach the database.
+- **Managed VNet:** leave `vnetResourceId` empty (and leave `postgresSubnetName`, `apiIntegrationSubnetName`, and `apiVirtualNetworkSubnetId` empty). The VNet name is `{resourcePrefix}endatix-vnet` (for example `test-endatix-vnet` with the sample prefix). Subnets: `snet-app` (API / `Microsoft.Web/serverFarms`), `snet-db` (PostgreSQL / `Microsoft.DBforPostgreSQL/flexibleServers`), `snet-pe` (reserved). The API Web App uses regional VNet integration and routed outbound traffic to reach the database.
 - **Your own VNet:** set `vnetResourceId` to the VNet resource ID, `postgresSubnetName` to the PostgreSQL delegated subnet name, and either `apiVirtualNetworkSubnetId` (full ARM subnet ID; use when the subnet is in another resource group) or `apiIntegrationSubnetName` (subnet name in that VNet, delegated to `Microsoft.Web/serverFarms`).
 
 To reach the VNet from your laptop (for example to connect to private PostgreSQL), provision a **point-to-site VPN** on an Azure **Virtual network gateway**

@@ -7,8 +7,8 @@ import {
 } from '../lib/bicepparam-utils.mjs';
 
 test('readStringParamFromBicepParam returns the param value when present', () => {
-  const content = "param resource_prefix = 'eval-'\nparam environment = 'sandbox'\n";
-  const value = readStringParamFromBicepParam(content, 'resource_prefix');
+  const content = "param resourcePrefix = 'eval-'\nparam environment = 'sandbox'\n";
+  const value = readStringParamFromBicepParam(content, 'resourcePrefix');
   assert.equal(value, 'eval-');
 });
 
