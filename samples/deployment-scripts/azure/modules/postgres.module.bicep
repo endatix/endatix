@@ -15,7 +15,7 @@ param postgres_admin_username string
 
 @secure()
 @description('PostgreSQL administrator password')
-param postgres_admin_password string
+param postgresAdminPassword string
 
 @description('PostgreSQL version')
 param postgresVersion string = '16'
@@ -47,15 +47,15 @@ param postgresDelegatedSubnetResourceId string = ''
 // PostgreSQL Flexible Server
 resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2026-01-01-preview' = {
   name: '${resource_prefix}endatix-postgresql'
-  identity: {
-    type: 'SystemAssigned'
-  }
   location: location
-  tags: tags
   sku: {
     name: 'Standard_D2ds_v5'
     tier: 'GeneralPurpose'
   }
+  identity: {
+    type: 'SystemAssigned'
+  }
+  tags: tags
   properties: {
     dataEncryption: {
       type: 'SystemManaged'
@@ -85,7 +85,7 @@ resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2026-01-01-previe
     }
     version: postgresVersion
     administratorLogin: postgres_admin_username
-    administratorLoginPassword: postgres_admin_password
+    administratorLoginPassword: postgresAdminPassword
     backup: {
       backupRetentionDays: backupRetentionDays
       geoRedundantBackup: 'Disabled'
@@ -165,4 +165,4 @@ output databaseName string = databaseName
 output postgresqlPort int = 5432
 
 @secure()
-output postgresqlConnectionString string = 'Server=${postgresql.properties.fullyQualifiedDomainName};Port=5432;Database=${databaseName};User Id=${postgres_admin_username};Password=${postgres_admin_password};SSL Mode=Require;'
+output postgresqlConnectionString string = 'Server=${postgresql.properties.fullyQualifiedDomainName};Port=5432;Database=${databaseName};User Id=${postgres_admin_username};Password=${postgresAdminPassword};SSL Mode=Require;'

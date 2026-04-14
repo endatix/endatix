@@ -34,7 +34,7 @@ param postgres_admin_username string
 
 @secure()
 @description('PostgreSQL administrator password')
-param postgres_admin_password string
+param postgresAdminPassword string
 
 @description('Initial admin user email for first-time API setup')
 param initialUserEmail string = 'admin@endatix.com'
@@ -331,7 +331,7 @@ module postgresqlModule './modules/postgres.module.bicep' = {
     resource_prefix: resource_prefix
     tags: tags
     postgres_admin_username: postgres_admin_username
-    postgres_admin_password: postgres_admin_password
+    postgresAdminPassword: postgresAdminPassword
     postgresVersion: postgresqlVersion
     databaseName: postgresqlDatabaseName
     enableHighAvailability: enablePostgresqlHA

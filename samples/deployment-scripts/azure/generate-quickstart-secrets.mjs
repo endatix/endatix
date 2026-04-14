@@ -176,7 +176,7 @@ async function ensureLocalParameters(baseBicepParameters, skipSecretGen) {
   const initialUserPassword = randomSigningKey(24);
 
   const generatedReplacements = [
-    ["postgres_admin_password", postgresAdminPassword],
+    ["postgresAdminPassword", postgresAdminPassword],
     ["initialUserPassword", initialUserPassword],
     ["endatixJwtSigningKey", endatixJwtSigningKey],
     ["submissionsAccessTokenSigningKey", submissionsAccessTokenSigningKey],
