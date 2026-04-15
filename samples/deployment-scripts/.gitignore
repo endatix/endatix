@@ -1,0 +1,3 @@
+# Azure quickstart local overrides
+azure/parameters.production.bicepparam
+azure/deployment-outputs.json
