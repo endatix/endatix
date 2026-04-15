@@ -9,17 +9,29 @@ export function randomHex(bytes) {
 }
 
 export function randomSigningKey(length) {
+  if (!length || length <= 0) return "";
+
   const alphabet =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_!@#$%^&*+=";
   const alphabetLength = alphabet.length;
+
+  // Calculate the largest multiple of alphabetLength less than 256
+  // to avoid modulo bias.
   const maxValid = Math.floor(256 / alphabetLength) * alphabetLength;
-  const bytes = randomBytes(length * 2);
+  
   let key = "";
-  let pos = 0;
+
   while (key.length < length) {
-    const byte = bytes[pos++];
-    if (byte < maxValid) {
-      key += alphabet[byte % alphabetLength];
+    const bytes = randomBytes(Math.max(length, 32));
+
+    for (const byte of bytes) {
+      if (byte < maxValid) {
+        key += alphabet[byte % alphabetLength];
+      }
+
+      if (key.length === length) {
+        break;
+      }
     }
   }
   return key;
