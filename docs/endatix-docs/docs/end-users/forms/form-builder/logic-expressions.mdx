@@ -6,9 +6,29 @@ description: "Learn how to use Endatix logic functions within form and survey co
 
 # Logic Expressions
 
+## Overview
+
+Logic expressions are powerful evaluative statements used to create dynamic, highly interactive, and personalized forms. By evaluating conditions - such as a respondent's previous answers, user metadata, or calculated variables - expressions allow your survey to automatically adapt its behavior and UI in real time. They act as the decision-making engine behind your form, enabling you to conditionally control element visibility, enforce complex validation rules, calculate values dynamically, and trigger automated form actions, without the need to do any custom programming per form.
+
+Expressions can be used in the following areas of your Endatix forms:
+
+* **Conditional Visibility:** Dynamically show or hide questions, panels, or entire pages based on specific criteria (e.g., showing a follow-up question only if the user selects "Other").
+* **Dynamic Read-Only State:** Enable or disable form elements conditionally, preventing respondents from interacting with certain fields unless prerequisite conditions are met.
+* **Conditional Requirements:** Make a question mandatory only when a specific scenario occurs, rather than applying a blanket requirement.
+* **Real-Time Calculations:** Used heavily within the **Expression** question type or the form's **Calculated Values** to compute mathematical equations, string concatenations, or logical operations dynamically.
+* **Advanced Data Validation:** Used to enforce strict, custom validation rules that rely on the state of multiple fields (e.g., ensuring the sum of three percentage fields equals exactly 100).
+* **Choice Filtering:** Dynamically hide, show, or disable specific individual options within choice-based questions (like Dropdowns, Checkboxes, or Radiogroups) based on previous selections.
+* **Automated Form Triggers:** Expressions serve as the execution condition for automated background actions. When the expression evaluates to `true`, the form can automatically:
+    * **Set Values:** Assign a specific value to a target question.
+    * **Copy Values:** Copy an answer from one field to another (e.g., "Same as Billing Address").
+    * **Skip Logic:** Jump the respondent directly to a specific target question or page.
+    * **Complete Survey:** Instantly submit and finish the survey based on a qualifying or disqualifying response.
+    * **Run Custom Logic:** Execute another background expression or custom function.
+
+
 ## Logical & State Functions
 
-These functions help you evaluate conditions and check the current state of your form, its containers, or any of its questions.
+The following functions and operators help you evaluate conditions and check the current state of your form, its containers, or any of its questions. They can be used enforce the conditional visibility of individual questions, panels, or pages, and to control the flow of the form or survey. 
 
 ### `anyAnswered`
 
@@ -316,3 +336,15 @@ If you use `displayValue` inside a dynamic value expression (`setValueExpression
     </tr>
   </tbody>
 </table>
+
+## Advanced
+
+### Custom Expression Functions
+
+Endatix Hub supports custom expression functions, allowing you to programmatically extend the system for unique use cases.
+
+### Compatibility with SurveyJS
+
+Endatix Hub is powered by the SurveyJS form engine. While all standard SurveyJS expressions are supported, Endatix Hub includes exclusive functions - such as `anyAnswered` and `anyAnsweredByPrefix` - that may not be compatible with standalone SurveyJS implementations.
+
+Form more information refer to the official [SurveyJS Conditional Logic documentation](https://surveyjs.io/form-library/documentation/design-survey/conditional-logic?utm_source=endatix&utm_medium=referral).
