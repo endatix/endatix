@@ -1,18 +1,18 @@
 ---
-sidebar_position: 2
-title: Running with Docker
-description: Deploy and run Endatix Platform using Docker containers for development and testing environments
+sidebar_position: 1
+title: Self-Hosting using Docker
+description: The recommended self-hosted deployment guide using Docker containers for the Endatix Platform.
 ---
 
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
 
-# Running with Docker
+# Self-Hosting using Docker
 
-This guide will help you quickly set up and run Endatix using Docker containers for **development and testing purposes**. The setup script handles everything automatically - just run it and you're ready to go.
+This guide will help you quickly set up, configure, and run Endatix inside your infrastructure using Docker containers. The setup script downloads configurations from the `endatix` repository and handles everything automatically for a quick deployment.
 
 :::warning
-**Important:** This is a development setup not suitable for production use. It uses HTTP (not HTTPS), default passwords, and simplified configuration. For production deployments, please contact Endatix for guidance on secure, scalable setups.
+**Important:** The simple script runs a streamlined deployment focusing on functional quickstarts. It uses HTTP. For fully secured production setups, always configure HTTPS at your reverse proxy layer and provide strong environment passwords.
 :::
 
 ## What is Endatix?
@@ -189,4 +189,83 @@ For **production deployments**, contact Endatix for guidance on secure, scalable
 
 ---
 
+## Environment Configuration Reference
+
+When self-hosting Endatix manually or beyond the provided scripts, these are the key environment configurations.
+
+### Endatix API (.NET) Configuration
+Configuration is passed primarily via `appsettings.json` or Environment Overrides. When using Docker, you can pass these as environment variables.
+
+| Variable/Setting | Description | Default |
+|------------------|-------------|---------|
+| `ConnectionStrings__DefaultConnection` | SQL Server connection string | Required |
+| `Security__JwtSigningKey` | Secret used to sign API tokens | Required |
+| `Endatix__Hub__HubBaseUrl` | The public URL of the Hub Front-end | Optional |
+| `Endatix__Cors__CorsPolicies__0__AllowedOrigins` | Array of CORS URLs allowed | `["*"]` |
+| `Email__SendGridSettings__ApiKey` / `Email__MailgunSettings__ApiKey` | Keys for email delivery integrations | Optional |
+
+### Endatix Hub (Next.js) Configuration
+Configuration is passed via `.env` or system environment variables.
+
+| Variable | Description |
+|----------|-------------|
+| `ENDATIX_BASE_URL` | The public or internal URL where the API is hosted (e.g., `http://endatix-api:5001`) |
+| `SESSION_SECRET` | Secret key to encrypt session cookies (e.g., generate with `openssl rand -hex 32`) |
+| `AUTH_SECRET` | Secret key used by Auth.js to encrypt/decrypt sessions |
+| `AUTH_URL` | Canonical URL of the frontend (helpful behind proxies) |
+| `NEXT_PUBLIC_IS_DEBUG_MODE` | Application level debug mode flag ('true'/'false') |
+
+## Raw Docker Compose Template
+If you wish to spin up the architecture without the setup script or bake it into an orchestrator, you can use the standard Docker Compose template equivalent:
+
+```yaml
+name: endatix
+
+services:
+  endatix-api:
+    container_name: endatix-api
+    image: endatix/endatix-api:latest
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=endatix-db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};TrustServerCertificate=True;"
+      Security__JwtSigningKey: ${SECURITY_JWT_SIGNING_KEY}
+    ports:
+      - "5001:8080"
+    networks:
+      - appnetwork
+    depends_on:
+      - endatix-db
+
+  endatix-hub:
+    container_name: endatix-hub
+    image: endatix/endatix-hub:latest
+    environment:
+      ENDATIX_BASE_URL: http://endatix-api:8080
+      AUTH_SECRET: ${AUTH_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+    ports:
+      - "3000:3000"
+    networks:
+      - appnetwork
+    depends_on:
+      - endatix-api
+
+  endatix-db:
+    container_name: endatix-db
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: ${SQLSERVER_SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    networks:
+      - appnetwork
+
+networks:
+  appnetwork:
+    driver: bridge
+```
+
+---
+
 **That's it! 🚀 Your Endatix Platform is ready for exploring.**
+
