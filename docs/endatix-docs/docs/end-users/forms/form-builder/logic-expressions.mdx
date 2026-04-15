@@ -1,0 +1,350 @@
+---
+title: "Logic Expressions"
+sidebar_label: "Logic Expressions"
+description: "Learn how to use Endatix logic functions within form and survey conditions that control visibility, dynamic default values, validation and more."
+---
+
+# Logic Expressions
+
+## Overview
+
+Logic expressions are powerful evaluative statements used to create dynamic, highly interactive, and personalized forms. By evaluating conditions - such as a respondent's previous answers, user metadata, or calculated variables - expressions allow your survey to automatically adapt its behavior and UI in real time. They act as the decision-making engine behind your form, enabling you to conditionally control element visibility, enforce complex validation rules, calculate values dynamically, and trigger automated form actions, without the need to do any custom programming per form.
+
+Expressions can be used in the following areas of your Endatix forms:
+
+* **Conditional Visibility:** Dynamically show or hide questions, panels, or entire pages based on specific criteria (e.g., showing a follow-up question only if the user selects "Other").
+* **Dynamic Read-Only State:** Enable or disable form elements conditionally, preventing respondents from interacting with certain fields unless prerequisite conditions are met.
+* **Conditional Requirements:** Make a question mandatory only when a specific scenario occurs, rather than applying a blanket requirement.
+* **Real-Time Calculations:** Used heavily within the **Expression** question type or the form's **Calculated Values** to compute mathematical equations, string concatenations, or logical operations dynamically.
+* **Advanced Data Validation:** Used to enforce strict, custom validation rules that rely on the state of multiple fields (e.g., ensuring the sum of three percentage fields equals exactly 100).
+* **Choice Filtering:** Dynamically hide, show, or disable specific individual options within choice-based questions (like Dropdowns, Checkboxes, or Radiogroups) based on previous selections.
+* **Automated Form Triggers:** Expressions serve as the execution condition for automated background actions. When the expression evaluates to `true`, the form can automatically:
+    * **Set Values:** Assign a specific value to a target question.
+    * **Copy Values:** Copy an answer from one field to another (e.g., "Same as Billing Address").
+    * **Skip Logic:** Jump the respondent directly to a specific target question or page.
+    * **Complete Survey:** Instantly submit and finish the survey based on a qualifying or disqualifying response.
+    * **Run Custom Logic:** Execute another background expression or custom function.
+
+
+## Logical & State Functions
+
+The following functions and operators help you evaluate conditions and check the current state of your form, its containers, or any of its questions. They can be used enforce the conditional visibility of individual questions, panels, or pages, and to control the flow of the form or survey. 
+
+### `anyAnswered`
+
+The `anyAnswered` function checks a specific, explicit list of questions and returns `true` if at least one of them has a value (is not empty).
+
+#### Syntax
+```javascript
+anyAnswered({question_1}, {question_2}, {question_3})
+```
+
+#### JSON Example
+If you want to show a comment box only if the user has answered at least one of three specific questions, you can set the `visibleIf` property to:
+```json
+{
+  "type": "comment",
+  "name": "followUpQuestion",
+  "title": "Please provide more details:",
+  "visibleIf": "anyAnswered({brands_shoes_nike}, {brands_shoes_adidas}, {brands_shirts_puma})"
+}
+```
+
+### `anyAnsweredByPrefix`
+
+The `anyAnsweredByPrefix` function checks all questions in your form that start with a specific text prefix. It returns `true` if at least one matching question has been answered. This is highly recommended for large assessments or sectioned forms where questions share a common naming convention.
+
+#### Syntax
+```javascript
+anyAnsweredByPrefix('your_prefix_here')
+```
+
+:::info Use Single Quotes Instead of Curly Braces
+Unlike expressions that require specific question names, `anyAnsweredByPrefix` requires you to pass the prefix as a string enclosed in single quotes `''`.
+:::
+
+#### JSON Example
+If you have 50 questions that all start with the prefix `brands_sports_shoes_`, you can check if any of them are answered using a single, short statement:
+```json
+{
+  "type": "comment",
+  "name": "sectionFeedback",
+  "title": "Section Feedback",
+  "visibleIf": "anyAnsweredByPrefix('brands_sports_shoes_')"
+}
+```
+
+#### Limitations with Dynamic Matrices
+If you use `anyAnsweredByPrefix` inside a **Dynamic Matrix** (`matrixdynamic`) or **Dynamic Panel** (`paneldynamic`), it will check the questions across the entire grid globally, rather than restricting its check to the specific row the user is currently interacting with. For row-specific logic, use the standard `anyAnswered({row.question_name})` syntax instead.
+
+---
+
+### `iif`
+Returns a specific value if a condition is true, and a different value if the condition is false.
+* **Syntax:** `iif(condition, valueIfTrue, valueIfFalse)` 
+* **Example:** `"iif({question1} + {question2} > 20, 'High', 'Low')"` 
+
+### `isContainerReady`
+Returns true if all questions in a given panel or page have valid input; otherwise, returns false. An empty question is considered valid as long as it is not marked as required and has no other validation rules.
+* **Syntax:** `isContainerReady(nameOfPanelOrPage)` 
+* **Example:** `"isContainerReady('page1')"` 
+
+### `isDisplayMode`
+Returns true if the survey is currently in display or preview mode.
+* **Syntax:** `isDisplayMode()` 
+* **Example:** `"isDisplayMode()"` 
+
+---
+
+## Date & Time Functions
+
+Use these functions to perform calculations based on dates, such as calculating ages or differences between two dates. 
+
+### `age`
+Returns the age based on a given birthdate.
+* **Syntax:** `age(birthdate)` 
+* **Example:** `"age({birthdate})"` 
+
+### `currentDate`
+Returns the current date and time.
+* **Syntax:** `currentDate()` 
+* **Example:** `"currentDate()"` 
+
+### `today`
+Returns the current date, or a date shifted by a specific number of days. For instance, `today(-1)` gives yesterday's date, and `today(1)` gives tomorrow's date.
+* **Syntax:** `today(daysToAdd?)` 
+* **Example:** `"today(2)"` 
+
+### `year`, `month`, `day`, `weekday`
+Extracts specific parts of a given date:
+* `year(date?)`: Returns the year.
+* `month(date?)`: Returns the month as a number from 1 to 12.
+* `day(date?)`: Returns the day of the month from 1 to 31.
+* `weekday(date?)`: Returns the day of the week from 0 (Sunday) to 6 (Saturday).
+
+### `getDate`
+Converts a question's response into a usable Date format.
+* **Syntax:** `getDate(question)` 
+* **Example:** `"getDate({birthdate})"` 
+
+### `dateAdd`
+Adds or subtracts a specified amount of time (days, hours, minutes, seconds, months, or years) to a given date.
+* **Syntax:** `dateAdd(date, numberToAdd, interval)` 
+* **Example:** `"dateAdd({startDate}, 14, 'days')"` 
+
+### `dateDiff`
+Returns the difference between two dates in days, hours, minutes, seconds, months, or years.
+* **Syntax:** `dateDiff(fromDate, toDate, interval)` 
+* **Example:** `"dateDiff({birthdate}, today(), 'months')"` 
+
+---
+
+## Math Functions
+
+Perform basic mathematical operations on question values.
+
+### `sum`, `max`, `min`, `avg`
+These functions take a list of numbers and calculate their combined result:
+* `sum(...)`: Returns the sum of passed numbers.
+* `max(...)`: Returns the highest number.
+* `min(...)`: Returns the lowest number.
+* `avg(...)`: Returns the average of the numbers.
+
+### `round`
+Rounds a number to a specified number of decimal places. If precision is omitted, it rounds to the nearest whole number.
+* **Syntax:** `round(num, precision?)` 
+* **Example:** `"round(1.005, 2)"` (Returns 1.01) 
+
+### `trunc`
+Truncates a number to a specified number of decimal places by simply chopping off the remaining digits without rounding.
+* **Syntax:** `trunc(num, precision?)` 
+* **Example:** `"trunc(2.175, 1)"` (Returns 2.1) 
+
+---
+
+## Array & Matrix Functions
+
+These functions are highly useful for calculating values inside repetitive fields, such as Multi-Select Matrices, Dynamic Matrices, or Dynamic Panels.
+
+### `sumInArray`
+Calculates the sum of numbers from a specific column or field inside a matrix. You can optionally apply a filter to only include certain rows.
+* **Syntax:** `sumInArray(question, dataFieldName, filter?)` 
+* **Example:** `"sumInArray({matrixdynamic}, 'total', {categoryId} = 1)"` 
+
+### `maxInArray` & `minInArray`
+Finds the maximum or minimum number in a specific column of a matrix.
+* **Example:** `"minInArray({matrixdynamic}, 'quantity', {quantity} > 0)"` 
+
+### `avgInArray`
+Calculates the average of numbers in a specific column of a matrix.
+* **Example:** `"avgInArray({matrixdynamic}, 'quantity', {quantity} > 0)"` 
+
+### `countInArray`
+Counts the total number of rows in a matrix where a specific column has been answered.
+* **Syntax:** `countInArray(question, dataFieldName, filter?)` 
+* **Example:** `"countInArray({matrixdynamic}, 'quantity', {quantity} > 0)"` 
+
+---
+
+## Display & Property Functions
+
+### `displayValue`
+Returns the human-readable display text of a question rather than its underlying value (e.g., the text of a dropdown choice instead of its ID). You can also pass a specific value to look up its corresponding display text.
+
+* **Syntax:** `displayValue(questionName, value?)` 
+* **Example:** `"displayValue('my-dropdown-question', 5)"` 
+
+:::info Dynamic Evaluation Note
+If you use `displayValue` inside a dynamic value expression (`setValueExpression`), you must also specify a `setValueIf` condition. Because you are passing the question name as a text string, the form won't automatically know to recalculate the expression when that question changes. Providing a `setValueIf` trigger ensures the value updates correctly.
+:::
+
+### `propertyValue` (Obsolete)
+*Note: This function is obsolete.* To access property values, you should use the dollar sign (`$`) prefix instead.
+
+---
+
+## Operators
+
+<table style={{ width: '100%', backgroundColor: 'var(--ifm-background-color)' }}>
+  <colgroup>
+    <col style={{ width: '25%' }} />
+    <col style={{ width: '40%' }} />
+    <col style={{ width: '35%' }} />
+  </colgroup>
+  <thead>
+    <tr>
+      <th style={{ textAlign: 'left' }}>Operator</th>
+      <th style={{ textAlign: 'left' }}>Description</th>
+      <th style={{ textAlign: 'left' }}>Expression Example</th>
+    </tr>
+  </thead>
+  <tbody style={{ backgroundColor: 'transparent' }}>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>empty</code></td>
+      <td>Returns true if the value is undefined or null.</td>
+      <td><code>"&#123;q1&#125; empty"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>notempty</code></td>
+      <td>Returns true if the value is different from undefined and null.</td>
+      <td><code>"&#123;q1&#125; notempty"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&#124;&#124;</code> / <code>or</code></td>
+      <td>Combines two or more conditions and returns true if any of them is true.</td>
+      <td><code>"&#123;q1&#125; empty or &#123;a2&#125; empty"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&amp;&amp;</code> / <code>and</code></td>
+      <td>Combines two or more conditions and returns true if all of them are true.</td>
+      <td><code>"&#123;q1&#125; empty and &#123;a2&#125; empty"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>!</code> / <code>negate</code></td>
+      <td>Returns true if the condition returns false, and vice versa.</td>
+      <td><code>!&#123;q1&#125;</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&lt;=</code> / <code>lessorequal</code></td>
+      <td>Compares two values and returns true if the first is less or equal to the second.</td>
+      <td><code>"&#123;q1&#125; &lt;= 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&gt;=</code> / <code>greaterorequal</code></td>
+      <td>Compares two values and returns true if the first is greater or equal to the second.</td>
+      <td><code>"&#123;q1&#125; &gt;= 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>==</code> / <code>equal</code></td>
+      <td>Compares two values and returns true if they are loosely equal (that is, their type is disregarded).</td>
+      <td><code>"&#123;q1&#125; = 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>!=</code> / <code>&lt;&gt;</code> / <code>notequal</code></td>
+      <td>Compares two values and returns true if they are not loosely equal.</td>
+      <td><code>"&#123;q1&#125; != 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&lt;</code> / <code>less</code></td>
+      <td>Compares two values and returns true if the first is less than the second.</td>
+      <td><code>"&#123;q1&#125; &lt; 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>&gt;</code> / <code>greater</code></td>
+      <td>Compares two values and returns true if the first is greater than the second.</td>
+      <td><code>"&#123;q1&#125; &gt; 10"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>+</code></td>
+      <td>Adds up two values.</td>
+      <td><code>"&#123;a1&#125; + &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>-</code></td>
+      <td>Subtracts the second value from the first.</td>
+      <td><code>"&#123;q1&#125; - &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>*</code></td>
+      <td>Multiplies two values.</td>
+      <td><code>"&#123;a1&#125; * &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>/</code></td>
+      <td>Divides the first value by the second.</td>
+      <td><code>"&#123;q1&#125; / &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>%</code></td>
+      <td>Returns the remainder of the division of the first value by the second.</td>
+      <td><code>"&#123;q1&#125; % &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>^</code> / <code>power</code></td>
+      <td>Raises the first value to the power of the second.</td>
+      <td><code>"&#123;a1&#125; ^ &#123;q2&#125;"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>*=</code> / <code>contains</code> / <code>contain</code></td>
+      <td>Compares two values and returns true if the first value contains the second value within it.</td>
+      <td><code>"&#123;q1&#125; contains 'abc'"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>notcontains</code> / <code>notcontain</code></td>
+      <td>Compares two values and returns true if the first value doesn't contain the second value within it.</td>
+      <td><code>"&#123;q1&#125; notcontains 'abc'"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>anyof</code></td>
+      <td>Compares a value with an array of values and returns true if the value is present, or compares two arrays and returns true if the first array includes any value from the second.</td>
+      <td><code>"&#123;q1&#125; anyof ['value1', 'value2', 'value3']"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>noneof</code></td>
+      <td>Compares a value with an array of values and returns true if the value is absent, or compares two arrays and returns true if the first array includes none of the values from the second.</td>
+      <td><code>"&#123;q1&#125; noneof ['value1', 'value2', 'value3']"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>allof</code></td>
+      <td>Compares two arrays and returns true if the first array includes all values from the second.</td>
+      <td><code>"&#123;q1&#125; allof ['value1', 'value2', 'value3']"</code></td>
+    </tr>
+    <tr style={{ backgroundColor: 'transparent' }}>
+      <td><code>#</code></td>
+      <td>Disables type conversion for a referenced value (e.g., string values "true", "false", "123" won't be converted to corresponding Boolean and numeric values).</td>
+      <td><code>"&#123;#q1&#125;"</code></td>
+    </tr>
+  </tbody>
+</table>
+
+## Advanced
+
+### Custom Expression Functions
+
+Endatix Hub supports custom expression functions, allowing you to programmatically extend the system for unique use cases.
+
+### Compatibility with SurveyJS
+
+Endatix Hub is powered by the SurveyJS form engine. While all standard SurveyJS expressions are supported, Endatix Hub includes exclusive functions - such as `anyAnswered` and `anyAnsweredByPrefix` - that may not be compatible with standalone SurveyJS implementations.
+
+Form more information refer to the official [SurveyJS Conditional Logic documentation](https://surveyjs.io/form-library/documentation/design-survey/conditional-logic?utm_source=endatix&utm_medium=referral).
