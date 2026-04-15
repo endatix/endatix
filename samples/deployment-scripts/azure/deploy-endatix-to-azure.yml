@@ -1,0 +1,160 @@
+name: Deploy Endatix API + Hub to Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: string
+        description: 'GitHub environment name (for scoped vars/secrets), e.g. Production'
+        required: true
+        default: 'Production'
+      hub_deployment_mode:
+        type: choice
+        description: 'How to deploy Endatix Hub'
+        required: true
+        default: staticwebapp
+        options:
+          - staticwebapp
+          - webapp
+
+# Minimal permissions:
+# - contents: read for checkout
+# - id-token: write for Azure OIDC login (recommended; avoids publish profile secrets)
+permissions:
+  contents: read
+  id-token: write
+
+# ------------------------------------------------------------------------------
+# Quick-start checklist (copy/paste starter):
+#
+# Required repository/environment variables (vars.*):
+# - API_WEB_APP_NAME                # Azure Web App name for Endatix API
+# - API_WEB_APP_SLOT_NAME           # Optional; defaults to Production if empty
+# - HUB_DEPLOYMENT_MODE             # Optional fallback: staticwebapp | webapp
+# - HUB_WEB_APP_NAME                # Required when deploying Hub as Web App
+# - HUB_STATIC_WEB_APP_APP_LOCATION # Optional; defaults to hub/.next/standalone
+#
+# Required repository/environment secrets (secrets.*):
+# - AZURE_APP_CLIENT_ID             # Entra app registration (OIDC)
+# - AZURE_APP_TENANT_ID             # Azure tenant id
+# - AZURE_SUBSCRIPTION_ID           # Azure subscription id
+# - HUB_DEPLOYMENT_TOKEN            # Required when deploying Hub as Static Web App
+# - ENDATIXHUB_SESSION_SECRET       # Hub runtime secret (example)
+# - AUTH_SECRET                     # Hub runtime secret (example)
+#
+# Notes:
+# - Keep all sensitive values in secrets; never hardcode them in this workflow.
+# - This sample intentionally shows a minimal Hub .env bootstrap.
+# - Expand env values to match your Hub/API configuration needs.
+# ------------------------------------------------------------------------------
+
+jobs:
+  build-and-deploy-api:
+    name: Endatix API | Build + Deploy
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      api-url: ${{ steps.deploy-api.outputs.webapp-url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build API
+        id: build-api
+        uses: ./.github/actions/build-api
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_APP_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_APP_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy API to Azure Web App
+        id: deploy-api
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.API_WEB_APP_NAME }}
+          slot-name: ${{ vars.API_WEB_APP_SLOT_NAME || 'Production' }}
+          clean: true
+          package: ${{ steps.build-api.outputs.build-path }}
+
+  build-hub:
+    name: Endatix Hub | Build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    needs: [build-and-deploy-api]
+    outputs:
+      hub-build-path: ${{ steps.build-hub.outputs.build-path }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Create a minimal runtime env file for Hub build.
+      # Add more variables as needed for your setup.
+      - name: Create Hub .env for build
+        shell: bash
+        working-directory: hub
+        run: |
+          umask 077
+          cat <<EOF > .env
+          NODE_ENV=production
+          SESSION_SECRET=${{ secrets.ENDATIXHUB_SESSION_SECRET }}
+          AUTH_SECRET=${{ secrets.AUTH_SECRET }}
+          ENDATIX_BASE_URL=${{ needs.build-and-deploy-api.outputs.api-url }}
+          EOF
+
+      - name: Build Hub
+        id: build-hub
+        uses: ./.github/actions/build-hub
+        with:
+          environment: ${{ inputs.environment }}
+          working-directory: hub
+
+  deploy-hub-static-web-app:
+    name: Endatix Hub | Deploy to Azure Static Web App
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    needs: [build-hub]
+    if: ${{ inputs.hub_deployment_mode == 'staticwebapp' || vars.HUB_DEPLOYMENT_MODE == 'staticwebapp' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Build output comes from build-hub action and is uploaded directly.
+      - name: Deploy Hub to Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.HUB_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: ${{ vars.HUB_STATIC_WEB_APP_APP_LOCATION || needs.build-hub.outputs.hub-build-path }}
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
+          api_location: ''
+
+  deploy-hub-web-app:
+    name: Endatix Hub | Deploy to Azure Web App
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    needs: [build-hub]
+    if: ${{ inputs.hub_deployment_mode == 'webapp' || vars.HUB_DEPLOYMENT_MODE == 'webapp' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_APP_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_APP_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Deploy Hub standalone output to Azure Web App (Node.js runtime).
+      - name: Deploy Hub to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.HUB_WEB_APP_NAME }}
+          clean: true
+          package: ${{ needs.build-hub.outputs.hub-build-path }}

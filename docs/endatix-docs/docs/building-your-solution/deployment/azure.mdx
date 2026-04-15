@@ -1,0 +1,90 @@
+---
+sidebar_position: 2
+title: Azure Deployment
+description: Deploy Endatix to Azure for quick evaluation or set up a production-ready CI/CD pipeline.
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+import diagramImageLight from "./azure-architecture-example-light.png";
+import diagramImageDark from "./azure-architecture-example-dark.png";
+
+# Deploying Endatix on Azure
+
+Endatix consists of two primary bounded contexts: the **Endatix API** (.NET 10 backend) and the **Endatix Hub** (Next.js frontend). Both can be natively deployed to Azure using our included **Infrastructure as Code (Bicep)** templates.
+
+Whether you are looking to spin up a quick sandbox, or you are looking to plan and provision a production-ready environment, this guide covers the core architecture and the right deployment path for you.
+
+:::tip **Before you continue**
+Do you prefer a containerized local sandbox? Check out our [Docker Setup Guide](https://github.com/endatix/endatix/blob/main/docs/endatix-docs/docs/guides/docker-setup.mdx).
+:::
+
+
+---
+
+## 🏗️ Azure Solution Architecture
+
+
+The Endatix Azure deployment utilizes a modern, scalable, and secure architecture. Using our [Bicep templates](https://github.com/endatix/endatix/blob/main/samples/deployment-scripts/azure/endatix-azure.template.bicep) and [parameter files](https://github.com/endatix/endatix/blob/main/samples/deployment-scripts/azure/parameters.bicepparam), the following core resources are provisioned:
+
+<ThemedImage
+  alt="Login flow diagram"
+  sources={{
+    light: diagramImageLight,
+    dark: diagramImageDark,
+  }}
+/>
+
+- **Endatix API**: Deployed as an **App Service (Linux Web App)** running on a shared **App Service Plan**. It handles core business logic, form submissions, and data management.
+- **Endatix Hub**: The Next.js management frontend. Depending on your configuration (`hubDeploymentMode`), this is deployed either as an **Azure Static Web App** (default, highly cost-effective) or as a dedicated **App Service Web App** (Node.js runtime).
+- **Database (PostgreSQL or Azure SQL)**: Endatix supports both **Azure Database for PostgreSQL Flexible Server** and **Azure SQL Database (MS SQL Server)** for reliable, scalable relational data storage for the Endatix API.
+- **Storage Account**: Manages form submission files and assets. Includes specific containers and blob configurations. Blobs can be configured as public or private by toggling the `storageIsPrivate` parameter.
+- **Application Insights**: Integrated with a Log Analytics workspace, this provides out-of-the-box distributed tracing, application performance monitoring, and OpenTelemetry (OTel) compatibility.
+- **Virtual Network (VNet) [Optional]**: For production-ready environments, you can set `enablePostgresqlPrivateNetwork` to `true`. This provisions a **managed VNet** (or integrates with your own), securing the PostgreSQL database by removing public internet access and ensuring traffic only flows securely from the Endatix API.
+
+## 🚀 Deployment Paths
+
+We provide a comprehensive, interactive deployment guide and scripts within the Endatix repository.
+
+Choose the path that matches your current goal:
+
+<Tabs queryString="deployment-path">
+  <TabItem value="quick-setup" label="⚡️  Quick Setup" default>
+Use this path when you want to evaluate Endatix quickly on Azure without setting up CI/CD first.
+
+1. **Interactive setup:** Run the generate-quickstart-secrets CLI. The script generates secure secrets, creates your `parameters.production.bicepparam` file, and provisions infrastructure via Azure CLI.
+2. **Local build and deploy:** Build the .NET API and Next.js Hub locally, then deploy artifacts to Azure App Service and Static Web App using `az webapp deployment` and `swa cli`.
+
+```bash
+node  generate-quickstart-secrets.mjs
+```
+
+:::tip Read the full guide here
+[Endatix Azure Deployment Scripts README](https://github.com/endatix/endatix/blob/main/samples/deployment-scripts/azure/README.md)
+:::
+
+  </TabItem>
+  <TabItem value="going-production" label="🌐 Going Live">
+Use this path when you are preparing a stable, auditable deployment pipeline in Azure or planning your Azure architecture.
+
+1. **Fork and configure:** Fork [endatix](https://github.com/endatix/endatix) and [endatix-hub](https://github.com/endatix/endatix-hub) repos.
+2. **Provision infrastructure:** Use the [endatix-azure.template.bicep](https://github.com/endatix/endatix/blob/main/samples/deployment-scripts/azure/endatix-azure.template.bicep) as starting point. It's not fully production ready, but it will help you with almost everything you need. You will only need to tweak the setup to meet your corporate standards - e.g. geo redundancy, data retention, high availability, security & additional protection e.g. Azure FrontDoor, CDN, custom hostnames, certificates and etc.
+3. **Automate Hub deployment:** We have prepared an example [GitHub action](https://github.com/endatix/endatix/blob/main/samples/deployment-scripts/azure/deploy-endatix-to-azure.yml). Review it, pick your Hub hosting mode (Static Web App or Web App) and tailor the workflow to your needs.
+
+:::info Security Considerations
+For production or internet-facing environments, apply the following recommendations:
+
+- **Use private database networking**: Set `enablePostgresqlPrivateNetwork=true` so PostgreSQL is not exposed to public internet traffic. Use managed VNet or integrate with your existing VNet/subnets.
+- **Keep blob storage private by default**: Set `storageIsPrivate=true` unless your scenario explicitly requires public blob access. Grant access via SAS tokens, managed identities, or controlled backend endpoints.
+- **Encrypt data at rest and in transit**: Use Azure-managed encryption at rest for Storage and PostgreSQL (or Customer-Managed Keys via Key Vault if required by policy). Enforce TLS for all app, API, and database traffic.
+- **Do not store secrets in source control**: Keep keys, signing secrets, connection strings, and credentials in secure secret stores (for example, GitHub Environments + Azure Key Vault) and rotate them regularly.
+- **Apply least privilege access**: Restrict Azure RBAC roles, use managed identities where possible, and avoid broad Contributor/Owner access for CI/CD service principals.
+- **Enable monitoring and alerting**: Keep Application Insights and Log Analytics enabled, configure security/audit log retention, and add alert rules for suspicious auth failures, unexpected traffic patterns, and deployment drift.
+- **Harden public endpoints**: If API/Hub must be public, add protections such as IP restrictions, WAF/Front Door, rate limiting, secure headers, and strict CORS policies.
+- **Plan backup and recovery**: Configure PostgreSQL backups/PITR, validate restore procedures, and define data retention and disaster recovery targets (RPO/RTO) up front.
+:::
+
+  </TabItem>
+</Tabs>

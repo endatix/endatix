@@ -51,7 +51,7 @@ app.UseEndatix();
 **Important:** The Docker image is currently outdated and does not include the latest features available in the NuGet packages. This section will be removed once Docker images are updated to match the latest NuGet releases.
 :::
 
-[Follow the detailed Docker setup guide →](/docs/guides/docker-setup)
+[Follow the detailed Docker setup guide →](/docs/building-your-solution/deployment/self-hosting)
 
 ### Install via Git Repository
 

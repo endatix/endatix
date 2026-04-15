@@ -12,6 +12,16 @@
       "statusCode": 301
     },
     {
+      "route": "/docs/guides/docker-setup",
+      "redirect": "/docs/building-your-solution/deployment/self-hosting",
+      "statusCode": 301
+    },
+    {
+      "route": "/docs/getting-started/setup-docker",
+      "redirect": "/docs/building-your-solution/deployment/self-hosting",
+      "statusCode": 301
+    },
+    {
       "route": "/docs/settings/",
       "redirect": "/docs/configuration/settings/",
       "statusCode": 301
@@ -44,11 +54,6 @@
     {
       "route": "/docs/settings/persistence-settings",
       "redirect": "/docs/configuration/settings/persistence-settings",
-      "statusCode": 301
-    },
-    {
-      "route": "/docs/getting-started/setup-docker",
-      "redirect": "/docs/guides/docker-setup",
       "statusCode": 301
     }
   ],

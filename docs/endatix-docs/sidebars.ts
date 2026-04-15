@@ -32,7 +32,6 @@ const sidebars: SidebarsConfig = {
       link: { type: "generated-index", slug: "guides", title: "Guides" },
       items: [
         "guides/webhooks",
-        "guides/docker-setup",
         "guides/session-bridge",
         "guides/customize-exports",
         "guides/external-authorization",
@@ -75,7 +74,11 @@ const sidebars: SidebarsConfig = {
           type: "category",
           label: "Deployment",
           collapsed: true,
-          items: ["building-your-solution/deployment/subfolder-deployment"],
+          items: [
+            "building-your-solution/deployment/self-hosting",
+            "building-your-solution/deployment/azure",
+            "building-your-solution/deployment/subfolder-deployment",
+          ],
         },
       ],
     },
@@ -170,11 +173,11 @@ const sidebars: SidebarsConfig = {
           items: [
             "end-users/forms/translation-and-localization/form-translation",
             "end-users/forms/translation-and-localization/ai-translation",
-            "end-users/forms/translation-and-localization/excel-import",            
+            "end-users/forms/translation-and-localization/excel-import",
           ],
-        }
+        },
       ],
-    }
+    },
   ],
 };
 
