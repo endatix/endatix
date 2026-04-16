@@ -157,7 +157,10 @@ async function resolveResourceGroupInfo(environmentName, projectName) {
     };
   }
 
-  const resourceGroupName = deriveResourceGroupName(environmentName, projectName);
+  const resourceGroupName = deriveResourceGroupName(
+    environmentName,
+    projectName,
+  );
   let rgLocation = "centralus";
 
   console.log(
@@ -214,7 +217,11 @@ async function resolveProjectForCurrentRun(baseBicepParameters, skipSecretGen) {
   };
 }
 
-async function ensureLocalParameters(baseBicepParameters, skipSecretGen, projectOverride) {
+async function ensureLocalParameters(
+  baseBicepParameters,
+  skipSecretGen,
+  projectOverride,
+) {
   if (skipSecretGen) {
     console.log(
       `\n\u2705 Reusing values from: ${path.basename(localParametersPath)}`,
@@ -256,6 +263,10 @@ async function ensureLocalParameters(baseBicepParameters, skipSecretGen, project
 }
 
 async function interactiveWizard() {
+  const appState = {
+    isWindows: process.platform === "win32",
+  };
+
   console.log(`\n${infoText("✦ Welcome to the Endatix Azure Quickstart! ✦")}`);
   console.log(
     "This wizard will help you configure your deployment and generate commands.\n",
@@ -264,14 +275,18 @@ async function interactiveWizard() {
   const { skipSecretGen } = await resolveSecretGenerationMode();
   const { baseBicepParameters, environmentName, projectName } =
     await loadDeploymentConfig();
-  const { effectiveProject, projectOverride } = await resolveProjectForCurrentRun(
+  const { effectiveProject, projectOverride } =
+    await resolveProjectForCurrentRun(baseBicepParameters, skipSecretGen);
+  const { resourceGroupName, createRgCmd } = await resolveResourceGroupInfo(
+    environmentName,
+    effectiveProject || projectName,
+  );
+
+  await ensureLocalParameters(
     baseBicepParameters,
     skipSecretGen,
+    projectOverride,
   );
-  const { resourceGroupName, createRgCmd } =
-    await resolveResourceGroupInfo(environmentName, effectiveProject || projectName);
-
-  await ensureLocalParameters(baseBicepParameters, skipSecretGen, projectOverride);
 
   console.log(`\n${infoText("=== Step 1: Provision Infrastructure ===")}`);
 
@@ -374,9 +389,10 @@ async function interactiveWizard() {
     ),
   );
   console.log(`  3. Compress the published API:`);
-  console.log(
-    formatCommandSnippet("cd publish && zip -r ../endatix-api.zip . && cd .."),
-  );
+  const compressApiCommand = appState.isWindows
+    ? String.raw`Compress-Archive -Path "publish\*" -DestinationPath "endatix-api.zip"`
+    : "cd publish && zip -r ../endatix-api.zip . && cd ..";
+  console.log(formatCommandSnippet(compressApiCommand));
   console.log(`  4. Deploy the zip to Azure App Service:`);
   console.log(formatCommandSnippet(deployApiCommand));
 
