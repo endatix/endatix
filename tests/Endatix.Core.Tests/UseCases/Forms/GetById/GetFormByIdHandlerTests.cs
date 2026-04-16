@@ -23,8 +23,8 @@ public class GetFormByIdHandlerTests
     {
         // Arrange
         var request = new GetFormByIdQuery(1);
-        _repository.ListAsync(Arg.Any<FormByIdWithSubmissionsCountSpec>(), Arg.Any<CancellationToken>())
-                   .Returns([]);
+        _repository.FirstOrDefaultAsync(Arg.Any<FormByIdWithSubmissionsCountSpec>(), Arg.Any<CancellationToken>())
+                   .Returns((FormDto?)null);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -41,8 +41,8 @@ public class GetFormByIdHandlerTests
         // Arrange
         var form = new FormDto { Id = "1", Name = SampleData.FORM_NAME_1, SubmissionsCount = 0 };
         var request = new GetFormByIdQuery(1);
-        _repository.ListAsync(Arg.Any<FormByIdWithSubmissionsCountSpec>(), Arg.Any<CancellationToken>())
-                   .Returns([form]);
+        _repository.FirstOrDefaultAsync(Arg.Any<FormByIdWithSubmissionsCountSpec>(), Arg.Any<CancellationToken>())
+                   .Returns(form);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

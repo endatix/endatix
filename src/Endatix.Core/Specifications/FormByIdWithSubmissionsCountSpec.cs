@@ -9,8 +9,7 @@ public sealed class FormByIdWithSubmissionsCountSpec : Specification<Form, FormD
     public FormByIdWithSubmissionsCountSpec(long formId)
     {
         Query
-            .Where(form => form.Id == formId)
-            .AsNoTracking();
+            .Where(form => form.Id == formId);
 
         Query.Select(form =>
             new FormDto()

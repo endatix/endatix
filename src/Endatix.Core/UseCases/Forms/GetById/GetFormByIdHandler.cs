@@ -11,7 +11,7 @@ public class GetFormByIdHandler(IFormsRepository repository) : IQueryHandler<Get
     public async Task<Result<FormDto>> Handle(GetFormByIdQuery request, CancellationToken cancellationToken)
     {
         var spec = new FormByIdWithSubmissionsCountSpec(request.FormId);
-        var form = (await repository.ListAsync(spec, cancellationToken)).FirstOrDefault();
+        var form = await repository.FirstOrDefaultAsync(spec, cancellationToken);
         if (form == null)
         {
             return Result.NotFound("Form not found.");
