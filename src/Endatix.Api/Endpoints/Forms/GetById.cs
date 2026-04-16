@@ -37,7 +37,7 @@ public class GetById(IMediator mediator) : Endpoint<GetFormByIdRequest, Results<
             cancellationToken);
 
         return TypedResultsBuilder
-            .MapResult(result, FormMapper.Map<FormModel>)
+            .MapResult(result, form => form.ToFormModel())
             .SetTypedResults<Ok<FormModel>, BadRequest, NotFound>();
     }
 }

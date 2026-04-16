@@ -1,18 +1,20 @@
-using Endatix.Core.Entities;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Forms.GetById;
+using Endatix.Core.UseCases.Forms;
 
 namespace Endatix.Core.Tests.UseCases.Forms.GetById;
 
 public class GetFormByIdHandlerTests
 {
-    private readonly IRepository<Form> _repository;
+    private readonly IFormsRepository _repository;
     private readonly GetFormByIdHandler _handler;
 
     public GetFormByIdHandlerTests()
     {
-        _repository = Substitute.For<IRepository<Form>>();
+        _repository = Substitute.For<IFormsRepository>();
         _handler = new GetFormByIdHandler(_repository);
     }
 
@@ -20,10 +22,9 @@ public class GetFormByIdHandlerTests
     public async Task Handle_FormNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        Form? notFoundForm = null;
         var request = new GetFormByIdQuery(1);
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
-                   .Returns(notFoundForm);
+        _repository.ListAsync(Arg.Any<FormByIdWithSubmissionsCountSpec>(), Arg.Any<CancellationToken>())
+                   .Returns([]);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -38,10 +39,10 @@ public class GetFormByIdHandlerTests
     public async Task Handle_ValidRequest_ReturnsForm()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = new FormDto { Id = "1", Name = SampleData.FORM_NAME_1, SubmissionsCount = 0 };
         var request = new GetFormByIdQuery(1);
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
-                   .Returns(form);
+        _repository.ListAsync(Arg.Any<FormByIdWithSubmissionsCountSpec>(), Arg.Any<CancellationToken>())
+                   .Returns([form]);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
