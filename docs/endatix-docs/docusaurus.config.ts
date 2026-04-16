@@ -5,8 +5,7 @@ import type * as Redocusaurus from "redocusaurus";
 
 const config: Config = {
   title: "Endatix Documentation",
-  tagline:
-    "Self-Hosted Alternative to SaaS Form or Survey Platforms",
+  tagline: "Self-Hosted Alternative to SaaS Form or Survey Platforms",
   favicon: "img/endatix.svg",
 
   // Set the production url of your site here
@@ -30,8 +29,12 @@ const config: Config = {
   },
   future: {
     v4: true,
+    faster: true,
   },
-
+  storage: {
+    type: "localStorage",
+    namespace: true,
+  },
   presets: [
     [
       "classic",

@@ -17,7 +17,7 @@ Endatix consists of two primary bounded contexts: the **Endatix API** (.NET 10 b
 
 Whether you are looking to spin up a quick sandbox, or you are looking to plan and provision a production-ready environment, this guide covers the core architecture and the right deployment path for you.
 
-:::tip **Before you continue**
+:::tip[Before you continue]
 Do you prefer a containerized local sandbox? Check out our [Docker Setup Guide](/docs/building-your-solution/deployment/self-hosting.mdx).
 :::
 
@@ -61,7 +61,7 @@ Use this path when you want to evaluate Endatix quickly on Azure without setting
 node  generate-quickstart-secrets.mjs
 ```
 
-:::tip Read the full guide here
+:::tip[Read the full guide here]
 [Endatix Azure Deployment Scripts README](https://github.com/endatix/endatix/blob/main/samples/deployment-scripts/azure/README.md)
 :::
 
@@ -73,7 +73,7 @@ Use this path when you are preparing a stable, auditable deployment pipeline in 
 2. **Provision infrastructure:** Use the [endatix-azure.template.bicep](https://github.com/endatix/endatix/blob/main/samples/deployment-scripts/azure/endatix-azure.template.bicep) as starting point. It's not fully production ready, but it will help you with almost everything you need. You will only need to tweak the setup to meet your corporate standards - e.g. geo redundancy, data retention, high availability, security & additional protection e.g. Azure FrontDoor, CDN, custom hostnames, certificates and etc.
 3. **Automate Hub deployment:** We have prepared an example [GitHub action](https://github.com/endatix/endatix/blob/main/samples/deployment-scripts/azure/deploy-endatix-to-azure.yml). Review it, pick your Hub hosting mode (Static Web App or Web App) and tailor the workflow to your needs.
 
-:::info Security Considerations
+:::info[Security Considerations]
 For production or internet-facing environments, apply the following recommendations:
 
 - **Use private database networking**: Set `enablePostgresqlPrivateNetwork=true` so PostgreSQL is not exposed to public internet traffic. Use managed VNet or integrate with your existing VNet/subnets.
@@ -85,6 +85,5 @@ For production or internet-facing environments, apply the following recommendati
 - **Harden public endpoints**: If API/Hub must be public, add protections such as IP restrictions, WAF/Front Door, rate limiting, secure headers, and strict CORS policies.
 - **Plan backup and recovery**: Configure PostgreSQL backups/PITR, validate restore procedures, and define data retention and disaster recovery targets (RPO/RTO) up front.
 :::
-
   </TabItem>
 </Tabs>
