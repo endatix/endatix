@@ -23,7 +23,7 @@ public sealed class FormByIdWithSubmissionsCountSpec : Specification<Form, FormD
                 ActiveDefinitionId = form.ActiveDefinitionId.HasValue ? form.ActiveDefinitionId.Value.ToString() : null,
                 CreatedAt = form.CreatedAt,
                 ModifiedAt = form.ModifiedAt,
-                SubmissionsCount = form.FormDefinitions.SelectMany(fd => fd.Submissions).Count(),
+                SubmissionsCount = form.FormDefinitions.SelectMany(fd => fd.Submissions).Count(s => !s.IsDeleted),
                 WebHookSettingsJson = form.WebHookSettingsJson
             });
     }
