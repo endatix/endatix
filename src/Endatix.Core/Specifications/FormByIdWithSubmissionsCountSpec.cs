@@ -4,7 +4,7 @@ using Endatix.Core.UseCases.Forms;
 
 namespace Endatix.Core.Specifications;
 
-public sealed class FormByIdWithSubmissionsCountSpec : Specification<Form, FormDto>
+public sealed class FormByIdWithSubmissionsCountSpec : SingleResultSpecification<Form, FormDto>
 {
     public FormByIdWithSubmissionsCountSpec(long formId)
     {

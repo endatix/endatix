@@ -25,7 +25,7 @@ public static class FormProjections
         ActiveDefinitionId = form.ActiveDefinitionId.HasValue ? form.ActiveDefinitionId.Value.ToString() : null,
         CreatedAt = form.CreatedAt,
         ModifiedAt = form.ModifiedAt,
-        SubmissionsCount = form.FormDefinitions.SelectMany(fd => fd.Submissions).Count(s => !s.IsDeleted),
+        SubmissionsCount = form.FormDefinitions.SelectMany(fd => fd.Submissions).Count(),
         WebHookSettingsJson = form.WebHookSettingsJson
     };
 

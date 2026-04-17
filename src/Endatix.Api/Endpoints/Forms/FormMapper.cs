@@ -74,10 +74,10 @@ public static class FormMapperExtensions
 
     public static IEnumerable<FormModel> ToFormModelList(this IEnumerable<FormDto> forms)
     {
-        return forms.Select(formDto => formDto.ToFormModel());
+        return forms.Select(formDto => formDto.ToFormModel(includeWebHookSettings: false));
     }
 
-    public static FormModel ToFormModel(this FormDto formDto) => new FormModel()
+    public static FormModel ToFormModel(this FormDto formDto, bool includeWebHookSettings = true) => new FormModel()
     {
         Id = formDto.Id,
         Name = formDto.Name,
@@ -90,6 +90,8 @@ public static class FormMapperExtensions
         ModifiedAt = formDto.ModifiedAt,
         SubmissionsCount = formDto.SubmissionsCount,
         WebHookSettingsJson = formDto.WebHookSettingsJson,
-        WebHookSettings = FormMapper.ParseJsonString(formDto.WebHookSettingsJson)
+        WebHookSettings = includeWebHookSettings
+            ? FormMapper.ParseJsonString(formDto.WebHookSettingsJson)
+            : null
     };
 }
