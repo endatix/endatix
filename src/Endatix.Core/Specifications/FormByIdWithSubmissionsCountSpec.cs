@@ -11,20 +11,6 @@ public sealed class FormByIdWithSubmissionsCountSpec : Specification<Form, FormD
         Query
             .Where(form => form.Id == formId);
 
-        Query.Select(form =>
-            new FormDto()
-            {
-                Id = form.Id.ToString(),
-                Name = form.Name,
-                Description = form.Description,
-                IsEnabled = form.IsEnabled,
-                IsPublic = form.IsPublic,
-                ThemeId = form.ThemeId.HasValue ? form.ThemeId.Value.ToString() : null,
-                ActiveDefinitionId = form.ActiveDefinitionId.HasValue ? form.ActiveDefinitionId.Value.ToString() : null,
-                CreatedAt = form.CreatedAt,
-                ModifiedAt = form.ModifiedAt,
-                SubmissionsCount = form.FormDefinitions.SelectMany(fd => fd.Submissions).Count(s => !s.IsDeleted),
-                WebHookSettingsJson = form.WebHookSettingsJson
-            });
+        Query.Select(FormProjections.ToFormDtoWithSubmissionsCount);
     }
 }

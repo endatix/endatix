@@ -25,12 +25,14 @@ public class ListFormsHandlerTests
             new(){
                 Name = "Form 1",
                 Description = "Description 1",
-                IsEnabled = true
+                IsEnabled = true,
+                SubmissionsCount = 3
             },
             new(){
                 Name = "Form 1",
                 Description = "Description 2",
                 IsEnabled = true,
+                SubmissionsCount = 0
             }
         };
         var request = new ListFormsQuery(1, 10, ["name:form1"]);
@@ -55,12 +57,14 @@ public class ListFormsHandlerTests
             new(){
                 Name = "Form 1",
                 Description = "Description 1",
-                IsEnabled = true
+                IsEnabled = true,
+                SubmissionsCount = 2
             },
             new(){
                 Name = "Form 1",
                 Description = "Description 2",
                 IsEnabled = true,
+                SubmissionsCount = 0
             }
         };
         var request = new ListFormsQuery(1, 10, null);

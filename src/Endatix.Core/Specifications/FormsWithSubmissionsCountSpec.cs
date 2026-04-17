@@ -16,19 +16,7 @@ public sealed class FormsWithSubmissionsCountSpec : Specification<Form, FormDto>
             .Paginate(pagingParams)
             .AsNoTracking();
 
-        Query.Select(form =>
-            new FormDto()
-            {
-                Id = form.Id.ToString(),
-                Name = form.Name,
-                Description = form.Description,
-                IsEnabled = form.IsEnabled,
-                IsPublic = form.IsPublic,
-                ActiveDefinitionId = form.ActiveDefinitionId.HasValue ? form.ActiveDefinitionId.Value.ToString() : null,
-                CreatedAt = form.CreatedAt,
-                ModifiedAt = form.ModifiedAt,
-                SubmissionsCount = form.FormDefinitions.SelectMany(fd => fd.Submissions).Count()
-            });
+        Query.Select(FormProjections.ToFormDtoWithSubmissionsCount);
     }
 }
 
