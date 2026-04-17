@@ -1,0 +1,79 @@
+---
+title: Integration testing
+description: Run, extend, and filter API integration tests for the Endatix API WebHost (Testcontainers, WebApplicationFactory, Respawn).
+sidebar_position: 2
+---
+
+# Integration testing (Endatix API)
+
+This guide describes how to run and extend **API integration tests** for the open-source `Endatix.WebHost` stack. Tests use **Testcontainers** for PostgreSQL or SQL Server, **Respawn** for fast database resets, and **`WebApplicationFactory`** for an in-process HTTP client against the real startup pipeline.
+
+The same topics are summarized in the monorepo **`tests/README.md`** at the repository root (next to `oss/`).
+
+## Prerequisites
+
+- **Docker** running locally (containers are pulled and started on demand).
+- **.NET SDK** matching the solution (see repository global.json or CI).
+
+## Quick start
+
+From the repository root that contains `oss/`:
+
+```bash
+dotnet test oss/tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
+```
+
+Default runs typically exclude slow **Keycloak**-scoped tests. To match CI:
+
+```bash
+dotnet test oss/tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak"
+```
+
+## Configuration (environment variables)
+
+| Variable | Purpose |
+| -------- | ------- |
+| `ENDATIX_TEST_DB_PROVIDER` | `PostgreSql` (default) or `SqlServer` — same suite, different container. |
+| `ENDATIX_TEST_HOST_MODE` | `ProductionProgram` (default) or `DedicatedIntegrationHost` — see tests README. |
+| `ENDATIX_TEST_DB_POSTGRES_IMAGE` | Optional image override for PostgreSQL. |
+| `ENDATIX_TEST_DB_SQLSERVER_IMAGE` | Optional image override for SQL Server. |
+| `ENDATIX_TEST_DEBUG` | Set to `true` for extra diagnostics from tests that support it (e.g. auth flow debug output). |
+
+## Suite organization
+
+Tests are grouped by **intent** (folders under `tests/Endatix.IntegrationTests/`):
+
+- **CriticalPaths** — Must-not-break flows (e.g. login → `/api/auth/me`).
+- **FeatureFlows** — Broader domain journeys (forms, submissions, tenants); add here as coverage grows.
+- **Infrastructure** — Host wiring, DB reset, optional standard seed, health smoke, Keycloak smoke.
+
+**Traits** help CI and local filtering:
+
+- `Category`: `CriticalPath`, `FeatureFlow`, `Infrastructure`, or `Keycloak`.
+- `Priority`: `P0`, `P1`, `P2` (execution intent; P2 often nightly or manual).
+
+Example: run only critical-path tests:
+
+```bash
+dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category=CriticalPath"
+```
+
+## Extending the suite
+
+1. **Collection fixture** — Use `OssIntegrationTestCollection` and inject `OssIntegrationWebHostFixture` for shared DB + host (same pattern as existing tests).
+2. **Reset** — Call `Checkpoint.ResetAsync` (or `ResetDatabaseAsync` on the fixture) before assertions that need a clean database.
+3. **Data** — Use `IntegrationSeedBuilder` in shared test code for deterministic users, roles, and forms. For a full baseline (multi-tenant, roles, forms), use optional **standard seed** via `StandardSeedOptions` and `ResetDatabaseAsync(useStandardSeed: true, ...)` (see shared `IntegrationSeedBuilder`).
+4. **Naming** — Behavior-first test methods; flow-focused classes named like `AuthLoginFlowTests`.
+
+## Assertions
+
+Prefer **HTTP status + response contract + persistence effect** (or explicit lack of effect) for the scenario. Keep one primary behavior per test; extra asserts should support the same end-to-end outcome.
+
+## CI
+
+The SaaS repo workflow can run the same Endatix API suite against a **matrix** of database providers. Use the same `--filter` patterns as locally when reproducing CI failures.
+
+## Related configuration
+
+- [Data configuration](/docs/configuration/data-configuration) — connection strings and providers for the running app.
+- [Health checks](/docs/developers/api/health-checks) — health endpoint behavior exercised by infrastructure smoke tests.
