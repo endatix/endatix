@@ -46,7 +46,7 @@ public sealed class DatabaseInfrastructureFixture : IAsyncLifetime
                 _container = postgresContainer;
                 break;
             case TestDatabaseProvider.SqlServer:
-                vader = new MsSqlBuilder()
+                var sqlBuilder = new MsSqlBuilder()
                     .WithPassword(SqlServerPassword);
 
                 if (!string.IsNullOrWhiteSpace(settings.SqlServerImage))
