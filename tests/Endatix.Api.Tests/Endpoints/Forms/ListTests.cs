@@ -44,8 +44,8 @@ public class ListTests
         var request = new FormsListRequest { Page = 1, PageSize = 10 };
         var forms = new List<FormDto> 
         { 
-            new() { Id = "1", Name = "Form 1" },
-            new() { Id = "2", Name = "Form 2" }
+            new() { Id = "1", Name = "Form 1", SubmissionsCount = 4 },
+            new() { Id = "2", Name = "Form 2", SubmissionsCount = 0 }
         };
         var result = Result.Success(forms.AsEnumerable());
 
@@ -60,6 +60,8 @@ public class ListTests
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Count().Should().Be(2);
+        okResult!.Value!.First().SubmissionsCount.Should().Be(4);
+        okResult!.Value!.Last().SubmissionsCount.Should().Be(0);
     }
 
     [Fact]
