@@ -120,6 +120,7 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         "developers/api/index",
+        "developers/integration-testing",
         {
           type: "link",
           label: "API Reference",
