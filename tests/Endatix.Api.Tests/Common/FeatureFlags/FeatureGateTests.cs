@@ -18,7 +18,6 @@ public sealed class FeatureGateTests
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddEndatixOptions<FeatureFlagsOptions>(configuration);
         services.AddEndatixFeatureFlags(configuration);
         services.AddScoped<ITenantContext>(_ => new TestTenantContext());
         services.AddScoped<IUserContext>(_ => new TestUserContext());

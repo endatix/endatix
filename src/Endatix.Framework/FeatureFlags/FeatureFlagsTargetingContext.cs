@@ -12,9 +12,13 @@ internal sealed class FeatureFlagsTargetingContext(ITenantContext tenantContext,
     private static string[] GetUserGroups(ITenantContext tenantContext)
     {
         var tenant = tenantContext.TenantId;
-        var userTenantGroup = $"tenant-{tenant}";
+        if (tenant <= 0)
+        {
+            return Array.Empty<string>();
+        }
 
-        return [userTenantGroup];
+        var userTenantGroup = $"tenant-{tenant}";
+        return new[] { userTenantGroup };
     }
 
     private static string GetUserId(IUserContext userContext) => userContext.GetCurrentUserId() ?? ANONYMOUS_USER_ID;

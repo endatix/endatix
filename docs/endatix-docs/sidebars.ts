@@ -120,6 +120,8 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         "developers/api/index",
+        "developers/api/health-checks",
+        "developers/api/feature-flags",
         {
           type: "link",
           label: "API Reference",

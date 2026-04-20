@@ -1,7 +1,7 @@
 namespace Endatix.Framework.FeatureFlags;
 
 /// <summary>
-/// Resolves whether Data Lists functionality is enabled for the current configuration.
+/// Provides a way to check if a feature is enabled.
 /// </summary>
 public interface IFeatureGate
 {
