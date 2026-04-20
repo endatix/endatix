@@ -12,12 +12,16 @@
   <PropertyGroup>
     <RootNamespace>Endatix.Framework</RootNamespace>
   </PropertyGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\Endatix.Core\Endatix.Core.csproj" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Ardalis.GuardClauses" />
+    <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Serilog.AspNetCore" />
   </ItemGroup>
-
 </Project>
