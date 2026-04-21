@@ -1,0 +1,54 @@
+---
+title: 'Email Providers'
+description: 'Learn how to configure and activate an email provider for the Endatix API.'
+sidebar_position: 3
+---
+
+# Configuring Email Providers
+
+To send transactional emails, form submission notifications, and identity verification links, you must configure an email provider in your Endatix API application. Endatix uses a builder pattern to easily register and configure your preferred email service during application startup.
+
+Currently, Endatix provides built-in support for:
+* **Mailgun**
+* **SendGrid**
+* **Standard SMTP**
+
+## Activating the Email Provider
+
+To activate your chosen email provider, you need to modify your application's entry point (typically `Program.cs`). Use the `ConfigureEndatixWithDefaults` extension method to specify which provider the infrastructure should use.
+
+Here is an example of how to register **Mailgun** as your active email provider:
+
+```csharp title="Program.cs"
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    endatix.Infrastructure.Integrations.AddEmail<MailgunEmailSender, MailgunSettings>();
+});
+````
+
+To use a different provider, simply swap the generic type parameters with the corresponding sender and settings classes (e.g., `SmtpEmailSender` and `SmtpSettings` for standard SMTP).
+
+## Providing the Settings
+
+Once the provider is activated in your code, you must supply the necessary credentials and configuration values in your `appsettings.json` (or via environment variables).
+
+```json title="appsettings.json"
+{
+  "Endatix": {
+    "Integrations": {
+      "Email": {
+        "MailgunSettings": {
+          "ApiKey": "key-your_mailgun_api_key",
+          "Domain": "mg.yourdomain.com",
+          "BaseUrl": "[https://api.mailgun.net/v3](https://api.mailgun.net/v3)",
+          "DefaultFromAddress": "noreply@mg.yourdomain.com",
+          "DefaultFromName": "Endatix"
+        }
+      }
+    }
+  }
+}
+```
+:::info
+For a complete list of required and optional properties for all supported email integrations (Mailgun, SendGrid, and SMTP), please refer to the [Email Provider Settings](../../configuration/settings/email-settings) reference page.
+:::

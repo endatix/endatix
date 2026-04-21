@@ -37,7 +37,7 @@ For advanced scenarios, Endatix can use external identity providers (like Keyclo
 
 Endatix maps external authroization data such as permissions, roles and claims to the built-in Endatix authorization system giving you maximum flexibility and control over your authorization logic.
 
-:::info Learn More
+:::info[Learn More]
 For a comprehensive guide on external authorization concepts and benefits, see the [External Authorization guide](/docs/guides/external-authorization).
 :::
 
@@ -64,7 +64,7 @@ Permission names follow the pattern: `{category}.{action}.{scope}`
 <details>
   <summary>List of built-in permissions</summary>
 
-:::tip API Endpoint Reference
+:::tip[API Endpoint Reference]
 For a comprehensive guide showing which API endpoints require which permissions, see the [API Permissions Reference](/docs/guides/api-permissions-reference).
 :::
 
@@ -212,7 +212,7 @@ public class MyUseCase(ICurrentUserAuthorizationService authService)
 }
 ```
 
-:::tip Good to know
+:::tip[Good to know]
 Admins and PlatformAdmins will always pass any permission check.
 To restrict access to Platform-level features and settings to PlatformAdmins only, you can use the `PlatformAdmin` policy on your endpoints e.g. `Policy("PlatformAdmin", () => { ... });`
 :::

@@ -11,7 +11,7 @@ import TabItem from '@theme/TabItem';
 
 This guide walks you through setting up role-based access control (RBAC) with Keycloak using lightweight JWT tokens and token introspection. This approach provides smaller token sizes, reduced cookie sizes, and better PII protection.
 
-:::info Concepts
+:::info[Concepts]
 For a general overview of external authorization concepts and benefits, see the [External Authorization guide](/docs/guides/external-authorization).
 :::
 
@@ -63,7 +63,7 @@ Role and permission information is excluded from the lightweight token and retri
 5. Find **"Always use lightweight access token"** and turn the switch to **On**
 6. Click **"Save"**
 
-:::tip Alternative Method
+:::tip[Alternative Method]
 You can also use Keycloak client policies to conditionally enable lightweight tokens. See the [Keycloak documentation](https://www.keycloak.org/docs/latest/server_admin/#_using_lightweight_access_token) for details.
 :::
 
@@ -80,7 +80,7 @@ To ensure role information is available via token introspection, you need to con
 5. Ensure the mapper is added to the lightweight access token by turning the toggle **On**
 6. Click **"Save"**
 
-:::info Why Roles Scope?
+:::info[Why Roles Scope?]
 The audience resolve mapper is used to fill the `aud` claim in the access token based on applied client roles. This is essential for token exchange scenarios and proper token validation.
 :::
 

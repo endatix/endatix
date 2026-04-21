@@ -137,6 +137,6 @@ services.AddEndatix(configuration)
     .Security.UseJwtAuthentication().Build();
 ```
 
-:::warning Note
+:::warning[Note]
 Database connection strings should be stored securely using secrets management in production environments.
 ::: 

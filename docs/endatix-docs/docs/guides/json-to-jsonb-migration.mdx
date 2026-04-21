@@ -188,7 +188,7 @@ ROLLBACK;
 ```
 Type this command in the same query window and execute it.
 
-:::tip SQL Client Transaction Behavior
+:::tip[SQL Client Transaction Behavior]
 When you run a script that starts with `BEGIN;`, your SQL client keeps that transaction open until you explicitly run `COMMIT;` or `ROLLBACK;`. This allows you to review the changes before making them permanent.
 
 **Important:** Don't close the query window until you've committed or rolled back - closing the window may automatically rollback the transaction depending on your client settings.

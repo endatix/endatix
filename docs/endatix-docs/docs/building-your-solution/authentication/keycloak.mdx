@@ -51,7 +51,7 @@ docker run -p 127.0.0.1:8080:8080 \
    - Go to **"Realm Settings"** → **"Login"**
    - Enable **"Email as username"**
 
-:::tip Fast Track Option
+:::tip[Fast Track Option]
 For the fastest setup, you can also import our pre-configured test realm with users and clients already set up. Reach out to us and we will provide you with the import file and instructions.
 :::
 
@@ -97,7 +97,7 @@ For the fastest setup, you can also import our pre-configured test realm with us
 1. Go to **"Clients"** → **"endatix-hub"** → **"Credentials"**
 2. Copy the **Client Secret** (you'll need this for configuration)
 
-:::info Production Setup
+:::info[Production Setup]
 For production environments, we recommend following the [official Keycloak documentation](https://www.keycloak.org/documentation) for proper server setup, clustering, and security configuration.
 :::
 
@@ -158,7 +158,7 @@ Add Keycloak configuration to your `appsettings.json`:
 - **ClientId**: Your Keycloak client ID (required)
 - **ClientSecret**: Your Keycloak client secret (required)
 
-:::info Authorization Configuration
+:::info[Authorization Configuration]
 You can use Keycloak to also provide authorization data for your Endatix application allowing you to manage user roles and access control from the Keycloak admin console (or other external identity providers).
 
 The `Authorization` section is optional and used for role-based access control with token introspection. For details on setting up RBAC with Keycloak, see the [Keycloak RBAC guide](/docs/building-your-solution/authorization/keycloak-rbac).

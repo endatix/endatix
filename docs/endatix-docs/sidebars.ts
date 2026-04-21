@@ -101,6 +101,7 @@ const sidebars: SidebarsConfig = {
             "configuration/settings/auth-settings",
             "configuration/settings/cors-settings",
             "configuration/settings/data-settings",
+            "configuration/settings/email-settings",
             "configuration/settings/health-checks",
             "configuration/settings/hub-settings",
             "configuration/settings/persistence-settings",
@@ -120,6 +121,7 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         "developers/api/index",
+        "developers/api/email-providers",
         "developers/api/health-checks",
         "developers/api/feature-flags",
         {
@@ -160,7 +162,6 @@ const sidebars: SidebarsConfig = {
             "end-users/forms/form-builder/form-display-modes",
             "end-users/forms/form-builder/form-navigation",
             "end-users/forms/form-builder/logic-expressions",
-            "end-users/forms/form-builder/formatting-functions",
             "end-users/forms/form-builder/question-loops",
             "end-users/forms/form-builder/randomization-of-choices",
           ],

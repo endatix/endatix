@@ -19,7 +19,7 @@ In the endpoint tables below, the **Permission** column shows:
 - **Authenticated** - Requires authentication but no specific permission
 - **Specific permission** (e.g., `forms.create`) - Requires authentication and the specified permission
 
-:::tip Quick Links
+:::tip[Quick Links]
 - [Permission Categories](#permission-categories) - All available permissions
 - [Endpoints by Category](#endpoints-by-category) - Complete endpoint reference
 - [Authorization Overview](/docs/building-your-solution/authorization) - Learn about the authorization system
@@ -117,7 +117,7 @@ Tenant-specific management permissions:
 
 This section provides the **complete reference** of all API endpoints with information about permissions and short descriptions.
 
-:::info Public vs Authenticated Endpoints
+:::info[Public vs Authenticated Endpoints]
 - **Public** endpoints do not require authentication and are accessible anonymously
 - Public submission endpoints use ReCAPTCHA validation to prevent abuse
 - Access token endpoints require a valid signed token for security
@@ -156,7 +156,7 @@ This section provides the **complete reference** of all API endpoints with infor
 | PATCH | `/forms/{formId}` | `forms.edit` | Partially update a form |
 | DELETE | `/forms/{formId}` | `forms.delete` | Delete form and all its definitions/submissions |
 
-:::warning Cascading Delete
+:::warning[Cascading Delete]
 Deleting a form will delete all associated form definitions and submissions.
 :::
 
@@ -173,7 +173,7 @@ Deleting a form will delete all associated form definitions and submissions.
 | PUT | `/forms/{formId}/definition` | `forms.edit` | Update the active form definition |
 | PATCH | `/forms/{formId}/definition` | `forms.edit` | Partially update the active definition |
 
-:::tip Active Definition
+:::tip[Active Definition]
 The `/definition` endpoint (singular) always returns or updates the currently active form definition, while `/definitions` (plural) works with all versions.
 :::
 
@@ -192,7 +192,7 @@ The `/definition` endpoint (singular) always returns or updates the currently ac
 | POST | `/forms/{formId}/submissions/export` | `submissions.export` | Export submissions (CSV or custom formats) |
 | POST | `/forms/{formId}/submissions/{submissionId}/files` | `submissions.view` | Download submission files as ZIP |
 
-:::info Ownership-Based Deletion
+:::info[Ownership-Based Deletion]
 The delete endpoint accepts either `submissions.delete` (delete any submission) OR `submissions.delete.owned` (delete only own submissions). This allows users to manage their own submissions without full delete permissions.
 :::
 
@@ -213,7 +213,7 @@ The delete endpoint accepts either `submissions.delete` (delete any submission) 
 | GET | `/forms/{formId}/submissions/by-access-token/{token}` | **Public** | Get submission using access token |
 | PATCH | `/forms/{formId}/submissions/by-access-token/{token}` | **Public** | Update submission using access token |
 
-:::tip Access Token Permissions
+:::tip[Access Token Permissions]
 When generating an access token, you can specify which permission (view, edit, or export) the token should grant. The token is short-lived and scoped to that specific permission.
 :::
 
@@ -304,7 +304,7 @@ The generated token will only grant the specified permission (`view`, `edit`, or
 
 ### Admin Override
 
-:::tip Important
+:::tip[Important]
 Users with the **Admin** or **PlatformAdmin** roles will pass any permission check automatically. To restrict access to platform-level features to PlatformAdmins only, use role policies instead of permissions.
 :::
 
@@ -320,7 +320,7 @@ Here's a quick reference of which permissions each default role has:
 | **Authenticated** | `access.authenticated` (basic authenticated access) |
 | **Public** | No permissions (anonymous access) |
 
-:::info Custom Roles
+:::info[Custom Roles]
 You can create custom roles with any combination of permissions to suit your specific needs. See [Authorization](/docs/building-your-solution/authorization) for details.
 :::
 

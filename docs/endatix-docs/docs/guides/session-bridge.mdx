@@ -80,7 +80,7 @@ Lightweight tokens are essential for token exchange as they reduce token size an
 5. Find **"Always use lightweight access token"** and turn the switch to **On**
 6. Click **"Save"**
 
-:::info Why Lightweight Tokens?
+:::info[Why Lightweight Tokens?]
 Lightweight tokens contain only essential claims (exp, iat, jti, iss, typ, azp, sid, scope) and exclude role/permission information. This makes them smaller and more suitable for token exchange scenarios. More info at Keycloak [Keycloak Lightweight Access Tokens](https://www.keycloak.org/docs/latest/server_admin/#_using_lightweight_access_token) documentation.
 :::
 
@@ -104,7 +104,7 @@ Simply put, that means that the JWT issued by the original client, should have t
 5. Ensure the mapper is added to the lightweight access token by turning the toggle **On**
 6. Click **"Save"**
 
-:::info Audience Requirement
+:::info[Audience Requirement]
 The `aud` claim in the source token must include the target client ID. This is a Keycloak requirement for token exchange. The audience resolve mapper ensures this requirement is met.
 :::
 
@@ -123,7 +123,7 @@ Users eligible for token exchange must have at least one client role from the ta
    - Filter by your target client and select the roles
    - Click **"Assign"**
 
-:::tip Example
+:::tip[Example]
 If your mobile app client is `mobile-app` and your web app client is `endatix-hub`, users need at least one `endatix-hub` role to exchange tokens from `mobile-app` to `endatix-hub`.
 :::
 
