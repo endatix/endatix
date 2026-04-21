@@ -1,5 +1,3 @@
-using System.Linq.Expressions;
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
@@ -153,7 +151,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             if (ShouldPrefixTable(entity))
             {
-                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name));
+                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name, entity.GetTableName()));
             }
         }
     }
