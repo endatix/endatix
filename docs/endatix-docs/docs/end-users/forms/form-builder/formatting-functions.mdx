@@ -1,0 +1,282 @@
+---
+title: Formatting Functions
+sidebar_label: "Formatting Functions"
+description: Use formatting functions in expressions to format currency, numbers, and dates in your forms
+---
+
+# Formatting Functions
+
+Endatix Hub provides built-in formatting functions that you can use within your form expressions to dynamically format currency, numbers, and dates. These functions are evaluated at runtime and work seamlessly alongside standard SurveyJS expression syntax, allowing you to create personalized, localized, and professional-looking forms.
+
+For a broader understanding of how logic and expressions work within Endatix and SurveyJS, please refer to our guide on [Logic and Expressions](https://docs.endatix.com/docs/end-users/forms/form-builder/logic-expressions) and the official [SurveyJS Conditional Logic and Dynamic Texts guide](https://surveyjs.io/form-library/documentation/design-survey/conditional-logic).
+
+---
+
+## Available Functions
+
+### `formatCurrency`
+
+Formats a numeric value as a localized currency string.
+
+**Syntax:**
+
+```text
+formatCurrency(value, [currencyCode], [locale])
+```
+
+**Parameters:**
+
+- `value` _(required)_: The numeric value to format.
+- `currencyCode` _(optional)_: The ISO 4217 currency code (default: `"USD"`). Examples: `"EUR"`, `"GBP"`, `"JPY"`.
+- `locale` _(optional)_: The BCP 47 language tag for formatting (default: your browser's locale). Examples: `"en-US"`, `"de-DE"`.
+
+**Examples:**
+
+```javascript
+{
+  formatCurrency(1234.56);
+}
+// Output: $1,234.56 (assuming US locale)
+
+{
+  formatCurrency({ totalAmount }, "EUR");
+}
+// Output: €1,234.56 (format depends on locale)
+
+{
+  formatCurrency(price, "GBP", "en-GB");
+}
+// Output: £1,234.56
+```
+
+---
+
+### `formatNumber`
+
+Formats a number with a specific number of decimal places, adhering to locale-specific grouping separators.
+
+**Syntax:**
+
+```text
+formatNumber(value, [decimalPlaces], [locale])
+```
+
+**Parameters:**
+
+- `value` _(required)_: The number to format.
+- `decimalPlaces` _(optional)_: The number of decimal places to display (default: `2`).
+- `locale` _(optional)_: The BCP 47 language tag for formatting (default: your browser's locale).
+
+**Examples:**
+
+```javascript
+{
+  formatNumber(1234.567);
+}
+// Output: 1,234.57
+
+{
+  formatNumber({ score }, 0);
+}
+// Output: 1,235
+```
+
+---
+
+### `formatDate`
+
+Formats a date value into a human-readable string.
+
+**Syntax:**
+
+```text
+formatDate(value, [dateStyle], [locale])
+```
+
+**Parameters:**
+
+- `value` _(required)_: The date to format. Accepts an ISO string or a timestamp.
+- `dateStyle` _(optional)_: The length/style of the date. Accepted values: `"full"`, `"long"`, `"medium"`, `"short"` (default: `"short"`).
+- `locale` _(optional)_: The BCP 47 language tag for formatting (default: your browser's locale).
+
+**Examples:**
+
+```javascript
+{
+  formatDate({ submissionDate });
+}
+// Output: 10/24/2023
+
+{
+  formatDate("2024-01-15", "long");
+}
+// Output: January 15, 2024
+```
+
+---
+
+### `format` (Smart Format)
+
+A flexible wrapper function that automatically detects and applies the appropriate format based on a provided type parameter.
+
+**Syntax:**
+
+```text
+format(value, formatType, [...args])
+```
+
+**Parameters:**
+
+- `value` _(required)_: The value to format.
+- `formatType` _(required)_: The type of formatting to apply. Accepted values: `"currency"`, `"percent"`, `"date"`, `"number"`.
+- `...args` _(optional)_: Additional configuration arguments specific to the chosen `formatType`.
+
+**Examples:**
+
+```javascript
+{
+  format({ amount }, "currency");
+} // Output: $1,234.56
+{
+  format(0.75, "percent");
+} // Output: 75%
+```
+
+---
+
+## Expressions & Calculated Values: What You Need to Know
+
+When building dynamic forms with SurveyJS, you'll frequently use **Expressions** (to compute logic) and **Calculated Values** (to run hidden logic in the background). Here is how formatting functions fit into these features.
+
+### 1. Calculated Values (Background Computations)
+
+Calculated Values allow you to define custom form variables that are updated dynamically as the user fills out the form.
+
+**Best Practice: Keep Math and Formatting Separate**
+Formatting functions return **strings** (e.g., `"$1,200.00"`). Once a number is formatted, you can no longer perform math on it. Therefore, it's highly recommended to use two separate calculated values: one for the raw mathematical logic, and one for the display string.
+
+```json
+"calculatedValues": [
+  {
+    "name": "rawTotal",
+    "expression": "{basePrice} * {quantity}"
+  },
+  {
+    "name": "formattedTotal",
+    "expression": "formatCurrency({rawTotal})"
+  }
+]
+```
+
+You can now safely pipe `{formattedTotal}` into your titles and UI elements, while keeping `{rawTotal}` intact for conditional logic (e.g., `visibleIf: "{rawTotal} > 1000"`).
+
+### 2. Expression Questions (Read-Only Fields)
+
+**Expression** questions (`"type": "expression"`) calculate their values based on an expression and display the result to the respondent. They are perfect for showing subtotals or summaries.
+
+```json
+{
+  "type": "expression",
+  "name": "totalDisplay",
+  "title": "Your Order Total",
+  "expression": "formatCurrency({subtotal} + {tax})"
+}
+```
+
+### 3. Text Piping (Dynamic Titles)
+
+You can inject formatted values directly into titles, descriptions, and HTML elements using curly braces `{}`. The SurveyJS engine evaluates the expression inside the braces before rendering.
+
+```text
+Your total is: {formatCurrency({totalAmount})}
+```
+
+### 4. Auto-setting Values (`setValueExpression` & `defaultValueExpression`)
+
+You can use formatting functions when calculating default values or conditionally updating fields based on user input.
+
+```json
+{
+  "type": "text",
+  "name": "displayScore",
+  "defaultValueExpression": "formatNumber({rawScore}, 1)"
+}
+```
+
+---
+
+## Example: Dynamic Order Form
+
+The following JSON schema demonstrates a practical implementation of formatting functions within an order form. It uses `calculatedValues` to perform the math safely and `formatCurrency` in an Expression question to present the data cleanly.
+
+!
+
+```json
+{
+  "pages": [
+    {
+      "name": "orderPage",
+      "elements": [
+        {
+          "type": "text",
+          "name": "basePrice",
+          "title": "Base Price",
+          "defaultValue": 99.99
+        },
+        {
+          "type": "radiogroup",
+          "name": "country",
+          "title": "Select Country",
+          "choices": [
+            { "value": "US", "text": "United States" },
+            { "value": "UK", "text": "United Kingdom" },
+            { "value": "DE", "text": "Germany" }
+          ]
+        },
+        {
+          "type": "expression",
+          "name": "taxAmount",
+          "title": "Tax Amount (Rate: {formattedTaxRate})",
+          "expression": "{basePrice} * {taxRate}"
+        },
+        {
+          "type": "expression",
+          "name": "formattedTotal",
+          "title": "Final Formatted Total",
+          "expression": "formatCurrency({basePrice} + {taxAmount})"
+        }
+      ]
+    }
+  ],
+  "calculatedValues": [
+    {
+      "name": "taxRate",
+      "expression": "iif({country} = 'US', 0.08, iif({country} = 'UK', 0.20, 0.19))"
+    },
+    {
+      "name": "formattedTaxRate",
+      "expression": "format({taxRate}, 'percent')"
+    }
+  ]
+}
+```
+
+## Pro Tips
+
+- **Logical Conditionals**: Use `iif()` with formatting functions for conditional formatting.
+  ```javascript
+  {
+    iif({ score } >= 50, formatCurrency({ score }), "N/A");
+  }
+  ```
+- **Order of Operations**: Apply the formatting function as the outermost wrapper so that the math resolves before the format string is applied.
+  ```javascript
+  // Correct
+  {
+    formatCurrency({ price } * { quantity });
+  }
+  // Incorrect (will result in NaN)
+  {
+    formatCurrency({ price }) * { quantity };
+  }
+  ```
