@@ -48,6 +48,12 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<TenantSettings> TenantSettings { get; set; }
 
+    public DbSet<DataList> DataLists { get; set; }
+
+    public DbSet<DataListItem> DataListItems { get; set; }
+
+    public DbSet<FormDependency> FormDependencies { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         base.OnConfiguring(optionsBuilder);
