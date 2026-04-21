@@ -53,7 +53,7 @@ builder.Services.AddEndatix(configuration)
     .Build();
 ```
 
-:::warning Note on importance
+:::warning[Note on importance]
  
 :fire: Data settings are a critical part of your deployment strategy. You should carefully decide when and if data migrations and seeding are executed to ensure your database schema and data are properly managed according to your application's needs.
 

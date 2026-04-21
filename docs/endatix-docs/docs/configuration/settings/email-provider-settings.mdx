@@ -1,0 +1,118 @@
+---
+sidebar_position: 4
+title: Email Provider Settings
+---
+
+# Email Provider Settings
+
+Endatix requires an email provider to send transactional emails, form submission notifications, and identity verification links (like password resets). Out of the box, the Endatix API supports **SendGrid**, **Mailgun**, and standard **SMTP**.
+
+Configuration is managed via your `appsettings.json` file or environment variables under the `Endatix:Integrations:Email` section.
+
+-----
+
+## SendGrid
+
+To use SendGrid as your email provider, you need to configure the `SendGridSettings` section. The Endatix API uses the official SendGrid APIs to deliver emails reliably.
+
+### Configuration Example
+
+```json
+{
+  "Endatix": {
+    "Integrations": {
+      "Email": {
+        "SendGridSettings": {
+          "ApiKey": "SG.your_api_key_here",
+          "DefaultFromAddress": "noreply@yourdomain.com",
+          "DefaultFromName": "Endatix Notifications"
+        }
+      }
+    }
+  }
+}
+```
+
+### Properties
+
+  * **`ApiKey`** *(Required)*: Your SendGrid API key with "Mail Send" permissions.
+  * **`DefaultFromAddress`** *(Required)*: The verified sender email address configured in your SendGrid account.
+  * **`DefaultFromName`**: The display name for the sender.
+
+*For implementation details, refer to [`SendGridSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/SendGridSettings.cs).*
+
+-----
+
+## Mailgun
+
+To use Mailgun, configure the `MailgunSettings` section. This integration uses the Mailgun REST API.
+
+### Configuration Example
+
+```json
+{
+  "Endatix": {
+    "Integrations": {
+      "Email": {
+        "MailgunSettings": {
+          "ApiKey": "key-your_mailgun_api_key",
+          "Domain": "mg.yourdomain.com",
+          "BaseUrl": "https://api.mailgun.net/v3",
+          "DefaultFromAddress": "noreply@mg.yourdomain.com",
+          "DefaultFromName": "Endatix Notifications"
+        }
+      }
+    }
+  }
+}
+```
+
+### Properties
+
+  * **`ApiKey`** *(Required)*: Your private Mailgun API key.
+  * **`Domain`** *(Required)*: The sending domain verified in your Mailgun account.
+  * **`BaseUrl`**: The Mailgun API base URL. Use `https://api.eu.mailgun.net/v3` if your domain is hosted in the EU region.
+  * **`DefaultFromAddress`** *(Required)*: The default sender email address.
+  * **`DefaultFromName`**: The display name for the sender.
+
+*For implementation details, refer to [`MailgunSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/MailgunSettings.cs).*
+
+-----
+
+## SMTP
+
+If you prefer to use a standard SMTP server (such as Amazon SES, Postmark, or a custom corporate mail server), Endatix provides an `SmtpEmailSender` implementation using the native .NET `SmtpClient`.
+
+### Configuration Example
+
+```json
+{
+  "Endatix": {
+    "Integrations": {
+      "Email": {
+        "SmtpSettings": {
+          "Host": "smtp.example.com",
+          "Port": 587,
+          "EnableSsl": true,
+          "Username": "your_smtp_username",
+          "Password": "your_smtp_password",
+          "DefaultFromAddress": "noreply@yourdomain.com",
+          "DefaultFromName": "Endatix Notifications"
+        }
+      }
+    }
+  }
+}
+```
+
+### Properties
+
+  * **`Host`** *(Required)*: The SMTP server host name or IP address (e.g., `localhost` or `smtp.mail.company.com`).
+  * **`Port`**: The SMTP server port number. Defaults to `587`.
+  * **`EnableSsl`**: Whether to enable SSL/TLS encryption. Defaults to `true`.
+  * **`Username`**: The username for SMTP authentication. If left empty, default credentials are used.
+  * **`Password`**: The password for SMTP authentication.
+  * **`DefaultFromAddress`** *(Required)*: The default sender email address. Defaults to `noreply@endatix.com`.
+  * **`DefaultFromName`**: The default sender display name. Defaults to `Endatix`.
+
+*For implementation details, refer to [`SmtpSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/SmtpSettings.cs).*

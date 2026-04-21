@@ -7,7 +7,7 @@ title: Auth Settings
 
 JWT (JSON Web Token) settings control the authentication and authorization mechanisms in Endatix. These settings are essential for securing your API and client interactions, ensuring that only authorized users can access protected resources.
 
-:::warning Security Note
+:::warning[Security Note]
 
 :lock: Never expose sensitive JWT settings, like the SigningKey, in public configuration files or the client-side code. Exposing these keys is a security vulnerability that can lead to token forgery, data breaches, or unauthorized access. Always store them securely in environment variables or a dedicated secrets manager.
 
