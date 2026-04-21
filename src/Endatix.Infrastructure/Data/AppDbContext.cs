@@ -1,5 +1,3 @@
-using System.Linq.Expressions;
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
@@ -47,6 +45,12 @@ public class AppDbContext : DbContext, ITenantDbContext
     public DbSet<EmailTemplate> EmailTemplates { get; set; }
 
     public DbSet<TenantSettings> TenantSettings { get; set; }
+
+    public DbSet<DataList> DataLists { get; set; }
+
+    public DbSet<DataListItem> DataListItems { get; set; }
+
+    public DbSet<FormDependency> FormDependencies { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -147,7 +151,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             if (ShouldPrefixTable(entity))
             {
-                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name));
+                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name, entity.GetTableName()));
             }
         }
     }
