@@ -28,6 +28,10 @@ builder.Host.ConfigureEndatixWithDefaults(endatix =>
 
 To use a different provider, simply swap the generic type parameters with the corresponding sender and settings classes (e.g., `SmtpEmailSender` and `SmtpSettings` for standard SMTP).
 
+:::info
+The SMTP provider is the default one and does not require explicit activation.
+:::
+
 ## Providing the Settings
 
 Once the provider is activated in your code, you must supply the necessary credentials and configuration values in your `appsettings.json` (or via environment variables).
