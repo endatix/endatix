@@ -101,7 +101,7 @@ const sidebars: SidebarsConfig = {
             "configuration/settings/auth-settings",
             "configuration/settings/cors-settings",
             "configuration/settings/data-settings",
-            "configuration/settings/email-provider-settings",
+            "configuration/settings/email-settings",
             "configuration/settings/health-checks",
             "configuration/settings/hub-settings",
             "configuration/settings/persistence-settings",
@@ -121,6 +121,7 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         "developers/api/index",
+        "developers/api/email-providers",
         "developers/api/health-checks",
         "developers/api/feature-flags",
         {
