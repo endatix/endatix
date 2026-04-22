@@ -27,11 +27,12 @@ public sealed class DeleteDataListHandler(
         var isUsedOnForms = await dependencyChecker.HasFormDependenciesAsync(request.DataListId, cancellationToken);
         if (isUsedOnForms)
         {
-            return Result.Invalid([new ValidationError
+            ValidationError hasFormsValidationError = new()
             {
                 Identifier = nameof(request.DataListId),
                 ErrorMessage = "Data list is used by forms and cannot be deleted."
-            }]);
+            };
+            return Result.Invalid(hasFormsValidationError);
         }
 
         dataList.Delete();

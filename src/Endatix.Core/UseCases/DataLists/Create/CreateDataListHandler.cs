@@ -24,11 +24,12 @@ public sealed class CreateDataListHandler(
         var existingDataList = await repository.SingleOrDefaultAsync(byNameSpec, cancellationToken);
         if (existingDataList is not null)
         {
-            return Result.Invalid([new ValidationError
+            ValidationError duplicateNameValidationError = new()
             {
                 Identifier = nameof(request.Name),
                 ErrorMessage = $"A data list with the name '{request.Name}' already exists."
-            }]);
+            };
+            return Result.Invalid(duplicateNameValidationError);
         }
 
         DataList dataList = new(tenantContext.TenantId, request.Name, request.Description);
