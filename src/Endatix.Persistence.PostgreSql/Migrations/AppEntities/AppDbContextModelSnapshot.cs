@@ -96,7 +96,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Name")
+                    b.HasIndex("TenantId", "Name", "IsDeleted")
                         .IsUnique();
 
                     b.ToTable("DataLists", (string)null);

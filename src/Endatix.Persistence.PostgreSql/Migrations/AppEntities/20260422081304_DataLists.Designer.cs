@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260421110649_DataLists")]
+    [Migration("20260422081304_DataLists")]
     partial class DataLists
     {
         /// <inheritdoc />
@@ -99,7 +99,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Name")
+                    b.HasIndex("TenantId", "Name", "IsDeleted")
                         .IsUnique();
 
                     b.ToTable("DataLists", (string)null);
