@@ -24,12 +24,8 @@ public sealed class CreateDataListHandler(
         var existingDataList = await repository.SingleOrDefaultAsync(byNameSpec, cancellationToken);
         if (existingDataList is not null)
         {
-            ValidationError duplicateNameValidationError = new()
-            {
-                Identifier = nameof(request.Name),
-                ErrorMessage = $"A data list with the name '{request.Name}' already exists."
-            };
-            return Result.Invalid(duplicateNameValidationError);
+            var duplicateListNameError = CreateDuplicateNameValidationError(request.Name);
+            return Result.Invalid(duplicateListNameError);
         }
 
         DataList dataList = new(tenantContext.TenantId, request.Name, request.Description);
@@ -41,11 +37,14 @@ public sealed class CreateDataListHandler(
         }
         catch (Exception exception) when (uniqueConstraintViolationChecker.IsUniqueConstraintViolation(exception))
         {
-            return Result.Invalid([new ValidationError
-            {
-                Identifier = nameof(request.Name),
-                ErrorMessage = $"A data list with the name '{request.Name}' already exists."
-            }]);
+            var duplicateListNameError = CreateDuplicateNameValidationError(request.Name);
+            return Result.Invalid(duplicateListNameError);
         }
     }
+
+    private static ValidationError CreateDuplicateNameValidationError(string name) => new()
+    {
+        Identifier = nameof(name),
+        ErrorMessage = $"A data list with the name '{name}' already exists."
+    };
 }
