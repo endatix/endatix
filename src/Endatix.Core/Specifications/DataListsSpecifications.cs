@@ -2,6 +2,7 @@ using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Specifications.Common;
 using Endatix.Core.Specifications.Parameters;
+using Endatix.Core.UseCases.DataLists;
 
 namespace Endatix.Core.Specifications;
 
@@ -43,6 +44,18 @@ public class DataListsSpecifications
     }
 
     /// <summary>
+    /// Specification to check if a data list exists by ID.
+    /// </summary>
+    public sealed class ExistsSpec : Specification<DataList>, ISingleResultSpecification<DataList>
+    {
+        public ExistsSpec(long dataListId)
+        {
+            Query.Where(x => x.Id == dataListId);
+            Query.AsNoTracking();
+        }
+    }
+
+    /// <summary>
     /// Specification to get a data list by ID with data list items included.
     /// </summary>
     public sealed class ByIdWithItemsSpec : Specification<DataList>, ISingleResultSpecification<DataList>
@@ -72,6 +85,24 @@ public class DataListsSpecifications
             }
 
             Query.Include(x => x.Items.Where(item => values.Contains(item.Value)));
+        }
+    }
+
+    /// <summary>
+    /// Specification to map a data list to a data list DTO.
+    /// </summary>
+    public sealed class ToDataListDtoSpec : SingleResultSpecification<DataList, DataListDto>
+    {
+        public ToDataListDtoSpec()
+        {
+            Query.Select(dataList =>
+                new DataListDto(
+                                dataList.Id,
+                                dataList.Name,
+                                dataList.Description,
+                                dataList.IsActive,
+                                dataList.Items.Select(x => new DataListItemDto(x.Id, x.Label, x.Value)).ToArray())
+                );
         }
     }
 }

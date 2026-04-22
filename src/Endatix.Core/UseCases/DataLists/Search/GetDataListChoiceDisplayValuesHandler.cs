@@ -19,7 +19,7 @@ public sealed class GetDataListChoiceDisplayValuesHandler(IRepository<DataList> 
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        DataListByIdWithItemsByValuesSpec spec = new(request.DataListId, requestedValues);
+        var spec = new DataListsSpecifications.ByIdWithItemsByValuesSpec(request.DataListId, requestedValues);
         var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {

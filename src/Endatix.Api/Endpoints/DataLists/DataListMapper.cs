@@ -29,4 +29,25 @@ public static class DataListMapper
         Take = dto.Take,
         Items = dto.Items.Select(Map).ToArray()
     };
+
+    public static DataListPublicChoiceModel MapPublic(DataListItemDto dto) => new()
+    {
+        Label = dto.Label,
+        Value = dto.Value
+    };
+
+    public static DataListPublicSearchResultModel MapPublic(SearchDataListItemsDto dto) => new()
+    {
+        DataListId = dto.DataListId,
+        Total = dto.Total,
+        Skip = dto.Skip,
+        Take = dto.Take,
+        Items = dto.Items.Select(MapPublic).ToArray()
+    };
+
+    public static DataListPublicChoiceModel MapPublic(DataListChoiceDisplayValueDto dto) => new()
+    {
+        Label = dto.Label,
+        Value = dto.Value
+    };
 }

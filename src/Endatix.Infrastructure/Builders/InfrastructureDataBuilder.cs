@@ -12,6 +12,7 @@ using Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Infrastructure.Features.Forms;
 using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Infrastructure.Data.Repositories;
 using Endatix.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -53,6 +54,7 @@ public class InfrastructureDataBuilder
         Services.AddSingleton<IUniqueConstraintViolationChecker, UniqueConstraintViolationChecker>();
         Services.AddScoped<IFormsRepository, FormsRepository>();
         Services.AddScoped<IDataListDependencyChecker, DataListDependencyChecker>();
+        Services.AddScoped<IDataListRepository, DataListRepository>();
         Services.AddSingleton<DataSeeder>();
 
         // Add exporters

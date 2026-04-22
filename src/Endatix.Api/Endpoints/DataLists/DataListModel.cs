@@ -24,3 +24,18 @@ public sealed class DataListSearchResultModel
     public int Take { get; init; }
     public IReadOnlyCollection<DataListItemModel> Items { get; init; } = [];
 }
+
+public sealed class DataListPublicChoiceModel
+{
+    public string Label { get; init; } = string.Empty;
+    public string Value { get; init; } = string.Empty;
+}
+
+public sealed class DataListPublicSearchResultModel
+{
+    public long DataListId { get; init; }
+    public int Total { get; init; }
+    public int Skip { get; init; }
+    public int Take { get; init; }
+    public IReadOnlyCollection<DataListPublicChoiceModel> Items { get; init; } = [];
+}

@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
