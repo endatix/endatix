@@ -70,7 +70,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         ConfigureEntityIdValueGenerators(builder);
 
         // Apply base configurations from Infrastructure assembly
-        builder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly);
+        builder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly, this);
 
         // Apply database-specific configurations from the migrations assembly
         var migrationsAssembly = Database.GetService<IMigrationsAssembly>();

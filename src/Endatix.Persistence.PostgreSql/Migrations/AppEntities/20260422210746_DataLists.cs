@@ -97,10 +97,11 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 column: "DataListId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_DataLists_TenantId_Name_IsDeleted",
+                name: "IX_DataLists_TenantId_Name",
                 table: "DataLists",
-                columns: new[] { "TenantId", "Name", "IsDeleted" },
-                unique: true);
+                columns: new[] { "TenantId", "Name" },
+                unique: true,
+                filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
                 name: "IX_FormDependencies_FormId_DependencyType_DependencyIdentifier",

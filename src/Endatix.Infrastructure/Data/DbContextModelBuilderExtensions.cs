@@ -63,7 +63,11 @@ public static class DbContextModelBuilderExtensions
     /// <typeparam name="TDbContext">The DbContext type to filter configurations for.</typeparam>
     /// <param name="builder">The model builder to apply configurations to.</param>
     /// <param name="assembly">The assembly containing the configurations.</param>
-    public static void ApplyConfigurationsFor<TDbContext>(this ModelBuilder builder, Assembly assembly) where TDbContext : DbContext
+    /// <param name="dbContext">
+    /// When non-<see langword="null"/>, <c>Database.ProviderName</c> is passed to configurations that implement
+    /// <see cref="IDatabaseProviderAwareConfiguration"/> via <see cref="IDatabaseProviderAwareConfiguration.SetDatabaseProviderName"/> after parameterless construction.
+    /// </param>
+    public static void ApplyConfigurationsFor<TDbContext>(this ModelBuilder builder, Assembly assembly, DbContext? dbContext = null) where TDbContext : DbContext
     {
         Guard.Against.Null(builder, nameof(builder));
         Guard.Against.Null(assembly, nameof(assembly));
@@ -80,9 +84,15 @@ public static class DbContextModelBuilderExtensions
                         i.IsGenericType &&
                         i.GetGenericTypeDefinition() == typeof(IEntityTypeConfiguration<>)));
 
+        var providerName = dbContext?.Database.ProviderName;
         foreach (var configurationType in configurationTypes)
         {
             var configurationInstance = Activator.CreateInstance(configurationType);
+            if (configurationInstance is IDatabaseProviderAwareConfiguration providerAware)
+            {
+                providerAware.SetDatabaseProviderName(providerName);
+            }
+
             if (configurationInstance is not null)
             {
                 builder.ApplyConfiguration((dynamic)configurationInstance);
