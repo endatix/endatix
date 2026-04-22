@@ -34,9 +34,20 @@ public class DataList : TenantEntity, IAggregateRoot
 
     public DataListItem AddItem(string label, string value)
     {
-        DataListItem item = new(Id, label, value);
+        DataListItem item = new(label, value);
+        item.AttachToDataList(this);
         _items.Add(item);
         return item;
+    }
+
+    public void ReplaceItems(IEnumerable<(string Label, string Value)> items)
+    {
+        Guard.Against.Null(items, nameof(items));
+        _items.Clear();
+        foreach (var (Label, Value) in items)
+        {
+            AddItem(Label, Value);
+        }
     }
 
     public void SetActive(bool isActive) => IsActive = isActive;
