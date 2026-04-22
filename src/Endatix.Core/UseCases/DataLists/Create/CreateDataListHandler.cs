@@ -20,7 +20,7 @@ public sealed class CreateDataListHandler(
             return Result.Unauthorized("Tenant context is required.");
         }
 
-        DataListByNameSpec byNameSpec = new(request.Name);
+        var byNameSpec = new DataListsSpecifications.ByNameSpec(request.Name);
         var existingDataList = await repository.SingleOrDefaultAsync(byNameSpec, cancellationToken);
         if (existingDataList is not null)
         {

@@ -24,7 +24,7 @@ public class ReplaceDataListItemsHandlerTests
     [Fact]
     public async Task Handle_DataListNotFound_ReturnsNotFound()
     {
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListByIdSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns((DataList?)null);
 
         var result = await _sut.Handle(
@@ -35,25 +35,26 @@ public class ReplaceDataListItemsHandlerTests
     }
 
     [Fact]
-    public async Task Handle_InvalidItems_ReturnsInvalid()
+    public async Task Handle_ValidRequest_TrimsLabelsAndValues()
     {
         var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListByIdSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns(dataList);
 
         var result = await _sut.Handle(
-            new ReplaceDataListItemsCommand(1, [new("", "NYC"), new("Town", "")]),
+            new ReplaceDataListItemsCommand(1, [new("  New York  ", "  NYC  ")]),
             TestContext.Current.CancellationToken);
 
-        result.Status.Should().Be(ResultStatus.Invalid);
-        result.Errors.Should().NotBeEmpty();
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+        result.Value!.Items.Should().Contain(i => i.Label == "New York" && i.Value == "NYC");
     }
 
     [Fact]
     public async Task Handle_ValidRequest_ReplacesItemsAndReturnsDto()
     {
         var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListByIdSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns(dataList);
 
         var result = await _sut.Handle(
@@ -71,7 +72,7 @@ public class ReplaceDataListItemsHandlerTests
     public async Task Handle_ValidRequest_PublishesDataListUpdatedEvent()
     {
         var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListByIdSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns(dataList);
 
         await _sut.Handle(

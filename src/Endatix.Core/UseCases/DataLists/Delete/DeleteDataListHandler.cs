@@ -17,7 +17,7 @@ public sealed class DeleteDataListHandler(
 {
     public async Task<Result<DataList>> Handle(DeleteDataListCommand request, CancellationToken cancellationToken)
     {
-        DataListByIdSpec spec = new(request.DataListId);
+        var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId);
         var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {

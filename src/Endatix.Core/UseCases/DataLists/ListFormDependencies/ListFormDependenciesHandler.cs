@@ -15,7 +15,7 @@ public sealed class ListFormDependenciesHandler(
 {
     public async Task<Result<IReadOnlyCollection<FormDto>>> Handle(ListFormDependenciesQuery request, CancellationToken cancellationToken)
     {
-        DataListByIdSpec spec = new(request.DataListId);
+        var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId);
         var dataList = await dataListRepository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {

@@ -27,7 +27,7 @@ public class CreateDataListHandlerTests
     public async Task Handle_DuplicateNameExists_ReturnsInvalid()
     {
         _tenantContext.TenantId.Returns(101);
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListByNameSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNameSpec>(), Arg.Any<CancellationToken>())
             .Returns(new DataList(101, "Cities", null));
 
         var result = await _sut.Handle(
@@ -42,7 +42,7 @@ public class CreateDataListHandlerTests
     public async Task Handle_RaceConditionUniqueViolation_ReturnsInvalid()
     {
         _tenantContext.TenantId.Returns(101);
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListByNameSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNameSpec>(), Arg.Any<CancellationToken>())
             .Returns((DataList?)null);
         _repository.AddAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>())
             .Returns<Task<DataList>>(_ => throw new Exception("db failed"));

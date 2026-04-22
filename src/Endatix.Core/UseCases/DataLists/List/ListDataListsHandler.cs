@@ -13,7 +13,7 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
     public async Task<Result<IEnumerable<DataListDto>>> Handle(ListDataListsQuery request, CancellationToken cancellationToken)
     {
         PagingParameters pagingParams = new(request.Page, request.PageSize);
-        DataListsSpec spec = new(pagingParams);
+        var spec = new DataListsSpecifications.WithPagingSpec(pagingParams);
         var dataLists = await repository.ListAsync(spec, cancellationToken);
 
         var mapped = dataLists.Select(x => new DataListDto(

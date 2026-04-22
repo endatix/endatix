@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.DataLists.Delete;
 using MediatR;
 
@@ -27,7 +28,7 @@ public class DeleteDataListHandlerTests
     public async Task Handle_DataListHasDependencies_ReturnsInvalid()
     {
         DataList list = new(SampleData.TENANT_ID, "Cities") { Id = 10 };
-        _repository.SingleOrDefaultAsync(Arg.Any<Core.Specifications.DataListByIdSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns(list);
         _dependencyChecker.HasFormDependenciesAsync(10, Arg.Any<CancellationToken>())
             .Returns(true);
@@ -42,7 +43,7 @@ public class DeleteDataListHandlerTests
     public async Task Handle_ValidRequest_DeletesDataList()
     {
         var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 10 };
-        _repository.SingleOrDefaultAsync(Arg.Any<Core.Specifications.DataListByIdSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns(dataList);
         _dependencyChecker.HasFormDependenciesAsync(10, Arg.Any<CancellationToken>())
             .Returns(false);
@@ -67,7 +68,7 @@ public class DeleteDataListHandlerTests
     public async Task Handle_ValidRequest_PublishesDataListDeletedEvent()
     {
         var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 10 };
-        _repository.SingleOrDefaultAsync(Arg.Any<Core.Specifications.DataListByIdSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns(dataList);
         _dependencyChecker.HasFormDependenciesAsync(10, Arg.Any<CancellationToken>())
             .Returns(false);

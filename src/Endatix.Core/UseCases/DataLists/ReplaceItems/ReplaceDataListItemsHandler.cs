@@ -16,7 +16,7 @@ public sealed class ReplaceDataListItemsHandler(
 {
     public async Task<Result<DataListDto>> Handle(ReplaceDataListItemsCommand request, CancellationToken cancellationToken)
     {
-        DataListByIdSpec spec = new(request.DataListId);
+        var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId);
         var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {
