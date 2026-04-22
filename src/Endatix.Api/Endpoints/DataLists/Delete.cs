@@ -15,7 +15,7 @@ namespace Endatix.Api.Endpoints.DataLists;
 /// </summary>
 public sealed class Delete(
     IMediator mediator)
-    : Endpoint<DeleteDataListRequest, Results<Ok<string>, BadRequest, NotFound>>
+    : Endpoint<DeleteDataListRequest, Results<Ok<string>, ProblemHttpResult>>
 {
     public override void Configure()
     {
@@ -24,14 +24,14 @@ public sealed class Delete(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
-    public override async Task<Results<Ok<string>, BadRequest, NotFound>> ExecuteAsync(DeleteDataListRequest request, CancellationToken ct)
+    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(DeleteDataListRequest request, CancellationToken ct)
     {
         DeleteDataListCommand deleteCommand = new(request.DataListId);
         var result = await mediator.Send(deleteCommand, ct);
 
         return TypedResultsBuilder
             .MapResult(result, dataList => dataList.Id.ToString())
-            .SetTypedResults<Ok<string>, BadRequest, NotFound>();
+            .SetTypedResults<Ok<string>, ProblemHttpResult>();
     }
 }
 

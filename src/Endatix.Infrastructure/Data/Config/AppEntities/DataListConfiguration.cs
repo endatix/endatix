@@ -19,7 +19,7 @@ public class DataListConfiguration : IEntityTypeConfiguration<DataList>
             .HasMaxLength(DataSchemaConstants.MAX_DESCRIPTION_LENGTH)
             .IsRequired(false);
 
-        builder.HasIndex(x => new { x.TenantId, x.Name })
+        builder.HasIndex(x => new { x.TenantId, x.Name, x.IsDeleted })
             .IsUnique();
 
         builder.HasMany(x => x.Items)

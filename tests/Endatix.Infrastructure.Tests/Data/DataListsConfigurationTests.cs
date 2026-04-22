@@ -23,7 +23,7 @@ public class DataListsConfigurationTests
             .Should()
             .Contain(index =>
                 index.IsUnique &&
-                index.Properties.Select(x => x.Name).SequenceEqual(new[] { "TenantId", "Name" }));
+                index.Properties.Select(x => x.Name).SequenceEqual(new[] { "TenantId", "Name", "IsDeleted" }));
     }
 
     [Fact]

@@ -17,7 +17,7 @@ namespace Endatix.Api.Endpoints.DataLists;
 /// </summary>
 public sealed class Create(
     IMediator mediator)
-    : Endpoint<CreateDataListRequest, Results<Created<DataListModel>, BadRequest, NotFound>>
+    : Endpoint<CreateDataListRequest, Results<Created<DataListModel>, ProblemHttpResult>>
 {
     public override void Configure()
     {
@@ -34,14 +34,14 @@ public sealed class Create(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
-    public override async Task<Results<Created<DataListModel>, BadRequest, NotFound>> ExecuteAsync(CreateDataListRequest request, CancellationToken ct)
+    public override async Task<Results<Created<DataListModel>, ProblemHttpResult>> ExecuteAsync(CreateDataListRequest request, CancellationToken ct)
     {
         CreateDataListCommand command = new(request.Name!, request.Description);
 
         var result = await mediator.Send(command, ct);
         return TypedResultsBuilder
             .MapResult(result, MapCreatedModel)
-            .SetTypedResults<Created<DataListModel>, BadRequest, NotFound>();
+            .SetTypedResults<Created<DataListModel>, ProblemHttpResult>();
     }
 
     private static DataListModel MapCreatedModel(DataList dataList) => new()

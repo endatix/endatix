@@ -15,7 +15,7 @@ namespace Endatix.Api.Endpoints.DataLists;
 /// </summary>
 public sealed class List(
     IMediator mediator)
-    : Endpoint<DataListsListRequest, Results<Ok<IEnumerable<DataListModel>>, BadRequest, NotFound>>
+    : Endpoint<DataListsListRequest, Results<Ok<IEnumerable<DataListModel>>, ProblemHttpResult>>
 {
     public override void Configure()
     {
@@ -24,13 +24,13 @@ public sealed class List(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
-    public override async Task<Results<Ok<IEnumerable<DataListModel>>, BadRequest, NotFound>> ExecuteAsync(DataListsListRequest request, CancellationToken ct)
+    public override async Task<Results<Ok<IEnumerable<DataListModel>>, ProblemHttpResult>> ExecuteAsync(DataListsListRequest request, CancellationToken ct)
     {
         var result = await mediator.Send(new ListDataListsQuery(request.Page, request.PageSize), ct);
 
         return TypedResultsBuilder
             .MapResult(result, dataLists => dataLists.Select(DataListMapper.Map))
-            .SetTypedResults<Ok<IEnumerable<DataListModel>>, BadRequest, NotFound>();
+            .SetTypedResults<Ok<IEnumerable<DataListModel>>, ProblemHttpResult>();
     }
 }
 

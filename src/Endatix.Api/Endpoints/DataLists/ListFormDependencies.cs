@@ -13,7 +13,7 @@ namespace Endatix.Api.Endpoints.DataLists;
 
 public sealed class ListFormDependencies(
     IMediator mediator)
-    : Endpoint<ListFormDependenciesRequest, Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>>
+    : Endpoint<ListFormDependenciesRequest, Results<Ok<IEnumerable<FormModel>>, ProblemHttpResult>>
 {
     public override void Configure()
     {
@@ -22,7 +22,7 @@ public sealed class ListFormDependencies(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
-    public override async Task<Results<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>> ExecuteAsync(
+    public override async Task<Results<Ok<IEnumerable<FormModel>>, ProblemHttpResult>> ExecuteAsync(
         ListFormDependenciesRequest request,
         CancellationToken ct)
     {
@@ -30,7 +30,7 @@ public sealed class ListFormDependencies(
         var result = await mediator.Send(query, ct);
         return TypedResultsBuilder
             .MapResult(result, forms => forms.ToFormModelList())
-            .SetTypedResults<Ok<IEnumerable<FormModel>>, BadRequest, NotFound>();
+            .SetTypedResults<Ok<IEnumerable<FormModel>>, ProblemHttpResult>();
     }
 }
 
