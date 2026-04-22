@@ -97,7 +97,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("DataLists", (string)null);
                 });

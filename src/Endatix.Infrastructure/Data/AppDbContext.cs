@@ -16,12 +16,18 @@ public class AppDbContext : DbContext, ITenantDbContext
 {
     private readonly IIdGenerator<long> _idGenerator;
     private readonly ITenantContext _tenantContext;
+    private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
 
     protected AppDbContext() { }
-    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator, ITenantContext tenantContext) : base(options)
+    public AppDbContext(
+        DbContextOptions<AppDbContext> options,
+        IIdGenerator<long> idGenerator,
+        ITenantContext tenantContext,
+        EfCoreValueGeneratorFactory valueGeneratorFactory) : base(options)
     {
         _idGenerator = idGenerator;
         _tenantContext = tenantContext;
+        _valueGeneratorFactory = valueGeneratorFactory;
     }
 
     public DbSet<Form> Forms { get; set; }
@@ -61,9 +67,10 @@ public class AppDbContext : DbContext, ITenantDbContext
     {
         base.OnModelCreating(builder);
         builder.ApplyEndatixQueryFilters(this);
+        ConfigureEntityIdValueGenerators(builder);
 
         // Apply base configurations from Infrastructure assembly
-        builder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly);
+        builder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly, this);
 
         // Apply database-specific configurations from the migrations assembly
         var migrationsAssembly = Database.GetService<IMigrationsAssembly>();
@@ -81,6 +88,22 @@ public class AppDbContext : DbContext, ITenantDbContext
             .ToTable(t => t.ExcludeFromMigrations());
 
         PrefixTableNames(builder);
+    }
+
+    private void ConfigureEntityIdValueGenerators(ModelBuilder builder)
+    {
+        var entityTypes = builder.Model.GetEntityTypes()
+            .Where(entityType =>
+                !entityType.IsOwned() &&
+                typeof(BaseEntity).IsAssignableFrom(entityType.ClrType));
+
+        foreach (var entityType in entityTypes)
+        {
+            builder.Entity(entityType.ClrType)
+                .Property<long>(nameof(BaseEntity.Id))
+                .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
+                .ValueGeneratedNever();
+        }
     }
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;

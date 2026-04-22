@@ -100,7 +100,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 name: "IX_DataLists_TenantId_Name",
                 table: "DataLists",
                 columns: new[] { "TenantId", "Name" },
-                unique: true);
+                unique: true,
+                filter: "[IsDeleted] = 0");
 
             migrationBuilder.CreateIndex(
                 name: "IX_FormDependencies_FormId_DependencyType_DependencyIdentifier",

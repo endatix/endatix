@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
@@ -9,7 +10,9 @@ using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Exporting;
 using Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
+using Endatix.Infrastructure.Features.Forms;
 using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Infrastructure.Data.Repositories;
 using Endatix.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -48,7 +51,10 @@ public class InfrastructureDataBuilder
         Services.AddScoped<IUnitOfWork, AppUnitOfWork>();
         Services.AddSingleton<EfCoreValueGeneratorFactory>();
         Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
+        Services.AddSingleton<IUniqueConstraintViolationChecker, UniqueConstraintViolationChecker>();
         Services.AddScoped<IFormsRepository, FormsRepository>();
+        Services.AddScoped<IDataListDependencyChecker, DataListDependencyChecker>();
+        Services.AddScoped<IDataListRepository, DataListRepository>();
         Services.AddSingleton<DataSeeder>();
 
         // Add exporters

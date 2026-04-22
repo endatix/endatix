@@ -29,7 +29,7 @@ public sealed record FormDependencyType : IComparable<FormDependencyType>
 
     private FormDependencyType(string name, string code)
     {
-        Guard.Against.NullOrWhiteSpace(name, nameof(name));
+        Guard.Against.NullOrWhiteSpace(name);
         Guard.Against.NullOrWhiteSpace(code, nameof(code));
 
         if (code.Length > TYPE_CODE_MAX_LENGTH)

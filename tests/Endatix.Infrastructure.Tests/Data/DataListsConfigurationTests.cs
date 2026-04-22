@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data.Config;
 using Endatix.Infrastructure.Data.Config.AppEntities;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,7 +24,27 @@ public class DataListsConfigurationTests
             .Should()
             .Contain(index =>
                 index.IsUnique &&
-                index.Properties.Select(x => x.Name).SequenceEqual(new[] { "TenantId", "Name" }));
+                index.Properties.Select(x => x.Name).SequenceEqual(new[] { "TenantId", "Name" }) &&
+                index.GetFilter() == "\"IsDeleted\" = false");
+    }
+
+    [Fact]
+    public void DataListConfiguration_WithSqlServerProvider_UsesBitZeroFilter()
+    {
+        ModelBuilder modelBuilder = new();
+        DataListConfiguration configuration = new();
+        configuration.SetDatabaseProviderName(EfCoreDatabaseProviders.SqlServer);
+
+        configuration.Configure(modelBuilder.Entity<DataList>());
+        var entityType = modelBuilder.Model.FindEntityType(typeof(DataList));
+
+        entityType.Should().NotBeNull();
+        entityType!.GetIndexes()
+            .Should()
+            .Contain(index =>
+                index.IsUnique &&
+                index.Properties.Select(x => x.Name).SequenceEqual(new[] { "TenantId", "Name" }) &&
+                index.GetFilter() == "[IsDeleted] = 0");
     }
 
     [Fact]

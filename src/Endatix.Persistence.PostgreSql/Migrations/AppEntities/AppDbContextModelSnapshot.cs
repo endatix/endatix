@@ -97,7 +97,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("DataLists", (string)null);
                 });

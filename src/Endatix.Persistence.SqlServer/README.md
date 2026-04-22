@@ -14,22 +14,79 @@ dotnet add package Endatix.Persistence.SqlServer
 ## More Information:
 For detailed installation instructions, please visit [Endatix Installation Guide](https://docs.endatix.com/docs/getting-started/installation).
 
-# Generating Migrations
+## Migrations Guide
 
->[!NOTE]
->Please note to change the name of the migration for the respective context. This KB is WIP and is subject to change as the process evolves to simplify migrations tooling and process
+Run the commands from the `oss` folder.
 
-## For AppDbContext Entities
+> [!NOTE]
+> Always use `Endatix.WebHost` as startup project, and this provider-specific persistence project as migrations project.
+
+### Add migration
+
+#### App entities (`AppDbContext`)
 ```bash
-## For MS SQL Server
-dotnet ef migrations add InitialEntities --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.SqlServer  --context AppDbContext --output-dir Migrations/AppEntities
+dotnet ef migrations add <MigrationName> \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Persistence.SqlServer \
+  --context AppDbContext \
+  --output-dir Migrations/AppEntities
 ```
 
-## For AppIdentityDbContext Entities
+#### Identity entities (`AppIdentityDbContext`)
+```bash
+dotnet ef migrations add <MigrationName> \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Persistence.SqlServer \
+  --context AppIdentityDbContext \
+  --output-dir Migrations/AppIdentity
+```
+
+### Remove last migration
+
+1. First list your migraitons with `dotnet ef migrations list` to check if the migration you want to remove must be unapplied on your local DB
 
 ```bash
-## For MS SQL Server
-dotnet ef migrations add InitialIdentity --startup-project src/Endatix.WebHost --project src/Endatix.Persistence.SqlServer  --context AppIdentity
+dotnet ef migrations list \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Persistence.SqlServer \
+  --context <AppDbContext|AppIdentityDbContext>
+```
+
+2. If required update to the migraiton via `dotnet ef database update`
+
+```bash
+dotnet ef database update <PreviousMigrationName> \       
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Persistence.SqlServer \
+  --context <AppDbContext|AppIdentityDbContext> 
+```
+
+3. Remove the last migration
+
+```bash
+dotnet ef migrations remove \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Persistence.SqlServer \
+  --context <AppDbContext|AppIdentityDbContext> 
+```
+
+
+### Apply migrations
+
+#### App entities (`AppDbContext`)
+```bash
+dotnet ef database update \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Persistence.SqlServer \
+  --context AppDbContext
+```
+
+#### Identity entities (`AppIdentityDbContext`)
+```bash
+dotnet ef database update \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Persistence.SqlServer \
+  --context AppIdentityDbContext
 ```
 
 

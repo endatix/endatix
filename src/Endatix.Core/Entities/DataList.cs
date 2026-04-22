@@ -15,7 +15,7 @@ public class DataList : TenantEntity, IAggregateRoot
     public DataList(long tenantId, string name, string? description = null)
         : base(tenantId)
     {
-        Guard.Against.NullOrWhiteSpace(name, nameof(name));
+        Guard.Against.NullOrWhiteSpace(name);
         Name = name;
         Description = description;
     }
@@ -27,16 +27,27 @@ public class DataList : TenantEntity, IAggregateRoot
 
     public void UpdateDetails(string name, string? description)
     {
-        Guard.Against.NullOrWhiteSpace(name, nameof(name));
+        Guard.Against.NullOrWhiteSpace(name);
         Name = name;
         Description = description;
     }
 
     public DataListItem AddItem(string label, string value)
     {
-        DataListItem item = new(Id, label, value);
+        DataListItem item = new(label, value);
+        item.AttachToDataList(this);
         _items.Add(item);
         return item;
+    }
+
+    public void ReplaceItems(IEnumerable<(string Label, string Value)> items)
+    {
+        Guard.Against.Null(items);
+        _items.Clear();
+        foreach (var (Label, Value) in items)
+        {
+            AddItem(Label, Value);
+        }
     }
 
     public void SetActive(bool isActive) => IsActive = isActive;
