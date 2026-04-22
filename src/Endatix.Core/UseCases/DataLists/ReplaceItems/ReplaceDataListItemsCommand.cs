@@ -11,7 +11,7 @@ public sealed record ReplaceDataListItemsCommand : ICommand<Result<DataListDto>>
 
     public ReplaceDataListItemsCommand(long dataListId, IReadOnlyCollection<ReplaceDataListItemInput> items)
     {
-        Guard.Against.NegativeOrZero(dataListId, nameof(dataListId));
+        Guard.Against.NegativeOrZero(dataListId);
         Guard.Against.Null(items);
         DataListId = dataListId;
         Items = items;

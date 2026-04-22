@@ -11,8 +11,8 @@ public sealed record GetDataListChoiceDisplayValuesQuery : IQuery<Result<IReadOn
 
     public GetDataListChoiceDisplayValuesQuery(long dataListId, IReadOnlyCollection<string> values)
     {
-        Guard.Against.NegativeOrZero(dataListId, nameof(dataListId));
-        Guard.Against.Null(values, nameof(values));
+        Guard.Against.NegativeOrZero(dataListId);
+        Guard.Against.Null(values);
 
         DataListId = dataListId;
         Values = values;

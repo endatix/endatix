@@ -10,7 +10,7 @@ public sealed record GetDataListByIdQuery : IQuery<Result<DataListDto>>
 
     public GetDataListByIdQuery(long dataListId)
     {
-        Guard.Against.NegativeOrZero(dataListId, nameof(dataListId));
+        Guard.Against.NegativeOrZero(dataListId);
         
         DataListId = dataListId;
     }

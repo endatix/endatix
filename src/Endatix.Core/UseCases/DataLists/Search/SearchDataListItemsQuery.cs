@@ -18,9 +18,9 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<SearchDataListItem
 
     public SearchDataListItemsQuery(long dataListId, string? query, int skip, int take)
     {
-        Guard.Against.NegativeOrZero(dataListId, nameof(dataListId));
-        Guard.Against.Negative(skip, nameof(skip));
-        Guard.Against.NegativeOrZero(take, nameof(take));
+        Guard.Against.NegativeOrZero(dataListId);
+        Guard.Against.Negative(skip);
+        Guard.Against.NegativeOrZero(take);
 
         DataListId = dataListId;
         Query = query?.Trim();

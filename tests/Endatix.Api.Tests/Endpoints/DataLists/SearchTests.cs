@@ -2,7 +2,6 @@ using Endatix.Api.Endpoints.DataLists;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists;
 using Endatix.Core.UseCases.DataLists.Search;
-using Endatix.Framework.FeatureFlags;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;

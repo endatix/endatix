@@ -11,7 +11,7 @@ public sealed record DeleteDataListCommand : ICommand<Result<DataList>>
 
     public DeleteDataListCommand(long dataListId)
     {
-        Guard.Against.NegativeOrZero(dataListId, nameof(dataListId));
+        Guard.Against.NegativeOrZero(dataListId);
         DataListId = dataListId;
     }
 }
