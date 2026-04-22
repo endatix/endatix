@@ -12,33 +12,17 @@ namespace Endatix.Api.Tests.Endpoints.DataLists;
 public class SearchTests
 {
     private readonly IMediator _mediator;
-    private readonly IFeatureGate _featureGate;
     private readonly Search _endpoint;
 
     public SearchTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _featureGate = Substitute.For<IFeatureGate>();
-        _endpoint = Factory.Create<Search>(_mediator, _featureGate);
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_FeatureDisabled_ReturnsNotFound()
-    {
-        _featureGate.IsEnabledAsync(FeatureFlags.DataLists, Arg.Any<CancellationToken>())
-            .Returns(false);
-
-        var request = new SearchDataListItemsRequest { DataListId = 42, Query = "ab", Skip = 0, Take = 10 };
-        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
-        response.Result.Should().BeOfType<NotFound>();
+        _endpoint = Factory.Create<Search>(_mediator);
     }
 
     [Fact]
     public async Task ExecuteAsync_MapsRequestToQuery()
     {
-        _featureGate.IsEnabledAsync(FeatureFlags.DataLists, Arg.Any<CancellationToken>())
-            .Returns(true);
-
         var request = new SearchDataListItemsRequest
         {
             DataListId = 42,
@@ -68,11 +52,8 @@ public class SearchTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ReturnsPublicItemsWithoutId()
+    public async Task ExecuteAsync_ReturnsPublicItems()
     {
-        _featureGate.IsEnabledAsync(FeatureFlags.DataLists, Arg.Any<CancellationToken>())
-            .Returns(true);
-
         SearchDataListItemsRequest request = new()
         {
             DataListId = 42,

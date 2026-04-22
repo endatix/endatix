@@ -28,10 +28,10 @@ public sealed class Search(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
-    public override async Task<Results<Ok<DataListPublicSearchResultModel>, ProblemHttpResult>> ExecuteAsync(SearchDataListItemsRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<DataListPublicSearchResultModel>, ProblemHttpResult>> ExecuteAsync(SearchDataListItemsRequest request, CancellationToken ct)
     {
         SearchDataListItemsQuery query = new(request.DataListId, request.Query, request.Skip, request.Take);
-        var result = await mediator.Send(query, cancellationToken);
+        var result = await mediator.Send(query, ct);
         return TypedResultsBuilder
             .MapResult(result, DataListMapper.MapPublic)
             .SetTypedResults<Ok<DataListPublicSearchResultModel>, ProblemHttpResult>();

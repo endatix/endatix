@@ -82,7 +82,7 @@ public class ReplaceDataListItemsHandlerTests
         await _mediator.Received(1).Publish(
             Arg.Is<DataListUpdatedEvent>(e =>
                 e.DataList.Id == 1 &&
-                e.Reason == DataListUpdateReason.ItemsReplaced
+                e.Reason == DataListUpdateReasons.ItemsReplaced
             ),
             Arg.Any<CancellationToken>()
         );

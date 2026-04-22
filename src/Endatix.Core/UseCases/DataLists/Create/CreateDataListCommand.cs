@@ -12,7 +12,7 @@ public sealed record CreateDataListCommand : ICommand<Result<DataList>>
 
     public CreateDataListCommand(string name, string? description)
     {
-        Guard.Against.NullOrWhiteSpace(name, nameof(name));
+        Guard.Against.NullOrWhiteSpace(name);
         Name = name;
         Description = description;
     }

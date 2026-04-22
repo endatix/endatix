@@ -46,7 +46,7 @@ public sealed class ReplaceDataListItemsHandler(
         await repository.UpdateAsync(dataList, cancellationToken);
 
         await mediator.Publish(
-            new DataListUpdatedEvent(dataList, DataListUpdateReason.ItemsReplaced),
+            new DataListUpdatedEvent(dataList, DataListUpdateReasons.ItemsReplaced),
             cancellationToken);
 
         return Result.Success(new DataListDto(

@@ -7,7 +7,7 @@ namespace Endatix.Core.Events;
 /// Indicates what changed in a data list update operation.
 /// </summary>
 [Flags]
-public enum DataListUpdateReason
+public enum DataListUpdateReasons
 {
     None = 0,
     MetadataUpdated = 1 << 0,
@@ -18,8 +18,8 @@ public enum DataListUpdateReason
 /// <summary>
 /// Event dispatched when a data list is updated.
 /// </summary>
-public sealed class DataListUpdatedEvent(DataList dataList, DataListUpdateReason reason = DataListUpdateReason.None) : DomainEventBase
+public sealed class DataListUpdatedEvent(DataList dataList, DataListUpdateReasons reason = DataListUpdateReasons.None) : DomainEventBase
 {
     public DataList DataList { get; init; } = dataList;
-    public DataListUpdateReason Reason { get; init; } = reason;
+    public DataListUpdateReasons Reason { get; init; } = reason;
 }
