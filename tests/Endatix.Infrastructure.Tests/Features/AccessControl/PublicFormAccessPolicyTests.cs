@@ -101,15 +101,15 @@ public partial class PublicFormAccessPolicyTests
             .Returns(true);
 
         _cache
-            .GetOrCreateAsync<ICachedData<PublicFormAccessData>>(
+            .GetOrCreateAsync<Cached<PublicFormAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>();
                 var token = callInfo.Arg<CancellationToken>();
                 return factory(token);
             });
@@ -214,10 +214,9 @@ public partial class PublicFormAccessPolicyTests
         string? capturedCacheKey = null;
 
         _cache
-            .GetOrCreateAsync<object, ICachedData<PublicFormAccessData>>(
+            .GetOrCreateAsync<Cached<PublicFormAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
@@ -398,10 +397,9 @@ public partial class PublicFormAccessPolicyTests
         string? capturedCacheKey = null;
 
         _cache
-            .GetOrCreateAsync<object, ICachedData<PublicFormAccessData>>(
+            .GetOrCreateAsync<Cached<PublicFormAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
@@ -539,10 +537,9 @@ public partial class PublicFormAccessPolicyTests
         string? capturedCacheKey = null;
 
         _cache
-            .GetOrCreateAsync<object, ICachedData<PublicFormAccessData>>(
+            .GetOrCreateAsync<Cached<PublicFormAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
@@ -590,10 +587,9 @@ public partial class PublicFormAccessPolicyTests
         string? capturedCacheKey = null;
 
         _cache
-            .GetOrCreateAsync<object, ICachedData<PublicFormAccessData>>(
+            .GetOrCreateAsync<Cached<PublicFormAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<object>(),
-                Arg.Any<Func<object, CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
@@ -961,7 +957,7 @@ public partial class PublicFormAccessPolicyTests
             SubmissionPermissions = ResourcePermissions.Submission.Sets.CreateSubmission.ToImmutableHashSet(),
             ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
         };
-        var cachedEnvelope = Cached<PublicFormAccessData>.Create(cachedData, _dateTimeProvider.Now.UtcDateTime, TimeSpan.FromMinutes(10));
+        var cachedEnvelope = (Cached<PublicFormAccessData>)Cached<PublicFormAccessData>.Create(cachedData, _dateTimeProvider.Now.UtcDateTime, TimeSpan.FromMinutes(10));
         var context = new PublicFormAccessContext(formId);
 
         _cache
@@ -974,13 +970,13 @@ public partial class PublicFormAccessPolicyTests
             .Returns(new ValueTask<bool>(true));
 
         _cache
-            .GetOrCreateAsync<ICachedData<PublicFormAccessData>>(
+            .GetOrCreateAsync<Cached<PublicFormAccessData>>(
                 Arg.Is<string>(k => k.StartsWith("ac:form:")),
-                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<PublicFormAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new ValueTask<ICachedData<PublicFormAccessData>>(cachedEnvelope));
+            .Returns(new ValueTask<Cached<PublicFormAccessData>>(cachedEnvelope));
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -993,18 +989,12 @@ public partial class PublicFormAccessPolicyTests
     #endregion
 
     /// <summary>
-    /// Invokes the HybridCache factory used by <c>GetOrCreateCachedResultAsync</c> (stateful
-    /// <c>GetOrCreateAsync</c> overload). Handles either <see cref="Task{T}"/> or <see cref="ValueTask{T}"/> results.
+    /// Invokes the HybridCache factory used by <c>GetOrCreateCachedResultAsync</c>.
+    /// Handles either <see cref="Task{T}"/> or <see cref="ValueTask{T}"/> results.
     /// </summary>
-    private static ValueTask<ICachedData<PublicFormAccessData>> InvokeHybridCacheGetOrCreateFactory(CallInfo callInfo)
+    private static ValueTask<Cached<PublicFormAccessData>> InvokeHybridCacheGetOrCreateFactory(CallInfo callInfo)
     {
-        var factory = (Delegate)callInfo[2]!;
-        var invokeResult = factory.DynamicInvoke(callInfo[1], callInfo[5]);
-        return invokeResult switch
-        {
-            ValueTask<ICachedData<PublicFormAccessData>> vt => vt,
-            Task<ICachedData<PublicFormAccessData>> t => new ValueTask<ICachedData<PublicFormAccessData>>(t.GetAwaiter().GetResult()),
-            _ => throw new InvalidOperationException($"Unexpected factory result type: {invokeResult?.GetType().FullName}")
-        };
+        var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>();
+        return factory(callInfo.Arg<CancellationToken>());
     }
 }
