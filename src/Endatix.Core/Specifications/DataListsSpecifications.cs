@@ -76,7 +76,7 @@ public class DataListsSpecifications
     {
         public ByIdWithItemsByValuesSpec(long dataListId, IReadOnlyCollection<string> values)
         {
-            Query.Where(x => x.Id == dataListId);
+            Query.Where(x => x.Id == dataListId && x.IsActive);
 
             if (values.Count == 0)
             {
