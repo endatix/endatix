@@ -35,15 +35,15 @@ public sealed class SubmissionAccessPolicyTests
     private void SetupCacheMiss()
     {
         _cache
-            .GetOrCreateAsync<ICachedData<SubmissionAccessData>>(
+            .GetOrCreateAsync<Cached<SubmissionAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<SubmissionAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<SubmissionAccessData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>();
                 var ct = callInfo.Arg<CancellationToken>();
                 return factory(ct);
             });
@@ -94,9 +94,9 @@ public sealed class SubmissionAccessPolicyTests
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.EditSubmission);
         result.Value.ExpiresAt.Should().Be(expectedExpiresAt);
 
-        await _cache.Received(1).GetOrCreateAsync<ICachedData<SubmissionAccessData>>(
+        await _cache.Received(1).GetOrCreateAsync<Cached<SubmissionAccessData>>(
             expectedCacheKey,
-            Arg.Any<Func<CancellationToken, ValueTask<ICachedData<SubmissionAccessData>>>>(),
+            Arg.Any<Func<CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>(),
             Arg.Is<HybridCacheEntryOptions>(o => o != null && o.Expiration == expectedTtl),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
@@ -141,9 +141,9 @@ public sealed class SubmissionAccessPolicyTests
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.ViewOnly);
         result.Value.ExpiresAt.Should().Be(utcNow.Add(expectedTtl));
 
-        await _cache.Received(1).GetOrCreateAsync<ICachedData<SubmissionAccessData>>(
+        await _cache.Received(1).GetOrCreateAsync<Cached<SubmissionAccessData>>(
             expectedCacheKey,
-            Arg.Any<Func<CancellationToken, ValueTask<ICachedData<SubmissionAccessData>>>>(),
+            Arg.Any<Func<CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>(),
             Arg.Is<HybridCacheEntryOptions>(o => o != null && o.Expiration == expectedTtl),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
@@ -188,9 +188,9 @@ public sealed class SubmissionAccessPolicyTests
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.EditSubmission);
         result.Value.ExpiresAt.Should().Be(utcNow.Add(expectedTtl));
 
-        await _cache.Received(1).GetOrCreateAsync<ICachedData<SubmissionAccessData>>(
+        await _cache.Received(1).GetOrCreateAsync<Cached<SubmissionAccessData>>(
             expectedCacheKey,
-            Arg.Any<Func<CancellationToken, ValueTask<ICachedData<SubmissionAccessData>>>>(),
+            Arg.Any<Func<CancellationToken, ValueTask<Cached<SubmissionAccessData>>>>(),
             Arg.Is<HybridCacheEntryOptions>(o => o != null && o.Expiration == expectedTtl),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());

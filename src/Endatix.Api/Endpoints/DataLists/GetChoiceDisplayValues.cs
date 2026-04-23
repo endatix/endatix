@@ -1,7 +1,9 @@
 using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Authorization.Access;
 using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Framework.FeatureFlags;
+using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
@@ -12,18 +14,21 @@ namespace Endatix.Api.Endpoints.DataLists;
 /// <summary>
 /// Public endpoint to get choice display values.
 /// </summary>
-public sealed class GetChoiceDisplayValues(IMediator mediator)
+public sealed class GetChoiceDisplayValues(
+    IMediator mediator,
+    IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> publicFormAccessPolicy)
     : Endpoint<GetChoiceDisplayValuesRequest, Results<Ok<IReadOnlyCollection<DataListPublicChoiceModel>>, ProblemHttpResult>>
 {
     public override void Configure()
     {
-        Get(ApiRoutes.Public("data-lists/{dataListId}/display-values"));
+        Get(ApiRoutes.Public("forms/{formId}/data-lists/{dataListId}/display-values"));
         AllowAnonymous();
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
         Summary(s =>
         {
             s.Summary = "Resolve data list display values";
-            s.Description = "Returns label/value pairs for provided values in a public data list.";
+            s.Description =
+                "Returns label/value pairs for stored values in a runtime form context. Access is evaluated like access/public/forms/{formId} (optional token + tokenType query parameters; same cached policy).";
         });
     }
 
@@ -31,6 +36,14 @@ public sealed class GetChoiceDisplayValues(IMediator mediator)
         GetChoiceDisplayValuesRequest request,
         CancellationToken ct)
     {
+        PublicFormAccessContext accessContext = new(request.FormId, request.Token, request.TokenType);
+        var accessDataResult = await publicFormAccessPolicy.GetAccessData(accessContext, ct).ConfigureAwait(false);
+
+        if (!accessDataResult.IsSuccess)
+        {
+            return accessDataResult.ToProblem();
+        }
+
         GetDataListChoiceDisplayValuesQuery query = new(request.DataListId, request.Values);
         var result = await mediator.Send(query, ct);
 
@@ -47,9 +60,24 @@ public sealed class GetChoiceDisplayValues(IMediator mediator)
 public sealed class GetChoiceDisplayValuesRequest
 {
     /// <summary>
+    /// The ID of the form that owns the runtime context for this data list.
+    /// </summary>
+    public long FormId { get; init; }
+
+    /// <summary>
     /// The ID of the data list.
     /// </summary>
     public long DataListId { get; init; }
+
+    /// <summary>
+    /// Optional access or submission token (same semantics as <c>access/public/forms/{formId}</c>).
+    /// </summary>
+    public string? Token { get; init; }
+
+    /// <summary>
+    /// Token type when <see cref="Token"/> is set.
+    /// </summary>
+    public SubmissionTokenType? TokenType { get; init; }
 
     /// <summary>
     /// The values to get display values for.
@@ -64,7 +92,19 @@ public sealed class GetChoiceDisplayValuesValidator : Validator<GetChoiceDisplay
 {
     public GetChoiceDisplayValuesValidator()
     {
+        RuleFor(x => x.FormId).GreaterThan(0);
         RuleFor(x => x.DataListId).GreaterThan(0);
+        RuleFor(x => x.Token)
+            .NotEmpty()
+            .When(x => x.Token is not null);
+        RuleFor(x => x.TokenType)
+            .NotNull()
+            .IsInEnum()
+            .When(x => !string.IsNullOrEmpty(x.Token));
+        RuleFor(x => x.TokenType)
+            .Null()
+            .When(x => string.IsNullOrEmpty(x.Token))
+            .WithMessage("Token must be provided when Token Type is specified.");
         RuleFor(x => x.Values)
             .NotNull()
             .Must(values => values.Count > 0)

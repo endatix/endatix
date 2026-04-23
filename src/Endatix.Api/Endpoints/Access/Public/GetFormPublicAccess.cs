@@ -1,7 +1,6 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure;
-using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using FluentValidation;

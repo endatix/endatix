@@ -20,7 +20,7 @@ public sealed class DataListRepository(AppDbContext dbContext) : IDataListReposi
     {
         var dataListExists = await _dbContext.DataLists
             .AsNoTracking()
-            .AnyAsync(d => d.Id == dataListId, cancellationToken)
+            .AnyAsync(d => d.Id == dataListId && d.IsActive, cancellationToken)
             .ConfigureAwait(false);
 
         if (!dataListExists)
