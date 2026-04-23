@@ -175,16 +175,16 @@ public sealed class HybridCacheExtensionTests
         var key = "cached";
         var utcNow = new DateTime(2024, 01, 01, 0, 0, 0, DateTimeKind.Utc);
         var ttl = TimeSpan.FromMinutes(7);
-        var cachedEnvelope = Cached<DummyData>.Create(new DummyData { Id = 42 }, utcNow, ttl);
+        var cachedEnvelope = new Cached<DummyData>(new DummyData { Id = 42 }, utcNow, ttl);
 
         cache
-            .GetOrCreateAsync<ICachedData<DummyData>>(
+            .GetOrCreateAsync<Cached<DummyData>>(
                 Arg.Is<string>(k => k == key),
-                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<DummyData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<DummyData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new ValueTask<ICachedData<DummyData>>(cachedEnvelope));
+            .Returns(new ValueTask<Cached<DummyData>>(cachedEnvelope));
 
         var factoryInvoked = false;
 
@@ -224,15 +224,15 @@ public sealed class HybridCacheExtensionTests
         var ttl = TimeSpan.FromMinutes(7);
 
         cache
-            .GetOrCreateAsync<ICachedData<DummyData>>(
+            .GetOrCreateAsync<Cached<DummyData>>(
                 Arg.Is<string>(k => k == key),
-                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<DummyData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<DummyData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<DummyData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<DummyData>>>>();
                 var ct = callInfo.Arg<CancellationToken>();
                 return factory(ct);
             });
