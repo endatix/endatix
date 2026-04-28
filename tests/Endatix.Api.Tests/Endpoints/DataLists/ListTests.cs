@@ -22,7 +22,7 @@ public class ListTests
     [Fact]
     public async Task ExecuteAsync_ReturnsOk()
     {
-        var payload = new Paged<IEnumerable<DataListDto>>(
+        var payload = new Paged<DataListDto>(
             page: 1,
             pageSize: 10,
             totalRecords: 1,
@@ -36,7 +36,7 @@ public class ListTests
             .Returns(result);
 
         var response = await _endpoint.ExecuteAsync(new DataListsListRequest(), TestContext.Current.CancellationToken);
-        var ok = response.Result.Should().BeOfType<Ok<Paged<IEnumerable<DataListModel>>>>().Subject;
+        var ok = response.Result.Should().BeOfType<Ok<Paged<DataListModel>>>().Subject;
         ok.Value.Should().NotBeNull();
         ok.Value.Page.Should().Be(1);
         ok.Value.PageSize.Should().Be(10);
@@ -50,7 +50,7 @@ public class ListTests
     {
         DataListsListRequest request = new() { Page = 2, PageSize = 25 };
         _mediator.Send(Arg.Any<ListDataListsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new Paged<IEnumerable<DataListDto>>(2, 25, 0, 0, [])));
+            .Returns(Result.Success(new Paged<DataListDto>(2, 25, 0, 0, [])));
 
         await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 

@@ -11,9 +11,9 @@ namespace Endatix.Core.UseCases.DataLists.List;
 /// Handler for listing data lists.
 /// </summary>
 public sealed class ListDataListsHandler(IRepository<DataList> repository)
-    : IQueryHandler<ListDataListsQuery, Result<Paged<IEnumerable<DataListDto>>>>
+    : IQueryHandler<ListDataListsQuery, Result<Paged<DataListDto>>>
 {
-    public async Task<Result<Paged<IEnumerable<DataListDto>>>> Handle(ListDataListsQuery request, CancellationToken cancellationToken)
+    public async Task<Result<Paged<DataListDto>>> Handle(ListDataListsQuery request, CancellationToken cancellationToken)
     {
         PagingParameters pagingParams = new(request.Page, request.PageSize);
         var spec = new DataListsSpecifications.WithPagingSpec(pagingParams);
@@ -28,14 +28,14 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
             Name: x.Name,
             Description: x.Description,
             IsActive: x.IsActive,
-            Items: Array.Empty<DataListItemDto>()));
+            Items: []));
 
-        Paged<IEnumerable<DataListDto>> paged = new(
+        Paged<DataListDto> paged = new(
             page: pagingParams.Page,
             pageSize: pagingParams.PageSize,
             totalRecords: totalRecords,
             totalPages: totalPages,
-            items: mapped);
+            items: [.. mapped]);
 
         return Result.Success(paged);
     }

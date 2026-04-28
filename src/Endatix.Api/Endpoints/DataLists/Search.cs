@@ -19,7 +19,7 @@ namespace Endatix.Api.Endpoints.DataLists;
 public sealed class Search(
     IMediator mediator,
     IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> publicFormAccessPolicy)
-    : Endpoint<SearchDataListItemsRequest, Results<Ok<Paged<IReadOnlyCollection<DataListPublicChoiceModel>>>, ProblemHttpResult>>
+    : Endpoint<SearchDataListItemsRequest, Results<Ok<Paged<DataListPublicChoiceModel>>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -37,7 +37,7 @@ public sealed class Search(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
-    public override async Task<Results<Ok<Paged<IReadOnlyCollection<DataListPublicChoiceModel>>>, ProblemHttpResult>> ExecuteAsync(SearchDataListItemsRequest request, CancellationToken ct)
+    public override async Task<Results<Ok<Paged<DataListPublicChoiceModel>>, ProblemHttpResult>> ExecuteAsync(SearchDataListItemsRequest request, CancellationToken ct)
     {
         PublicFormAccessContext accessContext = new(request.FormId, request.Token, request.TokenType);
         var accessDataResult = await publicFormAccessPolicy.GetAccessData(accessContext, ct).ConfigureAwait(false);

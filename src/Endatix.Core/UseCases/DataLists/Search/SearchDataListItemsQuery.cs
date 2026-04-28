@@ -7,7 +7,7 @@ namespace Endatix.Core.UseCases.DataLists.Search;
 /// <summary>
 /// Query for searching data list items.
 /// </summary>
-public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<IReadOnlyCollection<DataListItemDto>>>>
+public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItemDto>>>
 {
     /// <summary>
     /// The maximum number of items to take.

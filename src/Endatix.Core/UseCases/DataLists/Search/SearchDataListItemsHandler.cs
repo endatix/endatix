@@ -8,10 +8,10 @@ namespace Endatix.Core.UseCases.DataLists.Search;
 /// Handler for searching data list items.
 /// </summary>
 public sealed class SearchDataListItemsHandler(IDataListRepository repository)
-    : IQueryHandler<SearchDataListItemsQuery, Result<Paged<IReadOnlyCollection<DataListItemDto>>>>
+    : IQueryHandler<SearchDataListItemsQuery, Result<Paged<DataListItemDto>>>
 {
     /// <inheritdoc />
-    public async Task<Result<Paged<IReadOnlyCollection<DataListItemDto>>>> Handle(SearchDataListItemsQuery request, CancellationToken cancellationToken)
+    public async Task<Result<Paged<DataListItemDto>>> Handle(SearchDataListItemsQuery request, CancellationToken cancellationToken)
     {
         if (request.Skip < 0 || request.Take <= 0)
         {
@@ -53,7 +53,7 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
             }
         }
 
-        Paged<IReadOnlyCollection<DataListItemDto>> paged = new(
+        Paged<DataListItemDto> paged = new(
             page: currentPage,
             pageSize: request.Take,
             totalRecords: totalRecords,

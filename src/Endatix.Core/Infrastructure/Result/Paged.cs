@@ -6,7 +6,7 @@ namespace Endatix.Core.Infrastructure.Result;
 /// <summary>
 /// Paged data.
 /// </summary>
-/// <typeparam name="T">The type of the items.</typeparam>
+/// <typeparam name="T">The item type.</typeparam>
 public class Paged<T> : IPagedData
 {
     /// <summary>
@@ -17,7 +17,7 @@ public class Paged<T> : IPagedData
     /// <param name="totalRecords">The total number of records.</param>
     /// <param name="totalPages">The total number of pages.</param>
     /// <param name="items">The items on the page.</param>
-    public Paged(long page, long pageSize, long totalRecords, long totalPages, T items)
+    public Paged(long page, long pageSize, long totalRecords, long totalPages, IReadOnlyList<T> items)
     {
         Guard.Against.NegativeOrZero(page, nameof(page));
         Guard.Against.NegativeOrZero(pageSize, nameof(pageSize));
@@ -70,5 +70,5 @@ public class Paged<T> : IPagedData
     /// The items on the page.
     /// </summary>
     [JsonInclude]
-    public T Items { get; init; }
+    public IReadOnlyList<T> Items { get; init; }
 }
