@@ -21,7 +21,7 @@ public partial class Form : TenantEntity, IAggregateRoot
         Description = description;
         IsEnabled = isEnabled;
         IsPublic = isPublic;
-        LimitOnePerUser = limitOnePerUser;
+        LimitOnePerUser = isPublic ? false : limitOnePerUser;
         Metadata = metadata;
         WebHookSettingsJson = webHookSettingsJson;
     }
