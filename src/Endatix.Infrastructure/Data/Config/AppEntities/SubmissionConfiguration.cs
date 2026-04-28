@@ -67,7 +67,5 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
         builder.HasIndex(s => s.FormDefinitionId);
         // SubmittedBy index for filtering submissions by user
         builder.HasIndex(s => s.SubmittedBy);
-        // Duplicate-check lookup path for one-submission-per-user rule.
-        builder.HasIndex(s => new { s.FormId, s.SubmittedBy });
     }
 }

@@ -7,6 +7,7 @@ using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.Exceptions;
 using Endatix.Core.UseCases.Submissions.Create;
 using MediatR;
 
@@ -615,6 +616,41 @@ public class CreateSubmissionHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Created);
         result.Value.IsTestSubmission.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_AddAsyncThrowsDuplicateSubmissionException_ReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(true));
+
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        _submissionsRepository.AddAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new DuplicateSubmissionException("Duplicate."));
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
     }
 
     [Fact]

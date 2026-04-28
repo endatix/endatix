@@ -319,7 +319,10 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.HasIndex("FormId");
 
-                    b.HasIndex("FormId", "SubmittedBy");
+                    b.HasIndex("FormId", "SubmittedBy")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Submissions_FormId_SubmittedBy")
+                        .HasFilter("\"IsTestSubmission\" = false AND \"SubmittedBy\" IS NOT NULL");
 
                     b.HasIndex("SubmittedBy");
 

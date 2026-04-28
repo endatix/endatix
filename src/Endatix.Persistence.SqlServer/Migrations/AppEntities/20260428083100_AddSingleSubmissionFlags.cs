@@ -31,16 +31,18 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 defaultValue: false);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Submissions_FormId_SubmittedBy",
+                name: "UX_Submissions_FormId_SubmittedBy",
                 table: "Submissions",
-                columns: new[] { "FormId", "SubmittedBy" });
+                columns: new[] { "FormId", "SubmittedBy" },
+                unique: true,
+                filter: "[IsTestSubmission] = 0 AND [SubmittedBy] IS NOT NULL");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
-                name: "IX_Submissions_FormId_SubmittedBy",
+                name: "UX_Submissions_FormId_SubmittedBy",
                 table: "Submissions");
 
             migrationBuilder.DropColumn(

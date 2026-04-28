@@ -10,6 +10,7 @@ using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Features.ReCaptcha;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Exceptions;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
@@ -108,7 +109,14 @@ public class CreateSubmissionHandler(
                 IsTestSubmission: canBypassSingleSubmissionLimit)
         );
 
-        await submissionRepository.AddAsync(submission, cancellationToken);
+        try
+        {
+            await submissionRepository.AddAsync(submission, cancellationToken);
+        }
+        catch (DuplicateSubmissionException)
+        {
+            return Result<Submission>.Conflict("A submission already exists for this user and form.");
+        }
         await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
 
         if (submission.IsComplete)
