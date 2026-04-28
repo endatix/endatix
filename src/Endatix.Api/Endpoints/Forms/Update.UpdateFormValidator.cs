@@ -1,7 +1,6 @@
 ﻿using FastEndpoints;
 using FluentValidation;
 using Endatix.Infrastructure.Data.Config;
-using System.Text.Json;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -24,21 +23,8 @@ public class UpdateFormValidator : Validator<UpdateFormRequest>
             .NotEmpty();
 
         RuleFor(x => x.Metadata)
-            .Must(BeValidJson)
+            .Must(JsonStringValidation.IsValid)
             .When(x => x.Metadata != null)
             .WithMessage("Metadata must be a valid JSON string.");
-    }
-
-    private static bool BeValidJson(string? json)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(json!);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
     }
 }
