@@ -61,17 +61,22 @@ public class CreateSubmissionHandler(
             var hasTestPermissionResult = await authorizationService.HasPermissionAsync(Actions.Forms.Test, cancellationToken);
             if (!hasTestPermissionResult.IsSuccess)
             {
-                return Result.Forbidden($"Permission '{Actions.Forms.Test}' required to access this resource.");
+                return hasTestPermissionResult.Status switch
+                {
+                    ResultStatus.Unauthorized => Result.Unauthorized($"Permission '{Actions.Forms.Test}' access check failed."),
+                    ResultStatus.Forbidden => Result.Forbidden($"Permission '{Actions.Forms.Test}' required to access this resource."),
+                    _ => Result.Error($"Permission '{Actions.Forms.Test}' access check failed.")
+                };
             }
 
             canBypassSingleSubmissionLimit = hasTestPermissionResult.Value;
             if (!canBypassSingleSubmissionLimit)
             {
-                var existingSubmission = await submissionRepository.SingleOrDefaultAsync(
+                var hasExistingSubmission = await submissionRepository.AnyAsync(
                     new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy),
                     cancellationToken);
 
-                if (existingSubmission is not null)
+                if (hasExistingSubmission)
                 {
                     return Result<Submission>.Conflict("A submission already exists for this user and form.");
                 }

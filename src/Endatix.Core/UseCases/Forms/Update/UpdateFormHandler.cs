@@ -23,8 +23,11 @@ public class UpdateFormHandler(
         form.Name = request.Name;
         form.Description = request.Description;
         form.IsEnabled = request.IsEnabled;
-        form.IsPublic = request.LimitOnePerUser ? false : form.IsPublic;
-        form.LimitOnePerUser = form.IsPublic ? false : request.LimitOnePerUser;
+        form.LimitOnePerUser = request.LimitOnePerUser;
+        if (form.IsPublic)
+        {
+            form.LimitOnePerUser = false;
+        }
         form.Metadata = request.Metadata;
 
         WebHookConfiguration? webHookConfig;

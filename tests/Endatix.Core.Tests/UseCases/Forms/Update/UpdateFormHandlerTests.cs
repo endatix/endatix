@@ -181,4 +181,22 @@ public class UpdateFormHandlerTests
         form.WebHookSettingsJson.Should().BeNull();
         form.WebHookSettings.Events.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Handle_PublicFormAndLimitRequested_KeepsFormPublicAndClearsLimit()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: true, limitOnePerUser: false) { Id = 1 };
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+                   .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.IsPublic.Should().BeTrue();
+        result.Value.LimitOnePerUser.Should().BeFalse();
+    }
 }
