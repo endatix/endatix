@@ -27,7 +27,7 @@ public class PartialUpdateFormValidator : Validator<PartialUpdateFormRequest>
     {
         try
         {
-            _ = JsonDocument.Parse(json!);
+            using var document = JsonDocument.Parse(json!);
             return true;
         }
         catch (JsonException)

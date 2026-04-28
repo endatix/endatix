@@ -42,7 +42,7 @@ public class CreateFormValidator : Validator<CreateFormRequest>
     {
         try
         {
-            _ = JsonDocument.Parse(json!);
+            using var document = JsonDocument.Parse(json!);
             return true;
         }
         catch (JsonException)
