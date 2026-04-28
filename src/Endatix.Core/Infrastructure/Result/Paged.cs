@@ -19,11 +19,11 @@ public class Paged<T> : IPagedData
     /// <param name="items">The items on the page.</param>
     public Paged(long page, long pageSize, long totalRecords, long totalPages, IReadOnlyList<T> items)
     {
-        Guard.Against.NegativeOrZero(page, nameof(page));
-        Guard.Against.NegativeOrZero(pageSize, nameof(pageSize));
-        Guard.Against.Negative(totalRecords, nameof(totalRecords));
-        Guard.Against.Negative(totalPages, nameof(totalPages));
-        Guard.Against.Null(items, nameof(items));
+        Guard.Against.NegativeOrZero(page);
+        Guard.Against.NegativeOrZero(pageSize);
+        Guard.Against.Negative(totalRecords);
+        Guard.Against.Negative(totalPages);
+        Guard.Against.Null(items);
 
         var expectedTotalPages = totalRecords > 0
             ? (long)Math.Ceiling(totalRecords / (double)pageSize)
