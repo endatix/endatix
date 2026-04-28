@@ -45,12 +45,12 @@ public class SearchTests
             Take = 20
         };
 
-        var result = Result.Success(new SearchDataListItemsDto(
-            42,
-            1,
-            5,
-            20,
-            [new DataListItemDto(3, "Abc", "1")]));
+        var result = Result.Success(new Paged<IReadOnlyCollection<DataListItemDto>>(
+            page: 1,
+            pageSize: 20,
+            totalRecords: 1,
+            totalPages: 1,
+            items: [new DataListItemDto(3, "Abc", "1")]));
         _mediator.Send(Arg.Any<SearchDataListItemsQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -85,15 +85,16 @@ public class SearchTests
         };
 
         _mediator.Send(Arg.Any<SearchDataListItemsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new SearchDataListItemsDto(
-                42,
-                1,
-                0,
-                10,
-                [new DataListItemDto(3, "Abc", "1")])));
+            .Returns(Result.Success(new Paged<IReadOnlyCollection<DataListItemDto>>(
+                page: 1,
+                pageSize: 10,
+                totalRecords: 1,
+                totalPages: 1,
+                items: [new DataListItemDto(3, "Abc", "1")])));
 
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
-        var ok = response.Result.Should().BeOfType<Ok<DataListPublicSearchResultModel>>().Subject;
+        var ok = response.Result.Should().BeOfType<Ok<Paged<IReadOnlyCollection<DataListPublicChoiceModel>>>>().Subject;
+        ok.Value.TotalPages.Should().Be(1);
         var item = ok.Value.Items.Single();
         item.Label.Should().Be("Abc");
         item.Value.Should().Be("1");

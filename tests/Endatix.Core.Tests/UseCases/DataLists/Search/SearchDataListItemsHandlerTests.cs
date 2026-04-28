@@ -57,7 +57,7 @@ public class SearchDataListItemsHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
         result.Value!.Items.Should().HaveCount(2);
-        result.Value.Total.Should().Be(2);
+        result.Value.TotalRecords.Should().Be(2);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class SearchDataListItemsHandlerTests
 
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value!.Total.Should().Be(1);
+        result.Value!.TotalRecords.Should().Be(1);
 
         await _repository.Received(1).SearchItemsAsync(
             1,
@@ -107,8 +107,9 @@ public class SearchDataListItemsHandlerTests
 
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value!.Total.Should().Be(100);
-        result.Value.Skip.Should().Be(50);
-        result.Value.Take.Should().Be(10);
+        result.Value!.TotalRecords.Should().Be(100);
+        result.Value.Page.Should().Be(6);
+        result.Value.PageSize.Should().Be(10);
+        result.Value.TotalPages.Should().Be(10);
     }
 }

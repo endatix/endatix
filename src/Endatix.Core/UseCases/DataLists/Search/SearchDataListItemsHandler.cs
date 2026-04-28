@@ -4,10 +4,14 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.DataLists.Search;
 
+/// <summary>
+/// Handler for searching data list items.
+/// </summary>
 public sealed class SearchDataListItemsHandler(IDataListRepository repository)
-    : IQueryHandler<SearchDataListItemsQuery, Result<SearchDataListItemsDto>>
+    : IQueryHandler<SearchDataListItemsQuery, Result<Paged<IReadOnlyCollection<DataListItemDto>>>>
 {
-    public async Task<Result<SearchDataListItemsDto>> Handle(SearchDataListItemsQuery request, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task<Result<Paged<IReadOnlyCollection<DataListItemDto>>>> Handle(SearchDataListItemsQuery request, CancellationToken cancellationToken)
     {
         var searchPage = await repository.SearchItemsAsync(
             request.DataListId,
@@ -25,11 +29,18 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
             .Select(x => new DataListItemDto(x.Id, x.Label, x.Value))
             .ToArray();
 
-        return Result.Success(new SearchDataListItemsDto(
-            request.DataListId,
-            searchPage.Total,
-            request.Skip,
-            request.Take,
-            page));
+        var currentPage = (request.Skip / request.Take) + 1;
+        var totalPages = searchPage.Total > 0
+            ? (long)Math.Ceiling(searchPage.Total / (double)request.Take)
+            : 0;
+
+        Paged<IReadOnlyCollection<DataListItemDto>> paged = new(
+            page: currentPage,
+            pageSize: request.Take,
+            totalRecords: searchPage.Total,
+            totalPages: totalPages,
+            items: page);
+
+        return Result.Success(paged);
     }
 }

@@ -3,17 +3,30 @@ using Endatix.Core.UseCases.DataLists.Search;
 
 namespace Endatix.Api.Endpoints.DataLists;
 
+/// <summary>
+/// Maps data list DTOs to models.
+/// </summary>
 public static class DataListMapper
 {
+    /// <summary>
+    /// Maps a data list DTO to a data list model.
+    /// </summary>
+    /// <param name="dto">The data list DTO.</param>
+    /// <returns>The data list model.</returns>
     public static DataListModel Map(DataListDto dto) => new()
     {
         Id = dto.Id,
         Name = dto.Name,
         Description = dto.Description,
         IsActive = dto.IsActive,
-        Items = dto.Items.Select(Map).ToArray()
+        Items = [.. dto.Items.Select(Map)]
     };
 
+    /// <summary>
+    /// Maps a data list item to a data list item model.
+    /// </summary>
+    /// <param name="dto">The data list item dto.</param>
+    /// <returns>The data list item model.</returns>
     public static DataListItemModel Map(DataListItemDto dto) => new()
     {
         Id = dto.Id,
@@ -21,30 +34,22 @@ public static class DataListMapper
         Value = dto.Value
     };
 
-    public static DataListSearchResultModel Map(SearchDataListItemsDto dto) => new()
-    {
-        DataListId = dto.DataListId,
-        Total = dto.Total,
-        Skip = dto.Skip,
-        Take = dto.Take,
-        Items = dto.Items.Select(Map).ToArray()
-    };
-
+    /// <summary>
+    /// Maps a data list choice to a public choice model.
+    /// </summary>
+    /// <param name="dto">The data list choice dto.</param>
+    /// <returns>The public choice model.</returns>
     public static DataListPublicChoiceModel MapPublic(DataListItemDto dto) => new()
     {
         Label = dto.Label,
         Value = dto.Value
     };
 
-    public static DataListPublicSearchResultModel MapPublic(SearchDataListItemsDto dto) => new()
-    {
-        DataListId = dto.DataListId,
-        Total = dto.Total,
-        Skip = dto.Skip,
-        Take = dto.Take,
-        Items = dto.Items.Select(MapPublic).ToArray()
-    };
-
+    /// <summary>
+    /// Maps a data list choice display value to a public choice model.
+    /// </summary>
+    /// <param name="dto">The data list choice display value dto.</param>
+    /// <returns>The public choice model.</returns>
     public static DataListPublicChoiceModel MapPublic(DataListChoiceDisplayValueDto dto) => new()
     {
         Label = dto.Label,
