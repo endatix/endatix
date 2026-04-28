@@ -18,6 +18,12 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
             .IsRequired();
 
+        builder.Property(f => f.LimitOnePerUser)
+            .HasDefaultValue(false);
+
+        builder.Property(f => f.Metadata)
+            .HasColumnType("json");
+
         builder.HasMany(f => f.FormDefinitions)
             .WithOne()
             .HasForeignKey(fd => fd.FormId)

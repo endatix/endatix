@@ -60,7 +60,8 @@ public class SubmissionsByFormIdSpec : Specification<Submission, SubmissionDto>
             s.CreatedAt,
             s.Metadata,
             s.Status.Code,
-            s.SubmittedBy
+            s.SubmittedBy,
+            s.IsTestSubmission
         ));
     }
 }

@@ -144,6 +144,14 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("LimitOnePerUser")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("jsonb");
+
                     b.Property<bool>("IsPublic")
                         .HasColumnType("boolean");
 
@@ -283,6 +291,11 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsTestSubmission")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("JsonData")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -305,6 +318,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.HasIndex("FormDefinitionId");
 
                     b.HasIndex("FormId");
+
+                    b.HasIndex("FormId", "SubmittedBy");
 
                     b.HasIndex("SubmittedBy");
 

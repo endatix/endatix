@@ -55,6 +55,29 @@ public class CreateSubmissionHandler(
             }
         }
 
+        var canBypassSingleSubmissionLimit = false;
+        if (formWithActiveDefinition.LimitOnePerUser && !string.IsNullOrWhiteSpace(request.SubmittedBy))
+        {
+            var hasTestPermissionResult = await authorizationService.HasPermissionAsync(Actions.Forms.Test, cancellationToken);
+            if (!hasTestPermissionResult.IsSuccess)
+            {
+                return Result.Forbidden($"Permission '{Actions.Forms.Test}' required to access this resource.");
+            }
+
+            canBypassSingleSubmissionLimit = hasTestPermissionResult.Value;
+            if (!canBypassSingleSubmissionLimit)
+            {
+                var existingSubmission = await submissionRepository.SingleOrDefaultAsync(
+                    new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy),
+                    cancellationToken);
+
+                if (existingSubmission is not null)
+                {
+                    return Result<Submission>.Conflict("A submission already exists for this user and form.");
+                }
+            }
+        }
+
         var validationContext = new SubmissionVerificationContext(
             formWithActiveDefinition,
             request.IsComplete ?? DEFAULT_IS_COMPLETE,
@@ -75,7 +98,8 @@ public class CreateSubmissionHandler(
             isComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
             currentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
             metadata: request.Metadata ?? DEFAULT_METADATA,
-            submittedBy: request.SubmittedBy
+            submittedBy: request.SubmittedBy,
+            isTestSubmission: canBypassSingleSubmissionLimit
         );
 
         await submissionRepository.AddAsync(submission, cancellationToken);

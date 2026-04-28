@@ -31,6 +31,16 @@ public class PartialUpdateFormRequest
     public bool? IsPublic { get; set; }
 
     /// <summary>
+    /// Indicates if one response per user is enforced.
+    /// </summary>
+    public bool? LimitOnePerUser { get; set; }
+
+    /// <summary>
+    /// Additional form-level metadata as raw JSON string.
+    /// </summary>
+    public string? Metadata { get; set; }
+
+    /// <summary>
     /// The ID of the theme to update.
     /// </summary>
     public long? ThemeId { get; set; }

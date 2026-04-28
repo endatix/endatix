@@ -15,10 +15,21 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
     public string? Description { get; init; }
     public bool? IsEnabled { get; init; }
     public bool? IsPublic { get; init; }
+    public bool? LimitOnePerUser { get; init; }
+    public string? Metadata { get; init; }
     public long? ThemeId { get; init; }
     public string? WebHookSettingsJson { get; init; }
 
-    public PartialUpdateFormCommand(long formId, string? name, string? description, bool? isEnabled, bool? isPublic, long? themeId, string? webHookSettingsJson = null)
+    public PartialUpdateFormCommand(
+        long formId,
+        string? name,
+        string? description,
+        bool? isEnabled,
+        bool? isPublic,
+        long? themeId,
+        string? webHookSettingsJson = null,
+        bool? limitOnePerUser = null,
+        string? metadata = null)
     {
         Guard.Against.NegativeOrZero(formId);
         if (themeId.HasValue)
@@ -31,6 +42,8 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
         Description = description;
         IsEnabled = isEnabled;
         IsPublic = isPublic;
+        LimitOnePerUser = limitOnePerUser;
+        Metadata = metadata;
         ThemeId = themeId;
         WebHookSettingsJson = webHookSettingsJson;
     }

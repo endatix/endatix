@@ -29,6 +29,9 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
             .HasMaxLength(IDENTIFIER_MAX_LENGTH)
             .IsRequired(false);
 
+        builder.Property(s => s.IsTestSubmission)
+            .HasDefaultValue(false);
+
         builder.HasOne(s => s.FormDefinition)
             .WithMany(fd => fd.Submissions)
             .HasForeignKey(s => s.FormDefinitionId)
@@ -64,5 +67,7 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
         builder.HasIndex(s => s.FormDefinitionId);
         // SubmittedBy index for filtering submissions by user
         builder.HasIndex(s => s.SubmittedBy);
+        // Duplicate-check lookup path for one-submission-per-user rule.
+        builder.HasIndex(s => new { s.FormId, s.SubmittedBy });
     }
 }

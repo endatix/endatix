@@ -8,7 +8,7 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
 {
     private Submission() { } // For EF Core
 
-    public Submission(long tenantId, string jsonData, long formId, long formDefinitionId, bool isComplete = true, int currentPage = 0, string? metadata = null, string? submittedBy = null)
+    public Submission(long tenantId, string jsonData, long formId, long formDefinitionId, bool isComplete = true, int currentPage = 0, string? metadata = null, string? submittedBy = null, bool isTestSubmission = false)
         : base(tenantId)
     {
         Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
@@ -21,6 +21,7 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
         CurrentPage = currentPage;
         Metadata = metadata;
         SubmittedBy = submittedBy;
+        IsTestSubmission = isTestSubmission;
         Status = SubmissionStatus.New;
 
         SetCompletionStatus(isComplete);
@@ -35,6 +36,7 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
     public int? CurrentPage { get; private set; }
     public string? Metadata { get; private set; }
     public string? SubmittedBy { get; private set; }
+    public bool IsTestSubmission { get; private set; }
     public DateTime? CompletedAt { get; private set; }
     public Token? Token { get; private set; }
     public SubmissionStatus Status { get; private set; } = null!;
