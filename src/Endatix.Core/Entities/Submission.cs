@@ -8,23 +8,59 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
 {
     private Submission() { } // For EF Core
 
-    public Submission(long tenantId, string jsonData, long formId, long formDefinitionId, bool isComplete = true, int currentPage = 0, string? metadata = null, string? submittedBy = null, bool isTestSubmission = false)
+    public Submission(long tenantId, string jsonData, long formId, long formDefinitionId, SubmissionCreateOptions options)
         : base(tenantId)
     {
         Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
         Guard.Against.NegativeOrZero(formId, nameof(formId));
         Guard.Against.NegativeOrZero(formDefinitionId, nameof(formDefinitionId));
+        Guard.Against.Null(options, nameof(options));
 
         FormId = formId;
         FormDefinitionId = formDefinitionId;
         JsonData = jsonData;
-        CurrentPage = currentPage;
-        Metadata = metadata;
-        SubmittedBy = submittedBy;
-        IsTestSubmission = isTestSubmission;
+        CurrentPage = options.CurrentPage;
+        Metadata = options.Metadata;
+        SubmittedBy = options.SubmittedBy;
+        IsTestSubmission = options.IsTestSubmission;
         Status = SubmissionStatus.New;
 
-        SetCompletionStatus(isComplete);
+        SetCompletionStatus(options.IsComplete);
+    }
+
+    [Obsolete("Use the options-based Submission constructor or Submission.Create().")]
+    public Submission(
+        long tenantId,
+        string jsonData,
+        long formId,
+        long formDefinitionId,
+        bool isComplete = true,
+        int currentPage = 0,
+        string? metadata = null,
+        string? submittedBy = null,
+        bool isTestSubmission = false)
+        : this(
+            tenantId,
+            jsonData,
+            formId,
+            formDefinitionId,
+            new SubmissionCreateOptions(
+                IsComplete: isComplete,
+                CurrentPage: currentPage,
+                Metadata: metadata,
+                SubmittedBy: submittedBy,
+                IsTestSubmission: isTestSubmission))
+    {
+    }
+
+    public static Submission Create(
+        long tenantId,
+        string jsonData,
+        long formId,
+        long formDefinitionId,
+        SubmissionCreateOptions? options = null)
+    {
+        return new Submission(tenantId, jsonData, formId, formDefinitionId, options ?? new SubmissionCreateOptions());
     }
 
     public bool IsComplete { get; private set; }
@@ -82,3 +118,10 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
         base.Delete();
     }
 }
+
+public sealed record SubmissionCreateOptions(
+    bool IsComplete = true,
+    int CurrentPage = 0,
+    string? Metadata = null,
+    string? SubmittedBy = null,
+    bool IsTestSubmission = false);

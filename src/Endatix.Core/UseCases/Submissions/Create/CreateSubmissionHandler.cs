@@ -95,16 +95,17 @@ public class CreateSubmissionHandler(
             return Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
         }
 
-        var submission = new Submission(
+        var submission = Submission.Create(
             activeDefinition!.TenantId,
             jsonData: request.JsonData ?? DEFAULT_JSON_DATA,
             formId: request.FormId,
             formDefinitionId: activeDefinition!.Id,
-            isComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
-            currentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            metadata: request.Metadata ?? DEFAULT_METADATA,
-            submittedBy: request.SubmittedBy,
-            isTestSubmission: canBypassSingleSubmissionLimit
+            options: new SubmissionCreateOptions(
+                IsComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
+                CurrentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
+                Metadata: request.Metadata ?? DEFAULT_METADATA,
+                SubmittedBy: request.SubmittedBy,
+                IsTestSubmission: canBypassSingleSubmissionLimit)
         );
 
         await submissionRepository.AddAsync(submission, cancellationToken);
