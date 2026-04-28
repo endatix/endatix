@@ -7,14 +7,21 @@ using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.UseCases.DataLists.List;
 
+/// <summary>
+/// Handler for listing data lists.
+/// </summary>
 public sealed class ListDataListsHandler(IRepository<DataList> repository)
-    : IQueryHandler<ListDataListsQuery, Result<IEnumerable<DataListDto>>>
+    : IQueryHandler<ListDataListsQuery, Result<Paged<IEnumerable<DataListDto>>>>
 {
-    public async Task<Result<IEnumerable<DataListDto>>> Handle(ListDataListsQuery request, CancellationToken cancellationToken)
+    public async Task<Result<Paged<IEnumerable<DataListDto>>>> Handle(ListDataListsQuery request, CancellationToken cancellationToken)
     {
         PagingParameters pagingParams = new(request.Page, request.PageSize);
         var spec = new DataListsSpecifications.WithPagingSpec(pagingParams);
         var dataLists = await repository.ListAsync(spec, cancellationToken);
+        var totalRecords = await repository.CountAsync(cancellationToken);
+        var totalPages = totalRecords > 0
+            ? (long)Math.Ceiling(totalRecords / (double)pagingParams.PageSize)
+            : 0;
 
         var mapped = dataLists.Select(x => new DataListDto(
             Id: x.Id,
@@ -23,6 +30,13 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
             IsActive: x.IsActive,
             Items: Array.Empty<DataListItemDto>()));
 
-        return Result.Success(mapped);
+        Paged<IEnumerable<DataListDto>> paged = new(
+            page: pagingParams.Page,
+            pageSize: pagingParams.PageSize,
+            totalRecords: totalRecords,
+            totalPages: totalPages,
+            items: mapped);
+
+        return Result.Success(paged);
     }
 }

@@ -22,16 +22,23 @@ public class ListTests
     [Fact]
     public async Task ExecuteAsync_ReturnsOk()
     {
-        var result = Result.Success<IEnumerable<DataListDto>>(
-        [
-            new DataListDto(11, "Cities", null, true, [])
-        ]);
+        var payload = new Paged<IEnumerable<DataListDto>>(
+            page: 1,
+            pageSize: 10,
+            totalRecords: 1,
+            totalPages: 1,
+            items:
+            [
+                new DataListDto(11, "Cities", null, true, [])
+            ]);
+        var result = Result.Success(payload);
         _mediator.Send(Arg.Any<ListDataListsQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
         var response = await _endpoint.ExecuteAsync(new DataListsListRequest(), TestContext.Current.CancellationToken);
-        var ok = response.Result.Should().BeOfType<Ok<IEnumerable<DataListModel>>>().Subject;
-        ok.Value.Should().ContainSingle(x => x.Id == 11 && x.Name == "Cities");
+        var ok = response.Result.Should().BeOfType<Ok<Paged<IEnumerable<DataListModel>>>>().Subject;
+        ok.Value.TotalPages.Should().Be(1);
+        ok.Value.Items.Should().ContainSingle(x => x.Id == 11 && x.Name == "Cities");
     }
 
     [Fact]
@@ -39,7 +46,7 @@ public class ListTests
     {
         DataListsListRequest request = new() { Page = 2, PageSize = 25 };
         _mediator.Send(Arg.Any<ListDataListsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IEnumerable<DataListDto>>([]));
+            .Returns(Result.Success(new Paged<IEnumerable<DataListDto>>(2, 25, 0, 0, [])));
 
         await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
