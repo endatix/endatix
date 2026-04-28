@@ -23,8 +23,7 @@ public class UpdateFormValidator : Validator<UpdateFormRequest>
             .NotEmpty();
 
         RuleFor(x => x.Metadata)
-            .Must(JsonStringValidation.IsValid)
-            .When(x => x.Metadata != null)
-            .WithMessage("Metadata must be a valid JSON string.");
+            .MustBeValidJsonString()
+            .When(x => x.Metadata != null);
     }
 }

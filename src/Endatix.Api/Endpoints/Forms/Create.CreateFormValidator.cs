@@ -32,8 +32,7 @@ public class CreateFormValidator : Validator<CreateFormRequest>
             .When(x => x.FormDefinitionJsonData != null);
 
         RuleFor(x => x.Metadata)
-            .Must(JsonStringValidation.IsValid)
-            .When(x => x.Metadata != null)
-            .WithMessage("Metadata must be a valid JSON string.");
+            .MustBeValidJsonString()
+            .When(x => x.Metadata != null);
     }
 }
