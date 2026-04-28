@@ -37,6 +37,10 @@ public class ListTests
 
         var response = await _endpoint.ExecuteAsync(new DataListsListRequest(), TestContext.Current.CancellationToken);
         var ok = response.Result.Should().BeOfType<Ok<Paged<IEnumerable<DataListModel>>>>().Subject;
+        ok.Value.Should().NotBeNull();
+        ok.Value.Page.Should().Be(1);
+        ok.Value.PageSize.Should().Be(10);
+        ok.Value.TotalRecords.Should().Be(1);
         ok.Value.TotalPages.Should().Be(1);
         ok.Value.Items.Should().ContainSingle(x => x.Id == 11 && x.Name == "Cities");
     }

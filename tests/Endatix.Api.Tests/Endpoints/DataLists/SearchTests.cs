@@ -94,6 +94,10 @@ public class SearchTests
 
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
         var ok = response.Result.Should().BeOfType<Ok<Paged<IReadOnlyCollection<DataListPublicChoiceModel>>>>().Subject;
+        ok.Value.Should().NotBeNull();
+        ok.Value.Page.Should().Be(1);
+        ok.Value.PageSize.Should().Be(10);
+        ok.Value.TotalRecords.Should().Be(1);
         ok.Value.TotalPages.Should().Be(1);
         var item = ok.Value.Items.Single();
         item.Label.Should().Be("Abc");

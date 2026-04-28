@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Ardalis.GuardClauses;
 
 namespace Endatix.Core.Infrastructure.Result;
 
@@ -18,6 +19,22 @@ public class Paged<T> : IPagedData
     /// <param name="items">The items on the page.</param>
     public Paged(long page, long pageSize, long totalRecords, long totalPages, T items)
     {
+        Guard.Against.NegativeOrZero(page, nameof(page));
+        Guard.Against.NegativeOrZero(pageSize, nameof(pageSize));
+        Guard.Against.Negative(totalRecords, nameof(totalRecords));
+        Guard.Against.Negative(totalPages, nameof(totalPages));
+        Guard.Against.Null(items, nameof(items));
+
+        var expectedTotalPages = totalRecords > 0
+            ? (long)Math.Ceiling(totalRecords / (double)pageSize)
+            : 0;
+        if (totalPages < expectedTotalPages)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(totalPages),
+                $"TotalPages ({totalPages}) must be >= Ceil(totalRecords ({totalRecords}) / pageSize ({pageSize})) = {expectedTotalPages}.");
+        }
+
         Page = page;
         PageSize = pageSize;
         TotalRecords = totalRecords;

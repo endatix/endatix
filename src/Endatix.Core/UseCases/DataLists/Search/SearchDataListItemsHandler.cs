@@ -13,6 +13,11 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
     /// <inheritdoc />
     public async Task<Result<Paged<IReadOnlyCollection<DataListItemDto>>>> Handle(SearchDataListItemsQuery request, CancellationToken cancellationToken)
     {
+        if (request.Skip < 0 || request.Take <= 0)
+        {
+            return Result.Invalid(new ValidationError("Skip must be >= 0 and Take must be > 0."));
+        }
+
         var searchPage = await repository.SearchItemsAsync(
             request.DataListId,
             request.Query,
@@ -29,15 +34,29 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
             .Select(x => new DataListItemDto(x.Id, x.Label, x.Value))
             .ToArray();
 
-        var currentPage = (request.Skip / request.Take) + 1;
-        var totalPages = searchPage.Total > 0
-            ? (long)Math.Ceiling(searchPage.Total / (double)request.Take)
+        var totalRecords = searchPage.Total;
+        var totalPages = totalRecords > 0
+            ? (long)Math.Ceiling(totalRecords / (double)request.Take)
             : 0;
+
+        long currentPage;
+        if (totalRecords == 0 || request.Skip >= totalRecords)
+        {
+            currentPage = totalPages > 0 ? totalPages : 1;
+        }
+        else
+        {
+            currentPage = (long)Math.Floor(request.Skip / (double)request.Take) + 1;
+            if (totalPages > 0)
+            {
+                currentPage = Math.Clamp(currentPage, 1, totalPages);
+            }
+        }
 
         Paged<IReadOnlyCollection<DataListItemDto>> paged = new(
             page: currentPage,
             pageSize: request.Take,
-            totalRecords: searchPage.Total,
+            totalRecords: totalRecords,
             totalPages: totalPages,
             items: page);
 

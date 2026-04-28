@@ -112,4 +112,84 @@ public class SearchDataListItemsHandlerTests
         result.Value.PageSize.Should().Be(10);
         result.Value.TotalPages.Should().Be(10);
     }
+
+    [Theory]
+    [InlineData(26, 25, 2)]
+    [InlineData(51, 25, 3)]
+    [InlineData(1, 25, 1)]
+    public async Task Handle_NonAlignedOffset_ReturnsCorrectPage(int skip, int take, int expectedPage)
+    {
+        _repository.SearchItemsAsync(
+                1,
+                null,
+                skip,
+                take,
+                Arg.Any<CancellationToken>())
+            .Returns(new DataListSearchPageResult(1, 100, []));
+
+        var result = await _sut.Handle(
+            new SearchDataListItemsQuery(1, null, skip, take),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+        result.Value!.Page.Should().Be(expectedPage);
+    }
+
+    [Theory]
+    [InlineData(100, 10)]
+    [InlineData(200, 10)]
+    public async Task Handle_OutOfRangeSkip_ReturnsLastPage(int skip, int take)
+    {
+        _repository.SearchItemsAsync(
+                1,
+                null,
+                skip,
+                take,
+                Arg.Any<CancellationToken>())
+            .Returns(new DataListSearchPageResult(1, 100, []));
+
+        var result = await _sut.Handle(
+            new SearchDataListItemsQuery(1, null, skip, take),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+        result.Value!.Page.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task Handle_SkipBeyondTotalRecords_ReturnsTotalPages()
+    {
+        _repository.SearchItemsAsync(
+                1,
+                null,
+                0,
+                10,
+                Arg.Any<CancellationToken>())
+            .Returns(new DataListSearchPageResult(1, 0, []));
+
+        var result = await _sut.Handle(
+            new SearchDataListItemsQuery(1, null, 0, 10),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+        result.Value!.Page.Should().Be(1);
+        result.Value.TotalPages.Should().Be(0);
+        result.Value.TotalRecords.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(-1, 10)]
+    [InlineData(0, 0)]
+    [InlineData(-5, 5)]
+    public void Handle_WithInvalidQuery_ThrowsArgumentException(int skip, int take)
+    {
+        Func<Task> act = async () => await _sut.Handle(
+            new SearchDataListItemsQuery(1, null, skip, take),
+            TestContext.Current.CancellationToken);
+
+        act.Should().ThrowAsync<ArgumentException>();
+    }
 }

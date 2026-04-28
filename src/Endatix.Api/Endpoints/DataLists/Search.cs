@@ -54,12 +54,7 @@ public sealed class Search(
             return result.ToProblem();
         }
 
-        Paged<IReadOnlyCollection<DataListPublicChoiceModel>> mapped = new(
-            page: result.Value.Page,
-            pageSize: result.Value.PageSize,
-            totalRecords: result.Value.TotalRecords,
-            totalPages: result.Value.TotalPages,
-            items: result.Value.Items.Select(DataListMapper.MapPublic).ToArray());
+        var mapped = result.Value.MapToPaged(DataListMapper.MapPublic);
 
         return TypedResults.Ok(mapped);
     }

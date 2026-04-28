@@ -43,12 +43,7 @@ public sealed class List(
             return result.ToProblem();
         }
 
-        var mapped = new Paged<IEnumerable<DataListModel>>(
-            page: result.Value.Page,
-            pageSize: result.Value.PageSize,
-            totalRecords: result.Value.TotalRecords,
-            totalPages: result.Value.TotalPages,
-            items: result.Value.Items.Select(DataListMapper.Map));
+        var mapped = result.Value.MapToPaged(DataListMapper.Map);
 
         return TypedResults.Ok(mapped);
     }
