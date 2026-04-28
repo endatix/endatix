@@ -27,7 +27,7 @@ public class PartialUpdateFormHandlerTests
     {
         // Arrange
         Form? notFoundForm = null;
-        var request = new PartialUpdateFormCommand(1, null, null, null, null, null);
+        var request = new PartialUpdateFormCommand(1);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(notFoundForm);
 
@@ -53,7 +53,12 @@ public class PartialUpdateFormHandlerTests
         };
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme", "{ \"background\": \"#FFFFFF\" }") { Id = 4 };
         form.SetTheme(theme);
-        var request = new PartialUpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, false, null, null);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            Name = SampleData.FORM_NAME_2,
+            Description = SampleData.FORM_DESCRIPTION_2,
+            IsEnabled = false
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -78,14 +83,11 @@ public class PartialUpdateFormHandlerTests
         var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1, Name = SampleData.FORM_NAME_1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
         var oldTheme = new Theme(SampleData.TENANT_ID, "Test Theme", "{ \"background\": \"#FFFFFF\" }") { Id = 3 };
         var newTheme = new Theme(SampleData.TENANT_ID, "Test Theme", "{ \"background\": \"#000000\" }") { Id = 4 };
-        var request = new PartialUpdateFormCommand(
-           formId: 1,
-           name: null,
-           description: SampleData.FORM_DESCRIPTION_2,
-           isEnabled: null,
-           isPublic: null,
-           themeId: 4
-        );
+        var request = new PartialUpdateFormCommand(1)
+        {
+            Description = SampleData.FORM_DESCRIPTION_2,
+            ThemeId = 4
+        };
         form.SetTheme(oldTheme);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
@@ -117,7 +119,12 @@ public class PartialUpdateFormHandlerTests
             Description = SampleData.FORM_DESCRIPTION_1,
             IsEnabled = true
         };
-        var request = new PartialUpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, false, null, null);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            Name = SampleData.FORM_NAME_2,
+            Description = SampleData.FORM_DESCRIPTION_2,
+            IsEnabled = false
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -139,7 +146,10 @@ public class PartialUpdateFormHandlerTests
             Description = SampleData.FORM_DESCRIPTION_1,
             IsEnabled = true
         };
-        var request = new PartialUpdateFormCommand(1, null, null, false, null, null);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            IsEnabled = false
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -169,7 +179,10 @@ public class PartialUpdateFormHandlerTests
             }
         }
         """;
-        var request = new PartialUpdateFormCommand(1, null, null, null, null, null, webHookJson);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            WebHookSettingsJson = webHookJson
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -199,7 +212,10 @@ public class PartialUpdateFormHandlerTests
         var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
         form.UpdateWebHookSettings(webHookConfig);
 
-        var request = new PartialUpdateFormCommand(1, null, null, null, null, null, "");
+        var request = new PartialUpdateFormCommand(1)
+        {
+            WebHookSettingsJson = ""
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -237,7 +253,12 @@ public class PartialUpdateFormHandlerTests
             }
         }
         """;
-        var request = new PartialUpdateFormCommand(1, SampleData.FORM_NAME_2, null, false, null, null, webHookJson);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            Name = SampleData.FORM_NAME_2,
+            IsEnabled = false,
+            WebHookSettingsJson = webHookJson
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -276,7 +297,10 @@ public class PartialUpdateFormHandlerTests
         form.UpdateWebHookSettings(webHookConfig);
 
         // Create request with only Name updated, WebHookSettingsJson is null
-        var request = new PartialUpdateFormCommand(1, SampleData.FORM_NAME_2, null, null, null, null, null);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            Name = SampleData.FORM_NAME_2
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -312,7 +336,10 @@ public class PartialUpdateFormHandlerTests
         var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
         form.UpdateWebHookSettings(webHookConfig);
 
-        var request = new PartialUpdateFormCommand(1, null, null, null, null, null, emptyJson);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            WebHookSettingsJson = emptyJson
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
