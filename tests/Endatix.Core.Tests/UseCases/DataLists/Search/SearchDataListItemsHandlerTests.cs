@@ -159,7 +159,7 @@ public class SearchDataListItemsHandlerTests
     }
 
     [Fact]
-    public async Task Handle_SkipBeyondTotalRecords_ReturnsTotalPages()
+    public async Task Handle_ZeroTotalRecords_ReturnsEmptyPaged()
     {
         _repository.SearchItemsAsync(
                 1,
@@ -181,15 +181,14 @@ public class SearchDataListItemsHandlerTests
     }
 
     [Theory]
-    [InlineData(-1, 10)]
-    [InlineData(0, 0)]
-    [InlineData(-5, 5)]
-    public void Handle_WithInvalidQuery_ThrowsArgumentException(int skip, int take)
+    [InlineData(-1, 10, "skip")]
+    [InlineData(0, 0, "take")]
+    [InlineData(-5, 5, "skip")]
+    public void QueryCtor_WithInvalidPaging_ThrowsArgumentException(int skip, int take, string expectedParam)
     {
-        var invalidQuery = new SearchDataListItemsQuery(1, null, skip, take);
-        Func<Task> act = async () => await _sut.Handle(invalidQuery, TestContext.Current.CancellationToken);
+        Action act = () => _ = new SearchDataListItemsQuery(1, null, skip, take);
 
-        act.Should().ThrowAsync<ArgumentException>()
-            .WithParameterName(nameof(invalidQuery.Skip));
+        act.Should().Throw<ArgumentException>()
+            .Which.ParamName.Should().Be(expectedParam);
     }
 }

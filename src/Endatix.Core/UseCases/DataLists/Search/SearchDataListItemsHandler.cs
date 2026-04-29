@@ -31,7 +31,7 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
             .Select(x => new DataListItemDto(x.Id, x.Label, x.Value))
             .ToArray();
 
-        var paged = Paged<DataListItemDto>.FromPagedRequest(
+        var paged = Paged<DataListItemDto>.FromSkipAndTake(
             skip: request.Skip,
             take: request.Take,
             totalRecords: total,

@@ -99,7 +99,7 @@ public class Paged<T> : IPagedData
     /// <param name="totalRecords">The total number of records.</param>
     /// <param name="items">The items on the page.</param>
     /// <returns>A new <see cref="Paged{T}"/>.</returns>
-    public static Paged<T> FromPagedRequest(int skip, int take, long totalRecords, IReadOnlyList<T> items)
+    public static Paged<T> FromSkipAndTake(int skip, int take, long totalRecords, IReadOnlyList<T> items)
     {
         Guard.Against.Negative(skip);
         Guard.Against.NegativeOrZero(take);
@@ -111,12 +111,12 @@ public class Paged<T> : IPagedData
             return Empty(take);
         }
 
-        var totalPages = (int)((totalRecords + take - 1) / take);
+        var totalPages = (totalRecords + take - 1) / take;
 
         var currentPage = (skip / take) + 1;
         if (currentPage > totalPages)
         {
-            currentPage = totalPages;
+            currentPage = (int)totalPages;
         }
 
         return new Paged<T>(

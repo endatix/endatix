@@ -33,9 +33,10 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
             IsActive: x.IsActive,
             Items: []));
 
-        var paged = Paged<DataListDto>.FromPagedRequest(
-            skip: pagedSpec.Skip,
-            take: pagedSpec.Take,
+        var skip = (pagingParams.Page - 1) * pagingParams.PageSize;
+        var paged = Paged<DataListDto>.FromSkipAndTake(
+            skip: skip,
+            take: pagingParams.PageSize,
             totalRecords: totalRecords,
             items: [.. dataListDtos]);
 

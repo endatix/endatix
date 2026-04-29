@@ -87,7 +87,7 @@ public class PagedTests
 
     [Theory]
     [InlineData(3, 10, 20, 2)]
-    [InlineData(5, 10, 25, 2)]
+    [InlineData(4, 10, 25, 3)]
     public void Constructor_PageGreaterThanTotalPagesWithItems_ThrowsArgumentOutOfRangeException(int page, int pageSize, long totalRecords, long totalPages)
     {
         var items = new[] { "a", "b" };
@@ -125,7 +125,7 @@ public class PagedTests
     {
         var items = new[] { "a", "b" };
 
-        var paged = Paged<string>.FromPagedRequest(0, 10, 15, items);
+        var paged = Paged<string>.FromSkipAndTake(0, 10, 15, items);
 
         paged.Page.Should().Be(1);
         paged.PageSize.Should().Be(10);
@@ -139,7 +139,7 @@ public class PagedTests
     {
         var items = new[] { "c", "d" };
 
-        var paged = Paged<string>.FromPagedRequest(10, 10, 25, items);
+        var paged = Paged<string>.FromSkipAndTake(10, 10, 25, items);
 
         paged.Page.Should().Be(2);
     }
@@ -151,7 +151,7 @@ public class PagedTests
     {
         var items = new[] { "a" };
 
-        var act = () => Paged<string>.FromPagedRequest(skip, take, 10, items);
+        var act = () => Paged<string>.FromSkipAndTake(skip, take, 10, items);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -161,7 +161,7 @@ public class PagedTests
     {
         var items = new[] { "a" };
 
-        var act = () => Paged<string>.FromPagedRequest(0, 0, 10, items);
+        var act = () => Paged<string>.FromSkipAndTake(0, 0, 10, items);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -171,7 +171,7 @@ public class PagedTests
     {
         var items = Array.Empty<string>();
 
-        var paged = Paged<string>.FromPagedRequest(0, 10, 0, items);
+        var paged = Paged<string>.FromSkipAndTake(0, 10, 0, items);
 
         paged.TotalPages.Should().Be(0);
         paged.Page.Should().Be(1);
