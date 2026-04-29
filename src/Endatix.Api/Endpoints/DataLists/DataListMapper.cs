@@ -19,6 +19,25 @@ public static class DataListMapper
         Name = dto.Name,
         Description = dto.Description,
         IsActive = dto.IsActive,
+        CreatedAt = dto.CreatedAt,
+        ModifiedAt = dto.ModifiedAt,
+        ItemsCount = dto.ItemsCount
+    };
+
+    /// <summary>
+    /// Maps a data list DTO to a data list details model.
+    /// </summary>
+    /// <param name="dto">The data list DTO.</param>
+    /// <returns>The data list details model.</returns>
+    public static DataListDetailsModel MapDetails(DataListDto dto) => new()
+    {
+        Id = dto.Id,
+        Name = dto.Name,
+        Description = dto.Description,
+        IsActive = dto.IsActive,
+        CreatedAt = dto.CreatedAt,
+        ModifiedAt = dto.ModifiedAt,
+        ItemsCount = dto.ItemsCount,
         Items = [.. dto.Items.Select(Map)]
     };
 

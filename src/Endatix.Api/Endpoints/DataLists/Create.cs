@@ -17,8 +17,9 @@ namespace Endatix.Api.Endpoints.DataLists;
 /// </summary>
 public sealed class Create(
     IMediator mediator)
-    : Endpoint<CreateDataListRequest, Results<Created<DataListModel>, ProblemHttpResult>>
+    : Endpoint<CreateDataListRequest, Results<Created<DataListDetailsModel>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Post("data-lists");
@@ -34,23 +35,31 @@ public sealed class Create(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
-    public override async Task<Results<Created<DataListModel>, ProblemHttpResult>> ExecuteAsync(CreateDataListRequest request, CancellationToken ct)
+    /// <inheritdoc />
+    public override async Task<Results<Created<DataListDetailsModel>, ProblemHttpResult>> ExecuteAsync(CreateDataListRequest request, CancellationToken ct)
     {
         CreateDataListCommand command = new(request.Name!, request.Description);
 
         var result = await mediator.Send(command, ct);
         return TypedResultsBuilder
             .MapResult(result, MapCreatedModel)
-            .SetTypedResults<Created<DataListModel>, ProblemHttpResult>();
+            .SetTypedResults<Created<DataListDetailsModel>, ProblemHttpResult>();
     }
 
-    private static DataListModel MapCreatedModel(DataList dataList) => new()
+    private static DataListDetailsModel MapCreatedModel(DataList dataList) => new()
     {
         Id = dataList.Id,
         Name = dataList.Name,
         Description = dataList.Description,
         IsActive = dataList.IsActive,
-        Items = []
+        CreatedAt = dataList.CreatedAt,
+        ModifiedAt = dataList.ModifiedAt,
+        ItemsCount = dataList.Items.Count,
+        Items = [.. dataList.Items.Select(d => new DataListItemModel(){
+            Id = d.Id,
+            Label = d.Label,
+            Value = d.Value
+        })]
     };
 }
 
@@ -60,6 +69,9 @@ public sealed class Create(
 /// </summary>
 public sealed class CreateDataListValidator : Validator<CreateDataListRequest>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CreateDataListValidator"/> class.
+    /// </summary>
     public CreateDataListValidator()
     {
         RuleFor(x => x.Name)
@@ -87,5 +99,3 @@ public sealed class CreateDataListRequest
     /// </summary>
     public string? Description { get; init; }
 }
-
-

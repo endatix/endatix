@@ -121,7 +121,7 @@ public class PagedTests
     }
 
     [Fact]
-    public void FromPagedRequest_ValidInput_CreatesInstance()
+    public void FromSkipAndTake_ValidInput_CreatesInstance()
     {
         var items = new[] { "a", "b" };
 
@@ -135,7 +135,7 @@ public class PagedTests
     }
 
     [Fact]
-    public void FromPagedRequest_SecondPage_CreatesCorrectPage()
+    public void FromSkipAndTake_SecondPage_CreatesCorrectPage()
     {
         var items = new[] { "c", "d" };
 
@@ -147,7 +147,7 @@ public class PagedTests
     [Theory]
     [InlineData(-1, 10)]
     [InlineData(-5, 10)]
-    public void FromPagedRequest_InvalidSkip_ThrowsArgumentException(int skip, int take)
+    public void FromSkipAndTake_InvalidSkip_ThrowsArgumentException(int skip, int take)
     {
         var items = new[] { "a" };
 
@@ -157,7 +157,7 @@ public class PagedTests
     }
 
     [Fact]
-    public void FromPagedRequest_TakeIsZero_ThrowsArgumentException()
+    public void FromSkipAndTake_TakeIsZero_ThrowsArgumentException()
     {
         var items = new[] { "a" };
 
@@ -167,7 +167,7 @@ public class PagedTests
     }
 
     [Fact]
-    public void FromPagedRequest_TotalRecordsZero_ReturnsEmpty()
+    public void FromSkipAndTake_TotalRecordsZero_ReturnsEmpty()
     {
         var items = Array.Empty<string>();
 

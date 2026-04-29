@@ -25,7 +25,7 @@ public sealed class List(
     public override void Configure()
     {
         Get("data-lists");
-        Permissions(Actions.Forms.View);        
+        Permissions(Actions.Forms.View);
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
     /// <summary>
@@ -65,7 +65,10 @@ public sealed class DataListsListValidator : Validator<DataListsListRequest>
 /// </summary>
 public sealed class DataListsListRequest : IPagedRequest
 {
+    /// <inheritdoc />
     public int? Page { get; set; }
+
+    /// <inheritdoc />
     public int? PageSize { get; set; }
 }
 

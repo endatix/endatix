@@ -8,12 +8,16 @@ using MediatR;
 
 namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 
+/// <summary>
+/// Handler for replacing items in a data list.
+/// </summary>
 public sealed class ReplaceDataListItemsHandler(
     IRepository<DataList> repository,
     IMediator mediator
     )
     : ICommandHandler<ReplaceDataListItemsCommand, Result<DataListDto>>
 {
+    /// <inheritdoc />
     public async Task<Result<DataListDto>> Handle(ReplaceDataListItemsCommand request, CancellationToken cancellationToken)
     {
         var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId);
@@ -53,7 +57,10 @@ public sealed class ReplaceDataListItemsHandler(
             dataList.Id,
             dataList.Name,
             dataList.Description,
+            dataList.CreatedAt,
+            dataList.ModifiedAt,
             dataList.IsActive,
-            dataList.Items.Select(x => new DataListItemDto(x.Id, x.Label, x.Value)).ToArray()));
+            dataList.Items.Count,
+            [.. dataList.Items.Select(x => new DataListItemDto(x.Id, x.Label, x.Value))]));
     }
 }
