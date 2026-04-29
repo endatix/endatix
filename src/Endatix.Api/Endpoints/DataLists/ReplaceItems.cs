@@ -42,7 +42,7 @@ public sealed class ReplaceItems(
             .SetTypedResults<Ok<DataListDetailsModel>, ProblemHttpResult>();
     }
 
-    private ReplaceDataListItemInput ToReplaceDataListItemInput(ReplaceDataListItemRequest request) => new(
+    private static ReplaceDataListItemInput ToReplaceDataListItemInput(ReplaceDataListItemRequest request) => new(
         request.Label ?? string.Empty,
         request.Value ?? string.Empty);
 
