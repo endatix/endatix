@@ -12,6 +12,7 @@ namespace Endatix.Core.UseCases.FormDefinitions.GetActive;
 public class GetActiveFormDefinitionHandler(
     IFormsRepository formRepository,
     IRepository<CustomQuestion> customQuestionsRepository,
+    IRepository<Submission> submissionRepository,
     IReCaptchaPolicyService reCaptchaPolicyService,
     ICurrentUserAuthorizationService authorizationService
     )
@@ -51,12 +52,22 @@ public class GetActiveFormDefinitionHandler(
             cancellationToken);
 
         var customQuestionsJson = customQuestions?.Select(q => q.JsonData);
+        var hasUserSubmitted = false;
+
+        if (formWithActiveDefinition.LimitOnePerUser && !string.IsNullOrWhiteSpace(request.UserId))
+        {
+            hasUserSubmitted = await submissionRepository.AnyAsync(
+                new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.UserId),
+                cancellationToken);
+        }
 
         var activeDefinitionDto = new ActiveDefinitionDto(formWithActiveDefinition.ActiveDefinition)
         {
             ThemeJsonData = formWithActiveDefinition.Theme?.JsonData,
             RequiresReCaptcha = reCaptchaPolicyService.RequiresReCaptcha(formWithActiveDefinition),
-            CustomQuestions = customQuestionsJson ?? []
+            CustomQuestions = customQuestionsJson ?? [],
+            HasUserSubmitted = hasUserSubmitted,
+            Metadata = formWithActiveDefinition.Metadata
         };
 
         return Result.Success(activeDefinitionDto);
