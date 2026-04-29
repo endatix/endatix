@@ -186,10 +186,10 @@ public class SearchDataListItemsHandlerTests
     [InlineData(-5, 5)]
     public void Handle_WithInvalidQuery_ThrowsArgumentException(int skip, int take)
     {
-        Func<Task> act = async () => await _sut.Handle(
-            new SearchDataListItemsQuery(1, null, skip, take),
-            TestContext.Current.CancellationToken);
+        var invalidQuery = new SearchDataListItemsQuery(1, null, skip, take);
+        Func<Task> act = async () => await _sut.Handle(invalidQuery, TestContext.Current.CancellationToken);
 
-        act.Should().ThrowAsync<ArgumentException>();
+        act.Should().ThrowAsync<ArgumentException>()
+            .WithParameterName(nameof(invalidQuery.Skip));
     }
 }
