@@ -56,9 +56,15 @@ public class GetActiveFormDefinitionHandler(
 
         if (formWithActiveDefinition.LimitOnePerUser && !string.IsNullOrWhiteSpace(request.UserId))
         {
-            hasUserSubmitted = await submissionRepository.AnyAsync(
-                new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.UserId),
-                cancellationToken);
+            var hasTestPermissionResult = await authorizationService.HasPermissionAsync(Actions.Forms.Test, cancellationToken);
+            var canBypassSingleSubmissionLimit = hasTestPermissionResult.IsSuccess && hasTestPermissionResult.Value;
+
+            if (!canBypassSingleSubmissionLimit)
+            {
+                hasUserSubmitted = await submissionRepository.AnyAsync(
+                    new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.UserId),
+                    cancellationToken);
+            }
         }
 
         var activeDefinitionDto = new ActiveDefinitionDto(formWithActiveDefinition.ActiveDefinition)
