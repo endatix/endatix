@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Endatix.Infrastructure.Data;
 
 #nullable disable
 
 namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     /// <inheritdoc />
+    [Microsoft.EntityFrameworkCore.Infrastructure.DbContextAttribute(typeof(AppDbContext))]
+    [Migration("20260428083000_AddSingleSubmissionFlags")]
     public partial class AddSingleSubmissionFlags : Migration
     {
         /// <inheritdoc />
@@ -29,6 +32,26 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 type: "boolean",
                 nullable: false,
                 defaultValue: false);
+
+            migrationBuilder.Sql(
+                """
+                WITH duplicate_submissions AS (
+                    SELECT
+                        "Id",
+                        ROW_NUMBER() OVER (
+                            PARTITION BY "FormId", "SubmittedBy"
+                            ORDER BY "CreatedAt" DESC, "Id" DESC
+                        ) AS row_num
+                    FROM "Submissions"
+                    WHERE "SubmittedBy" IS NOT NULL
+                      AND "IsTestSubmission" = false
+                )
+                UPDATE "Submissions" s
+                SET "IsTestSubmission" = true
+                FROM duplicate_submissions d
+                WHERE s."Id" = d."Id"
+                  AND d.row_num > 1;
+                """);
 
             migrationBuilder.CreateIndex(
                 name: "UX_Submissions_FormId_SubmittedBy",
