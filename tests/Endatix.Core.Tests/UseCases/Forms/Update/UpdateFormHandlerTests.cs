@@ -274,4 +274,27 @@ public class UpdateFormHandlerTests
         result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().Contain("A single-submission form cannot be made public.");
     }
+
+    [Fact]
+    public async Task Handle_OmittedLimitOnePerUser_PreservesExistingEnabledValue()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var request = new UpdateFormCommand(
+            formId: 1,
+            name: SampleData.FORM_NAME_1,
+            description: SampleData.FORM_DESCRIPTION_1,
+            isEnabled: true,
+            webHookSettingsJson: null,
+            limitOnePerUser: null);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.LimitOnePerUser.Should().BeTrue();
+    }
 }

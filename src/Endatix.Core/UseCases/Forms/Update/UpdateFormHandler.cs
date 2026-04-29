@@ -26,7 +26,7 @@ public class UpdateFormHandler(
         }
 
         var oldIsEnabled = form.IsEnabled;
-        var requestedLimitOnePerUser = request.LimitOnePerUser;
+        var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
 
         if (form.LimitOnePerUser && !requestedLimitOnePerUser)
         {

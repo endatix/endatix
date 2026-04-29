@@ -152,4 +152,34 @@ public class UpdateTests
             Arg.Any<CancellationToken>()
         );
     }
+
+    [Fact]
+    public async Task ExecuteAsync_OmittedLimitOnePerUser_MapsToNullInCommand()
+    {
+        // Arrange
+        var request = new UpdateFormRequest
+        {
+            FormId = 123,
+            Name = "Updated Form",
+            Description = "Updated Description",
+            IsEnabled = true,
+            LimitOnePerUser = null
+        };
+        var result = Result.Success(new Form(SampleData.TENANT_ID, "Updated Form"));
+
+        _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<UpdateFormCommand>(cmd =>
+                cmd.FormId == request.FormId &&
+                cmd.LimitOnePerUser == null
+            ),
+            Arg.Any<CancellationToken>()
+        );
+    }
 }

@@ -1,3 +1,5 @@
+using System.Data;
+
 namespace Endatix.Core.Abstractions.Data
 {
     /// <summary>
@@ -14,7 +16,9 @@ namespace Endatix.Core.Abstractions.Data
         /// <summary>
         /// Asynchronously begins a new transaction.
         /// </summary>
-        Task BeginTransactionAsync(CancellationToken cancellationToken = default);
+        Task BeginTransactionAsync(
+            CancellationToken cancellationToken = default,
+            IsolationLevel isolationLevel = IsolationLevel.ReadCommitted);
 
         /// <summary>
         /// Asynchronously commits the transaction.

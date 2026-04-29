@@ -6,11 +6,13 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Features.ReCaptcha;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Exceptions;
+using System.Data;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
@@ -20,7 +22,8 @@ public class CreateSubmissionHandler(
     ISubmissionTokenService tokenService,
     IReCaptchaPolicyService recaptchaService,
     IMediator mediator,
-    ICurrentUserAuthorizationService authorizationService
+    ICurrentUserAuthorizationService authorizationService,
+    IUnitOfWork unitOfWork
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
@@ -71,17 +74,6 @@ public class CreateSubmissionHandler(
             }
 
             canBypassSingleSubmissionLimit = hasTestPermissionResult.Value;
-            if (!canBypassSingleSubmissionLimit)
-            {
-                var hasExistingSubmission = await submissionRepository.AnyAsync(
-                    new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy),
-                    cancellationToken);
-
-                if (hasExistingSubmission)
-                {
-                    return Result<Submission>.Conflict("A submission already exists for this user and form.");
-                }
-            }
         }
 
         var validationContext = new SubmissionVerificationContext(
@@ -109,14 +101,52 @@ public class CreateSubmissionHandler(
                 IsTestSubmission: canBypassSingleSubmissionLimit)
         );
 
-        try
+        var shouldEnforceSingleSubmissionGate =
+            formWithActiveDefinition.LimitOnePerUser &&
+            !string.IsNullOrWhiteSpace(request.SubmittedBy) &&
+            !canBypassSingleSubmissionLimit;
+
+        if (shouldEnforceSingleSubmissionGate)
         {
-            await submissionRepository.AddAsync(submission, cancellationToken);
+            await unitOfWork.BeginTransactionAsync(cancellationToken, IsolationLevel.Serializable);
+            try
+            {
+                var hasExistingSubmission = await submissionRepository.AnyAsync(
+                    new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy!),
+                    cancellationToken);
+
+                if (hasExistingSubmission)
+                {
+                    await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                    return Result<Submission>.Conflict("A submission already exists for this user and form.");
+                }
+
+                await submissionRepository.AddAsync(submission, cancellationToken);
+                await unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch (DuplicateSubmissionException)
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return Result<Submission>.Conflict("A submission already exists for this user and form.");
+            }
+            catch
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
         }
-        catch (DuplicateSubmissionException)
+        else
         {
-            return Result<Submission>.Conflict("A submission already exists for this user and form.");
+            try
+            {
+                await submissionRepository.AddAsync(submission, cancellationToken);
+            }
+            catch (DuplicateSubmissionException)
+            {
+                return Result<Submission>.Conflict("A submission already exists for this user and form.");
+            }
         }
+
         await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
 
         if (submission.IsComplete)
