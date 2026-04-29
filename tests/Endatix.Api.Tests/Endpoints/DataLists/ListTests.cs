@@ -29,7 +29,7 @@ public class ListTests
             totalPages: 1,
             items:
             [
-                new DataListDto(11, "Cities", null, true, [])
+                new DataListDto(11, "Cities", null, DateTime.UtcNow, null, true, 0, [])
             ]);
         var result = Result.Success(payload);
         _mediator.Send(Arg.Any<ListDataListsQuery>(), Arg.Any<CancellationToken>())
@@ -50,7 +50,7 @@ public class ListTests
     {
         DataListsListRequest request = new() { Page = 2, PageSize = 25 };
         _mediator.Send(Arg.Any<ListDataListsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new Paged<DataListDto>(1, 25, 0, 0, [])));
+            .Returns(Result.Success(new Paged<DataListDto>(1, 25, 0, 0, Array.Empty<DataListDto>())));
 
         await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 

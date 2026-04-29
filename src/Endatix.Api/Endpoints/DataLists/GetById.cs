@@ -16,8 +16,9 @@ namespace Endatix.Api.Endpoints.DataLists;
 public sealed class GetById(
     IMediator mediator
     )
-    : Endpoint<GetDataListRequest, Results<Ok<DataListModel>, ProblemHttpResult>>
+    : Endpoint<GetDataListRequest, Results<Ok<DataListDetailsModel>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Get("data-lists/{dataListId}");
@@ -25,14 +26,15 @@ public sealed class GetById(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
-    public override async Task<Results<Ok<DataListModel>, ProblemHttpResult>> ExecuteAsync(GetDataListRequest request, CancellationToken ct)
+    /// <inheritdoc />
+    public override async Task<Results<Ok<DataListDetailsModel>, ProblemHttpResult>> ExecuteAsync(GetDataListRequest request, CancellationToken ct)
     {
         GetDataListByIdQuery query = new(request.DataListId);
         var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder
-            .MapResult(result, DataListMapper.Map)
-            .SetTypedResults<Ok<DataListModel>, ProblemHttpResult>();
+            .MapResult(result, DataListMapper.MapDetails)
+            .SetTypedResults<Ok<DataListDetailsModel>, ProblemHttpResult>();
     }
 }
 
@@ -42,6 +44,9 @@ public sealed class GetById(
 /// </summary>
 public sealed class GetDataListValidator : Validator<GetDataListRequest>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GetDataListValidator"/> class.
+    /// </summary>
     public GetDataListValidator()
     {
         RuleFor(x => x.DataListId).GreaterThan(0);

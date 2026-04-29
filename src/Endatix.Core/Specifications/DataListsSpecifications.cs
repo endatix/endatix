@@ -23,26 +23,36 @@ public class DataListsSpecifications
         public ListSpec()
         {
             Query
-                .OrderByDescending(x => x.CreatedAt)
-                .AsNoTracking();
+                 .OrderByDescending(x => x.CreatedAt)
+                 .AsNoTracking();
         }
     }
 
     /// <summary>
-    /// Specification to get data lists with paging.
+    /// Specification to get paged data lists projected to DTO without loading all items.
     /// </summary>
-    public sealed class WithPagingSpec : Specification<DataList>
+    public sealed class ListWithPagingToDtoSpec : Specification<DataList, DataListDto>
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="WithPagingSpec"/> class.
+        /// Initializes a new instance of the <see cref="ListWithPagingToDtoSpec"/> class.
         /// </summary>
         /// <param name="pagingParams">The paging parameters.</param>
-        public WithPagingSpec(PagingParameters pagingParams)
+        public ListWithPagingToDtoSpec(PagingParameters pagingParams)
         {
             Query
                 .OrderByDescending(x => x.CreatedAt)
                 .Paginate(pagingParams)
                 .AsNoTracking();
+
+            Query.Select(dataList => new DataListDto(
+                dataList.Id,
+                dataList.Name,
+                dataList.Description,
+                dataList.CreatedAt,
+                dataList.ModifiedAt,
+                dataList.IsActive,
+                dataList.Items.Count,
+                Array.Empty<DataListItemDto>()));
         }
     }
 
@@ -52,6 +62,10 @@ public class DataListsSpecifications
     /// </summary>
     public sealed class ByNameSpec : SingleResultSpecification<DataList>
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ByNameSpec"/> class.
+        /// </summary>
+        /// <param name="name">The name of the data list.</param>
         public ByNameSpec(string name)
         {
             Query.Where(x => x.Name == name);
@@ -64,6 +78,10 @@ public class DataListsSpecifications
     /// </summary>
     public sealed class ExistsSpec : Specification<DataList>, ISingleResultSpecification<DataList>
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ExistsSpec"/> class.
+        /// </summary>
+        /// <param name="dataListId">The ID of the data list.</param>
         public ExistsSpec(long dataListId)
         {
             Query.Where(x => x.Id == dataListId);
@@ -76,6 +94,10 @@ public class DataListsSpecifications
     /// </summary>
     public sealed class ByIdWithItemsSpec : Specification<DataList>, ISingleResultSpecification<DataList>
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ByIdWithItemsSpec"/> class.
+        /// </summary>
+        /// <param name="dataListId">The ID of the data list.</param>
         public ByIdWithItemsSpec(long dataListId)
         {
             Query
@@ -90,6 +112,11 @@ public class DataListsSpecifications
     /// </summary>
     public sealed class ByIdWithItemsByValuesSpec : Specification<DataList>, ISingleResultSpecification<DataList>
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ByIdWithItemsByValuesSpec"/> class.
+        /// </summary>
+        /// <param name="dataListId">The ID of the data list.</param>
+        /// <param name="values">The values to filter the data list items by.</param>
         public ByIdWithItemsByValuesSpec(long dataListId, IReadOnlyCollection<string> values)
         {
             Query.Where(x => x.Id == dataListId && x.IsActive);
@@ -109,6 +136,9 @@ public class DataListsSpecifications
     /// </summary>
     public sealed class ToDataListDtoSpec : SingleResultSpecification<DataList, DataListDto>
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ToDataListDtoSpec"/> class.
+        /// </summary>
         public ToDataListDtoSpec()
         {
             Query.Select(dataList =>
@@ -116,7 +146,10 @@ public class DataListsSpecifications
                                 dataList.Id,
                                 dataList.Name,
                                 dataList.Description,
+                                dataList.CreatedAt,
+                                dataList.ModifiedAt,
                                 dataList.IsActive,
+                                dataList.Items.Count,
                                 dataList.Items.Select(x => new DataListItemDto(x.Id, x.Label, x.Value)).ToArray())
                 );
         }

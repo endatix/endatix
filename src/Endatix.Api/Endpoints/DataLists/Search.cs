@@ -37,6 +37,7 @@ public sealed class Search(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
+    /// <inheritdoc />
     public override async Task<Results<Ok<Paged<DataListPublicChoiceModel>>, ProblemHttpResult>> ExecuteAsync(SearchDataListItemsRequest request, CancellationToken ct)
     {
         PublicFormAccessContext accessContext = new(request.FormId, request.Token, request.TokenType);

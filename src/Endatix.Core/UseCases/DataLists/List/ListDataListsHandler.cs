@@ -17,21 +17,14 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
     public async Task<Result<Paged<DataListDto>>> Handle(ListDataListsQuery request, CancellationToken cancellationToken)
     {
         PagingParameters pagingParams = new(request.Page, request.PageSize);
-        var pagedSpec = new DataListsSpecifications.WithPagingSpec(pagingParams);
+        var pagedSpec = new DataListsSpecifications.ListWithPagingToDtoSpec(pagingParams);
         var listSpec = new DataListsSpecifications.ListSpec();
         var totalRecords = await repository.CountAsync(listSpec, cancellationToken);
 
 
-        var dataLists = totalRecords <= 0
-        ? Enumerable.Empty<DataList>()
+        var dataListDtos = totalRecords <= 0
+        ? Enumerable.Empty<DataListDto>()
         : await repository.ListAsync(pagedSpec, cancellationToken);
-
-        var dataListDtos = dataLists.Select(x => new DataListDto(
-            Id: x.Id,
-            Name: x.Name,
-            Description: x.Description,
-            IsActive: x.IsActive,
-            Items: []));
 
         var skip = (pagingParams.Page - 1) * pagingParams.PageSize;
         var paged = Paged<DataListDto>.FromSkipAndTake(

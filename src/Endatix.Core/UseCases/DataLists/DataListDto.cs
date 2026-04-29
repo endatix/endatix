@@ -7,7 +7,10 @@ public sealed record DataListDto(
     long Id,
     string Name,
     string? Description,
+    DateTime CreatedAt,
+    DateTime? ModifiedAt,
     bool IsActive,
+    int ItemsCount,
     IReadOnlyCollection<DataListItemDto> Items);
 
 /// <summary>

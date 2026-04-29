@@ -16,8 +16,11 @@ namespace Endatix.Api.Endpoints.DataLists;
 /// </summary>
 public sealed class ReplaceItems(
     IMediator mediator)
-    : Endpoint<ReplaceDataListItemsRequest, Results<Ok<DataListModel>, ProblemHttpResult>>
+    : Endpoint<ReplaceDataListItemsRequest, Results<Ok<DataListDetailsModel>, ProblemHttpResult>>
 {
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Put("data-lists/{dataListId}/items");
@@ -25,17 +28,24 @@ public sealed class ReplaceItems(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
-    public override async Task<Results<Ok<DataListModel>, ProblemHttpResult>> ExecuteAsync(ReplaceDataListItemsRequest request, CancellationToken ct)
+    /// <inheritdoc />
+    public override async Task<Results<Ok<DataListDetailsModel>, ProblemHttpResult>> ExecuteAsync(ReplaceDataListItemsRequest request, CancellationToken ct)
     {
-        ReplaceDataListItemsCommand command = new(
+        var command = new ReplaceDataListItemsCommand(
             request.DataListId,
-            request.Items.Select(x => new ReplaceDataListItemInput(x.Label ?? string.Empty, x.Value ?? string.Empty)).ToArray());
+            [.. request.Items.Select(ToReplaceDataListItemInput)]);
 
         var result = await mediator.Send(command, ct);
+
         return TypedResultsBuilder
-            .MapResult(result, DataListMapper.Map)
-            .SetTypedResults<Ok<DataListModel>, ProblemHttpResult>();
+            .MapResult(result, DataListMapper.MapDetails)
+            .SetTypedResults<Ok<DataListDetailsModel>, ProblemHttpResult>();
     }
+
+    private static ReplaceDataListItemInput ToReplaceDataListItemInput(ReplaceDataListItemRequest request) => new(
+        request.Label ?? string.Empty,
+        request.Value ?? string.Empty);
+
 }
 
 
@@ -44,6 +54,9 @@ public sealed class ReplaceItems(
 /// </summary>
 public sealed class ReplaceDataListItemsValidator : Validator<ReplaceDataListItemsRequest>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ReplaceDataListItemsValidator"/> class.
+    /// </summary>
     public ReplaceDataListItemsValidator()
     {
         RuleFor(x => x.DataListId).GreaterThan(0);
@@ -54,6 +67,7 @@ public sealed class ReplaceDataListItemsValidator : Validator<ReplaceDataListIte
             item.RuleFor(x => x.Label)
                 .NotEmpty()
                 .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
+
             item.RuleFor(x => x.Value)
                 .NotEmpty()
                 .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
