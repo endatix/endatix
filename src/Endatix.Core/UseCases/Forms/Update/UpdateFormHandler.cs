@@ -3,14 +3,20 @@ using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using MediatR;
 
 namespace Endatix.Core.UseCases.Forms.Update;
 
 public class UpdateFormHandler(
     IRepository<Form> repository,
+    IRepository<Submission> submissionRepository,
     IMediator mediator) : ICommandHandler<UpdateFormCommand, Result<Form>>
 {
+    private const string ENABLE_CONFLICT_MESSAGE = "Cannot enable single submission gate because this form already has duplicate submissions.";
+    private const string DISABLE_CONFLICT_MESSAGE = "Single submission gate cannot be disabled after it has been enabled.";
+    private const string PUBLIC_CONFLICT_MESSAGE = "A single-submission form cannot be made public.";
+
     public async Task<Result<Form>> Handle(UpdateFormCommand request, CancellationToken cancellationToken)
     {
         var form = await repository.GetByIdAsync(request.FormId, cancellationToken);
@@ -20,14 +26,34 @@ public class UpdateFormHandler(
         }
 
         var oldIsEnabled = form.IsEnabled;
+        var requestedLimitOnePerUser = request.LimitOnePerUser;
+
+        if (form.LimitOnePerUser && !requestedLimitOnePerUser)
+        {
+            return Result<Form>.Conflict(DISABLE_CONFLICT_MESSAGE);
+        }
+
+        if (form.IsPublic && requestedLimitOnePerUser)
+        {
+            return Result<Form>.Conflict(PUBLIC_CONFLICT_MESSAGE);
+        }
+
+        if (!form.LimitOnePerUser && requestedLimitOnePerUser)
+        {
+            var hasDuplicateEligibleSubmissions = await HasDuplicateEligibleSubmissionsAsync(
+                form.Id,
+                submissionRepository,
+                cancellationToken);
+            if (hasDuplicateEligibleSubmissions)
+            {
+                return Result<Form>.Conflict(ENABLE_CONFLICT_MESSAGE);
+            }
+        }
+
         form.Name = request.Name;
         form.Description = request.Description;
         form.IsEnabled = request.IsEnabled;
-        form.LimitOnePerUser = request.LimitOnePerUser;
-        if (form.IsPublic)
-        {
-            form.LimitOnePerUser = false;
-        }
+        form.LimitOnePerUser = requestedLimitOnePerUser;
         form.Metadata = request.Metadata;
 
         WebHookConfiguration? webHookConfig;
@@ -58,5 +84,20 @@ public class UpdateFormHandler(
         }
 
         return Result.Success(form);
+    }
+
+    private static async Task<bool> HasDuplicateEligibleSubmissionsAsync(
+        long formId,
+        IRepository<Submission> submissionRepository,
+        CancellationToken cancellationToken)
+    {
+        var eligibleSubmissions = await submissionRepository.ListAsync(
+            new EligibleSingleSubmissionGateSubmissionsByFormIdSpec(formId),
+            cancellationToken);
+
+        return eligibleSubmissions
+            .Where(submission => submission.SubmittedBy is not null && !submission.IsTestSubmission)
+            .GroupBy(submission => submission.SubmittedBy)
+            .Any(group => group.Count() > 1);
     }
 }

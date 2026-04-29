@@ -113,4 +113,22 @@ public class ListByFormIdTests
             Arg.Any<CancellationToken>()
         );
     }
+
+    [Fact]
+    public void Validator_IsTestSubmissionFilter_IsAccepted()
+    {
+        // Arrange
+        var validator = new ListByFormIdValidator();
+        var request = new ListByFormIdRequest
+        {
+            FormId = 1,
+            Filter = ["isTestSubmission:true"]
+        };
+
+        // Act
+        var validationResult = validator.Validate(request);
+
+        // Assert
+        validationResult.IsValid.Should().BeTrue();
+    }
 }

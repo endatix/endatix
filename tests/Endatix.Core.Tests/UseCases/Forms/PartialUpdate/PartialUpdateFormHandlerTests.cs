@@ -2,6 +2,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using MediatR;
 
@@ -11,6 +12,7 @@ public class PartialUpdateFormHandlerTests
 {
     private readonly IRepository<Form> _repository;
     private readonly IRepository<Theme> _themeRepository;
+    private readonly IRepository<Submission> _submissionRepository;
     private readonly IMediator _mediator;
     private readonly PartialUpdateFormHandler _handler;
 
@@ -18,8 +20,9 @@ public class PartialUpdateFormHandlerTests
     {
         _repository = Substitute.For<IRepository<Form>>();
         _themeRepository = Substitute.For<IRepository<Theme>>();
+        _submissionRepository = Substitute.For<IRepository<Submission>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new PartialUpdateFormHandler(_repository, _themeRepository, _mediator);
+        _handler = new PartialUpdateFormHandler(_repository, _themeRepository, _submissionRepository, _mediator);
     }
 
     [Fact]
@@ -351,5 +354,71 @@ public class PartialUpdateFormHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         form.WebHookSettingsJson.Should().BeNull(); // Cleared by empty JSON object
         form.WebHookSettings.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_DisablingLimitOnePerUserAfterEnabled_ReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var request = new PartialUpdateFormCommand(1)
+        {
+            LimitOnePerUser = false
+        };
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain("Single submission gate cannot be disabled after it has been enabled.");
+    }
+
+    [Fact]
+    public async Task Handle_EnablingLimitOnePerUserWithDuplicateEligibleSubmissions_ReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var request = new PartialUpdateFormCommand(1)
+        {
+            LimitOnePerUser = true
+        };
+        var duplicate1 = Submission.Create(SampleData.TENANT_ID, "{}", 1, 1, new SubmissionCreateOptions(SubmittedBy: "user-1"));
+        var duplicate2 = Submission.Create(SampleData.TENANT_ID, "{}", 1, 1, new SubmissionCreateOptions(SubmittedBy: "user-1"));
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _submissionRepository.ListAsync(
+                Arg.Any<EligibleSingleSubmissionGateSubmissionsByFormIdSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns([duplicate1, duplicate2]);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain("Cannot enable single submission gate because this form already has duplicate submissions.");
+    }
+
+    [Fact]
+    public async Task Handle_SettingFormPublicWhileSingleSubmissionEnabled_ReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var request = new PartialUpdateFormCommand(1)
+        {
+            IsPublic = true
+        };
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain("A single-submission form cannot be made public.");
     }
 }

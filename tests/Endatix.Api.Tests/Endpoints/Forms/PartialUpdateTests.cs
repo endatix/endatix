@@ -88,6 +88,24 @@ public class PartialUpdateTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_ConflictResult_ReturnsProblemDetails()
+    {
+        // Arrange
+        var request = new PartialUpdateFormRequest { FormId = 1L };
+        var result = Result<Core.Entities.Form>.Conflict("Cannot disable gate.");
+
+        _mediator.Send(Arg.Any<PartialUpdateFormCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        // Assert
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ShouldMapRequestToCommandCorrectly()
     {
         // Arrange

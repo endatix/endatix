@@ -7,6 +7,9 @@ public sealed class SubmissionByFormIdAndSubmittedBySpec : SingleResultSpecifica
 {
     public SubmissionByFormIdAndSubmittedBySpec(long formId, string submittedBy)
     {
-        Query.Where(s => s.FormId == formId && s.SubmittedBy == submittedBy);
+        Query.Where(s =>
+            s.FormId == formId &&
+            s.SubmittedBy == submittedBy &&
+            !s.IsTestSubmission);
     }
 }

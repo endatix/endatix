@@ -100,6 +100,29 @@ public class UpdateTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_ConflictResult_ReturnsProblemDetails()
+    {
+        // Arrange
+        var request = new UpdateFormRequest
+        {
+            FormId = 1,
+            Name = "Updated Form",
+            IsEnabled = true
+        };
+        var result = Result<Core.Entities.Form>.Conflict("Cannot disable gate.");
+
+        _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        // Assert
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ShouldMapRequestToCommandCorrectly()
     {
         // Arrange

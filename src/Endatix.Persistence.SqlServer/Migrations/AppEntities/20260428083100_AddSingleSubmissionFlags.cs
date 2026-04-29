@@ -30,21 +30,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 nullable: false,
                 defaultValue: false);
 
-            migrationBuilder.CreateIndex(
-                name: "UX_Submissions_FormId_SubmittedBy",
-                table: "Submissions",
-                columns: new[] { "FormId", "SubmittedBy" },
-                unique: true,
-                filter: "[IsTestSubmission] = 0 AND [SubmittedBy] IS NOT NULL");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "UX_Submissions_FormId_SubmittedBy",
-                table: "Submissions");
-
             migrationBuilder.DropColumn(
                 name: "LimitOnePerUser",
                 table: "Forms");

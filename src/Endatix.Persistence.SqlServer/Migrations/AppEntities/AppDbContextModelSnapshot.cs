@@ -320,11 +320,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.HasIndex("FormId");
 
-                    b.HasIndex("FormId", "SubmittedBy")
-                        .IsUnique()
-                        .HasDatabaseName("UX_Submissions_FormId_SubmittedBy")
-                        .HasFilter("[IsTestSubmission] = 0 AND [SubmittedBy] IS NOT NULL");
-
                     b.HasIndex("SubmittedBy");
 
                     b.HasIndex("TenantId");

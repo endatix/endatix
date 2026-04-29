@@ -17,10 +17,6 @@ namespace Endatix.Persistence.SqlServer.Config
             builder.Property(s => s.Metadata)
                 .HasColumnType("json");
 
-            builder.HasIndex(s => new { s.FormId, s.SubmittedBy })
-                .HasDatabaseName("UX_Submissions_FormId_SubmittedBy")
-                .IsUnique()
-                .HasFilter("[IsTestSubmission] = 0 AND [SubmittedBy] IS NOT NULL");
         }
     }
 }
