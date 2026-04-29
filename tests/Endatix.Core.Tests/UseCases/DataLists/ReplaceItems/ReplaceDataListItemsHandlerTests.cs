@@ -87,4 +87,102 @@ public class ReplaceDataListItemsHandlerTests
             Arg.Any<CancellationToken>()
         );
     }
+
+    [Fact]
+    public async Task Handle_EmptyLabel_ReturnsInvalid()
+    {
+        var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(dataList);
+
+        var result = await _sut.Handle(
+            new ReplaceDataListItemsCommand(1, [new("", "NYC")]),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().Contain(e => e.Identifier == "Label");
+    }
+
+    [Fact]
+    public async Task Handle_WhitespaceLabel_ReturnsInvalid()
+    {
+        var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(dataList);
+
+        var result = await _sut.Handle(
+            new ReplaceDataListItemsCommand(1, [new("   ", "NYC")]),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+    }
+
+    [Fact]
+    public async Task Handle_EmptyValue_ReturnsInvalid()
+    {
+        var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(dataList);
+
+        var result = await _sut.Handle(
+            new ReplaceDataListItemsCommand(1, [new("City", "")]),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().Contain(e => e.Identifier == "Value");
+    }
+
+    [Fact]
+    public async Task Handle_WhitespaceValue_ReturnsInvalid()
+    {
+        var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(dataList);
+
+        var result = await _sut.Handle(
+            new ReplaceDataListItemsCommand(1, [new("City", "   ")]),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+    }
+
+    [Fact]
+    public void Handle_CommandWithNullItems_ThrowsArgumentNullException()
+    {
+        Action act = () => _ = new ReplaceDataListItemsCommand(1, null!);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Handle_CommandWithZeroId_ThrowsArgumentException()
+    {
+        Action act = () => _ = new ReplaceDataListItemsCommand(0, [new("City", "NYC")]);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Handle_CommandWithNegativeId_ThrowsArgumentException()
+    {
+        Action act = () => _ = new ReplaceDataListItemsCommand(-1, [new("City", "NYC")]);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task Handle_EmptyItemsList_ReplacesWithEmptyCollection()
+    {
+        var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
+        dataList.ReplaceItems([("LA", "Los Angeles")]);
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(dataList);
+
+        var result = await _sut.Handle(
+            new ReplaceDataListItemsCommand(1, []),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value!.Items.Should().BeEmpty();
+    }
 }
