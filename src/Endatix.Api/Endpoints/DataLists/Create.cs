@@ -54,12 +54,8 @@ public sealed class Create(
         IsActive = dataList.IsActive,
         CreatedAt = dataList.CreatedAt,
         ModifiedAt = dataList.ModifiedAt,
-        ItemsCount = dataList.Items.Count,
-        Items = [.. dataList.Items.Select(d => new DataListItemModel(){
-            Id = d.Id,
-            Label = d.Label,
-            Value = d.Value
-        })]
+        ItemsCount = 0,
+        Items = []
     };
 }
 
