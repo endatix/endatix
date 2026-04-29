@@ -4,7 +4,10 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.DataLists.Search;
 
-public sealed record SearchDataListItemsQuery : IQuery<Result<SearchDataListItemsDto>>
+/// <summary>
+/// Query for searching data list items.
+/// </summary>
+public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItemDto>>>
 {
     /// <summary>
     /// The maximum number of items to take.
@@ -29,9 +32,3 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<SearchDataListItem
     }
 }
 
-public sealed record SearchDataListItemsDto(
-    long DataListId,
-    int Total,
-    int Skip,
-    int Take,
-    IReadOnlyCollection<DataListItemDto> Items);

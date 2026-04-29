@@ -57,7 +57,7 @@ public class SearchDataListItemsHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
         result.Value!.Items.Should().HaveCount(2);
-        result.Value.Total.Should().Be(2);
+        result.Value.TotalRecords.Should().Be(2);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class SearchDataListItemsHandlerTests
 
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value!.Total.Should().Be(1);
+        result.Value!.TotalRecords.Should().Be(1);
 
         await _repository.Received(1).SearchItemsAsync(
             1,
@@ -107,8 +107,88 @@ public class SearchDataListItemsHandlerTests
 
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value!.Total.Should().Be(100);
-        result.Value.Skip.Should().Be(50);
-        result.Value.Take.Should().Be(10);
+        result.Value!.TotalRecords.Should().Be(100);
+        result.Value.Page.Should().Be(6);
+        result.Value.PageSize.Should().Be(10);
+        result.Value.TotalPages.Should().Be(10);
+    }
+
+    [Theory]
+    [InlineData(26, 25, 2)]
+    [InlineData(51, 25, 3)]
+    [InlineData(1, 25, 1)]
+    public async Task Handle_NonAlignedOffset_ReturnsCorrectPage(int skip, int take, int expectedPage)
+    {
+        _repository.SearchItemsAsync(
+                1,
+                null,
+                skip,
+                take,
+                Arg.Any<CancellationToken>())
+            .Returns(new DataListSearchPageResult(1, 100, []));
+
+        var result = await _sut.Handle(
+            new SearchDataListItemsQuery(1, null, skip, take),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+        result.Value!.Page.Should().Be(expectedPage);
+    }
+
+    [Theory]
+    [InlineData(100, 10)]
+    [InlineData(200, 10)]
+    public async Task Handle_OutOfRangeSkip_ReturnsLastPage(int skip, int take)
+    {
+        _repository.SearchItemsAsync(
+                1,
+                null,
+                skip,
+                take,
+                Arg.Any<CancellationToken>())
+            .Returns(new DataListSearchPageResult(1, 100, []));
+
+        var result = await _sut.Handle(
+            new SearchDataListItemsQuery(1, null, skip, take),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+        result.Value!.Page.Should().Be(10);
+    }
+
+    [Fact]
+    public async Task Handle_ZeroTotalRecords_ReturnsEmptyPaged()
+    {
+        _repository.SearchItemsAsync(
+                1,
+                null,
+                0,
+                10,
+                Arg.Any<CancellationToken>())
+            .Returns(new DataListSearchPageResult(1, 0, []));
+
+        var result = await _sut.Handle(
+            new SearchDataListItemsQuery(1, null, 0, 10),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+        result.Value!.Page.Should().Be(1);
+        result.Value.TotalPages.Should().Be(0);
+        result.Value.TotalRecords.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(-1, 10, "skip")]
+    [InlineData(0, 0, "take")]
+    [InlineData(-5, 5, "skip")]
+    public void QueryCtor_WithInvalidPaging_ThrowsArgumentException(int skip, int take, string expectedParam)
+    {
+        Action act = () => _ = new SearchDataListItemsQuery(1, null, skip, take);
+
+        act.Should().Throw<ArgumentException>()
+            .Which.ParamName.Should().Be(expectedParam);
     }
 }

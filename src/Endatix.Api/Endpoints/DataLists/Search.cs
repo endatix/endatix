@@ -1,12 +1,14 @@
 using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.DataLists;
@@ -17,8 +19,11 @@ namespace Endatix.Api.Endpoints.DataLists;
 public sealed class Search(
     IMediator mediator,
     IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> publicFormAccessPolicy)
-    : Endpoint<SearchDataListItemsRequest, Results<Ok<DataListPublicSearchResultModel>, ProblemHttpResult>>
+    : Endpoint<SearchDataListItemsRequest, Results<Ok<Paged<DataListPublicChoiceModel>>, ProblemHttpResult>>
 {
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Get(ApiRoutes.Public("forms/{formId}/data-lists/{dataListId}/search"));
@@ -32,7 +37,7 @@ public sealed class Search(
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
-    public override async Task<Results<Ok<DataListPublicSearchResultModel>, ProblemHttpResult>> ExecuteAsync(SearchDataListItemsRequest request, CancellationToken ct)
+    public override async Task<Results<Ok<Paged<DataListPublicChoiceModel>>, ProblemHttpResult>> ExecuteAsync(SearchDataListItemsRequest request, CancellationToken ct)
     {
         PublicFormAccessContext accessContext = new(request.FormId, request.Token, request.TokenType);
         var accessDataResult = await publicFormAccessPolicy.GetAccessData(accessContext, ct).ConfigureAwait(false);
@@ -44,9 +49,14 @@ public sealed class Search(
 
         SearchDataListItemsQuery query = new(request.DataListId, request.Query, request.Skip, request.Take);
         var result = await mediator.Send(query, ct);
-        return TypedResultsBuilder
-            .MapResult(result, DataListMapper.MapPublic)
-            .SetTypedResults<Ok<DataListPublicSearchResultModel>, ProblemHttpResult>();
+        if (!result.IsSuccess)
+        {
+            return result.ToProblem();
+        }
+
+        var mapped = result.Value.MapToPaged(DataListMapper.MapPublic);
+
+        return TypedResults.Ok(mapped);
     }
 }
 

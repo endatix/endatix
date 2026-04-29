@@ -2,10 +2,12 @@ using Endatix.Api.Common;
 using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.List;
 using Endatix.Framework.FeatureFlags;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.DataLists;
@@ -15,22 +17,35 @@ namespace Endatix.Api.Endpoints.DataLists;
 /// </summary>
 public sealed class List(
     IMediator mediator)
-    : Endpoint<DataListsListRequest, Results<Ok<IEnumerable<DataListModel>>, ProblemHttpResult>>
+    : Endpoint<DataListsListRequest, Results<Ok<Paged<DataListModel>>, ProblemHttpResult>>
 {
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Get("data-lists");
-        Permissions(Actions.Forms.View);
+        Permissions(Actions.Forms.View);        
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
-
-    public override async Task<Results<Ok<IEnumerable<DataListModel>>, ProblemHttpResult>> ExecuteAsync(DataListsListRequest request, CancellationToken ct)
+    /// <summary>
+    /// Executes the endpoint.
+    /// </summary>
+    /// <param name="request">The request.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>The result.</returns>
+    public override async Task<Results<Ok<Paged<DataListModel>>, ProblemHttpResult>> ExecuteAsync(DataListsListRequest request, CancellationToken ct)
     {
         var result = await mediator.Send(new ListDataListsQuery(request.Page, request.PageSize), ct);
 
-        return TypedResultsBuilder
-            .MapResult(result, dataLists => dataLists.Select(DataListMapper.Map))
-            .SetTypedResults<Ok<IEnumerable<DataListModel>>, ProblemHttpResult>();
+        if (!result.IsSuccess)
+        {
+            return result.ToProblem();
+        }
+
+        var mapped = result.Value.MapToPaged(DataListMapper.Map);
+
+        return TypedResults.Ok(mapped);
     }
 }
 

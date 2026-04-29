@@ -13,6 +13,22 @@ namespace Endatix.Core.Specifications;
 public class DataListsSpecifications
 {
     /// <summary>
+    /// Base specification to list data lists without pagination.
+    /// </summary>
+    public sealed class ListSpec : Specification<DataList>
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ListSpec"/> class.
+        /// </summary>
+        public ListSpec()
+        {
+            Query
+                .OrderByDescending(x => x.CreatedAt)
+                .AsNoTracking();
+        }
+    }
+
+    /// <summary>
     /// Specification to get data lists with paging.
     /// </summary>
     public sealed class WithPagingSpec : Specification<DataList>

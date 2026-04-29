@@ -4,10 +4,14 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.DataLists.Search;
 
+/// <summary>
+/// Handler for searching data list items.
+/// </summary>
 public sealed class SearchDataListItemsHandler(IDataListRepository repository)
-    : IQueryHandler<SearchDataListItemsQuery, Result<SearchDataListItemsDto>>
+    : IQueryHandler<SearchDataListItemsQuery, Result<Paged<DataListItemDto>>>
 {
-    public async Task<Result<SearchDataListItemsDto>> Handle(SearchDataListItemsQuery request, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task<Result<Paged<DataListItemDto>>> Handle(SearchDataListItemsQuery request, CancellationToken cancellationToken)
     {
         var searchPage = await repository.SearchItemsAsync(
             request.DataListId,
@@ -21,15 +25,18 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
             return Result.NotFound("Data list not found.");
         }
 
-        var page = searchPage.Items
+        var (_, total, items) = searchPage;
+
+        var pageItems = items
             .Select(x => new DataListItemDto(x.Id, x.Label, x.Value))
             .ToArray();
 
-        return Result.Success(new SearchDataListItemsDto(
-            request.DataListId,
-            searchPage.Total,
-            request.Skip,
-            request.Take,
-            page));
+        var paged = Paged<DataListItemDto>.FromSkipAndTake(
+            skip: request.Skip,
+            take: request.Take,
+            totalRecords: total,
+            items: pageItems);
+
+        return Result.Success(paged);
     }
 }
