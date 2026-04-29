@@ -31,6 +31,7 @@ public class CreateSubmissionHandler(
     private const string DEFAULT_METADATA = "{}";
 
     private const string DEFAULT_JSON_DATA = "{}";
+    private const string DUPLICATE_CONFLICT_MESSAGE = "A submission already exists for this user and form.";
 
     public async Task<Result<Submission>> Handle(CreateSubmissionCommand request, CancellationToken cancellationToken)
     {
@@ -111,27 +112,47 @@ public class CreateSubmissionHandler(
             await unitOfWork.BeginTransactionAsync(cancellationToken, IsolationLevel.Serializable);
             try
             {
+                var duplicateSpec = new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy!);
                 var hasExistingSubmission = await submissionRepository.AnyAsync(
-                    new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy!),
+                    duplicateSpec,
                     cancellationToken);
 
                 if (hasExistingSubmission)
                 {
-                    await unitOfWork.RollbackTransactionAsync(cancellationToken);
-                    return Result<Submission>.Conflict("A submission already exists for this user and form.");
+                    await SafeRollbackAsync(unitOfWork, cancellationToken);
+                    return Result<Submission>.Conflict(DUPLICATE_CONFLICT_MESSAGE);
                 }
 
                 await submissionRepository.AddAsync(submission, cancellationToken);
-                await unitOfWork.CommitTransactionAsync(cancellationToken);
+                try
+                {
+                    await unitOfWork.CommitTransactionAsync(cancellationToken);
+                }
+                catch (DuplicateSubmissionException)
+                {
+                    await SafeRollbackAsync(unitOfWork, cancellationToken);
+                    return Result<Submission>.Conflict(DUPLICATE_CONFLICT_MESSAGE);
+                }
+                catch (Exception commitException) when (IsSerializationOrDeadlockLikeException(commitException))
+                {
+                    await SafeRollbackAsync(unitOfWork, cancellationToken);
+                    var hasExistingSubmissionAfterFailure = await submissionRepository.AnyAsync(duplicateSpec, cancellationToken);
+                    if (hasExistingSubmissionAfterFailure)
+                    {
+                        return Result<Submission>.Conflict(DUPLICATE_CONFLICT_MESSAGE);
+                    }
+
+                    throw;
+                }
             }
             catch (DuplicateSubmissionException)
             {
-                await unitOfWork.RollbackTransactionAsync(cancellationToken);
-                return Result<Submission>.Conflict("A submission already exists for this user and form.");
+                await SafeRollbackAsync(unitOfWork, cancellationToken);
+                return Result<Submission>.Conflict(DUPLICATE_CONFLICT_MESSAGE);
             }
             catch
             {
-                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                await SafeRollbackAsync(unitOfWork, cancellationToken);
                 throw;
             }
         }
@@ -143,7 +164,7 @@ public class CreateSubmissionHandler(
             }
             catch (DuplicateSubmissionException)
             {
-                return Result<Submission>.Conflict("A submission already exists for this user and form.");
+                return Result<Submission>.Conflict(DUPLICATE_CONFLICT_MESSAGE);
             }
         }
 
@@ -155,5 +176,67 @@ public class CreateSubmissionHandler(
         }
 
         return Result<Submission>.Created(submission);
+    }
+
+    private static async Task SafeRollbackAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+        }
+        catch (InvalidOperationException rollbackException) when (
+            rollbackException.Message.Contains("Transaction not started", StringComparison.Ordinal))
+        {
+            // Commit can dispose/null the transaction; avoid masking the original failure.
+        }
+    }
+
+    private static bool IsSerializationOrDeadlockLikeException(Exception exception)
+    {
+        var current = exception;
+        while (current is not null)
+        {
+            if (IsPostgreSqlSerializationOrDeadlock(current) || IsSqlServerSerializationOrDeadlock(current))
+            {
+                return true;
+            }
+
+            if (current.Message.Contains("deadlock", StringComparison.OrdinalIgnoreCase) ||
+                current.Message.Contains("serialize", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            current = current.InnerException;
+        }
+
+        return false;
+    }
+
+    private static bool IsPostgreSqlSerializationOrDeadlock(Exception exception)
+    {
+        if (!string.Equals(exception.GetType().Name, "PostgresException", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var sqlState = exception.GetType().GetProperty("SqlState")?.GetValue(exception) as string;
+        return sqlState is "40001" or "40P01";
+    }
+
+    private static bool IsSqlServerSerializationOrDeadlock(Exception exception)
+    {
+        if (!string.Equals(exception.GetType().Name, "SqlException", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var numberValue = exception.GetType().GetProperty("Number")?.GetValue(exception);
+        if (numberValue is not int number)
+        {
+            return false;
+        }
+
+        return number is 1205 or 3960;
     }
 }

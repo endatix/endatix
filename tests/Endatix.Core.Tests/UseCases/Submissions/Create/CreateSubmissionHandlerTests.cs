@@ -666,6 +666,117 @@ public class CreateSubmissionHandlerTests
     }
 
     [Fact]
+    public async Task Handle_CommitThrowsDeadlockAndDuplicateExistsAfterFailure_ReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(false));
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _submissionsRepository.AnyAsync(
+            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(false, true);
+        _unitOfWork.CommitTransactionAsync(Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new Exception("deadlock victim"));
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+    }
+
+    [Fact]
+    public async Task Handle_CommitThrowsDeadlockAndRollbackDisposed_DoesNotMaskAndReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(false));
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _submissionsRepository.AnyAsync(
+            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(false, true);
+        _unitOfWork.CommitTransactionAsync(Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new Exception("could not serialize access"));
+        _unitOfWork.RollbackTransactionAsync(Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new InvalidOperationException("Transaction not started. Call BeginTransactionAsync first."));
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+    }
+
+    [Fact]
+    public async Task Handle_CommitThrowsDeadlockWithoutDuplicateAfterFailure_PropagatesException()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(false));
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _submissionsRepository.AnyAsync(
+            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(false, false);
+        _unitOfWork.CommitTransactionAsync(Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new Exception("deadlock victim"));
+
+        // Act
+        Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<Exception>()
+            .WithMessage("*deadlock*");
+    }
+
+    [Fact]
     public async Task Handle_AddAsyncThrowsDuplicateSubmissionException_ReturnsConflict()
     {
         // Arrange
