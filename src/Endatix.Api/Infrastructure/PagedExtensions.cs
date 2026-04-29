@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Api.Infrastructure;
@@ -17,10 +18,16 @@ public static class PagedExtensions
     /// <returns>A new <see cref="Paged{TDestination}"/> with the mapped items and original paging metadata.</returns>
     public static Paged<TDestination> MapToPaged<TSource, TDestination>(
         this Paged<TSource> source,
-        Func<TSource, TDestination> mapper) => new(
-            page: source.Page,
-            pageSize: source.PageSize,
-            totalRecords: source.TotalRecords,
-            totalPages: source.TotalPages,
-            items: [.. source.Items.Select(mapper)]);
+        Func<TSource, TDestination> mapper)
+    {
+        Guard.Against.Null(mapper);
+        Guard.Against.Null(source);
+
+        return new(
+                    page: source.Page,
+                    pageSize: source.PageSize,
+                    totalRecords: source.TotalRecords,
+                    totalPages: source.TotalPages,
+                    items: [.. source.Items.Select(mapper)]);
+    }
 }
