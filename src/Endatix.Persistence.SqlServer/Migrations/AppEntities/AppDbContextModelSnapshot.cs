@@ -144,6 +144,14 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("LimitOnePerUser")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("json");
+
                     b.Property<bool>("IsPublic")
                         .HasColumnType("bit");
 
@@ -284,6 +292,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsTestSubmission")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("JsonData")
                         .IsRequired()
                         .HasColumnType("json");
@@ -306,6 +319,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasIndex("FormDefinitionId");
 
                     b.HasIndex("FormId");
+
+                    b.HasIndex("FormId", "SubmittedBy")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Submissions_FormId_SubmittedBy")
+                        .HasFilter("[IsTestSubmission] = 0 AND [SubmittedBy] IS NOT NULL");
 
                     b.HasIndex("SubmittedBy");
 

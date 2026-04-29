@@ -30,5 +30,9 @@ public class CreateFormValidator : Validator<CreateFormRequest>
         RuleFor(x => x.FormDefinitionJsonData)
             .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH)
             .When(x => x.FormDefinitionJsonData != null);
+
+        RuleFor(x => x.Metadata)
+            .MustBeValidJsonString()
+            .When(x => x.Metadata != null);
     }
 }

@@ -18,6 +18,11 @@ namespace Endatix.Persistence.PostgreSql.Config
             // Configure Metadata as JSONB for PostgreSQL
             builder.Property(s => s.Metadata)
                 .HasColumnType("jsonb");
+
+            builder.HasIndex(s => new { s.FormId, s.SubmittedBy })
+                .HasDatabaseName("UX_Submissions_FormId_SubmittedBy")
+                .IsUnique()
+                .HasFilter("\"IsTestSubmission\" = false AND \"SubmittedBy\" IS NOT NULL");
         }
     }
 }

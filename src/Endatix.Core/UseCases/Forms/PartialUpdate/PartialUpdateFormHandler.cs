@@ -27,6 +27,13 @@ public class PartialUpdateFormHandler(
         form.Description = request.Description ?? form.Description;
         form.IsEnabled = request.IsEnabled ?? form.IsEnabled;
         form.IsPublic = request.IsPublic ?? form.IsPublic;
+        form.Metadata = request.Metadata ?? form.Metadata;
+        form.LimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
+
+        if (form.IsPublic)
+        {
+            form.LimitOnePerUser = false;
+        }
 
         if (request.ThemeId.HasValue && form.ThemeId != request.ThemeId)
         {

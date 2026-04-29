@@ -21,6 +21,8 @@ public static class FormProjections
         Description = form.Description,
         IsEnabled = form.IsEnabled,
         IsPublic = form.IsPublic,
+        LimitOnePerUser = form.LimitOnePerUser,
+        Metadata = form.Metadata,
         ThemeId = form.ThemeId.HasValue ? form.ThemeId.Value.ToString() : null,
         ActiveDefinitionId = form.ActiveDefinitionId.HasValue ? form.ActiveDefinitionId.Value.ToString() : null,
         CreatedAt = form.CreatedAt,

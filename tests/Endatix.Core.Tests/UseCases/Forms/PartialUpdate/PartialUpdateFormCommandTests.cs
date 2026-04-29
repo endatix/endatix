@@ -17,7 +17,13 @@ public class PartialUpdateFormCommandTests
         long? themeId = 2;
 
         // Act
-        Action act = () => new PartialUpdateFormCommand(formId, name, description, isEnabled, null, themeId);
+        Action act = () => new PartialUpdateFormCommand(formId)
+        {
+            Name = name,
+            Description = description,
+            IsEnabled = isEnabled,
+            ThemeId = themeId
+        };
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -34,7 +40,13 @@ public class PartialUpdateFormCommandTests
         bool? isEnabled = true;
         long? themeId = 2;
         // Act
-        var command = new PartialUpdateFormCommand(formId, name, description, isEnabled, null, themeId);
+        var command = new PartialUpdateFormCommand(formId)
+        {
+            Name = name,
+            Description = description,
+            IsEnabled = isEnabled,
+            ThemeId = themeId
+        };
 
         // Assert
         command.FormId.Should().Be(formId);
@@ -54,7 +66,12 @@ public class PartialUpdateFormCommandTests
         bool? isEnabled = null;
 
         // Act
-        var command = new PartialUpdateFormCommand(formId, name, description, isEnabled, null, null);
+        var command = new PartialUpdateFormCommand(formId)
+        {
+            Name = name,
+            Description = description,
+            IsEnabled = isEnabled
+        };
 
         // Assert
         command.FormId.Should().Be(formId);

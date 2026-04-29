@@ -29,6 +29,9 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
             .HasMaxLength(IDENTIFIER_MAX_LENGTH)
             .IsRequired(false);
 
+        builder.Property(s => s.IsTestSubmission)
+            .HasDefaultValue(false);
+
         builder.HasOne(s => s.FormDefinition)
             .WithMany(fd => fd.Submissions)
             .HasForeignKey(s => s.FormDefinitionId)

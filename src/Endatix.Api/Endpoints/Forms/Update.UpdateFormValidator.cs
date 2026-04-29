@@ -21,5 +21,9 @@ public class UpdateFormValidator : Validator<UpdateFormRequest>
 
         RuleFor(x => x.IsEnabled)
             .NotEmpty();
+
+        RuleFor(x => x.Metadata)
+            .MustBeValidJsonString()
+            .When(x => x.Metadata != null);
     }
 }

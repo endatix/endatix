@@ -10,6 +10,7 @@ using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Features.ReCaptcha;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Exceptions;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
@@ -55,6 +56,34 @@ public class CreateSubmissionHandler(
             }
         }
 
+        var canBypassSingleSubmissionLimit = false;
+        if (formWithActiveDefinition.LimitOnePerUser && !string.IsNullOrWhiteSpace(request.SubmittedBy))
+        {
+            var hasTestPermissionResult = await authorizationService.HasPermissionAsync(Actions.Forms.Test, cancellationToken);
+            if (!hasTestPermissionResult.IsSuccess)
+            {
+                return hasTestPermissionResult.Status switch
+                {
+                    ResultStatus.Unauthorized => Result.Unauthorized($"Permission '{Actions.Forms.Test}' access check failed."),
+                    ResultStatus.Forbidden => Result.Forbidden($"Permission '{Actions.Forms.Test}' required to access this resource."),
+                    _ => Result.Error($"Permission '{Actions.Forms.Test}' access check failed.")
+                };
+            }
+
+            canBypassSingleSubmissionLimit = hasTestPermissionResult.Value;
+            if (!canBypassSingleSubmissionLimit)
+            {
+                var hasExistingSubmission = await submissionRepository.AnyAsync(
+                    new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy),
+                    cancellationToken);
+
+                if (hasExistingSubmission)
+                {
+                    return Result<Submission>.Conflict("A submission already exists for this user and form.");
+                }
+            }
+        }
+
         var validationContext = new SubmissionVerificationContext(
             formWithActiveDefinition,
             request.IsComplete ?? DEFAULT_IS_COMPLETE,
@@ -67,18 +96,27 @@ public class CreateSubmissionHandler(
             return Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
         }
 
-        var submission = new Submission(
+        var submission = Submission.Create(
             activeDefinition!.TenantId,
             jsonData: request.JsonData ?? DEFAULT_JSON_DATA,
             formId: request.FormId,
             formDefinitionId: activeDefinition!.Id,
-            isComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
-            currentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            metadata: request.Metadata ?? DEFAULT_METADATA,
-            submittedBy: request.SubmittedBy
+            options: new SubmissionCreateOptions(
+                IsComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
+                CurrentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
+                Metadata: request.Metadata ?? DEFAULT_METADATA,
+                SubmittedBy: request.SubmittedBy,
+                IsTestSubmission: canBypassSingleSubmissionLimit)
         );
 
-        await submissionRepository.AddAsync(submission, cancellationToken);
+        try
+        {
+            await submissionRepository.AddAsync(submission, cancellationToken);
+        }
+        catch (DuplicateSubmissionException)
+        {
+            return Result<Submission>.Conflict("A submission already exists for this user and form.");
+        }
         await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
 
         if (submission.IsComplete)
