@@ -13,6 +13,7 @@ public class GetActiveFormDefinitionHandlerTests
 {
     private readonly IFormsRepository _formsRepository;
     private readonly IRepository<CustomQuestion> _customQuestionsRepository;
+    private readonly IRepository<Submission> _submissionRepository;
     private readonly IReCaptchaPolicyService _recaptchaPolicyService;
     private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly GetActiveFormDefinitionHandler _handler;
@@ -21,9 +22,10 @@ public class GetActiveFormDefinitionHandlerTests
     {
         _formsRepository = Substitute.For<IFormsRepository>();
         _customQuestionsRepository = Substitute.For<IRepository<CustomQuestion>>();
+        _submissionRepository = Substitute.For<IRepository<Submission>>();
         _recaptchaPolicyService = Substitute.For<IReCaptchaPolicyService>();
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
-        _handler = new GetActiveFormDefinitionHandler(_formsRepository, _customQuestionsRepository, _recaptchaPolicyService, _authorizationService);
+        _handler = new GetActiveFormDefinitionHandler(_formsRepository, _customQuestionsRepository, _submissionRepository, _recaptchaPolicyService, _authorizationService);
     }
 
     [Fact]
@@ -285,6 +287,121 @@ public class GetActiveFormDefinitionHandlerTests
 
         // Verify permission check was not called for public form
         await _authorizationService.DidNotReceive().ValidateAccessAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_LimitOnePerUserAndExistingSubmission_SetsHasUserSubmittedToTrue()
+    {
+        // Arrange
+        const string userId = "user-123";
+        var formWithActiveDefinition = new Form(
+            SampleData.TENANT_ID,
+            SampleData.FORM_NAME_1,
+            isEnabled: true,
+            isPublic: false,
+            limitOnePerUser: true)
+        {
+            Id = 1
+        };
+        var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        formWithActiveDefinition.AddFormDefinition(activeDefinition);
+
+        var request = new GetActiveFormDefinitionQuery(1, userId, "access.authenticated");
+
+        _formsRepository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), CancellationToken.None)
+            .Returns(formWithActiveDefinition);
+        _customQuestionsRepository.ListAsync(Arg.Any<CustomQuestionSpecifications.ByTenantId>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+        _authorizationService.ValidateAccessAsync("access.authenticated", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(false));
+        _submissionRepository.AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value!.HasUserSubmitted.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_LimitOnePerUserWithoutSubmission_SetsHasUserSubmittedToFalse()
+    {
+        // Arrange
+        const string userId = "user-123";
+        var formWithActiveDefinition = new Form(
+            SampleData.TENANT_ID,
+            SampleData.FORM_NAME_1,
+            isEnabled: true,
+            isPublic: false,
+            limitOnePerUser: true)
+        {
+            Id = 1
+        };
+        var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        formWithActiveDefinition.AddFormDefinition(activeDefinition);
+
+        var request = new GetActiveFormDefinitionQuery(1, userId, "access.authenticated");
+
+        _formsRepository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), CancellationToken.None)
+            .Returns(formWithActiveDefinition);
+        _customQuestionsRepository.ListAsync(Arg.Any<CustomQuestionSpecifications.ByTenantId>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+        _authorizationService.ValidateAccessAsync("access.authenticated", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(false));
+        _submissionRepository.AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value!.HasUserSubmitted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_LimitOnePerUserWithTestPermission_SkipsDbCheckAndReturnsFalse()
+    {
+        // Arrange
+        const string userId = "user-123";
+        var formWithActiveDefinition = new Form(
+            SampleData.TENANT_ID,
+            SampleData.FORM_NAME_1,
+            isEnabled: true,
+            isPublic: false,
+            limitOnePerUser: true)
+        {
+            Id = 1
+        };
+        var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        formWithActiveDefinition.AddFormDefinition(activeDefinition);
+
+        var request = new GetActiveFormDefinitionQuery(1, userId, "access.authenticated");
+
+        _formsRepository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), CancellationToken.None)
+            .Returns(formWithActiveDefinition);
+        _customQuestionsRepository.ListAsync(Arg.Any<CustomQuestionSpecifications.ByTenantId>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+        _authorizationService.ValidateAccessAsync("access.authenticated", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(true));
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value!.HasUserSubmitted.Should().BeFalse();
+        await _submissionRepository.DidNotReceive().AnyAsync(
+            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
+            Arg.Any<CancellationToken>());
     }
 
     #endregion
