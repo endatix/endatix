@@ -8,11 +8,11 @@ public interface IPagedData
     /// <summary>
     /// The page number.
     /// </summary>  
-    long Page { get; }
+    int Page { get; }
     /// <summary>
     /// The page size.
     /// </summary>
-    long PageSize { get; }
+    int PageSize { get; }
     
     /// <summary>
     /// The total number of records.

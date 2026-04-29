@@ -30,35 +30,17 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
             return Result.NotFound("Data list not found.");
         }
 
-        var page = searchPage.Items
+        var (dataListId, total, items) = searchPage;
+
+        var pageItems = items
             .Select(x => new DataListItemDto(x.Id, x.Label, x.Value))
             .ToArray();
 
-        var totalRecords = searchPage.Total;
-        var totalPages = totalRecords > 0
-            ? (long)Math.Ceiling(totalRecords / (double)request.Take)
-            : 0;
-
-        long currentPage;
-        if (totalRecords == 0 || request.Skip >= totalRecords)
-        {
-            currentPage = totalPages > 0 ? totalPages : 1;
-        }
-        else
-        {
-            currentPage = (long)Math.Floor(request.Skip / (double)request.Take) + 1;
-            if (totalPages > 0)
-            {
-                currentPage = Math.Clamp(currentPage, 1, totalPages);
-            }
-        }
-
-        Paged<DataListItemDto> paged = new(
-            page: currentPage,
-            pageSize: request.Take,
-            totalRecords: totalRecords,
-            totalPages: totalPages,
-            items: page);
+        var paged = Paged<DataListItemDto>.FromPagedRequest(
+            skip: request.Skip,
+            take: request.Take,
+            totalRecords: total,
+            items: pageItems);
 
         return Result.Success(paged);
     }

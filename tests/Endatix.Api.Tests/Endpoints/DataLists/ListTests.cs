@@ -50,7 +50,7 @@ public class ListTests
     {
         DataListsListRequest request = new() { Page = 2, PageSize = 25 };
         _mediator.Send(Arg.Any<ListDataListsQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new Paged<DataListDto>(2, 25, 0, 0, [])));
+            .Returns(Result.Success(new Paged<DataListDto>(1, 25, 0, 0, [])));
 
         await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
