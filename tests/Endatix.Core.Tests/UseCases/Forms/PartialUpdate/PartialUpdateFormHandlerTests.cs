@@ -385,14 +385,12 @@ public class PartialUpdateFormHandlerTests
         {
             LimitOnePerUser = true
         };
-        var duplicate1 = Submission.Create(SampleData.TENANT_ID, "{}", 1, 1, new SubmissionCreateOptions(SubmittedBy: "user-1"));
-        var duplicate2 = Submission.Create(SampleData.TENANT_ID, "{}", 1, 1, new SubmissionCreateOptions(SubmittedBy: "user-1"));
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
         _submissionRepository.ListAsync(
-                Arg.Any<EligibleSingleSubmissionGateSubmissionsByFormIdSpec>(),
+                Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
                 Arg.Any<CancellationToken>())
-            .Returns([duplicate1, duplicate2]);
+            .Returns(["user-1", "user-1"]);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -400,6 +398,30 @@ public class PartialUpdateFormHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().Contain("Cannot enable single submission gate because this form already has duplicate submissions.");
+    }
+
+    [Fact]
+    public async Task Handle_EnablingLimitOnePerUserWithWhitespaceSubmittedByValues_Succeeds()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var request = new PartialUpdateFormCommand(1)
+        {
+            LimitOnePerUser = true
+        };
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _submissionRepository.ListAsync(
+                Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(["   ", "\t", Environment.NewLine]);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.LimitOnePerUser.Should().BeTrue();
     }
 
     [Fact]

@@ -3,7 +3,7 @@ using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Forms;
 using MediatR;
 
 namespace Endatix.Core.UseCases.Forms.PartialUpdate;
@@ -115,18 +115,12 @@ public class PartialUpdateFormHandler(
         form.UpdateWebHookSettings(webHookConfig);
     }
 
-    private static async Task<bool> HasDuplicateEligibleSubmissionsAsync(
+    private static Task<bool> HasDuplicateEligibleSubmissionsAsync(
         long formId,
         IRepository<Submission> submissionRepository,
-        CancellationToken cancellationToken)
-    {
-        var eligibleSubmissions = await submissionRepository.ListAsync(
-            new EligibleSingleSubmissionGateSubmissionsByFormIdSpec(formId),
+        CancellationToken cancellationToken) =>
+        SingleSubmissionGateDuplicateChecker.HasDuplicateEligibleSubmissionsAsync(
+            formId,
+            submissionRepository,
             cancellationToken);
-
-        return eligibleSubmissions
-            .Where(submission => submission.SubmittedBy is not null && !submission.IsTestSubmission)
-            .GroupBy(submission => submission.SubmittedBy)
-            .Any(group => group.Count() > 1);
-    }
 }
