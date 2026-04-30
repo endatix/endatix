@@ -12,7 +12,7 @@ namespace Endatix.Api.Endpoints.Forms;
 /// <summary>
 /// Endpoint for partially updating a form.
 /// </summary>
-public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormRequest, Results<Ok<PartialUpdateFormResponse>, BadRequest, NotFound, ProblemHttpResult>>
+public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormRequest, Results<Ok<PartialUpdateFormResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -32,7 +32,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormReque
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<PartialUpdateFormResponse>, BadRequest, NotFound, ProblemHttpResult>> ExecuteAsync(PartialUpdateFormRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<PartialUpdateFormResponse>, ProblemHttpResult>> ExecuteAsync(PartialUpdateFormRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
             new PartialUpdateFormCommand(request.FormId)
@@ -53,8 +53,6 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormReque
         return mappedResult.Status switch
         {
             ResultStatus.Ok => TypedResults.Ok(mappedResult.Value),
-            ResultStatus.Invalid => TypedResults.BadRequest(),
-            ResultStatus.NotFound => TypedResults.NotFound(),
             _ => mappedResult.ToProblem()
         };
     }

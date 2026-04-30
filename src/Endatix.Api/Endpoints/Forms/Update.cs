@@ -12,7 +12,7 @@ namespace Endatix.Api.Endpoints.Forms;
 /// <summary>
 /// Endpoint for updating a form.
 /// </summary>
-public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok<UpdateFormResponse>, BadRequest, NotFound, ProblemHttpResult>>
+public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok<UpdateFormResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -32,7 +32,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<UpdateFormResponse>, BadRequest, NotFound, ProblemHttpResult>> ExecuteAsync(UpdateFormRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<UpdateFormResponse>, ProblemHttpResult>> ExecuteAsync(UpdateFormRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
             new UpdateFormCommand(
@@ -50,8 +50,6 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok
         return mappedResult.Status switch
         {
             ResultStatus.Ok => TypedResults.Ok(mappedResult.Value),
-            ResultStatus.Invalid => TypedResults.BadRequest(),
-            ResultStatus.NotFound => TypedResults.NotFound(),
             _ => mappedResult.ToProblem()
         };
     }
