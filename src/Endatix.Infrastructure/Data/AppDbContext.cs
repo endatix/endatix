@@ -17,7 +17,7 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public class AppDbContext : DbContext, ITenantDbContext
 {
-    private const string DUPLICATE_SUBMISSION_CONSTRAINT_NAME = "UX_Submissions_FormId_SubmittedBy";
+    private const string DUPLICATE_SUBMISSION_CONSTRAINT_NAME = "UX_Submissions_RestrictionKey";
 
     private readonly IIdGenerator<long> _idGenerator;
     private readonly ITenantContext _tenantContext;

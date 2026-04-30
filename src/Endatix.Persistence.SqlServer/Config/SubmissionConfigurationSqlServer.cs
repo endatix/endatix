@@ -17,6 +17,10 @@ namespace Endatix.Persistence.SqlServer.Config
             builder.Property(s => s.Metadata)
                 .HasColumnType("json");
 
+            builder.HasIndex(s => s.RestrictionKey)
+                .HasDatabaseName("UX_Submissions_RestrictionKey")
+                .IsUnique()
+                .HasFilter("[RestrictionKey] IS NOT NULL");
         }
     }
 }

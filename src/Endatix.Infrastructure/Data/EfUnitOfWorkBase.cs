@@ -1,5 +1,4 @@
 using Endatix.Core.Abstractions.Data;
-using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -32,13 +31,9 @@ public abstract class EfUnitOfWorkBase<TContext> : IUnitOfWork
     }
 
     /// <inheritdoc/>
-    public async Task BeginTransactionAsync(
-        CancellationToken cancellationToken = default,
-        IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
+    public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
-        _transaction = isolationLevel == IsolationLevel.ReadCommitted
-            ? await _context.Database.BeginTransactionAsync(cancellationToken)
-            : await _context.Database.BeginTransactionAsync(isolationLevel, cancellationToken);
+        _transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
     }
 
     /// <inheritdoc/>

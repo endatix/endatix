@@ -33,11 +33,28 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 nullable: false,
                 defaultValue: false);
 
+            migrationBuilder.AddColumn<string>(
+                name: "RestrictionKey",
+                table: "Submissions",
+                type: "character varying(256)",
+                maxLength: 256,
+                nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "UX_Submissions_RestrictionKey",
+                table: "Submissions",
+                column: "RestrictionKey",
+                unique: true,
+                filter: "\"RestrictionKey\" IS NOT NULL");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropIndex(
+                name: "UX_Submissions_RestrictionKey",
+                table: "Submissions");
+
             migrationBuilder.DropColumn(
                 name: "LimitOnePerUser",
                 table: "Forms");
@@ -48,6 +65,10 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
             migrationBuilder.DropColumn(
                 name: "IsTestSubmission",
+                table: "Submissions");
+
+            migrationBuilder.DropColumn(
+                name: "RestrictionKey",
                 table: "Submissions");
         }
     }

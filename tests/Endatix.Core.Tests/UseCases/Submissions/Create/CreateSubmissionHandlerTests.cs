@@ -1,7 +1,6 @@
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Features.ReCaptcha;
@@ -22,7 +21,6 @@ public class CreateSubmissionHandlerTests
     private readonly IReCaptchaPolicyService _recaptchaService;
     private readonly IMediator _mediator;
     private readonly ICurrentUserAuthorizationService _authorizationService;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly CreateSubmissionHandler _handler;
 
     public CreateSubmissionHandlerTests()
@@ -33,15 +31,13 @@ public class CreateSubmissionHandlerTests
         _recaptchaService = Substitute.For<IReCaptchaPolicyService>();
         _mediator = Substitute.For<IMediator>();
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
-        _unitOfWork = Substitute.For<IUnitOfWork>();
         _handler = new CreateSubmissionHandler(
             _submissionsRepository,
             _formsRepository,
             _submissionTokenService,
             _recaptchaService,
             _mediator,
-            _authorizationService,
-            _unitOfWork);
+            _authorizationService);
     }
 
     [Fact]
@@ -628,7 +624,7 @@ public class CreateSubmissionHandlerTests
     }
 
     [Fact]
-    public async Task Handle_PrivateLimitedFormWithNoTestPermission_UsesSerializableTransaction()
+    public async Task Handle_PrivateLimitedFormWithNoTestPermission_CreatesSubmissionWithRestrictionKey()
     {
         // Arrange
         var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
@@ -660,13 +656,11 @@ public class CreateSubmissionHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Created);
-        await _unitOfWork.Received(1)
-            .BeginTransactionAsync(Arg.Any<CancellationToken>(), System.Data.IsolationLevel.Serializable);
-        await _unitOfWork.Received(1).CommitTransactionAsync(Arg.Any<CancellationToken>());
+        result.Value.RestrictionKey.Should().Be("SingleSubmission:Form:1:User:123");
     }
 
     [Fact]
-    public async Task Handle_CommitThrowsDeadlockAndDuplicateExistsAfterFailure_ReturnsConflict()
+    public async Task Handle_PrivateLimitedFormWithTestPermission_DoesNotCreateRestrictionKey()
     {
         // Arrange
         var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
@@ -682,30 +676,26 @@ public class CreateSubmissionHandlerTests
         _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(false));
+            .Returns(Result.Success(true));
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
             Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        _submissionsRepository.AnyAsync(
-            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
-            Arg.Any<CancellationToken>())
-            .Returns(false, true);
-        _unitOfWork.CommitTransactionAsync(Arg.Any<CancellationToken>())
-            .Returns<Task>(_ => throw new Exception("deadlock victim"));
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.IsTestSubmission.Should().BeTrue();
+        result.Value.RestrictionKey.Should().BeNull();
     }
 
     [Fact]
-    public async Task Handle_CommitThrowsDeadlockAndRollbackDisposed_DoesNotMaskAndReturnsConflict()
+    public async Task Handle_PublicForm_DoesNotCreateRestrictionKey()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: true, limitOnePerUser: false) { Id = 1 };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -715,65 +705,17 @@ public class CreateSubmissionHandlerTests
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             Arg.Any<CancellationToken>())
             .Returns(form);
-        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
-        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(false));
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
             Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        _submissionsRepository.AnyAsync(
-            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
-            Arg.Any<CancellationToken>())
-            .Returns(false, true);
-        _unitOfWork.CommitTransactionAsync(Arg.Any<CancellationToken>())
-            .Returns<Task>(_ => throw new Exception("could not serialize access"));
-        _unitOfWork.RollbackTransactionAsync(Arg.Any<CancellationToken>())
-            .Returns<Task>(_ => throw new InvalidOperationException("Transaction not started. Call BeginTransactionAsync first."));
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(ResultStatus.Conflict);
-    }
-
-    [Fact]
-    public async Task Handle_CommitThrowsDeadlockWithoutDuplicateAfterFailure_PropagatesException()
-    {
-        // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
-        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
-        form.AddFormDefinition(formDefinition);
-        form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
-
-        _formsRepository.SingleOrDefaultAsync(
-            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
-            Arg.Any<CancellationToken>())
-            .Returns(form);
-        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
-        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(false));
-        _recaptchaService.ValidateReCaptchaAsync(
-            Arg.Any<SubmissionVerificationContext>(),
-            Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
-        _submissionsRepository.AnyAsync(
-            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
-            Arg.Any<CancellationToken>())
-            .Returns(false, false);
-        _unitOfWork.CommitTransactionAsync(Arg.Any<CancellationToken>())
-            .Returns<Task>(_ => throw new Exception("deadlock victim"));
-
-        // Act
-        Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
-
-        // Assert
-        await act.Should().ThrowAsync<Exception>()
-            .WithMessage("*deadlock*");
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.RestrictionKey.Should().BeNull();
     }
 
     [Fact]
@@ -794,7 +736,11 @@ public class CreateSubmissionHandlerTests
         _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(true));
+            .Returns(Result.Success(false));
+        _submissionsRepository.AnyAsync(
+            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(false);
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
