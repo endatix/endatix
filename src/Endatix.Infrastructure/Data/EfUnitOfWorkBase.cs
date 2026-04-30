@@ -36,7 +36,9 @@ public abstract class EfUnitOfWorkBase<TContext> : IUnitOfWork
         CancellationToken cancellationToken = default,
         IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
     {
-        _transaction = await _context.Database.BeginTransactionAsync(isolationLevel, cancellationToken);
+        _transaction = isolationLevel == IsolationLevel.ReadCommitted
+            ? await _context.Database.BeginTransactionAsync(cancellationToken)
+            : await _context.Database.BeginTransactionAsync(isolationLevel, cancellationToken);
     }
 
     /// <inheritdoc/>
