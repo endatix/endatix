@@ -157,9 +157,9 @@ public class AppDbContext : DbContext, ITenantDbContext
     private static bool ContainsSubmissionConstraintName(Exception exception)
     {
         var constraintName = exception.GetType().GetProperty("ConstraintName")?.GetValue(exception) as string;
-        if (string.Equals(constraintName, DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal))
+        if (!string.IsNullOrWhiteSpace(constraintName))
         {
-            return true;
+            return string.Equals(constraintName, DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal);
         }
 
         return exception.Message.Contains(DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal);

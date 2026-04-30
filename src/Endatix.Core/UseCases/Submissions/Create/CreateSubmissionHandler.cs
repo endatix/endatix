@@ -109,6 +109,7 @@ public class CreateSubmissionHandler(
         {
             if (shouldEnforceSingleSubmissionGate)
             {
+                // Fast path only; the UX_Submissions_RestrictionKey unique index is the concurrency authority.
                 var duplicateSpec = new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy!);
                 var hasExistingSubmission = await submissionRepository.AnyAsync(
                     duplicateSpec,
