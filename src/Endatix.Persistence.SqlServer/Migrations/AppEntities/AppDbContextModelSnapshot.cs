@@ -144,6 +144,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsPublic")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("LimitOnePerUser")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -151,9 +154,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("Metadata")
                         .HasColumnType("json");
-
-                    b.Property<bool>("IsPublic")
-                        .HasColumnType("bit");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");

@@ -1,40 +1,40 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
+namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     /// <inheritdoc />
-    public partial class AddSingleSubmissionFlags : Migration
+    public partial class SingleSubmissionGate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<bool>(
-                name: "LimitOnePerUser",
-                table: "Forms",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<string>(
-                name: "Metadata",
-                table: "Forms",
-                type: "json",
-                nullable: true);
-
-            migrationBuilder.AddColumn<bool>(
                 name: "IsTestSubmission",
                 table: "Submissions",
-                type: "bit",
+                type: "boolean",
                 nullable: false,
                 defaultValue: false);
 
             migrationBuilder.AddColumn<string>(
                 name: "RestrictionKey",
                 table: "Submissions",
-                type: "nvarchar(256)",
+                type: "character varying(256)",
                 maxLength: 256,
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "LimitOnePerUser",
+                table: "Forms",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false);
+
+            migrationBuilder.AddColumn<string>(
+                name: "Metadata",
+                table: "Forms",
+                type: "jsonb",
                 nullable: true);
 
             migrationBuilder.CreateIndex(
@@ -42,7 +42,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 table: "Submissions",
                 column: "RestrictionKey",
                 unique: true,
-                filter: "[RestrictionKey] IS NOT NULL");
+                filter: "\"RestrictionKey\" IS NOT NULL");
         }
 
         /// <inheritdoc />
@@ -53,20 +53,20 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 table: "Submissions");
 
             migrationBuilder.DropColumn(
-                name: "LimitOnePerUser",
-                table: "Forms");
-
-            migrationBuilder.DropColumn(
-                name: "Metadata",
-                table: "Forms");
-
-            migrationBuilder.DropColumn(
                 name: "IsTestSubmission",
                 table: "Submissions");
 
             migrationBuilder.DropColumn(
                 name: "RestrictionKey",
                 table: "Submissions");
+
+            migrationBuilder.DropColumn(
+                name: "LimitOnePerUser",
+                table: "Forms");
+
+            migrationBuilder.DropColumn(
+                name: "Metadata",
+                table: "Forms");
         }
     }
 }

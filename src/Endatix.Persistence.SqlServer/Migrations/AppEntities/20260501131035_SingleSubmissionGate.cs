@@ -1,43 +1,40 @@
-using Microsoft.EntityFrameworkCore.Migrations;
-using Endatix.Infrastructure.Data;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
+namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     /// <inheritdoc />
-    [Microsoft.EntityFrameworkCore.Infrastructure.DbContextAttribute(typeof(AppDbContext))]
-    [Migration("20260428083000_AddSingleSubmissionFlags")]
-    public partial class AddSingleSubmissionFlags : Migration
+    public partial class SingleSubmissionGate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<bool>(
-                name: "LimitOnePerUser",
-                table: "Forms",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<string>(
-                name: "Metadata",
-                table: "Forms",
-                type: "jsonb",
-                nullable: true);
-
-            migrationBuilder.AddColumn<bool>(
                 name: "IsTestSubmission",
                 table: "Submissions",
-                type: "boolean",
+                type: "bit",
                 nullable: false,
                 defaultValue: false);
 
             migrationBuilder.AddColumn<string>(
                 name: "RestrictionKey",
                 table: "Submissions",
-                type: "character varying(256)",
+                type: "nvarchar(256)",
                 maxLength: 256,
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "LimitOnePerUser",
+                table: "Forms",
+                type: "bit",
+                nullable: false,
+                defaultValue: false);
+
+            migrationBuilder.AddColumn<string>(
+                name: "Metadata",
+                table: "Forms",
+                type: "json",
                 nullable: true);
 
             migrationBuilder.CreateIndex(
@@ -45,7 +42,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 table: "Submissions",
                 column: "RestrictionKey",
                 unique: true,
-                filter: "\"RestrictionKey\" IS NOT NULL");
+                filter: "[RestrictionKey] IS NOT NULL");
         }
 
         /// <inheritdoc />
@@ -56,20 +53,20 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 table: "Submissions");
 
             migrationBuilder.DropColumn(
-                name: "LimitOnePerUser",
-                table: "Forms");
-
-            migrationBuilder.DropColumn(
-                name: "Metadata",
-                table: "Forms");
-
-            migrationBuilder.DropColumn(
                 name: "IsTestSubmission",
                 table: "Submissions");
 
             migrationBuilder.DropColumn(
                 name: "RestrictionKey",
                 table: "Submissions");
+
+            migrationBuilder.DropColumn(
+                name: "LimitOnePerUser",
+                table: "Forms");
+
+            migrationBuilder.DropColumn(
+                name: "Metadata",
+                table: "Forms");
         }
     }
 }
