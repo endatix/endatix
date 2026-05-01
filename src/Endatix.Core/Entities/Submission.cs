@@ -6,6 +6,8 @@ namespace Endatix.Core.Entities;
 
 public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
 {
+    private const string SINGLE_SUBMISSION_RESTRICTION_PREFIX = "SingleSubmission";
+
     private Submission() { } // For EF Core
 
     public Submission(long tenantId, string jsonData, long formId, long formDefinitionId, SubmissionCreateOptions options)
@@ -23,6 +25,11 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
         Metadata = options.Metadata;
         SubmittedBy = options.SubmittedBy;
         IsTestSubmission = options.IsTestSubmission;
+        RestrictionKey = options.EnforceSingleSubmissionGate &&
+            !options.IsTestSubmission &&
+            !string.IsNullOrWhiteSpace(options.SubmittedBy)
+                ? CreateSingleSubmissionRestrictionKey(formId, options.SubmittedBy)
+                : null;
         Status = SubmissionStatus.New;
 
         SetCompletionStatus(options.IsComplete);
@@ -73,6 +80,7 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
     public string? Metadata { get; private set; }
     public string? SubmittedBy { get; private set; }
     public bool IsTestSubmission { get; private set; }
+    public string? RestrictionKey { get; private set; }
     public DateTime? CompletedAt { get; private set; }
     public Token? Token { get; private set; }
     public SubmissionStatus Status { get; private set; } = null!;
@@ -117,6 +125,11 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
     {
         base.Delete();
     }
+
+    private static string CreateSingleSubmissionRestrictionKey(long formId, string submittedBy)
+    {
+        return $"{SINGLE_SUBMISSION_RESTRICTION_PREFIX}:Form:{formId}:User:{submittedBy}";
+    }
 }
 
 public sealed record SubmissionCreateOptions(
@@ -124,4 +137,5 @@ public sealed record SubmissionCreateOptions(
     int CurrentPage = 0,
     string? Metadata = null,
     string? SubmittedBy = null,
-    bool IsTestSubmission = false);
+    bool IsTestSubmission = false,
+    bool EnforceSingleSubmissionGate = false);

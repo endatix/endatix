@@ -176,4 +176,25 @@ public class CreateTests
         problemResult!.ProblemDetails.Detail.Should().Contain(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED);
         problemResult!.ProblemDetails.Extensions["errorCode"].Should().Be(ReCaptchaErrors.ErrorCodes.RECAPTCHA_VERIFICATION_FAILED);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_ConflictResult_ReturnsConflictProblemDetails()
+    {
+        // Arrange
+        var request = new CreateSubmissionRequest { FormId = 1, JsonData = "{}" };
+        var result = Result<Submission>.Conflict(["Submission already exists for this user."]);
+
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        // Assert
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        problemResult!.ProblemDetails.Title.Should().Be("There was a conflict");
+        problemResult!.ProblemDetails.Detail.Should().Contain("Submission already exists for this user.");
+    }
 }

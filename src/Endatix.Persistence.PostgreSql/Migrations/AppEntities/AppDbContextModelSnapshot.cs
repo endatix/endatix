@@ -306,6 +306,10 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("RestrictionKey")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("SubmittedBy")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -319,10 +323,10 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.HasIndex("FormId");
 
-                    b.HasIndex("FormId", "SubmittedBy")
+                    b.HasIndex("RestrictionKey")
                         .IsUnique()
-                        .HasDatabaseName("UX_Submissions_FormId_SubmittedBy")
-                        .HasFilter("\"IsTestSubmission\" = false AND \"SubmittedBy\" IS NOT NULL");
+                        .HasDatabaseName("UX_Submissions_RestrictionKey")
+                        .HasFilter("\"RestrictionKey\" IS NOT NULL");
 
                     b.HasIndex("SubmittedBy");
 

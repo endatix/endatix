@@ -307,6 +307,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("RestrictionKey")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
                     b.Property<string>("SubmittedBy")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
@@ -320,10 +324,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.HasIndex("FormId");
 
-                    b.HasIndex("FormId", "SubmittedBy")
+                    b.HasIndex("RestrictionKey")
                         .IsUnique()
-                        .HasDatabaseName("UX_Submissions_FormId_SubmittedBy")
-                        .HasFilter("[IsTestSubmission] = 0 AND [SubmittedBy] IS NOT NULL");
+                        .HasDatabaseName("UX_Submissions_RestrictionKey")
+                        .HasFilter("[RestrictionKey] IS NOT NULL");
 
                     b.HasIndex("SubmittedBy");
 

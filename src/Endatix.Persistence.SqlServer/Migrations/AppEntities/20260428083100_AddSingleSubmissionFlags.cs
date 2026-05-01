@@ -30,19 +30,26 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 nullable: false,
                 defaultValue: false);
 
-            migrationBuilder.CreateIndex(
-                name: "UX_Submissions_FormId_SubmittedBy",
+            migrationBuilder.AddColumn<string>(
+                name: "RestrictionKey",
                 table: "Submissions",
-                columns: new[] { "FormId", "SubmittedBy" },
+                type: "nvarchar(256)",
+                maxLength: 256,
+                nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "UX_Submissions_RestrictionKey",
+                table: "Submissions",
+                column: "RestrictionKey",
                 unique: true,
-                filter: "[IsTestSubmission] = 0 AND [SubmittedBy] IS NOT NULL");
+                filter: "[RestrictionKey] IS NOT NULL");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
-                name: "UX_Submissions_FormId_SubmittedBy",
+                name: "UX_Submissions_RestrictionKey",
                 table: "Submissions");
 
             migrationBuilder.DropColumn(
@@ -55,6 +62,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
             migrationBuilder.DropColumn(
                 name: "IsTestSubmission",
+                table: "Submissions");
+
+            migrationBuilder.DropColumn(
+                name: "RestrictionKey",
                 table: "Submissions");
         }
     }

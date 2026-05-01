@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Endatix.Infrastructure.Data;
 
 #nullable disable
 
 namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     /// <inheritdoc />
+    [Microsoft.EntityFrameworkCore.Infrastructure.DbContextAttribute(typeof(AppDbContext))]
+    [Migration("20260428083000_AddSingleSubmissionFlags")]
     public partial class AddSingleSubmissionFlags : Migration
     {
         /// <inheritdoc />
@@ -30,19 +33,26 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 nullable: false,
                 defaultValue: false);
 
-            migrationBuilder.CreateIndex(
-                name: "UX_Submissions_FormId_SubmittedBy",
+            migrationBuilder.AddColumn<string>(
+                name: "RestrictionKey",
                 table: "Submissions",
-                columns: new[] { "FormId", "SubmittedBy" },
+                type: "character varying(256)",
+                maxLength: 256,
+                nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "UX_Submissions_RestrictionKey",
+                table: "Submissions",
+                column: "RestrictionKey",
                 unique: true,
-                filter: "\"IsTestSubmission\" = false AND \"SubmittedBy\" IS NOT NULL");
+                filter: "\"RestrictionKey\" IS NOT NULL");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
-                name: "UX_Submissions_FormId_SubmittedBy",
+                name: "UX_Submissions_RestrictionKey",
                 table: "Submissions");
 
             migrationBuilder.DropColumn(
@@ -55,6 +65,10 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
             migrationBuilder.DropColumn(
                 name: "IsTestSubmission",
+                table: "Submissions");
+
+            migrationBuilder.DropColumn(
+                name: "RestrictionKey",
                 table: "Submissions");
         }
     }

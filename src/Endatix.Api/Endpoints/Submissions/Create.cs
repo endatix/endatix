@@ -5,15 +5,13 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.Create;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Infrastructure.Result;
-using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for creating a new form submission.
 /// </summary>
-public class Create(IMediator mediator, IUserContext userContext) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, Conflict<Microsoft.AspNetCore.Mvc.ProblemDetails>, ProblemHttpResult>>
+public class Create(IMediator mediator, IUserContext userContext) : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, ProblemHttpResult>>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -32,7 +30,7 @@ public class Create(IMediator mediator, IUserContext userContext) : Endpoint<Cre
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Created<CreateSubmissionResponse>, Conflict<Microsoft.AspNetCore.Mvc.ProblemDetails>, ProblemHttpResult>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken ct)
+    public override async Task<Results<Created<CreateSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken ct)
     {
         var submittedBy = userContext.GetCurrentUserId();
 
@@ -49,17 +47,8 @@ public class Create(IMediator mediator, IUserContext userContext) : Endpoint<Cre
 
         var result = await mediator.Send(createCommand, ct);
 
-        if (result.Status == ResultStatus.Conflict)
-        {
-            return TypedResults.Conflict(new Microsoft.AspNetCore.Mvc.ProblemDetails
-            {
-                Title = "There was a conflict.",
-                Detail = string.Join(Environment.NewLine, result.Errors)
-            });
-        }
-
-        return result.Status == ResultStatus.Created
-            ? TypedResults.Created(string.Empty, SubmissionMapper.Map<CreateSubmissionResponse>(result.Value))
-            : result.ToProblem();
+        return TypedResultsBuilder
+            .MapResult(result, SubmissionMapper.Map<CreateSubmissionResponse>)
+            .SetTypedResults<Created<CreateSubmissionResponse>, ProblemHttpResult>();
     }
 }

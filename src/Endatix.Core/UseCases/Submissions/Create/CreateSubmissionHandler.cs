@@ -28,6 +28,7 @@ public class CreateSubmissionHandler(
     private const string DEFAULT_METADATA = "{}";
 
     private const string DEFAULT_JSON_DATA = "{}";
+    private const string DUPLICATE_CONFLICT_MESSAGE = "A submission already exists for this user and form.";
 
     public async Task<Result<Submission>> Handle(CreateSubmissionCommand request, CancellationToken cancellationToken)
     {
@@ -71,17 +72,6 @@ public class CreateSubmissionHandler(
             }
 
             canBypassSingleSubmissionLimit = hasTestPermissionResult.Value;
-            if (!canBypassSingleSubmissionLimit)
-            {
-                var hasExistingSubmission = await submissionRepository.AnyAsync(
-                    new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy),
-                    cancellationToken);
-
-                if (hasExistingSubmission)
-                {
-                    return Result<Submission>.Conflict("A submission already exists for this user and form.");
-                }
-            }
         }
 
         var validationContext = new SubmissionVerificationContext(
@@ -96,6 +86,11 @@ public class CreateSubmissionHandler(
             return Result.Invalid(ReCaptchaErrors.ValidationErrors.ReCaptchaVerificationFailed);
         }
 
+        var shouldEnforceSingleSubmissionGate =
+            formWithActiveDefinition.LimitOnePerUser &&
+            !string.IsNullOrWhiteSpace(request.SubmittedBy) &&
+            !canBypassSingleSubmissionLimit;
+
         var submission = Submission.Create(
             activeDefinition!.TenantId,
             jsonData: request.JsonData ?? DEFAULT_JSON_DATA,
@@ -106,17 +101,33 @@ public class CreateSubmissionHandler(
                 CurrentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
                 Metadata: request.Metadata ?? DEFAULT_METADATA,
                 SubmittedBy: request.SubmittedBy,
-                IsTestSubmission: canBypassSingleSubmissionLimit)
+                IsTestSubmission: canBypassSingleSubmissionLimit,
+                EnforceSingleSubmissionGate: shouldEnforceSingleSubmissionGate)
         );
 
         try
         {
+            if (shouldEnforceSingleSubmissionGate)
+            {
+                // Fast path only; the UX_Submissions_RestrictionKey unique index is the concurrency authority.
+                var duplicateSpec = new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy!);
+                var hasExistingSubmission = await submissionRepository.AnyAsync(
+                    duplicateSpec,
+                    cancellationToken);
+
+                if (hasExistingSubmission)
+                {
+                    return Result<Submission>.Conflict(DUPLICATE_CONFLICT_MESSAGE);
+                }
+            }
+
             await submissionRepository.AddAsync(submission, cancellationToken);
         }
         catch (DuplicateSubmissionException)
         {
-            return Result<Submission>.Conflict("A submission already exists for this user and form.");
+            return Result<Submission>.Conflict(DUPLICATE_CONFLICT_MESSAGE);
         }
+
         await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
 
         if (submission.IsComplete)

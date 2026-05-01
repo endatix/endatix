@@ -19,10 +19,10 @@ namespace Endatix.Persistence.PostgreSql.Config
             builder.Property(s => s.Metadata)
                 .HasColumnType("jsonb");
 
-            builder.HasIndex(s => new { s.FormId, s.SubmittedBy })
-                .HasDatabaseName("UX_Submissions_FormId_SubmittedBy")
+            builder.HasIndex(s => s.RestrictionKey)
+                .HasDatabaseName("UX_Submissions_RestrictionKey")
                 .IsUnique()
-                .HasFilter("\"IsTestSubmission\" = false AND \"SubmittedBy\" IS NOT NULL");
+                .HasFilter("\"RestrictionKey\" IS NOT NULL");
         }
     }
 }

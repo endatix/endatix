@@ -2,6 +2,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Forms.Update;
 using MediatR;
 
@@ -10,14 +11,16 @@ namespace Endatix.Core.Tests.UseCases.Forms.Update;
 public class UpdateFormHandlerTests
 {
     private readonly IRepository<Form> _repository;
+    private readonly IRepository<Submission> _submissionRepository;
     private readonly IMediator _mediator;
     private readonly UpdateFormHandler _handler;
 
     public UpdateFormHandlerTests()
     {
         _repository = Substitute.For<IRepository<Form>>();
+        _submissionRepository = Substitute.For<IRepository<Submission>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new UpdateFormHandler(_repository, _mediator);
+        _handler = new UpdateFormHandler(_repository, _submissionRepository, _mediator);
     }
 
     [Fact]
@@ -183,11 +186,11 @@ public class UpdateFormHandlerTests
     }
 
     [Fact]
-    public async Task Handle_PublicFormAndLimitRequested_KeepsFormPublicAndClearsLimit()
+    public async Task Handle_DisablingLimitOnePerUserAfterEnabled_ReturnsConflict()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: true, limitOnePerUser: false) { Id = 1 };
-        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, false);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -195,8 +198,110 @@ public class UpdateFormHandlerTests
         var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain("Single submission gate cannot be disabled after it has been enabled.");
+    }
+
+    [Fact]
+    public async Task Handle_EnablingLimitOnePerUserWithDuplicateEligibleSubmissions_ReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _submissionRepository.ListAsync(
+                Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(["user-1", "user-1"]);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain("Cannot enable single submission gate because this form already has duplicate submissions.");
+    }
+
+    [Fact]
+    public async Task Handle_EnablingLimitOnePerUserWithOnlyTestDuplicates_Succeeds()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _submissionRepository.ListAsync(
+                Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new List<string>());
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
         result.Status.Should().Be(ResultStatus.Ok);
-        result.Value.IsPublic.Should().BeTrue();
-        result.Value.LimitOnePerUser.Should().BeFalse();
+        result.Value.LimitOnePerUser.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_EnablingLimitOnePerUserWithWhitespaceSubmittedByValues_Succeeds()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _submissionRepository.ListAsync(
+                Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(["   ", "\t", Environment.NewLine]);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.LimitOnePerUser.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_EnablingLimitOnePerUserOnPublicForm_ReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: true, limitOnePerUser: false) { Id = 1 };
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain("A single-submission form cannot be made public.");
+    }
+
+    [Fact]
+    public async Task Handle_OmittedLimitOnePerUser_PreservesExistingEnabledValue()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var request = new UpdateFormCommand(
+            formId: 1,
+            name: SampleData.FORM_NAME_1,
+            description: SampleData.FORM_DESCRIPTION_1,
+            isEnabled: true,
+            webHookSettingsJson: null,
+            limitOnePerUser: null);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.LimitOnePerUser.Should().BeTrue();
     }
 }

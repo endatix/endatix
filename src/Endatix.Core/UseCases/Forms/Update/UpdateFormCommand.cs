@@ -14,7 +14,7 @@ public record UpdateFormCommand : ICommand<Result<Form>>
     public string Name { get; init; }
     public string? Description { get; init; }
     public bool IsEnabled { get; init; }
-    public bool LimitOnePerUser { get; init; }
+    public bool? LimitOnePerUser { get; init; }
     public string? Metadata { get; init; }
     public string? WebHookSettingsJson { get; init; }
 
@@ -24,7 +24,7 @@ public record UpdateFormCommand : ICommand<Result<Form>>
         string? description,
         bool isEnabled,
         string? webHookSettingsJson = null,
-        bool limitOnePerUser = false,
+        bool? limitOnePerUser = null,
         string? metadata = null)
     {
         Guard.Against.NegativeOrZero(formId);
