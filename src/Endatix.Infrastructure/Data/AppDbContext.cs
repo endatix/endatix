@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Endatix.Infrastructure.Data.Abstractions;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Endatix.Core.Exceptions;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -16,6 +17,8 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public class AppDbContext : DbContext, ITenantDbContext
 {
+    private const string DUPLICATE_SUBMISSION_CONSTRAINT_NAME = "UX_Submissions_RestrictionKey";
+
     private readonly IIdGenerator<long> _idGenerator;
     private readonly ITenantContext _tenantContext;
 
@@ -83,15 +86,83 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public override int SaveChanges()
     {
-        ProcessEntities();
-        return base.SaveChanges();
+        try
+        {
+            ProcessEntities();
+            return base.SaveChanges();
+        }
+        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
+        {
+            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
+        }
     }
 
     /// <inheritdoc/>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        ProcessEntities();
-        return await base.SaveChangesAsync(true, cancellationToken);
+        try
+        {
+            ProcessEntities();
+            return await base.SaveChangesAsync(true, cancellationToken);
+        }
+        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
+        {
+            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
+        }
+    }
+
+    private static bool IsDuplicateSubmissionConstraintViolation(DbUpdateException dbUpdateException)
+    {
+        var current = dbUpdateException.InnerException;
+        while (current is not null)
+        {
+            if (IsPostgreSqlUniqueViolation(current) || IsSqlServerDuplicateKeyViolation(current))
+            {
+                return ContainsSubmissionConstraintName(current);
+            }
+
+            current = current.InnerException;
+        }
+
+        return false;
+    }
+
+    private static bool IsPostgreSqlUniqueViolation(Exception exception)
+    {
+        if (!string.Equals(exception.GetType().Name, "PostgresException", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var sqlState = exception.GetType().GetProperty("SqlState")?.GetValue(exception) as string;
+        return string.Equals(sqlState, "23505", StringComparison.Ordinal);
+    }
+
+    private static bool IsSqlServerDuplicateKeyViolation(Exception exception)
+    {
+        if (!string.Equals(exception.GetType().Name, "SqlException", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var number = exception.GetType().GetProperty("Number")?.GetValue(exception);
+        if (number is not int sqlErrorNumber)
+        {
+            return false;
+        }
+
+        return sqlErrorNumber is 2601 or 2627;
+    }
+
+    private static bool ContainsSubmissionConstraintName(Exception exception)
+    {
+        var constraintName = exception.GetType().GetProperty("ConstraintName")?.GetValue(exception) as string;
+        if (!string.IsNullOrWhiteSpace(constraintName))
+        {
+            return string.Equals(constraintName, DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal);
+        }
+
+        return exception.Message.Contains(DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal);
     }
 
     private void ProcessEntities()

@@ -45,8 +45,8 @@ public class ListByFormIdHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 1 };
         var submissions = new List<SubmissionDto>
         {
-            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null),
-            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7"),
+            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null, false),
+            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7", true),
         };
         var request = new ListByFormIdQuery(1, 1, 10, []);
 

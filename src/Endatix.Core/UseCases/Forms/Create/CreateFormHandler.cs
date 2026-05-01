@@ -24,6 +24,8 @@ public class CreateFormHandler(
             description: request.Description,
             isEnabled: request.IsEnabled,
             isPublic: false,
+            limitOnePerUser: request.LimitOnePerUser,
+            metadata: request.Metadata,
             webHookSettingsJson: request.WebHookSettingsJson);
         var newFormDefinition = new FormDefinition(tenantContext.TenantId, isDraft: true, jsonData: request.FormDefinitionJsonData);
 

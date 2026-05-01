@@ -1,7 +1,9 @@
 ﻿using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using Endatix.Core.Abstractions.Authorization;
 
@@ -10,7 +12,7 @@ namespace Endatix.Api.Endpoints.Forms;
 /// <summary>
 /// Endpoint for partially updating a form.
 /// </summary>
-public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormRequest, Results<Ok<PartialUpdateFormResponse>, BadRequest, NotFound>>
+public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormRequest, Results<Ok<PartialUpdateFormResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -30,14 +32,28 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormReque
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<PartialUpdateFormResponse>, BadRequest, NotFound>> ExecuteAsync(PartialUpdateFormRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<PartialUpdateFormResponse>, ProblemHttpResult>> ExecuteAsync(PartialUpdateFormRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
-            new PartialUpdateFormCommand(request.FormId, request.Name, request.Description, request.IsEnabled, request.IsPublic, request.ThemeId, request.WebHookSettingsJson),
+            new PartialUpdateFormCommand(request.FormId)
+            {
+                Name = request.Name,
+                Description = request.Description,
+                IsEnabled = request.IsEnabled,
+                IsPublic = request.IsPublic,
+                ThemeId = request.ThemeId,
+                WebHookSettingsJson = request.WebHookSettingsJson,
+                LimitOnePerUser = request.LimitOnePerUser,
+                Metadata = request.Metadata
+            },
             cancellationToken);
 
-        return TypedResultsBuilder
-            .MapResult(result, FormMapper.Map<PartialUpdateFormResponse>)
-            .SetTypedResults<Ok<PartialUpdateFormResponse>, BadRequest, NotFound>();
+        var mappedResult = result.Map(FormMapper.Map<PartialUpdateFormResponse>);
+
+        return mappedResult.Status switch
+        {
+            ResultStatus.Ok => TypedResults.Ok(mappedResult.Value),
+            _ => mappedResult.ToProblem()
+        };
     }
 }

@@ -25,11 +25,12 @@ public class Create(IMediator mediator, IUserContext userContext) : Endpoint<Cre
             s.Responses[200] = "The submission was successfully created";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found. Cannot create a submission";
+            s.Responses[409] = "A submission already exists for this user and form.";
         });
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Created<CreateSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Created<CreateSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(CreateSubmissionRequest request, CancellationToken ct)
     {
         var submittedBy = userContext.GetCurrentUserId();
 
@@ -44,7 +45,7 @@ public class Create(IMediator mediator, IUserContext userContext) : Endpoint<Cre
             RequiredPermission: Actions.Submissions.Create
         );
 
-        var result = await mediator.Send(createCommand, cancellationToken);
+        var result = await mediator.Send(createCommand, ct);
 
         return TypedResultsBuilder
             .MapResult(result, SubmissionMapper.Map<CreateSubmissionResponse>)

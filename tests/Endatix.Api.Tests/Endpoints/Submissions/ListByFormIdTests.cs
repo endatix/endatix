@@ -65,8 +65,8 @@ public class ListByFormIdTests
         var request = new ListByFormIdRequest { FormId = formId, Page = 1, PageSize = 10 };
         var submissions = new List<SubmissionDto>
         {
-            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null),
-            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7"),
+            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null, false),
+            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7", true),
         };
         var result = Result.Success(submissions.AsEnumerable());
 
@@ -92,7 +92,7 @@ public class ListByFormIdTests
             FormId = 123,
             Page = 2,
             PageSize = 20,
-            Filter = ["expression1", "expression1"]
+            Filter = ["isComplete:true", "isTestSubmission:true"]
         };
         var result = Result.Success(Enumerable.Empty<SubmissionDto>());
         
@@ -108,9 +108,27 @@ public class ListByFormIdTests
                 query.FormId == request.FormId &&
                 query.Page == request.Page &&
                 query.PageSize == request.PageSize &&
-                query.FilterExpressions == request.Filter
+                query.FilterExpressions.SequenceEqual(request.Filter!)
             ),
             Arg.Any<CancellationToken>()
         );
+    }
+
+    [Fact]
+    public void Validator_IsTestSubmissionFilter_IsAccepted()
+    {
+        // Arrange
+        var validator = new ListByFormIdValidator();
+        var request = new ListByFormIdRequest
+        {
+            FormId = 1,
+            Filter = ["isTestSubmission:true"]
+        };
+
+        // Act
+        var validationResult = validator.Validate(request);
+
+        // Assert
+        validationResult.IsValid.Should().BeTrue();
     }
 }
