@@ -114,10 +114,6 @@ public class Paged<T> : IPagedData
         var totalPages = (totalRecords + take - 1) / take;
 
         var currentPage = (skip / take) + 1;
-        if (currentPage > totalPages)
-        {
-            currentPage = (int)totalPages;
-        }
 
         return new Paged<T>(
             page: currentPage,
