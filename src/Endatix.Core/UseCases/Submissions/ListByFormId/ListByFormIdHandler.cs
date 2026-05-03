@@ -23,7 +23,7 @@ public class ListByFormIdHandler(
         }
 
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
-        var filterParams = new FilterParameters(request.FilterExpressions!);
+        var filterParams = new FilterParameters(request.FilterExpressions ?? Array.Empty<string>());
         var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pagingParams, filterParams);
         var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams);
 

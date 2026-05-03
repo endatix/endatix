@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Specifications.Common;
@@ -16,12 +17,17 @@ internal static class SubmissionSpecificationExtensions
     {
         query.Where(s => s.FormDefinition.FormId == formId);
 
-        var statusFilter = filterParams.Criteria
-            .FirstOrDefault(c => c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase));
-        if (statusFilter != null && statusFilter.Values.Any())
+        var statusFilters = filterParams.Criteria
+            .Where(c => c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase));
+        foreach (var statusFilter in statusFilters)
         {
             var statusCodes = statusFilter.Values.ToList();
-            query.Where(s => statusCodes.Contains(s.Status.Code));
+            query = statusFilter.Operator switch
+            {
+                ExpressionType.Equal => query.Where(s => statusCodes.Contains(s.Status.Code)),
+                ExpressionType.NotEqual => query.Where(s => !statusCodes.Contains(s.Status.Code)),
+                _ => throw new NotSupportedException($"Operator {statusFilter.Operator} is not supported for status filters.")
+            };
         }
 
         var nonStatusFilters = new FilterParameters();
