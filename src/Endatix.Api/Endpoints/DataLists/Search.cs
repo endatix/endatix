@@ -1,9 +1,7 @@
-using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.Search;
-using Endatix.Framework.FeatureFlags;
 using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using FluentValidation;
@@ -21,9 +19,7 @@ public sealed class Search(
     IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> publicFormAccessPolicy)
     : Endpoint<SearchDataListItemsRequest, Results<Ok<Paged<DataListPublicChoiceModel>>, ProblemHttpResult>>
 {
-    /// <summary>
-    /// Configures the endpoint settings.
-    /// </summary>
+    /// <inheritdoc />
     public override void Configure()
     {
         Get(ApiRoutes.Public("forms/{formId}/data-lists/{dataListId}/search"));
@@ -33,8 +29,10 @@ public sealed class Search(
             s.Summary = "Search data list items";
             s.Description =
                 "Searches data list choices in a runtime form context. Access is evaluated like access/public/forms/{formId} (public vs authenticated, optional token + tokenType query parameters; uses the same cached policy).";
+            s.Responses[200] = "Data list items searched successfully.";
+            s.Responses[400] = "Invalid request or access data.";
+            s.Responses[404] = "Form or data list not found.";
         });
-        FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
     /// <inheritdoc />

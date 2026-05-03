@@ -1,8 +1,6 @@
-using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.DataLists.ReplaceItems;
-using Endatix.Framework.FeatureFlags;
 using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
@@ -18,14 +16,19 @@ public sealed class ReplaceItems(
     IMediator mediator)
     : Endpoint<ReplaceDataListItemsRequest, Results<Ok<DataListDetailsModel>, ProblemHttpResult>>
 {
-    /// <summary>
-    /// Configures the endpoint settings.
-    /// </summary>
+    /// <inheritdoc />
     public override void Configure()
     {
         Put("data-lists/{dataListId}/items");
         Permissions(Actions.Forms.Edit);
-        FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
+        Summary(s =>
+        {
+            s.Summary = "Replace items in a data list";
+            s.Description = "Replaces the items in a data list.";
+            s.Responses[200] = "Items replaced successfully.";
+            s.Responses[400] = "Invalid request or access data.";
+            s.Responses[404] = "Data list not found.";
+        });
     }
 
     /// <inheritdoc />

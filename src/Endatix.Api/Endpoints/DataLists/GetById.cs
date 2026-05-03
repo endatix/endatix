@@ -1,8 +1,6 @@
-using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.DataLists.GetById;
-using Endatix.Framework.FeatureFlags;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
@@ -23,7 +21,14 @@ public sealed class GetById(
     {
         Get("data-lists/{dataListId}");
         Permissions(Actions.Forms.View);
-        FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
+        Summary(s =>
+        {
+            s.Summary = "Get a data list by ID";
+            s.Description = "Gets a data list by its ID.";
+            s.Responses[200] = "Data list retrieved successfully.";
+            s.Responses[400] = "Invalid request or access data.";
+            s.Responses[404] = "Data list not found.";
+        });
     }
 
     /// <inheritdoc />

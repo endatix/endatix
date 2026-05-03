@@ -1,10 +1,8 @@
 using Endatix.Api.Common;
-using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.List;
-using Endatix.Framework.FeatureFlags;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -19,14 +17,18 @@ public sealed class List(
     IMediator mediator)
     : Endpoint<DataListsListRequest, Results<Ok<Paged<DataListModel>>, ProblemHttpResult>>
 {
-    /// <summary>
-    /// Configures the endpoint settings.
-    /// </summary>
+    /// <inheritdoc />
     public override void Configure()
     {
         Get("data-lists");
         Permissions(Actions.Forms.View);
-        FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
+        Summary(s =>
+        {
+            s.Summary = "List data lists";
+            s.Description = "Lists the data lists for the current tenant.";
+            s.Responses[200] = "Data lists listed successfully.";
+            s.Responses[400] = "Invalid request or access data.";
+        });
     }
     /// <summary>
     /// Executes the endpoint.
@@ -54,6 +56,9 @@ public sealed class List(
 /// </summary>
 public sealed class DataListsListValidator : Validator<DataListsListRequest>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DataListsListValidator"/> class.
+    /// </summary>
     public DataListsListValidator()
     {
         Include(new PagedRequestValidator());
