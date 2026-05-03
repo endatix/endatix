@@ -68,7 +68,7 @@ public class ListByFormIdTests
             new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null, false),
             new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7", true),
         };
-        var result = Result.Success(submissions.AsEnumerable());
+        var result = Result.Success(new ListByFormIdDto(submissions, 25, 1, 10));
 
         _mediator.Send(Arg.Any<ListByFormIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -77,10 +77,15 @@ public class ListByFormIdTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var okResult = response.Result as Ok<IEnumerable<SubmissionModel>>;
+        var okResult = response.Result as Ok<ListByFormIdResponse>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
-        okResult!.Value!.Count().Should().Be(2);
+        okResult!.Value!.Data.Count().Should().Be(2);
+        okResult.Value.TotalCount.Should().Be(25);
+        okResult.Value.Page.Should().Be(1);
+        okResult.Value.PageSize.Should().Be(10);
+        okResult.Value.HasNextPage.Should().BeTrue();
+        okResult.Value.HasPreviousPage.Should().BeFalse();
     }
 
     [Fact]
@@ -94,7 +99,7 @@ public class ListByFormIdTests
             PageSize = 20,
             Filter = ["isComplete:true", "isTestSubmission:true"]
         };
-        var result = Result.Success(Enumerable.Empty<SubmissionDto>());
+        var result = Result.Success(new ListByFormIdDto(Enumerable.Empty<SubmissionDto>(), 0, 2, 20));
         
         _mediator.Send(Arg.Any<ListByFormIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);

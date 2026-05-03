@@ -10,9 +10,9 @@ namespace Endatix.Core.UseCases.Submissions.ListByFormId;
 public class ListByFormIdHandler(
     IRepository<Submission> submissionsRepository,
     IRepository<FormDefinition> formDefinitionsRepository
-    ) : IQueryHandler<ListByFormIdQuery, Result<IEnumerable<SubmissionDto>>>
+    ) : IQueryHandler<ListByFormIdQuery, Result<ListByFormIdDto>>
 {
-    public async Task<Result<IEnumerable<SubmissionDto>>> Handle(ListByFormIdQuery request, CancellationToken cancellationToken)
+    public async Task<Result<ListByFormIdDto>> Handle(ListByFormIdQuery request, CancellationToken cancellationToken)
     {
         var formDefinitionsSpec = new FormDefinitionsByFormIdSpec(request.FormId);
         var formDefinitionsExist = await formDefinitionsRepository.AnyAsync(formDefinitionsSpec, cancellationToken);
@@ -25,10 +25,15 @@ public class ListByFormIdHandler(
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
         var filterParams = new FilterParameters(request.FilterExpressions!);
         var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pagingParams, filterParams);
+        var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams);
 
-        IEnumerable<SubmissionDto> submissions = await submissionsRepository
-                .ListAsync(formByIdSpec, cancellationToken);
+        var submissions = await submissionsRepository.ListAsync(formByIdSpec, cancellationToken);
+        var totalCount = await submissionsRepository.CountAsync(totalCountSpec, cancellationToken);
 
-        return Result.Success(submissions);
+        return Result.Success(new ListByFormIdDto(
+            submissions,
+            totalCount,
+            pagingParams.Page,
+            pagingParams.PageSize));
     }
 }
