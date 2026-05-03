@@ -1,6 +1,5 @@
 ﻿using FastEndpoints;
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
@@ -36,13 +35,8 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
 
         var result = await mediator.Send(getSubmissionsQuery, cancellationToken);
 
-        if (!result.IsSuccess)
-        {
-            return result.ToProblem();
-        }
-
-        var mapped = result.Value.MapToPaged(SubmissionMapper.MapFromDto);
-
-        return TypedResults.Ok(mapped);
+        return TypedResultsBuilder
+            .MapResult(result, submissions => submissions.MapToPaged(SubmissionMapper.MapFromDto))
+            .SetTypedResults<Ok<Paged<SubmissionModel>>, ProblemHttpResult>();
     }
 }
