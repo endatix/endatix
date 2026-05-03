@@ -1,8 +1,6 @@
-using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.UseCases.DataLists.Search;
-using Endatix.Framework.FeatureFlags;
 using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using FluentValidation;
@@ -23,12 +21,14 @@ public sealed class GetChoiceDisplayValues(
     {
         Get(ApiRoutes.Public("forms/{formId}/data-lists/{dataListId}/display-values"));
         AllowAnonymous();
-        FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
         Summary(s =>
         {
             s.Summary = "Resolve data list display values";
             s.Description =
                 "Returns label/value pairs for stored values in a runtime form context. Access is evaluated like access/public/forms/{formId} (optional token + tokenType query parameters; same cached policy).";
+            s.Responses[200] = "Data list display values resolved successfully.";
+            s.Responses[400] = "Invalid request or access data.";
+            s.Responses[404] = "Form or data list not found.";
         });
     }
 

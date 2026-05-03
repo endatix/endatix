@@ -1,8 +1,6 @@
-using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.DataLists.Delete;
-using Endatix.Framework.FeatureFlags;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
@@ -17,13 +15,22 @@ public sealed class Delete(
     IMediator mediator)
     : Endpoint<DeleteDataListRequest, Results<Ok<string>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Delete("data-lists/{dataListId}");
         Permissions(Actions.Forms.Delete);
-        FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
+        Summary(s =>
+        {
+            s.Summary = "Delete a data list";
+            s.Description = "Deletes a data list by its ID.";
+            s.Responses[200] = "Data list deleted successfully.";
+            s.Responses[400] = "Invalid request or access data.";
+            s.Responses[404] = "Data list not found.";
+        });
     }
 
+    /// <inheritdoc />
     public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(DeleteDataListRequest request, CancellationToken ct)
     {
         DeleteDataListCommand deleteCommand = new(request.DataListId);
@@ -41,6 +48,9 @@ public sealed class Delete(
 /// </summary>
 public sealed class DeleteDataListValidator : Validator<DeleteDataListRequest>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DeleteDataListValidator"/> class.
+    /// </summary>
     public DeleteDataListValidator()
     {
         RuleFor(x => x.DataListId).GreaterThan(0);

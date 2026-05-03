@@ -22,7 +22,7 @@ namespace Endatix.Persistence.PostgreSql.Config
             builder.HasIndex(s => s.RestrictionKey)
                 .HasDatabaseName("UX_Submissions_RestrictionKey")
                 .IsUnique()
-                .HasFilter("\"RestrictionKey\" IS NOT NULL");
+                .HasFilter($"\"{nameof(Submission.RestrictionKey)}\" IS NOT NULL");
         }
     }
 }
