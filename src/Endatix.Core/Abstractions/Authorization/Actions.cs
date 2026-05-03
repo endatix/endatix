@@ -68,6 +68,7 @@ public static class Actions
         public const string Create = "forms.create";
         public const string Edit = "forms.edit";
         public const string Delete = "forms.delete";
+        public const string Test = "forms.test";
     }
 
     /// <summary>

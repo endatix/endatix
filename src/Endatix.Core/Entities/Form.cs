@@ -14,7 +14,7 @@ public partial class Form : TenantEntity, IAggregateRoot
 
     private Form() { } // For EF Core
 
-    public Form(long tenantId, string name, string? description = null, bool isEnabled = false, bool isPublic = true, string? webHookSettingsJson = null)
+    public Form(long tenantId, string name, string? description = null, bool isEnabled = false, bool isPublic = true, bool limitOnePerUser = false, string? metadata = null, string? webHookSettingsJson = null)
         : base(tenantId)
     {
         Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
@@ -22,6 +22,8 @@ public partial class Form : TenantEntity, IAggregateRoot
         Description = description;
         IsEnabled = isEnabled;
         IsPublic = isPublic;
+        LimitOnePerUser = isPublic ? false : limitOnePerUser;
+        Metadata = metadata;
         WebHookSettingsJson = webHookSettingsJson;
     }
 
@@ -29,6 +31,8 @@ public partial class Form : TenantEntity, IAggregateRoot
     public string? Description { get; set; }
     public bool IsEnabled { get; set; }
     public bool IsPublic { get; set; }
+    public bool LimitOnePerUser { get; set; }
+    public string? Metadata { get; set; }
 
     public long? ActiveDefinitionId { get; private set; }
     public FormDefinition? ActiveDefinition { get; private set; }

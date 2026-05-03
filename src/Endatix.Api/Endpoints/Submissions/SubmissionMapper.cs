@@ -17,7 +17,8 @@ public class SubmissionMapper
         CreatedAt = dto.CreatedAt,
         Metadata = dto.Metadata,
         Status = dto.Status,
-        SubmittedBy = dto.SubmittedBy
+        SubmittedBy = dto.SubmittedBy,
+        IsTestSubmission = dto.IsTestSubmission
     };
 
 
@@ -35,7 +36,8 @@ public class SubmissionMapper
         CreatedAt = submission.CreatedAt,
         ModifiedAt = submission.ModifiedAt,
         Status = submission.Status.Code,
-        SubmittedBy = submission.SubmittedBy
+        SubmittedBy = submission.SubmittedBy,
+        IsTestSubmission = submission.IsTestSubmission
     };
 
     public static SubmissionDetailsModel MapToSubmissionDetails(Submission submission)

@@ -103,4 +103,47 @@ public class SubmissionConstructorTests
         submission.IsComplete.Should().BeTrue();
         submission.CompletedAt.Should().NotBeNull();
     }
+
+    [Fact]
+    public void Create_WhenSingleSubmissionGateApplies_SetsRestrictionKey()
+    {
+        // Act
+        var submission = Submission.Create(
+            SampleData.TENANT_ID,
+            SampleData.SUBMISSION_JSON_DATA_1,
+            formId: 123,
+            formDefinitionId: 456,
+            new SubmissionCreateOptions(
+                SubmittedBy: "user-1",
+                EnforceSingleSubmissionGate: true));
+
+        // Assert
+        submission.RestrictionKey.Should().Be("SingleSubmission:Form:123:User:user-1");
+    }
+
+    [Theory]
+    [InlineData(false, false, "user-1")]
+    [InlineData(true, true, "user-1")]
+    [InlineData(true, false, null)]
+    [InlineData(true, false, "")]
+    [InlineData(true, false, "   ")]
+    public void Create_WhenSingleSubmissionGateDoesNotApply_DoesNotSetRestrictionKey(
+        bool enforceSingleSubmissionGate,
+        bool isTestSubmission,
+        string? submittedBy)
+    {
+        // Act
+        var submission = Submission.Create(
+            SampleData.TENANT_ID,
+            SampleData.SUBMISSION_JSON_DATA_1,
+            formId: 123,
+            formDefinitionId: 456,
+            new SubmissionCreateOptions(
+                SubmittedBy: submittedBy,
+                IsTestSubmission: isTestSubmission,
+                EnforceSingleSubmissionGate: enforceSingleSubmissionGate));
+
+        // Assert
+        submission.RestrictionKey.Should().BeNull();
+    }
 }

@@ -147,6 +147,14 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<bool>("IsPublic")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("LimitOnePerUser")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("jsonb");
+
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -283,6 +291,11 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsTestSubmission")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("JsonData")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -292,6 +305,10 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RestrictionKey")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<string>("SubmittedBy")
                         .HasMaxLength(64)
@@ -305,6 +322,11 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.HasIndex("FormDefinitionId");
 
                     b.HasIndex("FormId");
+
+                    b.HasIndex("RestrictionKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Submissions_RestrictionKey")
+                        .HasFilter("\"RestrictionKey\" IS NOT NULL");
 
                     b.HasIndex("SubmittedBy");
 

@@ -15,5 +15,9 @@ public class PartialUpdateFormValidator : Validator<PartialUpdateFormRequest>
     {
         RuleFor(x => x.FormId)
             .GreaterThan(0);
+
+        RuleFor(x => x.Metadata)
+            .MustBeValidJsonString()
+            .When(x => x.Metadata != null);
     }
 }

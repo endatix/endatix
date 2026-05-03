@@ -73,7 +73,11 @@ public class GetActiveTests
         var request = new GetActiveFormDefinitionRequest { FormId = formId };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, true, "{ }") { Id = 1 };
         var themeJsonData = "{ \"background\": \"#FFFFFF\" }";
-        var activeDefinitionDto = new ActiveDefinitionDto(formDefinition, themeJsonData);
+        var activeDefinitionDto = new ActiveDefinitionDto(formDefinition, themeJsonData)
+        {
+            HasUserSubmitted = true,
+            Metadata = "{ \"alreadyRespondedMessage\": \"Custom copy\" }"
+        };
         var result = Result.Success(activeDefinitionDto);
 
         _mediator.Send(Arg.Any<GetActiveFormDefinitionQuery>(), Arg.Any<CancellationToken>())
@@ -89,6 +93,8 @@ public class GetActiveTests
         okResult!.Value!.Id.Should().Be(formDefinition.Id.ToString());
         okResult!.Value!.FormId.Should().Be(formDefinition.FormId.ToString());
         okResult!.Value!.ThemeModel.Should().Be(themeJsonData);
+        okResult!.Value!.HasUserSubmitted.Should().BeTrue();
+        okResult!.Value!.Metadata.Should().Be("{ \"alreadyRespondedMessage\": \"Custom copy\" }");
     }
 
     [Fact]

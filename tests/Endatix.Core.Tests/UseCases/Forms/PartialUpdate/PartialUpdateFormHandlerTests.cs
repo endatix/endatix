@@ -2,6 +2,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using MediatR;
 
@@ -11,6 +12,7 @@ public class PartialUpdateFormHandlerTests
 {
     private readonly IRepository<Form> _repository;
     private readonly IRepository<Theme> _themeRepository;
+    private readonly IRepository<Submission> _submissionRepository;
     private readonly IMediator _mediator;
     private readonly PartialUpdateFormHandler _handler;
 
@@ -18,8 +20,9 @@ public class PartialUpdateFormHandlerTests
     {
         _repository = Substitute.For<IRepository<Form>>();
         _themeRepository = Substitute.For<IRepository<Theme>>();
+        _submissionRepository = Substitute.For<IRepository<Submission>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new PartialUpdateFormHandler(_repository, _themeRepository, _mediator);
+        _handler = new PartialUpdateFormHandler(_repository, _themeRepository, _submissionRepository, _mediator);
     }
 
     [Fact]
@@ -27,7 +30,7 @@ public class PartialUpdateFormHandlerTests
     {
         // Arrange
         Form? notFoundForm = null;
-        var request = new PartialUpdateFormCommand(1, null, null, null, null, null);
+        var request = new PartialUpdateFormCommand(1);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(notFoundForm);
 
@@ -53,7 +56,12 @@ public class PartialUpdateFormHandlerTests
         };
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme", "{ \"background\": \"#FFFFFF\" }") { Id = 4 };
         form.SetTheme(theme);
-        var request = new PartialUpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, false, null, null);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            Name = SampleData.FORM_NAME_2,
+            Description = SampleData.FORM_DESCRIPTION_2,
+            IsEnabled = false
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -78,14 +86,11 @@ public class PartialUpdateFormHandlerTests
         var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1, Name = SampleData.FORM_NAME_1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
         var oldTheme = new Theme(SampleData.TENANT_ID, "Test Theme", "{ \"background\": \"#FFFFFF\" }") { Id = 3 };
         var newTheme = new Theme(SampleData.TENANT_ID, "Test Theme", "{ \"background\": \"#000000\" }") { Id = 4 };
-        var request = new PartialUpdateFormCommand(
-           formId: 1,
-           name: null,
-           description: SampleData.FORM_DESCRIPTION_2,
-           isEnabled: null,
-           isPublic: null,
-           themeId: 4
-        );
+        var request = new PartialUpdateFormCommand(1)
+        {
+            Description = SampleData.FORM_DESCRIPTION_2,
+            ThemeId = 4
+        };
         form.SetTheme(oldTheme);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
@@ -117,7 +122,12 @@ public class PartialUpdateFormHandlerTests
             Description = SampleData.FORM_DESCRIPTION_1,
             IsEnabled = true
         };
-        var request = new PartialUpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, false, null, null);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            Name = SampleData.FORM_NAME_2,
+            Description = SampleData.FORM_DESCRIPTION_2,
+            IsEnabled = false
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -139,7 +149,10 @@ public class PartialUpdateFormHandlerTests
             Description = SampleData.FORM_DESCRIPTION_1,
             IsEnabled = true
         };
-        var request = new PartialUpdateFormCommand(1, null, null, false, null, null);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            IsEnabled = false
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -169,7 +182,10 @@ public class PartialUpdateFormHandlerTests
             }
         }
         """;
-        var request = new PartialUpdateFormCommand(1, null, null, null, null, null, webHookJson);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            WebHookSettingsJson = webHookJson
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -199,7 +215,10 @@ public class PartialUpdateFormHandlerTests
         var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
         form.UpdateWebHookSettings(webHookConfig);
 
-        var request = new PartialUpdateFormCommand(1, null, null, null, null, null, "");
+        var request = new PartialUpdateFormCommand(1)
+        {
+            WebHookSettingsJson = ""
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -237,7 +256,12 @@ public class PartialUpdateFormHandlerTests
             }
         }
         """;
-        var request = new PartialUpdateFormCommand(1, SampleData.FORM_NAME_2, null, false, null, null, webHookJson);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            Name = SampleData.FORM_NAME_2,
+            IsEnabled = false,
+            WebHookSettingsJson = webHookJson
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -276,7 +300,10 @@ public class PartialUpdateFormHandlerTests
         form.UpdateWebHookSettings(webHookConfig);
 
         // Create request with only Name updated, WebHookSettingsJson is null
-        var request = new PartialUpdateFormCommand(1, SampleData.FORM_NAME_2, null, null, null, null, null);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            Name = SampleData.FORM_NAME_2
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -312,7 +339,10 @@ public class PartialUpdateFormHandlerTests
         var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
         form.UpdateWebHookSettings(webHookConfig);
 
-        var request = new PartialUpdateFormCommand(1, null, null, null, null, null, emptyJson);
+        var request = new PartialUpdateFormCommand(1)
+        {
+            WebHookSettingsJson = emptyJson
+        };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -324,5 +354,93 @@ public class PartialUpdateFormHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         form.WebHookSettingsJson.Should().BeNull(); // Cleared by empty JSON object
         form.WebHookSettings.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_DisablingLimitOnePerUserAfterEnabled_ReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var request = new PartialUpdateFormCommand(1)
+        {
+            LimitOnePerUser = false
+        };
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain("Single submission gate cannot be disabled after it has been enabled.");
+    }
+
+    [Fact]
+    public async Task Handle_EnablingLimitOnePerUserWithDuplicateEligibleSubmissions_ReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var request = new PartialUpdateFormCommand(1)
+        {
+            LimitOnePerUser = true
+        };
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _submissionRepository.ListAsync(
+                Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(["user-1", "user-1"]);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain("Cannot enable single submission gate because this form already has duplicate submissions.");
+    }
+
+    [Fact]
+    public async Task Handle_EnablingLimitOnePerUserWithWhitespaceSubmittedByValues_Succeeds()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var request = new PartialUpdateFormCommand(1)
+        {
+            LimitOnePerUser = true
+        };
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _submissionRepository.ListAsync(
+                Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(["   ", "\t", Environment.NewLine]);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.LimitOnePerUser.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_SettingFormPublicWhileSingleSubmissionEnabled_ReturnsConflict()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var request = new PartialUpdateFormCommand(1)
+        {
+            IsPublic = true
+        };
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain("A single-submission form cannot be made public.");
     }
 }

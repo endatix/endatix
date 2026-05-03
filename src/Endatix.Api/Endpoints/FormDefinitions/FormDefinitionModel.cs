@@ -50,4 +50,14 @@ public class FormDefinitionModel
     /// Indicates if reCAPTCHA is enabled for this form definition.
     /// </summary>
     public bool? RequiresReCaptcha { get; set; }
+
+    /// <summary>
+    /// Indicates whether the current user already has a submission for this form.
+    /// </summary>
+    public bool HasUserSubmitted { get; set; }
+
+    /// <summary>
+    /// Optional form-level metadata payload.
+    /// </summary>
+    public string? Metadata { get; set; }
 }

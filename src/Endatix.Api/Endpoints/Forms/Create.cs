@@ -45,7 +45,9 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
             request.Description,
             request.IsEnabled!.Value,
             formDefinitionJsonData,
-            webHookSettingsJson);
+            webHookSettingsJson,
+            request.LimitOnePerUser ?? false,
+            request.Metadata);
 
         var result = await mediator.Send(createFormCommand, cancellationToken);
 

@@ -4,6 +4,7 @@ using Endatix.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260501131035_SingleSubmissionGate")]
+    partial class SingleSubmissionGate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -592,7 +595,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                             b1.HasKey("SubmissionId");
 
-                            b1.ToTable("Submissions", (string)null);
+                            b1.ToTable("Submissions");
 
                             b1.WithOwner()
                                 .HasForeignKey("SubmissionId");
@@ -615,7 +618,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                             b1.HasIndex("Value");
 
-                            b1.ToTable("Submissions", (string)null);
+                            b1.ToTable("Submissions");
 
                             b1.WithOwner()
                                 .HasForeignKey("SubmissionId");
