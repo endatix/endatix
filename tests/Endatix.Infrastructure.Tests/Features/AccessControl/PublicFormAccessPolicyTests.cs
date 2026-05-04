@@ -106,7 +106,7 @@ public partial class PublicFormAccessPolicyTests
             .Returns(new ValueTask<bool>(true));
 
         _submissionRepository
-            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdForPublicAccessSpec>(), Arg.Any<CancellationToken>())
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         _cache

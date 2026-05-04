@@ -263,7 +263,7 @@ public sealed class PublicFormAccessPolicy(
         CancellationToken cancellationToken)
     {
         // Token resolve ignores tenant filters; relation check must too — public callers often have no tenant match.
-        var spec = new SubmissionByFormIdAndSubmissionIdForPublicAccessSpec(formId, submissionId);
+        var spec = new SubmissionByFormIdAndSubmissionIdSpec(formId, submissionId);
         var relationExists = await submissionRepository.AnyAsync(spec, cancellationToken);
         return relationExists
             ? Result.Success(true)
