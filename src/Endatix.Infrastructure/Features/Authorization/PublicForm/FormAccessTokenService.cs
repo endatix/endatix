@@ -13,7 +13,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace Endatix.Infrastructure.Features.Authorization.PublicForm;
 
 /// <summary>
-/// Issues and validates minimal HS256 ReBAC JWTs for public form / data-list access (form id + tenant id).
+/// Issues and validates minimal HS256 ReBAC JWTs for public form surface (form id + tenant id).
 /// Payload: <c>iss</c> (ReBAC issuer), <c>aud</c>, <c>exp</c>, <c>resourceType=form</c>, <c>resourceId</c>, <c>tid</c>.
 /// </summary>
 /// <remarks>
