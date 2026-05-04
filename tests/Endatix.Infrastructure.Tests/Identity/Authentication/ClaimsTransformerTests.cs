@@ -4,8 +4,10 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using NSubstitute;
 using Xunit;
@@ -18,13 +20,15 @@ public class ClaimsTransformerTests
     private readonly IAuthorizationCache _authorizationCache;
     private readonly ILogger<ClaimsTransformer> _logger;
     private readonly ClaimsTransformer _transformer;
+    private readonly IOptions<EndatixJwtOptions> _jwtOptions;
 
     public ClaimsTransformerTests()
     {
         _authorizationStrategies = new List<IAuthorizationStrategy>();
         _authorizationCache = Substitute.For<IAuthorizationCache>();
         _logger = Substitute.For<ILogger<ClaimsTransformer>>();
-        _transformer = new ClaimsTransformer(_authorizationStrategies, _authorizationCache, _logger);
+        _jwtOptions = Options.Create(new EndatixJwtOptions());
+        _transformer = new ClaimsTransformer(_authorizationStrategies, _authorizationCache, _logger, _jwtOptions);
     }
 
     #region TransformAsync Tests
@@ -90,6 +94,36 @@ public class ClaimsTransformerTests
         // Assert
         result.Should().Be(principal);
         result.Identities.Should().NotContain(i => i is AuthorizedIdentity);
+    }
+
+    [Fact]
+    public async Task TransformAsync_WhenIssuerMatchesReBacIssuer_SkipsAuthorizationHydration()
+    {
+        // Arrange
+        const string reBacIssuer = "rebac-issuer";
+        var jwtOptions = Options.Create(new EndatixJwtOptions { ReBacIssuer = reBacIssuer });
+        var strategy = Substitute.For<IAuthorizationStrategy>();
+        var authorizationStrategies = new List<IAuthorizationStrategy> { strategy };
+        var authorizationCache = Substitute.For<IAuthorizationCache>();
+        var logger = Substitute.For<ILogger<ClaimsTransformer>>();
+        var transformer = new ClaimsTransformer(authorizationStrategies, authorizationCache, logger, jwtOptions);
+
+        var identity = new ClaimsIdentity(
+            [
+                new Claim(ClaimNames.UserId, "123"),
+                new Claim(JwtRegisteredClaimNames.Iss, reBacIssuer)
+            ],
+            "Bearer");
+        var principal = new ClaimsPrincipal(identity);
+
+        // Act
+        var result = await transformer.TransformAsync(principal);
+
+        // Assert
+        result.Should().Be(principal);
+        authorizationCache.ReceivedCalls().Should().BeEmpty();
+        strategy.DidNotReceiveWithAnyArgs().CanHandle(default!);
+        await strategy.DidNotReceiveWithAnyArgs().GetAuthorizationDataAsync(default!, default);
     }
 
     [Fact]

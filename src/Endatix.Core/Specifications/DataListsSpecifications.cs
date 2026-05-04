@@ -90,6 +90,21 @@ public class DataListsSpecifications
     }
 
     /// <summary>
+    /// Counts data lists that match all given ids and belong to the tenant.
+    /// </summary>
+    public sealed class ByIdsForTenantSpec : Specification<DataList>
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ByIdsForTenantSpec"/> class.
+        /// </summary>
+        public ByIdsForTenantSpec(IReadOnlyCollection<long> dataListIds, long tenantId)
+        {
+            Query.Where(x => dataListIds.Contains(x.Id) && x.TenantId == tenantId);
+            Query.AsNoTracking();
+        }
+    }
+
+    /// <summary>
     /// Specification to get a data list by ID with data list items included.
     /// </summary>
     public sealed class ByIdWithItemsSpec : Specification<DataList>, ISingleResultSpecification<DataList>

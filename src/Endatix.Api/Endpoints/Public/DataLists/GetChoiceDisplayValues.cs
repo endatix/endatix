@@ -1,13 +1,18 @@
+using Endatix.Api.Common;
+using Endatix.Api.Common.Security;
+using Endatix.Api.Endpoints.DataLists;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace Endatix.Api.Endpoints.DataLists;
+namespace Endatix.Api.Endpoints.Public.DataLists;
 
 /// <summary>
 /// Public endpoint to get choice display values.
@@ -17,27 +22,43 @@ public sealed class GetChoiceDisplayValues(
     IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> publicFormAccessPolicy)
     : Endpoint<GetChoiceDisplayValuesRequest, Results<Ok<IReadOnlyCollection<DataListPublicChoiceModel>>, ProblemHttpResult>>
 {
+
+    /// <inheritdoc />
     public override void Configure()
     {
-        Get(ApiRoutes.Public("forms/{formId}/data-lists/{dataListId}/display-values"));
-        AllowAnonymous();
+        Get("forms/{formId}/data-lists/{dataListId}/display-values");
+        Group<PublicApiGroup>();
+        Policies(AuthorizationPolicies.PublicResourceAccess);
         Summary(s =>
         {
             s.Summary = "Resolve data list display values";
             s.Description =
-                "Returns label/value pairs for stored values in a runtime form context. Access is evaluated like access/public/forms/{formId} (optional token + tokenType query parameters; same cached policy).";
+                "Returns label/value pairs for stored values in a runtime form context. Requires the form access JWT as Authorization: Bearer {jwt}.";
             s.Responses[200] = "Data list display values resolved successfully.";
             s.Responses[400] = "Invalid request or access data.";
-            s.Responses[404] = "Form or data list not found.";
+            s.Responses[401] = "Unauthorized. Send Authorization: Bearer <jwt>";
+            s.Responses[404] = "Form not found.";
+
         });
     }
 
+    /// <inheritdoc />
     public override async Task<Results<Ok<IReadOnlyCollection<DataListPublicChoiceModel>>, ProblemHttpResult>> ExecuteAsync(
         GetChoiceDisplayValuesRequest request,
         CancellationToken ct)
     {
-        PublicFormAccessContext accessContext = new(request.FormId, request.Token, request.TokenType);
-        var accessDataResult = await publicFormAccessPolicy.GetAccessData(accessContext, ct).ConfigureAwait(false);
+        var token = FormAccessTokenReader.ReadToken(HttpContext.Request);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return TypedResults.Problem(
+                title: "Unauthorized",
+                detail: "A form access token is required. Send Authorization: Bearer <jwt>",
+                statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        PublicFormAccessContext accessContext = new(request.FormId, token, SubmissionTokenType.FormToken);
+        var accessDataResult = await publicFormAccessPolicy
+            .GetAccessData(accessContext, ct);
 
         if (!accessDataResult.IsSuccess)
         {
@@ -70,16 +91,6 @@ public sealed class GetChoiceDisplayValuesRequest
     public long DataListId { get; init; }
 
     /// <summary>
-    /// Optional access or submission token (same semantics as <c>access/public/forms/{formId}</c>).
-    /// </summary>
-    public string? Token { get; init; }
-
-    /// <summary>
-    /// Token type when <see cref="Token"/> is set.
-    /// </summary>
-    public SubmissionTokenType? TokenType { get; init; }
-
-    /// <summary>
     /// The values to get display values for.
     /// </summary>
     public IReadOnlyCollection<string> Values { get; init; } = [];
@@ -94,17 +105,6 @@ public sealed class GetChoiceDisplayValuesValidator : Validator<GetChoiceDisplay
     {
         RuleFor(x => x.FormId).GreaterThan(0);
         RuleFor(x => x.DataListId).GreaterThan(0);
-        RuleFor(x => x.Token)
-            .NotEmpty()
-            .When(x => x.Token is not null);
-        RuleFor(x => x.TokenType)
-            .NotNull()
-            .IsInEnum()
-            .When(x => !string.IsNullOrEmpty(x.Token));
-        RuleFor(x => x.TokenType)
-            .Null()
-            .When(x => string.IsNullOrEmpty(x.Token))
-            .WithMessage("Token must be provided when Token Type is specified.");
         RuleFor(x => x.Values)
             .NotNull()
             .Must(values => values.Count > 0)

@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 
@@ -13,7 +15,8 @@ namespace Endatix.Infrastructure.Identity.Authentication;
 internal sealed class ClaimsTransformer(
     IEnumerable<IAuthorizationStrategy> authorizationStrategies,
     IAuthorizationCache authorizationCache,
-    ILogger<ClaimsTransformer> logger) : IClaimsTransformation
+    ILogger<ClaimsTransformer> logger,
+    IOptions<EndatixJwtOptions> endatixJwtOptions) : IClaimsTransformation
 {
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
@@ -26,6 +29,14 @@ internal sealed class ClaimsTransformer(
         {
             return principal;
         }
+
+        // Intersect public access context (e.g. form + data lists) and skip hydration if the token is a ReBAC JWT token
+        var shouldSkipHydration = string.Equals(principal.GetIssuer(), endatixJwtOptions.Value.ReBacIssuer, StringComparison.Ordinal);
+        if (shouldSkipHydration)
+        {
+            return principal;
+        }
+        
 
         var authorizationData = await GetAuthorizationDataAsync(principal);
         if (authorizationData is not null)

@@ -42,9 +42,11 @@ public static class FormProjections
         /// <param name="formId">The id of the form to get the IsPublic property for</param>
         public IsPublicDtoSpec(long formId)
         {
-            Query.Where(form => form.Id == formId);
+            Query.AsNoTracking()
+                .IgnoreQueryFilters()
+                .Where(form => form.Id == formId && form.IsEnabled && !form.IsDeleted);
             Query.Select(form => new FormDtos.IsPublicDto(form.IsPublic, form.Id));
-            Query.AsNoTracking();
+
         }
-    }   
+    }
 }

@@ -1,4 +1,5 @@
 using Endatix.Api.Endpoints.DataLists;
+using Endatix.Api.Endpoints.Public.DataLists;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
@@ -8,12 +9,15 @@ using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Tests.Endpoints.DataLists;
 
 public class SearchTests
 {
+    private const string TestFormAccessJwt = "test-form-access-jwt";
+
     private readonly IMediator _mediator;
     private readonly IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> _publicFormAccessPolicy;
     private readonly Search _endpoint;
@@ -30,7 +34,9 @@ public class SearchTests
         _publicFormAccessPolicy
             .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<ICachedData<PublicFormAccessData>>(cached));
-        _endpoint = Factory.Create<Search>(_mediator, _publicFormAccessPolicy);
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers.Authorization = $"Bearer {TestFormAccessJwt}";
+        _endpoint = Factory.Create<Search>(httpContext, _mediator, _publicFormAccessPolicy);
     }
 
     [Fact]
@@ -59,8 +65,8 @@ public class SearchTests
         await _publicFormAccessPolicy.Received(1).GetAccessData(
             Arg.Is<PublicFormAccessContext>(c =>
                 c.FormId == request.FormId &&
-                c.Token == request.Token &&
-                c.TokenType == request.TokenType),
+                c.Token == TestFormAccessJwt &&
+                c.TokenType == SubmissionTokenType.FormToken),
             Arg.Any<CancellationToken>());
 
         await _mediator.Received(1).Send(

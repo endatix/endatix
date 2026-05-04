@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Text.Json.Serialization;
+using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Abstractions.Submissions;
 
 namespace Endatix.Core.Authorization.Access;
@@ -9,23 +10,31 @@ namespace Endatix.Core.Authorization.Access;
 /// </summary>
 public class PublicFormAccessData : AccessDataBase
 {
-    public PublicFormAccessData() { }
+    [JsonConstructor]
+    private PublicFormAccessData(
+        string formId,
+        string? submissionId,
+        ImmutableHashSet<string>? formPermissions,
+        ImmutableHashSet<string>? submissionPermissions)
+    {
+        FormId = formId;
+        SubmissionId = submissionId;
+        FormPermissions = formPermissions ?? EmptyPermissions;
+        SubmissionPermissions = submissionPermissions ?? EmptyPermissions;
+        Permissions = MergePermissions(FormPermissions, SubmissionPermissions);
+    }
 
     private PublicFormAccessData(
         string formId,
         string? submissionId,
         IEnumerable<string> formPermissions,
         IEnumerable<string> submissionPermissions)
+        : this(
+            formId,
+            submissionId,
+            ToImmutableSet(formPermissions),
+            ToImmutableSet(submissionPermissions))
     {
-        FormId = formId;
-        SubmissionId = submissionId;
-
-        var normalizedFormPermissions = ToImmutableSet(formPermissions);
-        var normalizedSubmissionPermissions = ToImmutableSet(submissionPermissions);
-
-        FormPermissions = normalizedFormPermissions;
-        SubmissionPermissions = normalizedSubmissionPermissions;
-        Permissions = ToImmutableSet(normalizedFormPermissions.Union(normalizedSubmissionPermissions));
     }
 
     /// <inheritdoc/>
@@ -52,7 +61,23 @@ public class PublicFormAccessData : AccessDataBase
     /// </summary>
     public ImmutableHashSet<string> SubmissionPermissions { get; init; } = EmptyPermissions;
 
+    private static ImmutableHashSet<string> MergePermissions(
+        ImmutableHashSet<string> formPermissions,
+        ImmutableHashSet<string> submissionPermissions)
+    {
+        if (formPermissions.Count is 0 && submissionPermissions.Count is 0)
+        {
+            return EmptyPermissions;
+        }
 
+        return ToImmutableSet(formPermissions.Union(submissionPermissions));
+    }
+
+    /// <summary>
+    /// Creates public form access data for a new submission.
+    /// </summary>
+    /// <param name="formId">The form ID.</param>
+    /// <returns>The public form access data.</returns>
     public static PublicFormAccessData CreatePublicForm(long formId)
         => new(
             formId.ToString(),
@@ -60,6 +85,12 @@ public class PublicFormAccessData : AccessDataBase
             ResourcePermissions.Form.Sets.ViewForm,
             ResourcePermissions.Submission.Sets.CreateSubmission);
 
+    /// <summary>
+    /// Creates public form access data for a submission token.
+    /// </summary>
+    /// <param name="formId">The form ID.</param>
+    /// <param name="submissionId">The submission ID.</param>
+    /// <returns>The public form access data.</returns>
     public static PublicFormAccessData CreateWithSubmissionToken(long formId, long submissionId)
         => new(
             formId.ToString(),

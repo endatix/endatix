@@ -66,6 +66,7 @@ public class InfrastructureSecurityBuilderTests
             ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = "endatix-api",
             ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters",
             ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = "endatix-hub",
+            ["Endatix:Auth:Providers:EndatixJwt:ReBacIssuer"] = "edx_res_auth",
             ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true",
             ["Endatix:Auth:Providers:Keycloak:Issuer"] = "http://localhost:8080/realms/endatix",
             ["Endatix:Auth:Providers:Keycloak:Audience"] = "endatix-hub",
@@ -159,6 +160,7 @@ public class InfrastructureSecurityBuilderTests
         // Assert
         Assert.Same(builder, result);
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
     }
 
     [Fact]
@@ -265,15 +267,17 @@ public class InfrastructureSecurityBuilderTests
 
         // Assert - All providers are registered (requested) regardless of enabled status
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
         Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
         Assert.True(registry.IsProviderRegistrationRequested("Google"));
-        Assert.Equal(3, registry.GetRequestedRegistrations().Count());
+        Assert.Equal(4, registry.GetRequestedRegistrations().Count());
 
         // But only enabled providers are active
         Assert.True(registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderActive(AuthSchemes.EndatixReBac));
         Assert.False(registry.IsProviderActive("Keycloak")); // Disabled
         Assert.True(registry.IsProviderActive("Google"));    // Enabled
-        Assert.Equal(2, registry.GetActiveProviders().Count());
+        Assert.Equal(3, registry.GetActiveProviders().Count());
     }
 
     [Fact]
@@ -297,8 +301,9 @@ public class InfrastructureSecurityBuilderTests
         // Assert - SelectScheme should only consider active providers
         // This test assumes the providers have different issuers configured
         var activeProviders = registry.GetActiveProviders().ToList();
-        Assert.Equal(2, activeProviders.Count);
+        Assert.Equal(3, activeProviders.Count);
         Assert.Contains(activeProviders, p => p.SchemeName == AuthSchemes.EndatixJwt);
+        Assert.Contains(activeProviders, p => p.SchemeName == AuthSchemes.EndatixReBac);
         Assert.Contains(activeProviders, p => p.SchemeName == "Google");
         Assert.DoesNotContain(activeProviders, p => p.SchemeName == "Keycloak");
     }
@@ -324,14 +329,16 @@ public class InfrastructureSecurityBuilderTests
         // Assert
         // All providers are registered in the registry regardless of enabled status
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
         Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
         Assert.True(registry.IsProviderRegistrationRequested("Google"));
 
         // But only enabled providers are active
         Assert.True(registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderActive(AuthSchemes.EndatixReBac));
         Assert.False(registry.IsProviderActive("Keycloak")); // Disabled
         Assert.True(registry.IsProviderActive("Google"));    // Enabled
-        Assert.Equal(2, registry.GetActiveProviders().Count());
+        Assert.Equal(3, registry.GetActiveProviders().Count());
     }
 
     [Fact]
@@ -353,6 +360,7 @@ public class InfrastructureSecurityBuilderTests
         Assert.Same(_parentBuilder, result);
         var registry = GetRegistryFromBuilder(builder);
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
         Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
         Assert.True(registry.IsProviderRegistrationRequested("Google"));
     }
@@ -362,7 +370,7 @@ public class InfrastructureSecurityBuilderTests
     {
         // Arrange
         var builder = new InfrastructureSecurityBuilder(_parentBuilder);
-        builder.AddEndatixJwtAuthProvider();
+        builder.AddEndatixAuthProviders();
 
         // Act
         var registry = builder.GetRegistry();
@@ -370,6 +378,7 @@ public class InfrastructureSecurityBuilderTests
         // Assert
         Assert.NotNull(registry);
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
     }
 
     [Fact]
@@ -380,14 +389,15 @@ public class InfrastructureSecurityBuilderTests
 
         // Act
         builder
-            .AddEndatixJwtAuthProvider()
+            .AddEndatixAuthProviders()
             .AddKeycloakAuthProvider()
             .AddGoogleAuthProvider();
 
         // Assert
         var registry = GetRegistryFromBuilder(builder);
-        Assert.Equal(3, registry.GetRequestedRegistrations().Count());
+        Assert.Equal(4, registry.GetRequestedRegistrations().Count());
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
         Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
         Assert.True(registry.IsProviderRegistrationRequested("Google"));
     }
@@ -498,6 +508,7 @@ public class InfrastructureSecurityBuilderTests
         // Verify EndatixJwt provider is registered
         var registry = GetRegistryFromBuilder(builder);
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
     }
 
     [Fact]

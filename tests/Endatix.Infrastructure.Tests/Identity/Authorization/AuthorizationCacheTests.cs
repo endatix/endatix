@@ -3,7 +3,9 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authorization;
@@ -21,7 +23,11 @@ public sealed class AuthorizationCacheTests
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _now = new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero);
         _dateTimeProvider.Now.Returns(_now);
-        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider);
+        var jwtOptions = Options.Create(new EndatixJwtOptions
+        {
+            SigningKey = "test-signing-key-32-characters",
+        });
+        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, jwtOptions);
     }
 
     [Fact]
@@ -124,7 +130,9 @@ public sealed class AuthorizationCacheTests
             _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))),
             CancellationToken.None);
 
-        capturedKey.Should().Be($"jwt_auth:{jti}");
+        capturedKey.Should().NotBeNull();
+        capturedKey.Should().StartWith("jwt_auth:");
+        capturedKey.Should().NotContain(jti);
     }
 
     [Fact]
@@ -151,7 +159,9 @@ public sealed class AuthorizationCacheTests
             _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))),
             CancellationToken.None);
 
-        capturedKey.Should().Be("jwt_auth:jti_123");
+        capturedKey.Should().NotBeNull();
+        capturedKey.Should().StartWith("jwt_auth:");
+        capturedKey.Should().NotContain("jti_123");
     }
 
     [Fact]

@@ -236,6 +236,21 @@ public class JwtTokenServiceTests
     }
 
     [Fact]
+    public async Task ValidateAccessToken_EndatixReBacToken_ReturnsNotSupportedError()
+    {
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
+        optionsWrapper.Value.Returns(_validJwtOptions);
+        _authSchemeSelector.SelectScheme("rebacToken").Returns(AuthSchemes.EndatixReBac);
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
+
+        var result = await tokenService.ValidateAccessTokenAsync("rebacToken");
+
+        result.IsSuccess.Should().BeFalse();
+        result.ValidationErrors.Should().NotBeNull();
+        result.ValidationErrors.First().ErrorMessage.Should().Contain($"Token validation not supported for scheme: {AuthSchemes.EndatixReBac}");
+    }
+
+    [Fact]
     public void IssueRefreshToken_Always_ReturnsValidToken()
     {
         // Arrange

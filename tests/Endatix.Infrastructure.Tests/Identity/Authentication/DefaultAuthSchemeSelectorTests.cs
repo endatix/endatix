@@ -24,11 +24,19 @@ public class DefaultAuthSchemeSelectorTests
         // Create mock providers
         var endatixProvider = Substitute.For<IAuthProvider>();
         endatixProvider.SchemeName.Returns(AuthSchemes.EndatixJwt);
+        endatixProvider.ConfigurationSectionPath.Returns($"Endatix:Auth:Providers:{AuthSchemes.EndatixJwt}");
         endatixProvider.CanHandle("endatix-api", Arg.Any<string>()).Returns(true);
         endatixProvider.CanHandle(Arg.Is<string>(s => s != "endatix-api"), Arg.Any<string>()).Returns(false);
 
+        var rebacProvider = Substitute.For<IAuthProvider>();
+        rebacProvider.SchemeName.Returns(AuthSchemes.EndatixReBac);
+        rebacProvider.ConfigurationSectionPath.Returns($"Endatix:Auth:Providers:{AuthSchemes.EndatixJwt}");
+        rebacProvider.CanHandle("edx_res_auth", Arg.Any<string>()).Returns(true);
+        rebacProvider.CanHandle(Arg.Is<string>(s => s != "edx_res_auth"), Arg.Any<string>()).Returns(false);
+
         var keycloakProvider = Substitute.For<IAuthProvider>();
         keycloakProvider.SchemeName.Returns("Keycloak");
+        keycloakProvider.ConfigurationSectionPath.Returns("Endatix:Auth:Providers:Keycloak");
         keycloakProvider.CanHandle("http://localhost:8080/realms/endatix", Arg.Any<string>()).Returns(true);
         keycloakProvider.CanHandle(Arg.Is<string>(s => s != "http://localhost:8080/realms/endatix"), Arg.Any<string>()).Returns(false);
 
@@ -37,10 +45,12 @@ public class DefaultAuthSchemeSelectorTests
         var configuration = CreateTestConfiguration();
 
         _providerRegistry.RegisterProvider<EndatixJwtOptions>(endatixProvider, services, configuration);
+        _providerRegistry.RegisterProvider<EndatixJwtOptions>(rebacProvider, services, configuration);
         _providerRegistry.RegisterProvider<KeycloakOptions>(keycloakProvider, services, configuration);
 
         // Add them as active providers (simulating successful configuration)
         _providerRegistry.AddActiveProvider(endatixProvider);
+        _providerRegistry.AddActiveProvider(rebacProvider);
         _providerRegistry.AddActiveProvider(keycloakProvider);
     }
 
@@ -49,6 +59,9 @@ public class DefaultAuthSchemeSelectorTests
         var configData = new Dictionary<string, string?>
         {
             ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true",
+            ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters-long",
+            ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = "endatix-api",
+            ["Endatix:Auth:Providers:EndatixJwt:ReBacIssuer"] = "edx_res_auth",
             ["Endatix:Auth:Providers:Keycloak:Enabled"] = "true"
         };
 
@@ -92,6 +105,16 @@ public class DefaultAuthSchemeSelectorTests
 
         // Assert
         Assert.Equal(AuthSchemes.EndatixJwt, scheme);
+    }
+
+    [Fact]
+    public void SelectScheme_ShouldReturnEndatixReBac_ForReBacToken()
+    {
+        var token = CreateJwtToken(new { iss = "edx_res_auth", aud = "endatix-public" });
+
+        var scheme = _selector.SelectScheme(token);
+
+        Assert.Equal(AuthSchemes.EndatixReBac, scheme);
     }
 
     [Fact]
@@ -148,12 +171,14 @@ public class DefaultAuthSchemeSelectorTests
     {
         // Arrange
         var endatixToken = CreateJwtToken(new { iss = "endatix-api" });
+        var rebacToken = CreateJwtToken(new { iss = "edx_res_auth" });
         var keycloakToken = CreateJwtToken(new { iss = "http://localhost:8080/realms/endatix" });
 
         // Act & Assert - Multiple calls should return consistent results
         for (int i = 0; i < 10; i++)
         {
             Assert.Equal(AuthSchemes.EndatixJwt, _selector.SelectScheme(endatixToken));
+            Assert.Equal(AuthSchemes.EndatixReBac, _selector.SelectScheme(rebacToken));
             Assert.Equal("Keycloak", _selector.SelectScheme(keycloakToken));
         }
     }
@@ -165,6 +190,7 @@ public class DefaultAuthSchemeSelectorTests
         var tokens = new[]
         {
             (CreateJwtToken(new { iss = "endatix-api" }), AuthSchemes.EndatixJwt),
+            (CreateJwtToken(new { iss = "edx_res_auth" }), AuthSchemes.EndatixReBac),
             (CreateJwtToken(new { iss = "http://localhost:8080/realms/endatix" }), "Keycloak"),
             (CreateJwtToken(new { iss = "unknown-issuer" }), AuthSchemes.EndatixJwt), // Default
             (CreateJwtToken(new { aud = "test" }), AuthSchemes.EndatixJwt) // No issuer -> Default
