@@ -52,6 +52,17 @@ public class EndatixJwtAuthProviderTests
     }
 
     [Fact]
+    public void CanHandle_WithDefaultReBacIssuer_ShouldReturnTrue()
+    {
+        var config = CreateConfiguration("endatix-api", enabled: true);
+        _provider.Configure(_authBuilder, config, false);
+
+        var result = _provider.CanHandle("edx-api", "test-token");
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
     public void CanHandle_WithNonMatchingIssuer_ShouldReturnFalse()
     {
         // Arrange
@@ -202,6 +213,7 @@ public class EndatixJwtAuthProviderTests
 
         // Assert
         options.Issuer.Should().Be("endatix-api");
+        options.ReBacIssuer.Should().Be("edx-api");
         options.SchemeName.Should().Be(AuthSchemes.EndatixJwt);
         options.Audiences.Should().Contain("endatix-hub");
     }
