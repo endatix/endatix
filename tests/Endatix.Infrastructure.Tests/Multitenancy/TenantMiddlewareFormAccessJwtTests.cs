@@ -33,4 +33,47 @@ public sealed class TenantMiddlewareFormAccessJwtTests
         tenantContext.TenantId.Should().Be(42);
         await next.Received(1).Invoke(httpContext);
     }
+
+    [Fact]
+    public async Task InvokeAsync_WhenNoTenantIdClaim_DoesNotMutateTenantAndCallsNext()
+    {
+        var next = Substitute.For<RequestDelegate>();
+        var logger = Substitute.For<ILogger<TenantMiddleware>>();
+        HttpContext httpContext = new DefaultHttpContext();
+        var tenantContext = new TenantContext();
+        var middleware = new TenantMiddleware(next, logger);
+
+        var identity = new ClaimsIdentity(
+            authenticationType: "Bearer",
+            nameType: ClaimTypes.Name,
+            roleType: ClaimTypes.Role);
+        httpContext.User = new ClaimsPrincipal(identity);
+
+        await middleware.InvokeAsync(httpContext, tenantContext);
+
+        tenantContext.TenantId.Should().Be(default);
+        await next.Received(1).Invoke(httpContext);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenTenantIdClaimIsNonNumeric_DoesNotMutateTenantAndCallsNext()
+    {
+        var next = Substitute.For<RequestDelegate>();
+        var logger = Substitute.For<ILogger<TenantMiddleware>>();
+        HttpContext httpContext = new DefaultHttpContext();
+        var tenantContext = new TenantContext();
+        var middleware = new TenantMiddleware(next, logger);
+
+        var identity = new ClaimsIdentity(
+            authenticationType: "Bearer",
+            nameType: ClaimTypes.Name,
+            roleType: ClaimTypes.Role);
+        identity.AddClaim(new Claim(ClaimNames.TenantId, "not-a-number"));
+        httpContext.User = new ClaimsPrincipal(identity);
+
+        await middleware.InvokeAsync(httpContext, tenantContext);
+
+        tenantContext.TenantId.Should().Be(default);
+        await next.Received(1).Invoke(httpContext);
+    }
 }

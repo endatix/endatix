@@ -25,6 +25,11 @@ public sealed class CreateFormAccessTokenHandler(
     {
         Guard.Against.Null(request);
 
+        if (request.AccessTokenType is SubmissionTokenType.FormToken)
+        {
+            return Result.Forbidden("Cannot use FormToken to mint new token");
+        }
+
         PublicFormAccessContext accessContext = new(request.FormId, request.AccessToken, request.AccessTokenType);
         var accessResult = await publicFormAccessPolicy
             .GetAccessData(accessContext, cancellationToken);

@@ -10,6 +10,7 @@ using Endatix.Core.UseCases.Authorization.PublicForm;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using Endatix.Infrastructure.Features.Authorization.PublicForm;
+using Ardalis.Specification;
 using FluentAssertions;
 using NSubstitute;
 
@@ -21,6 +22,31 @@ namespace Endatix.Infrastructure.Tests.Features.Authorization.PublicForm;
 /// </summary>
 public sealed class CreateFormAccessTokenHandlerTests
 {
+    [Fact]
+    public async Task Handle_WhenAccessTokenTypeIsFormToken_ReturnsForbiddenWithoutPolicyOrMint()
+    {
+        // Arrange
+        const long formId = 42L;
+        IRepository<Form> formRepository = Substitute.For<IRepository<Form>>();
+        IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> policy =
+            Substitute.For<IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>>();
+        IFormAccessTokenService tokenService = Substitute.For<IFormAccessTokenService>();
+        var sut = new CreateFormAccessTokenHandler(formRepository, policy, tokenService);
+        var command = new CreateFormAccessTokenCommand(
+            formId,
+            accessToken: "existing-form-token",
+            accessTokenType: SubmissionTokenType.FormToken);
+
+        // Act
+        Result<FormAccessTokenDto> result = await sut.Handle(command, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        await policy.DidNotReceive().GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>());
+        await formRepository.DidNotReceive().FirstOrDefaultAsync(Arg.Any<ISpecification<Form>>(), Arg.Any<CancellationToken>());
+        tokenService.DidNotReceive().CreateToken(Arg.Any<long>(), Arg.Any<long>());
+    }
+
     [Fact]
     public async Task Handle_UsesByIdWithRelatedForPublicAccess_AndSucceeds()
     {

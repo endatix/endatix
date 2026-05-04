@@ -10,29 +10,31 @@ namespace Endatix.Core.Authorization.Access;
 /// </summary>
 public class PublicFormAccessData : AccessDataBase
 {
-    /// <summary>
-    /// Parameterless constructor for JSON deserialization only (used by HybridCache).
-    /// </summary>
     [JsonConstructor]
-    private PublicFormAccessData() { }
+    private PublicFormAccessData(
+        string formId,
+        string? submissionId,
+        ImmutableHashSet<string>? formPermissions,
+        ImmutableHashSet<string>? submissionPermissions)
+    {
+        FormId = formId;
+        SubmissionId = submissionId;
+        FormPermissions = formPermissions ?? EmptyPermissions;
+        SubmissionPermissions = submissionPermissions ?? EmptyPermissions;
+        Permissions = MergePermissions(FormPermissions, SubmissionPermissions);
+    }
 
     private PublicFormAccessData(
         string formId,
         string? submissionId,
         IEnumerable<string> formPermissions,
-        IEnumerable<string> submissionPermissions,
-        long? formTenantId = null)
+        IEnumerable<string> submissionPermissions)
+        : this(
+            formId,
+            submissionId,
+            ToImmutableSet(formPermissions),
+            ToImmutableSet(submissionPermissions))
     {
-        FormId = formId;
-        SubmissionId = submissionId;
-        FormTenantId = formTenantId;
-
-        var normalizedFormPermissions = ToImmutableSet(formPermissions);
-        var normalizedSubmissionPermissions = ToImmutableSet(submissionPermissions);
-
-        FormPermissions = normalizedFormPermissions;
-        SubmissionPermissions = normalizedSubmissionPermissions;
-        Permissions = ToImmutableSet(normalizedFormPermissions.Union(normalizedSubmissionPermissions));
     }
 
     /// <inheritdoc/>
@@ -59,10 +61,17 @@ public class PublicFormAccessData : AccessDataBase
     /// </summary>
     public ImmutableHashSet<string> SubmissionPermissions { get; init; } = EmptyPermissions;
 
-    /// <summary>
-    /// The Form's Tenant ID used to accommodate tenant-scoped queries.
-    /// </summary>
-    public long? FormTenantId { get; init; }
+    private static ImmutableHashSet<string> MergePermissions(
+        ImmutableHashSet<string> formPermissions,
+        ImmutableHashSet<string> submissionPermissions)
+    {
+        if (formPermissions.Count is 0 && submissionPermissions.Count is 0)
+        {
+            return EmptyPermissions;
+        }
+
+        return ToImmutableSet(formPermissions.Union(submissionPermissions));
+    }
 
     /// <summary>
     /// Creates public form access data for a new submission.
@@ -75,23 +84,6 @@ public class PublicFormAccessData : AccessDataBase
             null,
             ResourcePermissions.Form.Sets.ViewForm,
             ResourcePermissions.Submission.Sets.CreateSubmission);
-
-    /// <summary>
-    /// Public form access derived from a minimal form ReBAC JWT; carries tenant for data-list repository scoping.
-    /// </summary>
-    public static PublicFormAccessData CreatePublicFormForDataListJwt(long formId, long tenantId)
-        => new(
-            formId.ToString(),
-            null,
-            ResourcePermissions.Form.Sets.ViewForm,
-            ResourcePermissions.Submission.Sets.CreateSubmission,
-            formTenantId: tenantId);
-
-    /// <summary>
-    /// Same as <see cref="CreatePublicFormForDataListJwt(long,long)"/> using validated frame token claims.
-    /// </summary>
-    public static PublicFormAccessData CreatePublicFormForDataListJwt(FormAccessTokenClaims claims) =>
-        CreatePublicFormForDataListJwt(claims.FormId, claims.TenantId);
 
     /// <summary>
     /// Creates public form access data for a submission token.

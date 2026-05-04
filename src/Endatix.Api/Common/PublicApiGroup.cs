@@ -1,5 +1,4 @@
 using FastEndpoints;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Api.Common;
@@ -16,6 +15,5 @@ public sealed class PublicApiGroup : Group
     public PublicApiGroup() => Configure("public/", group => group.Description(ep =>
     {
         ep.WithTags("Public");
-        ep.AllowAnonymous();
     }));
 }

@@ -5,12 +5,15 @@ using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Options;
 using NSubstitute.Core;
 using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
 
@@ -72,6 +75,7 @@ public partial class PublicFormAccessPolicyTests
     private readonly IFormAccessTokenService _formFrameTokenService;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HybridCache _cache;
+    private readonly IOptions<EndatixJwtOptions> _jwtOptions;
     private readonly PublicFormAccessPolicy _policy;
 
     public PublicFormAccessPolicyTests()
@@ -84,6 +88,10 @@ public partial class PublicFormAccessPolicyTests
         _formFrameTokenService = Substitute.For<IFormAccessTokenService>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _cache = Substitute.For<HybridCache>();
+        _jwtOptions = Options.Create(new EndatixJwtOptions
+        {
+            SigningKey = "test-signing-key-32-characters",
+        });
         _dateTimeProvider.Now.Returns(DateTimeOffset.UtcNow);
 
         // IsFormPublicAsync goes through HybridCacheExtensions.GetOrCreateResultAsync<bool>, which uses
@@ -115,7 +123,7 @@ public partial class PublicFormAccessPolicyTests
                 return factory(token);
             });
 
-        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _formFrameTokenService, _authorizationService, _dateTimeProvider, _cache);
+        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _formFrameTokenService, _authorizationService, _dateTimeProvider, _jwtOptions, _cache);
     }
 
     #region Helper Methods
@@ -939,6 +947,54 @@ public partial class PublicFormAccessPolicyTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().Contain("Authorization service unavailable");
+    }
+
+    #endregion
+
+    #region Form access token (ReBAC JWT)
+
+    [Fact]
+    public async Task GetAccessDataAsync_FormAccessToken_CacheKeyDoesNotContainRawJwt()
+    {
+        // Arrange
+        const long formId = 1L;
+        const long tenantId = 99L;
+        const string rawJwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzZWNyZXQifQ.signature-DO-NOT-LEAK";
+        FormAccessTokenClaims claims = new(formId, tenantId, DateTime.UtcNow.AddMinutes(30));
+        PublicFormAccessContext context = new(formId, rawJwt, SubmissionTokenType.FormToken);
+
+        Form form = new(tenantId, "Form token test");
+        form.Id = formId;
+        FormDefinition definition = new(tenantId, isDraft: false, jsonData: "{}");
+        form.AddFormDefinition(definition, isActive: true);
+
+        _formFrameTokenService.ValidateToken(rawJwt).Returns(Result.Success(claims));
+        _formRepository
+            .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        string? capturedCacheKey = null;
+        _cache
+            .GetOrCreateAsync<Cached<PublicFormAccessData>>(
+                Arg.Any<string>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<IEnumerable<string>?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                capturedCacheKey = (string)callInfo[0];
+                return InvokeHybridCacheGetOrCreateFactory(callInfo);
+            });
+
+        // Act
+        Result<ICachedData<PublicFormAccessData>> result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        capturedCacheKey.Should().NotBeNull();
+        capturedCacheKey.Should().StartWith($"ac:form_token:{formId}:token_fp:");
+        capturedCacheKey.Should().NotContain(rawJwt);
     }
 
     #endregion

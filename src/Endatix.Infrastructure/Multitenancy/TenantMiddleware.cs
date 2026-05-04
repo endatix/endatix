@@ -38,7 +38,7 @@ public class TenantMiddleware
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext)
     {
-        // Tenant ID is not present for public API endpoints.
+        // For public ReBAC endpoints, tenant ID is provided via the authenticated principal's tid claim.
         var tenantClaim = context.User.FindFirst(ClaimNames.TenantId);
         if (tenantClaim == null)
         {

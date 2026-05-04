@@ -20,6 +20,7 @@ public sealed class CreateFormAccessToken(IMediator mediator)
     {
         Post("forms/{formId}/access-tokens");
         Group<PublicApiGroup>();
+        AllowAnonymous();
         Summary(s =>
         {
             s.Summary = "Create form access token";

@@ -14,13 +14,16 @@ public sealed class EndatixUserJwtAuthProvider : IAuthProvider
 {
     private string? _issuer;
 
+    /// <inheritdoc />
     public string SchemeName => AuthSchemes.EndatixJwt;
 
+    /// <inheritdoc />
     public bool CanHandle(string issuer, string rawToken)
     {
         return _issuer is not null && string.Equals(issuer, _issuer, StringComparison.Ordinal);
     }
 
+    /// <inheritdoc />
     public bool Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false)
     {
         Guard.Against.Null(builder);

@@ -9,7 +9,9 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Features.AccessControl;
 
@@ -25,6 +27,7 @@ public sealed class PublicFormAccessPolicy(
     IFormAccessTokenService formAccessTokenService,
     ICurrentUserAuthorizationService authorizationService,
     IDateTimeProvider dateTimeProvider,
+    IOptions<EndatixJwtOptions> endatixJwtOptions,
     HybridCache cache
 ) : IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>
 {
@@ -181,8 +184,11 @@ public sealed class PublicFormAccessPolicy(
         var tokenSafeExpirationTtl = (claims.ExpiresAtUtc - dateTimeProvider.Now.UtcDateTime).TotalSeconds;
         var dynamicTtl = TimeSpan.FromSeconds(Math.Max(_immediateTtl.TotalSeconds, tokenSafeExpirationTtl));
 
+        var signingKey = endatixJwtOptions.Value.SigningKey;
+        var tokenFingerprint = FormAccessTokenCacheKeyFingerprint.ComputeHmacSha256Hex(context.Token!, signingKey);
+
         return Result.Success(new AccessPolicyRoute(
-            $"ac:form_token:{context.FormId}:token:{context.Token}",
+            $"ac:form_token:{context.FormId}:token_fp:{tokenFingerprint}",
             dynamicTtl,
             RouteType.FormAccessToken,
             FormTokenClaims: claims));
@@ -212,7 +218,7 @@ public sealed class PublicFormAccessPolicy(
     private static Result<PublicFormAccessData> BuildPublicFormAccessData(long formId) => Result.Success(PublicFormAccessData.CreatePublicForm(formId));
 
     private static Result<PublicFormAccessData> BuildPublicFormReBacAccessData(FormAccessTokenClaims claims) =>
-        Result.Success(PublicFormAccessData.CreatePublicFormForDataListJwt(claims));
+        Result.Success(PublicFormAccessData.CreatePublicForm(claims.FormId));
 
     private async Task<Result<PublicFormAccessData>> BuildAccessTokenDataAsync(
         long formId,
