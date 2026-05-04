@@ -185,7 +185,7 @@ public sealed class PublicFormAccessPolicy(
         var dynamicTtl = TimeSpan.FromSeconds(Math.Max(_immediateTtl.TotalSeconds, tokenSafeExpirationTtl));
 
         var signingKey = endatixJwtOptions.Value.SigningKey;
-        var tokenFingerprint = FormAccessTokenCacheKeyFingerprint.ComputeHmacSha256Hex(context.Token!, signingKey);
+        var tokenFingerprint = CacheKeyFingerprint.ComputeHmacSha256Hex(context.Token!, signingKey);
 
         return Result.Success(new AccessPolicyRoute(
             $"ac:form_token:{context.FormId}:token_fp:{tokenFingerprint}",

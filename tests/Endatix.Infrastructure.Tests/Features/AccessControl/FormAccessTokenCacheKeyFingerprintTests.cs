@@ -1,10 +1,10 @@
-using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Infrastructure.Caching;
 using FluentAssertions;
 using Xunit;
 
 namespace Endatix.Infrastructure.Tests.Features.AccessControl;
 
-public sealed class FormAccessTokenCacheKeyFingerprintTests
+public sealed class CacheKeyFingerprintTests
 {
     [Fact]
     public void ComputeHmacSha256Hex_Produces64CharUppercaseHex()
@@ -14,7 +14,7 @@ public sealed class FormAccessTokenCacheKeyFingerprintTests
         const string key = "test-signing-key-32-characters";
 
         // Act
-        var fingerprint = FormAccessTokenCacheKeyFingerprint.ComputeHmacSha256Hex(raw, key);
+        var fingerprint = CacheKeyFingerprint.ComputeHmacSha256Hex(raw, key);
 
         // Assert
         fingerprint.Should().HaveLength(64);
@@ -28,7 +28,7 @@ public sealed class FormAccessTokenCacheKeyFingerprintTests
         const string raw = "header.eyJzdWIiOiJzZWNyZXQifQ.signature-UNIQUE";
 
         // Act
-        var fingerprint = FormAccessTokenCacheKeyFingerprint.ComputeHmacSha256Hex(raw, "test-signing-key-32-characters");
+        var fingerprint = CacheKeyFingerprint.ComputeHmacSha256Hex(raw, "test-signing-key-32-characters");
 
         // Assert
         fingerprint.Should().NotContain(raw);

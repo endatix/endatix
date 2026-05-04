@@ -5,8 +5,11 @@ using System.Text;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Options;
 
 
 /// <summary>
@@ -14,7 +17,8 @@ using Microsoft.Extensions.Caching.Hybrid;
 /// </summary>
 internal class AuthorizationCache(
     HybridCache hybridCache,
-    IDateTimeProvider dateTimeProvider) : IAuthorizationCache
+    IDateTimeProvider dateTimeProvider,
+    IOptions<EndatixJwtOptions> endatixJwtOptions) : IAuthorizationCache
 {
     private const short ETAG_LENGTH = 12;
 
@@ -40,7 +44,10 @@ internal class AuthorizationCache(
 
         var cacheExpiration = ComputeExpiration(principal);
         var claimIdentityId = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}";
-        var cacheKey = GetClaimsCacheKey(claimIdentityId);
+        var cacheKeyTokenPart = CacheKeyFingerprint.ComputeHmacSha256Hex(
+            claimIdentityId,
+            endatixJwtOptions.Value.SigningKey);
+        var cacheKey = GetClaimsCacheKey(cacheKeyTokenPart);
         var now = dateTimeProvider.Now.UtcDateTime;
 
         return await hybridCache.GetOrCreateAsync(
