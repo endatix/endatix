@@ -23,6 +23,26 @@ public static class FormSpecifications
         }
     }
 
+    /// <summary>
+    /// Loads a form by id for public URL flows (share/embed, mint form access token) where the request may carry
+    /// a different tenant context than the form's tenant. Ignores global tenant filters; still excludes soft-deleted rows.
+    /// </summary>
+    public sealed class ByIdWithRelatedForPublicAccess : Specification<Form>
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ByIdWithRelatedForPublicAccess"/> class.
+        /// </summary>
+        /// <param name="id">The ID of the form to get.</param>
+        public ByIdWithRelatedForPublicAccess(long id)
+        {
+            Query
+                .IgnoreQueryFilters()
+                .Where(f => f.Id == id && !f.IsDeleted)
+                .Include(f => f.ActiveDefinition)
+                .Include(f => f.Theme);
+        }
+    }
+
 
     /// <summary>
     /// Specification to get a form by ID

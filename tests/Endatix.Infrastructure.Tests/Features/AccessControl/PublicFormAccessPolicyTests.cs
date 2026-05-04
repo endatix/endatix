@@ -1,11 +1,10 @@
-using System.Collections.Immutable;
 using Ardalis.Specification;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -70,6 +69,7 @@ public partial class PublicFormAccessPolicyTests
     private readonly IRepository<Submission> _submissionRepository;
     private readonly ISubmissionTokenService _tokenService;
     private readonly ISubmissionAccessTokenService _accessTokenService;
+    private readonly IFormAccessTokenService _formFrameTokenService;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HybridCache _cache;
     private readonly PublicFormAccessPolicy _policy;
@@ -81,6 +81,7 @@ public partial class PublicFormAccessPolicyTests
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _tokenService = Substitute.For<ISubmissionTokenService>();
         _accessTokenService = Substitute.For<ISubmissionAccessTokenService>();
+        _formFrameTokenService = Substitute.For<IFormAccessTokenService>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _cache = Substitute.For<HybridCache>();
         _dateTimeProvider.Now.Returns(DateTimeOffset.UtcNow);
@@ -97,7 +98,7 @@ public partial class PublicFormAccessPolicyTests
             .Returns(new ValueTask<bool>(true));
 
         _submissionRepository
-            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdForPublicAccessSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         _cache
@@ -114,7 +115,7 @@ public partial class PublicFormAccessPolicyTests
                 return factory(token);
             });
 
-        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _authorizationService, _dateTimeProvider, _cache);
+        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _formFrameTokenService, _authorizationService, _dateTimeProvider, _cache);
     }
 
     #region Helper Methods
@@ -949,14 +950,7 @@ public partial class PublicFormAccessPolicyTests
     {
         // Arrange
         var formId = 1L;
-        var cachedData = new PublicFormAccessData
-        {
-            FormId = formId.ToString(),
-            SubmissionId = null,
-            FormPermissions = ResourcePermissions.Form.Sets.ViewForm.ToImmutableHashSet(),
-            SubmissionPermissions = ResourcePermissions.Submission.Sets.CreateSubmission.ToImmutableHashSet(),
-            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
-        };
+        var cachedData = PublicFormAccessData.CreatePublicForm(formId);
         var cachedEnvelope = (Cached<PublicFormAccessData>)Cached<PublicFormAccessData>.Create(cachedData, _dateTimeProvider.Now.UtcDateTime, TimeSpan.FromMinutes(10));
         var context = new PublicFormAccessContext(formId);
 

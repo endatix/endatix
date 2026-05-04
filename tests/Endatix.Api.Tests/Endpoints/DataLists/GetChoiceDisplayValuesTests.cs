@@ -1,4 +1,5 @@
 using Endatix.Api.Endpoints.DataLists;
+using Endatix.Api.Endpoints.Public.DataLists;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;

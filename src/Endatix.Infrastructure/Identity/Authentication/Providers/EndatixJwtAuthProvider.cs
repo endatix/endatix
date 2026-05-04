@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text;
 using Ardalis.GuardClauses;
 using Microsoft.AspNetCore.Authentication;
@@ -14,13 +15,15 @@ namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 /// </summary>
 public class EndatixJwtAuthProvider : IAuthProvider
 {
-    private string? _cachedIssuer;
+    private string[] _validIssuers = [];
+
+    /// <inheritdoc />
     public string SchemeName => AuthSchemes.EndatixJwt;
 
     /// <inheritdoc />
     public bool CanHandle(string issuer, string rawToken)
     {
-        return issuer == _cachedIssuer;
+        return _validIssuers.Contains(issuer, StringComparer.Ordinal);
     }
 
     /// <inheritdoc />
@@ -38,9 +41,11 @@ public class EndatixJwtAuthProvider : IAuthProvider
         }
 
         var endatixIssuer = endatixJwtOptions.Issuer;
+        var rebacIssuer = endatixJwtOptions.ReBacIssuer;
         Guard.Against.NullOrWhiteSpace(endatixIssuer);
+        Guard.Against.NullOrWhiteSpace(rebacIssuer);
 
-        _cachedIssuer = endatixIssuer;
+        _validIssuers = [endatixIssuer, rebacIssuer];
 
         builder.AddJwtBearer(AuthSchemes.EndatixJwt, options =>
             {
@@ -50,7 +55,7 @@ public class EndatixJwtAuthProvider : IAuthProvider
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(endatixJwtOptions.SigningKey)),
-                    ValidIssuer = endatixIssuer,
+                    ValidIssuers = _validIssuers,
                     ValidAudiences = endatixJwtOptions.Audiences,
                     ValidateIssuer = endatixJwtOptions.ValidateIssuer,
                     ValidateAudience = endatixJwtOptions.ValidateAudience,

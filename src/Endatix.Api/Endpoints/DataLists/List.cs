@@ -1,10 +1,8 @@
 using Endatix.Api.Common;
-using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.List;
-using Endatix.Framework.FeatureFlags;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -26,7 +24,6 @@ public sealed class List(
     {
         Get("data-lists");
         Permissions(Actions.Forms.View);
-        FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
     /// <summary>
     /// Executes the endpoint.

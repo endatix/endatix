@@ -17,6 +17,7 @@ public sealed class Delete(
     IMediator mediator)
     : Endpoint<DeleteDataListRequest, Results<Ok<string>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Delete("data-lists/{dataListId}");
@@ -41,6 +42,9 @@ public sealed class Delete(
 /// </summary>
 public sealed class DeleteDataListValidator : Validator<DeleteDataListRequest>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DeleteDataListValidator"/> class.
+    /// </summary>
     public DeleteDataListValidator()
     {
         RuleFor(x => x.DataListId).GreaterThan(0);

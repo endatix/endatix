@@ -8,6 +8,12 @@ namespace Endatix.Infrastructure.Multitenancy;
 /// <summary>
 /// Middleware that handles tenant context initialization based on user claims.
 /// </summary>
+/// <remarks>
+/// Public form-access (ReBAC) requests send the minted JWT as <c>Authorization: Bearer</c>; JWT bearer authentication
+/// runs before this middleware and puts the <c>tid</c> claim on <see cref="HttpContext.User"/>. This middleware copies
+/// that claim into <see cref="ITenantContext"/> so EF global filters apply. Prefer that path over mutating
+/// <see cref="TenantContext"/> from individual endpoints.
+/// </remarks>
 public class TenantMiddleware
 {
     private readonly RequestDelegate _next;
