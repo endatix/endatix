@@ -6,6 +6,10 @@ using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.DataLists.Search;
 
+
+/// <summary>
+/// Handler to get data list choice display values.
+/// </summary>
 public sealed class GetDataListChoiceDisplayValuesHandler(IRepository<DataList> repository)
     : IQueryHandler<GetDataListChoiceDisplayValuesQuery, Result<IReadOnlyCollection<DataListChoiceDisplayValueDto>>>
 {

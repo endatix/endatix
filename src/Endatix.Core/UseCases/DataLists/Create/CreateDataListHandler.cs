@@ -44,7 +44,7 @@ public sealed class CreateDataListHandler(
 
     private static ValidationError CreateDuplicateNameValidationError(string name) => new()
     {
-        Identifier = nameof(name),
+        Identifier = nameof(CreateDataListCommand.Name),
         ErrorMessage = $"A data list with the name '{name}' already exists."
     };
 }

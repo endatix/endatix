@@ -10,7 +10,10 @@ namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 public sealed record ReplaceDataListItemsCommand : ICommand<Result<DataListDto>>
 {
     /// <summary>
+    /// The ID of the data list to replace items for.
+    /// </summary>
     public long DataListId { get; init; }
+
     /// <summary>
     /// The items to replace in the data list.
     /// </summary>

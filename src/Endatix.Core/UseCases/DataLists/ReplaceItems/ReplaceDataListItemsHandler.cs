@@ -28,15 +28,16 @@ public sealed class ReplaceDataListItemsHandler(
         }
 
         List<ValidationError> errors = [];
-        foreach (var item in request.Items)
+        for (var i = 0; i < request.Items.Count; i++)
         {
+            var item = request.Items.ElementAt(i);
             if (string.IsNullOrWhiteSpace(item.Label))
             {
-                errors.Add(new ValidationError { Identifier = nameof(item.Label), ErrorMessage = "Label is required." });
+                errors.Add(new ValidationError { Identifier = $"Items[{i}].Label", ErrorMessage = "Label is required." });
             }
             if (string.IsNullOrWhiteSpace(item.Value))
             {
-                errors.Add(new ValidationError { Identifier = nameof(item.Value), ErrorMessage = "Value is required." });
+                errors.Add(new ValidationError { Identifier = $"Items[{i}].Value", ErrorMessage = "Value is required." });
             }
         }
 
