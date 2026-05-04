@@ -44,11 +44,11 @@ public sealed record FormDependencyType : IComparable<FormDependencyType>
     private FormDependencyType(string name, string code)
     {
         Guard.Against.NullOrWhiteSpace(name);
-        Guard.Against.NullOrWhiteSpace(code, nameof(code));
+        Guard.Against.NullOrWhiteSpace(code);
 
         if (code.Length > TYPE_CODE_MAX_LENGTH)
         {
-            throw new ArgumentException($"Code cannot be longer than {TYPE_CODE_MAX_LENGTH} characters", nameof(code));
+            throw new ArgumentException($"Code cannot be longer than {TYPE_CODE_MAX_LENGTH} characters");
         }
 
         Name = name;
@@ -62,12 +62,12 @@ public sealed record FormDependencyType : IComparable<FormDependencyType>
     /// <returns>The dependency type.</returns>
     public static FormDependencyType FromCode(string code)
     {
-        Guard.Against.NullOrWhiteSpace(code, nameof(code));
+        Guard.Against.NullOrWhiteSpace(code);
 
         return code.ToLowerInvariant() switch
         {
             FormDependencyCodes.DataList => DataList,
-            _ => throw new ArgumentException($"Invalid dependency type code: {code}", nameof(code))
+            _ => throw new ArgumentException($"Invalid dependency type code: {code}")
         };
     }
 
