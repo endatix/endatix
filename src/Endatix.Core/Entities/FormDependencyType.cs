@@ -3,14 +3,15 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Endatix.Core.Entities;
 
-
-
 /// <summary>
 /// Value object describing supported form dependency kinds.
 /// </summary>
 [ComplexType]
 public sealed record FormDependencyType : IComparable<FormDependencyType>
 {
+    /// <summary>
+    /// The maximum length of the code of the dependency type.
+    /// </summary>
     public const int TYPE_CODE_MAX_LENGTH = 32;
 
     private FormDependencyType()
@@ -22,11 +23,24 @@ public sealed record FormDependencyType : IComparable<FormDependencyType>
     /// <summary>
     /// The data list dependency type allowing to track which data lists are used in the form.
     /// </summary>
-    public static readonly FormDependencyType DataList = new("Data List", Codes.DataList);
+    public static readonly FormDependencyType DataList = new("Data List", FormDependencyCodes.DataList);
 
+
+    /// <summary>
+    /// The name of the dependency type.
+    /// </summary>
     public string Name { get; }
+
+    /// <summary>
+    /// The code of the dependency type.
+    /// </summary>
     public string Code { get; }
 
+    /// <summary>
+    /// Creates a new dependency type.
+    /// </summary>
+    /// <param name="name">The name of the dependency type.</param>
+    /// <param name="code">The code of the dependency type.</param>
     private FormDependencyType(string name, string code)
     {
         Guard.Against.NullOrWhiteSpace(name);
@@ -41,19 +55,33 @@ public sealed record FormDependencyType : IComparable<FormDependencyType>
         Code = code.ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Returns the dependency type for a given code.
+    /// </summary>
+    /// <param name="code">The code of the dependency type.</param>
+    /// <returns>The dependency type.</returns>
     public static FormDependencyType FromCode(string code)
     {
         Guard.Against.NullOrWhiteSpace(code, nameof(code));
 
         return code.ToLowerInvariant() switch
         {
-            Codes.DataList => DataList,
+            FormDependencyCodes.DataList => DataList,
             _ => throw new ArgumentException($"Invalid dependency type code: {code}", nameof(code))
         };
     }
 
+    /// <summary>
+    /// Returns all available dependency types.
+    /// </summary>
+    /// <returns>A collection of all available dependency types.</returns>
     public static IReadOnlyCollection<FormDependencyType> GetAll() => [DataList];
 
+    /// <summary>
+    /// Compares the current dependency type to another dependency type.
+    /// </summary>
+    /// <param name="other">The other dependency type to compare to.</param>
+    /// <returns>A negative integer, zero, or a positive integer as the current dependency type is less than, equal to, or greater than the other dependency type.</returns>
     public int CompareTo(FormDependencyType? other)
     {
         if (other is null)
@@ -64,11 +92,21 @@ public sealed record FormDependencyType : IComparable<FormDependencyType>
         return string.Compare(Code, other.Code, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Returns the name of the dependency type.
+    /// </summary>
+    /// <returns>The name of the dependency type.</returns>
     public override string ToString() => Name;
+}
 
-
-    internal static class Codes
-    {
-        public const string DataList = "datalist";
-    }
+/// <summary>
+/// Static class containing the codes for the form dependency types.
+/// </summary>
+internal sealed class FormDependencyCodes
+{
+    /// <summary>
+    /// The code for the data list dependency type.
+    /// </summary>
+    /// <returns>The code for the data list dependency type.</returns>
+    internal const string DataList = "datalist";
 }

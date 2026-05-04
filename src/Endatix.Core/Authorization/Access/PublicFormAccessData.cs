@@ -39,12 +39,12 @@ public class PublicFormAccessData : AccessDataBase
 
     /// <inheritdoc/>
     [JsonIgnore]
-    public override ImmutableHashSet<string> Permissions { get; init; } = EmptyPermissions;
+    public override ImmutableHashSet<string> Permissions { get; init; }
 
     /// <summary>
     /// The form ID this access data applies to.
     /// </summary>
-    public string FormId { get; init; } = string.Empty;
+    public string FormId { get; init; }
 
     /// <summary>
     /// The submission ID if applicable (null for new submissions).

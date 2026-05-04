@@ -1,5 +1,4 @@
 using Ardalis.GuardClauses;
-using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
@@ -18,18 +17,37 @@ public class DataListItem : BaseEntity
     /// <param name="value">The value.</param>
     public DataListItem(string label, string value)
     {
-        Guard.Against.NullOrWhiteSpace(label, nameof(label));
-        Guard.Against.NullOrWhiteSpace(value, nameof(value));
+        Guard.Against.NullOrWhiteSpace(label);
+        Guard.Against.NullOrWhiteSpace(value);
 
         Label = label;
         Value = value;
     }
 
+    /// <summary>
+    /// The data list ID.
+    /// </summary>
     public long DataListId { get; private set; }
+
+    /// <summary>
+    /// The data list.
+    /// </summary>
     public DataList DataList { get; private set; } = null!;
+
+    /// <summary>
+    /// The label of the data list item.
+    /// </summary>
     public string Label { get; private set; } = null!;
+
+    /// <summary>
+    /// The value of the data list item.
+    /// </summary>
     public string Value { get; private set; } = null!;
 
+    /// <summary>
+    /// Attaches the data list item to a data list.
+    /// </summary>
+    /// <param name="dataList">The data list.</param>
     internal void AttachToDataList(DataList dataList)
     {
         Guard.Against.Null(dataList);
@@ -48,10 +66,15 @@ public class DataListItem : BaseEntity
         DataListId = dataList.Id;
     }
 
+    /// <summary>
+    /// Updates the data list item.
+    /// </summary>
+    /// <param name="label">The label.</param>
+    /// <param name="value">The value.</param>
     public void Update(string label, string value)
     {
-        Guard.Against.NullOrWhiteSpace(label, nameof(label));
-        Guard.Against.NullOrWhiteSpace(value, nameof(value));
+        Guard.Against.NullOrWhiteSpace(label);
+        Guard.Against.NullOrWhiteSpace(value);
 
         Label = label;
         Value = value;

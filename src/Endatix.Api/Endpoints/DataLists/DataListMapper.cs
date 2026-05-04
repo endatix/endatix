@@ -25,6 +25,18 @@ public static class DataListMapper
     };
 
     /// <summary>
+    /// Maps a data list item to a data list item model.
+    /// </summary>
+    /// <param name="dto">The data list item dto.</param>
+    /// <returns>The data list item model.</returns>
+    public static DataListItemModel Map(DataListItemDto dto) => new()
+    {
+        Id = dto.Id,
+        Label = dto.Label,
+        Value = dto.Value
+    };
+
+    /// <summary>
     /// Maps a data list DTO to a data list details model.
     /// </summary>
     /// <param name="dto">The data list DTO.</param>
@@ -39,18 +51,6 @@ public static class DataListMapper
         ModifiedAt = dto.ModifiedAt,
         ItemsCount = dto.ItemsCount,
         Items = [.. dto.Items.Select(Map)]
-    };
-
-    /// <summary>
-    /// Maps a data list item to a data list item model.
-    /// </summary>
-    /// <param name="dto">The data list item dto.</param>
-    /// <returns>The data list item model.</returns>
-    public static DataListItemModel Map(DataListItemDto dto) => new()
-    {
-        Id = dto.Id,
-        Label = dto.Label,
-        Value = dto.Value
     };
 
     /// <summary>
