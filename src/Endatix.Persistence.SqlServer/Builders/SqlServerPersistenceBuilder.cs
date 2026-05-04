@@ -1,6 +1,8 @@
 using System.Reflection;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Infrastructure.Data.Querying;
 using Endatix.Persistence.SqlServer.Options;
+using Endatix.Persistence.SqlServer.Querying;
 using Endatix.Persistence.SqlServer.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -107,6 +109,7 @@ public class SqlServerPersistenceBuilder
     /// <returns>The builder for chaining.</returns>
     public SqlServerPersistenceBuilder AddDbSpecificRepositories()
     {
+        Services.AddScoped<IRelationalSubstringLikeFilter, SqlServerSubstringLikeFilter>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
         return this;

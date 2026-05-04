@@ -22,8 +22,8 @@ internal static class CacheKeyFingerprint
 
         var keyBytes = Encoding.UTF8.GetBytes(signingKeyMaterial);
         var valueBytes = Encoding.UTF8.GetBytes(value);
-        using HMACSHA256 hmac = new(keyBytes);
-        var hash = hmac.ComputeHash(valueBytes);
+        var hash = HMACSHA256.HashData(keyBytes, valueBytes);
+
         return Convert.ToHexString(hash);
     }
 }

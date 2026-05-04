@@ -1,6 +1,8 @@
 using System.Reflection;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Infrastructure.Data.Querying;
 using Endatix.Persistence.PostgreSql.Options;
+using Endatix.Persistence.PostgreSql.Querying;
 using Endatix.Persistence.PostgreSql.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -109,6 +111,7 @@ public class PostgreSqlPersistenceBuilder
     /// <returns>The builder for chaining.</returns>
     public PostgreSqlPersistenceBuilder AddDbSpecificRepositories()
     {
+        Services.AddScoped<IRelationalSubstringLikeFilter, NpgsqlSubstringLikeFilter>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
         return this;

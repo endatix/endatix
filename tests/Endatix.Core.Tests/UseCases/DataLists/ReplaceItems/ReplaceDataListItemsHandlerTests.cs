@@ -100,7 +100,7 @@ public class ReplaceDataListItemsHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().Contain(e => e.Identifier == "Label");
+        result.ValidationErrors.Should().Contain(e => e.Identifier == "Items[0].Label");
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class ReplaceDataListItemsHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().Contain(e => e.Identifier == "Value");
+        result.ValidationErrors.Should().Contain(e => e.Identifier == "Items[0].Value");
     }
 
     [Fact]

@@ -1,4 +1,6 @@
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Data.Repositories;
@@ -6,10 +8,10 @@ namespace Endatix.Infrastructure.Data.Repositories;
 /// <summary>
 /// Repository for data lists with efficient query operations using DbContext.
 /// </summary>
-public sealed class DataListRepository(AppDbContext dbContext) : IDataListRepository
+public sealed class DataListRepository(
+    AppDbContext dbContext,
+    IRelationalSubstringLikeFilter substringLikeFilter) : IDataListRepository
 {
-    private readonly AppDbContext _dbContext = dbContext;
-
     /// <inheritdoc />
     public async Task<DataListSearchPageResult?> SearchItemsAsync(
         long dataListId,
@@ -18,7 +20,7 @@ public sealed class DataListRepository(AppDbContext dbContext) : IDataListReposi
         int take,
         CancellationToken cancellationToken = default)
     {
-        var dataListExists = await _dbContext.DataLists
+        var dataListExists = await dbContext.DataLists
             .AsNoTracking()
             .AnyAsync(d => d.Id == dataListId && d.IsActive, cancellationToken);
 
@@ -43,9 +45,9 @@ public sealed class DataListRepository(AppDbContext dbContext) : IDataListReposi
         return new DataListSearchPageResult(dataListId, total, pageItems);
     }
 
-    private IQueryable<Core.Entities.DataListItem> BuildFilteredItemsQuery(long dataListId, string? searchQuery)
+    private IQueryable<DataListItem> BuildFilteredItemsQuery(long dataListId, string? searchQuery)
     {
-        var query = _dbContext.DataListItems
+        var query = dbContext.DataListItems
             .AsNoTracking()
             .Where(i => i.DataListId == dataListId);
 
@@ -54,8 +56,9 @@ public sealed class DataListRepository(AppDbContext dbContext) : IDataListReposi
             return query;
         }
 
-        var normalizedQuery = searchQuery.Trim().ToLowerInvariant();
-        return query.Where(i =>
-            i.Label.ToLower().Contains(normalizedQuery));
+        return substringLikeFilter.WherePropertyMatchesLikeSubstring(
+            query,
+            nameof(DataListItem.Label),
+            searchQuery.Trim());
     }
 }

@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -9,9 +10,14 @@ using MediatR;
 
 namespace Endatix.Core.UseCases.DataLists.Delete;
 
+
+/// <summary>
+/// Handler to delete a data list.
+/// </summary>
 public sealed class DeleteDataListHandler(
     IRepository<DataList> repository,
     IDataListDependencyChecker dependencyChecker,
+    IUnitOfWork unitOfWork,
     IMediator mediator)
     : ICommandHandler<DeleteDataListCommand, Result<DataList>>
 {
@@ -35,11 +41,22 @@ public sealed class DeleteDataListHandler(
             return Result.Invalid(hasFormsValidationError);
         }
 
-        dataList.Delete();
-        await repository.UpdateAsync(dataList, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            dataList.Delete();
+            await repository.UpdateAsync(dataList, cancellationToken);
 
-        await mediator.Publish(new DataListDeletedEvent(dataList), cancellationToken);
+            await mediator.Publish(new DataListDeletedEvent(dataList), cancellationToken);
 
-        return Result.Success(dataList);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            return Result.Success(dataList);
+        }
+        catch
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
     }
 }

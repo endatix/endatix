@@ -57,7 +57,7 @@ public class SubmissionUpdateTests
         var act = () => submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 789, formDefinitionFormId: 999);
 
         act.Should().Throw<ArgumentException>()
-            .WithParameterName("formDefinitionId");
+            .WithParameterName("formDefinitionFormId");
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -13,6 +14,7 @@ public class DeleteDataListHandlerTests
 {
     private readonly IRepository<DataList> _repository;
     private readonly IDataListDependencyChecker _dependencyChecker;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IMediator _mediator;
     private readonly DeleteDataListHandler _sut;
 
@@ -20,8 +22,9 @@ public class DeleteDataListHandlerTests
     {
         _repository = Substitute.For<IRepository<DataList>>();
         _dependencyChecker = Substitute.For<IDataListDependencyChecker>();
+        _unitOfWork = Substitute.For<IUnitOfWork>();
         _mediator = Substitute.For<IMediator>();
-        _sut = new DeleteDataListHandler(_repository, _dependencyChecker, _mediator);
+        _sut = new DeleteDataListHandler(_repository, _dependencyChecker, _unitOfWork, _mediator);
     }
 
     [Fact]
@@ -38,6 +41,7 @@ public class DeleteDataListHandlerTests
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
         await _mediator.DidNotReceive()
             .Publish(Arg.Any<DataListDeletedEvent>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().BeginTransactionAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -53,6 +57,7 @@ public class DeleteDataListHandlerTests
 
         result.Status.Should().Be(ResultStatus.Invalid);
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().BeginTransactionAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -78,6 +83,9 @@ public class DeleteDataListHandlerTests
             ),
             Arg.Any<CancellationToken>()
         );
+        await _unitOfWork.Received(1).BeginTransactionAsync(Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(1).CommitTransactionAsync(Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().RollbackTransactionAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -97,5 +105,7 @@ public class DeleteDataListHandlerTests
             ),
             Arg.Any<CancellationToken>()
         );
+        await _unitOfWork.Received(1).BeginTransactionAsync(Arg.Any<CancellationToken>());
+        await _unitOfWork.Received(1).CommitTransactionAsync(Arg.Any<CancellationToken>());
     }
 }

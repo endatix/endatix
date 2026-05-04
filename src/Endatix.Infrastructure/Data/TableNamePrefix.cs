@@ -8,7 +8,7 @@ namespace Endatix.Infrastructure.Data
     public static string GetEntityName(string entityName)
     {
         var entityEntryTypeArray = entityName.Split('.');
-        return entityEntryTypeArray.LastOrDefault() ?? entityName;
+        return entityEntryTypeArray.Last();
     }
 
     public static string GetTableName(string entityName, string? configuredTableName = null)
