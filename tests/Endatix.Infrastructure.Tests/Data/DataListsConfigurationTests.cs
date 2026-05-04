@@ -26,21 +26,19 @@ public class DataListsConfigurationTests
     }
 
     [Fact]
-    public void FormDependencyConfiguration_MapsUniqueDependencyConstraint()
+    public void FormDependencyConfiguration_UniqueConstraintIsProviderSpecific_NotOnBaseModel()
     {
-        // Arrange
+        // Unique filtered index is on FormDependencyConfigurationSqlServer / FormDependencyConfigurationPostgreSql (see DataList pattern).
         ModelBuilder modelBuilder = new();
         FormDependencyConfiguration configuration = new();
 
-        // Act
         configuration.Configure(modelBuilder.Entity<FormDependency>());
         var entityType = modelBuilder.Model.FindEntityType(typeof(FormDependency));
 
-        // Assert
         entityType.Should().NotBeNull();
         entityType!.GetIndexes()
             .Should()
-            .Contain(index =>
+            .NotContain(index =>
                 index.IsUnique &&
                 index.Properties.Select(x => x.Name).SequenceEqual(new[] { "FormId", "DependencyTypeIndex", "DependencyIdentifier" }));
     }
@@ -55,7 +53,7 @@ public class DataListsConfigurationTests
         // Act
         configuration.Configure(modelBuilder.Entity<FormDependency>());
         var entityType = modelBuilder.Model.FindEntityType(typeof(FormDependency));
-        var dependencyTypeProperty = entityType?.FindProperty("DependencyTypeIndex");
+        var dependencyTypeProperty = entityType?.FindProperty(FormDependencyConfiguration.DependencyTypeIndexPropertyName);
 
         // Assert
         dependencyTypeProperty.Should().NotBeNull();

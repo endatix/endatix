@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260503114039_DataLists")]
+    [Migration("20260504213614_DataLists")]
     partial class DataLists
     {
         /// <inheritdoc />
@@ -358,7 +358,9 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                     b.HasIndex("TenantId", "FormId");
 
                     b.HasIndex("FormId", "DependencyTypeIndex", "DependencyIdentifier")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_FormDependencies_FormId_DependencyType_DependencyIdentifier")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("FormDependencies", (string)null);
                 });

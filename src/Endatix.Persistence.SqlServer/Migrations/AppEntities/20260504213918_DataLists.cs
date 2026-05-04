@@ -107,7 +107,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 name: "IX_FormDependencies_FormId_DependencyType_DependencyIdentifier",
                 table: "FormDependencies",
                 columns: new[] { "FormId", "DependencyType", "DependencyIdentifier" },
-                unique: true);
+                unique: true,
+                filter: "[IsDeleted] = 0");
 
             migrationBuilder.CreateIndex(
                 name: "IX_FormDependencies_TenantId_FormId",

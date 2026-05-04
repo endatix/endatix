@@ -355,7 +355,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.HasIndex("TenantId", "FormId");
 
                     b.HasIndex("FormId", "DependencyTypeIndex", "DependencyIdentifier")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_FormDependencies_FormId_DependencyType_DependencyIdentifier")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("FormDependencies", (string)null);
                 });

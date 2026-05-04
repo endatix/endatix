@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260503114725_DataLists")]
+    [Migration("20260504213918_DataLists")]
     partial class DataLists
     {
         /// <inheritdoc />
@@ -359,7 +359,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasIndex("TenantId", "FormId");
 
                     b.HasIndex("FormId", "DependencyTypeIndex", "DependencyIdentifier")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_FormDependencies_FormId_DependencyType_DependencyIdentifier")
+                        .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("FormDependencies", (string)null);
                 });

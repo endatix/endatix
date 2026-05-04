@@ -7,7 +7,16 @@ namespace Endatix.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 public class FormDependencyConfiguration : IEntityTypeConfiguration<FormDependency>
 {
-    private const string DEPENDENCY_TYPE_INDEX_PROPERTY = "DependencyTypeIndex";
+    /// <summary>
+    /// Database index name for the unique constraint on form dependency identity (shared by provider configs).
+    /// </summary>
+    public const string UNIQUE_FORM_DEPENDENCY_INDEX_NAME =
+        "IX_FormDependencies_FormId_DependencyType_DependencyIdentifier";
+
+    /// <summary>
+    /// Shadow property name aligned with <see cref="FormDependencyType.Code"/> for indexing.
+    /// </summary>
+    public const string DependencyTypeIndexPropertyName = "DependencyTypeIndex";
 
     public void Configure(EntityTypeBuilder<FormDependency> builder)
     {
@@ -23,19 +32,18 @@ public class FormDependencyConfiguration : IEntityTypeConfiguration<FormDependen
                 .IsRequired();
             dependencyType.Ignore(nameof(FormDependencyType.Name));
         });
-        
+
         // Keep a dedicated shadow property for indexing. EF currently does not accept
         // HasIndex over complex member paths (DependencyType.Code) in this model setup.
-        builder.Property<string>(DEPENDENCY_TYPE_INDEX_PROPERTY)
+        builder.Property<string>(DependencyTypeIndexPropertyName)
             .HasColumnName("DependencyType")
             .HasMaxLength(FormDependencyType.TYPE_CODE_MAX_LENGTH)
             .IsRequired();
+
         builder.Property(x => x.DependencyIdentifier)
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
             .IsRequired();
 
-        builder.HasIndex(nameof(FormDependency.FormId), DEPENDENCY_TYPE_INDEX_PROPERTY, nameof(FormDependency.DependencyIdentifier))
-            .IsUnique();
         builder.HasIndex(x => new { x.TenantId, x.FormId });
 
         builder.HasOne(x => x.Form)

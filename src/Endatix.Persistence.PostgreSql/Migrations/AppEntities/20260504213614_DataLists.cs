@@ -107,7 +107,8 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 name: "IX_FormDependencies_FormId_DependencyType_DependencyIdentifier",
                 table: "FormDependencies",
                 columns: new[] { "FormId", "DependencyType", "DependencyIdentifier" },
-                unique: true);
+                unique: true,
+                filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
                 name: "IX_FormDependencies_TenantId_FormId",
