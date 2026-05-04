@@ -28,7 +28,8 @@ internal sealed class DataListDependencyChecker(AppDbContext dbContext, IFormsRe
     public async Task<IReadOnlyCollection<FormDto>> GetDependentFormsAsync(long dataListId, CancellationToken cancellationToken = default)
     {
         FormsByDataListDependencySpec spec = new(dataListId);
-        IEnumerable<FormDto> forms = await formsRepository.ListAsync(spec, cancellationToken);
-        return forms.ToList();
+        var forms = await formsRepository.ListAsync(spec, cancellationToken);
+        
+        return [.. forms];
     }
 }

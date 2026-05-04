@@ -23,7 +23,7 @@ public sealed class ListFormDependenciesHandler(
         }
 
         var forms = await dependencyChecker.GetDependentFormsAsync(request.DataListId, cancellationToken);
-        
+
         return Result.Success(forms);
     }
 }

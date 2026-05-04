@@ -19,7 +19,7 @@ namespace Endatix.Persistence.SqlServer.Config
             builder.HasIndex(x => new { x.TenantId, x.Name })
                 .HasDatabaseName(DataListConfiguration.UNIQUE_DATA_LIST_NAME_INDEX_NAME)
                 .IsUnique()
-                .HasFilter("[IsDeleted] = 0");
+                .HasFilter($"[{nameof(DataList.IsDeleted)}] = 0");
         }
     }
 }
