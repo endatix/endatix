@@ -14,10 +14,10 @@ public sealed class FeatureFlagsOptions : EndatixOptionsBase
     public const string RelativeSectionPath = "FeatureFlags";
 
     /// <summary>
-    /// Gets or sets whether the Data Lists feature is enabled.
-    /// Uses <see cref="FeatureFlags.DataLists"/> as the feature key.
+    /// Gets or sets whether the Experimental Features feature is enabled.
+    /// Uses <see cref="FeatureFlags.ExperimentalFeatures"/> as the feature key.
     /// </summary>
-    public string? DataLists { get; set; }
+    public string? ExperimentalFeatures { get; set; }
 
     /// <inheritdoc />
     public override string SectionPath => RelativeSectionPath;

@@ -18,6 +18,8 @@ using Endatix.Infrastructure.Identity.Services;
 using Endatix.Infrastructure.Identity.Repositories;
 using Endatix.Infrastructure.Features.AccessControl;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Abstractions.Authorization.PublicForm;
+using Endatix.Infrastructure.Features.Authorization.PublicForm;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -101,6 +103,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddEndatixOptions<SubmissionAccessTokenOptions>(configuration);
         services.AddScoped<ISubmissionAccessTokenService, SubmissionAccessTokenService>();
         services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
+        services.AddScoped<IFormAccessTokenService, FormAccessTokenService>();
 
         services.AddScoped<PublicFormAccessPolicy>();
         services.AddScoped<IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>>(sp => sp.GetRequiredService<PublicFormAccessPolicy>());

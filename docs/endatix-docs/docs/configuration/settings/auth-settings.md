@@ -52,6 +52,7 @@ You need to migrate to the new Endatix:Auth:Providers:EndatixJwt section as belo
         "AccessExpiryInMinutes": 15,
         "RefreshExpiryInDays": 7,
         "Issuer": "endatix-api",
+        "ReBacIssuer": "edx_res_auth",
         "Audiences": ["endatix-hub"]
       }
     }
@@ -78,5 +79,7 @@ The settings are defined under the `"Endatix" > "Auth" > "Providers" > "EndatixJ
 
   - example: `"api.myapp.com"` or `"https://localhost:5000"` or `"endatix-api"`
 
-- **Audiences:** A list of valid audiences that can receive the token. Each audience represents an application or client that is allowed to use the JWT for - authentication. The default audience is "endatix-hub", but you can add more as needed.
+- **ReBacIssuer:** Issuer claim (`iss`) for short-lived form-access (ReBAC) JWTs used on public data-list routes. Must differ from **Issuer** so the API can route bearer tokens to the correct validation handler.
+
+- **Audiences:** Shared audience list for both user and ReBAC JWTs. Each audience represents an application or client that can use these JWTs against your API. The default audience is "endatix-hub", but you can add more as needed.
   - example: `["www.myapp.com", "https://localhost:3000", "my-endatix-app"]`

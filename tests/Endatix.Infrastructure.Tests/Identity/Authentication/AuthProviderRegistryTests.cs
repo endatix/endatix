@@ -288,7 +288,7 @@ public class AuthProviderRegistryTests
     {
         // Arrange
         var registry = new AuthProviderRegistry();
-        var provider = new EndatixJwtAuthProvider();
+        var provider = new EndatixUserJwtAuthProvider();
         registry.RegisterProvider<EndatixJwtOptions>(provider, _services, _configuration);
         registry.AddActiveProvider(provider);
 
@@ -304,7 +304,7 @@ public class AuthProviderRegistryTests
     {
         // Arrange
         var registry = new AuthProviderRegistry();
-        var provider = new EndatixJwtAuthProvider();
+        var provider = new EndatixUserJwtAuthProvider();
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -441,88 +441,118 @@ public class AuthProviderRegistryTests
     public void RegisterProvider_ShouldWorkWithRealProviders()
     {
         // Arrange
-        var endatixProvider = new EndatixJwtAuthProvider();
+        var userProvider = new EndatixUserJwtAuthProvider();
+        var rebacProvider = new EndatixResourceJwtAuthProvider();
         var keycloakProvider = new KeycloakAuthProvider();
 
         // Act
-        _registry.RegisterProvider<EndatixJwtOptions>(endatixProvider, _services, _configuration);
+        _registry.RegisterProvider<EndatixJwtOptions>(userProvider, _services, _configuration);
+        _registry.RegisterProvider<EndatixJwtOptions>(rebacProvider, _services, _configuration);
         _registry.RegisterProvider<KeycloakOptions>(keycloakProvider, _services, _configuration);
-        ActivateProvider(endatixProvider);
+        ActivateProvider(userProvider);
+        ActivateProvider(rebacProvider);
         ActivateProvider(keycloakProvider);
 
         // Assert
         Assert.True(_registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(_registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
         Assert.True(_registry.IsProviderRegistrationRequested("Keycloak"));
         Assert.True(_registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.True(_registry.IsProviderActive(AuthSchemes.EndatixReBac));
         Assert.True(_registry.IsProviderActive("Keycloak"));
-        Assert.Equal(2, _registry.GetRequestedRegistrations().Count());
+        Assert.Equal(3, _registry.GetRequestedRegistrations().Count());
     }
 
     [Fact]
     public void SelectScheme_ShouldWorkWithRealProviders()
     {
         // Arrange
-        var endatixProvider = new EndatixJwtAuthProvider();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        var authenticationBuilder = services.AddAuthentication();
+        var registry = new AuthProviderRegistry();
+
+        var configData = new Dictionary<string, string?>
+        {
+            ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = "endatix-api",
+            ["Endatix:Auth:Providers:EndatixJwt:ReBacIssuer"] = "edx-api",
+            ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters",
+            ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = "endatix-hub",
+            ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true",
+            ["Endatix:Auth:Providers:Keycloak:Issuer"] = "http://localhost:8080/realms/endatix",
+            ["Endatix:Auth:Providers:Keycloak:Audience"] = "endatix-hub",
+            ["Endatix:Auth:Providers:Keycloak:Enabled"] = "true"
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var userProvider = new EndatixUserJwtAuthProvider();
+        var rebacProvider = new EndatixResourceJwtAuthProvider();
         var keycloakProvider = new KeycloakAuthProvider();
 
-        _registry.RegisterProvider<EndatixJwtOptions>(endatixProvider, _services, _configuration);
-        _registry.RegisterProvider<KeycloakOptions>(keycloakProvider, _services, _configuration);
-        ActivateProvider(endatixProvider);
-        ActivateProvider(keycloakProvider);
+        registry.RegisterProvider<EndatixJwtOptions>(userProvider, services, configuration);
+        registry.RegisterProvider<EndatixJwtOptions>(rebacProvider, services, configuration);
+        registry.RegisterProvider<KeycloakOptions>(keycloakProvider, services, configuration);
 
-        // Act & Assert
-        // Note: Real providers need to be configured with their issuers first
-        // The CanHandle method checks against the cached issuer from configuration
-        // Since we're using test configuration, the providers should work correctly
+        foreach (var registration in registry.GetRequestedRegistrations())
+        {
+            var configSection = configuration.GetSection(registration.ConfigurationSectionPath);
+            var configured = registration.Provider.Configure(authenticationBuilder, configSection, isDevelopment: false);
+            if (configured)
+            {
+                registry.AddActiveProvider(registration.Provider);
+            }
+        }
 
-        // Test that providers are registered
-        Assert.True(_registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
-        Assert.True(_registry.IsProviderRegistrationRequested("Keycloak"));
-        Assert.True(_registry.IsProviderActive(AuthSchemes.EndatixJwt));
-        Assert.True(_registry.IsProviderActive("Keycloak"));
+        // Act
+        var endatixScheme = registry.SelectScheme("endatix-api", "token");
+        var keycloakScheme = registry.SelectScheme("http://localhost:8080/realms/endatix", "token");
 
-        // Test scheme selection (this will depend on the provider's CanHandle implementation)
-        var endatixResult = _registry.SelectScheme("endatix-api", "token");
-        var keycloakResult = _registry.SelectScheme("http://localhost:8080/realms/endatix", "token");
-
-        // The actual result depends on how the providers are configured
-        // We'll just verify that the registry can handle the selection
-        Assert.NotNull(_registry.GetRequestedRegistrations());
+        // Assert
+        Assert.Equal(AuthSchemes.EndatixJwt, endatixScheme);
+        Assert.Equal("Keycloak", keycloakScheme);
     }
 
     [Fact]
     public void Registry_ShouldHandleComplexScenarios()
     {
         // Arrange
-        var endatixProvider = new EndatixJwtAuthProvider();
+        var userProvider = new EndatixUserJwtAuthProvider();
+        var rebacProvider = new EndatixResourceJwtAuthProvider();
         var keycloakProvider = new KeycloakAuthProvider();
         var googleProvider = new GoogleAuthProvider();
 
         // Act
-        _registry.RegisterProvider<EndatixJwtOptions>(endatixProvider, _services, _configuration);
+        _registry.RegisterProvider<EndatixJwtOptions>(userProvider, _services, _configuration);
+        _registry.RegisterProvider<EndatixJwtOptions>(rebacProvider, _services, _configuration);
         _registry.RegisterProvider<KeycloakOptions>(keycloakProvider, _services, _configuration);
         _registry.RegisterProvider<GoogleOptions>(googleProvider, _services, _configuration);
-        ActivateProvider(endatixProvider);
+        ActivateProvider(userProvider);
+        ActivateProvider(rebacProvider);
         ActivateProvider(keycloakProvider);
         ActivateProvider(googleProvider);
 
         // Assert
-        Assert.Equal(3, _registry.GetRequestedRegistrations().Count());
+        Assert.Equal(4, _registry.GetRequestedRegistrations().Count());
         Assert.True(_registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(_registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
         Assert.True(_registry.IsProviderRegistrationRequested("Keycloak"));
         Assert.True(_registry.IsProviderRegistrationRequested("Google"));
         Assert.True(_registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.True(_registry.IsProviderActive(AuthSchemes.EndatixReBac));
         Assert.True(_registry.IsProviderActive("Keycloak"));
         Assert.True(_registry.IsProviderActive("Google"));
 
         // Test that the registry can handle scheme selection
         // Note: The actual scheme selection depends on provider configuration
         var registrations = _registry.GetRequestedRegistrations().ToList();
-        Assert.Equal(3, registrations.Count);
+        Assert.Equal(4, registrations.Count);
         Assert.Contains(registrations, r => r.Provider.SchemeName == AuthSchemes.EndatixJwt);
+        Assert.Contains(registrations, r => r.Provider.SchemeName == AuthSchemes.EndatixReBac);
         Assert.Contains(registrations, r => r.Provider.SchemeName == "Keycloak");
         Assert.Contains(registrations, r => r.Provider.SchemeName == "Google");
-        Assert.Equal(3, _registry.GetActiveProviders().Count());
+        Assert.Equal(4, _registry.GetActiveProviders().Count());
     }
 
     [Fact]

@@ -5,16 +5,33 @@ namespace Endatix.Infrastructure.Data
 {
     public class TableNamePrefix
     {
-        public static string GetTableName(string entityName)
+        public static string GetEntityName(string entityName)
         {
             var entityEntryTypeArray = entityName.Split('.');
-            string name = entityEntryTypeArray.LastOrDefault();
-            if (!name.EndsWith("s", true, null))
+            return entityEntryTypeArray.Last();
+        }
+
+        public static string GetTableName(string entityName, string? configuredTableName = null)
+        {
+            var entityTypeName = GetEntityName(entityName);
+            var tableName = configuredTableName;
+
+            // Respect explicit ToTable(...) names and only apply conventions to default names.
+            if (!string.IsNullOrWhiteSpace(tableName) &&
+                !string.Equals(tableName, entityTypeName, StringComparison.Ordinal))
             {
-                name += "s";
+                return tableName;
             }
 
-            return string.IsNullOrEmpty(EndatixConfig.Configuration.TablePrefix) ? name : $"{EndatixConfig.Configuration.TablePrefix}.{name}";
+            tableName = entityTypeName;
+            if (!tableName.EndsWith("s", StringComparison.OrdinalIgnoreCase))
+            {
+                tableName += "s";
+            }
+
+            return string.IsNullOrEmpty(EndatixConfig.Configuration.TablePrefix)
+                ? tableName
+                : $"{EndatixConfig.Configuration.TablePrefix}.{tableName}";
         }
     }
 }

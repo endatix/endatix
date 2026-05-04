@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Endatix.Api.Endpoints.Access;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure;
@@ -33,13 +32,7 @@ public class GetFormPublicAccessTests
         // Arrange
         var request = new GetFormPublicAccessRequest { FormId = 123 };
 
-        var accessData = new PublicFormAccessData
-        {
-            FormId = "123",
-            SubmissionId = null,
-            FormPermissions = ResourcePermissions.Form.Sets.ViewForm.ToImmutableHashSet(),
-            SubmissionPermissions = ResourcePermissions.Submission.Sets.CreateSubmission.ToImmutableHashSet()
-        };
+        var accessData = PublicFormAccessData.CreatePublicForm(123);
         var cached = new Cached<PublicFormAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");
 
         _accessPolicy
@@ -75,13 +68,7 @@ public class GetFormPublicAccessTests
             TokenType = SubmissionTokenType.SubmissionToken
         };
 
-        var accessData = new PublicFormAccessData
-        {
-            FormId = formId.ToString(),
-            SubmissionId = submissionId.ToString(),
-            FormPermissions = ResourcePermissions.Form.Sets.ViewForm.ToImmutableHashSet(),
-            SubmissionPermissions = ResourcePermissions.Submission.Sets.FillInSubmission.ToImmutableHashSet()
-        };
+        var accessData = PublicFormAccessData.CreateWithSubmissionToken(formId, submissionId);
         var cached = new Cached<PublicFormAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(5), "etag-token");
 
         _accessPolicy

@@ -8,6 +8,7 @@ namespace Endatix.Core.Entities;
 public partial class Form : TenantEntity, IAggregateRoot
 {
     private readonly List<FormDefinition> _formDefinitions = [];
+    private readonly List<FormDependency> _dependencies = [];
     private string? _webHookSettingsJson;
     private WebHookConfiguration? _webHookSettings;
 
@@ -56,6 +57,7 @@ public partial class Form : TenantEntity, IAggregateRoot
     }
 
     public IReadOnlyCollection<FormDefinition> FormDefinitions => _formDefinitions.AsReadOnly();
+    public IReadOnlyCollection<FormDependency> Dependencies => _dependencies.AsReadOnly();
 
     public void SetActiveFormDefinition(FormDefinition formDefinition)
     {
@@ -114,6 +116,8 @@ public partial class Form : TenantEntity, IAggregateRoot
             {
                 definition.Delete();
             }
+
+            _dependencies.Clear();
 
             // Delete the form itself
             base.Delete();

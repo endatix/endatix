@@ -85,10 +85,18 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
     public Token? Token { get; private set; }
     public SubmissionStatus Status { get; private set; } = null!;
 
-    public void Update(string jsonData, long formDefinitionId, bool isComplete = true, int currentPage = 1, string? metadata = null)
+    /// <summary>Updates submission content; the target definition must belong to this submission's form (<see cref="FormId"/>).</summary>
+    public void Update(string jsonData, long formDefinitionId, long formDefinitionFormId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {
-        Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
-        Guard.Against.NegativeOrZero(formDefinitionId, nameof(formDefinitionId));
+        Guard.Against.NullOrEmpty(jsonData);
+        Guard.Against.NegativeOrZero(formDefinitionId);
+        Guard.Against.NegativeOrZero(formDefinitionFormId);
+
+        if (formDefinitionFormId != FormId)
+        {
+            throw new ArgumentException(
+                "The target form definition does not belong to this submission's form", nameof(formDefinitionFormId));
+        }
 
         FormDefinitionId = formDefinitionId;
         JsonData = jsonData;

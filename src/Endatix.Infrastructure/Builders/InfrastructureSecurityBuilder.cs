@@ -8,6 +8,7 @@ using Endatix.Infrastructure.Identity.Authorization.Data;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Endatix.Infrastructure.Identity.Services;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -55,7 +56,7 @@ public class InfrastructureSecurityBuilder
         Services.AddEndatixSecurityServices(Configuration);
         
         ConfigureIdentity();
-        AddEndatixJwtAuthProvider();
+        AddEndatixAuthProviders();
 
         // ASP.NET Core security
         ConfigureAspNetCoreAuthentication();
@@ -82,9 +83,10 @@ public class InfrastructureSecurityBuilder
     /// Add Endatix JWT provider (required for token issuance).
     /// </summary>
     /// <returns>The builder for chaining.</returns>
-    public InfrastructureSecurityBuilder AddEndatixJwtAuthProvider()
+    public InfrastructureSecurityBuilder AddEndatixAuthProviders()
     {
-        _authProviderRegistry.RegisterProvider<EndatixJwtOptions>(new EndatixJwtAuthProvider(), Services, Configuration);
+        _authProviderRegistry.RegisterProvider<EndatixJwtOptions>(new EndatixUserJwtAuthProvider(), Services, Configuration);
+        _authProviderRegistry.RegisterProvider<EndatixJwtOptions>(new EndatixResourceJwtAuthProvider(), Services, Configuration);
 
         return this;
     }
@@ -209,8 +211,15 @@ public class InfrastructureSecurityBuilder
         {
             var defaultPolicy = new AuthorizationPolicyBuilder(MULTI_JWT_SCHEME_NAME)
                 .RequireAuthenticatedUser()
+                .RequireClaim(JwtRegisteredClaimNames.Sub)
                 .Build();
             options.DefaultPolicy = defaultPolicy;
+
+            options.AddPolicy(AuthorizationPolicies.PublicResourceAccess, policy =>
+            {
+                policy.AddAuthenticationSchemes(AuthSchemes.EndatixReBac);
+                policy.RequireAuthenticatedUser();
+            });
 
             options.AddPolicy("TenantAdmin", policy =>
                 policy.Requirements.Add(new TenantAdminRequirement()));
@@ -267,16 +276,19 @@ public class InfrastructureSecurityBuilder
     /// <exception cref="InvalidOperationException">Thrown when EndatixJwt provider is disabled.</exception>
     private void EnsureEndatixJwtAuthProviderIsEnabled()
     {
-        var endatixJwtRegistration = _authProviderRegistry
-            .GetRequestedRegistrations()
-            .FirstOrDefault(reg => reg.Provider.SchemeName == AuthSchemes.EndatixJwt) ??
+        var registrations = _authProviderRegistry.GetRequestedRegistrations().ToList();
+
+        var userRegistration = registrations.FirstOrDefault(reg => reg.Provider.SchemeName == AuthSchemes.EndatixJwt) ??
             throw new InvalidOperationException(
-                "EndatixJwt provider is required. Call AddEndatixJwtAuthProvider() in your authentication configuration.");
+                "EndatixJwt provider is required. Call AddEndatixAuthProviders() in your authentication configuration.");
 
+        _ = registrations.FirstOrDefault(reg => reg.Provider.SchemeName == AuthSchemes.EndatixReBac) ??
+            throw new InvalidOperationException(
+                "EndatixReBac provider is required. Call AddEndatixAuthProviders() in your authentication configuration.");
 
-        var configSection = Configuration.GetSection(endatixJwtRegistration.ConfigurationSectionPath);
+        var configSection = Configuration.GetSection(userRegistration.ConfigurationSectionPath);
 
-        if (configSection.Get(endatixJwtRegistration.ConfigType) is not AuthProviderOptions config || !config.Enabled)
+        if (configSection.Get(userRegistration.ConfigType) is not AuthProviderOptions config || !config.Enabled)
         {
             throw new InvalidOperationException(
                 $"EndatixJwt provider is required and must be enabled. " +

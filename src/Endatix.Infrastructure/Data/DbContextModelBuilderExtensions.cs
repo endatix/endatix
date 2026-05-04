@@ -83,6 +83,7 @@ public static class DbContextModelBuilderExtensions
         foreach (var configurationType in configurationTypes)
         {
             var configurationInstance = Activator.CreateInstance(configurationType);
+
             if (configurationInstance is not null)
             {
                 builder.ApplyConfiguration((dynamic)configurationInstance);

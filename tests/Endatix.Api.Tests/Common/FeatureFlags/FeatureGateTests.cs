@@ -1,6 +1,5 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
-using Endatix.Framework.Configuration;
 using Endatix.Framework.FeatureFlags;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,51 +29,18 @@ public sealed class FeatureGateTests
     {
         var services = CreateServices(new Dictionary<string, string?>
         {
-            ["Endatix:FeatureFlags:DataLists"] = "false"
+            ["Endatix:FeatureFlags:ExperimentalFeatures"] = "false"
         });
 
         await using var provider = services.BuildServiceProvider();
         var gate = provider.GetRequiredService<IFeatureGate>();
 
-        var enabled = await gate.IsEnabledAsync(FF.DataLists, TestContext.Current.CancellationToken);
+        var enabled = await gate.IsEnabledAsync(FF.ExperimentalFeatures, TestContext.Current.CancellationToken);
         Assert.False(enabled);
     }
 
     [Fact]
     public async Task IsEnabledAsync_returns_true_when_enabled()
-    {
-        var services = CreateServices(new Dictionary<string, string?>
-        {
-            ["Endatix:FeatureFlags:DataLists"] = "true"
-        });
-
-        await using var provider = services.BuildServiceProvider();
-        var gate = provider.GetRequiredService<IFeatureGate>();
-
-        var enabled = await gate.IsEnabledAsync(FF.DataLists, TestContext.Current.CancellationToken);
-        Assert.True(enabled);
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData(null)]
-    public async Task IsEnabledAsync_returns_false_when_feature_name_empty(string? featureName)
-    {
-        var services = CreateServices(new Dictionary<string, string?>
-        {
-            ["Endatix:FeatureFlags:DataLists"] = "true"
-        });
-
-        await using var provider = services.BuildServiceProvider();
-        var gate = provider.GetRequiredService<IFeatureGate>();
-
-        var enabled = await gate.IsEnabledAsync(featureName!, TestContext.Current.CancellationToken);
-
-        Assert.False(enabled);
-    }
-
-    [Fact]
-    public async Task IsEnabledAsync_returns_true_for_experimental_features_when_enabled()
     {
         var services = CreateServices(new Dictionary<string, string?>
         {
@@ -88,18 +54,21 @@ public sealed class FeatureGateTests
         Assert.True(enabled);
     }
 
-    [Fact]
-    public async Task IsEnabledAsync_returns_false_for_experimental_features_when_disabled()
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    public async Task IsEnabledAsync_returns_false_when_feature_name_empty(string? featureName)
     {
         var services = CreateServices(new Dictionary<string, string?>
         {
-            ["Endatix:FeatureFlags:ExperimentalFeatures"] = "false"
+            ["Endatix:FeatureFlags:ExperimentalFeatures"] = "true"
         });
 
         await using var provider = services.BuildServiceProvider();
         var gate = provider.GetRequiredService<IFeatureGate>();
 
-        var enabled = await gate.IsEnabledAsync(FF.ExperimentalFeatures, TestContext.Current.CancellationToken);
+        var enabled = await gate.IsEnabledAsync(featureName!, TestContext.Current.CancellationToken);
+
         Assert.False(enabled);
     }
 

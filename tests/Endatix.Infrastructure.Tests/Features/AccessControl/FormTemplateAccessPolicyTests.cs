@@ -25,15 +25,15 @@ public class FormTemplateAccessPolicyTests
         _dateTimeProvider.Now.Returns(DateTimeOffset.UtcNow);
 
         _cache
-            .GetOrCreateAsync<ICachedData<FormTemplateAccessData>>(
+            .GetOrCreateAsync<Cached<FormTemplateAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<FormTemplateAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<FormTemplateAccessData>>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<FormTemplateAccessData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<FormTemplateAccessData>>>>();
                 var ct = callInfo.Arg<CancellationToken>();
                 return factory(ct);
             });
@@ -225,9 +225,9 @@ public class FormTemplateAccessPolicyTests
         await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
-        await _cache.Received(1).GetOrCreateAsync<ICachedData<FormTemplateAccessData>>(
+        await _cache.Received(1).GetOrCreateAsync<Cached<FormTemplateAccessData>>(
             Arg.Is<string>(k => k == $"auth:tpl_mgmt:{templateId}:user:{userId}"),
-            Arg.Any<Func<CancellationToken, ValueTask<ICachedData<FormTemplateAccessData>>>>(),
+            Arg.Any<Func<CancellationToken, ValueTask<Cached<FormTemplateAccessData>>>>(),
             Arg.Any<HybridCacheEntryOptions?>(),
             Arg.Any<IEnumerable<string>?>(),
             Arg.Any<CancellationToken>());
@@ -258,15 +258,15 @@ public class FormTemplateAccessPolicyTests
         HybridCacheEntryOptions? capturedOptions = null;
 
         _cache
-            .GetOrCreateAsync<ICachedData<FormTemplateAccessData>>(
+            .GetOrCreateAsync<Cached<FormTemplateAccessData>>(
                 Arg.Any<string>(),
-                Arg.Any<Func<CancellationToken, ValueTask<ICachedData<FormTemplateAccessData>>>>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<FormTemplateAccessData>>>>(),
                 Arg.Do<HybridCacheEntryOptions?>(o => capturedOptions = o),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<ICachedData<FormTemplateAccessData>>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<Cached<FormTemplateAccessData>>>>();
                 return factory(callInfo.Arg<CancellationToken>());
             });
 

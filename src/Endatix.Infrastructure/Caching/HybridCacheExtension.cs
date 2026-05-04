@@ -115,13 +115,13 @@ internal static class HybridCacheExtensions
                         throw new FailedResultException<T>(result);
                     }
 
-                    return Cached<T>.Create(result.Value, utcNow, ttl);
+                    return new Cached<T>(result.Value, utcNow, ttl);
                 },
                 new HybridCacheEntryOptions { Expiration = ttl },
                 tags,
                 cancellationToken);
 
-            return Result.Success(cachedOrCreated);
+            return Result.Success<ICachedData<T>>(cachedOrCreated);
         }
         catch (FailedResultException<T> ex)
         {

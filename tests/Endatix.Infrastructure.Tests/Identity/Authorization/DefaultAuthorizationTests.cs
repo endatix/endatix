@@ -148,21 +148,22 @@ public sealed class DefaultAuthorizationTests
     {
         public void RegisterEndatixProvider(string issuer, bool activate)
         {
-            var provider = new EndatixJwtAuthProvider();
+            var provider = new EndatixUserJwtAuthProvider();
 
             var services = new ServiceCollection();
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    [$"Endatix:Auth:Providers:{provider.SchemeName}:Enabled"] = "true",
-                    [$"Endatix:Auth:Providers:{provider.SchemeName}:Issuer"] = issuer,
-                    [$"Endatix:Auth:Providers:{provider.SchemeName}:SigningKey"] = "12345678901234567890123456789012",
-                    [$"Endatix:Auth:Providers:{provider.SchemeName}:Audiences:0"] = "hub"
+                    ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true",
+                    ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = issuer,
+                    ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "12345678901234567890123456789012",
+                    ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = "hub",
+                    ["Endatix:Auth:Providers:EndatixJwt:ReBacIssuer"] = "edx_res_auth"
                 })
                 .Build();
 
             Registry.RegisterProvider<EndatixJwtOptions>(provider, services, configuration);
-            SetEndatixIssuer(provider, issuer);
+            SetEndatixUserIssuer(provider, issuer);
 
             if (activate)
             {
@@ -171,10 +172,10 @@ public sealed class DefaultAuthorizationTests
         }
     }
 
-    private static void SetEndatixIssuer(EndatixJwtAuthProvider provider, string issuer)
+    private static void SetEndatixUserIssuer(EndatixUserJwtAuthProvider provider, string issuer)
     {
-        var field = typeof(EndatixJwtAuthProvider)
-            .GetField("_cachedIssuer", BindingFlags.NonPublic | BindingFlags.Instance);
+        var field = typeof(EndatixUserJwtAuthProvider)
+            .GetField("_issuer", BindingFlags.NonPublic | BindingFlags.Instance);
         field!.SetValue(provider, issuer);
     }
 }
