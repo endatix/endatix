@@ -6,6 +6,7 @@ using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
@@ -27,6 +28,7 @@ public sealed class Search(
     {
         Get("forms/{formId}/data-lists/{dataListId}/search");
         Group<PublicApiGroup>();
+        Policies(AuthorizationPolicies.PublicResourceAccess);
         Summary(s =>
         {
             s.Summary = "Search data list items";

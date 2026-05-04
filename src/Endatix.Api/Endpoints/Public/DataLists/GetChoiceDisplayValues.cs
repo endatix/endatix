@@ -5,6 +5,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
@@ -27,6 +28,7 @@ public sealed class GetChoiceDisplayValues(
     {
         Get("forms/{formId}/data-lists/{dataListId}/display-values");
         Group<PublicApiGroup>();
+        Policies(AuthorizationPolicies.PublicResourceAccess);
         Summary(s =>
         {
             s.Summary = "Resolve data list display values";
