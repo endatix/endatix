@@ -46,7 +46,7 @@ dotnet ef migrations add <MigrationName> \
 
 ### Remove last migration
 
-1. First list your migraitons with `dotnet ef migrations list` to check if the migration you want to remove must be unapplied on your local DB
+1. First list your migrations with `dotnet ef migrations list` to check if the migration you want to remove must be unapplied on your local DB
 
 ```bash
 dotnet ef migrations list \
@@ -55,7 +55,7 @@ dotnet ef migrations list \
   --context <AppDbContext|AppIdentityDbContext>
 ```
 
-2. If required update to the migraiton via `dotnet ef database update`
+2. If required update to the migration via `dotnet ef database update`
 
 ```bash
 dotnet ef database update <PreviousMigrationName> \       
