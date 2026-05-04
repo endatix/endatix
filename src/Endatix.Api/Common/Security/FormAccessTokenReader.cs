@@ -15,7 +15,7 @@ internal static class FormAccessTokenReader
     /// </summary>
     /// <param name="httpRequest">The HTTP request.</param>
     /// <returns>The form access JWT or <c>null</c> if not found.</returns>
-    internal static string? ReadToken(HttpRequest httpRequest)
+    internal static string? ReadToken(HttpRequest? httpRequest)
     {
         string? authHeader = httpRequest?.Headers?.Authorization;
         if (string.IsNullOrWhiteSpace(authHeader)

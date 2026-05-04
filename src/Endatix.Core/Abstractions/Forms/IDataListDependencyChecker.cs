@@ -8,7 +8,7 @@ namespace Endatix.Core.Abstractions.Forms;
 public interface IDataListDependencyChecker
 {
     /// <summary>
-    /// Checks if data list has any form that are using it..
+    /// Checks if data list has any form that are using it.
     /// </summary>
     /// <param name="dataListId">The ID of the data list to check.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

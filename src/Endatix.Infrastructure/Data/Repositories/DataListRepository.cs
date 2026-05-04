@@ -20,8 +20,7 @@ public sealed class DataListRepository(AppDbContext dbContext) : IDataListReposi
     {
         var dataListExists = await _dbContext.DataLists
             .AsNoTracking()
-            .AnyAsync(d => d.Id == dataListId && d.IsActive, cancellationToken)
-            .ConfigureAwait(false);
+            .AnyAsync(d => d.Id == dataListId && d.IsActive, cancellationToken);
 
         if (!dataListExists)
         {
@@ -31,8 +30,7 @@ public sealed class DataListRepository(AppDbContext dbContext) : IDataListReposi
         var filteredItems = BuildFilteredItemsQuery(dataListId, searchQuery);
 
         var total = await filteredItems
-            .CountAsync(cancellationToken)
-            .ConfigureAwait(false);
+            .CountAsync(cancellationToken);
 
         var pageItems = await filteredItems
             .OrderBy(i => i.Label)
@@ -40,8 +38,7 @@ public sealed class DataListRepository(AppDbContext dbContext) : IDataListReposi
             .Skip(skip)
             .Take(take)
             .Select(i => new DataListSearchItemResult(i.Id, i.Label, i.Value))
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
+            .ToArrayAsync(cancellationToken);
 
         return new DataListSearchPageResult(dataListId, total, pageItems);
     }

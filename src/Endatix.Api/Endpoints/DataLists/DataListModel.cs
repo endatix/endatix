@@ -35,10 +35,9 @@ public class DataListModel
     public DateTime? ModifiedAt { get; init; }
 
     /// <summary>
-    /// The optional count of items in the data list. 
-    /// This can be conditionally populated based on request parameters.
+    /// The count of items in the data list.
     /// </summary>
-    public int ItemsCount { get; init; }
+    public int ItemsCount { get; init; } = 0;
 }
 
 /// <summary>

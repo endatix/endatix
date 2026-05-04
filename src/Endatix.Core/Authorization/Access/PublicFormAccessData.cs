@@ -70,7 +70,7 @@ public class PublicFormAccessData : AccessDataBase
             return EmptyPermissions;
         }
 
-        return ToImmutableSet(formPermissions.Union(submissionPermissions));
+        return formPermissions.Union(submissionPermissions);
     }
 
     /// <summary>
@@ -98,6 +98,12 @@ public class PublicFormAccessData : AccessDataBase
             ResourcePermissions.Form.Sets.ViewForm,
             ResourcePermissions.Submission.Sets.FillInSubmission);
 
+    /// <summary>
+    /// Creates public form access data for a form access token.
+    /// </summary>
+    /// <param name="formId">The form ID.</param>
+    /// <param name="claims">The form access token claims.</param>
+    /// <returns>The public form access data.</returns>
     public static PublicFormAccessData CreateWithAccessTokenClaims(
         long formId,
         SubmissionAccessTokenClaims claims)
@@ -116,7 +122,7 @@ public class PublicFormAccessData : AccessDataBase
 
         if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Export.Name))
         {
-            submissionPermissions.Add(ResourcePermissions.Submission.Export);
+            _ = submissionPermissions.Add(ResourcePermissions.Submission.Export);
         }
 
         return new PublicFormAccessData(

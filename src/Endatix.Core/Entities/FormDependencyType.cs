@@ -16,18 +16,16 @@ public sealed class FormDependencyType : IComparable<FormDependencyType>, IEquat
 
     private FormDependencyType()
     {
-        Name = string.Empty;
         Code = string.Empty;
     }
 
     /// <summary>
-    /// Creates a new dependency type.
+    /// Creates a new dependency type. <see cref="Name"/> is derived from <see cref="Code"/> so it
+    /// stays correct when EF materializes only <c>Code</c> (see form dependency configuration).
     /// </summary>
-    /// <param name="name">The name of the dependency type.</param>
     /// <param name="code">The code of the dependency type.</param>
-    private FormDependencyType(string name, string code)
+    private FormDependencyType(string code)
     {
-        Guard.Against.NullOrWhiteSpace(name);
         Guard.Against.NullOrWhiteSpace(code);
 
         if (code.Length > TYPE_CODE_MAX_LENGTH)
@@ -35,14 +33,13 @@ public sealed class FormDependencyType : IComparable<FormDependencyType>, IEquat
             throw new ArgumentException($"Code cannot be longer than {TYPE_CODE_MAX_LENGTH} characters");
         }
 
-        Name = name;
         Code = code.ToLowerInvariant();
     }
 
     /// <summary>
-    /// The name of the dependency type.
+    /// The display name of the dependency type. Not mapped by EF; always derived from <see cref="Code"/>.
     /// </summary>
-    public string Name { get; }
+    public string Name => GetDisplayNameForCode(Code);
 
     /// <summary>
     /// The code of the dependency type.
@@ -52,7 +49,22 @@ public sealed class FormDependencyType : IComparable<FormDependencyType>, IEquat
     /// <summary>
     /// The data list dependency type allowing to track which data lists are used in the form.
     /// </summary>
-    public static readonly FormDependencyType DataList = new("Data List", FormDependencyCodes.DataList);
+    public static readonly FormDependencyType DataList = new(FormDependencyCodes.DataList);
+
+    private static string GetDisplayNameForCode(string code)
+    {
+        if (string.IsNullOrEmpty(code))
+        {
+            return string.Empty;
+        }
+
+        if (string.Equals(code, FormDependencyCodes.DataList, StringComparison.Ordinal))
+        {
+            return "Data List";
+        }
+
+        return char.ToUpperInvariant(code[0]) + code[1..].ToLowerInvariant();
+    }
 
     /// <summary>
     /// Returns the dependency type for a given code.

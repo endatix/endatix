@@ -14,6 +14,7 @@ public class FormDependencyTypeTests
         // Assert
         dependencyType.Should().Be(FormDependencyType.DataList);
         dependencyType.Code.Should().Be("datalist");
+        dependencyType.Name.Should().Be("Data List");
     }
 
     [Fact]

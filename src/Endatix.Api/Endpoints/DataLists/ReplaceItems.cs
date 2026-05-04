@@ -63,7 +63,12 @@ public sealed class ReplaceDataListItemsValidator : Validator<ReplaceDataListIte
     public ReplaceDataListItemsValidator()
     {
         RuleFor(x => x.DataListId).GreaterThan(0);
+
         RuleFor(x => x.Items).NotNull();
+        RuleFor(x => x.Items)
+            .Must(items => items.Count <= 5_000)
+            .WithMessage("A data list cannot have more than 5,000 items.")
+            .When(x => x.Items != null);
 
         RuleForEach(x => x.Items).ChildRules(item =>
         {
