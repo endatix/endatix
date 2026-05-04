@@ -88,13 +88,23 @@ public class PagedTests
     [Theory]
     [InlineData(3, 10, 20, 2)]
     [InlineData(4, 10, 25, 3)]
-    public void Constructor_PageGreaterThanTotalPagesWithItems_ThrowsArgumentOutOfRangeException(int page, int pageSize, long totalRecords, long totalPages)
+    public void Constructor_PageGreaterThanTotalPages_ThrowsArgumentOutOfRangeException(int page, int pageSize, long totalRecords, long totalPages)
     {
         var items = new[] { "a", "b" };
 
         var act = () => new Paged<string>(page, pageSize, totalRecords, totalPages, items);
 
-        act.Should().Throw<ArgumentOutOfRangeException>();
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .And.ParamName.Should().Be("page");
+    }
+
+    [Fact]
+    public void Constructor_PageGreaterThanTotalPages_EmptyItems_ThrowsArgumentOutOfRangeException()
+    {
+        var act = () => new Paged<string>(3, 10, 20, 2, Array.Empty<string>());
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .And.ParamName.Should().Be("page");
     }
 
     [Fact]
@@ -106,6 +116,37 @@ public class PagedTests
 
         act.Should().Throw<ArgumentOutOfRangeException>()
             .And.ParamName.Should().Be("page");
+    }
+
+    [Fact]
+    public void Constructor_NonEmptyItemsWhenTotalPagesZero_ThrowsArgumentOutOfRangeException()
+    {
+        var act = () => new Paged<string>(1, 10, 0, 0, new[] { "a" });
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .And.ParamName.Should().Be("items");
+    }
+
+    [Fact]
+    public void Constructor_ItemsExceedsPageSize_ThrowsArgumentOutOfRangeException()
+    {
+        var items = new[] { "a", "b", "c" };
+
+        var act = () => new Paged<string>(1, 2, 10, 5, items);
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .And.ParamName.Should().Be("items");
+    }
+
+    [Fact]
+    public void Constructor_ItemsExceedsRemainingOnLastPage_ThrowsArgumentOutOfRangeException()
+    {
+        var items = new[] { "a", "b", "c", "d", "e", "f" };
+
+        var act = () => new Paged<string>(2, 10, 15, 2, items);
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .And.ParamName.Should().Be("items");
     }
 
     [Fact]

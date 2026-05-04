@@ -76,7 +76,7 @@ public class DataListsSpecifications
     /// <summary>
     /// Specification to check if a data list exists by ID.
     /// </summary>
-    public sealed class ExistsSpec : Specification<DataList>, ISingleResultSpecification<DataList>
+    public sealed class ExistsSpec : SingleResultSpecification<DataList>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ExistsSpec"/> class.
@@ -107,7 +107,7 @@ public class DataListsSpecifications
     /// <summary>
     /// Specification to get a data list by ID with data list items included.
     /// </summary>
-    public sealed class ByIdWithItemsSpec : Specification<DataList>, ISingleResultSpecification<DataList>
+    public sealed class ByIdWithItemsSpec : SingleResultSpecification<DataList>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ByIdWithItemsSpec"/> class.
@@ -125,7 +125,7 @@ public class DataListsSpecifications
     /// <summary>
     /// Specification to get a data list by ID with data list items included by values.
     /// </summary>
-    public sealed class ByIdWithItemsByValuesSpec : Specification<DataList>, ISingleResultSpecification<DataList>
+    public sealed class ByIdWithItemsByValuesSpec : SingleResultSpecification<DataList>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ByIdWithItemsByValuesSpec"/> class.

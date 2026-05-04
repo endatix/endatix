@@ -33,6 +33,23 @@ public class Paged<T> : IPagedData
             ? (totalRecords + pageSize - 1) / pageSize
             : 0;
 
+        ValidateConstructorArguments(page, pageSize, totalRecords, totalPages, expectedTotalPages, items);
+
+        Page = page;
+        PageSize = pageSize;
+        TotalRecords = totalRecords;
+        TotalPages = totalPages;
+        Items = items;
+    }
+
+    private static void ValidateConstructorArguments(
+        int page,
+        int pageSize,
+        long totalRecords,
+        long totalPages,
+        long expectedTotalPages,
+        IReadOnlyList<T> items)
+    {
         if (totalPages != expectedTotalPages)
         {
             throw new ArgumentOutOfRangeException(
@@ -40,11 +57,11 @@ public class Paged<T> : IPagedData
                 $"TotalPages ({totalPages}) must be = Ceil(totalRecords ({totalRecords}) / pageSize ({pageSize})) = {expectedTotalPages}.");
         }
 
-        if (totalPages > 0 && page > totalPages && items.Count > 0)
+        if (totalPages > 0 && (page < MIN_PAGE || page > totalPages))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(page),
-                $"Page ({page}) must be <= TotalPages ({totalPages}) when items are present.");
+                $"Page ({page}) must be between {MIN_PAGE} and TotalPages ({totalPages}).");
         }
 
         if (totalPages == 0 && page != MIN_PAGE)
@@ -54,11 +71,30 @@ public class Paged<T> : IPagedData
                 "Page must be 1 when TotalPages is 0.");
         }
 
-        Page = page;
-        PageSize = pageSize;
-        TotalRecords = totalRecords;
-        TotalPages = totalPages;
-        Items = items;
+        if (totalPages == 0 && items.Count != 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(items),
+                "Items must be empty when TotalPages is 0.");
+        }
+
+        if (totalPages > 0 && items.Count > pageSize)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(items),
+                $"Items count ({items.Count}) must be <= pageSize ({pageSize}).");
+        }
+
+        var remainingRecordsOnPage = totalPages > 0
+            ? totalRecords - ((long)(page - 1) * pageSize)
+            : 0L;
+
+        if (totalPages > 0 && items.Count > remainingRecordsOnPage)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(items),
+                $"Items count ({items.Count}) must be <= remaining records on page ({remainingRecordsOnPage}).");
+        }
     }
 
     /// <summary>

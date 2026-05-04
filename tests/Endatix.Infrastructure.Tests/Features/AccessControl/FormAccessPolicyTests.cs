@@ -313,7 +313,10 @@ public class FormAccessPolicyTests
             FormId = formId.ToString(),
             Permissions = ResourcePermissions.Form.Sets.ViewForm.ToImmutableHashSet()
         };
-        var cachedEnvelope = (Cached<FormAccessData>)Cached<FormAccessData>.Create(cachedData, _dateTimeProvider.Now.UtcDateTime, TimeSpan.FromMinutes(10));
+        var cachedEnvelope = new Cached<FormAccessData>(
+            cachedData,
+            _dateTimeProvider.Now.UtcDateTime,
+            TimeSpan.FromMinutes(10));
 
         _cache
             .GetOrCreateAsync<Cached<FormAccessData>>(

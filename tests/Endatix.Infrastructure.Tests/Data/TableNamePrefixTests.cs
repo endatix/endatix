@@ -4,6 +4,16 @@ using FluentAssertions;
 
 namespace Endatix.Infrastructure.Tests.Data;
 
+/// <summary>
+/// Serializes tests that mutate process-wide <c>EndatixConfig.Configuration.TablePrefix</c>.
+/// </summary>
+[CollectionDefinition("TablePrefixIsolation", DisableParallelization = true)]
+public sealed class TablePrefixIsolationCollection;
+
+/// <summary>
+/// Tests for <see cref="TableNamePrefix"/> table naming (mutates static configuration — must not run in parallel with itself).
+/// </summary>
+[Collection("TablePrefixIsolation")]
 public class TableNamePrefixTests
 {
     [Fact]

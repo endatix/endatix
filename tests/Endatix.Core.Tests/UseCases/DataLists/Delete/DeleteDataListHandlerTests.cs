@@ -25,6 +25,22 @@ public class DeleteDataListHandlerTests
     }
 
     [Fact]
+    public async Task Handle_DataListNotFound_ReturnsNotFound()
+    {
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<DataList?>(null));
+
+        var result = await _sut.Handle(new DeleteDataListCommand(999), TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.NotFound);
+        await _dependencyChecker.DidNotReceive()
+            .HasFormDependenciesAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
+        await _mediator.DidNotReceive()
+            .Publish(Arg.Any<DataListDeletedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_DataListHasDependencies_ReturnsInvalid()
     {
         DataList list = new(SampleData.TENANT_ID, "Cities") { Id = 10 };
