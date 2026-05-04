@@ -38,8 +38,14 @@ public sealed class EndatixResourceJwtAuthProvider : IAuthProvider
             return false;
         }
 
+        Guard.Against.NullOrWhiteSpace(options.Issuer);
         Guard.Against.NullOrWhiteSpace(options.ReBacIssuer);
         Guard.Against.NullOrWhiteSpace(options.SigningKey);
+        if (string.Equals(options.Issuer, options.ReBacIssuer, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "EndatixJwt Issuer and ReBacIssuer must be different to avoid ambiguous scheme selection.");
+        }
 
         _rebacIssuer = options.ReBacIssuer;
 

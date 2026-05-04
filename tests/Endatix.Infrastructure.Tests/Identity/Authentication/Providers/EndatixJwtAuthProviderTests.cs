@@ -251,11 +251,24 @@ public class EndatixReBacJwtAuthProviderTests
         result.Should().BeFalse();
     }
 
-    private static IConfigurationSection CreateReBacConfiguration(string rebacIssuer, bool enabled)
+    [Fact]
+    public void Configure_WhenIssuerEqualsReBacIssuer_ShouldThrowInvalidOperationException()
+    {
+        var rebacIssuer = "same-issuer";
+        var config = CreateReBacConfiguration(rebacIssuer, enabled: true, issuer: rebacIssuer);
+
+        var action = () => _provider.Configure(_authBuilder, config, false);
+
+        action.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("*Issuer and ReBacIssuer must be different*");
+    }
+
+    private static IConfigurationSection CreateReBacConfiguration(string rebacIssuer, bool enabled, string issuer = "endatix-api")
     {
         var configData = new Dictionary<string, string?>
         {
-            ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = "endatix-api",
+            ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = issuer,
             ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters-long",
             ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = "endatix-hub",
             ["Endatix:Auth:Providers:EndatixJwt:ReBacIssuer"] = rebacIssuer,
