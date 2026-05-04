@@ -29,7 +29,6 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
 
     private readonly EndatixJwtOptions _options;
     private readonly IDateTimeProvider _dateTimeProvider;
-    private readonly JwtSecurityTokenHandler _tokenHandler = new();
     private readonly TokenValidationParameters _validationParameters;
     private readonly SigningCredentials _signingCredentials;
 
@@ -40,9 +39,6 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
 
         _options = options.Value;
         _dateTimeProvider = dateTimeProvider;
-
-        // Custom claim types (resourceType, resourceId, tid) must round-trip; default handler claim mapping rewrites types.
-        _tokenHandler.MapInboundClaims = false;
 
         Guard.Against.NullOrWhiteSpace(_options.SigningKey);
         Guard.Against.NegativeOrZero(_options.FormAccessTokenExpiryMinutes);
@@ -74,6 +70,15 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
         };
     }
 
+    private static JwtSecurityTokenHandler CreateTokenHandler()
+    {
+        var handler = new JwtSecurityTokenHandler
+        {
+            MapInboundClaims = false
+        };
+        return handler;
+    }
+
     /// <inheritdoc />
     public Result<FormAccessTokenDto> CreateToken(long formId, long tenantId)
     {
@@ -95,7 +100,7 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
             expires: expiresUtc,
             signingCredentials: _signingCredentials);
 
-        var tokenString = _tokenHandler.WriteToken(token);
+        var tokenString = CreateTokenHandler().WriteToken(token);
         return Result.Success(new FormAccessTokenDto(tokenString, expiresUtc));
     }
 
@@ -106,7 +111,7 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
 
         try
         {
-            var principal = _tokenHandler.ValidateToken(token, _validationParameters, out var validatedToken);
+            var principal = CreateTokenHandler().ValidateToken(token, _validationParameters, out var validatedToken);
             if (validatedToken is not JwtSecurityToken jwtToken)
             {
                 return Result.Invalid(FormAccessTokenErrors.ValidationErrors.InvalidToken);
