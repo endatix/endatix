@@ -20,8 +20,6 @@ public class FormAccessTokenReaderTests
 
     [Theory]
     [InlineData("Basic xyz")]
-    [InlineData("bearer xyz")]
-    [InlineData("BEARER xyz")]
     [InlineData("Bearer")]
     [InlineData("Bearer  ")]
     [InlineData("NotBearer xyz")]
@@ -47,10 +45,13 @@ public class FormAccessTokenReaderTests
     [InlineData("Bearer token123")]
     [InlineData("Bearer abc.def.ghi")]
     [InlineData("Bearer  token-with-spaces")]
+    [InlineData("bearer lower")]
+    [InlineData("BEARER upper")]
     public void ReadToken_ValidBearerToken_ReturnsToken(string authHeader)
     {
         var httpRequest = CreateHttpRequest(authHeader);
-        var expectedToken = authHeader["Bearer ".Length..].Trim();
+        var prefixLen = authHeader.IndexOf(' ') + 1;
+        var expectedToken = authHeader[prefixLen..].Trim();
 
         var result = FormAccessTokenReader.ReadToken(httpRequest);
 

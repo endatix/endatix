@@ -8,12 +8,15 @@ using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Tests.Endpoints.DataLists;
 
 public class GetChoiceDisplayValuesTests
 {
+    private const string TestFormAccessJwt = "test-form-access-jwt";
+
     private readonly IMediator _mediator;
     private readonly IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> _publicFormAccessPolicy;
     private readonly GetChoiceDisplayValues _endpoint;
@@ -30,7 +33,9 @@ public class GetChoiceDisplayValuesTests
         _publicFormAccessPolicy
             .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<ICachedData<PublicFormAccessData>>(cached));
-        _endpoint = Factory.Create<GetChoiceDisplayValues>(_mediator, _publicFormAccessPolicy);
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers.Authorization = $"Bearer {TestFormAccessJwt}";
+        _endpoint = Factory.Create<GetChoiceDisplayValues>(httpContext, _mediator, _publicFormAccessPolicy);
     }
 
     [Fact]
@@ -45,8 +50,8 @@ public class GetChoiceDisplayValuesTests
         await _publicFormAccessPolicy.Received(1).GetAccessData(
             Arg.Is<PublicFormAccessContext>(c =>
                 c.FormId == request.FormId &&
-                c.Token == request.Token &&
-                c.TokenType == request.TokenType),
+                c.Token == TestFormAccessJwt &&
+                c.TokenType == SubmissionTokenType.FormToken),
             Arg.Any<CancellationToken>());
 
         await _mediator.Received(1).Send(
