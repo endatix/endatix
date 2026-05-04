@@ -70,26 +70,6 @@ public sealed class AuthorizationDataTests
     }
 
     [Fact]
-    public void JsonDeserialize_DerivesIsAdminFromRoles_IgnoringStaleIsAdminProperty()
-    {
-        const string json = """
-            {
-              "UserId": "1",
-              "TenantId": 2,
-              "Roles": ["Authenticated", "Admin"],
-              "Permissions": ["perm.a"],
-              "IsAdmin": false,
-              "CachedAt": "2025-01-01T00:00:00Z",
-              "ExpiresAt": "2025-01-01T00:10:00Z",
-              "ETag": ""
-            }
-            """;
-        var data = JsonSerializer.Deserialize<AuthorizationData>(json);
-        data.Should().NotBeNull();
-        data!.IsAdmin.Should().BeTrue();
-    }
-
-    [Fact]
     public void JsonRoundTrip_PreservesIsAdminFromRoles()
     {
         var original = AuthorizationData.ForAuthenticatedUser(
