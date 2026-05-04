@@ -32,7 +32,6 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
     private readonly JwtSecurityTokenHandler _tokenHandler = new();
     private readonly TokenValidationParameters _validationParameters;
     private readonly SigningCredentials _signingCredentials;
-    private readonly SymmetricSecurityKey _signingKey;
 
     public FormAccessTokenService(IOptionsSnapshot<EndatixJwtOptions> options, IDateTimeProvider dateTimeProvider)
     {
@@ -59,14 +58,14 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
         Guard.Against.NullOrEmpty(_options.Audiences);
         Guard.Against.NullOrWhiteSpace(_options.ReBacIssuer);
 
-        _signingKey = new SymmetricSecurityKey(signingKeyBytes);
-        _signingCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.HmacSha256);
-        var audience = _options.Audiences[0];
+        var signingKey = new SymmetricSecurityKey(signingKeyBytes);
+        _signingCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
+
         _validationParameters = new TokenValidationParameters
         {
-            IssuerSigningKey = _signingKey,
+            IssuerSigningKey = signingKey,
             ValidIssuers = [_options.ReBacIssuer],
-            ValidAudience = audience,
+            ValidAudiences = _options.Audiences,
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
@@ -107,7 +106,7 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
 
         try
         {
-            ClaimsPrincipal principal = _tokenHandler.ValidateToken(token, _validationParameters, out SecurityToken validatedToken);
+            var principal = _tokenHandler.ValidateToken(token, _validationParameters, out var validatedToken);
             if (validatedToken is not JwtSecurityToken jwtToken)
             {
                 return Result.Invalid(FormAccessTokenErrors.ValidationErrors.InvalidToken);
@@ -131,7 +130,7 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
                 return Result.Invalid(FormAccessTokenErrors.ValidationErrors.InvalidToken);
             }
 
-            DateTime expiresAtUtc = jwtToken.ValidTo.ToUniversalTime();
+            var expiresAtUtc = jwtToken.ValidTo.ToUniversalTime();
             return Result.Success(new FormAccessTokenClaims(formId, tenantId, expiresAtUtc));
         }
         catch (SecurityTokenExpiredException)

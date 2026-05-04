@@ -99,7 +99,7 @@ public sealed class CreateFormAccessTokenValidator : Validator<CreateFormAccessT
             .WithMessage("Token must be provided when Token Type is specified.");
 
         RuleFor(x => x.TokenType)
-            .Must(t => t is null or not SubmissionTokenType.FormToken)
-            .WithMessage("FormToken cannot be used to mint a form access token.");
+            .Must(t => t is not SubmissionTokenType.FormToken)
+            .WithMessage("FormToken cannot be used to issue form access tokens.");
     }
 }
