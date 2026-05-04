@@ -16,6 +16,7 @@ public sealed class ListFormDependencies(
     IMediator mediator)
     : Endpoint<ListFormDependenciesRequest, Results<Ok<IEnumerable<FormModel>>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Get("data-lists/{dataListId}/forms");

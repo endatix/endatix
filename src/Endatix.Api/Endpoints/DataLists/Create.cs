@@ -30,9 +30,7 @@ public sealed class Create(
             s.Description = "Creates a data list for current tenant.";
             s.Responses[201] = "Data list created.";
             s.Responses[400] = "Validation failed.";
-            s.Responses[404] = "Feature disabled.";
         });
-        FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists);
     }
 
     /// <inheritdoc />

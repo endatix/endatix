@@ -22,9 +22,7 @@ public sealed class Search(
     IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> publicFormAccessPolicy)
     : Endpoint<SearchDataListItemsRequest, Results<Ok<Paged<DataListPublicChoiceModel>>, ProblemHttpResult>>
 {
-    /// <summary>
-    /// Configures the endpoint settings.
-    /// </summary>
+    /// <inheritdoc />
     public override void Configure()
     {
         Get("forms/{formId}/data-lists/{dataListId}/search");
