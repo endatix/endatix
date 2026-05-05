@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -6,7 +7,7 @@ namespace Endatix.Core.Entities;
 /// <summary>
 /// Represents a folder in the Endatix workspace.
 /// </summary>
-public sealed class Folder : TenantEntity, IAggregateRoot
+public sealed class Folder : TenantEntity, IAggregateRoot, IHasUrlSlug
 {
     // EF Core
     private Folder()
@@ -35,7 +36,7 @@ public sealed class Folder : TenantEntity, IAggregateRoot
         Guard.Against.NullOrWhiteSpace(slug);
 
         Name = name;
-        Slug = slug;
+        UrlSlug = slug;
         Description = description;
         ParentFolderId = parentFolderId;
         Metadata = metadata;
@@ -49,9 +50,9 @@ public sealed class Folder : TenantEntity, IAggregateRoot
     public string Name { get; set; } = null!;
 
     /// <summary>
-    /// Gets or sets the slug of the folder.
+    /// Gets or sets the URL slug of the folder.
     /// </summary>
-    public string Slug { get; set; } = null!;
+    public string UrlSlug { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets the description of the folder.
