@@ -82,7 +82,8 @@ public class ListTests
         await _mediator.Received(1).Send(
             Arg.Is<ListFormTemplatesQuery>(query =>
                 query.Page == request.Page &&
-                query.PageSize == request.PageSize
+                query.PageSize == request.PageSize &&
+                query.FolderId == request.FolderId
             ),
             Arg.Any<CancellationToken>()
         );
