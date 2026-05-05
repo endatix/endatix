@@ -10,7 +10,7 @@ namespace Endatix.Core.Specifications;
 /// <summary>
 /// Specifications for working with DataList entities
 /// </summary>
-public class DataListsSpecifications
+public static class DataListsSpecifications
 {
     /// <summary>
     /// Base specification to list data lists without pagination.

@@ -1,11 +1,15 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-public partial class Form : TenantEntity, IAggregateRoot
+/// <summary>
+/// Forms are main entities in the Endatix platform. They are used to create and manage forms, surveys or questionnaires that can be used to collect data from users.
+/// </summary>
+public partial class Form : TenantEntity, IAggregateRoot, IHasFolder
 {
     private readonly List<FormDefinition> _formDefinitions = [];
     private readonly List<FormDependency> _dependencies = [];
@@ -41,7 +45,8 @@ public partial class Form : TenantEntity, IAggregateRoot
     public long? ThemeId { get; private set; }
     public Theme? Theme { get; private set; }
 
-    public long? FolderId { get; set; }
+    /// <inheritdoc />
+    public long? FolderId { get; private set; }
     public Folder? Folder { get; set; }
 
     public string? WebHookSettingsJson
@@ -84,7 +89,25 @@ public partial class Form : TenantEntity, IAggregateRoot
             SetActiveFormDefinition(formDefinition);
         }
     }
-    
+
+    /// <inheritdoc />
+    public bool CanMoveToFolder(long? folderId) => !IsDeleted;
+
+    /// <inheritdoc />
+    public bool MoveToFolder(long? folderId)
+    {
+        if (!CanMoveToFolder(folderId))
+        {
+            return false;
+        }
+
+        FolderId = folderId;
+        return true;
+    }
+
+    /// <inheritdoc />
+    public bool ClearFolder() => MoveToFolder(null);
+
     public void SetTheme(Theme? theme)
     {
         Theme = theme;

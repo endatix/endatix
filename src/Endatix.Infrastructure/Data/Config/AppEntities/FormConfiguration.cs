@@ -41,5 +41,13 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
             .HasForeignKey(f => f.ThemeId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(f => f.Folder)
+            .WithMany()
+            .HasForeignKey(f => f.FolderId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(f => f.FolderId);
     }
 }

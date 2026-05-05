@@ -20,5 +20,13 @@ public class FormTemplateConfiguration : IEntityTypeConfiguration<FormTemplate>
 
         builder.Property(fd => fd.JsonData)
             .IsRequired();
+
+        builder.HasOne(t => t.Folder)
+            .WithMany()
+            .HasForeignKey(t => t.FolderId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(t => t.FolderId);
     }
 }

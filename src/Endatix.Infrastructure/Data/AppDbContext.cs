@@ -35,6 +35,8 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<Form> Forms { get; set; }
 
+    public DbSet<Folder> Folders { get; set; }
+
     public DbSet<FormDefinition> FormDefinitions { get; set; }
 
     public DbSet<FormTemplate> FormTemplates { get; set; }
