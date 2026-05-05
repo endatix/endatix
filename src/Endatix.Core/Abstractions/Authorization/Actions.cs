@@ -72,6 +72,14 @@ public static class Actions
     }
 
     /// <summary>
+    /// Survey folder taxonomy (management; list/read uses forms.view for Hub navigation).
+    /// </summary>
+    public static class Folders
+    {
+        public const string Manage = "folders.manage";
+    }
+
+    /// <summary>
     /// Template management permissions
     /// </summary>
     public static class Templates

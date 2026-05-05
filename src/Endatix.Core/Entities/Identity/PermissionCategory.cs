@@ -22,6 +22,7 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
     public static readonly PermissionCategory Platform = new("Platform Management", "platform");
     public static readonly PermissionCategory Tenant = new("Tenant Management", "tenant");
     public static readonly PermissionCategory Forms = new("Forms", "forms");
+    public static readonly PermissionCategory Folders = new("Folders", "folders");
     public static readonly PermissionCategory Templates = new("Templates", "templates");
     public static readonly PermissionCategory Themes = new("Themes", "themes");
     public static readonly PermissionCategory Submissions = new("Submissions", "submissions");
@@ -61,6 +62,7 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
             "platform" => Platform,
             "tenant" => Tenant,
             "forms" => Forms,
+            "folders" => Folders,
             "templates" => Templates,
             "themes" => Themes,
             "submissions" => Submissions,
@@ -84,6 +86,7 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
             Platform,
             Tenant,
             Forms,
+            Folders,
             Templates,
             Themes,
             Submissions,
