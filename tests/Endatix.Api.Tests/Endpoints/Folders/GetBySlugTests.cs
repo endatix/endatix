@@ -71,7 +71,7 @@ public class GetBySlugTests
     public async Task ExecuteAsync_ShouldMapRequestToQueryCorrectly()
     {
         var request = new GetBySlugRequest { Slug = "my-folder" };
-        var result = Result.Success(new FolderDto { Id = "1", Name = "My Folder", Slug = "my-folder" });
+        var result = Result.Success(new FolderDto { Id = 1, Name = "My Folder", Slug = "my-folder" });
 
         _mediator.Send(Arg.Any<GetFolderBySlugQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);

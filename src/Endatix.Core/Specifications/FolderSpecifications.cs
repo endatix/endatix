@@ -74,17 +74,28 @@ public static class FolderSpecifications
     }
 
     /// <summary>
-    /// Specification to check if a folder exists by name
+    /// Specification to check if a folder exists by normalized name (case-insensitive uniqueness key).
     /// </summary>
-    public sealed class FolderExistsByNameSpec : SingleResultSpecification<Folder>
+    public sealed class FolderExistsByNormalizedNameSpec : SingleResultSpecification<Folder>
     {
-        public FolderExistsByNameSpec(string name, long? excludeFolderId = null)
+        public FolderExistsByNormalizedNameSpec(string normalizedName, long? excludeFolderId = null)
         {
-            Query.Where(f => f.Name == name);
+            Query.Where(f => f.NormalizedName == normalizedName);
             if (excludeFolderId.HasValue)
             {
                 Query.Where(f => f.Id != excludeFolderId.Value);
             }
+        }
+    }
+
+    /// <summary>
+    /// Child folders whose parent is the given folder.
+    /// </summary>
+    public sealed class ByParentFolderIdSpec : Specification<Folder>
+    {
+        public ByParentFolderIdSpec(long parentFolderId)
+        {
+            Query.Where(f => f.ParentFolderId == parentFolderId);
         }
     }
 }

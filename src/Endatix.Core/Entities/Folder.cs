@@ -9,6 +9,19 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public sealed class Folder : TenantEntity, IAggregateRoot, IHasUrlSlug
 {
+    /// <summary>
+    /// Unique entity constraints that enforce folder identity per tenant. 
+    /// Values should be used as domain and database indexes to enforce uniqueness.
+    /// </summary>
+    public static class UniqueConstraints
+    {
+        /// <summary>Unique URL slug segment per tenant.</summary>
+        public const string UrlSlugPerTenant = "IX_Folders_TenantId_Slug_Unique";
+
+        /// <summary>Unique display name per tenant via normalized name.</summary>
+        public const string NormalizedNamePerTenant = "IX_Folders_TenantId_NormalizedName_Unique";
+    }
+
     // EF Core
     private Folder()
     {
@@ -20,6 +33,7 @@ public sealed class Folder : TenantEntity, IAggregateRoot, IHasUrlSlug
     /// <param name="tenantId">The ID of the tenant.</param>
     /// <param name="name">The name of the folder.</param>
     /// <param name="slug">The slug of the folder.</param>
+    /// <param name="normalizedName">The normalized folder name (e.g. for case-insensitive uniqueness).</param>
     /// <param name="description">The description of the folder.</param>
     /// <param name="parentFolderId">The ID of the parent folder.</param>
     /// <param name="metadata">The metadata of the folder.</param>
@@ -27,6 +41,7 @@ public sealed class Folder : TenantEntity, IAggregateRoot, IHasUrlSlug
         long tenantId,
         string name,
         string slug,
+        string normalizedName,
         string? description = null,
         long? parentFolderId = null,
         string? metadata = null)
@@ -34,9 +49,11 @@ public sealed class Folder : TenantEntity, IAggregateRoot, IHasUrlSlug
     {
         Guard.Against.NullOrWhiteSpace(name);
         Guard.Against.NullOrWhiteSpace(slug);
+        Guard.Against.NullOrWhiteSpace(normalizedName);
 
         Name = name;
         UrlSlug = slug;
+        NormalizedName = normalizedName;
         Description = description;
         ParentFolderId = parentFolderId;
         Metadata = metadata;
@@ -48,6 +65,11 @@ public sealed class Folder : TenantEntity, IAggregateRoot, IHasUrlSlug
     /// Gets or sets the name of the folder.
     /// </summary>
     public string Name { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets the normalized name used for uniqueness checks (aligned with Identity lookup normalization).
+    /// </summary>
+    public string NormalizedName { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets the URL slug of the folder.
@@ -83,4 +105,15 @@ public sealed class Folder : TenantEntity, IAggregateRoot, IHasUrlSlug
     /// Gets or sets the parent folder of the folder.
     /// </summary>
     public Folder? ParentFolder { get; set; }
+
+    /// <summary>
+    /// Checks if the folder can be modified.
+    /// </summary>
+    /// <param name="name">The name of the folder.</param>
+    /// <param name="slug">The slug of the folder.</param>
+    /// <param name="description">The description of the folder.</param>
+    /// <param name="metadata">The metadata of the folder.</param>
+    /// <returns>True if the folder can be modified, false otherwise.</returns>
+    public bool CanModifyMutableState(string? name, string? slug, string? description, string? metadata) =>
+        !Immutable || (name is null && slug is null && description is null && metadata is null);
 }

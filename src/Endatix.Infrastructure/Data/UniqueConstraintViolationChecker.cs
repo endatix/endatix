@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.Reflection;
+using System.Text.RegularExpressions;
 using Endatix.Core.Abstractions.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,39 +9,94 @@ namespace Endatix.Infrastructure.Data;
 internal sealed class UniqueConstraintViolationChecker : IUniqueConstraintViolationChecker
 {
     private const string POSTGRES_UNIQUE_VIOLATION = "23505";
-    private static readonly int[] _sqlServerUniqueViolationCodes = [2601, 2627];
+    private static readonly ConcurrentDictionary<(Type Type, string PropertyName), PropertyInfo?> _propertyCache = new();
+    private static readonly Regex _sqlServerConstraintRegex = new(
+        @"constraint\s+'(?<constraint>[^']+)'",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-    /// <summary>
-    /// Checks if the exception is a unique constraint violation.
-    /// </summary>
-    /// <param name="exception">The exception to check.</param>
-    /// <returns>True if the exception is a unique constraint violation, false otherwise.</returns>
-    public bool IsUniqueConstraintViolation(Exception exception)
+    /// <inheritdoc />
+    public UniqueConstraintViolationResult AnalyzeUniqueConstraint(Exception exception)
     {
         if (exception is not DbUpdateException dbUpdateException)
         {
-            return false;
+            return new UniqueConstraintViolationResult(false, null, null);
         }
 
         var current = dbUpdateException.InnerException ?? dbUpdateException;
         while (current is not null)
         {
-            if (IsPostgresUniqueViolation(current) || IsSqlServerUniqueViolation(current))
+            if (IsPostgresUniqueViolation(current))
             {
-                return true;
+                return new UniqueConstraintViolationResult(
+                    true,
+                    ReadConstraintName(current) ?? ExtractSqlServerConstraintNameFromMessage(current.Message),
+                    ReadColumnName(current));
+            }
+
+            if (IsSqlServerUniqueViolation(current))
+            {
+                return new UniqueConstraintViolationResult(
+                    true,
+                    ReadConstraintName(current) ?? ExtractSqlServerConstraintNameFromMessage(current.Message),
+                    ReadColumnName(current));
             }
 
             current = current.InnerException;
         }
 
-        return false;
+        return new UniqueConstraintViolationResult(false, null, null);
     }
 
-    /// <summary>
-    /// Checks if the exception is a PostgreSQL unique constraint violation.
-    /// </summary>
-    /// <param name="exception">The exception to check.</param>
-    /// <returns>True if the exception is a PostgreSQL unique constraint violation, false otherwise.</returns>
+    private static string? ReadConstraintName(Exception exception)
+    {
+        var direct = TryGetPropertyString(exception, "ConstraintName");
+        if (!string.IsNullOrEmpty(direct))
+        {
+            return direct;
+        }
+
+        var errors = GetCachedProperty(exception.GetType(), "Errors");
+        if (errors?.GetValue(exception) is IEnumerable<object> collection)
+        {
+            foreach (var item in collection)
+            {
+                var fromError = TryGetPropertyString(item, "ConstraintName");
+                if (!string.IsNullOrEmpty(fromError))
+                {
+                    return fromError;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ReadColumnName(Exception exception) =>
+        TryGetPropertyString(exception, "ColumnName");
+
+    private static string? ExtractSqlServerConstraintNameFromMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return null;
+        }
+
+        var match = _sqlServerConstraintRegex.Match(message);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var captured = match.Groups["constraint"].Value;
+        return string.IsNullOrWhiteSpace(captured) ? null : captured;
+    }
+
+    private static string? TryGetPropertyString(object source, string propertyName)
+    {
+        var property = GetCachedProperty(source.GetType(), propertyName);
+        return property?.GetValue(source) as string;
+    }
+
     private static bool IsPostgresUniqueViolation(Exception exception)
     {
         if (exception.GetType().FullName != "Npgsql.PostgresException")
@@ -46,7 +104,7 @@ internal sealed class UniqueConstraintViolationChecker : IUniqueConstraintViolat
             return false;
         }
 
-        var sqlState = GetStringProperty(exception, "SqlState");
+        var sqlState = TryGetPropertyString(exception, "SqlState");
         if (!string.Equals(sqlState, POSTGRES_UNIQUE_VIOLATION, StringComparison.Ordinal))
         {
             return false;
@@ -55,11 +113,6 @@ internal sealed class UniqueConstraintViolationChecker : IUniqueConstraintViolat
         return true;
     }
 
-    /// <summary>
-    /// Checks if the exception is a SQL Server unique constraint violation.
-    /// </summary>
-    /// <param name="exception">The exception to check.</param>
-    /// <returns>True if the exception is a SQL Server unique constraint violation, false otherwise.</returns>
     private static bool IsSqlServerUniqueViolation(Exception exception)
     {
         var fullName = exception.GetType().FullName;
@@ -69,15 +122,18 @@ internal sealed class UniqueConstraintViolationChecker : IUniqueConstraintViolat
         }
 
         var number = GetIntProperty(exception, "Number");
-        return number.HasValue && _sqlServerUniqueViolationCodes.Contains(number.Value);
+        return number is 2601 or 2627;
     }
-
-    private static string? GetStringProperty(object source, string propertyName) =>
-        source.GetType().GetProperty(propertyName)?.GetValue(source) as string;
 
     private static int? GetIntProperty(object source, string propertyName)
     {
-        var value = source.GetType().GetProperty(propertyName)?.GetValue(source);
+        var property = GetCachedProperty(source.GetType(), propertyName);
+        var value = property?.GetValue(source);
         return value is int number ? number : null;
     }
+
+    private static PropertyInfo? GetCachedProperty(Type type, string propertyName) =>
+        _propertyCache.GetOrAdd(
+            (type, propertyName),
+            static key => key.Type.GetProperty(key.PropertyName, BindingFlags.Public | BindingFlags.Instance));
 }

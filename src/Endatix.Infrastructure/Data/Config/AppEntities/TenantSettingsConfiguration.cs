@@ -36,6 +36,6 @@ public class TenantSettingsConfiguration : IEntityTypeConfiguration<TenantSettin
             .WithOne(t => t.Settings)
             .HasForeignKey<TenantSettings>(ts => ts.TenantId)
             .IsRequired()
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

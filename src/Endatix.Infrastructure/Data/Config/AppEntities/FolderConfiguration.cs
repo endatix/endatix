@@ -7,7 +7,9 @@ namespace Endatix.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 public class FolderConfiguration : IEntityTypeConfiguration<Folder>
 {
-    public const string UniqueTenantSlugIndexName = "IX_Folders_TenantId_Slug_Unique";
+    public const string UniqueTenantSlugIndexName = Folder.UniqueConstraints.UrlSlugPerTenant;
+
+    public const string UniqueTenantNormalizedNameIndexName = Folder.UniqueConstraints.NormalizedNamePerTenant;
 
     public void Configure(EntityTypeBuilder<Folder> builder)
     {
@@ -17,6 +19,10 @@ public class FolderConfiguration : IEntityTypeConfiguration<Folder>
             .IsRequired();
 
         builder.Property(f => f.Name)
+            .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
+            .IsRequired();
+
+        builder.Property(f => f.NormalizedName)
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
             .IsRequired();
 
@@ -32,6 +38,12 @@ public class FolderConfiguration : IEntityTypeConfiguration<Folder>
             .WithMany()
             .HasForeignKey(f => f.ParentFolderId)
             .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(f => f.Tenant)
+            .WithMany()
+            .HasForeignKey(f => f.TenantId)
+            .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

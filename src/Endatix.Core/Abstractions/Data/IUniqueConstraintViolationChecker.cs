@@ -1,14 +1,13 @@
 namespace Endatix.Core.Abstractions.Data;
 
 /// <summary>
-/// Checks if the exception is a unique constraint violation.
+/// Interprets persistence exceptions (e.g. from EF Core save) for unique constraint violations and related metadata.
 /// </summary>
 public interface IUniqueConstraintViolationChecker
 {
     /// <summary>
-    /// Checks if the exception is a unique constraint violation.
+    /// Inspects <paramref name="exception"/> and returns whether it represents a unique constraint violation,
+    /// plus provider-reported constraint and column names when available.
     /// </summary>
-    /// <param name="exception">The exception to check.</param>
-    /// <returns>True if the exception is a unique constraint violation, false otherwise.</returns>
-    bool IsUniqueConstraintViolation(Exception exception);
+    UniqueConstraintViolationResult AnalyzeUniqueConstraint(Exception exception);
 }

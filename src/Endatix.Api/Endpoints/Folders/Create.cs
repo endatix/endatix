@@ -1,6 +1,7 @@
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Common;
 using Endatix.Core.UseCases.Folders.Create;
 using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
@@ -30,7 +31,12 @@ public sealed class Create(IMediator mediator)
     /// <inheritdoc/>
     public override async Task<Results<Created<FolderModel>, ProblemHttpResult>> ExecuteAsync(CreateFolderRequest request, CancellationToken ct)
     {
-        var command = new CreateFolderCommand(request.Name!, request.Slug, request.Description, request.Metadata, request.Immutable);
+        var command = new CreateFolderCommand(
+            request.Name!,
+            request.Slug,
+            request.Description,
+            request.Metadata,
+            request.Immutable);
         var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
@@ -56,9 +62,9 @@ public sealed class CreateFolderValidator : Validator<CreateFolderRequest>
             .MinimumLength(DataSchemaConstants.MIN_NAME_LENGTH)
             .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
 
-        RuleFor(x => x.Slug)
-            .NotEmpty()
-            .MaximumLength(DataSchemaConstants.MAX_SLUG_LENGTH);
+        RuleFor(x => x.Slug!)
+            .ValidUrlSlug()
+            .When(x => !string.IsNullOrWhiteSpace(x.Slug));
 
         RuleFor(x => x.Description)
             .MaximumLength(DataSchemaConstants.MAX_DESCRIPTION_LENGTH)
