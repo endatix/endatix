@@ -7,7 +7,6 @@ using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Specifications;
 using MediatR;
 
 namespace Endatix.Core.UseCases.Folders.Create;
@@ -19,7 +18,7 @@ public sealed class CreateFolderHandler(
     IRepository<Folder> folderRepository,
     IMediator mediator,
     ITenantContext tenantContext,
-    IValueNormalizer valueNormalizer,
+    FolderWritePolicy folderWritePolicy,
     IUniqueConstraintViolationChecker uniqueConstraintViolationChecker)
     : ICommandHandler<CreateFolderCommand, Result<Folder>>
 {
@@ -28,45 +27,32 @@ public sealed class CreateFolderHandler(
     {
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
-        var trimmedName = request.Name.Trim();
-        var normalizedName = valueNormalizer.Normalize(trimmedName);
-        if (string.IsNullOrEmpty(normalizedName))
+        var nameResult = folderWritePolicy.NormalizeNameOrError(request.Name);
+        if (!nameResult.IsSuccess)
         {
-            return Result.Error("Folder name could not be normalized.");
+            return Result.Invalid(folderWritePolicy.CreateNameNormalizationValidationError(nameof(CreateFolderCommand.Name)));
         }
 
-        var normalizedNameExistsSpec = new FolderSpecifications.FolderExistsByNormalizedNameSpec(normalizedName);
-        var existingByNormalizedName = await folderRepository.AnyAsync(normalizedNameExistsSpec, cancellationToken);
+        var (trimmedName, normalizedName) = nameResult.Value;
+        var existingByNormalizedName = await folderWritePolicy.NormalizedNameExistsAsync(normalizedName, excludeFolderId: null, cancellationToken);
         if (existingByNormalizedName)
         {
-            return Result.Error("A folder with this name already exists.");
+            return Result.Invalid(folderWritePolicy.CreateDuplicateNameValidationError(trimmedName, nameof(CreateFolderCommand.Name)));
         }
 
-        var baseSlug = string.IsNullOrWhiteSpace(request.Slug)
-            ? UrlSlugNormalizer.FromDisplayName(trimmedName)
-            : UrlSlugNormalizer.Normalize(request.Slug.Trim());
-
-        if (string.IsNullOrEmpty(baseSlug))
+        var slugResult = folderWritePolicy.NormalizeAndValidateSlugOrError(request.Slug, trimmedName, includeDetailedInvalidMessage: true);
+        if (!slugResult.IsSuccess || slugResult.Value is null)
         {
-            return Result.Error("Slug cannot be empty.");
+            return Result.Invalid(folderWritePolicy.CreateInvalidSlugValidationError(
+                slugResult.Errors.FirstOrDefault() ?? "Slug is invalid.",
+                nameof(CreateFolderCommand.Slug)));
         }
 
-        if (!UrlSlugNormalizer.IsValidFormat(baseSlug))
+        var baseSlug = slugResult.Value;
+        var slugTaken = await folderWritePolicy.SlugExistsAsync(baseSlug, excludeFolderId: null, cancellationToken);
+        if (slugTaken)
         {
-            return Result.Error("Slug format is invalid. Use lowercase letters, numbers, and hyphens only.");
-        }
-
-        if (UrlSlugNormalizer.IsReserved(baseSlug))
-        {
-            return Result.Error("This slug is reserved.");
-        }
-
-        var existingBySlug = await folderRepository.SingleOrDefaultAsync(
-            new FolderSpecifications.FolderExistsBySlugSpec(baseSlug),
-            cancellationToken);
-        if (existingBySlug is not null)
-        {
-            return Result.Invalid(CreateDuplicateSlugValidationError(baseSlug));
+            return Result.Invalid(folderWritePolicy.CreateDuplicateSlugValidationError(baseSlug, nameof(CreateFolderCommand.Slug)));
         }
 
         var folder = new Folder(
@@ -95,46 +81,24 @@ public sealed class CreateFolderHandler(
                 throw;
             }
 
-            if (IsFolderSlugUniqueViolation(violation))
+            if (violation.IsFolderSlugViolation())
             {
-                return Result.Invalid(CreateDuplicateSlugValidationError(baseSlug));
+                return Result.Invalid(folderWritePolicy.CreateDuplicateSlugValidationError(baseSlug, nameof(CreateFolderCommand.Slug)));
             }
 
-            if (IsFolderNormalizedNameUniqueViolation(violation))
+            if (violation.IsFolderNameViolation())
             {
-                return Result.Invalid(CreateDuplicateNameValidationError(trimmedName));
+                return Result.Invalid(folderWritePolicy.CreateDuplicateNameValidationError(trimmedName, nameof(CreateFolderCommand.Name)));
             }
 
-            return Result.Invalid(CreateDuplicateFolderConstraintValidationError(trimmedName, baseSlug));
+            return Result.Invalid(folderWritePolicy.CreateDuplicateFolderConstraintValidationError(
+                trimmedName,
+                baseSlug,
+                nameof(CreateFolderCommand.Name)));
         }
 
         await mediator.Publish(new FolderCreatedEvent(folder), cancellationToken);
         return Result<Folder>.Created(folder);
     }
 
-    private static bool IsFolderSlugUniqueViolation(UniqueConstraintViolationResult violation) =>
-        string.Equals(violation.ConstraintName, Folder.UniqueConstraints.UrlSlugPerTenant, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(violation.ColumnName, nameof(Folder.UrlSlug), StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsFolderNormalizedNameUniqueViolation(UniqueConstraintViolationResult violation) =>
-        string.Equals(violation.ConstraintName, Folder.UniqueConstraints.NormalizedNamePerTenant, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(violation.ColumnName, nameof(Folder.NormalizedName), StringComparison.OrdinalIgnoreCase);
-
-    private static ValidationError CreateDuplicateNameValidationError(string name) => new()
-    {
-        Identifier = nameof(CreateFolderCommand.Name),
-        ErrorMessage = $"A folder with the name '{name}' already exists."
-    };
-
-    private static ValidationError CreateDuplicateSlugValidationError(string slug) => new()
-    {
-        Identifier = nameof(CreateFolderCommand.Slug),
-        ErrorMessage = $"A folder with the slug '{slug}' already exists."
-    };
-
-    private static ValidationError CreateDuplicateFolderConstraintValidationError(string name, string slug) => new()
-    {
-        Identifier = nameof(CreateFolderCommand.Name),
-        ErrorMessage = $"A folder with the same name ('{name}') or slug ('{slug}') already exists."
-    };
 }

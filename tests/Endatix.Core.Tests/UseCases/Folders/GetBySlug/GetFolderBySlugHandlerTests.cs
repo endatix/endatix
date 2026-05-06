@@ -23,7 +23,7 @@ public sealed class GetFolderBySlugHandlerTests
     [Fact]
     public async Task Handle_ValidSlug_ReturnsFolder()
     {
-        var folder = new Folder(1L, "Test Folder", "test-folder") { Id = 1L };
+        var folder = new Folder(1L, "Test Folder", "test-folder", "TEST FOLDER") { Id = 1L };
 
         _repository.SingleOrDefaultAsync(
                 Arg.Any<FolderSpecifications.FolderBySlugSpec>(),
@@ -53,7 +53,7 @@ public sealed class GetFolderBySlugHandlerTests
     [Fact]
     public async Task Handle_ValidSlug_CallsRepository()
     {
-        var folder = new Folder(1L, "My Folder", "my-folder") { Id = 1L };
+        var folder = new Folder(1L, "My Folder", "my-folder", "MY FOLDER") { Id = 1L };
 
         _repository.SingleOrDefaultAsync(
                 Arg.Any<FolderSpecifications.FolderBySlugSpec>(),

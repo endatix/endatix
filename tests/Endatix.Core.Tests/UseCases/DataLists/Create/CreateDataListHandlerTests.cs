@@ -13,6 +13,7 @@ public class CreateDataListHandlerTests
     private readonly ITenantContext _tenantContext;
     private readonly IRepository<DataList> _repository;
     private readonly IUniqueConstraintViolationChecker _uniqueConstraintViolationChecker;
+    private readonly IValueNormalizer _valueNormalizer;
     private readonly CreateDataListHandler _sut;
 
     public CreateDataListHandlerTests()
@@ -20,17 +21,19 @@ public class CreateDataListHandlerTests
         _tenantContext = Substitute.For<ITenantContext>();
         _repository = Substitute.For<IRepository<DataList>>();
         _uniqueConstraintViolationChecker = Substitute.For<IUniqueConstraintViolationChecker>();
-        _sut = new CreateDataListHandler(_tenantContext, _repository, _uniqueConstraintViolationChecker);
+        _valueNormalizer = Substitute.For<IValueNormalizer>();
+        _valueNormalizer.Normalize(Arg.Any<string>()).Returns(ci => ci.Arg<string>().Trim().ToUpperInvariant());
+        _sut = new CreateDataListHandler(_tenantContext, _repository, _valueNormalizer, _uniqueConstraintViolationChecker);
     }
 
     [Fact]
     public async Task Handle_ValidRequest_ReturnsCreated()
     {
         _tenantContext.TenantId.Returns(101);
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNameSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(), Arg.Any<CancellationToken>())
             .Returns((DataList?)null);
         _repository.AddAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>())
-            .Returns(info => new DataList(101, info[0]?.ToString()!, "Test Description"));
+            .Returns(info => new DataList(101, "Cities", "Test Description", "CITIES"));
 
         var result = await _sut.Handle(
             new CreateDataListCommand("Cities", "Test Description"),
@@ -44,8 +47,8 @@ public class CreateDataListHandlerTests
     public async Task Handle_DuplicateNameExists_ReturnsInvalid()
     {
         _tenantContext.TenantId.Returns(101);
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNameSpec>(), Arg.Any<CancellationToken>())
-            .Returns(new DataList(101, "Cities", null));
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new DataList(101, "Cities", null, "CITIES"));
 
         var result = await _sut.Handle(
             new CreateDataListCommand("Cities", null),
@@ -59,18 +62,51 @@ public class CreateDataListHandlerTests
     public async Task Handle_RaceConditionUniqueViolation_ReturnsInvalid()
     {
         _tenantContext.TenantId.Returns(101);
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNameSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(), Arg.Any<CancellationToken>())
             .Returns((DataList?)null);
         _repository.AddAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>())
             .Returns<Task<DataList>>(_ => throw new Exception("db failed"));
-        _uniqueConstraintViolationChecker.IsUniqueConstraintViolation(Arg.Any<Exception>())
-            .Returns(true);
+        _uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(Arg.Any<Exception>())
+            .Returns(new UniqueConstraintViolationResult(true, DataList.UniqueConstraints.NamePerTenant, null));
 
         var result = await _sut.Handle(
             new CreateDataListCommand("Cities", null),
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
+    }
+
+    [Fact]
+    public async Task Handle_DuplicateNameDifferentCasing_ReturnsInvalid()
+    {
+        _tenantContext.TenantId.Returns(101);
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new DataList(101, "cities", null, "CITIES"));
+
+        var result = await _sut.Handle(
+            new CreateDataListCommand("Cities", null),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().Contain(x => x.Identifier == nameof(CreateDataListCommand.Name));
+    }
+
+    [Fact]
+    public async Task Handle_NonUniqueException_Rethrows()
+    {
+        _tenantContext.TenantId.Returns(101);
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(), Arg.Any<CancellationToken>())
+            .Returns((DataList?)null);
+        _repository.AddAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>())
+            .Returns<Task<DataList>>(_ => throw new InvalidOperationException("db failed"));
+        _uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(Arg.Any<Exception>())
+            .Returns(new UniqueConstraintViolationResult(false, null, null));
+
+        var action = async () => await _sut.Handle(
+            new CreateDataListCommand("Cities", null),
+            TestContext.Current.CancellationToken);
+
+        await action.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
@@ -118,10 +154,10 @@ public class CreateDataListHandlerTests
     public async Task Handle_ValidCommand_SetsCorrectName()
     {
         _tenantContext.TenantId.Returns(101);
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNameSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(), Arg.Any<CancellationToken>())
             .Returns((DataList?)null);
         _repository.AddAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>())
-            .Returns(new DataList(101, "Cities", "description"));
+            .Returns(new DataList(101, "Cities", "description", "CITIES"));
 
         var result = await _sut.Handle(
             new CreateDataListCommand("Cities", "description"),
@@ -135,10 +171,10 @@ public class CreateDataListHandlerTests
     {
         const long tenantId = 101;
         _tenantContext.TenantId.Returns(tenantId);
-        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNameSpec>(), Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(), Arg.Any<CancellationToken>())
             .Returns((DataList?)null);
         _repository.AddAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>())
-            .Returns(info => new DataList(tenantId, "Cities"));
+            .Returns(info => new DataList(tenantId, "Cities", null, "CITIES"));
 
         var result = await _sut.Handle(
             new CreateDataListCommand("Cities", null),

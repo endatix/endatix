@@ -88,4 +88,15 @@ public static class FormSpecifications
             Query.Where(f => f.Name.ToLower().Contains(searchString.ToLower()));
         }
     }
+
+    /// <summary>
+    /// Forms assigned to a folder.
+    /// </summary>
+    public sealed class ByFolderId : Specification<Form>
+    {
+        public ByFolderId(long folderId)
+        {
+            Query.Where(f => f.FolderId == folderId);
+        }
+    }
 }

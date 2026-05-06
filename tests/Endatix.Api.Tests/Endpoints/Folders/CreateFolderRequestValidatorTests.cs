@@ -29,6 +29,22 @@ public class CreateFolderRequestValidatorTests
     }
 
     [Fact]
+    public void Validate_ValidRequest_WithoutSlug_PassesValidation()
+    {
+        var request = new CreateFolderRequest
+        {
+            Name = "Test Folder",
+            Slug = null,
+            Description = null,
+            Metadata = null
+        };
+
+        var result = _validator.TestValidate(request);
+
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
     public void Should_Have_Error_When_Name_Is_Empty()
     {
         var request = new CreateFolderRequest
@@ -72,7 +88,7 @@ public class CreateFolderRequestValidatorTests
     }
 
     [Fact]
-    public void Should_Have_Error_When_Slug_Is_Empty()
+    public void Should_Not_Have_Error_When_Slug_Is_Empty()
     {
         var request = new CreateFolderRequest
         {
@@ -82,16 +98,30 @@ public class CreateFolderRequestValidatorTests
 
         var result = _validator.TestValidate(request);
 
-        result.ShouldHaveValidationErrorFor(x => x.Slug);
+        result.ShouldNotHaveValidationErrorFor(x => x.Slug);
     }
 
     [Fact]
-    public void Should_Have_Error_When_Slug_Is_Null()
+    public void Should_Not_Have_Error_When_Slug_Is_Null()
     {
         var request = new CreateFolderRequest
         {
             Name = "Test Folder",
             Slug = null
+        };
+
+        var result = _validator.TestValidate(request);
+
+        result.ShouldNotHaveValidationErrorFor(x => x.Slug);
+    }
+
+    [Fact]
+    public void Should_Have_Error_When_Slug_Is_Reserved_When_Provided()
+    {
+        var request = new CreateFolderRequest
+        {
+            Name = "Test Folder",
+            Slug = "templates"
         };
 
         var result = _validator.TestValidate(request);

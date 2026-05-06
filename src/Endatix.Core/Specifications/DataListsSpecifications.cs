@@ -74,6 +74,22 @@ public static class DataListsSpecifications
     }
 
     /// <summary>
+    /// Specification to get a data list by normalized name.
+    /// </summary>
+    public sealed class ByNormalizedNameSpec : SingleResultSpecification<DataList>
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ByNormalizedNameSpec"/> class.
+        /// </summary>
+        /// <param name="normalizedName">The normalized name of the data list.</param>
+        public ByNormalizedNameSpec(string normalizedName)
+        {
+            Query.Where(x => x.NormalizedName == normalizedName);
+            Query.AsNoTracking();
+        }
+    }
+
+    /// <summary>
     /// Specification to check if a data list exists by ID.
     /// </summary>
     public sealed class ExistsSpec : SingleResultSpecification<DataList>
