@@ -3,15 +3,19 @@ using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Forms;
+using Endatix.Core.UseCases.Folders;
 using MediatR;
 
 namespace Endatix.Core.UseCases.Forms.Update;
 
+/// <summary>
+/// Handler for updating a form.
+/// </summary>
 public class UpdateFormHandler(
     IRepository<Form> repository,
     IRepository<Submission> submissionRepository,
-    IMediator mediator) : ICommandHandler<UpdateFormCommand, Result<Form>>
+    IMediator mediator,
+    FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<UpdateFormCommand, Result<Form>>
 {
     private const string ENABLE_CONFLICT_MESSAGE = "Cannot enable single submission gate because this form already has duplicate submissions.";
     private const string DISABLE_CONFLICT_MESSAGE = "Single submission gate cannot be disabled after it has been enabled.";
@@ -55,6 +59,17 @@ public class UpdateFormHandler(
         form.IsEnabled = request.IsEnabled;
         form.LimitOnePerUser = requestedLimitOnePerUser;
         form.Metadata = request.Metadata;
+
+        var folderCheck = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
+            form.FolderId,
+            request.FolderId,
+            targetFolderId => form.MoveToFolder(targetFolderId),
+            "Form cannot be moved to the requested folder.",
+            cancellationToken);
+        if (!folderCheck.IsOk())
+        {
+            return folderCheck.ToErrorResult<Form>();
+        }
 
         WebHookConfiguration? webHookConfig;
 
