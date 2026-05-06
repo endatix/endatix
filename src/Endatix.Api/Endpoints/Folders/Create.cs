@@ -1,7 +1,6 @@
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Common;
 using Endatix.Core.UseCases.Folders.Create;
 using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;

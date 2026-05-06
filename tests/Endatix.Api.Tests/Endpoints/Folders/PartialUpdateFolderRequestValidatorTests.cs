@@ -3,19 +3,19 @@ using FluentValidation.TestHelper;
 
 namespace Endatix.Api.Tests.Endpoints.Folders;
 
-public class UpdateFolderRequestValidatorTests
+public class PartialUpdateFolderRequestValidatorTests
 {
-    private readonly UpdateFolderValidator _validator;
+    private readonly PartialUpdateFolderValidator _validator;
 
-    public UpdateFolderRequestValidatorTests()
+    public PartialUpdateFolderRequestValidatorTests()
     {
-        _validator = new UpdateFolderValidator();
+        _validator = new PartialUpdateFolderValidator();
     }
 
     [Fact]
     public void Validate_ValidRequest_PassesValidation()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Name = "Updated Name",
@@ -32,7 +32,7 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Validate_PartialUpdateWithOnlyDescription_PassesValidation()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Name = "Existing Name",
@@ -47,7 +47,7 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Should_Have_Error_When_FolderId_Is_Zero()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 0,
             Name = "Test"
@@ -61,7 +61,7 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Should_Have_Error_When_FolderId_Is_Negative()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = -1,
             Name = "Test"
@@ -75,7 +75,7 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_FolderId_Is_Positive()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Name = "Test"
@@ -89,7 +89,7 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Should_Have_Error_When_Name_Is_Empty()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Name = ""
@@ -104,7 +104,7 @@ public class UpdateFolderRequestValidatorTests
     [InlineData("a")]
     public void Should_Have_Error_When_Name_Is_Too_Short(string name)
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Name = name
@@ -121,7 +121,7 @@ public class UpdateFolderRequestValidatorTests
     [InlineData("Test Folder Name That Is Exactly Right")]
     public void Should_Not_Have_Error_When_Name_Is_Valid(string name)
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Name = name
@@ -135,15 +135,16 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Should_Have_Error_When_Name_Is_Null()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
-            Name = null
+            Name = null,
+            IsActive = true,
         };
 
         var result = _validator.TestValidate(request);
 
-        result.ShouldHaveValidationErrorFor(x => x.Name);
+        result.ShouldNotHaveValidationErrorFor(x => x.Name);
     }
 
     [Theory]
@@ -151,7 +152,7 @@ public class UpdateFolderRequestValidatorTests
     [InlineData("another-valid-slug-123")]
     public void Should_Not_Have_Error_When_Slug_Is_Valid(string slug)
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Slug = slug
@@ -168,7 +169,7 @@ public class UpdateFolderRequestValidatorTests
     [InlineData("InvalidSlug!")]
     public void Should_Have_Error_When_Slug_Is_Invalid(string slug)
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Slug = slug
@@ -182,10 +183,11 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_Slug_Is_Null()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
-            Slug = null
+            Slug = null,
+            IsActive = true,
         };
 
         var result = _validator.TestValidate(request);
@@ -196,7 +198,7 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Should_Have_Error_When_Description_Exceeds_MaxLength()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Description = new string('a', 501)
@@ -210,7 +212,7 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_Description_Is_Valid()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Description = "Test Description"
@@ -224,10 +226,11 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_Description_Is_Null()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
-            Description = null
+            Description = null,
+            IsActive = true,
         };
 
         var result = _validator.TestValidate(request);
@@ -242,7 +245,7 @@ public class UpdateFolderRequestValidatorTests
     [InlineData("[{\"key\":\"value\"}]")]
     public void Should_Not_Have_Error_When_Metadata_Is_ValidJson(string validJson)
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Metadata = validJson
@@ -259,7 +262,7 @@ public class UpdateFolderRequestValidatorTests
     [InlineData("{key:value}")]
     public void Should_Have_Error_When_Metadata_Is_InvalidJson(string invalidJson)
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
             Metadata = invalidJson
@@ -274,14 +277,29 @@ public class UpdateFolderRequestValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_Metadata_Is_Null()
     {
-        var request = new UpdateFolderRequest
+        var request = new PartialUpdateFolderRequest
         {
             FolderId = 1,
-            Metadata = null
+            Metadata = null,
+            IsActive = true,
         };
 
         var result = _validator.TestValidate(request);
 
         result.ShouldNotHaveValidationErrorFor(x => x.Metadata);
+    }
+
+    [Fact]
+    public void Should_Have_Error_When_No_Fields_Are_Provided_For_PartialUpdate()
+    {
+        var request = new PartialUpdateFolderRequest
+        {
+            FolderId = 1,
+        };
+
+        var result = _validator.TestValidate(request);
+
+        result.ShouldHaveValidationErrorFor(x => x)
+            .WithErrorMessage("At least one field must be provided for partial update.");
     }
 }
