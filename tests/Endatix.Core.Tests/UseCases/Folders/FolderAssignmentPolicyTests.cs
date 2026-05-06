@@ -85,7 +85,7 @@ public class FolderAssignmentPolicyTests
         var result = await _helper.EnsureFolderMoveValidAsync(10, null, CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Error);
-        result.Errors.Should().ContainSingle(e => e.Contains("required", StringComparison.OrdinalIgnoreCase));
+        result.Errors.Should().ContainSingle(e => e.Contains("assign a folder", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class FolderAssignmentPolicyTests
         var result = await _helper.EnsureFolderAssignmentValidAsync(null, CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Error);
-        result.Errors.Should().ContainSingle(e => e.Contains("required", StringComparison.OrdinalIgnoreCase));
+        result.Errors.Should().ContainSingle(e => e.Contains("assign a folder", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -143,5 +143,75 @@ public class FolderAssignmentPolicyTests
 
         result.Status.Should().Be(ResultStatus.Error);
         result.Errors.Should().ContainSingle(e => e.Contains("not found", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task EnsureAndApplyFolderMoveAsync_WhenValidationFails_DoesNotApplyMove()
+    {
+        var settings = new TenantSettingsEntity(SampleData.TENANT_ID);
+        settings.UpdateRequireFolderAssignment(true);
+        _tenantSettingsRepository
+            .FirstOrDefaultAsync(Arg.Any<ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
+            .Returns(settings);
+
+        var wasCalled = false;
+        var result = await _helper.EnsureAndApplyFolderMoveAsync(
+            currentFolderId: 10,
+            requestedFolderId: null,
+            applyMove: _ =>
+            {
+                wasCalled = true;
+                return true;
+            },
+            cannotMoveMessage: "cannot move",
+            cancellationToken: CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Error);
+        wasCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task EnsureAndApplyFolderMoveAsync_WhenApplyFails_ReturnsError()
+    {
+        var currentFolder = new Folder(SampleData.TENANT_ID, "Current", "current", "CURRENT")
+        {
+            Id = 10,
+            Immutable = false,
+        };
+        _folderRepository
+            .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>())
+            .Returns(currentFolder);
+
+        var result = await _helper.EnsureAndApplyFolderMoveAsync(
+            currentFolderId: 10,
+            requestedFolderId: null,
+            applyMove: _ => false,
+            cannotMoveMessage: "cannot move",
+            cancellationToken: CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Error);
+        result.Errors.Should().ContainSingle(e => e.Contains("cannot move", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task EnsureAndApplyFolderMoveAsync_WhenApplySucceeds_ReturnsOk()
+    {
+        var currentFolder = new Folder(SampleData.TENANT_ID, "Current", "current", "CURRENT")
+        {
+            Id = 10,
+            Immutable = false,
+        };
+        _folderRepository
+            .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>())
+            .Returns(currentFolder);
+
+        var result = await _helper.EnsureAndApplyFolderMoveAsync(
+            currentFolderId: 10,
+            requestedFolderId: null,
+            applyMove: _ => true,
+            cannotMoveMessage: "cannot move",
+            cancellationToken: CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Ok);
     }
 }

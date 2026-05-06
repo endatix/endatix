@@ -39,4 +39,9 @@ public class UpdateFormRequest
     /// The JSON data containing webhook configuration settings for this form.
     /// </summary>
     public string? WebHookSettingsJson { get; set; }
+
+    /// <summary>
+    /// Optional folder id (omit to leave unchanged only if client sends full resource; use partial update for explicit clear).
+    /// </summary>
+    public string? FolderId { get; set; }
 }

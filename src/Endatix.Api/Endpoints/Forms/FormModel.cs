@@ -68,6 +68,11 @@ public class FormModel
     public int? SubmissionsCount { get; init; }
 
     /// <summary>
+    /// Optional folder id for organization.
+    /// </summary>
+    public string? FolderId { get; set; }
+
+    /// <summary>
     /// The JSON data containing webhook configuration settings for this form as a string.
     /// </summary>
     [Obsolete("Use WebHookSettings instead.")]

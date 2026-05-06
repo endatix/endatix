@@ -14,6 +14,8 @@ public record PartialUpdateFormTemplateCommand : ICommand<Result<FormTemplate>>
     public string? Name { get; init; }
     public string? Description { get; init; }
     public string? JsonData { get; init; }
+    public bool ClearFolderId { get; init; }
+    public long? FolderId { get; init; }
 
     public PartialUpdateFormTemplateCommand(long formTemplateId, string? name, string? description, string? jsonData)
     {

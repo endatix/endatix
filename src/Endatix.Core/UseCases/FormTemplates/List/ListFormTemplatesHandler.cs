@@ -13,7 +13,7 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository)
     public async Task<Result<IEnumerable<FormTemplateDto>>> Handle(ListFormTemplatesQuery request, CancellationToken cancellationToken)
     {
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
-        var spec = new FormTemplatesSpec(pagingParams);
+        var spec = new FormTemplatesSpec(pagingParams, request.FolderId);
         IEnumerable<FormTemplateDto> formTemplates = await repository.ListAsync(spec, cancellationToken);
         return Result.Success(formTemplates);
     }

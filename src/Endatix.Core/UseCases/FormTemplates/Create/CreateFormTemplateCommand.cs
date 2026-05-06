@@ -13,8 +13,9 @@ public record CreateFormTemplateCommand : ICommand<Result<FormTemplate>>
     public string Name { get; init; }
     public string? Description { get; init; }
     public string? JsonData { get; init; }
+    public long? FolderId { get; init; }
 
-    public CreateFormTemplateCommand(string name, string? description, string jsonData)
+    public CreateFormTemplateCommand(string name, string? description, string jsonData, long? folderId = null)
     {
         Guard.Against.NullOrWhiteSpace(name);
         Guard.Against.NullOrWhiteSpace(jsonData);
@@ -22,5 +23,6 @@ public record CreateFormTemplateCommand : ICommand<Result<FormTemplate>>
         Name = name;
         Description = description;
         JsonData = jsonData;
+        FolderId = folderId;
     }
 }

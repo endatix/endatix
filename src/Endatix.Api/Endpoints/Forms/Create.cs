@@ -1,6 +1,7 @@
 ﻿using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Forms.Create;
 using Endatix.Core.Abstractions.Authorization;
@@ -11,7 +12,7 @@ namespace Endatix.Api.Endpoints.Forms;
 /// <summary>
 /// Endpoint for creating a new form and an active form definition.
 /// </summary>
-public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Created<CreateFormResponse>, BadRequest>>
+public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Created<CreateFormResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -30,7 +31,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Created<CreateFormResponse>, BadRequest>> ExecuteAsync(CreateFormRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Created<CreateFormResponse>, ProblemHttpResult>> ExecuteAsync(CreateFormRequest request, CancellationToken ct)
     {
         var formDefinitionJsonData = request.FormDefinitionSchema.HasValue
             ? JsonSerializer.Serialize(request.FormDefinitionSchema.Value)
@@ -40,6 +41,8 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
             ? JsonSerializer.Serialize(request.WebHookSettings.Value)
             : request.WebHookSettingsJson;
 
+        var folderId = request.FolderId.ParseToLong();
+
         var createFormCommand = new CreateFormCommand(
             request.Name!,
             request.Description,
@@ -47,12 +50,13 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
             formDefinitionJsonData,
             webHookSettingsJson,
             request.LimitOnePerUser ?? false,
-            request.Metadata);
+            request.Metadata,
+            folderId);
 
-        var result = await mediator.Send(createFormCommand, cancellationToken);
+        var result = await mediator.Send(createFormCommand, ct);
 
         return TypedResultsBuilder
             .MapResult(result, FormMapper.Map<CreateFormResponse>)
-            .SetTypedResults<Created<CreateFormResponse>, BadRequest>();
+            .SetTypedResults<Created<CreateFormResponse>, ProblemHttpResult>();
     }
 }

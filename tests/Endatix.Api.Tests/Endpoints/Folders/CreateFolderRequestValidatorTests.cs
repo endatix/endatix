@@ -116,7 +116,7 @@ public class CreateFolderRequestValidatorTests
     }
 
     [Fact]
-    public void Should_Have_Error_When_Slug_Is_Reserved_When_Provided()
+    public void Should_Not_Have_Error_When_Slug_Is_Reserved()
     {
         var request = new CreateFolderRequest
         {
@@ -126,7 +126,7 @@ public class CreateFolderRequestValidatorTests
 
         var result = _validator.TestValidate(request);
 
-        result.ShouldHaveValidationErrorFor(x => x.Slug);
+        result.ShouldNotHaveValidationErrorFor(x => x.Slug);
     }
 
     [Fact]

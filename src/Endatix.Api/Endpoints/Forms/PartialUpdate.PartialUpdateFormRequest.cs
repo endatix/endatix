@@ -49,4 +49,14 @@ public class PartialUpdateFormRequest
     /// The JSON data containing webhook configuration settings for this form.
     /// </summary>
     public string? WebHookSettingsJson { get; set; }
+
+    /// <summary>
+    /// When true, clears folder assignment.
+    /// </summary>
+    public bool ClearFolderId { get; set; }
+
+    /// <summary>
+    /// Optional folder id to assign.
+    /// </summary>
+    public string? FolderId { get; set; }
 }

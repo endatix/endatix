@@ -17,6 +17,12 @@ public sealed class FolderAssignmentPolicy(
 {
     private const string IMMUTABLE_FOLDER_MOVE_ERROR = "Items in immutable folders cannot be moved or cleared.";
 
+    /// <summary>
+    /// Ensures the folder assignment is valid for the current tenant.
+    /// </summary>
+    /// <param name="folderId">The ID of the folder to assign.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A result indicating whether the folder assignment is valid.</returns>
     public async Task<Result> EnsureFolderAssignmentValidAsync(long? folderId, CancellationToken cancellationToken)
     {
         return await EnsureFolderMoveValidAsync(

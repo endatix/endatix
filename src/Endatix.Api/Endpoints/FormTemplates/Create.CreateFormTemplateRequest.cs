@@ -19,4 +19,9 @@ public class CreateFormTemplateRequest
     /// The JSON data representing the form template structure.
     /// </summary>
     public string? JsonData { get; set; }
+
+    /// <summary>
+    /// Optional folder id.
+    /// </summary>
+    public string? FolderId { get; set; }
 }

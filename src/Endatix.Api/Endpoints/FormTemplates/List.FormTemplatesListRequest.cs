@@ -16,4 +16,9 @@ public class FormTemplatesListRequest : IPagedRequest
     /// The number of items to take.
     /// </summary>
     public int? PageSize { get; set; }
+
+    /// <summary>
+    /// Optional folder filter.
+    /// </summary>
+    public long? FolderId { get; set; }
 }

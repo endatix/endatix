@@ -1,10 +1,13 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Forms.Update;
 using MediatR;
+using Endatix.Core.UseCases.Folders;
+using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Core.Tests.UseCases.Forms.Update;
 
@@ -20,7 +23,7 @@ public class UpdateFormHandlerTests
         _repository = Substitute.For<IRepository<Form>>();
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new UpdateFormHandler(_repository, _submissionRepository, _mediator);
+        _handler = new UpdateFormHandler(_repository, _submissionRepository, _mediator, FolderAssignmentPolicyStub.Relaxed(SampleData.TENANT_ID));
     }
 
     [Fact]
@@ -303,5 +306,46 @@ public class UpdateFormHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.LimitOnePerUser.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_MovingFromImmutableFolder_ReturnsConflict()
+    {
+        // Arrange
+        var tenantSettingsRepo = Substitute.For<IRepository<TenantSettingsEntity>>();
+        var folderRepo = Substitute.For<IRepository<Folder>>();
+        var tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+        var helper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, tenantContext);
+
+        var immutableFolder = new Folder(SampleData.TENANT_ID, "Immutable", "immutable", "IMMUTABLE")
+        {
+            Id = 7,
+            Immutable = true,
+        };
+        folderRepo
+            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<Folder>>(), Arg.Any<CancellationToken>())
+            .Returns(immutableFolder);
+        tenantSettingsRepo
+            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
+            .Returns((TenantSettingsEntity?)null);
+
+        var handler = new UpdateFormHandler(_repository, _submissionRepository, _mediator, helper);
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, folderId: 7) { Id = 1 };
+        var request = new UpdateFormCommand(
+            1,
+            SampleData.FORM_NAME_1,
+            SampleData.FORM_DESCRIPTION_1,
+            true,
+            folderId: 9);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().ContainSingle(e => e.Contains("immutable", StringComparison.OrdinalIgnoreCase));
     }
 }
