@@ -64,7 +64,7 @@ public sealed class FolderAssignmentPolicy(
         var require = tenantSettings?.RequireFolderAssignment ?? false;
         if (require && (!requestedFolderId.HasValue || requestedFolderId.Value <= 0))
         {
-            return Result.Error("Folder assignment is required for this tenant.");
+            return Result.Error("You must assign a folder.");
         }
 
         if (!requestedFolderId.HasValue || requestedFolderId.Value <= 0)
@@ -84,6 +84,30 @@ public sealed class FolderAssignmentPolicy(
         if (!requestedFolder.IsActive)
         {
             return Result.Error("Folder is not active.");
+        }
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Validates a folder move and applies the aggregate mutation in one place.
+    /// </summary>
+    public async Task<Result> EnsureAndApplyFolderMoveAsync(
+        long? currentFolderId,
+        long? requestedFolderId,
+        Func<long?, bool> applyMove,
+        string cannotMoveMessage,
+        CancellationToken cancellationToken)
+    {
+        var validation = await EnsureFolderMoveValidAsync(currentFolderId, requestedFolderId, cancellationToken);
+        if (!validation.IsOk())
+        {
+            return validation;
+        }
+
+        if (!applyMove(requestedFolderId))
+        {
+            return Result.Error(cannotMoveMessage);
         }
 
         return Result.Success();

@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -8,7 +9,7 @@ namespace Endatix.Core.Entities;
 /// <summary>
 /// Represents tenant-specific configuration settings.
 /// </summary>
-public class TenantSettings : IAggregateRoot
+public sealed class TenantSettings : IAggregateRoot, ITenantOwned
 {
     private string? _slackSettingsJson;
     private SlackSettings? _slackSettings;

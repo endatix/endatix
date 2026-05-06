@@ -24,6 +24,7 @@ public class FormUpdatedWebHookHandler(IWebHookService webHookService, ILogger<F
             isEnabled = notification.Form.IsEnabled,
             activeDefinitionId = notification.Form.ActiveDefinitionId,
             themeId = notification.Form.ThemeId,
+            folderId = notification.Form.FolderId,
             createdAt = notification.Form.CreatedAt,
             modifiedAt = notification.Form.ModifiedAt,
         };

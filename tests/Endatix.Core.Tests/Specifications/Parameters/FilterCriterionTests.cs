@@ -77,6 +77,7 @@ public class FilterCriterionTests
     [InlineData("count>5", ExpressionType.GreaterThan, "count", new[] { "5" })]
     [InlineData("amount<10", ExpressionType.LessThan, "amount", new[] { "10" })]
     [InlineData("tags:draft|published", ExpressionType.Equal, "tags", new[] { "draft", "published" })]
+    [InlineData("FolderId:1501097134525513728", ExpressionType.Equal, "FolderId", new[] { "1501097134525513728" })]
     public void Constructor_ValidExpression_CreatesFilterCriterion(
         string filterExpression,
         ExpressionType expectedOperator,

@@ -1,6 +1,9 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Features.WebHooks;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Specifications;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -9,8 +12,12 @@ namespace Endatix.Infrastructure.Features.WebHooks.Handlers;
 /// <summary>
 /// Webhook handler for FormCreatedEvent.
 /// </summary>
-public class FormCreatedHandler(IWebHookService webHookService, ILogger<FormCreatedHandler> logger, IIdGenerator<long> idGenerator) : INotificationHandler<FormCreatedEvent>
+public class FormCreatedHandler(
+    IWebHookService webHookService,
+    ILogger<FormCreatedHandler> logger,
+    IIdGenerator<long> idGenerator) : INotificationHandler<FormCreatedEvent>
 {
+    /// <inheritdoc/>
     public async Task Handle(FormCreatedEvent notification, CancellationToken cancellationToken)
     {
         logger.LogInformation("Handling FormCreatedEvent for form {FormId}", notification.Form.Id);
@@ -24,6 +31,7 @@ public class FormCreatedHandler(IWebHookService webHookService, ILogger<FormCrea
             isEnabled = notification.Form.IsEnabled,
             activeDefinitionId = notification.Form.ActiveDefinitionId,
             themeId = notification.Form.ThemeId,
+            folderId = notification.Form.FolderId,
             createdAt = notification.Form.CreatedAt,
             modifiedAt = notification.Form.ModifiedAt,
         };
@@ -35,4 +43,4 @@ public class FormCreatedHandler(IWebHookService webHookService, ILogger<FormCrea
 
         await webHookService.EnqueueWebHookAsync(notification.Form.TenantId, message, cancellationToken, notification.Form.Id);
     }
-} 
+}

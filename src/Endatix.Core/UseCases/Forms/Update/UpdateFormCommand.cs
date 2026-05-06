@@ -17,6 +17,7 @@ public record UpdateFormCommand : ICommand<Result<Form>>
     public bool? LimitOnePerUser { get; init; }
     public string? Metadata { get; init; }
     public string? WebHookSettingsJson { get; init; }
+    public long? FolderId { get; init; }
 
     public UpdateFormCommand(
         long formId,
@@ -25,7 +26,8 @@ public record UpdateFormCommand : ICommand<Result<Form>>
         bool isEnabled,
         string? webHookSettingsJson = null,
         bool? limitOnePerUser = null,
-        string? metadata = null)
+        string? metadata = null,
+        long? folderId = null)
     {
         Guard.Against.NegativeOrZero(formId);
         Guard.Against.NullOrWhiteSpace(name);
@@ -37,5 +39,6 @@ public record UpdateFormCommand : ICommand<Result<Form>>
         LimitOnePerUser = limitOnePerUser;
         Metadata = metadata;
         WebHookSettingsJson = webHookSettingsJson;
+        FolderId = folderId;
     }
 }

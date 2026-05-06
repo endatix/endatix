@@ -21,6 +21,11 @@ public class TenantSettingsModel
     public bool IsSubmissionTokenValidAfterCompletion { get; set; }
 
     /// <summary>
+    /// When true, forms and templates require a folder assignment.
+    /// </summary>
+    public bool RequireFolderAssignment { get; set; }
+
+    /// <summary>
     /// Slack integration settings with sensitive data masked.
     /// </summary>
     public SlackSettingsModel? SlackSettings { get; set; }
