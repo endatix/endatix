@@ -85,14 +85,28 @@ public static class SpecificationHelper
         return Expression.Constant(parsedValue, type);
     }
 
-    private static object ParseValue(string value, Type targetType)
+    private static object? ParseValue(string value, Type targetType)
     {
-        if (targetType.IsEnum)
+        var underlyingType = Nullable.GetUnderlyingType(targetType);
+        var isNullable = underlyingType is not null;
+        var actualType = underlyingType ?? targetType;
+
+        if (string.Equals(value, "null", StringComparison.OrdinalIgnoreCase))
         {
-            return Enum.Parse(targetType, value, true);
+            if (!isNullable)
+            {
+                throw new ArgumentException($"Cannot convert null to non-nullable type {targetType.Name}");
+            }
+
+            return null;
         }
 
-        if (targetType == typeof(DateTime) || targetType == typeof(DateTime?))
+        if (actualType.IsEnum)
+        {
+            return Enum.Parse(actualType, value, true);
+        }
+
+        if (actualType == typeof(DateTime))
         {
             var dateTime = DateTime.Parse(value);
             return dateTime.Kind == DateTimeKind.Unspecified 
@@ -100,7 +114,7 @@ public static class SpecificationHelper
                 : dateTime.ToUniversalTime();
         }
 
-        return TypeDescriptor.GetConverter(targetType).ConvertFromInvariantString(value)
+        return TypeDescriptor.GetConverter(actualType).ConvertFromInvariantString(value)
             ?? throw new ArgumentException($"Cannot convert value '{value}' to type {targetType.Name}");
     }
 }

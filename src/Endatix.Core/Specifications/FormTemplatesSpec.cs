@@ -8,14 +8,10 @@ namespace Endatix.Core.Specifications;
 
 public class FormTemplatesSpec : Specification<FormTemplate, FormTemplateDto>
 {
-    public FormTemplatesSpec(PagingParameters pagingParams, long? folderId)
+    public FormTemplatesSpec(PagingParameters pagingParams, FilterParameters filterParams)
     {
-        if (folderId.HasValue)
-        {
-            Query.Where(x => x.FolderId == folderId);
-        }
-
         Query
+            .Filter(filterParams)
             .OrderByDescending(x => x.CreatedAt)
             .Paginate(pagingParams)
             .AsNoTracking();

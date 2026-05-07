@@ -17,6 +17,7 @@ public class FormsListValidator : Validator<FormsListRequest>
         { "isEnabled", typeof(bool) },
         { "themeId", typeof(long) },
         { "activeDefinitionId", typeof(long) },
+        { "folderId", typeof(long?) },
         { "name", typeof(string) },
         { "description", typeof(string) }
     };

@@ -32,7 +32,7 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
     public override async Task<Results<Ok<IEnumerable<FormTemplateModelWithoutJsonData>>, BadRequest>> ExecuteAsync(FormTemplatesListRequest request, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
-            new ListFormTemplatesQuery(request.Page, request.PageSize, request.FolderId),
+            new ListFormTemplatesQuery(request.Page, request.PageSize, request.Filter, request.FolderId),
             cancellationToken);
 
         return TypedResultsBuilder

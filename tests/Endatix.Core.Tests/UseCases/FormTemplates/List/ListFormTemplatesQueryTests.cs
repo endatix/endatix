@@ -17,6 +17,7 @@ public class ListFormTemplatesQueryTests
         // Assert
         query.Page.Should().Be(page);
         query.PageSize.Should().Be(pageSize);
+        query.FilterExpressions.Should().BeNull();
         query.FolderId.Should().BeNull();
     }
 
@@ -33,6 +34,7 @@ public class ListFormTemplatesQueryTests
         // Assert
         query.Page.Should().BeNull();
         query.PageSize.Should().BeNull();
+        query.FilterExpressions.Should().BeNull();
         query.FolderId.Should().BeNull();
     }
 } 

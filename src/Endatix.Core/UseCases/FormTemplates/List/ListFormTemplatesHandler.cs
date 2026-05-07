@@ -13,8 +13,25 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository)
     public async Task<Result<IEnumerable<FormTemplateDto>>> Handle(ListFormTemplatesQuery request, CancellationToken cancellationToken)
     {
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
-        var spec = new FormTemplatesSpec(pagingParams, request.FolderId);
+        var filterParams = CreateFilterParameters(request.FilterExpressions, request.FolderId);
+        var spec = new FormTemplatesSpec(pagingParams, filterParams);
         IEnumerable<FormTemplateDto> formTemplates = await repository.ListAsync(spec, cancellationToken);
         return Result.Success(formTemplates);
+    }
+
+    private static FilterParameters CreateFilterParameters(IEnumerable<string>? filterExpressions, long? folderId)
+    {
+        var filterList = new List<string>();
+        if (filterExpressions is not null)
+        {
+            filterList.AddRange(filterExpressions);
+        }
+
+        if (folderId.HasValue)
+        {
+            filterList.Add($"FolderId:{folderId.Value}");
+        }
+
+        return new FilterParameters(filterList);
     }
 }

@@ -7,5 +7,9 @@ namespace Endatix.Core.UseCases.FormTemplates.List;
 /// <summary>
 /// Query for listing form templates with pagination.
 /// </summary>
-public record ListFormTemplatesQuery(int? Page, int? PageSize, long? FolderId)
+public record ListFormTemplatesQuery(
+    int? Page,
+    int? PageSize,
+    IEnumerable<string>? FilterExpressions = null,
+    long? FolderId = null)
     : IQuery<Result<IEnumerable<FormTemplateDto>>>;
