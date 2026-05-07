@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormTemplates.PartialUpdate;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Api.Common;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
@@ -32,8 +33,14 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormTempl
     /// <inheritdoc/>
     public override async Task<Results<Ok<PartialUpdateFormTemplateResponse>, BadRequest, NotFound>> ExecuteAsync(PartialUpdateFormTemplateRequest request, CancellationToken cancellationToken)
     {
+        var folderId = request.FolderId.ParseToLong();
+
         var result = await mediator.Send(
-            new PartialUpdateFormTemplateCommand(request.FormTemplateId, request.Name, request.Description, request.JsonData),
+            new PartialUpdateFormTemplateCommand(request.FormTemplateId, request.Name, request.Description, request.JsonData)
+            {
+                ClearFolderId = request.ClearFolderId,
+                FolderId = folderId,
+            },
             cancellationToken);
 
         return TypedResultsBuilder

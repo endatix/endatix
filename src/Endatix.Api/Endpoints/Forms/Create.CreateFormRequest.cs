@@ -53,4 +53,9 @@ public class CreateFormRequest
     /// The webhook configuration settings as a JSON object.
     /// </summary>
     public JsonElement? WebHookSettings { get; set; }
+
+    /// <summary>
+    /// Optional folder id.
+    /// </summary>
+    public string? FolderId { get; set; }
 }

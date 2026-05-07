@@ -91,14 +91,19 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Name")
+                    b.HasIndex("TenantId", "NormalizedName")
                         .IsUnique()
-                        .HasDatabaseName("IX_Unique_DataList_Name")
+                        .HasDatabaseName("IX_DataLists_TenantId_NormalizedName_Unique")
                         .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("DataLists", (string)null);
@@ -201,6 +206,74 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.ToTable("EmailTemplates", (string)null);
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.Folder", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("Immutable")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long?>("ParentFolderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UrlSlug")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentFolderId");
+
+                    b.HasIndex("TenantId", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Folders_TenantId_NormalizedName_Unique")
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.HasIndex("TenantId", "UrlSlug")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Folders_TenantId_Slug_Unique")
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("Folders", (string)null);
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.Form", b =>
                 {
                     b.Property<long>("Id")
@@ -217,6 +290,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.Property<string>("Description")
                         .HasColumnType("text");
+
+                    b.Property<long?>("FolderId")
+                        .HasColumnType("bigint");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -256,6 +332,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.HasIndex("ActiveDefinitionId")
                         .IsUnique();
+
+                    b.HasIndex("FolderId");
 
                     b.HasIndex("TenantId");
 
@@ -376,6 +454,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
+                    b.Property<long?>("FolderId")
+                        .HasColumnType("bigint");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -395,6 +476,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FolderId");
 
                     b.HasIndex("TenantId");
 
@@ -581,6 +664,11 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("RequireFolderAssignment")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("SlackSettingsJson")
                         .HasColumnType("jsonb");
 
@@ -650,7 +738,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Tenant");
@@ -667,12 +755,35 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Navigation("DataList");
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.Folder", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Folder", "ParentFolder")
+                        .WithMany()
+                        .HasForeignKey("ParentFolderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ParentFolder");
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.Form", b =>
                 {
                     b.HasOne("Endatix.Core.Entities.FormDefinition", "ActiveDefinition")
                         .WithOne()
                         .HasForeignKey("Endatix.Core.Entities.Form", "ActiveDefinitionId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Endatix.Core.Entities.Folder", "Folder")
+                        .WithMany()
+                        .HasForeignKey("FolderId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
                         .WithMany("Forms")
@@ -686,6 +797,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("ActiveDefinition");
+
+                    b.Navigation("Folder");
 
                     b.Navigation("Tenant");
 
@@ -729,11 +842,18 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
             modelBuilder.Entity("Endatix.Core.Entities.FormTemplate", b =>
                 {
+                    b.HasOne("Endatix.Core.Entities.Folder", "Folder")
+                        .WithMany()
+                        .HasForeignKey("FolderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Folder");
 
                     b.Navigation("Tenant");
                 });
@@ -828,7 +948,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
                         .WithOne("Settings")
                         .HasForeignKey("Endatix.Core.Entities.TenantSettings", "TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Tenant");

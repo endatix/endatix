@@ -41,6 +41,13 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
 
     public string? WebHookSettingsJson { get; init; }
 
+    /// <summary>
+    /// When true, clears folder assignment (subject to tenant policy).
+    /// </summary>
+    public bool ClearFolderId { get; init; }
+
+    public long? FolderId { get; init; }
+
     public PartialUpdateFormCommand(long formId)
     {
         FormId = formId;

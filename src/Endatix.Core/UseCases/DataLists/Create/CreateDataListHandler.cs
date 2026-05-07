@@ -11,6 +11,7 @@ namespace Endatix.Core.UseCases.DataLists.Create;
 public sealed class CreateDataListHandler(
     ITenantContext tenantContext,
     IRepository<DataList> repository,
+    IValueNormalizer valueNormalizer,
     IUniqueConstraintViolationChecker uniqueConstraintViolationChecker) : ICommandHandler<CreateDataListCommand, Result<DataList>>
 {
     public async Task<Result<DataList>> Handle(CreateDataListCommand request, CancellationToken cancellationToken)
@@ -20,25 +21,44 @@ public sealed class CreateDataListHandler(
             return Result.Unauthorized("Tenant context is required.");
         }
 
-        var byNameSpec = new DataListsSpecifications.ByNameSpec(request.Name);
-        var existingDataList = await repository.SingleOrDefaultAsync(byNameSpec, cancellationToken);
+        var trimmedName = request.Name.Trim();
+        var normalizedName = valueNormalizer.Normalize(trimmedName);
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            return Result.Error("Data list name could not be normalized.");
+        }
+
+        var byNormalizedNameSpec = new DataListsSpecifications.ByNormalizedNameSpec(normalizedName);
+        var existingDataList = await repository.SingleOrDefaultAsync(byNormalizedNameSpec, cancellationToken);
         if (existingDataList is not null)
         {
-            var duplicateListNameError = CreateDuplicateNameValidationError(request.Name);
+            var duplicateListNameError = CreateDuplicateNameValidationError(trimmedName);
             return Result.Invalid(duplicateListNameError);
         }
 
-        DataList dataList = new(tenantContext.TenantId, request.Name, request.Description);
+        DataList dataList = new(tenantContext.TenantId, trimmedName, request.Description?.Trim(), normalizedName);
 
         try
         {
             var created = await repository.AddAsync(dataList, cancellationToken);
             return Result<DataList>.Created(created);
         }
-        catch (Exception exception) when (uniqueConstraintViolationChecker.IsUniqueConstraintViolation(exception))
+        catch (Exception exception)
         {
-            var duplicateListNameError = CreateDuplicateNameValidationError(request.Name);
-            return Result.Invalid(duplicateListNameError);
+            var violation = uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(exception);
+            if (!violation.IsUniqueConstraintViolation)
+            {
+                throw;
+            }
+
+            if (violation.IsDataListNameViolation())
+            {
+                var duplicateListNameError = CreateDuplicateNameValidationError(trimmedName);
+                return Result.Invalid(duplicateListNameError);
+            }
+
+            var fallbackDuplicateError = CreateDuplicateNameValidationError(trimmedName);
+            return Result.Invalid(fallbackDuplicateError);
         }
     }
 

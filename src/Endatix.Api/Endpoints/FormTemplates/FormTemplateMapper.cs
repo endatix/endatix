@@ -24,7 +24,8 @@ public static class FormTemplateMapper
         Description = formTemplate.Description,
         JsonData = formTemplate.JsonData,
         CreatedAt = formTemplate.CreatedAt,
-        ModifiedAt = formTemplate.ModifiedAt
+        ModifiedAt = formTemplate.ModifiedAt,
+        FolderId = formTemplate.FolderId?.ToString()
     };
 }
 
@@ -54,6 +55,7 @@ public static class FormTemplateMapperExtensions
         Name = formTemplateDto.Name,
         Description = formTemplateDto.Description,
         CreatedAt = formTemplateDto.CreatedAt,
-        ModifiedAt = formTemplateDto.ModifiedAt
+        ModifiedAt = formTemplateDto.ModifiedAt,
+        FolderId = formTemplateDto.FolderId
     };
 }

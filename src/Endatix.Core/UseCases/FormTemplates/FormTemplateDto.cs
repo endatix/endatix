@@ -30,4 +30,9 @@ public record FormTemplateDto
     /// Timestamp when the form template was last modified, if applicable.
     /// </summary>
     public DateTime? ModifiedAt { get; init; }
+
+    /// <summary>
+    /// Optional folder id.
+    /// </summary>
+    public string? FolderId { get; init; }
 }

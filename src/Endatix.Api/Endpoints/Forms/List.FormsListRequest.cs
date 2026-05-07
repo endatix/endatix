@@ -21,4 +21,9 @@ public class FormsListRequest : IPagedRequest, IFilteredRequest
     /// The filter expressions 
     /// </summary>
     public IEnumerable<string>? Filter { get; set; }
+
+    /// <summary>
+    /// Optional folder id to filter forms.
+    /// </summary>
+    public long? FolderId { get; set; }
 }

@@ -69,4 +69,9 @@ public record FormDto
     /// The JSON data containing webhook configuration settings for this form.
     /// </summary>
     public string? WebHookSettingsJson { get; init; }
+
+    /// <summary>
+    /// Optional folder id for organization.
+    /// </summary>
+    public string? FolderId { get; init; }
 }

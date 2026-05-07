@@ -28,7 +28,8 @@ public static class FormProjections
         CreatedAt = form.CreatedAt,
         ModifiedAt = form.ModifiedAt,
         SubmissionsCount = form.FormDefinitions.SelectMany(fd => fd.Submissions).Count(),
-        WebHookSettingsJson = form.WebHookSettingsJson
+        WebHookSettingsJson = form.WebHookSettingsJson,
+        FolderId = form.FolderId.HasValue ? form.FolderId.Value.ToString() : null
     };
 
     /// <summary>

@@ -3,16 +3,20 @@ using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Forms;
+using Endatix.Core.UseCases.Folders;
 using MediatR;
 
 namespace Endatix.Core.UseCases.Forms.PartialUpdate;
 
+/// <summary>
+/// Handler for partially updating a form.
+/// </summary>
 public class PartialUpdateFormHandler(
     IRepository<Form> repository,
     IRepository<Theme> themeRepository,
     IRepository<Submission> submissionRepository,
-    IMediator mediator) : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
+    IMediator mediator,
+    FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
 {
     private const long DEFAULT_THEME_ID = 0; // ThemeId of 0 means clear the theme (set to default)
     private const string ENABLE_CONFLICT_MESSAGE = "Cannot enable single submission gate because this form already has duplicate submissions.";
@@ -80,6 +84,33 @@ public class PartialUpdateFormHandler(
         if (request.WebHookSettingsJson != null)
         {
             UpdateWebHookSettings(request, form);
+        }
+
+        if (request.ClearFolderId)
+        {
+            var clearCheck = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
+                form.FolderId,
+                null,
+                _ => form.ClearFolder(),
+                "Form cannot be cleared from the requested folder.",
+                cancellationToken);
+            if (!clearCheck.IsOk())
+            {
+                return clearCheck.ToErrorResult<Form>();
+            }
+        }
+        else if (request.FolderId.HasValue)
+        {
+            var folderCheck = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
+                form.FolderId,
+                request.FolderId,
+                form.MoveToFolder!,
+                "Form cannot be moved to the requested folder.",
+                cancellationToken);
+            if (!folderCheck.IsOk())
+            {
+                return folderCheck.ToErrorResult<Form>();
+            }
         }
 
         await repository.UpdateAsync(form, cancellationToken);

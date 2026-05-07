@@ -42,7 +42,7 @@ public class ListFormTemplatesHandlerTests
             }
         };
 
-        var request = new ListFormTemplatesQuery(1, 10);
+        var request = new ListFormTemplatesQuery(1, 10, null);
         _repository.ListAsync(
             Arg.Any<FormTemplatesSpec>(),
             Arg.Any<CancellationToken>()
@@ -68,7 +68,7 @@ public class ListFormTemplatesHandlerTests
     {
         // Arrange
         var formTemplates = new List<FormTemplateDto>();
-        var request = new ListFormTemplatesQuery(1, 10);
+        var request = new ListFormTemplatesQuery(1, 10, null);
         _repository.ListAsync(
             Arg.Any<FormTemplatesSpec>(),
             Arg.Any<CancellationToken>()

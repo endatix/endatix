@@ -10,7 +10,7 @@ namespace Endatix.Core.Specifications;
 /// <summary>
 /// Specifications for working with DataList entities
 /// </summary>
-public class DataListsSpecifications
+public static class DataListsSpecifications
 {
     /// <summary>
     /// Base specification to list data lists without pagination.
@@ -69,6 +69,22 @@ public class DataListsSpecifications
         public ByNameSpec(string name)
         {
             Query.Where(x => x.Name == name);
+            Query.AsNoTracking();
+        }
+    }
+
+    /// <summary>
+    /// Specification to get a data list by normalized name.
+    /// </summary>
+    public sealed class ByNormalizedNameSpec : SingleResultSpecification<DataList>
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ByNormalizedNameSpec"/> class.
+        /// </summary>
+        /// <param name="normalizedName">The normalized name of the data list.</param>
+        public ByNormalizedNameSpec(string normalizedName)
+        {
+            Query.Where(x => x.NormalizedName == normalizedName);
             Query.AsNoTracking();
         }
     }

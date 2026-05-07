@@ -2,7 +2,9 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.FormTemplates.Create;
+using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 using static Endatix.Core.Tests.ErrorMessages;
 using static Endatix.Core.Tests.ErrorType;
 
@@ -18,7 +20,7 @@ public class CreateFormTemplateHandlerTests
     {
         _repository = Substitute.For<IRepository<FormTemplate>>();
         _tenantContext = Substitute.For<ITenantContext>();
-        _handler = new CreateFormTemplateHandler(_repository, _tenantContext);
+        _handler = new CreateFormTemplateHandler(_repository, _tenantContext, FolderAssignmentPolicyStub.Relaxed(_tenantContext));
     }
 
     [Fact]
@@ -83,5 +85,35 @@ public class CreateFormTemplateHandlerTests
         // Assert
         await act.Should().ThrowAsync<ArgumentException>()
             .WithMessage(GetErrorMessage("tenantContext.TenantId", ZeroOrNegative));
+    }
+
+    [Fact]
+    public async Task Handle_RequireFolderAssignmentAndMissingFolder_ReturnsError()
+    {
+        // Arrange
+        var request = new CreateFormTemplateCommand(
+            SampleData.FORM_NAME_1,
+            SampleData.FORM_DESCRIPTION_1,
+            SampleData.FORM_DEFINITION_JSON_DATA_1
+        );
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+
+        IRepository<TenantSettingsEntity> tenantSettingsRepo = Substitute.For<IRepository<TenantSettingsEntity>>();
+        IRepository<Folder> folderRepo = Substitute.For<IRepository<Folder>>();
+        var settings = new TenantSettingsEntity(SampleData.TENANT_ID);
+        settings.UpdateRequireFolderAssignment(true);
+        tenantSettingsRepo
+            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
+            .Returns(settings);
+        var strictHelper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, _tenantContext);
+        var handler = new CreateFormTemplateHandler(_repository, _tenantContext, strictHelper);
+
+        // Act
+        var result = await handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Error);
+        result.Errors.Should().Contain("You must assign a folder.");
+        await _repository.DidNotReceive().AddAsync(Arg.Any<FormTemplate>(), Arg.Any<CancellationToken>());
     }
 }

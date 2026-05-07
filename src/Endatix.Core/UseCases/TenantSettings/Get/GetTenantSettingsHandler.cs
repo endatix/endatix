@@ -42,6 +42,7 @@ public class GetTenantSettingsHandler(
             TenantId = tenantSettings.TenantId,
             SubmissionTokenExpiryHours = tenantSettings.SubmissionTokenExpiryHours,
             IsSubmissionTokenValidAfterCompletion = tenantSettings.IsSubmissionTokenValidAfterCompletion,
+            RequireFolderAssignment = tenantSettings.RequireFolderAssignment,
             SlackSettings = MapSlackSettings(tenantSettings.SlackSettings),
             WebHookSettings = MapWebHookConfiguration(tenantSettings.WebHookSettings),
             CustomExports = MapCustomExports(tenantSettings.CustomExports),

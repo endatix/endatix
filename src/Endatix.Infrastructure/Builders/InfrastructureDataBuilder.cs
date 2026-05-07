@@ -51,6 +51,7 @@ public class InfrastructureDataBuilder
         Services.AddScoped<IUnitOfWork, AppUnitOfWork>();
         Services.AddSingleton<EfCoreValueGeneratorFactory>();
         Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
+        Services.AddScoped<IValueNormalizer, ValueNormalizer>();
         Services.AddSingleton<IUniqueConstraintViolationChecker, UniqueConstraintViolationChecker>();
         Services.AddScoped<IFormsRepository, FormsRepository>();
         Services.AddScoped<IDataListDependencyChecker, DataListDependencyChecker>();

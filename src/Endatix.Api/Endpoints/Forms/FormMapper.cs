@@ -28,6 +28,7 @@ public class FormMapper
         ActiveDefinitionId = form.ActiveDefinitionId?.ToString(),
         CreatedAt = form.CreatedAt,
         ModifiedAt = form.ModifiedAt,
+        FolderId = form.FolderId?.ToString(),
         WebHookSettingsJson = form.WebHookSettingsJson,
         WebHookSettings = ParseJsonString(form.WebHookSettingsJson)
     };
@@ -93,6 +94,7 @@ public static class FormMapperExtensions
         CreatedAt = formDto.CreatedAt,
         ModifiedAt = formDto.ModifiedAt,
         SubmissionsCount = formDto.SubmissionsCount,
+        FolderId = formDto.FolderId,
         WebHookSettingsJson = formDto.WebHookSettingsJson,
         WebHookSettings = includeWebHookSettings
             ? FormMapper.ParseJsonString(formDto.WebHookSettingsJson)

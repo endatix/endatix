@@ -1,10 +1,13 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using MediatR;
+using Endatix.Core.UseCases.Folders;
+using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Core.Tests.UseCases.Forms.PartialUpdate;
 
@@ -22,7 +25,7 @@ public class PartialUpdateFormHandlerTests
         _themeRepository = Substitute.For<IRepository<Theme>>();
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new PartialUpdateFormHandler(_repository, _themeRepository, _submissionRepository, _mediator);
+        _handler = new PartialUpdateFormHandler(_repository, _themeRepository, _submissionRepository, _mediator, FolderAssignmentPolicyStub.Relaxed(SampleData.TENANT_ID));
     }
 
     [Fact]
@@ -442,5 +445,41 @@ public class PartialUpdateFormHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().Contain("A single-submission form cannot be made public.");
+    }
+
+    [Fact]
+    public async Task Handle_ClearingImmutableFolder_ReturnsConflict()
+    {
+        // Arrange
+        var tenantSettingsRepo = Substitute.For<IRepository<TenantSettingsEntity>>();
+        var folderRepo = Substitute.For<IRepository<Folder>>();
+        var tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+        var helper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, tenantContext);
+
+        var immutableFolder = new Folder(SampleData.TENANT_ID, "Immutable", "immutable", "IMMUTABLE")
+        {
+            Id = 7,
+            Immutable = true,
+        };
+        folderRepo
+            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<Folder>>(), Arg.Any<CancellationToken>())
+            .Returns(immutableFolder);
+        tenantSettingsRepo
+            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
+            .Returns((TenantSettingsEntity?)null);
+
+        var handler = new PartialUpdateFormHandler(_repository, _themeRepository, _submissionRepository, _mediator, helper);
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, folderId: 7) { Id = 1 };
+        var request = new PartialUpdateFormCommand(1) { ClearFolderId = true };
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().ContainSingle(e => e.Contains("immutable", StringComparison.OrdinalIgnoreCase));
     }
 }

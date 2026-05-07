@@ -24,4 +24,8 @@ public class PartialUpdateFormTemplateRequest
     /// The JSON data representing the form template structure.
     /// </summary>
     public string? JsonData { get; set; }
+
+    public bool ClearFolderId { get; set; }
+
+    public string? FolderId { get; set; }
 }

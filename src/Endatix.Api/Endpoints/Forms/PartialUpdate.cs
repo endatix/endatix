@@ -2,6 +2,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
@@ -34,6 +35,8 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormReque
     /// <inheritdoc/>
     public override async Task<Results<Ok<PartialUpdateFormResponse>, ProblemHttpResult>> ExecuteAsync(PartialUpdateFormRequest request, CancellationToken cancellationToken)
     {
+        var folderId = request.FolderId.ParseToLong();
+
         var result = await mediator.Send(
             new PartialUpdateFormCommand(request.FormId)
             {
@@ -44,7 +47,9 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormReque
                 ThemeId = request.ThemeId,
                 WebHookSettingsJson = request.WebHookSettingsJson,
                 LimitOnePerUser = request.LimitOnePerUser,
-                Metadata = request.Metadata
+                Metadata = request.Metadata,
+                ClearFolderId = request.ClearFolderId,
+                FolderId = folderId,
             },
             cancellationToken);
 

@@ -11,11 +11,27 @@ public class ListFormsHandler(IFormsRepository repository) : IQueryHandler<ListF
     public async Task<Result<IEnumerable<FormDto>>> Handle(ListFormsQuery request, CancellationToken cancellationToken)
     {
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
-        var filterParams = new FilterParameters(request.FilterExpressions!);
+        var filterParams = CreateFilterParameters(request.FilterExpressions, request.FolderId);
 
         var spec = new FormsWithSubmissionsCountSpec(pagingParams, filterParams);
         IEnumerable<FormDto> forms = await repository.ListAsync(spec, cancellationToken);
 
         return Result.Success(forms);
+    }
+
+    private static FilterParameters CreateFilterParameters(IEnumerable<string>? filterExpressions, long? folderId)
+    {
+        var filterList = new List<string>();
+        if (filterExpressions is not null)
+        {
+            filterList.AddRange(filterExpressions);
+        }
+
+        if (folderId.HasValue)
+        {
+            filterList.Add($"FolderId:{folderId.Value}");
+        }
+
+        return new FilterParameters(filterList);
     }
 }

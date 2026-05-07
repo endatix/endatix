@@ -19,7 +19,7 @@ public class GetTenantSettings(IMediator mediator) : EndpointWithoutRequest<Resu
     public override void Configure()
     {
         Get("tenant-settings");
-        Permissions(Actions.Tenant.ViewSettings);
+        Permissions(Actions.Access.Hub);
         Summary(s =>
         {
             s.Summary = "Get tenant settings for the current tenant";

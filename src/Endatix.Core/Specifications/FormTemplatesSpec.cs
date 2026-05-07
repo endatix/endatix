@@ -8,9 +8,10 @@ namespace Endatix.Core.Specifications;
 
 public class FormTemplatesSpec : Specification<FormTemplate, FormTemplateDto>
 {
-    public FormTemplatesSpec(PagingParameters pagingParams)
+    public FormTemplatesSpec(PagingParameters pagingParams, FilterParameters filterParams)
     {
         Query
+            .Filter(filterParams)
             .OrderByDescending(x => x.CreatedAt)
             .Paginate(pagingParams)
             .AsNoTracking();
@@ -22,7 +23,8 @@ public class FormTemplatesSpec : Specification<FormTemplate, FormTemplateDto>
                 Name = formTemplate.Name,
                 Description = formTemplate.Description,
                 CreatedAt = formTemplate.CreatedAt,
-                ModifiedAt = formTemplate.ModifiedAt
+                ModifiedAt = formTemplate.ModifiedAt,
+                FolderId = formTemplate.FolderId.HasValue ? formTemplate.FolderId.Value.ToString() : null
             });
     }
 }

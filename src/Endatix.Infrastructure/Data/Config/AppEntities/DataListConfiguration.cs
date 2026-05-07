@@ -10,11 +10,6 @@ namespace Endatix.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 public sealed class DataListConfiguration : IEntityTypeConfiguration<DataList>
 {
-    /// <summary>
-    /// The name of the unique index on the <see cref="DataList.Name"/> column.
-    /// </summary>
-    public const string UNIQUE_DATA_LIST_NAME_INDEX_NAME = "IX_Unique_DataList_Name";
-
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<DataList> builder)
     {
@@ -23,6 +18,10 @@ public sealed class DataListConfiguration : IEntityTypeConfiguration<DataList>
         builder.Property(x => x.Id).IsRequired();
 
         builder.Property(x => x.Name)
+            .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
+            .IsRequired();
+
+        builder.Property(x => x.NormalizedName)
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
             .IsRequired();
 
@@ -35,5 +34,11 @@ public sealed class DataListConfiguration : IEntityTypeConfiguration<DataList>
             .HasForeignKey(x => x.DataListId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(x => x.Tenant)
+            .WithMany()
+            .HasForeignKey(x => x.TenantId)
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

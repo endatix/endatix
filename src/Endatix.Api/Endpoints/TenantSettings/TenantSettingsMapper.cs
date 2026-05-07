@@ -17,6 +17,7 @@ public static class TenantSettingsMapper
             TenantId = dto.TenantId,
             SubmissionTokenExpiryHours = dto.SubmissionTokenExpiryHours,
             IsSubmissionTokenValidAfterCompletion = dto.IsSubmissionTokenValidAfterCompletion,
+            RequireFolderAssignment = dto.RequireFolderAssignment,
             SlackSettings = dto.SlackSettings != null ? MapSlackSettings(dto.SlackSettings) : null,
             WebHookSettings = dto.WebHookSettings != null ? MapWebHookConfiguration(dto.WebHookSettings) : null,
             CustomExports = dto.CustomExports != null ? MapCustomExports(dto.CustomExports) : null,

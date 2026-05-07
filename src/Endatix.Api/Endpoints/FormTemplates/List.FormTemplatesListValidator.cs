@@ -9,11 +9,17 @@ namespace Endatix.Api.Endpoints.FormTemplates;
 /// </summary>
 public class FormTemplatesListValidator : Validator<FormTemplatesListRequest>
 {
+    private static readonly Dictionary<string, Type> _filterableFields = new()
+    {
+        { "folderId", typeof(long?) }
+    };
+
     /// <summary>
     /// Default constructor
     /// </summary>
     public FormTemplatesListValidator()
     {
         Include(new PagedRequestValidator());
+        Include(new FilteredRequestValidator(_filterableFields));
     }
 }

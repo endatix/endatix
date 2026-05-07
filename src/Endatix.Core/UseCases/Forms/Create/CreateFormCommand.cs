@@ -17,6 +17,7 @@ public record CreateFormCommand : ICommand<Result<Form>>
     public string? Metadata { get; init; }
     public string FormDefinitionJsonData { get; init; }
     public string? WebHookSettingsJson { get; init; }
+    public long? FolderId { get; init; }
 
     public CreateFormCommand(
         string name,
@@ -25,7 +26,8 @@ public record CreateFormCommand : ICommand<Result<Form>>
         string formDefinitionJsonData,
         string? webHookSettingsJson = null,
         bool limitOnePerUser = false,
-        string? metadata = null)
+        string? metadata = null,
+        long? folderId = null)
     {
         Guard.Against.NullOrWhiteSpace(name);
         Guard.Against.NullOrWhiteSpace(formDefinitionJsonData);
@@ -37,5 +39,6 @@ public record CreateFormCommand : ICommand<Result<Form>>
         Metadata = metadata;
         FormDefinitionJsonData = formDefinitionJsonData;
         WebHookSettingsJson = webHookSettingsJson;
+        FolderId = folderId;
     }
 }

@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Config;
-using Endatix.Infrastructure.Data.Config.AppEntities;
 
 namespace Endatix.Persistence.PostgreSql.Config
 {
@@ -16,8 +15,8 @@ namespace Endatix.Persistence.PostgreSql.Config
         /// <inheritdoc />
         public void Configure(EntityTypeBuilder<DataList> builder)
         {
-            builder.HasIndex(x => new { x.TenantId, x.Name })
-                .HasDatabaseName(DataListConfiguration.UNIQUE_DATA_LIST_NAME_INDEX_NAME)
+            builder.HasIndex(x => new { x.TenantId, x.NormalizedName })
+                .HasDatabaseName(DataList.UniqueConstraints.NamePerTenant)
                 .IsUnique()
                 .HasFilter($"\"{nameof(DataList.IsDeleted)}\" = false");
         }

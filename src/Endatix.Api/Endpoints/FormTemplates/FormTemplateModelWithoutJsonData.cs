@@ -29,4 +29,9 @@ public class FormTemplateModelWithoutJsonData
     /// The date and time when the form template was last modified.
     /// </summary>
     public DateTime? ModifiedAt { get; set; }
+
+    /// <summary>
+    /// Optional folder id.
+    /// </summary>
+    public string? FolderId { get; set; }
 }

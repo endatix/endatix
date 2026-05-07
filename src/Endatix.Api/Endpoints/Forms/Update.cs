@@ -2,6 +2,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms.Update;
@@ -34,6 +35,8 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok
     /// <inheritdoc/>
     public override async Task<Results<Ok<UpdateFormResponse>, ProblemHttpResult>> ExecuteAsync(UpdateFormRequest request, CancellationToken cancellationToken)
     {
+        var folderId = request.FolderId.ParseToLong();
+
         var result = await mediator.Send(
             new UpdateFormCommand(
                 request.FormId,
@@ -42,7 +45,8 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok
                 request.IsEnabled!.Value,
                 request.WebHookSettingsJson,
                 request.LimitOnePerUser,
-                request.Metadata),
+                request.Metadata,
+                folderId),
             cancellationToken);
 
         var mappedResult = result.Map(FormMapper.Map<UpdateFormResponse>);
