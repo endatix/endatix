@@ -1,4 +1,4 @@
-﻿namespace Endatix.Infrastructure.Data.Config;
+namespace Endatix.Infrastructure.Data.Config;
 
 public static class DataSchemaConstants
 {
