@@ -8,11 +8,12 @@ namespace Endatix.Infrastructure.Data;
 
 internal sealed class UniqueConstraintViolationChecker : IUniqueConstraintViolationChecker
 {
+    private static readonly TimeSpan _regexMatchTimeout = TimeSpan.FromMilliseconds(100);
     private const string POSTGRES_UNIQUE_VIOLATION = "23505";
     private static readonly ConcurrentDictionary<(Type Type, string PropertyName), PropertyInfo?> _propertyCache = new();
     private static readonly Regex _sqlServerConstraintRegex = new(
         @"constraint\s+'(?<constraint>[^']+)'",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled, _regexMatchTimeout);
 
     /// <inheritdoc />
     public UniqueConstraintViolationResult AnalyzeUniqueConstraint(Exception exception)

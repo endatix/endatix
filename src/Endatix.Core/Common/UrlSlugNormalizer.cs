@@ -10,15 +10,17 @@ namespace Endatix.Core.Common;
 /// </summary>
 public static class UrlSlugNormalizer
 {
+    private static readonly TimeSpan _regexMatchTimeout = TimeSpan.FromMilliseconds(50);
+
     /// <summary>
     /// The maximum length of a slug.
     /// </summary>
     public const int MAX_SLUG_LENGTH = 128;
     private const char HYPHEN_CHAR = '-';
 
-    private static readonly Regex _collapseHyphensRegex = new(@"-{2,}", RegexOptions.Compiled);
+    private static readonly Regex _collapseHyphensRegex = new(@"-{2,}", RegexOptions.Compiled, _regexMatchTimeout);
 
-    private static readonly Regex _invalidCharsRegex = new(@"[^a-z0-9\-]", RegexOptions.Compiled);
+    private static readonly Regex _invalidCharsRegex = new(@"[^a-z0-9\-]", RegexOptions.Compiled, _regexMatchTimeout);
 
     /// <summary>
     /// The reserved slugs to avoid onfusion for users/collisions with existing routes.
