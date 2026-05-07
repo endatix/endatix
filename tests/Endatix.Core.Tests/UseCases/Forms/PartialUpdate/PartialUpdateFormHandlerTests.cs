@@ -480,6 +480,6 @@ public class PartialUpdateFormHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
-        result.Errors.Should().ContainSingle(e => e.Contains("immutable", StringComparison.OrdinalIgnoreCase));
+        result.Errors.Should().ContainSingle(e => e.Contains("locked folders", StringComparison.OrdinalIgnoreCase));
     }
 }
