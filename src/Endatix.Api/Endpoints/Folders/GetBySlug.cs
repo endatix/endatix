@@ -32,9 +32,9 @@ public sealed class GetBySlug(IMediator mediator)
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<FolderModel>, ProblemHttpResult>> ExecuteAsync(GetBySlugRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<FolderModel>, ProblemHttpResult>> ExecuteAsync(GetBySlugRequest request, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetFolderBySlugQuery(request.Slug), cancellationToken);
+        var result = await mediator.Send(new GetFolderBySlugQuery(request.Slug), ct);
 
         return TypedResultsBuilder
             .MapResult(result, dto => dto.ToModel())

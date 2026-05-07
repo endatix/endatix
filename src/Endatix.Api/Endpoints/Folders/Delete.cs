@@ -33,10 +33,10 @@ public sealed class Delete(IMediator mediator)
     /// <inheritdoc/>
     public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(
         DeleteFolderRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var command = new DeleteFolderCommand(request.FolderId);
-        var result = await mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
             .MapResult(result, static id => id)
