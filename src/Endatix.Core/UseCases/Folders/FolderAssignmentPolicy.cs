@@ -15,7 +15,8 @@ public sealed class FolderAssignmentPolicy(
     IRepository<Folder> folderRepository,
     ITenantContext tenantContext)
 {
-    private const string IMMUTABLE_FOLDER_MOVE_ERROR = "Items in immutable folders cannot be moved or cleared.";
+    private const string IMMUTABLE_FOLDER_MOVE_ERROR = "Items in locked folders cannot be moved or cleared.";
+    private const string NO_OP_FOLDER_MOVE_ERROR = "Folder assignment is unchanged.";
 
     /// <summary>
     /// Ensures the folder assignment is valid for the current tenant.
@@ -105,6 +106,11 @@ public sealed class FolderAssignmentPolicy(
             return validation;
         }
 
+        if (IsStatusQuoFolderMove(currentFolderId, requestedFolderId))
+        {
+            return Result.Invalid(CreateStatusQuoFolderMoveValidationError());
+        }
+
         if (!applyMove(requestedFolderId))
         {
             return Result.Error(cannotMoveMessage);
@@ -112,5 +118,20 @@ public sealed class FolderAssignmentPolicy(
 
         return Result.Success();
     }
+
+    /// <summary>
+    /// True when current and requested are the same positive folder id (status quo folder move).
+    /// Excludes null/null — full replace may omit folder id without intending a PATCH no-op.
+    /// </summary>
+    private static bool IsStatusQuoFolderMove(long? currentFolderId, long? requestedFolderId) =>
+        currentFolderId is long currentId and > 0 &&
+        requestedFolderId is long requestedId and > 0 &&
+        currentId == requestedId;
+
+    private static ValidationError CreateStatusQuoFolderMoveValidationError() => new(
+                identifier: "folderId",
+                errorMessage: NO_OP_FOLDER_MOVE_ERROR,
+                errorCode: "FOLDER_ASSIGNMENT_UNCHANGED",
+                severity: ValidationSeverity.Error);
 }
 

@@ -38,7 +38,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormTemplateRequest, Re
         var result = await mediator.Send(createCommand, ct);
 
         return TypedResultsBuilder
-            .MapResult(result, FormTemplateMapper.Map<CreateFormTemplateResponse>)
+            .MapResult(result, formTemplate => formTemplate.ToFormTemplateModel<CreateFormTemplateResponse>())
             .SetTypedResults<Created<CreateFormTemplateResponse>, ProblemHttpResult>();
     }
 }

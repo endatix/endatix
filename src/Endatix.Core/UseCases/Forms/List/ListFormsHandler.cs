@@ -1,4 +1,4 @@
-﻿using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;

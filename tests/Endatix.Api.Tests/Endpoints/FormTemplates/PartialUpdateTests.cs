@@ -20,7 +20,7 @@ public class PartialUpdateTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_InvalidRequest_ReturnsBadRequest()
+    public async Task ExecuteAsync_InvalidRequest_ReturnsProblemResult()
     {
         // Arrange
         var formTemplateId = 1L;
@@ -31,15 +31,16 @@ public class PartialUpdateTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
-        badRequestResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.ProblemDetails.Status.Should().Be(400);
     }
 
     [Fact]
-    public async Task ExecuteAsync_FormTemplateNotFound_ReturnsNotFound()
+    public async Task ExecuteAsync_FormTemplateNotFound_ReturnsProblemResult()
     {
         // Arrange
         var formTemplateId = 1L;
@@ -56,11 +57,12 @@ public class PartialUpdateTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var notFoundResult = response.Result as NotFound;
-        notFoundResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.ProblemDetails.Status.Should().Be(404);
     }
 
     [Fact]

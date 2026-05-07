@@ -53,7 +53,7 @@ public class FolderAssignmentPolicyTests
         var result = await _helper.EnsureFolderMoveValidAsync(10, 11, CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Conflict);
-        result.Errors.Should().ContainSingle(e => e.Contains("immutable folders", StringComparison.OrdinalIgnoreCase));
+        result.Errors.Should().ContainSingle(e => e.Contains("locked folders", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -213,5 +213,28 @@ public class FolderAssignmentPolicyTests
             cancellationToken: CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Ok);
+    }
+
+    [Fact]
+    public async Task EnsureAndApplyFolderMoveAsync_WhenFolderUnchanged_ReturnsInvalidAndDoesNotApply()
+    {
+        var applyCalled = false;
+
+        var result = await _helper.EnsureAndApplyFolderMoveAsync(
+            currentFolderId: 10,
+            requestedFolderId: 10,
+            applyMove: _ =>
+            {
+                applyCalled = true;
+                return true;
+            },
+            cannotMoveMessage: "cannot move",
+            cancellationToken: CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle(error =>
+            error.Identifier == "folderId" &&
+            error.ErrorMessage.Contains("unchanged", StringComparison.OrdinalIgnoreCase));
+        applyCalled.Should().BeFalse();
     }
 }
