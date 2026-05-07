@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -25,10 +26,8 @@ public static class UrlSlugNormalizer
     /// <summary>
     /// The reserved slugs to avoid onfusion for users/collisions with existing routes.
     /// </summary>
-    public static readonly HashSet<string> ReservedSlugs = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "create", "templates", "new", "api", "folders", "by-slug", "design", "analytics", "submissions", "share", "embed", "preview", "login", "signup", "logout", "register", "forgot-password", "reset-password", "verify-email", "email-verification", "email-confirmation"
-    };
+    public static readonly ImmutableHashSet<string> ReservedSlugs = ImmutableHashSet.Create(
+        "create", "templates", "new", "api", "folders", "by-slug", "design", "analytics", "submissions", "share", "embed", "preview", "login", "signup", "logout", "register", "forgot-password", "reset-password", "verify-email", "email-verification", "email-confirmation");
 
     /// <summary>
     /// Produces a slug from a display name (e.g. folder title).

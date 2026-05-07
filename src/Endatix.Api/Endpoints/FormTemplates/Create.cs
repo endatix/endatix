@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormTemplates.Create;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Api.Endpoints.Submissions;
 using Endatix.Api.Common;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
@@ -31,12 +30,12 @@ public class Create(IMediator mediator) : Endpoint<CreateFormTemplateRequest, Re
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Created<CreateFormTemplateResponse>, ProblemHttpResult>> ExecuteAsync(CreateFormTemplateRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Created<CreateFormTemplateResponse>, ProblemHttpResult>> ExecuteAsync(CreateFormTemplateRequest request, CancellationToken ct)
     {
         var folderId = request.FolderId.ParseToLong();
 
         var createCommand = new CreateFormTemplateCommand(request.Name!, request.Description, request.JsonData!, folderId);
-        var result = await mediator.Send(createCommand, cancellationToken);
+        var result = await mediator.Send(createCommand, ct);
 
         return TypedResultsBuilder
             .MapResult(result, FormTemplateMapper.Map<CreateFormTemplateResponse>)

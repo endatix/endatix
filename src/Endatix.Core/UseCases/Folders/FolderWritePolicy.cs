@@ -62,7 +62,7 @@ public sealed class FolderWritePolicy(
         return Result.Success((trimmedName, normalizedName));
     }
 
-    public async Task<bool> NormalizedNameExistsAsync(string normalizedName, long? excludeFolderId, CancellationToken cancellationToken)
+    public static async Task<bool> NormalizedNameExistsAsync(IRepository<Folder> folderRepository, string normalizedName, long? excludeFolderId, CancellationToken cancellationToken)
     {
         var spec = new FolderSpecifications.FolderExistsByNormalizedNameSpec(normalizedName, excludeFolderId);
         return await folderRepository.AnyAsync(spec, cancellationToken);

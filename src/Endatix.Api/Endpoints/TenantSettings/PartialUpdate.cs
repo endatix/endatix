@@ -33,13 +33,13 @@ public sealed class PartialUpdate(IMediator mediator)
     /// <inheritdoc/>
     public override async Task<Results<Ok<TenantSettingsModel>, ProblemHttpResult>> ExecuteAsync(
         PartialUpdateTenantSettingsRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var updateSettingsCommand = new PartialUpdateTenantSettingsCommand
         {
             RequireFolderAssignment = request.RequireFolderAssignment,
         };
-        var updateSettingsResult = await mediator.Send(updateSettingsCommand, cancellationToken);
+        var updateSettingsResult = await mediator.Send(updateSettingsCommand, ct);
 
         return TypedResultsBuilder
             .MapResult(updateSettingsResult, TenantSettingsMapper.Map)
