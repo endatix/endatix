@@ -77,6 +77,8 @@ public static class Actions
     public static class Folders
     {
         public const string Manage = "folders.manage";
+
+        public const string Unlock = "folders.unlock";
     }
 
     /// <summary>

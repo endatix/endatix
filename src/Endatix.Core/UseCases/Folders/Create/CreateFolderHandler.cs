@@ -34,7 +34,11 @@ public sealed class CreateFolderHandler(
         }
 
         var (trimmedName, normalizedName) = nameResult.Value;
-        var existingByNormalizedName = await folderWritePolicy.NormalizedNameExistsAsync(normalizedName, excludeFolderId: null, cancellationToken);
+        var existingByNormalizedName = await FolderWritePolicy.NormalizedNameExistsAsync(
+            folderRepository,
+            normalizedName,
+            excludeFolderId: null,
+            cancellationToken);
         if (existingByNormalizedName)
         {
             return Result.Invalid(folderWritePolicy.CreateDuplicateNameValidationError(trimmedName, nameof(CreateFolderCommand.Name)));

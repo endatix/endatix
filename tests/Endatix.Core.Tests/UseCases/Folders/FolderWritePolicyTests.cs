@@ -46,7 +46,7 @@ public sealed class FolderWritePolicyTests
         _repository.AnyAsync(Arg.Any<FolderSpecifications.FolderExistsByNormalizedNameSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
-        var exists = await _policy.NormalizedNameExistsAsync("NAME", 3, CancellationToken.None);
+        var exists = await FolderWritePolicy.NormalizedNameExistsAsync(_repository, "NAME", 3, CancellationToken.None);
 
         exists.Should().BeTrue();
     }
