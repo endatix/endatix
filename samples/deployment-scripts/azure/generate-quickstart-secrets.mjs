@@ -72,6 +72,42 @@ function normalizeResourcePrefix(resourcePrefix) {
   return resourcePrefix.endsWith("-") ? resourcePrefix : `${resourcePrefix}-`;
 }
 
+const RESOURCE_OVERRIDES_MARKER = "// --- Resource name overrides ---";
+
+function buildResourceNameOverridesBlock({ resourcePrefix, project }) {
+  const auto = (suffix) => `${resourcePrefix}${project}-${suffix}`;
+  const storageBase = `${resourcePrefix.replaceAll("-", "")}${project.replaceAll("-", "")}`;
+
+  return [
+    "",
+    RESOURCE_OVERRIDES_MARKER,
+    "// Leave any of these empty to use the auto-generated name (shown in comments below).",
+    "// Recommended convention for custom names: {type}-{company}-{workload}-{region}-{env}",
+    "// Azure abbreviations: https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations",
+    "// Storage account name: 3-24 chars, lowercase alphanumeric only (no dashes).",
+    "// -------------------------------------------------------------------",
+    `param apiAppNameOverride = ''                  // auto: ${auto("api")}          (e.g. app-acme-datanium-eus-test)`,
+    `param hubAppNameOverride = ''                  // auto: ${auto("hub")}          (e.g. stapp-acme-datanium-eus-test)`,
+    `param appServicePlanNameOverride = ''          // auto: ${auto("serviceplan")}  (e.g. plan-acme-datanium-eus-test)`,
+    `param appInsightsNameOverride = ''             // auto: ${auto("appinsights")}  (e.g. appi-acme-datanium-eus-test)`,
+    `param logAnalyticsWorkspaceNameOverride = ''   // auto: ${auto("appinsights-ws")} (e.g. log-acme-datanium-eus-test)`,
+    `param postgresqlServerNameOverride = ''        // auto: ${auto("postgresql")}   (e.g. psql-acme-datanium-eus-test)`,
+    `param storageAccountNameOverride = ''          // auto: ${storageBase}{hash} (3-24 chars, lowercase alnum; e.g. stacmedataniumeustest)`,
+    `param vnetNameOverride = ''                    // auto: ${auto("vnet")}         (only used when managed VNet is enabled)`,
+    "",
+  ].join("\n");
+}
+
+function injectResourceNameOverrides(content, block) {
+  const lines = content.split("\n");
+  const firstParamIdx = lines.findIndex((line) => /^param\s+/.test(line));
+  if (firstParamIdx === -1) {
+    return `${content}\n${block}`;
+  }
+  lines.splice(firstParamIdx, 0, block);
+  return lines.join("\n");
+}
+
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -217,11 +253,13 @@ async function resolveProjectForCurrentRun(baseBicepParameters, skipSecretGen) {
   };
 }
 
-async function ensureLocalParameters(
+async function ensureLocalParameters({
   baseBicepParameters,
   skipSecretGen,
   projectOverride,
-) {
+  resourcePrefix,
+  effectiveProject,
+}) {
   if (skipSecretGen) {
     console.log(
       `\n\u2705 Reusing values from: ${path.basename(localParametersPath)}`,
@@ -251,14 +289,26 @@ async function ensureLocalParameters(
     generatedReplacements.push(["project", projectOverride]);
   }
 
-  const localParametersBicep = applyStringParamReplacements(
+  const replacedBicep = applyStringParamReplacements(
     baseBicepParameters,
     generatedReplacements,
+  );
+
+  const overridesBlock = buildResourceNameOverridesBlock({
+    resourcePrefix,
+    project: effectiveProject,
+  });
+  const localParametersBicep = injectResourceNameOverrides(
+    replacedBicep,
+    overridesBlock,
   );
 
   await writeFile(localParametersPath, localParametersBicep, "utf8");
   console.log(
     `\n\u2705 Generated secure parameters dynamically in: ${path.basename(localParametersPath)}`,
+  );
+  console.log(
+    `\n${tipText("Tip:")} Review the "Resource name overrides" block at the top of ${path.basename(localParametersPath)} if you want custom (e.g. CAF-style) resource names.`,
   );
 }
 
@@ -273,7 +323,7 @@ async function interactiveWizard() {
   );
 
   const { skipSecretGen } = await resolveSecretGenerationMode();
-  const { baseBicepParameters, environmentName, projectName } =
+  const { baseBicepParameters, resourcePrefix, environmentName, projectName } =
     await loadDeploymentConfig();
   const { effectiveProject, projectOverride } =
     await resolveProjectForCurrentRun(baseBicepParameters, skipSecretGen);
@@ -282,11 +332,13 @@ async function interactiveWizard() {
     effectiveProject || projectName,
   );
 
-  await ensureLocalParameters(
+  await ensureLocalParameters({
     baseBicepParameters,
     skipSecretGen,
     projectOverride,
-  );
+    resourcePrefix,
+    effectiveProject: effectiveProject || projectName,
+  });
 
   console.log(`\n${infoText("=== Step 1: Provision Infrastructure ===")}`);
 

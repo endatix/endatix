@@ -6,6 +6,10 @@ using './endatix-azure.template.bicep'
 // az deployment group create --resource-group rg-endatix-sandbox-us --parameters parameters.deploy.bicepparam --mode Complete --query properties.outputs -o json > deployment-outputs.json
 // The build-env step reads this file:
 // node ./generate-quickstart-secrets.mjs build-env --outputs-file ./deployment-outputs.json
+//
+// Resource name overrides: not declared here. When you run generate-quickstart-secrets.mjs, it injects
+// an optional "Resource name overrides" block (with accurate // auto: hints) into parameters.production.bicepparam.
+// Deploying without the wizard? Copy this file and add the optional *Override params — see README "Resource name overrides".
 
 param resourcePrefix = 'test-'
 param project = 'endatix'
