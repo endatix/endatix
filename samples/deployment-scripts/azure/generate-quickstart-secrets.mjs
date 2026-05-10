@@ -68,15 +68,22 @@ function deriveResourceGroupName(environmentName, projectName = "endatix") {
   return `rg-${normalizedProject}-${normalizedEnv}-us`;
 }
 
-function normalizeResourcePrefix(resourcePrefix) {
-  return resourcePrefix.endsWith("-") ? resourcePrefix : `${resourcePrefix}-`;
-}
-
 const RESOURCE_OVERRIDES_MARKER = "// --- Resource name overrides ---";
 
-function buildResourceNameOverridesBlock({ resourcePrefix, project }) {
-  const auto = (suffix) => `${resourcePrefix}${project}-${suffix}`;
-  const storageBase = `${resourcePrefix.replaceAll("-", "")}${project.replaceAll("-", "")}`;
+function buildResourceNameOverridesBlock({ resourcePrefixRaw, project }) {
+  const prefixServiceToken = resourcePrefixRaw.toLowerCase();
+  const projectNormalized = normalizeProjectName(project);
+  const auto = (suffix) =>
+    `${prefixServiceToken}${projectNormalized}-${suffix}`;
+
+  const prefixStorageToken = prefixServiceToken.replaceAll("-", "");
+  const projectStorageToken = projectNormalized
+    .replaceAll("-", "")
+    .replaceAll("_", "")
+    .replaceAll(".", "")
+    .replaceAll(" ", "");
+  const storageBase = `${prefixStorageToken}${projectStorageToken}`;
+  const storageAutoHint = `projectStorageToken=='endatix' ? storageBase+defaultStorageSuffix (here ${storageBase}+8-char hash; defaultStorageSuffix uses resourcePrefix) : take(storageBase,24), storageBase=${storageBase} from resourcePrefix & project, no hash`;
 
   return [
     "",
@@ -84,16 +91,15 @@ function buildResourceNameOverridesBlock({ resourcePrefix, project }) {
     "// Leave any of these empty to use the auto-generated name (shown in comments below).",
     "// Recommended convention for custom names: {type}-{company}-{workload}-{region}-{env}",
     "// Azure abbreviations: https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations",
-    "// Storage account name: 3-24 chars, lowercase alphanumeric only (no dashes).",
     "// -------------------------------------------------------------------",
-    `param apiAppNameOverride = ''                  // auto: ${auto("api")}          (e.g. app-acme-datanium-eus-test)`,
-    `param hubAppNameOverride = ''                  // auto: ${auto("hub")}          (e.g. stapp-acme-datanium-eus-test)`,
-    `param appServicePlanNameOverride = ''          // auto: ${auto("serviceplan")}  (e.g. plan-acme-datanium-eus-test)`,
-    `param appInsightsNameOverride = ''             // auto: ${auto("appinsights")}  (e.g. appi-acme-datanium-eus-test)`,
-    `param logAnalyticsWorkspaceNameOverride = ''   // auto: ${auto("appinsights-ws")} (e.g. log-acme-datanium-eus-test)`,
-    `param postgresqlServerNameOverride = ''        // auto: ${auto("postgresql")}   (e.g. psql-acme-datanium-eus-test)`,
-    `param storageAccountNameOverride = ''          // auto: ${storageBase}{hash} (3-24 chars, lowercase alnum; e.g. stacmedataniumeustest)`,
-    `param vnetNameOverride = ''                    // auto: ${auto("vnet")}         (only used when managed VNet is enabled)`,
+    `param apiAppNameOverride = ''                  // auto: ${auto("api")} or override e.g. app-acme-datanium-eus-test`,
+    `param hubAppNameOverride = ''                  // auto: ${auto("hub")} or override e.g. stapp-acme-datanium-eus-test`,
+    `param appServicePlanNameOverride = ''          // auto: ${auto("serviceplan")} or override e.g. plan-acme-datanium-eus-test`,
+    `param appInsightsNameOverride = ''             // auto: ${auto("appinsights")} or override e.g. appi-acme-datanium-eus-test`,
+    `param logAnalyticsWorkspaceNameOverride = ''   // auto: ${auto("appinsights-ws")} or override e.g. log-acme-datanium-eus-test`,
+    `param postgresqlServerNameOverride = ''        // auto: ${auto("postgresql")} or override e.g. psql-acme-datanium-eus-test`,
+    `param storageAccountNameOverride = ''          // auto: ${storageAutoHint} or override e.g. stacmedataniumeustest (3-24 chars, lowercase alphanumeric only, no dashes)`,
+    `param vnetNameOverride = ''                    // auto: ${auto("vnet")} or override e.g. vnet-acme-datanium-eus-test (if VNet is enabled)`,
     "",
   ].join("\n");
 }
@@ -167,7 +173,7 @@ async function loadDeploymentConfig() {
 
   return {
     baseBicepParameters,
-    resourcePrefix: normalizeResourcePrefix(configuredPrefix),
+    configuredResourcePrefix: configuredPrefix,
     environmentName,
     projectName: normalizeProjectName(projectName),
   };
@@ -257,7 +263,7 @@ async function ensureLocalParameters({
   baseBicepParameters,
   skipSecretGen,
   projectOverride,
-  resourcePrefix,
+  configuredResourcePrefix,
   effectiveProject,
 }) {
   if (skipSecretGen) {
@@ -295,7 +301,7 @@ async function ensureLocalParameters({
   );
 
   const overridesBlock = buildResourceNameOverridesBlock({
-    resourcePrefix,
+    resourcePrefixRaw: configuredResourcePrefix,
     project: effectiveProject,
   });
   const localParametersBicep = injectResourceNameOverrides(
@@ -323,8 +329,12 @@ async function interactiveWizard() {
   );
 
   const { skipSecretGen } = await resolveSecretGenerationMode();
-  const { baseBicepParameters, resourcePrefix, environmentName, projectName } =
-    await loadDeploymentConfig();
+  const {
+    baseBicepParameters,
+    configuredResourcePrefix,
+    environmentName,
+    projectName,
+  } = await loadDeploymentConfig();
   const { effectiveProject, projectOverride } =
     await resolveProjectForCurrentRun(baseBicepParameters, skipSecretGen);
   const { resourceGroupName, createRgCmd } = await resolveResourceGroupInfo(
@@ -336,7 +346,7 @@ async function interactiveWizard() {
     baseBicepParameters,
     skipSecretGen,
     projectOverride,
-    resourcePrefix,
+    configuredResourcePrefix,
     effectiveProject: effectiveProject || projectName,
   });
 
