@@ -68,8 +68,50 @@ function deriveResourceGroupName(environmentName, projectName = "endatix") {
   return `rg-${normalizedProject}-${normalizedEnv}-us`;
 }
 
-function normalizeResourcePrefix(resourcePrefix) {
-  return resourcePrefix.endsWith("-") ? resourcePrefix : `${resourcePrefix}-`;
+const RESOURCE_OVERRIDES_MARKER = "// --- Resource name overrides ---";
+
+function buildResourceNameOverridesBlock({ resourcePrefixRaw, project }) {
+  const prefixServiceToken = resourcePrefixRaw.toLowerCase();
+  const projectNormalized = normalizeProjectName(project);
+  const auto = (suffix) =>
+    `${prefixServiceToken}${projectNormalized}-${suffix}`;
+
+  const prefixStorageToken = prefixServiceToken.replaceAll("-", "");
+  const projectStorageToken = projectNormalized
+    .replaceAll("-", "")
+    .replaceAll("_", "")
+    .replaceAll(".", "")
+    .replaceAll(" ", "");
+  const storageBase = `${prefixStorageToken}${projectStorageToken}`;
+  const storageAutoHint = `projectStorageToken=='endatix' ? storageBase+defaultStorageSuffix (here ${storageBase}+8-char hash; defaultStorageSuffix uses resourcePrefix) : take(storageBase,24), storageBase=${storageBase} from resourcePrefix & project, no hash`;
+
+  return [
+    "",
+    RESOURCE_OVERRIDES_MARKER,
+    "// Leave any of these empty to use the auto-generated name (shown in comments below).",
+    "// Recommended convention for custom names: {type}-{company}-{workload}-{region}-{env}",
+    "// Azure abbreviations: https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations",
+    "// -------------------------------------------------------------------",
+    `param apiAppNameOverride = ''                  // auto: ${auto("api")} or override e.g. app-acme-datanium-eus-test`,
+    `param hubAppNameOverride = ''                  // auto: ${auto("hub")} or override e.g. stapp-acme-datanium-eus-test`,
+    `param appServicePlanNameOverride = ''          // auto: ${auto("serviceplan")} or override e.g. plan-acme-datanium-eus-test`,
+    `param appInsightsNameOverride = ''             // auto: ${auto("appinsights")} or override e.g. appi-acme-datanium-eus-test`,
+    `param logAnalyticsWorkspaceNameOverride = ''   // auto: ${auto("appinsights-ws")} or override e.g. log-acme-datanium-eus-test`,
+    `param postgresqlServerNameOverride = ''        // auto: ${auto("postgresql")} or override e.g. psql-acme-datanium-eus-test`,
+    `param storageAccountNameOverride = ''          // auto: ${storageAutoHint} or override e.g. stacmedataniumeustest (3-24 chars, lowercase alphanumeric only, no dashes)`,
+    `param vnetNameOverride = ''                    // auto: ${auto("vnet")} or override e.g. vnet-acme-datanium-eus-test (if VNet is enabled)`,
+    "",
+  ].join("\n");
+}
+
+function injectResourceNameOverrides(content, block) {
+  const lines = content.split("\n");
+  const firstParamIdx = lines.findIndex((line) => /^param\s+/.test(line));
+  if (firstParamIdx === -1) {
+    return `${content}\n${block}`;
+  }
+  lines.splice(firstParamIdx, 0, block);
+  return lines.join("\n");
 }
 
 const rl = createInterface({
@@ -131,7 +173,7 @@ async function loadDeploymentConfig() {
 
   return {
     baseBicepParameters,
-    resourcePrefix: normalizeResourcePrefix(configuredPrefix),
+    configuredResourcePrefix: configuredPrefix,
     environmentName,
     projectName: normalizeProjectName(projectName),
   };
@@ -217,11 +259,13 @@ async function resolveProjectForCurrentRun(baseBicepParameters, skipSecretGen) {
   };
 }
 
-async function ensureLocalParameters(
+async function ensureLocalParameters({
   baseBicepParameters,
   skipSecretGen,
   projectOverride,
-) {
+  configuredResourcePrefix,
+  effectiveProject,
+}) {
   if (skipSecretGen) {
     console.log(
       `\n\u2705 Reusing values from: ${path.basename(localParametersPath)}`,
@@ -251,14 +295,26 @@ async function ensureLocalParameters(
     generatedReplacements.push(["project", projectOverride]);
   }
 
-  const localParametersBicep = applyStringParamReplacements(
+  const replacedBicep = applyStringParamReplacements(
     baseBicepParameters,
     generatedReplacements,
+  );
+
+  const overridesBlock = buildResourceNameOverridesBlock({
+    resourcePrefixRaw: configuredResourcePrefix,
+    project: effectiveProject,
+  });
+  const localParametersBicep = injectResourceNameOverrides(
+    replacedBicep,
+    overridesBlock,
   );
 
   await writeFile(localParametersPath, localParametersBicep, "utf8");
   console.log(
     `\n\u2705 Generated secure parameters dynamically in: ${path.basename(localParametersPath)}`,
+  );
+  console.log(
+    `\n${tipText("Tip:")} Review the "Resource name overrides" block at the top of ${path.basename(localParametersPath)} if you want custom (e.g. CAF-style) resource names.`,
   );
 }
 
@@ -273,8 +329,12 @@ async function interactiveWizard() {
   );
 
   const { skipSecretGen } = await resolveSecretGenerationMode();
-  const { baseBicepParameters, environmentName, projectName } =
-    await loadDeploymentConfig();
+  const {
+    baseBicepParameters,
+    configuredResourcePrefix,
+    environmentName,
+    projectName,
+  } = await loadDeploymentConfig();
   const { effectiveProject, projectOverride } =
     await resolveProjectForCurrentRun(baseBicepParameters, skipSecretGen);
   const { resourceGroupName, createRgCmd } = await resolveResourceGroupInfo(
@@ -282,11 +342,13 @@ async function interactiveWizard() {
     effectiveProject || projectName,
   );
 
-  await ensureLocalParameters(
+  await ensureLocalParameters({
     baseBicepParameters,
     skipSecretGen,
     projectOverride,
-  );
+    configuredResourcePrefix,
+    effectiveProject: effectiveProject || projectName,
+  });
 
   console.log(`\n${infoText("=== Step 1: Provision Infrastructure ===")}`);
 

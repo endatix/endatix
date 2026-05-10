@@ -112,6 +112,35 @@ param enableFailureAnomalyAlerts bool = false
 @description('The deployment mode for the Endatix Hub frontend (recommended: static-site for fastest evaluation; use web-app if you explicitly want App Service hosting)')
 param hubDeploymentMode string = 'static-site'
 
+// --- Resource name overrides (optional) ---
+// Leave any of these empty to use the auto-generated {prefix}{project}-{type} convention.
+// Recommended convention for custom names: {type}-{company}-{workload}-{region}-{env}
+// using Azure abbreviations (https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations).
+
+@description('Override: API App Service name. Leave empty to use {prefix}{project}-api')
+param apiAppNameOverride string = ''
+
+@description('Override: Hub App name (Static Web App or Web App). Leave empty to use {prefix}{project}-hub')
+param hubAppNameOverride string = ''
+
+@description('Override: App Service Plan name. Leave empty to use {prefix}{project}-serviceplan')
+param appServicePlanNameOverride string = ''
+
+@description('Override: Application Insights name. Leave empty to use {prefix}{project}-appinsights')
+param appInsightsNameOverride string = ''
+
+@description('Override: Log Analytics Workspace name. Leave empty to use {prefix}{project}-appinsights-ws')
+param logAnalyticsWorkspaceNameOverride string = ''
+
+@description('Override: PostgreSQL Flexible Server name. Leave empty to use {prefix}{project}-postgresql')
+param postgresqlServerNameOverride string = ''
+
+@description('Override: Storage Account name (3-24 chars, lowercase alphanumeric only). Leave empty for auto-generated.')
+param storageAccountNameOverride string = ''
+
+@description('Override: VNet name (only used when managed VNet is enabled). Leave empty to use {prefix}{project}-vnet')
+param vnetNameOverride string = ''
+
 // Resource naming variables
 var projectLower = toLower(project)
 var projectServiceToken = replace(replace(replace(replace(projectLower, ' ', '-'), '_', '-'), '.', '-'), '--', '-')
@@ -120,14 +149,18 @@ var prefixServiceToken = toLower(resourcePrefix)
 var prefixStorageToken = replace(prefixServiceToken, '-', '')
 var defaultStorageSuffix = take(uniqueString(subscription().id, resourceGroup().id, resourcePrefix), 8)
 
-var endatixAppInsightsName = '${prefixServiceToken}${projectServiceToken}-appinsights'
-var endatixHubName = '${prefixServiceToken}${projectServiceToken}-hub'
-var endatixApiName = '${prefixServiceToken}${projectServiceToken}-api'
-var endatixServicePlanName = '${prefixServiceToken}${projectServiceToken}-serviceplan'
-var endatixVnetName = '${prefixServiceToken}${projectServiceToken}-vnet'
-var endatixStorageAccountName = projectStorageToken == 'endatix'
-  ? '${prefixStorageToken}${projectStorageToken}${defaultStorageSuffix}'
-  : take('${prefixStorageToken}${projectStorageToken}', 24)
+var endatixAppInsightsName = !empty(appInsightsNameOverride) ? appInsightsNameOverride : '${prefixServiceToken}${projectServiceToken}-appinsights'
+var endatixLogAnalyticsWsName = !empty(logAnalyticsWorkspaceNameOverride) ? logAnalyticsWorkspaceNameOverride : '${prefixServiceToken}${projectServiceToken}-appinsights-ws'
+var endatixHubName = !empty(hubAppNameOverride) ? hubAppNameOverride : '${prefixServiceToken}${projectServiceToken}-hub'
+var endatixApiName = !empty(apiAppNameOverride) ? apiAppNameOverride : '${prefixServiceToken}${projectServiceToken}-api'
+var endatixServicePlanName = !empty(appServicePlanNameOverride) ? appServicePlanNameOverride : '${prefixServiceToken}${projectServiceToken}-serviceplan'
+var endatixVnetName = !empty(vnetNameOverride) ? vnetNameOverride : '${prefixServiceToken}${projectServiceToken}-vnet'
+var endatixStorageAccountName = !empty(storageAccountNameOverride)
+  ? storageAccountNameOverride
+  : (projectStorageToken == 'endatix'
+      ? '${prefixStorageToken}${projectStorageToken}${defaultStorageSuffix}'
+      : take('${prefixStorageToken}${projectStorageToken}', 24))
+var endatixPostgresqlServerName = !empty(postgresqlServerNameOverride) ? postgresqlServerNameOverride : '${prefixServiceToken}${projectServiceToken}-postgresql'
 var deployManagedVnet = enablePostgresqlPrivateNetwork && vnetResourceId == ''
 var storageHostName = '${endatixStorageAccountName}.blob.${az.environment().suffixes.storage}'
 var resolvedHubDefaultHostName = hubDeploymentMode == 'static-site'
@@ -222,7 +255,7 @@ module appInsights './modules/app-insights.module.bicep' = {
   params: {
     location: location
     tags: tags
-    workspaceName: '${prefixServiceToken}${projectServiceToken}-appinsights-ws'
+    workspaceName: endatixLogAnalyticsWsName
     appInsightsName: endatixAppInsightsName
     enableFailureAnomalyAlerts: enableFailureAnomalyAlerts
   }
@@ -346,8 +379,7 @@ module postgresqlModule './modules/postgres.module.bicep' = {
   name: 'postgresqlModule'
   params: {
     location: location
-    resourcePrefix: resourcePrefix
-    project: projectServiceToken
+    serverName: endatixPostgresqlServerName
     tags: tags
     postgresAdminUsername: postgresAdminUsername
     postgresAdminPassword: postgresAdminPassword
