@@ -52,10 +52,11 @@
   },
   "pnpm": {
     "overrides": {
-      "serialize-javascript": "^7.0.5"
+      "serialize-javascript": "^7.0.5",
+      "fast-xml-builder": "^1.1.7"
     },
     "comments": {
-      "overrides": "[serialize-javascript] to 7.0.5 to fix CVE-2020-7660 & CVE-2026-34043. Remove on @docusaurus 4x bump"
+      "overrides": "[serialize-javascript] to 7.0.5 to fix CVE-2020-7660 & CVE-2026-34043. Remove on @docusaurus 4x bump | [fast-xml-builder] to 1.1.7 to fix CVE-2026-44665. Remove on next redocusaurus bump"
     },
     "onlyBuiltDependencies": [
       "@swc/core",
