@@ -135,7 +135,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Endatix Hub",
       collapsed: true,
-      items: ["developers/hub/index"],
+      items: ["developers/hub/index", "developers/hub/maintenance-mode"],
     },
   ],
   userSidebar: [

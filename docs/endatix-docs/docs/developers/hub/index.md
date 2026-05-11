@@ -31,4 +31,5 @@ A modern React/Next.js application that serves as the visual management layer fo
 ## Next Steps
 
 - [Customizing the UI](/docs/developers/hub/) — Learn how to extend and customize Hub components
+- [Maintenance mode](/docs/developers/hub/maintenance-mode) — Enable Hub UI maintenance with env-driven proxy behavior
 - [Deployment Guide](/docs/building-your-solution/deployment/subfolder-deployment) — Deploy Hub to production
