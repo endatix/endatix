@@ -16,11 +16,11 @@
     "pnpm:comments": "node ./scripts/echo-pnpm-comments.mjs"
   },
   "dependencies": {
-    "@docusaurus/core": "^3.10.0",
-    "@docusaurus/faster": "^3.10.0",
-    "@docusaurus/plugin-google-gtag": "^3.10.0",
-    "@docusaurus/preset-classic": "^3.10.0",
-    "@docusaurus/theme-mermaid": "^3.10.0",
+    "@docusaurus/core": "^3.10.1",
+    "@docusaurus/faster": "^3.10.1",
+    "@docusaurus/plugin-google-gtag": "^3.10.1",
+    "@docusaurus/preset-classic": "^3.10.1",
+    "@docusaurus/theme-mermaid": "^3.10.1",
     "@mdx-js/react": "^3.1.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
@@ -30,9 +30,9 @@
     "redocusaurus": "^2.5.0"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "^3.10.0",
-    "@docusaurus/tsconfig": "^3.10.0",
-    "@docusaurus/types": "^3.10.0",
+    "@docusaurus/module-type-aliases": "^3.10.1",
+    "@docusaurus/tsconfig": "^3.10.1",
+    "@docusaurus/types": "^3.10.1",
     "typescript": "~5.8.3"
   },
   "browserslist": {
@@ -52,10 +52,14 @@
   },
   "pnpm": {
     "overrides": {
-      "serialize-javascript": "^7.0.5"
+      "serialize-javascript": "^7.0.5",
+      "fast-xml-builder": "^1.1.7",
+      "fast-xml-parser": "^5.7.0",
+      "fast-uri": "^3.1.2",
+      "uuid": "^11.1.1"
     },
     "comments": {
-      "overrides": "[serialize-javascript] to 7.0.5 to fix CVE-2020-7660 & CVE-2026-34043. Remove on @docusaurus 4x bump"
+      "overrides": "[serialize-javascript] to 7.0.5 to fix CVE-2020-7660 & CVE-2026-34043. Remove on @docusaurus 4x bump | [fast-xml-builder] to 1.1.7 to fix CVE-2026-44665. Remove on next redocusaurus bump | [fast-xml-parser] to 5.7.0 to fix CVE-2026-41650. Remove on next redocusaurus bump | [fast-uri] to 3.1.2 to fix CVE-2026-6322. Remove on next docusaurus bump | [uuid] to 11.1.1 to fix CVE-2026-41907. Remove on next docusaurus bump"
     },
     "onlyBuiltDependencies": [
       "@swc/core",
