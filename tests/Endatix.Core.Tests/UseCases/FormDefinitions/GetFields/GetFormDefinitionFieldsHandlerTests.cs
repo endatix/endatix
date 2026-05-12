@@ -10,13 +10,13 @@ namespace Endatix.Core.Tests.UseCases.FormDefinitions.GetFields;
 
 public class GetFormDefinitionFieldsHandlerTests
 {
-    private readonly IReadRepository<FormDefinition> _formDefinitionsRepository;
+    private readonly IRepository<FormDefinition> _formDefinitionsRepository;
     private readonly IFormsRepository _formsRepository;
     private readonly GetFormDefinitionFieldsHandler _handler;
 
     public GetFormDefinitionFieldsHandlerTests()
     {
-        _formDefinitionsRepository = Substitute.For<IReadRepository<FormDefinition>>();
+        _formDefinitionsRepository = Substitute.For<IRepository<FormDefinition>>();
         _formsRepository = Substitute.For<IFormsRepository>();
         _handler = new GetFormDefinitionFieldsHandler(_formDefinitionsRepository, _formsRepository);
     }
