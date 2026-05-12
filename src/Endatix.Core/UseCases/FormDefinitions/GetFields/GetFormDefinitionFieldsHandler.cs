@@ -5,15 +5,17 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.FormDefinitions.GetFields;
 
 /// <summary>
 /// Handler for the <c>GetFormDefinitionFieldsQuery</c> class.
 /// </summary>
-public class GetFormDefinitionFieldsHandler(
+public partial class GetFormDefinitionFieldsHandler(
     IRepository<FormDefinition> formDefinitionsRepository,
-    IFormsRepository formsRepository
+    IFormsRepository formsRepository,
+    ILogger<GetFormDefinitionFieldsHandler> logger
 ) : IQueryHandler<GetFormDefinitionFieldsQuery, Result<IEnumerable<DefinitionFieldDto>>>
 {
     ///  <inheritdoc/>
@@ -78,8 +80,9 @@ public class GetFormDefinitionFieldsHandler(
                     ExtractFields(elements, seen);
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
+                LogJsonParsingError(definition.Id, ex);
                 continue;
             }
         }
@@ -100,6 +103,28 @@ public class GetFormDefinitionFieldsHandler(
         }
 
         return obj.TryGetProperty(propertyName, out value);
+    }
+
+    /// <summary>
+    /// Reads a string property; <see cref="JsonElement.GetString"/> throws if the value is not a JSON string.
+    /// </summary>
+    private static bool TryGetStringProperty(JsonElement obj, string propertyName, out string value)
+    {
+        value = string.Empty;
+        if (!TryGetObjectProperty(obj, propertyName, out var prop) ||
+            prop.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        var str = prop.GetString();
+        if (string.IsNullOrWhiteSpace(str))
+        {
+            return false;
+        }
+
+        value = str;
+        return true;
     }
 
     private static void ExtractFields(JsonElement elements, Dictionary<string, (string Title, string Type)> seen)
@@ -194,13 +219,7 @@ public class GetFormDefinitionFieldsHandler(
                 continue;
             }
 
-            if (!TryGetObjectProperty(column, "name", out var nameProp))
-            {
-                continue;
-            }
-
-            var nameValue = nameProp.GetString();
-            if (string.IsNullOrWhiteSpace(nameValue))
+            if (!TryGetStringProperty(column, "name", out var nameValue))
             {
                 continue;
             }
@@ -212,14 +231,9 @@ public class GetFormDefinitionFieldsHandler(
 
             var title = ResolveElementTitle(column, nameValue);
             var cellType = "text";
-            if (TryGetObjectProperty(column, "cellType", out var cellTypeProp) &&
-                cellTypeProp.ValueKind == JsonValueKind.String)
+            if (TryGetStringProperty(column, "cellType", out var ct))
             {
-                var ct = cellTypeProp.GetString();
-                if (!string.IsNullOrWhiteSpace(ct))
-                {
-                    cellType = ct;
-                }
+                cellType = ct;
             }
 
             seen[nameValue] = (title, cellType);
@@ -235,20 +249,7 @@ public class GetFormDefinitionFieldsHandler(
     private static bool TryGetElementType(JsonElement element, out string type)
     {
         type = string.Empty;
-
-        if (!TryGetObjectProperty(element, "type", out var typeProp))
-        {
-            return false;
-        }
-
-        var typeValue = typeProp.GetString();
-        if (string.IsNullOrWhiteSpace(typeValue))
-        {
-            return false;
-        }
-
-        type = typeValue;
-        return true;
+        return TryGetStringProperty(element, "type", out type);
     }
 
     /// <summary>
@@ -260,20 +261,7 @@ public class GetFormDefinitionFieldsHandler(
     private static bool TryGetElementName(JsonElement element, out string name)
     {
         name = string.Empty;
-
-        if (!TryGetObjectProperty(element, "name", out var nameProp))
-        {
-            return false;
-        }
-
-        var nameValue = nameProp.GetString();
-        if (string.IsNullOrWhiteSpace(nameValue))
-        {
-            return false;
-        }
-
-        name = nameValue;
-        return true;
+        return TryGetStringProperty(element, "name", out name);
     }
 
     /// <summary>
@@ -293,4 +281,11 @@ public class GetFormDefinitionFieldsHandler(
         var title = titleProp.GetString();
         return string.IsNullOrWhiteSpace(title) ? fallbackName : title;
     }
+
+    [LoggerMessage(
+        EventId = 51001,
+        Level = LogLevel.Error,
+        EventName = "FormDefinitionJsonParseFailed",
+        Message = "Error parsing JSON for form definition {DefinitionId}")]
+    private partial void LogJsonParsingError(long definitionId, JsonException ex);
 }

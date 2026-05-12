@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.FormDefinitions.GetFields;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.GetFields;
 
@@ -12,13 +13,16 @@ public class GetFormDefinitionFieldsHandlerTests
 {
     private readonly IRepository<FormDefinition> _formDefinitionsRepository;
     private readonly IFormsRepository _formsRepository;
+    private readonly ILogger<GetFormDefinitionFieldsHandler> _logger;
     private readonly GetFormDefinitionFieldsHandler _handler;
 
     public GetFormDefinitionFieldsHandlerTests()
     {
         _formDefinitionsRepository = Substitute.For<IRepository<FormDefinition>>();
         _formsRepository = Substitute.For<IFormsRepository>();
-        _handler = new GetFormDefinitionFieldsHandler(_formDefinitionsRepository, _formsRepository);
+        _logger = Substitute.For<ILogger<GetFormDefinitionFieldsHandler>>();
+        _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+        _handler = new GetFormDefinitionFieldsHandler(_formDefinitionsRepository, _formsRepository, _logger);
     }
 
     private void ArrangeFormExists(long formId = 1)
@@ -446,6 +450,13 @@ public class GetFormDefinitionFieldsHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().HaveCount(1);
         result.Value!.First().Name.Should().Be("ok");
+
+        _logger.Received(1).Log(
+            LogLevel.Error,
+            Arg.Is<EventId>(e => e.Id == 51001 && e.Name == "FormDefinitionJsonParseFailed"),
+            Arg.Any<object>(),
+            Arg.Is<Exception>(ex => ex is JsonException),
+            Arg.Any<Func<object, Exception?, string>>());
     }
 
     [Fact]
