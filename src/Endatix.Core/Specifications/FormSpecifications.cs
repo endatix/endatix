@@ -47,11 +47,32 @@ public static class FormSpecifications
     /// <summary>
     /// Specification to get a form by ID
     /// </summary>
-    public sealed class ById : Specification<Form>
+    public sealed class ById : Specification<Form>, ISingleResultSpecification<Form>
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ById"/> class.
+        /// </summary>
+        /// <param name="id">The ID of the form to get.</param>
         public ById(long id)
         {
             Query.Where(f => f.Id == id);
+        }
+    }
+
+    /// <summary>
+    /// Specification to get a form by ID as NoTracking.
+    /// </summary>
+    public sealed class ByIdReadOnly : Specification<Form>, ISingleResultSpecification<Form>
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ByIdReadOnly"/> class as NoTracking.
+        /// </summary>
+        /// <param name="id">The ID of the form to get.</param>
+        public ByIdReadOnly(long id)
+        {
+            Query
+                .Where(f => f.Id == id)
+                .AsNoTracking();
         }
     }
 
