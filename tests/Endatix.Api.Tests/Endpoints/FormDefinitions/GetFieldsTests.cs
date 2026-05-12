@@ -32,7 +32,7 @@ public class GetFieldsTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
@@ -41,23 +41,43 @@ public class GetFieldsTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_NoDefinitionsFound_ReturnsProblemDetails()
+    public async Task ExecuteAsync_FormNotFound_ReturnsProblemDetails()
     {
         // Arrange
         var formId = 1L;
         var request = new GetFieldsRequest { FormId = formId };
-        var result = Result.NotFound("No form definitions found for the given form.");
+        var result = Result.NotFound("Form not found.");
 
         _mediator.Send(Arg.Any<GetFormDefinitionFieldsQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
         problemResult.Should().NotBeNull();
         problemResult!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_EmptyFieldList_ReturnsOk()
+    {
+        // Arrange
+        var request = new GetFieldsRequest { FormId = 1L };
+        var result = Result.Success(Enumerable.Empty<DefinitionFieldDto>());
+
+        _mediator.Send(Arg.Any<GetFormDefinitionFieldsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = response.Result as Ok<IEnumerable<DefinitionFieldModel>>;
+        okResult.Should().NotBeNull();
+        okResult!.Value.Should().NotBeNull();
+        okResult.Value!.Should().BeEmpty();
     }
 
     [Fact]
@@ -78,7 +98,7 @@ public class GetFieldsTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response.Result as Ok<IEnumerable<DefinitionFieldModel>>;
