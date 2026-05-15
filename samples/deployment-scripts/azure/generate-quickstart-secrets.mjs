@@ -70,11 +70,44 @@ function deriveResourceGroupName(environmentName, projectName = "endatix") {
 
 const RESOURCE_OVERRIDES_MARKER = "// --- Resource name overrides ---";
 
-function buildResourceNameOverridesBlock({ resourcePrefixRaw, project }) {
+/** Fictitious CAF segments for override comments and README (not deployed defaults). */
+const CAF_EXAMPLE_NAMING = {
+  company: "acme",
+  workload: "datanium",
+  region: "eus",
+  env: "test",
+};
+
+function cafExampleName(abbr, role = "") {
+  const { company, workload, region, env } = CAF_EXAMPLE_NAMING;
+  return role
+    ? `${abbr}-${company}-${workload}-${region}-${env}-${role}`
+    : `${abbr}-${company}-${workload}-${region}-${env}`;
+}
+
+function cafExampleStorageAccountName() {
+  const { company, workload, region, env } = CAF_EXAMPLE_NAMING;
+  return `st${company}${workload}${region}${env}`;
+}
+
+function buildResourceNameOverridesBlock({
+  resourcePrefixRaw,
+  project,
+  environment = "dev",
+}) {
   const prefixServiceToken = resourcePrefixRaw.toLowerCase();
   const projectNormalized = normalizeProjectName(project);
   const auto = (suffix) =>
     `${prefixServiceToken}${projectNormalized}-${suffix}`;
+
+  const company = projectNormalized;
+  const workload = "endatix";
+  const region = "weu";
+  const env = (environment ?? "dev").toLowerCase();
+  const caf = (abbr, role = "") =>
+    role
+      ? `${abbr}-${company}-${workload}-${region}-${env}-${role}`
+      : `${abbr}-${company}-${workload}-${region}-${env}`;
 
   const prefixStorageToken = prefixServiceToken.replaceAll("-", "");
   const projectStorageToken = projectNormalized
@@ -92,14 +125,16 @@ function buildResourceNameOverridesBlock({ resourcePrefixRaw, project }) {
     "// Recommended convention for custom names: {type}-{company}-{workload}-{region}-{env}",
     "// Azure abbreviations: https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations",
     "// -------------------------------------------------------------------",
-    `param apiAppNameOverride = ''                  // auto: ${auto("api")} or override e.g. app-acme-datanium-eus-test`,
-    `param hubAppNameOverride = ''                  // auto: ${auto("hub")} or override e.g. stapp-acme-datanium-eus-test`,
-    `param appServicePlanNameOverride = ''          // auto: ${auto("serviceplan")} or override e.g. plan-acme-datanium-eus-test`,
-    `param appInsightsNameOverride = ''             // auto: ${auto("appinsights")} or override e.g. appi-acme-datanium-eus-test`,
-    `param logAnalyticsWorkspaceNameOverride = ''   // auto: ${auto("appinsights-ws")} or override e.g. log-acme-datanium-eus-test`,
-    `param postgresqlServerNameOverride = ''        // auto: ${auto("postgresql")} or override e.g. psql-acme-datanium-eus-test`,
-    `param storageAccountNameOverride = ''          // auto: ${storageAutoHint} or override e.g. stacmedataniumeustest (3-24 chars, lowercase alphanumeric only, no dashes)`,
-    `param vnetNameOverride = ''                    // auto: ${auto("vnet")} or override e.g. vnet-acme-datanium-eus-test (if VNet is enabled)`,
+    "// CAF/network params (companyName, workloadName, regionAbbreviation, vnetAddressPrefix,",
+    "// vpnAddressPoolPrefix) are in parameters.bicepparam — edit there for prod IP examples.",
+    `param apiAppNameOverride = ''                  // auto: ${auto("api")} or override e.g. ${cafExampleName("app")}`,
+    `param hubAppNameOverride = ''                  // auto: ${auto("hub")} or override e.g. ${cafExampleName("stapp")}`,
+    `param appServicePlanNameOverride = ''          // auto: ${auto("serviceplan")} or override e.g. ${cafExampleName("plan")}`,
+    `param appInsightsNameOverride = ''             // auto: ${auto("appinsights")} or override e.g. ${cafExampleName("appi")}`,
+    `param logAnalyticsWorkspaceNameOverride = ''   // auto: ${auto("appinsights-ws")} or override e.g. ${cafExampleName("log")}`,
+    `param postgresqlServerNameOverride = ''        // auto: ${auto("postgresql")} or override e.g. ${cafExampleName("psql")}`,
+    `param storageAccountNameOverride = ''          // auto: ${storageAutoHint} or override e.g. ${cafExampleStorageAccountName()} (3-24 chars, lowercase alphanumeric only, no dashes)`,
+    `param vnetNameOverride = ''                    // auto: ${caf("vnet")} (managed VNet only); NSGs: ${cafExampleName("nsg", "app")}, ${cafExampleName("nsg", "db")}`,
     "",
   ].join("\n");
 }
@@ -265,6 +300,7 @@ async function ensureLocalParameters({
   projectOverride,
   configuredResourcePrefix,
   effectiveProject,
+  environmentName,
 }) {
   if (skipSecretGen) {
     console.log(
@@ -303,6 +339,7 @@ async function ensureLocalParameters({
   const overridesBlock = buildResourceNameOverridesBlock({
     resourcePrefixRaw: configuredResourcePrefix,
     project: effectiveProject,
+    environment: environmentName,
   });
   const localParametersBicep = injectResourceNameOverrides(
     replacedBicep,
@@ -348,6 +385,7 @@ async function interactiveWizard() {
     projectOverride,
     configuredResourcePrefix,
     effectiveProject: effectiveProject || projectName,
+    environmentName,
   });
 
   console.log(`\n${infoText("=== Step 1: Provision Infrastructure ===")}`);

@@ -87,8 +87,23 @@ param enablePostgresqlHA bool = false
 @description('Enable private network access (VNet integration) for PostgreSQL')
 param enablePostgresqlPrivateNetwork bool = false
 
-@description('Existing VNet resource ID. Leave empty with enablePostgresqlPrivateNetwork to create a managed VNet (snet-app, snet-db, snet-pe).')
+@description('Existing VNet resource ID. Leave empty with enablePostgresqlPrivateNetwork to create a managed VNet (snet-app, snet-db, GatewaySubnet).')
 param vnetResourceId string = ''
+
+@description('Managed VNet address space (app/db/gateway subnets are derived via cidrSubnet). Example prod: 10.71.0.0/16')
+param vnetAddressPrefix string = '10.70.0.0/16'
+
+@description('Point-to-site VPN client address pool (separate from VNet space). Example prod: 10.0.2.0/24')
+param vpnAddressPoolPrefix string = '10.0.1.0/24'
+
+@description('Company segment for CAF-style resource names (e.g. acme)')
+param companyName string = project
+
+@description('Workload segment for CAF-style resource names (e.g. endatix)')
+param workloadName string = 'endatix'
+
+@description('Azure region abbreviation for CAF-style resource names (e.g. weu, eus)')
+param regionAbbreviation string = 'weu'
 
 @description('When enablePostgresqlPrivateNetwork and vnetResourceId is set: PostgreSQL delegated subnet name inside that VNet')
 param postgresSubnetName string = ''
@@ -138,8 +153,13 @@ param postgresqlServerNameOverride string = ''
 @description('Override: Storage Account name (3-24 chars, lowercase alphanumeric only). Leave empty for auto-generated.')
 param storageAccountNameOverride string = ''
 
-@description('Override: VNet name (only used when managed VNet is enabled). Leave empty to use {prefix}{project}-vnet')
+@description('Override: VNet name (only used when managed VNet is enabled). Leave empty for CAF default vnet-{company}-{workload}-{region}-{env}')
 param vnetNameOverride string = ''
+
+func cafName(string abbr, string role) string =>
+  empty(role)
+    ? '${abbr}-${companyName}-${workloadName}-${regionAbbreviation}-${environment}'
+    : '${abbr}-${companyName}-${workloadName}-${regionAbbreviation}-${environment}-${role}'
 
 // Resource naming variables
 var projectLower = toLower(project)
@@ -154,7 +174,14 @@ var endatixLogAnalyticsWsName = !empty(logAnalyticsWorkspaceNameOverride) ? logA
 var endatixHubName = !empty(hubAppNameOverride) ? hubAppNameOverride : '${prefixServiceToken}${projectServiceToken}-hub'
 var endatixApiName = !empty(apiAppNameOverride) ? apiAppNameOverride : '${prefixServiceToken}${projectServiceToken}-api'
 var endatixServicePlanName = !empty(appServicePlanNameOverride) ? appServicePlanNameOverride : '${prefixServiceToken}${projectServiceToken}-serviceplan'
-var endatixVnetName = !empty(vnetNameOverride) ? vnetNameOverride : '${prefixServiceToken}${projectServiceToken}-vnet'
+var endatixVnetName = !empty(vnetNameOverride) ? vnetNameOverride : cafName('vnet', '')
+var appSubnetPrefix = cidrSubnet(vnetAddressPrefix, 24, 0)
+var dbSubnetPrefix = cidrSubnet(vnetAddressPrefix, 24, 1)
+var gatewaySubnetPrefix = cidrSubnet(vnetAddressPrefix, 24, 3)
+var appNsgName = cafName('nsg', 'app')
+var dbNsgName = cafName('nsg', 'db')
+var vgwName = cafName('vgw', '01')
+var vgwPipName = cafName('pip', 'vgw-01')
 var endatixStorageAccountName = !empty(storageAccountNameOverride)
   ? storageAccountNameOverride
   : (projectStorageToken == 'endatix'
@@ -277,8 +304,17 @@ module vnetModule './modules/vnet.module.bicep' = if (deployManagedVnet) {
   name: 'vnetModule'
   params: {
     location: location
-    vnetName: endatixVnetName
     tags: tags
+    vnetName: endatixVnetName
+    vnetAddressPrefix: vnetAddressPrefix
+    appSubnetPrefix: appSubnetPrefix
+    dbSubnetPrefix: dbSubnetPrefix
+    gatewaySubnetPrefix: gatewaySubnetPrefix
+    vpnAddressPoolPrefix: vpnAddressPoolPrefix
+    appNsgName: appNsgName
+    dbNsgName: dbNsgName
+    vgwName: vgwName
+    vgwPublicIpName: vgwPipName
   }
 }
 
