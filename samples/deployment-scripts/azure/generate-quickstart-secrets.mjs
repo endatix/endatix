@@ -21,6 +21,17 @@ import {
   randomSigningKey,
 } from "../../../scripts/lib/secret-generation.mjs";
 import { normalizeProjectName } from "../../../scripts/lib/project-name-utils.mjs";
+import {
+  buildNamingPreview,
+  buildResourceNameOverridesBlock,
+  DEFAULT_REGION,
+  DEFAULT_WORKLOAD,
+  formatNamingPreviewTable,
+  normalizeEnvironmentSegment,
+  normalizeNamingSegment,
+  normalizeRegionAbbreviation,
+  quickstartSegments,
+} from "./lib/azure-naming.mjs";
 import { readDeploymentOutputsFromFile } from "./lib/deployment-outputs.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -70,38 +81,132 @@ function deriveResourceGroupName(environmentName, projectName = "endatix") {
 
 const RESOURCE_OVERRIDES_MARKER = "// --- Resource name overrides ---";
 
-function buildResourceNameOverridesBlock({ resourcePrefixRaw, project }) {
-  const prefixServiceToken = resourcePrefixRaw.toLowerCase();
-  const projectNormalized = normalizeProjectName(project);
-  const auto = (suffix) =>
-    `${prefixServiceToken}${projectNormalized}-${suffix}`;
+function printNamingPreview(convention, segments, hubDeploymentMode) {
+  const preview = buildNamingPreview({
+    convention,
+    segments,
+    hubDeploymentMode,
+  });
+  console.log(
+    `\n${infoText("Resource names (CAF auto; pattern {abbr}-{company}-{workload}-{region}-{env}):")}`,
+  );
+  console.log(formatNamingPreviewTable(preview));
+}
 
-  const prefixStorageToken = prefixServiceToken.replaceAll("-", "");
-  const projectStorageToken = projectNormalized
-    .replaceAll("-", "")
-    .replaceAll("_", "")
-    .replaceAll(".", "")
-    .replaceAll(" ", "");
-  const storageBase = `${prefixStorageToken}${projectStorageToken}`;
-  const storageAutoHint = `projectStorageToken=='endatix' ? storageBase+defaultStorageSuffix (here ${storageBase}+8-char hash; defaultStorageSuffix uses resourcePrefix) : take(storageBase,24), storageBase=${storageBase} from resourcePrefix & project, no hash`;
+function loadNamingFromParameters(content) {
+  return {
+    convention:
+      readStringParamFromBicepParam(content, "namingConvention") ??
+      "quickstart",
+    segments: {
+      company: normalizeNamingSegment(
+        readStringParamFromBicepParam(content, "companyName") ?? "endatix",
+      ),
+      workload: normalizeNamingSegment(
+        readStringParamFromBicepParam(content, "workloadName") ??
+          DEFAULT_WORKLOAD,
+      ),
+      region: normalizeRegionAbbreviation(
+        readStringParamFromBicepParam(content, "regionAbbreviation") ??
+          DEFAULT_REGION,
+      ),
+      env: normalizeEnvironmentSegment(
+        readStringParamFromBicepParam(content, "environment") ?? "dev",
+      ),
+    },
+    hubDeploymentMode:
+      readStringParamFromBicepParam(content, "hubDeploymentMode") ??
+      "static-site",
+  };
+}
 
-  return [
-    "",
-    RESOURCE_OVERRIDES_MARKER,
-    "// Leave any of these empty to use the auto-generated name (shown in comments below).",
-    "// Recommended convention for custom names: {type}-{company}-{workload}-{region}-{env}",
-    "// Azure abbreviations: https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations",
-    "// -------------------------------------------------------------------",
-    `param apiAppNameOverride = ''                  // auto: ${auto("api")} or override e.g. app-acme-datanium-eus-test`,
-    `param hubAppNameOverride = ''                  // auto: ${auto("hub")} or override e.g. stapp-acme-datanium-eus-test`,
-    `param appServicePlanNameOverride = ''          // auto: ${auto("serviceplan")} or override e.g. plan-acme-datanium-eus-test`,
-    `param appInsightsNameOverride = ''             // auto: ${auto("appinsights")} or override e.g. appi-acme-datanium-eus-test`,
-    `param logAnalyticsWorkspaceNameOverride = ''   // auto: ${auto("appinsights-ws")} or override e.g. log-acme-datanium-eus-test`,
-    `param postgresqlServerNameOverride = ''        // auto: ${auto("postgresql")} or override e.g. psql-acme-datanium-eus-test`,
-    `param storageAccountNameOverride = ''          // auto: ${storageAutoHint} or override e.g. stacmedataniumeustest (3-24 chars, lowercase alphanumeric only, no dashes)`,
-    `param vnetNameOverride = ''                    // auto: ${auto("vnet")} or override e.g. vnet-acme-datanium-eus-test (if VNet is enabled)`,
-    "",
-  ].join("\n");
+async function resolveNamingConvention(
+  baseBicepParameters,
+  skipSecretGen,
+  effectiveProject,
+  environmentName,
+) {
+  const hubDeploymentMode =
+    readStringParamFromBicepParam(baseBicepParameters, "hubDeploymentMode") ??
+    "static-site";
+
+  if (skipSecretGen) {
+    const source = (await fileExists(localParametersPath))
+      ? await readFile(localParametersPath, "utf8")
+      : baseBicepParameters;
+    const loaded = loadNamingFromParameters(source);
+    console.log(
+      `\n${infoText("Naming:")} reusing ${loaded.convention} mode from existing parameters.`,
+    );
+    return { ...loaded, hubDeploymentMode };
+  }
+
+  console.log(
+    `\n${infoText("Naming convention")} — all auto names use CAF unless you set *Override in the generated file.`,
+  );
+  console.log(
+    "  [Q]uickstart — CAF with defaults (company=project, workload=endatix, region=weu)",
+  );
+  console.log("  [C]AF — prompt for company, workload, region, environment");
+  console.log(
+    "  [M]anual — skip naming prompts; edit *Override params before deploy",
+  );
+  const choice = (await question("❯ Choose naming mode [Q/c/m] (default Q): "))
+    .trim()
+    .toLowerCase();
+
+  let convention = "quickstart";
+  if (choice.startsWith("c")) {
+    convention = "caf";
+  } else if (choice.startsWith("m")) {
+    convention = "manual";
+  }
+
+  let segments;
+  if (convention === "caf") {
+    const defaultCompany =
+      readStringParamFromBicepParam(baseBicepParameters, "companyName") ??
+      effectiveProject;
+    const defaultWorkload =
+      readStringParamFromBicepParam(baseBicepParameters, "workloadName") ??
+      DEFAULT_WORKLOAD;
+    const defaultRegion =
+      readStringParamFromBicepParam(
+        baseBicepParameters,
+        "regionAbbreviation",
+      ) ?? DEFAULT_REGION;
+
+    const companyInput = await question(
+      `❯ Company segment (companyName) [${defaultCompany}]: `,
+    );
+    const workloadInput = await question(
+      `❯ Workload segment (workloadName) [${defaultWorkload}]: `,
+    );
+    const regionInput = await question(
+      `❯ Region abbreviation (e.g. weu, eus) [${defaultRegion}]: `,
+    );
+    const envInput = await question(
+      `❯ Environment segment [${environmentName}]: `,
+    );
+
+    segments = {
+      company: normalizeNamingSegment(companyInput.trim() || defaultCompany),
+      workload: normalizeNamingSegment(workloadInput.trim() || defaultWorkload),
+      region: normalizeRegionAbbreviation(regionInput.trim() || defaultRegion),
+      env: normalizeEnvironmentSegment(envInput.trim() || environmentName),
+    };
+  } else if (convention === "manual") {
+    console.log(
+      `\n${tipText("Manual mode:")} set *NameOverride values in parameters.production.bicepparam before deploy. Empty overrides still use CAF from segment params below.`,
+    );
+    segments = quickstartSegments(effectiveProject, environmentName);
+  } else {
+    segments = quickstartSegments(effectiveProject, environmentName);
+  }
+
+  printNamingPreview(convention, segments, hubDeploymentMode);
+
+  return { convention, segments, hubDeploymentMode };
 }
 
 function injectResourceNameOverrides(content, block) {
@@ -163,9 +268,6 @@ async function resolveSecretGenerationMode() {
 
 async function loadDeploymentConfig() {
   const baseBicepParameters = await readFile(bicepParametersPath, "utf8");
-  const configuredPrefix =
-    readStringParamFromBicepParam(baseBicepParameters, "resourcePrefix") ??
-    "eval-";
   const environmentName =
     readStringParamFromBicepParam(baseBicepParameters, "environment") ?? "temp";
   const projectName =
@@ -173,7 +275,6 @@ async function loadDeploymentConfig() {
 
   return {
     baseBicepParameters,
-    configuredResourcePrefix: configuredPrefix,
     environmentName,
     projectName: normalizeProjectName(projectName),
   };
@@ -263,8 +364,11 @@ async function ensureLocalParameters({
   baseBicepParameters,
   skipSecretGen,
   projectOverride,
-  configuredResourcePrefix,
   effectiveProject,
+  environmentName,
+  namingConvention,
+  namingSegments,
+  hubDeploymentMode,
 }) {
   if (skipSecretGen) {
     console.log(
@@ -295,14 +399,23 @@ async function ensureLocalParameters({
     generatedReplacements.push(["project", projectOverride]);
   }
 
+  generatedReplacements.push(
+    ["namingConvention", namingConvention],
+    ["companyName", namingSegments.company],
+    ["workloadName", namingSegments.workload],
+    ["regionAbbreviation", namingSegments.region],
+    ["environment", namingSegments.env],
+  );
+
   const replacedBicep = applyStringParamReplacements(
     baseBicepParameters,
     generatedReplacements,
   );
 
   const overridesBlock = buildResourceNameOverridesBlock({
-    resourcePrefixRaw: configuredResourcePrefix,
-    project: effectiveProject,
+    convention: namingConvention,
+    segments: namingSegments,
+    hubDeploymentMode,
   });
   const localParametersBicep = injectResourceNameOverrides(
     replacedBicep,
@@ -314,7 +427,7 @@ async function ensureLocalParameters({
     `\n\u2705 Generated secure parameters dynamically in: ${path.basename(localParametersPath)}`,
   );
   console.log(
-    `\n${tipText("Tip:")} Review the "Resource name overrides" block at the top of ${path.basename(localParametersPath)} if you want custom (e.g. CAF-style) resource names.`,
+    `\n${tipText("Tip:")} Review the "Resource name overrides" block at the top of ${path.basename(localParametersPath)} to set custom per-resource names.`,
   );
 }
 
@@ -329,25 +442,32 @@ async function interactiveWizard() {
   );
 
   const { skipSecretGen } = await resolveSecretGenerationMode();
-  const {
-    baseBicepParameters,
-    configuredResourcePrefix,
-    environmentName,
-    projectName,
-  } = await loadDeploymentConfig();
+  const { baseBicepParameters, environmentName, projectName } =
+    await loadDeploymentConfig();
   const { effectiveProject, projectOverride } =
     await resolveProjectForCurrentRun(baseBicepParameters, skipSecretGen);
+  const resolvedProject = effectiveProject || projectName;
+  const { convention, segments, hubDeploymentMode } =
+    await resolveNamingConvention(
+      baseBicepParameters,
+      skipSecretGen,
+      resolvedProject,
+      environmentName,
+    );
   const { resourceGroupName, createRgCmd } = await resolveResourceGroupInfo(
     environmentName,
-    effectiveProject || projectName,
+    resolvedProject,
   );
 
   await ensureLocalParameters({
     baseBicepParameters,
     skipSecretGen,
     projectOverride,
-    configuredResourcePrefix,
-    effectiveProject: effectiveProject || projectName,
+    effectiveProject: resolvedProject,
+    environmentName: segments.env,
+    namingConvention: convention,
+    namingSegments: segments,
+    hubDeploymentMode,
   });
 
   console.log(`\n${infoText("=== Step 1: Provision Infrastructure ===")}`);

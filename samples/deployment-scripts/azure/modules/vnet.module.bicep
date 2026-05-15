@@ -1,71 +1,270 @@
 /*
-Endatix managed Virtual Network for private PostgreSQL + App Service integration.
-
-Deploys snet-app (Microsoft.Web/serverFarms), snet-db (PostgreSQL flexible server),
-and snet-pe (reserved for private endpoints).
+Managed VNet for Endatix private PostgreSQL and API VNet integration.
+Includes NSGs, subnets, VPN gateway, and public IP for point-to-site VPN.
 */
 
-@description('Azure region for deployment')
 param location string
-
-@description('Virtual network name')
-param vnetName string
-
-@description('Azure resource tags')
 param tags object
+param vnetName string
+param vnetAddressPrefix string
+param appSubnetPrefix string
+param dbSubnetPrefix string
+param gatewaySubnetPrefix string
+param vpnAddressPoolPrefix string
+param appNsgName string
+param dbNsgName string
+param vgwName string
+param vgwPublicIpName string
 
-resource vnet 'Microsoft.Network/virtualNetworks@2025-05-01' = {
+resource appNsg 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
+  name: appNsgName
+  location: location
+  tags: tags
+  properties: {
+    securityRules: [
+      {
+        name: 'AllowPostgresToDbSubnet'
+        properties: {
+          priority: 100
+          direction: 'Outbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '5432'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: dbSubnetPrefix
+        }
+      }
+      {
+        name: 'AllowHttpsToStorage'
+        properties: {
+          priority: 110
+          direction: 'Outbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '443'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: 'Storage'
+        }
+      }
+      {
+        name: 'AllowHttpsToInternet'
+        properties: {
+          priority: 120
+          direction: 'Outbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '443'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: 'Internet'
+        }
+      }
+      {
+        name: 'DenyOutboundVirtualNetwork'
+        properties: {
+          priority: 4000
+          direction: 'Outbound'
+          access: 'Deny'
+          protocol: '*'
+          sourcePortRange: '*'
+          destinationPortRange: '*'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+        }
+      }
+    ]
+  }
+}
+
+resource dbNsg 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
+  name: dbNsgName
+  location: location
+  tags: tags
+  properties: {
+    securityRules: [
+      {
+        name: 'AllowPostgresFromAppSubnet'
+        properties: {
+          priority: 100
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '5432'
+          sourceAddressPrefix: appSubnetPrefix
+          destinationAddressPrefix: '*'
+        }
+      }
+      {
+        name: 'AllowPostgresFromVpnPool'
+        properties: {
+          priority: 110
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '5432'
+          sourceAddressPrefix: vpnAddressPoolPrefix
+          destinationAddressPrefix: '*'
+        }
+      }
+      {
+        name: 'AllowAzureLoadBalancer'
+        properties: {
+          priority: 3900
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: '*'
+          sourcePortRange: '*'
+          destinationPortRange: '*'
+          sourceAddressPrefix: 'AzureLoadBalancer'
+          destinationAddressPrefix: '*'
+        }
+      }
+      {
+        name: 'DenyInboundVirtualNetwork'
+        properties: {
+          priority: 4000
+          direction: 'Inbound'
+          access: 'Deny'
+          protocol: '*'
+          sourcePortRange: '*'
+          destinationPortRange: '*'
+          sourceAddressPrefix: 'VirtualNetwork'
+          destinationAddressPrefix: '*'
+        }
+      }
+      {
+        name: 'DenyOutboundInternet'
+        properties: {
+          priority: 100
+          direction: 'Outbound'
+          access: 'Deny'
+          protocol: '*'
+          sourcePortRange: '*'
+          destinationPortRange: '*'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: 'Internet'
+        }
+      }
+    ]
+  }
+}
+
+resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   name: vnetName
   location: location
   tags: tags
   properties: {
     addressSpace: {
-      addressPrefixes: ['10.70.0.0/16']
+      addressPrefixes: [
+        vnetAddressPrefix
+      ]
+    }
+    subnets: [
+      {
+        name: 'snet-app'
+        properties: {
+          addressPrefix: appSubnetPrefix
+          networkSecurityGroup: {
+            id: appNsg.id
+          }
+          serviceEndpoints: [
+            {
+              service: 'Microsoft.Storage'
+            }
+          ]
+          delegations: [
+            {
+              name: 'app-service-delegation'
+              properties: {
+                serviceName: 'Microsoft.Web/serverFarms'
+              }
+            }
+          ]
+        }
+      }
+      {
+        name: 'snet-db'
+        properties: {
+          addressPrefix: dbSubnetPrefix
+          networkSecurityGroup: {
+            id: dbNsg.id
+          }
+          delegations: [
+            {
+              name: 'postgresql-delegation'
+              properties: {
+                serviceName: 'Microsoft.DBforPostgreSQL/flexibleServers'
+              }
+            }
+          ]
+        }
+      }
+      {
+        name: 'GatewaySubnet'
+        properties: {
+          addressPrefix: gatewaySubnetPrefix
+        }
+      }
+    ]
+  }
+}
+
+resource vgwPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
+  name: vgwPublicIpName
+  location: location
+  zones: [
+    '1'
+    '2'
+    '3'
+  ]
+  sku: {
+    name: 'Standard'
+  }
+  tags: tags
+  properties: {
+    publicIPAllocationMethod: 'Static'
+  }
+}
+
+resource vgw 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
+  name: vgwName
+  location: location
+  tags: tags
+  properties: {
+    ipConfigurations: [
+      {
+        name: 'vnetGatewayConfig'
+        properties: {
+          privateIPAllocationMethod: 'Dynamic'
+          subnet: {
+            id: '${vnet.id}/subnets/GatewaySubnet'
+          }
+          publicIPAddress: {
+            id: vgwPublicIp.id
+          }
+        }
+      }
+    ]
+    sku: {
+      name: 'VpnGw2AZ'
+      tier: 'VpnGw2AZ'
+    }
+    gatewayType: 'Vpn'
+    vpnType: 'RouteBased'
+    vpnClientConfiguration: {
+      vpnClientAddressPool: {
+        addressPrefixes: [
+          vpnAddressPoolPrefix
+        ]
+      }
     }
   }
 }
 
-resource subnetApp 'Microsoft.Network/virtualNetworks/subnets@2025-05-01' = {
-  parent: vnet
-  name: 'snet-app'
-  properties: {
-    addressPrefix: '10.70.0.0/24'
-    delegations: [
-      {
-        name: 'app-service-delegation'
-        properties: {
-          serviceName: 'Microsoft.Web/serverFarms'
-        }
-      }
-    ]
-  }
-}
-
-resource subnetDb 'Microsoft.Network/virtualNetworks/subnets@2025-05-01' = {
-  parent: vnet
-  name: 'snet-db'
-  properties: {
-    addressPrefix: '10.70.1.0/24'
-    delegations: [
-      {
-        name: 'postgresql-flex-delegation'
-        properties: {
-          serviceName: 'Microsoft.DBforPostgreSQL/flexibleServers'
-        }
-      }
-    ]
-  }
-}
-
-resource subnetPe 'Microsoft.Network/virtualNetworks/subnets@2025-05-01' = {
-  parent: vnet
-  name: 'snet-pe'
-  properties: {
-    addressPrefix: '10.70.2.0/24'
-    privateEndpointNetworkPolicies: 'Disabled'
-  }
-}
-
 output vnetId string = vnet.id
-output appSubnetId string = subnetApp.id
-output postgresSubnetId string = subnetDb.id
+output appSubnetId string = '${vnet.id}/subnets/snet-app'
+output postgresSubnetId string = '${vnet.id}/subnets/snet-db'
