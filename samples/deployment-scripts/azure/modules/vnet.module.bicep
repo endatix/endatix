@@ -216,15 +216,15 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
 resource vgwPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
   name: vgwPublicIpName
   location: location
-  tags: tags
-  sku: {
-    name: 'Standard'
-  }
   zones: [
     '1'
     '2'
     '3'
   ]
+  sku: {
+    name: 'Standard'
+  }
+  tags: tags
   properties: {
     publicIPAllocationMethod: 'Static'
   }
