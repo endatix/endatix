@@ -35,7 +35,8 @@ git clone git@github.com:endatix/endatix.git endatix-api
 git clone git@github.com:endatix/endatix-hub.git
 ```
 
-**Monorepo (this repository):** API sources live under `oss/`, Hub under `hub/`. Run the wizard from `oss/samples/deployment-scripts/azure/`; it will look for `hub/.env.production` four levels up.
+>[!NOTE] On Using Monorepo
+> If you use this repository as **monorepo:** API sources will live under `oss/`, Hub under `hub/`. Run the wizard from `oss/samples/deployment-scripts/azure/`; it will look for `hub/.env.production` four levels up.
 
 ## Quickstart wizard
 
@@ -56,12 +57,13 @@ node ./generate-quickstart-secrets.mjs
 
 The wizard does **not** call Azure itself. It:
 
-1. Helps you choose or name a resource group (`rg-{project}-{environment}-us` when creating a new one).
-2. Writes **`parameters.production.bicepparam`** (secrets + **Resource name overrides** block at the top).
-3. Prints **`az group create`** (if needed) and **`az deployment group create`** — run those in **another terminal**, still from this `azure/` folder (paths are relative to here).
-4. Waits until you press Enter after infrastructure finishes.
-5. Reads **`deployment-outputs.json`** (created by the deploy command’s output redirect) and writes **`.env.production`** into your Hub repo root.
-6. Prints Hub and API build/deploy commands (API zip + `az webapp deploy`; Hub **`swa deploy`** when using Static Web Apps).
+1. Asks for a **naming convention** (see below) and shows example resource names.
+2. Helps you choose or name a resource group (`rg-{project}-{environment}-us` when creating a new one).
+3. Writes **`parameters.production.bicepparam`** (secrets + **Resource name overrides** block at the top).
+4. Prints **`az group create`** (if needed) and **`az deployment group create`** — run those in **another terminal**, still from this `azure/` folder (paths are relative to here).
+5. Waits until you press Enter after infrastructure finishes.
+6. Reads **`deployment-outputs.json`** (created by the deploy command’s output redirect) and writes **`.env.production`** into your Hub repo root.
+7. Prints Hub and API build/deploy commands (API zip + `az webapp deploy`; Hub **`swa deploy`** when using Static Web Apps).
 
 **Before you deploy infrastructure:** open `parameters.production.bicepparam` and adjust the **Resource name overrides** block or other parameters if needed ([Resource name overrides](#resource-name-overrides), [Key parameters](#key-parameters-quick-reference)).
 
@@ -130,30 +132,47 @@ Edit [parameters.bicepparam](./parameters.bicepparam) before running the wizard,
 | **Private storage** | `storageIsPrivate = true` |
 | **PostgreSQL high availability** | `enablePostgresqlHA = true` |
 | **Failure anomaly alerts** | `enableFailureAnomalyAlerts = true` (see template notes on provider registration) |
-| **Naming / tags** | `resourcePrefix`, `project`, `environment`, `companyName`, `workloadName`, `regionAbbreviation` |
+| **Naming convention** | `namingConvention`: `quickstart`, `caf`, or `manual` — [Naming convention](#naming-convention) |
+| **CAF segments** | `companyName`, `workloadName`, `regionAbbreviation`, `environment` |
+| **Tags / storage suffix** | `resourcePrefix`, `project` (`resourcePrefix` is not used for App Service / Hub auto names) |
 | **Per-resource name overrides** | `*Override` params — [Resource name overrides](#resource-name-overrides) |
 | **Git deploy from GitHub (optional)** | `hubRepositoryUrl`, `apiRepositoryUrl`, `branch`, `apiDeploymentBranch` |
 
+## Naming convention
+
+All resources use **[CAF-style](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-naming)** auto names unless a per-resource `*Override` is set:
+
+**Pattern:** `{abbr}-{companyName}-{workloadName}-{regionAbbreviation}-{environment}` (optional `-{role}` for NSGs, VPN, etc.)
+
+**Storage:** `st` + company + workload + region + env (no dashes, max 24 characters).
+
+The wizard sets `namingConvention` and CAF segments in **`parameters.production.bicepparam`**:
+
+| Mode | Wizard behavior | Segment defaults |
+|------|-----------------|------------------|
+| **quickstart** (default) | No extra prompts; prints name preview | `companyName` = `project`, `workloadName` = `endatix`, `regionAbbreviation` = `weu` |
+| **caf** | Prompts for company, workload, region, environment | Your inputs |
+| **manual** | Skips naming prompts | Edit `*Override` params in the generated file before deploy |
+
+**Example** (quickstart with `project=endatix`, `environment=sandbox`): API → `app-endatix-endatix-weu-sandbox`, Hub (SWA) → `stapp-endatix-endatix-weu-sandbox`, storage → `stendatixendatixweusan` (truncated to 24 chars).
+
+> [!Note]
+> This replaces the older `{resourcePrefix}{project}-api` style. `resourcePrefix` remains for tagging only.
+
 ## Resource name overrides
 
-**Compute / data plane (default):** `{resourcePrefix}{project}-{suffix}` (e.g. `test-endatix-api` with prefix `test-`).
+The wizard injects an overrides block with empty values and `// auto:` comments showing the **actual** names for your chosen mode and segments.
 
-**Managed VNet resources:** `{abbr}-{companyName}-{workloadName}-{regionAbbreviation}-{environment}` from `parameters.bicepparam` (defaults: `endatix` / `endatix` / `weu` / your `environment` value).
-
-The wizard injects an overrides block into **`parameters.production.bicepparam`** (empty values + `// auto:` hints). Deploying without the wizard: copy `parameters.bicepparam`, add the optional `*Override` parameters, or run the wizard once and reuse the block.
-
-**CAF-style examples** below use fictitious segments `acme` / `datanium` / `eus` / `test` (same as `// override e.g.` hints in `generate-quickstart-secrets.mjs`):
-
-| Override param | Resource type | Default name | CAF-style example |
-|----------------|---------------|--------------|-------------------|
-| `apiAppNameOverride` | App Service (API) | `{prefix}{project}-api` | `app-acme-datanium-eus-test` |
-| `hubAppNameOverride` | Static Web App / Web App | `{prefix}{project}-hub` | `stapp-acme-datanium-eus-test` |
-| `appServicePlanNameOverride` | App Service Plan | `{prefix}{project}-serviceplan` | `plan-acme-datanium-eus-test` |
-| `appInsightsNameOverride` | Application Insights | `{prefix}{project}-appinsights` | `appi-acme-datanium-eus-test` |
-| `logAnalyticsWorkspaceNameOverride` | Log Analytics Workspace | `{prefix}{project}-appinsights-ws` | `log-acme-datanium-eus-test` |
-| `postgresqlServerNameOverride` | PostgreSQL Flexible Server | `{prefix}{project}-postgresql` | `psql-acme-datanium-eus-test` |
-| `storageAccountNameOverride` | Storage Account | `{prefix}{project}{hash}` (truncated) | `stacmedataniumeustest` |
-| `vnetNameOverride` | VNet (managed only) | `vnet-{company}-{workload}-{region}-{env}` | `vnet-acme-datanium-eus-test` |
+| Override param | Resource type | CAF auto name (empty override) |
+|----------------|---------------|--------------------------------|
+| `apiAppNameOverride` | App Service (API) | `app-{company}-{workload}-{region}-{env}` |
+| `hubAppNameOverride` | Static Web App / Web App | `stapp-...` (SWA) or `app-...` (web-app mode) |
+| `appServicePlanNameOverride` | App Service Plan | `plan-...` |
+| `appInsightsNameOverride` | Application Insights | `appi-...` |
+| `logAnalyticsWorkspaceNameOverride` | Log Analytics Workspace | `log-...` |
+| `postgresqlServerNameOverride` | PostgreSQL Flexible Server | `psql-...` |
+| `storageAccountNameOverride` | Storage Account | `st{company}{workload}{region}{env}` |
+| `vnetNameOverride` | VNet (managed only) | `vnet-...` |
 
 When managed VNet is enabled, these are also created (no separate override params in v1):
 

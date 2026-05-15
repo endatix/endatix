@@ -5,6 +5,7 @@ node_modules/
 **/bin/
 **/obj/
 **/publish/
+**/*.csproj.lscache
 
 # Compiled Java class files
 *.class

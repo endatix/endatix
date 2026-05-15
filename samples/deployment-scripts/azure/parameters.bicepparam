@@ -8,14 +8,16 @@ using './endatix-azure.template.bicep'
 // Resource name overrides are not declared here. The wizard injects that block into parameters.production.bicepparam.
 // Deploying without the wizard? Copy this file to parameters.production.bicepparam and add *Override params — see README.
 
-param resourcePrefix = 'test-'
-param project = 'endatix'
-param environment = 'sandbox'
+// --- Naming convention (wizard) ---
+param namingConvention = 'quickstart'
 
-// CAF naming segments (used for managed VNet resources when private network is enabled)
+// --- Naming: CAF segments (quickstart: company=project, workload=endatix, region=weu) ---
 param companyName = 'endatix'
 param workloadName = 'endatix'
 param regionAbbreviation = 'weu'
+param environment = 'sandbox'
+param resourcePrefix = 'test-'
+param project = 'endatix'
 
 // Managed VNet address space (subnets derived automatically). Prod example: 10.71.0.0/16
 param vnetAddressPrefix = '10.70.0.0/16'
