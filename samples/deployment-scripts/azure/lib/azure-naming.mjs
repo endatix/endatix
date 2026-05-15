@@ -24,7 +24,8 @@ export function normalizeEnvironmentSegment(value) {
       .trim()
       .toLowerCase()
       .replaceAll(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "dev"
+      .replace(/^-+/, "")
+      .replace(/-+$/, "") || "dev"
   );
 }
 

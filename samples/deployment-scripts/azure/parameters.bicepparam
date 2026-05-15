@@ -9,14 +9,12 @@ using './endatix-azure.template.bicep'
 // Deploying without the wizard? Copy this file to parameters.production.bicepparam and add *Override params — see README.
 
 // --- Naming convention (wizard) ---
-param namingConvention = 'quickstart'
 
 // --- Naming: CAF segments (quickstart: company=project, workload=endatix, region=weu) ---
 param companyName = 'endatix'
 param workloadName = 'endatix'
 param regionAbbreviation = 'weu'
 param environment = 'sandbox'
-param resourcePrefix = 'test-'
 param project = 'endatix'
 
 // Managed VNet address space (subnets derived automatically). Prod example: 10.71.0.0/16

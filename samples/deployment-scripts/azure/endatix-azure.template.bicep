@@ -1,10 +1,4 @@
 /* ********* Parameters ********** */
-
-@minLength(1)
-@maxLength(10)
-@description('Prefix for all resource names (e.g., "prod-", "dev-", "uat-")')
-param resourcePrefix string = 'temp-'
-
 @description('Azure region for deploying resources')
 param location string = resourceGroup().location
 
@@ -104,14 +98,6 @@ param workloadName string = 'endatix'
 
 @description('Azure region abbreviation for CAF-style resource names (e.g. weu, eus)')
 param regionAbbreviation string = 'weu'
-
-@allowed([
-  'quickstart'
-  'caf'
-  'manual'
-])
-@description('Naming mode for the quickstart wizard (all auto names use CAF segments unless *Override is set)')
-param namingConvention string = 'quickstart'
 
 @description('When enablePostgresqlPrivateNetwork and vnetResourceId is set: PostgreSQL delegated subnet name inside that VNet')
 param postgresSubnetName string = ''

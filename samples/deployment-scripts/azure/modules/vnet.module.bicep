@@ -234,10 +234,6 @@ resource vgw 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
   name: vgwName
   location: location
   tags: tags
-  dependsOn: [
-    vnet
-    vgwPublicIp
-  ]
   properties: {
     ipConfigurations: [
       {
