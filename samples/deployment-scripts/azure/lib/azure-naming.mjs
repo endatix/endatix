@@ -18,15 +18,32 @@ export function normalizeRegionAbbreviation(value) {
   return raw.slice(0, 6) || DEFAULT_REGION;
 }
 
+
+// Remove leading hyphens to avoid issues with Azure resource names (e.g., App Service names can't start with a dash).
+export function trimLeadingHyphens(value) {
+  let start = 0;
+  while (start < value.length && value[start] === "-") {
+    start += 1;
+  }
+  return value.slice(start);
+}
+
+// Remove trailing hyphens to avoid issues with Azure resource names (e.g., NSG names can't end with a dash).
+export function trimTrailingHyphens(value) {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "-") {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
 export function normalizeEnvironmentSegment(value) {
-  return (
-    String(value ?? "dev")
-      .trim()
-      .toLowerCase()
-      .replaceAll(/[^a-z0-9]+/g, "-")
-      .replace(/^-+/, "")
-      .replace(/-+$/, "") || "dev"
-  );
+  const normalized = String(value ?? "dev")
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-");
+
+  return trimTrailingHyphens(trimLeadingHyphens(normalized)) || "dev";
 }
 
 /**

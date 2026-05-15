@@ -9,6 +9,8 @@ import {
   normalizeEnvironmentSegment,
   normalizeRegionAbbreviation,
   quickstartSegments,
+  trimLeadingHyphens,
+  trimTrailingHyphens,
 } from "../lib/azure-naming.mjs";
 
 const acmeSegments = {
@@ -82,6 +84,18 @@ test("normalizeRegionAbbreviation strips invalid chars and caps length", () => {
 test("normalizeEnvironmentSegment lowercases and hyphenates", () => {
   assert.equal(normalizeEnvironmentSegment("Sandbox"), "sandbox");
   assert.equal(normalizeEnvironmentSegment("  prod env  "), "prod-env");
+});
+
+test("trimTrailingHyphens removes only trailing hyphens", () => {
+  assert.equal(trimTrailingHyphens("abc---"), "abc");
+  assert.equal(trimTrailingHyphens("abc-def-"), "abc-def");
+  assert.equal(trimTrailingHyphens("---"), "");
+  assert.equal(trimTrailingHyphens("abc"), "abc");
+});
+
+test("normalizeEnvironmentSegment drops leading and trailing hyphens after normalization", () => {
+  assert.equal(normalizeEnvironmentSegment("  --prod-- env---  "), "prod-env");
+  assert.equal(normalizeEnvironmentSegment("---DEV---"), "dev");
 });
 
 test("buildResourceNameOverridesBlock includes auto hints and segment comment", () => {
