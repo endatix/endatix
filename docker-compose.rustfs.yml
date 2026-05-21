@@ -1,0 +1,42 @@
+name: endatix
+
+services:
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: endatix-rustfs
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS: "*"
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
+      RUSTFS_OBS_LOGGER_LEVEL: info
+    volumes:
+      - ${RUSTFS_DATA_PATH:-rustfs-data}:/data
+    networks:
+      - appnetwork
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "sh",
+          "-c",
+          "curl -f http://127.0.0.1:9000/health && curl -f http://127.0.0.1:9001/rustfs/console/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  rustfs-data:
+
+networks:
+  appnetwork:
+    driver: bridge
