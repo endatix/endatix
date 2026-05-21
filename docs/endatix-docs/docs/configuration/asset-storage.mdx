@@ -71,21 +71,26 @@ Endatix Hub and the Endatix API read storage settings from distinct environments
 For Endatix Hub, external storage options are activated automatically whenever the primary target cloud credentials are explicitly supplied to the application runtime environment variables. 
 
 ```env
-# Core Azure Storage Credentials (Auto-detects and activates provider)
-AZURE_STORAGE_ACCOUNT_NAME=your_account_name
-AZURE_STORAGE_ACCOUNT_KEY=your_account_key
+# Minimum config to enable Azure Storage
+STORAGE_PROVIDER=azure
+STORAGE_AZURE_ACCOUNT_NAME=your_account_name
+STORAGE_AZURE_ACCOUNT_KEY=your_account_key
+STORAGE_AZURE_ENDPOINT=https://your_account_name.blob.core.windows.net
 
-# Privacy Mode & Token Lifetimes (Defaults to false if omitted)
-AZURE_STORAGE_IS_PRIVATE=true
-AZURE_STORAGE_SAS_READ_EXPIRY_MINUTES=15
+# Minimum config to enable S3 or S3 Compatible storage
+STORAGE_PROVIDER=s3
+STORAGE_S3_ENDPOINT=https://your-s3-storage.domain.com
+STORAGE_S3_ACCESS_KEY_ID=your_access_key_id
+STORAGE_S3_SECRET_ACCESS_KEY=your_secret_access_key
 
-# Optional: Map a verified cloud CDN or Custom Domain proxy
-AZURE_STORAGE_CUSTOM_DOMAIN=files.yourdomain.com
+# Optional 
 
-# Optional: Overrides default lowercased container paths
-USER_FILES_STORAGE_CONTAINER_NAME=user-files
-CONTENT_STORAGE_CONTAINER_NAME=content
+# Default is true
+STORAGE_IS_PRIVATE=false 
 
+# Defaults are user-files and content.
+STORAGE_USER_FILES_CONTAINER_NAME=secure-vault
+STORAGE_CONTENT_FILES_CONTAINER_NAME=content-vault
 ```
 
 </TabItem>
@@ -133,7 +138,7 @@ Both parameters are required. If `HostName` is empty, or configuration presence 
 Because Endatix architecture prioritizes direct-to-cloud file mutations, the configured storage endpoints must maintain clear route connectivity for both nodes:
 
 * **The Endatix Cluster Servers:** Must maintain outward routing to connect to cloud APIs to manage SAS tokens and clear object metadata.
-* **The End-User's Web Browser:** Must have unfiltered network visibility to make direct client-side requests (`PUT`, `POST`, `GET`) towards the asset host.
+* **The End-User's Web Browser:** Must have unfiltered network visibility to make direct client-side requests (`GET`, `PUT`, `POST`) towards the asset host.
 
 
 :::info[CORS Configuration]

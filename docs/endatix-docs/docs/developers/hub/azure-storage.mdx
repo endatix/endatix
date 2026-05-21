@@ -68,13 +68,24 @@ STORAGE_CONTENT_FILES_CONTAINER_NAME=content-vault
 
 Keep `STORAGE_IS_PRIVATE=true` for respondent uploads or any file that requires Hub authorization before read access. This is the default, so you only need to set it explicitly when you want the deployment to be self-documenting. Set `STORAGE_IS_PRIVATE=false` only when blobs should be publicly readable from the configured host.
 
-Defaults:
+**Defaults:**
+```bash
+# following values will be used if you omit them (default values)
+STORAGE_IS_PRIVATE=true
+STORAGE_AZURE_SAS_READ_EXPIRY_MINUTES=15
+STORAGE_AZURE_SAS_WRITE_EXPIRY_SECONDS=180
+STORAGE_USER_FILES_CONTAINER_NAME=user-files
+STORAGE_CONTENT_FILES_CONTAINER_NAME=content
+```
 
-- `STORAGE_IS_PRIVATE`: `true`
-- `STORAGE_AZURE_SAS_READ_EXPIRY_MINUTES`: `15`
-- `STORAGE_AZURE_SAS_WRITE_EXPIRY_SECONDS`: `180`
-- `STORAGE_USER_FILES_CONTAINER_NAME`: `user-files`
-- `STORAGE_CONTENT_FILES_CONTAINER_NAME`: `content`
+:::warning[Depreciated env variables]
+Endatix Hub still reads legacy env variables, but they will be decomissioned in future versions.
+
+- `USER_FILES_STORAGE_CONTAINER_NAME`
+- `CONTENT_STORAGE_CONTAINER_NAME`
+
+only when the canonical `STORAGE_*` container names are unset or empty. New deployments should use `STORAGE_USER_FILES_CONTAINER_NAME` and `STORAGE_CONTENT_FILES_CONTAINER_NAME`.
+:::
 
 Write URLs are intentionally short-lived because the browser only needs enough time to upload the selected file. Read URLs should also stay short because Hub can issue fresh URLs after access checks.
 
@@ -163,8 +174,6 @@ AZURE_STORAGE_ACCOUNT_NAME=
 AZURE_STORAGE_ACCOUNT_KEY=
 AZURE_STORAGE_CUSTOM_DOMAIN=
 AZURE_STORAGE_IS_PRIVATE=
-AZURE_STORAGE_SAS_READ_EXPIRY_MINUTES=
-AZURE_STORAGE_SAS_TOKEN_EXPIRY_MINUTES=
 ```
 
 Canonical `STORAGE_IS_PRIVATE` and `STORAGE_AZURE_*` values win when both canonical and legacy names are set. New deployments should use `STORAGE_IS_PRIVATE` and `STORAGE_AZURE_ENDPOINT`.
