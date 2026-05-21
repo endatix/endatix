@@ -1,6 +1,13 @@
 import Link from "@docusaurus/Link";
 import clsx from "clsx";
-import { ArrowRight, CircleHelp, Edit3, Headphones, Lightbulb, MessageCircle } from "lucide-react";
+import {
+  ArrowRight,
+  CircleHelp,
+  Edit3,
+  Headphones,
+  Lightbulb,
+  MessageCircle,
+} from "lucide-react";
 import React from "react";
 
 import styles from "./styles.module.css";
@@ -16,7 +23,8 @@ type CtaType =
   | "request-feature"
   | "contact-support"
   | "request-demo"
-  | "discuss-use-case";
+  | "discuss-use-case"
+  | "need-assistance";
 
 type CallToActionProps = {
   layout?: CallToActionLayout;
@@ -54,10 +62,19 @@ const ctaPresets = {
     title: "Need implementation guidance?",
     description:
       "Talk with the Endatix team about storage setup, deployment trade-offs, or the right integration path for your environment.",
-    ctaPrompt: "Need setup help, a deployment review, or technical consultation?",
+    ctaPrompt:
+      "Need setup help, a deployment review, or technical consultation?",
     ctaAction: "Contact support",
     actionUrl: contactUrl,
     icon: "headphones",
+  },
+  "need-assistance": {
+    title: "Need assistance with your project?",
+    description: "Talk with one our engineers so we can help you with this",
+    ctaPrompt: "Need assistance with your project or implementation?",
+    ctaAction: "Talk to our team",
+    actionUrl: contactUrl,
+    icon: "message-circle",
   },
   "request-demo": {
     title: "Want to see Endatix in action?",
@@ -69,11 +86,11 @@ const ctaPresets = {
     icon: "question-mark",
   },
   "discuss-use-case": {
-    title: "Have a specific use case?",
+    title: "Have a project in mind?",
     description:
-      "Tell us what you are trying to build. We can help you evaluate fit, discuss practical options, and decide whether working together makes sense.",
+      "Tell us what you're building. We'd be happy to talk through your architecture, explore your options, and see if we're a good fit.",
     ctaPrompt: "Have a specific use case or implementation question?",
-    ctaAction: "Discuss your use case",
+    ctaAction: "Talk to an engineer",
     actionUrl: contactUrl,
     icon: "message-circle",
   },
