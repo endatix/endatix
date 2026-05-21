@@ -1,13 +1,22 @@
 import Link from "@docusaurus/Link";
 import clsx from "clsx";
-import { ArrowRight, CircleHelp, Edit3, Headphones, Lightbulb } from "lucide-react";
+import { ArrowRight, CircleHelp, Edit3, Headphones, Lightbulb, MessageCircle } from "lucide-react";
 import React from "react";
 
 import styles from "./styles.module.css";
 
 type CallToActionLayout = "standalone" | "inline";
-type Icon = "lightbulb" | "headphones" | "question-mark" | "arrow-right";
-type CtaType = "request-feature" | "contact-support" | "request-demo";
+type Icon =
+  | "lightbulb"
+  | "headphones"
+  | "question-mark"
+  | "arrow-right"
+  | "message-circle";
+type CtaType =
+  | "request-feature"
+  | "contact-support"
+  | "request-demo"
+  | "discuss-use-case";
 
 type CallToActionProps = {
   layout?: CallToActionLayout;
@@ -59,6 +68,15 @@ const ctaPresets = {
     actionUrl: contactUrl,
     icon: "question-mark",
   },
+  "discuss-use-case": {
+    title: "Have a specific use case?",
+    description:
+      "Tell us what you are trying to build. We can help you evaluate fit, discuss practical options, and decide whether working together makes sense.",
+    ctaPrompt: "Have a specific use case or implementation question?",
+    ctaAction: "Discuss your use case",
+    actionUrl: contactUrl,
+    icon: "message-circle",
+  },
 } satisfies Record<CtaType, CtaPreset>;
 
 const iconMap = {
@@ -66,6 +84,7 @@ const iconMap = {
   headphones: Headphones,
   "question-mark": CircleHelp,
   "arrow-right": ArrowRight,
+  "message-circle": MessageCircle,
 } satisfies Record<Icon, typeof Lightbulb>;
 
 /**

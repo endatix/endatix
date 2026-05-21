@@ -89,6 +89,7 @@ const sidebars: SidebarsConfig = {
       link: { type: "doc", id: "configuration/index" },
       items: [
         "configuration/api-configuration",
+        "configuration/asset-storage",
         "configuration/data-configuration",
         "configuration/infrastructure-configuration",
         "configuration/security-configuration",
@@ -135,7 +136,12 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Endatix Hub",
       collapsed: true,
-      items: ["developers/hub/index", "developers/hub/maintenance-mode"],
+      items: [
+        "developers/hub/index",
+        "developers/hub/azure-storage",
+        "developers/hub/rustfs-storage",
+        "developers/hub/maintenance-mode",
+      ],
     },
   ],
   userSidebar: [

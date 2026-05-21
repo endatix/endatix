@@ -1,0 +1,179 @@
+---
+title: Asset storage
+description: Configure public or private object storage for Endatix assets and uploaded files.
+---
+
+import CallToAction from "@site/src/components/CallToAction";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# Asset storage
+
+Endatix stores user-uploaded files and form content assets in external object storage. By keeping large binary data out of the primary application database, you benefit from improved API performance, easier backup management, and the ability to scale to millions of users under heavy load.
+
+External asset storage enables features that require securely collecting user files at scale:
+
+- File upload questions and respondent attachments.
+- Signature images and image annotation questions
+- Audio recording based surveys
+- Video recording based surveys
+- Survyes that require users to provide images from their camera or media album
+- Form builder assets (e.g., custom logos, image picker choices, and rich media).
+- Secure submission review pages, exports, and downloads.
+
+<CallToAction layout="standalone" type="discuss-use-case" />
+
+## Storage Options
+
+Endatix supports configuring external providers to handle these binary assets. The system currently provides native, out-of-the-box support for **Azure Blob Storage** across both the Endatix Hub and Endatix API.
+
+S3-compatible storage (like AWS S3, DigitalOcean Spaces, or RustFS for self-hosting) can also be utilized in deployment models that expose an S3-compatible interface.
+
+## Storage Modes: Public vs. Private
+
+You can configure Endatix to treat your object storage as either Public or Private. We highly recommend **Private storage** for any deployment handling sensitive respondent data.
+
+:::info[Storage Policy]
+Asset Storage policy is evaluated per application deployment. You can rotate keys or toggle privacy modes at any time, provided your cloud provider's container settings match the application configuration.
+:::
+
+### Public Storage
+
+In Public mode, files are stored with public read access at the infrastructure level. The database stores the canonical file URLs, and the user's browser fetches these assets directly from the object storage provider without needing authorization.
+
+- **Use case:** Best for purely public form assets (e.g., public company logos or survey header images) where data security is not a concern.
+
+### Private Storage (Default)
+
+In Private mode, your storage containers are completely locked down. The canonical URLs saved in the database are internal to Endatix and cannot be accessed directly by a browser.
+
+Here is how the private flow works securely behind the scenes:
+
+1. **Direct-to-Cloud Uploads:** When a user uploads a file, Endatix Hub generates a short-lived presigned URL (SAS token). The browser uses this token to upload the file directly to the storage provider, ensuring large files bypass and don't overwhelm your Node.js or .NET servers.
+2. **Authorized Reads:** When a submission is viewed or exported, the Endatix API utilizes a specialized `StorageUrlRewriteTransformer`. This intercepts the internal canonical URLs and dynamically rewrites them into short-lived, authorized read URLs (e.g., appending an Azure SAS token valid by default for 15 minutes).
+
+This ensures that the underlying files remain secure and are only ever exposed to users who have explicitly passed Endatix's access control checks.
+
+<CallToAction
+  layout="inline"
+  type="request-feature"
+  ctaPrompt="Have a question or maybe looking for an asset storage feature?"
+  ctaAction="Contact us"
+/>
+
+## Provider Configuration
+
+Endatix Hub and the Endatix API read storage settings from different runtimes:
+
+- **Hub** signs browser uploads and protected read URLs for Azure Blob Storage or S3-compatible storage.
+- **API** uses its own .NET configuration to detect stored file URLs and rewrite them during exports.
+
+<Tabs>
+<TabItem value="hub" label="Endatix Hub">
+
+Hub storage is configured through environment variables before the Next.js app starts. `STORAGE_PROVIDER` selects the active provider; credential-only auto-detection is not used.
+
+```env
+# Active provider: azure, s3, or none
+STORAGE_PROVIDER=azure
+
+# Shared by Azure and S3
+STORAGE_IS_PRIVATE=true
+STORAGE_USER_FILES_CONTAINER_NAME=user-files
+STORAGE_CONTENT_FILES_CONTAINER_NAME=content
+```
+
+Use **Azure Blob Storage** with the canonical `STORAGE_AZURE_*` settings:
+
+```env
+STORAGE_PROVIDER=azure
+STORAGE_AZURE_ACCOUNT_NAME=your_account_name
+STORAGE_AZURE_ACCOUNT_KEY=your_account_key
+STORAGE_AZURE_ENDPOINT=https://your_account.blob.core.windows.net
+
+# Optional. Defaults to 15 minutes.
+STORAGE_AZURE_SAS_READ_EXPIRY_MINUTES=15
+
+# Optional. Defaults to 180 seconds.
+STORAGE_AZURE_SAS_WRITE_EXPIRY_SECONDS=180
+```
+
+For older deployments, Hub still accepts the legacy Azure names as fallbacks: `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY`, `AZURE_STORAGE_CUSTOM_DOMAIN`, `AZURE_STORAGE_IS_PRIVATE`, `AZURE_STORAGE_SAS_READ_EXPIRY_MINUTES`, and `AZURE_STORAGE_SAS_TOKEN_EXPIRY_MINUTES`.
+
+Use **S3-compatible storage** with the `STORAGE_S3_*` settings:
+
+```env
+STORAGE_PROVIDER=s3
+STORAGE_S3_ENDPOINT=https://files.example.com
+STORAGE_S3_ACCESS_KEY_ID=your_access_key_id
+STORAGE_S3_SECRET_ACCESS_KEY=your_secret_access_key
+
+# Optional. Defaults to us-east-1.
+STORAGE_S3_REGION=us-east-1
+
+# Optional. Defaults to true; recommended for RustFS and many S3-compatible providers.
+STORAGE_S3_FORCE_PATH_STYLE=true
+
+# Optional. Defaults to 15 minutes.
+STORAGE_S3_READ_EXPIRY_MINUTES=15
+
+# Optional. Defaults to 180 seconds.
+STORAGE_S3_WRITE_EXPIRY_SECONDS=180
+```
+
+`STORAGE_S3_ENDPOINT` must be a browser-reachable origin without a bucket path, query string, or fragment. For example, use `https://files.example.com`, not `https://files.example.com/user-files`.
+
+</TabItem>
+<TabItem value="api" label="Endatix API">
+
+The API does not read the Hub storage environment variables. Configure it through standard .NET configuration under `Endatix:Storage:Providers`.
+
+Today, the API storage settings are used for Azure Blob URL detection when rewriting submission file URLs in exports. The contract is documented in [Storage Settings](./settings/storage-settings) and is based on `AzureBlobStorageProviderOptions`.
+
+```json
+{
+  "Endatix": {
+    "Storage": {
+      "Providers": {
+        "AzureBlob": {
+          "HostName": "myaccount.blob.core.windows.net",
+          "UserFilesContainerName": "user-files"
+        }
+      }
+    }
+  }
+}
+```
+
+The same settings can be supplied as environment variables using the .NET double-underscore convention:
+
+```env
+Endatix__Storage__Providers__AzureBlob__HostName=myaccount.blob.core.windows.net
+Endatix__Storage__Providers__AzureBlob__UserFilesContainerName=user-files
+```
+
+`HostName` is the storage host without a scheme, and `UserFilesContainerName` defaults to `user-files`. If either value is missing, API export URL rewriting is disabled.
+
+</TabItem>
+</Tabs>
+
+## Browser Reachability
+
+Because Endatix uses direct-to-cloud uploads, the storage endpoint must be reachable by both:
+
+- **The Endatix Server** (to generate the signatures and validate files).
+- **The User's Browser** (to execute the actual `PUT` request via the presigned URL).
+
+For self-hosted storage in a Docker environment, this means you must use a resolvable DNS name (like `files.example.com` or `localhost` for local dev) rather than an internal Docker network hostname.
+
+## Operational Considerations
+
+:::tip[CORS Configuration]
+You must configure CORS on your object storage provider. The provider needs to accept `GET`, `PUT`, `POST` requests from your Hub's origin (Endatix Hub Url) and allow browsers to read the provider's response headers.
+:::
+
+Next steps:
+
+- [Endatix Hub: Configure Azure BLOB Storage](/docs/developers/hub/azure-storage)
+- [Endatix Hub: Configure RustFS Storage](/docs/developers/hub/rustfs-storage)
+- [Endatix API Storage Settings](/docs/configuration/settings/storage-settings.md)
