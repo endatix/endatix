@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Endatix Basic Embed</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 2rem;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #172033;
+            background: #f8fafc;
+        }
+
+        main {
+            max-width: 72rem;
+            margin: 0 auto;
+        }
+
+        .panel {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border: 1px solid #d4dce8;
+            border-radius: 0.75rem;
+            background: #fff;
+        }
+
+        .log {
+            height: 24rem;
+            overflow: auto;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background: #0f172a;
+            color: #dbeafe;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+            font-size: 0.8125rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .log-entry {
+            padding: 0.35rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .muted {
+            color: #64748b;
+        }
+    </style>
+    <script>
+        (function setupEndatixEmbedEventLog() {
+            const endatixEventTypes = [
+                "endatix:form-loaded",
+                "endatix:form-complete",
+                "endatix:form-error",
+            ];
+
+            function getLogElement() {
+                return document.getElementById("embed-event-log");
+            }
+
+            function writeLog(label, payload) {
+                const logElement = getLogElement();
+                if (!logElement) {
+                    return;
+                }
+
+                const entry = document.createElement("div");
+                entry.className = "log-entry";
+                entry.textContent = [
+                    new Date().toISOString(),
+                    label,
+                    JSON.stringify(payload, null, 2),
+                ].join("\n");
+
+                logElement.appendChild(entry);
+                logElement.scrollTop = logElement.scrollHeight;
+                console.log(`[Endatix embed] ${label}`, payload);
+            }
+
+            endatixEventTypes.forEach(function registerEndatixEvent(type) {
+                globalThis.window.addEventListener(type, function onEndatixEvent(event) {
+                    writeLog(`CustomEvent ${type}`, event.detail);
+                });
+            });
+        })();
+    </script>
+</head>
+
+<body>
+    <main>
+        <section class="panel">
+            <h1>Endatix Basic Embed</h1>
+            <p class="muted">
+                This local page embeds an Endatix Hub form and logs the public lifecycle events
+            </p>
+        </section>
+
+        <!-- Replace {{ADD_FORM_ID_HERE}} with the form ID you want to embed. -->
+        <!-- Replace the same-origin src with your trusted Hub embed script URL e.g. http://localhost:3000/embed/v1/embed.js -->
+        <section class="panel">
+            <script src="/embed/v1/embed.js" data-form-id="{{ADD_FORM_ID_HERE}}"></script>
+        </section>
+
+        <section class="panel">
+            <h2>Event log</h2>
+            <div id="embed-event-log" class="log" aria-live="polite"></div>
+        </section>
+    </main>
+</body>
+
+</html>

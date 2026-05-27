@@ -36,6 +36,11 @@ public class ActiveDefinitionDto
     public bool? RequiresReCaptcha { get; init; }
 
     /// <summary>
+    /// Indicates whether one response per user is enforced for the form.
+    /// </summary>
+    public bool LimitOnePerUser { get; init; }
+
+    /// <summary>
     /// Indicates whether this form definition is in draft status.
     /// </summary>
     public bool IsDraft { get; set; }

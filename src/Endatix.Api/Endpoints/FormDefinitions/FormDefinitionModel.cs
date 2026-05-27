@@ -52,6 +52,11 @@ public class FormDefinitionModel
     public bool? RequiresReCaptcha { get; set; }
 
     /// <summary>
+    /// Indicates whether one response per user is enforced for the form.
+    /// </summary>
+    public bool LimitOnePerUser { get; set; }
+
+    /// <summary>
     /// Indicates whether the current user already has a submission for this form.
     /// </summary>
     public bool HasUserSubmitted { get; set; }

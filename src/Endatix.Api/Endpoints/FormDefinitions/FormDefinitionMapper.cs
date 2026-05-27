@@ -41,6 +41,7 @@ public class FormDefinitionMapper
         ThemeModel = formDefinition.ThemeJsonData,
         CustomQuestions = formDefinition.CustomQuestions,
         RequiresReCaptcha = formDefinition.RequiresReCaptcha,
+        LimitOnePerUser = formDefinition.LimitOnePerUser,
         HasUserSubmitted = formDefinition.HasUserSubmitted,
         Metadata = formDefinition.Metadata,
     };

@@ -75,6 +75,7 @@ public class GetActiveTests
         var themeJsonData = "{ \"background\": \"#FFFFFF\" }";
         var activeDefinitionDto = new ActiveDefinitionDto(formDefinition, themeJsonData)
         {
+            LimitOnePerUser = true,
             HasUserSubmitted = true,
             Metadata = "{ \"alreadyRespondedMessage\": \"Custom copy\" }"
         };
@@ -93,6 +94,7 @@ public class GetActiveTests
         okResult!.Value!.Id.Should().Be(formDefinition.Id.ToString());
         okResult!.Value!.FormId.Should().Be(formDefinition.FormId.ToString());
         okResult!.Value!.ThemeModel.Should().Be(themeJsonData);
+        okResult!.Value!.LimitOnePerUser.Should().BeTrue();
         okResult!.Value!.HasUserSubmitted.Should().BeTrue();
         okResult!.Value!.Metadata.Should().Be("{ \"alreadyRespondedMessage\": \"Custom copy\" }");
     }

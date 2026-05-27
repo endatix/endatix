@@ -77,6 +77,7 @@ public class GetActiveFormDefinitionHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.Id.Should().Be(activeDefinition.Id);
         result.Value.CustomQuestions.Should().BeEmpty();
+        result.Value.LimitOnePerUser.Should().BeFalse();
     }
 
     [Fact]
@@ -325,6 +326,7 @@ public class GetActiveFormDefinitionHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value!.HasUserSubmitted.Should().BeTrue();
+        result.Value!.LimitOnePerUser.Should().BeTrue();
     }
 
     [Fact]
