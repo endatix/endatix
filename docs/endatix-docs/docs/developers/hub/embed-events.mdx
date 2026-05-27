@@ -1,0 +1,292 @@
+---
+title: Embedded form events
+description: Listen to Endatix Hub embedded form events and integrate them safely with your website.
+---
+
+# Embedded form events
+
+Endatix Hub forms can be embedded in any page with the embed script. The script creates an iframe, resizes it automatically, and exposes lifecycle events on the host page so your application can react when a form loads, completes, or fails to submit.
+
+For prefilled forms and access-token workflows, see [Form Prefilling and Sharing](/docs/guides/form-prefilling).
+
+## Basic embed
+
+Use the embed snippet from the Hub share dialog or add the script directly:
+
+```html
+<script
+  src="https://app.endatix.com/embed/v1/embed.js"
+  data-form-id="1442869143157080064"
+></script>
+```
+
+For access-token embeds, include `data-token`:
+
+```html
+<script
+  src="https://app.endatix.com/embed/v1/embed.js"
+  data-form-id="1442869143157080064"
+  data-token="ACCESS_TOKEN"
+></script>
+```
+
+The script inserts an iframe immediately after the script tag. Each embed receives a unique `embedId`, so multiple forms can live on the same page without cross-handling events.
+
+## Listening to events
+
+Events are dispatched as browser `CustomEvent`s on both the embed container and `window`. The examples below listen on `window`, which is the simplest option for most integrations.
+
+```javascript
+window.addEventListener("endatix:form-loaded", (event) => {
+  console.log("Form loaded", event.detail);
+});
+
+window.addEventListener("endatix:form-complete", (event) => {
+  console.log("Form completed", event.detail);
+});
+
+window.addEventListener("endatix:form-error", (event) => {
+  console.error("Form failed", event.detail.error);
+});
+```
+
+Every host event includes:
+
+```ts
+type EndatixEmbedEventBase = {
+  formId: string;
+  embedId: string;
+};
+```
+
+Use `embedId` when a page embeds the same form more than once or embeds multiple forms.
+
+### `CustomEvent` vs `postMessage`
+
+Prefer the `endatix:*` `CustomEvent`s shown above for host-page integrations. The embed script validates the iframe source, Hub origin, and per-embed id before it dispatches those events.
+
+Only listen to raw `message` events if you are building your own embed wrapper. In that case, your code must perform the same origin, source, event type, `embedId`, and payload validation before trusting the message.
+
+### Debugging locally
+
+During local development, it can be useful to log both the public host events and the raw iframe messages handled by the embed script. Use the [basic embed sample](https://github.com/endatix/endatix/tree/main/samples/form-embedding/basic-embed) for a complete plain HTML page with local diagnostics.
+
+Treat raw `message` logs as diagnostics only. Production integrations should prefer the validated `CustomEvent`s.
+
+## Event reference
+
+### `endatix:form-loaded`
+
+Fires after the SurveyJS form has rendered inside the iframe.
+
+```ts
+type FormLoadedDetail = {
+  formId: string;
+  embedId: string;
+  definitionId?: string;
+  limitOnePerUser?: boolean;
+  requiresReCaptcha?: boolean;
+  metadata?: string;
+  title?: string;
+};
+```
+
+Example:
+
+```javascript
+window.addEventListener("endatix:form-loaded", (event) => {
+  const { formId, title, limitOnePerUser } = event.detail;
+
+  analytics.track("Endatix Form Loaded", {
+    formId,
+    title,
+    limitOnePerUser,
+  });
+
+  document.querySelector("#form-loading")?.remove();
+});
+```
+
+### `endatix:form-complete`
+
+Fires after Endatix confirms the submission was saved successfully.
+
+```ts
+type FormCompleteDetail = {
+  formId: string;
+  embedId: string;
+  submissionId: string;
+  success: true;
+  isComplete?: boolean;
+  status?: string;
+  completedAt?: string;
+};
+```
+
+Example:
+
+```javascript
+window.addEventListener("endatix:form-complete", (event) => {
+  analytics.track("Endatix Form Completed", {
+    formId: event.detail.formId,
+    submissionId: event.detail.submissionId,
+    status: event.detail.status,
+  });
+
+  window.location.assign("/thank-you");
+});
+```
+
+### `endatix:form-error`
+
+Fires when final submission fails after the user completes the form, or when the embed cannot show the form because access is blocked by a public-form rule such as `limitOnePerUser`.
+
+```ts
+type FormErrorDetail = {
+  formId: string;
+  embedId: string;
+  success: false;
+  error: {
+    type?: string;
+    code?: string;
+    message: string;
+  };
+};
+```
+
+When a respondent has already submitted a single-response form, the embed sends:
+
+```ts
+{
+  success: false,
+  error: {
+    type: "access",
+    code: "already_responded",
+    message: "You have already submitted a response for this form.",
+  },
+}
+```
+
+Example:
+
+```javascript
+window.addEventListener("endatix:form-error", (event) => {
+  const errorBox = document.querySelector("#form-error");
+  if (!errorBox) return;
+
+  errorBox.textContent =
+    event.detail.error.message || "The form could not be submitted.";
+});
+```
+
+## Resize and navigation behavior
+
+The embed script handles these iframe messages internally:
+
+- `endatix:resize` updates the iframe height.
+- `endatix:scroll` scrolls the iframe into view after page navigation inside the form.
+- `endatix:navigate` moves the host page when a SurveyJS completion URL is configured and passes URL safety checks.
+
+You usually do not need to listen for these messages directly. Use the lifecycle events above for application logic.
+
+## Practical patterns
+
+### Enable surrounding UI after load
+
+```html
+<button id="continue-button" disabled>Continue</button>
+
+<script>
+  window.addEventListener("endatix:form-loaded", () => {
+    document.querySelector("#continue-button").disabled = false;
+  });
+</script>
+```
+
+### Route different embeds independently
+
+```javascript
+const handlersByEmbedId = new Map();
+
+window.addEventListener("endatix:form-loaded", (event) => {
+  handlersByEmbedId.set(event.detail.embedId, {
+    formId: event.detail.formId,
+  });
+});
+
+window.addEventListener("endatix:form-complete", (event) => {
+  const embed = handlersByEmbedId.get(event.detail.embedId);
+  if (!embed) return;
+
+  console.log(`Embedded form ${embed.formId} completed`);
+});
+```
+
+### Track completion without collecting answers
+
+Embed events intentionally do not include respondent answers. Track identifiers and status only:
+
+```javascript
+window.addEventListener("endatix:form-complete", (event) => {
+  analytics.track("Lead Form Submitted", {
+    formId: event.detail.formId,
+    submissionId: event.detail.submissionId,
+    completedAt: event.detail.completedAt,
+  });
+});
+```
+
+## Security guidance
+
+The embed script validates iframe messages before acting on them. It checks the iframe source, the Hub origin, and the per-embed id. The iframe also sends messages back to the exact parent origin passed by the embed script.
+
+For production embeds:
+
+- Serve both the host page and Endatix Hub over HTTPS.
+- Generate short-lived access tokens on your backend when embedding prefilled or editable submissions.
+- Do not place long-lived tokens in static HTML, CMS content, or public source code.
+- Do not rely on client events as authorization. Endatix API submission endpoints remain the final authority for permissions, expiry, and `limitOnePerUser` rules.
+- Avoid putting sensitive respondent data in host-page analytics. Embed events expose form and submission identifiers, not answer payloads.
+- Prefer a per-form or per-tenant allowed embed origin list when available. That lets Hub enforce `frame-ancestors` and reject unexpected host origins.
+
+If you build custom `message` listeners around the iframe, validate all of the following before trusting a message:
+
+- `event.origin` is your Hub origin.
+- `event.source` is the embedded iframe's `contentWindow`.
+- `event.data.type` is an expected `endatix:*` event.
+- `event.data.embedId` matches the iframe instance you created.
+- Payload fields have the expected types.
+
+## Troubleshooting
+
+### Events do not fire
+
+- Confirm the script URL is reachable and uses the same Hub deployment that serves the iframe.
+- Confirm the browser console does not show blocked script, mixed-content, or CSP errors.
+- If you configure a custom `frame-ancestors` policy, include every host origin that should embed Hub forms.
+- Make sure listeners are registered before the user can complete the form.
+- If multiple embeds are on one page, inspect `event.detail.embedId` instead of only `formId`.
+
+### The iframe does not resize
+
+- Verify the embedded page can post messages to the parent page. Browser extensions or strict sandboxing can block message delivery.
+- Check for CSS on the host page that overrides iframe height or overflow.
+- Confirm the form is not inside a hidden container when it loads. Hidden parents can produce incorrect initial measurements.
+
+### Submission completion does not redirect
+
+- If you configured a SurveyJS completion URL, confirm it uses `http`, `https`, or a safe relative path.
+- Protocol-relative URLs such as `//example.com/path` and unsafe protocols such as `javascript:` are blocked.
+- For custom redirects, listen to `endatix:form-complete` and call `window.location.assign(...)` from your host page.
+
+### Token or permission errors
+
+- Access-token embeds need permissions to view and edit the submission.
+- Expired tokens must be regenerated.
+- If the form is private, confirm the access token or Hub session grants the expected public form access.
+- See [Form Prefilling and Sharing](/docs/guides/form-prefilling) for token creation and permission examples.
+
+### Local development origin mismatch
+
+- Use one consistent origin for the host page and the script. For example, avoid mixing `localhost`, `127.0.0.1`, and HTTPS tunnels unless you expect separate origins.
+- If testing from a static HTML file, prefer serving it from a local web server instead of opening it with `file://`.
