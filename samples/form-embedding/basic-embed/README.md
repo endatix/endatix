@@ -15,4 +15,4 @@ This sample shows how to embed an Endatix Hub form in a plain HTML page and log 
 
 5. Open `http://localhost:8080` in your browser.
 
-Prefer the `CustomEvent` logs for application integrations. The raw `postMessage` log is included only for local diagnostics.
+Prefer the `CustomEvent` logs for application integrations. The embed script validates iframe messages before it dispatches these events.

@@ -69,9 +69,9 @@ Only listen to raw `message` events if you are building your own embed wrapper. 
 
 ### Debugging locally
 
-During local development, it can be useful to log both the public host events and the raw iframe messages handled by the embed script. Use the [basic embed sample](https://github.com/endatix/endatix/tree/main/samples/form-embedding/basic-embed) for a complete plain HTML page with local diagnostics.
+During local development, it can be useful to log the validated public host events dispatched by the embed script. Use the [basic embed sample](https://github.com/endatix/endatix/tree/main/samples/form-embedding/basic-embed) for a complete plain HTML page with event logging.
 
-Treat raw `message` logs as diagnostics only. Production integrations should prefer the validated `CustomEvent`s.
+Production integrations should prefer the validated `CustomEvent`s.
 
 ## Event reference
 
