@@ -78,6 +78,7 @@ const sidebars: SidebarsConfig = {
             "building-your-solution/deployment/self-hosting",
             "building-your-solution/deployment/azure",
             "building-your-solution/deployment/subfolder-deployment",
+            "building-your-solution/deployment/reverse-proxy-deployment",
           ],
         },
       ],
