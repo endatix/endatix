@@ -35,4 +35,5 @@ A modern React/Next.js application that serves as the visual management layer fo
 - [RustFS storage](/docs/developers/hub/rustfs-storage) — Configure Hub with S3-compatible RustFS storage
 - [Asset storage overview](/docs/configuration/asset-storage) — Choose public/private storage mode and understand trade-offs
 - [Maintenance mode](/docs/developers/hub/maintenance-mode) — Enable Hub UI maintenance with env-driven proxy behavior
-- [Deployment Guide](/docs/building-your-solution/deployment/subfolder-deployment) — Deploy Hub to production
+- [Subfolder Deployment](/docs/building-your-solution/deployment/subfolder-deployment) — Deploy Hub under a path prefix
+- [Reverse Proxy Deployment](/docs/building-your-solution/deployment/reverse-proxy-deployment) — Run Hub and API behind a proxy

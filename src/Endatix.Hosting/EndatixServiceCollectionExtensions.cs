@@ -3,6 +3,7 @@ using Endatix.Framework.Configuration;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Setup;
 using Endatix.Hosting.Builders;
+using Endatix.Hosting.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -27,11 +28,12 @@ internal static class EndatixServiceCollectionExtensions
         Guard.Against.Null(services);
         Guard.Against.Null(configuration);
 
-        // Register core framework services FIRST to ensure IAppEnvironment is available∏∏
+        // Register core framework services FIRST to ensure IAppEnvironment is available
         RegisterCoreFrameworkServices(services, configuration);
 
         // Register standard Endatix options
         services.AddStandardEndatixOptions(configuration);
+        services.AddEndatixReverseProxy();
         services.AddEndatixFeatureFlags(configuration);
 
         // Now create the logging builder which will get environment from services

@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
@@ -18,5 +17,4 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Endatix.Hosting\Endatix.Hosting.csproj" />
   </ItemGroup>
-
 </Project>

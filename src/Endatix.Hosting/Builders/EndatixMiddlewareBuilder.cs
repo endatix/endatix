@@ -1,16 +1,11 @@
-using System.Security.Claims;
 using Endatix.Api.Builders;
-using Endatix.Api.Infrastructure;
 using Endatix.Api.Setup;
-using Endatix.Framework.Serialization;
-using Endatix.Infrastructure.Identity;
+using Endatix.Hosting.Options;
 using Endatix.Infrastructure.Multitenancy;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSwag.AspNetCore;
@@ -47,15 +42,57 @@ public class EndatixMiddlewareBuilder
     {
         _logger?.LogInformation("Configuring middleware with default settings");
 
-        UseExceptionHandler()
-            .UseSecurity()
-            .UseMultitenancy()
-            .UseHsts()
-            .UseHttpsRedirection()
-            .UseApi()
-            .UseHealthChecks();
+        var options = EndatixMiddlewareOptionsFactory.Create(App.ApplicationServices);
+        UseOptions(options);
 
         _logger?.LogInformation("Middleware configured with default settings");
+        return this;
+    }
+
+    internal EndatixMiddlewareBuilder UseOptions(EndatixMiddlewareOptions options)
+    {
+        if (options.UseForwardedHeaders)
+        {
+            UseForwardedHeaders();
+        }
+
+        if (options.UseExceptionHandler)
+        {
+            UseExceptionHandler();
+        }
+
+        if (options.UseSecurity)
+        {
+            UseSecurity();
+        }
+
+        if (options.UseMultitenancy)
+        {
+            UseMultitenancy();
+        }
+
+        if (options.UseHsts)
+        {
+            UseHsts();
+        }
+
+        if (options.UseHttpsRedirection)
+        {
+            UseHttpsRedirection();
+        }
+
+        if (options.UseApi)
+        {
+            UseApi(options.ApiOptions);
+        }
+
+        if (options.UseHealthChecks)
+        {
+            UseHealthChecks(options.HealthCheckPath);
+        }
+
+        options.ConfigureAdditionalMiddleware?.Invoke(App);
+
         return this;
     }
 
@@ -91,6 +128,17 @@ public class EndatixMiddlewareBuilder
     {
         _logger?.LogInformation("Adding multitenancy middleware");
         App.UseMiddleware<TenantMiddleware>();
+        return this;
+    }
+
+    /// <summary>
+    /// Adds forwarded headers middleware.
+    /// </summary>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixMiddlewareBuilder UseForwardedHeaders()
+    {
+        _logger?.LogInformation("Adding forwarded headers middleware");
+        App.UseForwardedHeaders();
         return this;
     }
 
@@ -137,42 +185,17 @@ public class EndatixMiddlewareBuilder
         // Apply any additional configuration if provided
         configureApi?.Invoke(options);
 
-        if (options.UseExceptionHandler)
-        {
-            App.UseDefaultExceptionHandler();
-        }
+        return UseApi(options);
+    }
 
-        UseFastEndpoints(config =>
-        {
-            config.Versioning.Prefix = options.VersioningPrefix;
-            config.Endpoints.RoutePrefix = options.RoutePrefix;
-            config.Serializer.Options.Converters.Add(new LongToStringConverter());
-            config.Security.RoleClaimType = ClaimTypes.Role;
-            config.Security.PermissionsClaimType = ClaimNames.Permission;
+    internal EndatixMiddlewareBuilder UseApi(ApiOptions options)
+    {
+        _logger?.LogInformation(
+            "Adding API middleware with resolved options: UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+            options.UseSwagger,
+            options.SwaggerPath);
 
-            // Apply any custom FastEndpoints configuration
-            options.ConfigureFastEndpoints?.Invoke(config);
-        });
-
-        // Apply Swagger middleware if enabled through configuration
-        if (options.UseSwagger)
-        {
-            _logger?.LogInformation("Swagger UI enabled with path: {SwaggerPath}", options.SwaggerPath);
-            UseSwagger(
-                options.SwaggerPath,
-                options.ConfigureOpenApiDocument,
-                options.ConfigureSwaggerUi);
-        }
-        else
-        {
-            _logger?.LogInformation("Swagger UI disabled through configuration");
-        }
-
-        if (options.UseCors)
-        {
-            App.UseCors();
-        }
-
+        App.UseEndatixApi(options);
         return this;
     }
 
@@ -247,7 +270,7 @@ public class EndatixMiddlewareBuilder
         _logger?.LogInformation($"Adding health checks middleware with path: {path}");
 
         // Use the dedicated health checks middleware builder to avoid code duplication
-        var healthChecksBuilder = new EndatixHealthChecksMiddlewareBuilder(this, _logger);
+        EndatixHealthChecksMiddlewareBuilder healthChecksBuilder = new(this, _logger);
 
         // Apply custom configuration if provided
         if (configureHealthChecks is { })

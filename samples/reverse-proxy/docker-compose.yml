@@ -1,0 +1,12 @@
+name: endatix-reverse-proxy
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: endatix-reverse-proxy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

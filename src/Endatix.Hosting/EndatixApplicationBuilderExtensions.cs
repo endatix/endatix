@@ -33,8 +33,12 @@ public static class EndatixApplicationBuilderExtensions
     }
 
     /// <summary>
-    /// Configures the application with Endatix middleware using a builder.
+    /// Configures the application with a manually composed Endatix middleware pipeline.
     /// </summary>
+    /// <remarks>
+    /// This overload does not apply default middleware automatically. Use <see cref="UseEndatix(IApplicationBuilder)" />
+    /// or <see cref="UseEndatix(IApplicationBuilder, Action{EndatixMiddlewareOptions})" /> for default middleware plus overrides.
+    /// </remarks>
     /// <param name="app">The application builder.</param>
     /// <param name="configure">A delegate to configure the middleware builder.</param>
     /// <returns>The application builder for chaining.</returns>
@@ -50,7 +54,7 @@ public static class EndatixApplicationBuilderExtensions
     }
 
     /// <summary>
-    /// Configures the application with Endatix middleware using the provided options.
+    /// Configures the application with Endatix middleware using default options, then applies the provided overrides.
     /// </summary>
     /// <param name="app">The application builder.</param>
     /// <param name="configure">A delegate to configure middleware options.</param>
@@ -59,64 +63,11 @@ public static class EndatixApplicationBuilderExtensions
     {
         Guard.Against.Null(app, nameof(app));
 
-        // Create options with defaults
-        var options = new EndatixMiddlewareOptions();
-
-        // Apply custom configuration
+        var options = EndatixMiddlewareOptionsFactory.Create(app.ApplicationServices);
         configure(options);
 
-        // Create middleware builder and apply configuration based on options
-        var builder = new EndatixMiddlewareBuilder(app);
-
-        if (options.UseExceptionHandler)
-        {
-            builder.UseExceptionHandler();
-        }
-
-        if (options.UseSecurity)
-        {
-            builder.UseSecurity();
-        }
-
-        if (options.UseMultitenancy)
-        {
-            builder.UseMultitenancy();
-        }
-
-        if (options.UseHsts)
-        {
-            builder.UseHsts();
-        }
-
-        if (options.UseHttpsRedirection)
-        {
-            builder.UseHttpsRedirection();
-        }
-
-        if (options.UseApi)
-        {
-            builder.UseApi(apiOptions => 
-            {
-                apiOptions.UseExceptionHandler = options.ApiOptions.UseExceptionHandler;
-                apiOptions.ExceptionHandlerPath = options.ApiOptions.ExceptionHandlerPath;
-                apiOptions.UseSwagger = options.ApiOptions.UseSwagger;
-                apiOptions.SwaggerPath = options.ApiOptions.SwaggerPath;
-                apiOptions.ConfigureOpenApiDocument = options.ApiOptions.ConfigureOpenApiDocument;
-                apiOptions.ConfigureSwaggerUi = options.ApiOptions.ConfigureSwaggerUi;
-                apiOptions.UseCors = options.ApiOptions.UseCors;
-                apiOptions.UseVersioning = options.ApiOptions.UseVersioning;
-                apiOptions.VersioningPrefix = options.ApiOptions.VersioningPrefix;
-                apiOptions.RoutePrefix = options.ApiOptions.RoutePrefix;
-                apiOptions.ConfigureFastEndpoints = options.ApiOptions.ConfigureFastEndpoints;
-            });
-        }
-
-        if (options.UseHealthChecks)
-        {
-            builder.UseHealthChecks(options.HealthCheckPath);
-        }
-
-        options.ConfigureAdditionalMiddleware?.Invoke(app);
+        new EndatixMiddlewareBuilder(app)
+            .UseOptions(options);
 
         return app;
     }
@@ -128,12 +79,17 @@ public static class EndatixApplicationBuilderExtensions
     /// <param name="app">The application builder.</param>
     /// <param name="configureAction">Action to configure middleware after defaults are applied.</param>
     /// <returns>The application builder for chaining.</returns>
+    [Obsolete("Use UseEndatix(options => ...) for defaults plus overrides, or UseEndatix(builder => ...) for manual composition.")]
     public static IApplicationBuilder UseEndatixWithDefaults(
         this IApplicationBuilder app,
         Action<EndatixMiddlewareBuilder> configureAction)
     {
         Guard.Against.Null(app);
         Guard.Against.Null(configureAction);
+
+        app.GetLogger()?.LogWarning(
+            "{Method} is obsolete. Use UseEndatix(options => ...) for defaults plus overrides, or UseEndatix(builder => ...) for manual composition.",
+            nameof(UseEndatixWithDefaults));
 
         var middlewareBuilder = new EndatixMiddlewareBuilder(app);
 
@@ -156,16 +112,7 @@ public static class EndatixApplicationBuilderExtensions
     {
         Guard.Against.Null(app, nameof(app));
 
-        // Use the dedicated health checks middleware builder to avoid code duplication
-        var builder = new Builders.EndatixHealthChecksMiddlewareBuilder(new EndatixMiddlewareBuilder(app), 
-            app.ApplicationServices.GetService(typeof(ILoggerFactory)) is ILoggerFactory factory
-                ? factory.CreateLogger("Endatix.Middleware")
-                : null);
-        
-        builder.WithPath(path);
-        builder.Apply(app);
-
-        app.GetLogger()?.LogInformation("Health checks mapped to {Path}", path);
+        new EndatixMiddlewareBuilder(app).UseHealthChecks(path);
         return app;
     }
 
