@@ -15,7 +15,7 @@ import diagramImageDark from "./reverse-proxy-deployment-dark.png";
 
 Endatix can run behind a reverse proxy such as Nginx, Apache, Cloudflare, Azure Application Gateway, or a Kubernetes ingress. This page focuses on forwarded headers, scheme/host preservation, and TLS behavior at the API.
 
-If you need to serve the Hub or API under specific path prefixes (such as `/app` and `/api`), start with the [Subfolder Deployment](/docs/building-your-solution/deployment/subfolder-deployment.mdx) guide, then apply the reverse-proxy settings below.
+If you need to serve the Hub or API under specific path prefixes (such as `/app` and `/api`), start with the [Subfolder Deployment](/docs/building-your-solution/deployment/subfolder-deployment) guide, then apply the reverse-proxy settings below.
 
 <ThemedImage
   alt="Reverse proxy deployment diagram"
@@ -45,7 +45,7 @@ AUTH_TRUST_HOST=true
 
 ```
 
-`AUTH_TRUST_HOST=true` is strictly required when Auth.js runs behind a reverse proxy. See the [Endatix JWT authentication guide](/docs/building-your-solution/authentication/endatix-jwt.mdx) for more details on Hub authentication settings.
+`AUTH_TRUST_HOST=true` is strictly required when Auth.js runs behind a reverse proxy. See the [Endatix JWT authentication guide](/docs/building-your-solution/authentication/endatix-jwt) for more details on Hub authentication settings.
 
 ## Endatix API Configuration
 

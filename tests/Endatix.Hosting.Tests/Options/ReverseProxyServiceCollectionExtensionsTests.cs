@@ -45,7 +45,8 @@ public class ReverseProxyServiceCollectionExtensionsTests
         options.ForwardedHeaders.Should().Be(
             ForwardedHeaders.XForwardedFor |
             ForwardedHeaders.XForwardedHost |
-            ForwardedHeaders.XForwardedProto);
+            ForwardedHeaders.XForwardedProto |
+            ForwardedHeaders.XForwardedPrefix);
     }
 
     [Fact]

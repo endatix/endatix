@@ -25,7 +25,8 @@ internal static class ReverseProxyServiceCollectionExtensions
                 options.ForwardedHeaders =
                     ForwardedHeaders.XForwardedFor |
                     ForwardedHeaders.XForwardedHost |
-                    ForwardedHeaders.XForwardedProto;
+                    ForwardedHeaders.XForwardedProto |
+                    ForwardedHeaders.XForwardedPrefix;
 
                 // Trust-all is intentionally limited to Development. Production keeps ASP.NET Core's
                 // known proxy/network restrictions unless the host configures them explicitly.
