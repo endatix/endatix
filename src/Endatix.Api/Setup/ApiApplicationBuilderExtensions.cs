@@ -6,9 +6,7 @@ using Endatix.Infrastructure.Identity;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -31,18 +29,15 @@ public static class ApiApplicationBuilderExtensions
 
         logger?.LogInformation("Configuring Endatix API middleware");
 
-        var optionsProvider = app.ApplicationServices.GetService<IOptions<ApiOptions>>();
-        var options = optionsProvider?.Value ?? new ApiOptions();
-        
-        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}", 
+        var options = GetApiOptions(app);
+
+        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
             options.UseSwagger,
             options.SwaggerPath);
-            
-        // Set up standard middleware pipeline with options from configuration
-        ConfigureApiMiddleware(app, options);
 
+        var result = app.UseEndatixApi(options);
         logger?.LogInformation("Endatix API middleware configured successfully");
-        return app;
+        return result;
     }
 
     /// <summary>
@@ -58,21 +53,29 @@ public static class ApiApplicationBuilderExtensions
 
         logger?.LogInformation("Configuring Endatix API middleware with custom options");
 
-        // Get options from DI first - use IOptions not IOptionsSnapshot
-        var optionsProvider = app.ApplicationServices.GetService<IOptions<ApiOptions>>();
-        var options = optionsProvider?.Value ?? new ApiOptions();
-        
+        var options = GetApiOptions(app);
+
         // Apply custom configuration on top of configuration-provided values
         configure(options);
-        
-        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}", 
+
+        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
             options.UseSwagger,
             options.SwaggerPath);
 
-        // Set up middleware pipeline based on options
-        ConfigureApiMiddleware(app, options);
-
+        var result = app.UseEndatixApi(options);
         logger?.LogInformation("Endatix API middleware configured successfully with custom options");
+        return result;
+    }
+
+    /// <summary>
+    /// Configures the application to use Endatix API middleware with resolved options.
+    /// </summary>
+    /// <param name="app">The application builder.</param>
+    /// <param name="options">The resolved API middleware options.</param>
+    /// <returns>The application builder for chaining.</returns>
+    public static IApplicationBuilder UseEndatixApi(this IApplicationBuilder app, ApiOptions options)
+    {
+        ConfigureApiMiddleware(app, options);
         return app;
     }
 
@@ -110,7 +113,17 @@ public static class ApiApplicationBuilderExtensions
         // Apply Swagger middleware if enabled
         if (options.UseSwagger)
         {
-            app.UseSwaggerGen();
+            app.UseSwaggerGen(
+                options.ConfigureOpenApiDocument,
+                swaggerUiSettings =>
+                {
+                    if (options.SwaggerPath is not null)
+                    {
+                        swaggerUiSettings.Path = options.SwaggerPath;
+                    }
+
+                    options.ConfigureSwaggerUi?.Invoke(swaggerUiSettings);
+                });
         }
 
         // Apply CORS middleware if enabled
@@ -127,24 +140,7 @@ public static class ApiApplicationBuilderExtensions
     /// <returns>The application builder for chaining.</returns>
     public static IApplicationBuilder UseApiEndpoints(this IApplicationBuilder app)
     {
-        var loggerFactory = app.ApplicationServices.GetService<ILoggerFactory>();
-        var logger = loggerFactory?.CreateLogger("Endatix.Api.Setup");
-
-        logger?.LogInformation("Configuring API endpoints in the application pipeline");
-
-        // Get options from DI - use IOptions not IOptionsSnapshot
-        var optionsProvider = app.ApplicationServices.GetService<IOptions<ApiOptions>>();
-        var options = optionsProvider?.Value ?? new ApiOptions();
-        
-        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
-            options.UseSwagger,
-            options.SwaggerPath);
-            
-        // Apply middleware based on options from configuration
-        ConfigureApiMiddleware(app, options);
-
-        logger?.LogInformation("API endpoints configured in the application pipeline");
-        return app;
+        return app.UseEndatixApi();
     }
 
     /// <summary>
@@ -155,27 +151,13 @@ public static class ApiApplicationBuilderExtensions
     /// <returns>The application builder for chaining.</returns>
     public static IApplicationBuilder UseApiEndpoints(this IApplicationBuilder app, Action<ApiOptions> configureApi)
     {
-        var loggerFactory = app.ApplicationServices.GetService<ILoggerFactory>();
-        var logger = loggerFactory?.CreateLogger("Endatix.Api.Setup");
+        return app.UseEndatixApi(configureApi);
+    }
 
-        logger?.LogInformation("Configuring API endpoints in the application pipeline with custom options");
-
-        // Get options from DI first - use IOptions not IOptionsSnapshot
+    private static ApiOptions GetApiOptions(IApplicationBuilder app)
+    {
         var optionsProvider = app.ApplicationServices.GetService<IOptions<ApiOptions>>();
-        var options = optionsProvider?.Value ?? new ApiOptions();
-        
-        // Apply custom configuration on top of configuration-provided values
-        configureApi(options);
-        
-        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}", 
-            options.UseSwagger,
-            options.SwaggerPath);
-
-        // Apply middleware based on options
-        ConfigureApiMiddleware(app, options);
-
-        logger?.LogInformation("API endpoints configured in the application pipeline with custom options");
-        return app;
+        return optionsProvider?.Value ?? new ApiOptions();
     }
 }
 
