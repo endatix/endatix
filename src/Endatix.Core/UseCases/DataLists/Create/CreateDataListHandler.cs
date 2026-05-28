@@ -14,6 +14,8 @@ public sealed class CreateDataListHandler(
     IValueNormalizer valueNormalizer,
     IUniqueConstraintViolationChecker uniqueConstraintViolationChecker) : ICommandHandler<CreateDataListCommand, Result<DataList>>
 {
+    public const string DuplicateNameErrorCode = "data_list_name_already_exists";
+
     public async Task<Result<DataList>> Handle(CreateDataListCommand request, CancellationToken cancellationToken)
     {
         if (tenantContext.TenantId <= 0)
@@ -65,6 +67,7 @@ public sealed class CreateDataListHandler(
     private static ValidationError CreateDuplicateNameValidationError(string name) => new()
     {
         Identifier = nameof(CreateDataListCommand.Name),
-        ErrorMessage = $"A data list with the name '{name}' already exists."
+        ErrorMessage = $"A data list with the name '{name}' already exists.",
+        ErrorCode = DuplicateNameErrorCode
     };
 }

@@ -55,6 +55,9 @@ public class CreateDataListHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().Contain(error =>
+            error.Identifier == nameof(CreateDataListCommand.Name) &&
+            error.ErrorCode == CreateDataListHandler.DuplicateNameErrorCode);
         await _repository.DidNotReceive().AddAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
     }
 
@@ -74,6 +77,8 @@ public class CreateDataListHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().Contain(error =>
+            error.ErrorCode == CreateDataListHandler.DuplicateNameErrorCode);
     }
 
     [Fact]
