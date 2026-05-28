@@ -1,9 +1,7 @@
-using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.DataLists.Create;
-using Endatix.Framework.FeatureFlags;
 using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
