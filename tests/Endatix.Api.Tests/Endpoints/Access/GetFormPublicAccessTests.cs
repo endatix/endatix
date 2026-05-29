@@ -66,9 +66,10 @@ public class GetFormPublicAccessTests
         var request = new GetFormPublicAccessRequest { FormId = 123 };
         var accessData = PublicFormAccessData.CreatePublicForm(
             123,
-            limitOnePerUser: true,
-            hasUserSubmitted: false,
-            isRespondentTestMode: true);
+            new PublicFormAccessOptions(
+                LimitOnePerUser: true,
+                HasUserSubmitted: false,
+                IsRespondentTestMode: true));
         var cached = new Cached<PublicFormAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");
 
         _accessPolicy

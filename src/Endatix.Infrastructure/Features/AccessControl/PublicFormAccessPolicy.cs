@@ -112,7 +112,7 @@ public sealed class PublicFormAccessPolicy(
             limitOnePerUser: routingMetadata.LimitOnePerUser);
     }
 
-    private Result<AccessPolicyRoute> ResolveFormOnlyRoute(
+    private static Result<AccessPolicyRoute> ResolveFormOnlyRoute(
         long formId,
         bool isPublic,
         AuthorizationData? authData = null,
@@ -266,9 +266,10 @@ public sealed class PublicFormAccessPolicy(
 
         return Result.Success(PublicFormAccessData.CreatePublicForm(
             formId,
-            limitOnePerUser: true,
-            hasUserSubmitted: hasUserSubmitted,
-            isRespondentTestMode: isRespondentTestMode));
+            new PublicFormAccessOptions(
+                LimitOnePerUser: true,
+                HasUserSubmitted: hasUserSubmitted,
+                IsRespondentTestMode: isRespondentTestMode)));
     }
 
     private static Result<PublicFormAccessData> BuildPublicFormAccessData(long formId) => Result.Success(PublicFormAccessData.CreatePublicForm(formId));

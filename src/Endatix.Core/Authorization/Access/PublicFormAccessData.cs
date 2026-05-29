@@ -10,26 +10,17 @@ namespace Endatix.Core.Authorization.Access;
 /// </summary>
 public class PublicFormAccessData : AccessDataBase
 {
-    [JsonConstructor]
-    private PublicFormAccessData(
-        string formId,
-        string? submissionId,
-        ImmutableHashSet<string>? formPermissions,
-        ImmutableHashSet<string>? submissionPermissions,
-        bool limitOnePerUser = false,
-        bool hasUserSubmitted = false,
-        bool canStartNewSubmission = true,
-        bool isRespondentTestMode = false)
+    private ImmutableHashSet<string>? _permissions;
+
+    /// <summary>
+    /// Parameterless constructor for JSON deserialization only (used by HybridCache).
+    /// Application code should use factory methods.
+    /// </summary>
+    public PublicFormAccessData()
     {
-        FormId = formId;
-        SubmissionId = submissionId;
-        FormPermissions = formPermissions ?? EmptyPermissions;
-        SubmissionPermissions = submissionPermissions ?? EmptyPermissions;
-        Permissions = MergePermissions(FormPermissions, SubmissionPermissions);
-        LimitOnePerUser = limitOnePerUser;
-        HasUserSubmitted = hasUserSubmitted;
-        CanStartNewSubmission = canStartNewSubmission;
-        IsRespondentTestMode = isRespondentTestMode;
+        FormId = string.Empty;
+        FormPermissions = EmptyPermissions;
+        SubmissionPermissions = EmptyPermissions;
     }
 
     private PublicFormAccessData(
@@ -37,25 +28,28 @@ public class PublicFormAccessData : AccessDataBase
         string? submissionId,
         IEnumerable<string> formPermissions,
         IEnumerable<string> submissionPermissions,
-        bool limitOnePerUser = false,
-        bool hasUserSubmitted = false,
-        bool canStartNewSubmission = true,
-        bool isRespondentTestMode = false)
-        : this(
-            formId,
-            submissionId,
-            ToImmutableSet(formPermissions),
-            ToImmutableSet(submissionPermissions),
-            limitOnePerUser,
-            hasUserSubmitted,
-            canStartNewSubmission,
-            isRespondentTestMode)
+        PublicFormAccessOptions? options = null)
     {
+        var resolvedOptions = options ?? new PublicFormAccessOptions();
+
+        FormId = formId;
+        SubmissionId = submissionId;
+        FormPermissions = ToImmutableSet(formPermissions);
+        SubmissionPermissions = ToImmutableSet(submissionPermissions);
+        LimitOnePerUser = resolvedOptions.LimitOnePerUser;
+        HasUserSubmitted = resolvedOptions.HasUserSubmitted;
+        CanStartNewSubmission = resolvedOptions.CanStartNewSubmission;
+        IsRespondentTestMode = resolvedOptions.IsRespondentTestMode;
+        Permissions = MergePermissions(FormPermissions, SubmissionPermissions);
     }
 
     /// <inheritdoc/>
     [JsonIgnore]
-    public override ImmutableHashSet<string> Permissions { get; init; }
+    public override ImmutableHashSet<string> Permissions
+    {
+        get => _permissions ?? MergePermissions(FormPermissions, SubmissionPermissions);
+        init => _permissions = value;
+    }
 
     /// <summary>
     /// The form ID this access data applies to.
@@ -113,24 +107,25 @@ public class PublicFormAccessData : AccessDataBase
     /// Creates public form access data for a new submission.
     /// </summary>
     /// <param name="formId">The form ID.</param>
-    /// <param name="limitOnePerUser">Indicates whether the form enforces one response per user.</param>
-    /// <param name="hasUserSubmitted">Indicates whether the current user already has a non-test submission for this form.</param>
-    /// <param name="isRespondentTestMode">Indicates whether the current respondent is creating a test submission.</param>
+    /// <param name="options">Optional access behavior flags.</param>
     /// <returns>The public form access data.</returns>
     public static PublicFormAccessData CreatePublicForm(
         long formId,
-        bool limitOnePerUser = false,
-        bool hasUserSubmitted = false,
-        bool isRespondentTestMode = false)
-        => new(
-            formId: formId.ToString(),
+        PublicFormAccessOptions? options = null)
+    {
+        var resolved = options ?? new PublicFormAccessOptions();
+
+        return new PublicFormAccessData(
+            formId.ToString(),
             submissionId: null,
             formPermissions: ResourcePermissions.Form.Sets.ViewForm,
             submissionPermissions: ResourcePermissions.Submission.Sets.CreateSubmission,
-            limitOnePerUser: limitOnePerUser,
-            hasUserSubmitted: hasUserSubmitted,
-            canStartNewSubmission: !limitOnePerUser || !hasUserSubmitted,
-            isRespondentTestMode: isRespondentTestMode);
+            options: new PublicFormAccessOptions(
+                LimitOnePerUser: resolved.LimitOnePerUser,
+                HasUserSubmitted: resolved.HasUserSubmitted,
+                CanStartNewSubmission: !resolved.LimitOnePerUser || !resolved.HasUserSubmitted,
+                IsRespondentTestMode: resolved.IsRespondentTestMode));
+    }
 
     /// <summary>
     /// Creates public form access data for a submission token.
@@ -179,3 +174,12 @@ public class PublicFormAccessData : AccessDataBase
             submissionPermissions);
     }
 }
+
+/// <summary>
+/// Optional behavior flags for <see cref="PublicFormAccessData"/>.
+/// </summary>
+public sealed record PublicFormAccessOptions(
+    bool LimitOnePerUser = false,
+    bool HasUserSubmitted = false,
+    bool CanStartNewSubmission = true,
+    bool IsRespondentTestMode = false);
