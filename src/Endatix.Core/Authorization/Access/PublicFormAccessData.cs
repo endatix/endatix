@@ -19,8 +19,6 @@ public class PublicFormAccessData : AccessDataBase
     public PublicFormAccessData()
     {
         FormId = string.Empty;
-        FormPermissions = EmptyPermissions;
-        SubmissionPermissions = EmptyPermissions;
     }
 
     private PublicFormAccessData(
@@ -64,12 +62,12 @@ public class PublicFormAccessData : AccessDataBase
     /// <summary>
     /// Permissions for the form resource.
     /// </summary>
-    public ImmutableHashSet<string> FormPermissions { get; init; } = EmptyPermissions;
+    public ImmutableHashSet<string> FormPermissions { get; init; }
 
     /// <summary>
     /// Permissions for the submission resource (or "new" submission when no submissionId provided).
     /// </summary>
-    public ImmutableHashSet<string> SubmissionPermissions { get; init; } = EmptyPermissions;
+    public ImmutableHashSet<string> SubmissionPermissions { get; init; }
 
     /// <summary>
     /// Indicates whether the form enforces one response per user.
@@ -91,48 +89,30 @@ public class PublicFormAccessData : AccessDataBase
     /// </summary>
     public bool IsRespondentTestMode { get; init; }
 
-    private static ImmutableHashSet<string> MergePermissions(
-        ImmutableHashSet<string> formPermissions,
-        ImmutableHashSet<string> submissionPermissions)
-    {
-        if (formPermissions.Count is 0 && submissionPermissions.Count is 0)
-        {
-            return EmptyPermissions;
-        }
-
-        return formPermissions.Union(submissionPermissions);
-    }
-
     /// <summary>
     /// Creates public form access data for a new submission.
     /// </summary>
-    /// <param name="formId">The form ID.</param>
-    /// <param name="options">Optional access behavior flags.</param>
-    /// <returns>The public form access data.</returns>
     public static PublicFormAccessData CreatePublicForm(
         long formId,
         PublicFormAccessOptions? options = null)
     {
         var resolved = options ?? new PublicFormAccessOptions();
+        var accessOptions = resolved with
+        {
+            CanStartNewSubmission = !resolved.LimitOnePerUser || !resolved.HasUserSubmitted,
+        };
 
         return new PublicFormAccessData(
             formId.ToString(),
             submissionId: null,
             formPermissions: ResourcePermissions.Form.Sets.ViewForm,
             submissionPermissions: ResourcePermissions.Submission.Sets.CreateSubmission,
-            options: new PublicFormAccessOptions(
-                LimitOnePerUser: resolved.LimitOnePerUser,
-                HasUserSubmitted: resolved.HasUserSubmitted,
-                CanStartNewSubmission: !resolved.LimitOnePerUser || !resolved.HasUserSubmitted,
-                IsRespondentTestMode: resolved.IsRespondentTestMode));
+            options: accessOptions);
     }
 
     /// <summary>
     /// Creates public form access data for a submission token.
     /// </summary>
-    /// <param name="formId">The form ID.</param>
-    /// <param name="submissionId">The submission ID.</param>
-    /// <returns>The public form access data.</returns>
     public static PublicFormAccessData CreateWithSubmissionToken(long formId, long submissionId)
         => new(
             formId.ToString(),
@@ -143,14 +123,34 @@ public class PublicFormAccessData : AccessDataBase
     /// <summary>
     /// Creates public form access data for a form access token.
     /// </summary>
-    /// <param name="formId">The form ID.</param>
-    /// <param name="claims">The form access token claims.</param>
-    /// <returns>The public form access data.</returns>
     public static PublicFormAccessData CreateWithAccessTokenClaims(
         long formId,
         SubmissionAccessTokenClaims claims)
+        => new(
+            formId.ToString(),
+            claims.SubmissionId.ToString(),
+            ResourcePermissions.Form.Sets.ViewForm,
+            ResolveSubmissionPermissionsFromClaims(claims));
+
+    private static ImmutableHashSet<string> MergePermissions(
+        ImmutableHashSet<string>? formPermissions,
+        ImmutableHashSet<string>? submissionPermissions)
     {
-        var submissionPermissions = new HashSet<string>();
+        var form = formPermissions ?? EmptyPermissions;
+        var submission = submissionPermissions ?? EmptyPermissions;
+
+        if (form.Count is 0 && submission.Count is 0)
+        {
+            return EmptyPermissions;
+        }
+
+        return form.Union(submission);
+    }
+
+    private static IEnumerable<string> ResolveSubmissionPermissionsFromClaims(
+        SubmissionAccessTokenClaims claims)
+    {
+        HashSet<string> submissionPermissions = [];
 
         if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.View.Name))
         {
@@ -164,14 +164,10 @@ public class PublicFormAccessData : AccessDataBase
 
         if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Export.Name))
         {
-            _ = submissionPermissions.Add(ResourcePermissions.Submission.Export);
+            submissionPermissions.Add(ResourcePermissions.Submission.Export);
         }
 
-        return new PublicFormAccessData(
-            formId.ToString(),
-            claims.SubmissionId.ToString(),
-            ResourcePermissions.Form.Sets.ViewForm,
-            submissionPermissions);
+        return submissionPermissions;
     }
 }
 
