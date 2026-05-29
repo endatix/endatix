@@ -72,11 +72,6 @@ public class ActiveDefinitionDto
     public IEnumerable<string> CustomQuestions { get; set; }
 
     /// <summary>
-    /// Indicates whether the current user already has a submission for this form.
-    /// </summary>
-    public bool HasUserSubmitted { get; set; }
-
-    /// <summary>
     /// Optional form-level metadata payload.
     /// </summary>
     public string? Metadata { get; set; }

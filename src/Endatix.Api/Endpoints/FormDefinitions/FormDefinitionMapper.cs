@@ -42,7 +42,6 @@ public class FormDefinitionMapper
         CustomQuestions = formDefinition.CustomQuestions,
         RequiresReCaptcha = formDefinition.RequiresReCaptcha,
         LimitOnePerUser = formDefinition.LimitOnePerUser,
-        HasUserSubmitted = formDefinition.HasUserSubmitted,
         Metadata = formDefinition.Metadata,
     };
 

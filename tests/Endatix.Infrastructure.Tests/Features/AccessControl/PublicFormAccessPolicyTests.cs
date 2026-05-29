@@ -94,20 +94,25 @@ public partial class PublicFormAccessPolicyTests
         });
         _dateTimeProvider.Now.Returns(DateTimeOffset.UtcNow);
 
-        // IsFormPublicAsync goes through HybridCacheExtensions.GetOrCreateResultAsync<bool>, which uses
-        // the non-state GetOrCreateAsync overload.
+        // Form access routing metadata goes through HybridCacheExtensions.GetOrCreateResultAsync<T>,
+        // which uses the non-state GetOrCreateAsync overload.
         _cache
-            .GetOrCreateAsync<bool>(
-                Arg.Is<string>(k => k.StartsWith("meta:form:is_public:")),
-                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
+            .GetOrCreateAsync<FormProjections.FormAccessRoutingDto>(
+                Arg.Is<string>(k => k.StartsWith("meta:form:access_routing:")),
+                Arg.Any<Func<CancellationToken, ValueTask<FormProjections.FormAccessRoutingDto>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new ValueTask<bool>(true));
+            .Returns(new ValueTask<FormProjections.FormAccessRoutingDto>(
+                new FormProjections.FormAccessRoutingDto(IsPublic: true, LimitOnePerUser: false, Id: 1)));
 
         _submissionRepository
             .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
+
+        _formRepository
+            .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>())
+            .Returns(new Form(1, "Private form", isEnabled: true, isPublic: false) { Id = 1 });
 
         _cache
             .GetOrCreateAsync<Cached<PublicFormAccessData>>(
@@ -150,6 +155,19 @@ public partial class PublicFormAccessPolicyTests
             .Returns(Result.Success(AuthorizationData.ForAuthenticatedUser("admin", 1, [SystemRole.Admin.Name], [])));
     }
 
+    private void SetupFormAccessRoutingMetadata(long formId, bool isPublic, bool limitOnePerUser = false)
+    {
+        _cache
+            .GetOrCreateAsync<FormProjections.FormAccessRoutingDto>(
+                Arg.Is<string>($"meta:form:access_routing:{formId}"),
+                Arg.Any<Func<CancellationToken, ValueTask<FormProjections.FormAccessRoutingDto>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<IEnumerable<string>?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new ValueTask<FormProjections.FormAccessRoutingDto>(
+                new FormProjections.FormAccessRoutingDto(isPublic, limitOnePerUser, formId)));
+    }
+
     private void SetupTokenResolve(string token, long? resolvedSubmissionId)
     {
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())
@@ -182,6 +200,7 @@ public partial class PublicFormAccessPolicyTests
         // Arrange
         var formId = 1L;
         var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: true);
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -209,6 +228,7 @@ public partial class PublicFormAccessPolicyTests
         // Arrange
         var formId = 1L;
         var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: true);
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -255,6 +275,7 @@ public partial class PublicFormAccessPolicyTests
         // Arrange
         var formId = 1L;
         var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false);
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -283,6 +304,7 @@ public partial class PublicFormAccessPolicyTests
         var formId = 1L;
         var userId = "user-no-perms";
         var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false);
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -321,6 +343,7 @@ public partial class PublicFormAccessPolicyTests
         var formId = 1L;
         var userId = "user-with-perms";
         var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false);
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -349,11 +372,94 @@ public partial class PublicFormAccessPolicyTests
     }
 
     [Fact]
+    public async Task GetAccessDataAsync_PrivateForm_LimitOnePerUserWithExistingSubmission_ReturnsSubmittedState()
+    {
+        // Arrange
+        var formId = 1L;
+        var userId = "user-with-submission";
+        var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false, limitOnePerUser: true);
+
+        _cache
+            .GetOrCreateAsync<bool>(
+                Arg.Is<string>($"meta:form:is_public:{formId}"),
+                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<IEnumerable<string>?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new ValueTask<bool>(false));
+
+        _authorizationService
+            .GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success(AuthorizationData.ForAuthenticatedUser(
+                userId,
+                1,
+                [],
+                [Actions.Access.PrivateForms])));
+
+        _submissionRepository
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        // Act
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Data.LimitOnePerUser.Should().BeTrue();
+        result.Value.Data.HasUserSubmitted.Should().BeTrue();
+        result.Value.Data.CanStartNewSubmission.Should().BeFalse();
+        result.Value.Data.IsRespondentTestMode.Should().BeFalse();
+        await _formRepository
+            .DidNotReceive()
+            .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetAccessDataAsync_PrivateForm_LimitOnePerUserWithTestPermission_ReturnsTestMode()
+    {
+        // Arrange
+        var formId = 1L;
+        var userId = "designer-user";
+        var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false, limitOnePerUser: true);
+
+        _authorizationService
+            .GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success(AuthorizationData.ForAuthenticatedUser(
+                userId,
+                1,
+                [],
+                [Actions.Access.PrivateForms, Actions.Forms.Test])));
+
+        _submissionRepository
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        // Act
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Data.LimitOnePerUser.Should().BeTrue();
+        result.Value.Data.HasUserSubmitted.Should().BeFalse();
+        result.Value.Data.CanStartNewSubmission.Should().BeTrue();
+        result.Value.Data.IsRespondentTestMode.Should().BeTrue();
+        await _submissionRepository
+            .DidNotReceive()
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>());
+        await _formRepository
+            .DidNotReceive()
+            .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task GetAccessDataAsync_PrivateForm_NoToken_AdminUser_ReturnsSuccess()
     {
         // Arrange
         var formId = 1L;
         var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false);
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -376,12 +482,13 @@ public partial class PublicFormAccessPolicyTests
     }
 
     [Fact]
-    public async Task GetAccessDataAsync_PrivateForm_NoToken_CachesWithAuthTtl_AndUserIdInCacheKey()
+    public async Task GetAccessDataAsync_PrivateForm_NoToken_CachesBriefly_AndUserIdInCacheKey()
     {
         // Arrange
         var formId = 1L;
         var userId = "user-auth";
         var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false);
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -425,7 +532,7 @@ public partial class PublicFormAccessPolicyTests
         // Assert
         capturedCacheKey.Should().Be($"ac:form:{formId}:user:{userId}");
         capturedOptions.Should().NotBeNull();
-        capturedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(15));
+        capturedOptions!.Expiration.Should().Be(TimeSpan.FromSeconds(1));
     }
 
     #endregion
@@ -440,6 +547,7 @@ public partial class PublicFormAccessPolicyTests
         var token = "submission-token";
         var submissionId = 123L;
         var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false);
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -469,6 +577,7 @@ public partial class PublicFormAccessPolicyTests
         var token = "submission-token";
         var submissionId = 123L;
         var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false);
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -526,6 +635,7 @@ public partial class PublicFormAccessPolicyTests
             expiresAt: expiresAt);
 
         var context = new PublicFormAccessContext(formId, token, SubmissionTokenType.SubmissionToken);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false);
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -895,15 +1005,15 @@ public partial class PublicFormAccessPolicyTests
         var context = new PublicFormAccessContext(formId);
 
         _cache
-            .GetOrCreateAsync<bool>(
-                Arg.Is<string>($"meta:form:is_public:{formId}"),
-                Arg.Any<Func<CancellationToken, ValueTask<bool>>>(),
+            .GetOrCreateAsync<FormProjections.FormAccessRoutingDto>(
+                Arg.Is<string>($"meta:form:access_routing:{formId}"),
+                Arg.Any<Func<CancellationToken, ValueTask<FormProjections.FormAccessRoutingDto>>>(),
                 Arg.Any<HybridCacheEntryOptions?>(),
                 Arg.Any<IEnumerable<string>?>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
-                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<bool>>>();
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<FormProjections.FormAccessRoutingDto>>>();
                 var ct = callInfo.Arg<CancellationToken>();
                 return factory(ct);
             });
@@ -927,6 +1037,7 @@ public partial class PublicFormAccessPolicyTests
         // Arrange
         var formId = 1L;
         var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false);
 
         _cache
             .GetOrCreateAsync<bool>(

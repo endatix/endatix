@@ -15,25 +15,41 @@ public class PublicFormAccessData : AccessDataBase
         string formId,
         string? submissionId,
         ImmutableHashSet<string>? formPermissions,
-        ImmutableHashSet<string>? submissionPermissions)
+        ImmutableHashSet<string>? submissionPermissions,
+        bool limitOnePerUser = false,
+        bool hasUserSubmitted = false,
+        bool canStartNewSubmission = true,
+        bool isRespondentTestMode = false)
     {
         FormId = formId;
         SubmissionId = submissionId;
         FormPermissions = formPermissions ?? EmptyPermissions;
         SubmissionPermissions = submissionPermissions ?? EmptyPermissions;
         Permissions = MergePermissions(FormPermissions, SubmissionPermissions);
+        LimitOnePerUser = limitOnePerUser;
+        HasUserSubmitted = hasUserSubmitted;
+        CanStartNewSubmission = canStartNewSubmission;
+        IsRespondentTestMode = isRespondentTestMode;
     }
 
     private PublicFormAccessData(
         string formId,
         string? submissionId,
         IEnumerable<string> formPermissions,
-        IEnumerable<string> submissionPermissions)
+        IEnumerable<string> submissionPermissions,
+        bool limitOnePerUser = false,
+        bool hasUserSubmitted = false,
+        bool canStartNewSubmission = true,
+        bool isRespondentTestMode = false)
         : this(
             formId,
             submissionId,
             ToImmutableSet(formPermissions),
-            ToImmutableSet(submissionPermissions))
+            ToImmutableSet(submissionPermissions),
+            limitOnePerUser,
+            hasUserSubmitted,
+            canStartNewSubmission,
+            isRespondentTestMode)
     {
     }
 
@@ -61,6 +77,26 @@ public class PublicFormAccessData : AccessDataBase
     /// </summary>
     public ImmutableHashSet<string> SubmissionPermissions { get; init; } = EmptyPermissions;
 
+    /// <summary>
+    /// Indicates whether the form enforces one response per user.
+    /// </summary>
+    public bool LimitOnePerUser { get; init; }
+
+    /// <summary>
+    /// Indicates whether the current user already has a non-test submission for this form.
+    /// </summary>
+    public bool HasUserSubmitted { get; init; }
+
+    /// <summary>
+    /// Indicates whether the current access context can create a new submission.
+    /// </summary>
+    public bool CanStartNewSubmission { get; init; }
+
+    /// <summary>
+    /// Indicates whether the current respondent is creating a test submission.
+    /// </summary>
+    public bool IsRespondentTestMode { get; init; }
+
     private static ImmutableHashSet<string> MergePermissions(
         ImmutableHashSet<string> formPermissions,
         ImmutableHashSet<string> submissionPermissions)
@@ -77,13 +113,24 @@ public class PublicFormAccessData : AccessDataBase
     /// Creates public form access data for a new submission.
     /// </summary>
     /// <param name="formId">The form ID.</param>
+    /// <param name="limitOnePerUser">Indicates whether the form enforces one response per user.</param>
+    /// <param name="hasUserSubmitted">Indicates whether the current user already has a non-test submission for this form.</param>
+    /// <param name="isRespondentTestMode">Indicates whether the current respondent is creating a test submission.</param>
     /// <returns>The public form access data.</returns>
-    public static PublicFormAccessData CreatePublicForm(long formId)
+    public static PublicFormAccessData CreatePublicForm(
+        long formId,
+        bool limitOnePerUser = false,
+        bool hasUserSubmitted = false,
+        bool isRespondentTestMode = false)
         => new(
-            formId.ToString(),
-            null,
-            ResourcePermissions.Form.Sets.ViewForm,
-            ResourcePermissions.Submission.Sets.CreateSubmission);
+            formId: formId.ToString(),
+            submissionId: null,
+            formPermissions: ResourcePermissions.Form.Sets.ViewForm,
+            submissionPermissions: ResourcePermissions.Submission.Sets.CreateSubmission,
+            limitOnePerUser: limitOnePerUser,
+            hasUserSubmitted: hasUserSubmitted,
+            canStartNewSubmission: !limitOnePerUser || !hasUserSubmitted,
+            isRespondentTestMode: isRespondentTestMode);
 
     /// <summary>
     /// Creates public form access data for a submission token.

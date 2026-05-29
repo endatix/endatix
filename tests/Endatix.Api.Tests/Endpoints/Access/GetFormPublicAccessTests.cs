@@ -50,9 +50,40 @@ public class GetFormPublicAccessTests
         okResult.Value!.SubmissionId.Should().BeNull();
         okResult.Value!.FormPermissions.Should().BeEquivalentTo(accessData.FormPermissions);
         okResult.Value!.SubmissionPermissions.Should().BeEquivalentTo(accessData.SubmissionPermissions);
+        okResult.Value!.LimitOnePerUser.Should().BeFalse();
+        okResult.Value!.HasUserSubmitted.Should().BeFalse();
+        okResult.Value!.CanStartNewSubmission.Should().BeTrue();
+        okResult.Value!.IsRespondentTestMode.Should().BeFalse();
         okResult.Value!.ETag.Should().Be(cached.ETag);
         okResult.Value!.CachedAt.Should().Be(cached.CachedAt);
         okResult.Value!.ExpiresAt.Should().Be(cached.ExpiresAt);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithRespondentTestMode_ReturnsTestMode()
+    {
+        // Arrange
+        var request = new GetFormPublicAccessRequest { FormId = 123 };
+        var accessData = PublicFormAccessData.CreatePublicForm(
+            123,
+            limitOnePerUser: true,
+            hasUserSubmitted: false,
+            isRespondentTestMode: true);
+        var cached = new Cached<PublicFormAccessData>(accessData, DateTime.UtcNow, TimeSpan.FromMinutes(10), "etag-123");
+
+        _accessPolicy
+            .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
+            .Returns(Result<ICachedData<PublicFormAccessData>>.Success(cached));
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = response.Result.As<Ok<GetFormPublicAccessResponse>>();
+        okResult.Should().NotBeNull();
+        okResult.Value!.IsRespondentTestMode.Should().BeTrue();
+        okResult.Value!.LimitOnePerUser.Should().BeTrue();
+        okResult.Value!.CanStartNewSubmission.Should().BeTrue();
     }
 
     [Fact]

@@ -98,6 +98,10 @@ public class GetFormPublicAccessValidator : Validator<GetFormPublicAccessRequest
 /// <param name="SubmissionId">The submission ID.</param>
 /// <param name="FormPermissions">The form permissions.</param>
 /// <param name="SubmissionPermissions">The submission permissions.</param>
+/// <param name="LimitOnePerUser">Whether the form enforces one response per user.</param>
+/// <param name="HasUserSubmitted">Whether the current user already has a submission for this form.</param>
+/// <param name="CanStartNewSubmission">Whether the current access context can start a new submission.</param>
+/// <param name="IsRespondentTestMode">Whether the current respondent is creating a test submission.</param>
 /// <param name="CachedAt">The cached at.</param>
 /// <param name="ExpiresAt">The expires at.</param>
 /// <param name="ETag">The ETag.</param>
@@ -106,6 +110,10 @@ public record GetFormPublicAccessResponse(
     string? SubmissionId,
     IReadOnlySet<string> FormPermissions,
     IReadOnlySet<string> SubmissionPermissions,
+    bool LimitOnePerUser,
+    bool HasUserSubmitted,
+    bool CanStartNewSubmission,
+    bool IsRespondentTestMode,
     DateTime CachedAt,
     DateTime ExpiresAt,
     string ETag
@@ -117,7 +125,18 @@ public record GetFormPublicAccessResponse(
     /// <param name="cached">The cached <see cref="PublicFormAccessData"/>.</param>
     /// <returns>The <see cref="GetFormPublicAccessResponse"/>.</returns>
     public static GetFormPublicAccessResponse FromCached(ICachedData<PublicFormAccessData> cached)
-        => new(cached.Data.FormId, cached.Data.SubmissionId, cached.Data.FormPermissions, cached.Data.SubmissionPermissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
+        => new(
+            cached.Data.FormId,
+            cached.Data.SubmissionId,
+            cached.Data.FormPermissions,
+            cached.Data.SubmissionPermissions,
+            cached.Data.LimitOnePerUser,
+            cached.Data.HasUserSubmitted,
+            cached.Data.CanStartNewSubmission,
+            cached.Data.IsRespondentTestMode,
+            cached.CachedAt,
+            cached.ExpiresAt,
+            cached.ETag);
 }
 
 
