@@ -1,4 +1,4 @@
-using Endatix.Api.Endpoints.Access;
+using Endatix.Api.Endpoints.Public.Forms;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
 
-namespace Endatix.Api.Tests.Endpoints.Access;
+namespace Endatix.Api.Tests.Endpoints.Public.Forms;
 
 public class GetFormPublicAccessTests
 {

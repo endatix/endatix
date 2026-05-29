@@ -1,3 +1,4 @@
+using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Infrastructure;
@@ -6,20 +7,20 @@ using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace Endatix.Api.Endpoints.Access;
+namespace Endatix.Api.Endpoints.Public.Forms;
 
 /// <summary>
-/// Public endpoint for ReBAC (resource based access control) for form/submission related access control
-/// on public pages used for submission, prefilling and forms sharing.
-/// Uses FormId + Token + TokenType (no SubmissionId; submission is resolved from token).
+/// Public BFF endpoint for ReBAC on share/embed pages (form + optional submission token).
+/// Uses FormId + Token + TokenType (submission is resolved from token when applicable).
 /// </summary>
-public class GetFormPublicAccess(
+public sealed class GetFormPublicAccess(
     IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> publicFormAccessPolicy
 ) : Endpoint<GetFormPublicAccessRequest, Results<Ok<GetFormPublicAccessResponse>, ProblemHttpResult>>
 {
     public override void Configure()
     {
-        Get("access/public/forms/{formId}");
+        Get("forms/{formId}/access");
+        Group<PublicApiGroup>();
         AllowAnonymous();
         Summary(s =>
         {
@@ -47,7 +48,7 @@ public class GetFormPublicAccess(
 /// <summary>
 /// Request model for getting public form access (anonymous/token).
 /// </summary>
-public class GetFormPublicAccessRequest
+public sealed class GetFormPublicAccessRequest
 {
     /// <summary>
     /// The form ID (from route).
@@ -68,7 +69,7 @@ public class GetFormPublicAccessRequest
 /// <summary>
 /// Validator for the <see cref="GetFormPublicAccessRequest"/> model.
 /// </summary>
-public class GetFormPublicAccessValidator : Validator<GetFormPublicAccessRequest>
+public sealed class GetFormPublicAccessValidator : Validator<GetFormPublicAccessRequest>
 {
     public GetFormPublicAccessValidator()
     {
@@ -105,7 +106,7 @@ public class GetFormPublicAccessValidator : Validator<GetFormPublicAccessRequest
 /// <param name="CachedAt">The cached at.</param>
 /// <param name="ExpiresAt">The expires at.</param>
 /// <param name="ETag">The ETag.</param>
-public record GetFormPublicAccessResponse(
+public sealed record GetFormPublicAccessResponse(
     string FormId,
     string? SubmissionId,
     IReadOnlySet<string> FormPermissions,
@@ -138,5 +139,3 @@ public record GetFormPublicAccessResponse(
             cached.ExpiresAt,
             cached.ETag);
 }
-
-
