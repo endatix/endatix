@@ -4,15 +4,14 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Features.ReCaptcha;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.UseCases.FormDefinitions.GetActive;
 
 public class GetActiveFormDefinitionHandler(
     IFormsRepository formRepository,
     IRepository<CustomQuestion> customQuestionsRepository,
-    IRepository<Submission> submissionRepository,
     IReCaptchaPolicyService reCaptchaPolicyService,
     ICurrentUserAuthorizationService authorizationService
     )
@@ -52,20 +51,6 @@ public class GetActiveFormDefinitionHandler(
             cancellationToken);
 
         var customQuestionsJson = customQuestions?.Select(q => q.JsonData);
-        var hasUserSubmitted = false;
-
-        if (formWithActiveDefinition.LimitOnePerUser && !string.IsNullOrWhiteSpace(request.UserId))
-        {
-            var hasTestPermissionResult = await authorizationService.HasPermissionAsync(Actions.Forms.Test, cancellationToken);
-            var canBypassSingleSubmissionLimit = hasTestPermissionResult.IsSuccess && hasTestPermissionResult.Value;
-
-            if (!canBypassSingleSubmissionLimit)
-            {
-                hasUserSubmitted = await submissionRepository.AnyAsync(
-                    new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.UserId),
-                    cancellationToken);
-            }
-        }
 
         var activeDefinitionDto = new ActiveDefinitionDto(formWithActiveDefinition.ActiveDefinition)
         {
@@ -73,7 +58,6 @@ public class GetActiveFormDefinitionHandler(
             RequiresReCaptcha = reCaptchaPolicyService.RequiresReCaptcha(formWithActiveDefinition),
             LimitOnePerUser = formWithActiveDefinition.LimitOnePerUser,
             CustomQuestions = customQuestionsJson ?? [],
-            HasUserSubmitted = hasUserSubmitted,
             Metadata = formWithActiveDefinition.Metadata
         };
 

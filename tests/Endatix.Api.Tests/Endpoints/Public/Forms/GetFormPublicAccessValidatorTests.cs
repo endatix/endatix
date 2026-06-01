@@ -1,8 +1,8 @@
-using Endatix.Api.Endpoints.Access;
+using Endatix.Api.Endpoints.Public.Forms;
 using Endatix.Core.Authorization.Access;
 using FluentValidation.TestHelper;
 
-namespace Endatix.Api.Tests.Endpoints.Access;
+namespace Endatix.Api.Tests.Endpoints.Public.Forms;
 
 public class GetFormPublicAccessValidatorTests
 {

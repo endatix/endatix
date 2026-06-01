@@ -33,20 +33,29 @@ public static class FormProjections
     };
 
     /// <summary>
-    /// Permission focused projection to get the IsPublic property of a form with its id
+    /// Routing projection for public form access checks.
     /// </summary>
-    public sealed class IsPublicDtoSpec : Specification<Form, FormDtos.IsPublicDto>
+    public sealed record FormAccessRoutingDto(bool IsPublic, bool LimitOnePerUser, long Id);
+
+    /// <summary>
+    /// Permission focused projection for routing public form access checks.
+    /// </summary>
+    public sealed class AccessRoutingDtoSpec : Specification<Form, FormAccessRoutingDto>
     {
         /// <summary>
-        /// Constructor for the IsPublicDtoSpec
+        /// Constructor for the AccessRoutingDtoSpec.
         /// </summary>
-        /// <param name="formId">The id of the form to get the IsPublic property for</param>
-        public IsPublicDtoSpec(long formId)
+        /// <param name="formId">The id of the form to get routing metadata for.</param>
+        public AccessRoutingDtoSpec(long formId)
         {
             Query
                 .Where(form => form.Id == formId && form.IsEnabled)
                 .AsNoTracking();
-            Query.Select(form => new FormDtos.IsPublicDto(form.IsPublic, form.Id));
+
+            Query.Select(form => new FormAccessRoutingDto(
+                form.IsPublic,
+                form.LimitOnePerUser,
+                form.Id));
         }
     }
 }

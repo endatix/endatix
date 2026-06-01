@@ -76,7 +76,6 @@ public class GetActiveTests
         var activeDefinitionDto = new ActiveDefinitionDto(formDefinition, themeJsonData)
         {
             LimitOnePerUser = true,
-            HasUserSubmitted = true,
             Metadata = "{ \"alreadyRespondedMessage\": \"Custom copy\" }"
         };
         var result = Result.Success(activeDefinitionDto);
@@ -95,7 +94,6 @@ public class GetActiveTests
         okResult!.Value!.FormId.Should().Be(formDefinition.FormId.ToString());
         okResult!.Value!.ThemeModel.Should().Be(themeJsonData);
         okResult!.Value!.LimitOnePerUser.Should().BeTrue();
-        okResult!.Value!.HasUserSubmitted.Should().BeTrue();
         okResult!.Value!.Metadata.Should().Be("{ \"alreadyRespondedMessage\": \"Custom copy\" }");
     }
 
