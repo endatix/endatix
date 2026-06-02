@@ -40,7 +40,7 @@ For more information visit https://endatix.com
 * **Themes** (Based on SurveyJS [Themes and Styles](https://surveyjs.io/form-library/documentation/manage-default-themes-and-styles))
 * **Partial Submissions** (Users can resume incomplete submissions)
 * **Prefilled forms**
-* **File storage for form-submitted documents, images, audio recordings, and videos** *(Providers for Azure Blob storage, Amazon S3, or self-hosted RustFS)
+* **File storage for form-submitted documents, images, audio recordings, and videos** (Providers for Azure Blob storage, Amazon S3, or self-hosted RustFS)
 * **Folders** (Users can organize forms in folders with access control)
 * **Submission metadata** (Including completion status, date/time started, and date/time completed)
 * **One submission per respondent** (Optional validation for non-anonymous forms and surveys)
