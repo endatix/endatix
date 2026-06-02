@@ -76,6 +76,9 @@ For the fastest setup, you can also import our pre-configured test realm with us
    - Valid redirect URIs: 
      - Development: `http://localhost:3000/api/auth/callback/keycloak`
      - Production: `https://yourdomain.com/api/auth/callback/keycloak`
+   - Valid post logout redirect URIs:
+     - Development: `http://localhost:3000/signin`
+     - Production: `https://yourdomain.com/signin`
    - Web origins: `http://localhost:3000` (or your domain)
    - Click **"Save"**
 
@@ -174,8 +177,9 @@ Based on the [Keycloak provider documentation](https://authjs.dev/getting-starte
 # Keycloak configuration in your .env file
 AUTH_KEYCLOAK_ENABLED=true
 AUTH_KEYCLOAK_CLIENT_ID=endatix-hub
-AUTH_KEYCLOAK_SECRET=your_client_secret_from_keycloak
+AUTH_KEYCLOAK_CLIENT_SECRET=your_client_secret_from_keycloak
 AUTH_KEYCLOAK_ISSUER=http://localhost:8080/realms/endatix
+AUTH_URL=http://localhost:3000
 ```
 
 Here is explanation of the environment variables:
@@ -190,17 +194,45 @@ Here is explanation of the environment variables:
   - Must match the Client ID configured in Keycloak Admin Console
   - Example: `AUTH_KEYCLOAK_CLIENT_ID=endatix-hub`
 
-#### AUTH_KEYCLOAK_SECRET
+#### AUTH_KEYCLOAK_CLIENT_SECRET
   - The client secret from your Keycloak realm configuration
   - Found in Keycloak Admin Console under Clients → [your-client] → Credentials
-  - Example: `AUTH_KEYCLOAK_SECRET=your_client_secret_from_keycloak`
+  - Example: `AUTH_KEYCLOAK_CLIENT_SECRET=your_client_secret_from_keycloak`
 
 #### AUTH_KEYCLOAK_ISSUER
   - The complete issuer URL of your Keycloak realm
   - Format: `http://your-keycloak-server:port/realms/your-realm-name`
   - Example: `AUTH_KEYCLOAK_ISSUER=http://localhost:8080/realms/endatix`
 
-### 2.2 Register Provider in auth.ts
+#### AUTH_URL
+  - The public base URL where Endatix Hub is served
+  - Used by Auth.js callbacks and Keycloak federated sign-out
+  - The Keycloak client must allow `${AUTH_URL}/signin` as a **Valid post logout redirect URI**
+  - Example: `AUTH_URL=http://localhost:3000`
+
+### 2.2 Configure Federated Sign-Out
+
+Endatix Hub signs out locally first, then redirects Keycloak users to the Keycloak OIDC end-session endpoint. This clears the Keycloak SSO session so the next sign-in prompts for credentials instead of silently reusing the IdP session.
+
+To enable this flow, configure the `endatix-hub` Keycloak client with a matching post-logout redirect URI:
+
+```text
+http://localhost:3000/signin
+```
+
+For production, use your Hub domain:
+
+```text
+https://yourdomain.com/signin
+```
+
+If Hub is hosted under a base path, include it in the URI, for example:
+
+```text
+https://yourdomain.com/app/signin
+```
+
+### 2.3 Register Provider in auth.ts
 
 ```typescript
 // Add this code
@@ -238,6 +270,13 @@ pnpm dev
 3. Click it and complete Keycloak authentication using your own credentials
 4. Verify successful login and redirect to dashboard
 
+### 3.3 Test Sign-Out Flow
+
+1. Sign in with Keycloak
+2. Sign out from Endatix Hub
+3. Verify the browser is redirected through Keycloak logout and returns to `/signin`
+4. Click "Sign in with Keycloak" again and confirm Keycloak prompts for credentials instead of silently reusing the previous SSO session
+
 
 ## Troubleshooting
 
@@ -252,6 +291,7 @@ pnpm dev
 - Check redirect URI in Keycloak client matches exactly
 - Include protocol (`http://` or `https://`)
 - Ensure no trailing slashes
+- For logout errors, verify **Valid post logout redirect URIs** includes `${AUTH_URL}/signin`
 
 **Token validation errors**
 - Verify `AUTH_KEYCLOAK_ISSUER` URL is correct and accessible
