@@ -93,7 +93,7 @@ public class SendGridEmailSender(
             throw new InvalidOperationException($"Email template '{email.TemplateId}' not found in database");
         }
 
-        var variables = email.Metadata.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString() ?? string.Empty);
+        var variables = (email.Metadata ?? []).ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString() ?? string.Empty);
 
         var emailWithBody = template.Render(
             email.To,

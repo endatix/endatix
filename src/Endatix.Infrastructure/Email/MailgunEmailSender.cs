@@ -87,7 +87,7 @@ public class MailgunEmailSender(
 
         var emailWithBody = template.Render(
             email.To,
-            ToVariableDictionary(email.Metadata),
+            ToVariableDictionary(email.Metadata ?? []),
             subject: email.Subject,
             from: email.From);
 

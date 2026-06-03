@@ -65,14 +65,14 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         Guard.Against.NullOrEmpty(email.To);
         Guard.Against.NullOrEmpty(email.TemplateId);
 
-        var template = await _templateRepository.FirstOrDefaultAsync(new EmailTemplateByNameSpec(email.TemplateId));
+        var template = await _templateRepository.FirstOrDefaultAsync(new EmailTemplateByNameSpec(email.TemplateId), cancellationToken);
         if (template == null)
         {
             throw new InvalidOperationException($"Email template '{email.TemplateId}' not found in database");
         }
 
         // Convert metadata to string dictionary for template rendering
-        var variables = email.Metadata.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString() ?? string.Empty);
+        var variables = (email.Metadata ?? []).ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString() ?? string.Empty);
 
         var emailWithBody = template.Render(
             email.To,

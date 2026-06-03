@@ -76,6 +76,26 @@ public class MailgunEmailSenderTests
 
     // -- SendEmailAsync(EmailWithBody) guard tests --
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData(null)]
+    public async Task SendEmailWithBody_InvalidTo_ThrowsArgumentException(string? to)
+    {
+        var email = new EmailWithBody
+        {
+            To = to!,
+            From = "sender@example.com",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        Func<Task> act = () => _sut.SendEmailAsync(email, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
     [Fact]
     public async Task SendEmailWithBody_NullEmail_ThrowsArgumentNullException()
     {
