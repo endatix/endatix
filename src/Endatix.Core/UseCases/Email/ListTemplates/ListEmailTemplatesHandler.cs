@@ -24,7 +24,10 @@ public class ListEmailTemplatesHandler(
     {
         var templates = await repository.ListAsync(cancellationToken);
 
-        var dtos = templates.Select(t => new EmailTemplateSummaryDto(t.Id, t.Name, t.Subject, t.FromAddress));
+        var dtos = templates
+        .Select(t => new EmailTemplateSummaryDto(t.Id, t.Name, t.Subject, t.FromAddress))
+        .ToList()
+        .AsEnumerable();
 
         return Result.Success(dtos);
     }

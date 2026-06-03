@@ -27,11 +27,11 @@ public class ListTemplates(IMediator mediator)
             s.Summary = "List email templates";
             s.Description = "Returns all registered email templates.";
             s.Responses[200] = "Email templates retrieved successfully.";
-            s.Responses[400] = "Invalid request or tenant context.";
+            s.Responses[401] = "Unauthenticated - valid credentials required.";
+            s.Responses[403] = "Forbidden - insufficient privileges (PlatformAdmin required).";
         });
         Description(builder => builder
-            .Produces<IEnumerable<EmailTemplateSummaryDto>>(200, "application/json")
-            .ProducesProblem(400));
+            .Produces<IEnumerable<EmailTemplateSummaryDto>>(200, "application/json"));
     }
 
     /// <inheritdoc/>

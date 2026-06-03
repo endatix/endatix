@@ -21,4 +21,19 @@ public class GetEmailSettingsHandlerTests
         result.Value.ProviderName.Should().Be("SendGrid");
         result.Value.IsConfigured.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Handle_UnconfiguredSender_ReturnsProviderNameAndUnconfiguredStatus()
+    {
+        var emailSender = Substitute.For<IEmailSender>();
+        emailSender.ProviderName.Returns("Smtp");
+        emailSender.IsConfigured.Returns(false);
+        var sut = new GetEmailSettingsHandler(emailSender);
+
+        var result = await sut.Handle(new GetEmailSettingsQuery(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ProviderName.Should().Be("Smtp");
+        result.Value.IsConfigured.Should().BeFalse();
+    }
 }

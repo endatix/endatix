@@ -29,40 +29,52 @@ public partial class SendTestEmailHandler(
             return Result.Invalid(new ValidationError("Email address cannot be empty."));
         }
 
-        var fromAddress = "noreply@endatix.com";
-
-        if (request.TemplateId is not null)
+        if (!emailSender.IsConfigured)
         {
-            var emailWithTemplate = new EmailWithTemplate
+            return Result.Unavailable("Email provider is not configured.");
+        }
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(request.TemplateId))
             {
-                To = request.ToEmail,
-                From = fromAddress,
-                TemplateId = request.TemplateId,
-                Subject = "Test Email from Endatix",
-                Metadata = new Dictionary<string, object>
+                var emailWithTemplate = new EmailWithTemplate
                 {
-                    { "name", "Admin Test User" },
-                    { "activationUrl", "https://endatix.com/test" }
-                }
-            };
+                    To = request.ToEmail,
+                    TemplateId = request.TemplateId,
+                    Subject = "Test Email from Endatix",
+                    Metadata = new Dictionary<string, object>
+                    {
+                        { "name", "Admin Test User" },
+                        { "activationUrl", "https://endatix.com/test" }
+                    }
+                };
 
-            await emailSender.SendEmailAsync(emailWithTemplate, cancellationToken);
-        }
-        else
-        {
-            var emailWithBody = new EmailWithBody
+                await emailSender.SendEmailAsync(emailWithTemplate, cancellationToken);
+            }
+            else
             {
-                To = request.ToEmail,
-                From = fromAddress,
-                Subject = "Test Email from Endatix",
-                PlainTextBody = "This is a test email sent from the Endatix admin panel.",
-                HtmlBody = "<h1>Test Email</h1><p>This is a test email sent from the Endatix admin panel.</p>"
-            };
+                var emailWithBody = new EmailWithBody
+                {
+                    To = request.ToEmail,
+                    Subject = "Test Email from Endatix",
+                    PlainTextBody = "This is a test email sent from the Endatix admin panel.",
+                    HtmlBody = "<h1>Test Email</h1><p>This is a test email sent from the Endatix admin panel.</p>"
+                };
 
-            await emailSender.SendEmailAsync(emailWithBody, cancellationToken);
+                await emailSender.SendEmailAsync(emailWithBody, cancellationToken);
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Failed to send test email.");
+            return Result.Error("Failed to send test email.");
         }
 
-        LogTestEmailSent(logger, SensitiveValue.Email(request.ToEmail));
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            LogTestEmailSent(logger, SensitiveValue.Email(request.ToEmail));
+        }
 
         return Result.SuccessWithMessage("Test email sent successfully.");
     }
