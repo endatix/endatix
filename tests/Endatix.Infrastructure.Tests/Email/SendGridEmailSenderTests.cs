@@ -179,4 +179,38 @@ public class SendGridEmailSenderTests
             Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplate_SendsProviderTemplatePayload()
+    {
+        SendGridMessage? sentMessage = null;
+        _sendGridClient
+            .SendEmailAsync(Arg.Do<SendGridMessage>(msg => sentMessage = msg), Arg.Any<CancellationToken>())
+            .Returns(CreateSuccessResponse());
+
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            From = "sender@example.com",
+            TemplateId = "sendgrid-template",
+            IsExternal = true,
+            Metadata = new Dictionary<string, object>
+            {
+                ["name"] = "Alice",
+                ["attempt"] = 2
+            }
+        };
+
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        await _templateRepository.DidNotReceive().FirstOrDefaultAsync(
+            Arg.Any<EmailTemplateByNameSpec>(),
+            Arg.Any<CancellationToken>());
+
+        sentMessage.Should().NotBeNull();
+        sentMessage!.From.Email.Should().Be("sender@example.com");
+        sentMessage.Personalizations[0].Tos[0].Email.Should().Be("recipient@example.com");
+        sentMessage.TemplateId.Should().Be("sendgrid-template");
+        sentMessage.Personalizations[0].TemplateData.Should().BeEquivalentTo(email.Metadata);
+    }
+
 }

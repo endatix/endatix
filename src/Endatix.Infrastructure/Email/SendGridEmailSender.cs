@@ -80,8 +80,37 @@ public class SendGridEmailSender(
     /// <inheritdoc />
     public async Task SendEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
     {
+        Guard.Against.Null(email);
+
+        if (email.IsExternal)
+        {
+            await SendExternalTemplateEmailAsync(email, cancellationToken);
+            return;
+        }
+
         var emailWithBody = await _templateRenderer.RenderAsync(email, cancellationToken);
 
         await SendEmailAsync(emailWithBody, cancellationToken);
+    }
+
+    private async Task SendExternalTemplateEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
+    {
+        Guard.Against.Null(email);
+        Guard.Against.NullOrWhiteSpace(email.To);
+        Guard.Against.NullOrWhiteSpace(email.From);
+        Guard.Against.NullOrWhiteSpace(email.TemplateId);
+
+        var msg = new SendGridMessage();
+        msg.SetFrom(new EmailAddress(email.From));
+        msg.AddTo(new EmailAddress(email.To));
+        msg.SetTemplateId(email.TemplateId);
+        msg.SetTemplateData(email.Metadata);
+
+        var response = await _sendGridClient
+            .SendEmailAsync(msg, cancellationToken)
+            .ConfigureAwait(false);
+
+        var responseBody = await response.Body.ReadAsStringAsync();
+        _logger.LogInformation("Sending SendGrid template message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
     }
 }

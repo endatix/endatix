@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Web;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -231,6 +232,43 @@ public class MailgunEmailSenderTests
         form["subject"].Should().Be("Test Subject");
         form["text"].Should().Be("Hello John");
         form["html"].Should().Be("<html>Hello John</html>");
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplate_SendsProviderTemplatePayload()
+    {
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            From = "sender@example.com",
+            Subject = "External Subject",
+            TemplateId = "mailgun-template",
+            IsExternal = true,
+            Metadata = new Dictionary<string, object>
+            {
+                ["name"] = "Alice",
+                ["attempt"] = 2
+            }
+        };
+
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        await _templateRepository.DidNotReceive().FirstOrDefaultAsync(
+            Arg.Any<EmailTemplateByNameSpec>(),
+            Arg.Any<CancellationToken>());
+
+        _handler.Request.Should().NotBeNull();
+        var form = ParseFormContent(_handler.RequestContent!);
+        form["to"].Should().Be("recipient@example.com");
+        form["from"].Should().Be("sender@example.com");
+        form["subject"].Should().Be("External Subject");
+        form["template"].Should().Be("mailgun-template");
+        form.Should().NotContainKey("text");
+        form.Should().NotContainKey("html");
+
+        using var variables = JsonDocument.Parse(form["h:X-Mailgun-Variables"]);
+        variables.RootElement.GetProperty("name").GetString().Should().Be("Alice");
+        variables.RootElement.GetProperty("attempt").GetInt32().Should().Be(2);
     }
 
     private sealed class CapturingHttpMessageHandler : HttpMessageHandler

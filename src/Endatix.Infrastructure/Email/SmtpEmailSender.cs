@@ -65,6 +65,8 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
     /// <inheritdoc />
     public async Task SendEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
     {
+        Guard.Against.Null(email);
+
         var emailWithBody = await _templateRenderer.RenderAsync(email, cancellationToken);
 
         await SendEmailAsync(emailWithBody, cancellationToken);

@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -74,9 +75,49 @@ public class MailgunEmailSender(
     /// <inheritdoc />
     public async Task SendEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
     {
+        Guard.Against.Null(email);
+
+        if (email.IsExternal)
+        {
+            await SendExternalTemplateEmailAsync(email, cancellationToken);
+            return;
+        }
+
         var emailWithBody = await _templateRenderer.RenderAsync(email, cancellationToken);
 
         await SendEmailAsync(emailWithBody, cancellationToken);
+    }
+
+    private async Task SendExternalTemplateEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
+    {
+        Guard.Against.Null(email);
+        Guard.Against.NullOrWhiteSpace(email.To);
+        Guard.Against.NullOrWhiteSpace(email.TemplateId);
+
+        var contentValues = new List<KeyValuePair<string, string>>
+        {
+            new("template", email.TemplateId)
+        };
+
+        if (!string.IsNullOrWhiteSpace(email.From))
+        {
+            contentValues.Add(new("from", email.From));
+        }
+
+        if (!string.IsNullOrWhiteSpace(email.Subject))
+        {
+            contentValues.Add(new("subject", email.Subject));
+        }
+
+        if (email.Metadata.Count > 0)
+        {
+            contentValues.Add(new("h:X-Mailgun-Variables", JsonSerializer.Serialize(email.Metadata)));
+        }
+
+        var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+        _logger.LogInformation("Sending Mailgun template message with status code {statusCode} and response: {response}", response.StatusCode, responseContent);
     }
 
     private async Task<HttpResponseMessage> SendSimpleEmailAsync(BaseEmailModel email, List<KeyValuePair<string, string>> contentValues, CancellationToken cancellationToken = default)
