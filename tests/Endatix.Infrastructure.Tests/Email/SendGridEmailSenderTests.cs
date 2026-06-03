@@ -140,6 +140,13 @@ public class SendGridEmailSenderTests
     // -- SendEmailAsync(EmailWithBody) success tests --
 
     [Fact]
+    public void ProviderMetadata_ConfiguredSettings_ReturnsSendGrid()
+    {
+        _sut.ProviderName.Should().Be("SendGrid");
+        _sut.IsConfigured.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task SendEmailWithBody_ValidEmail_SendsViaSendGrid()
     {
         _sendGridClient.SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())

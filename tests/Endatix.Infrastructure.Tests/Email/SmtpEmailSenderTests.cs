@@ -11,6 +11,22 @@ namespace Endatix.Infrastructure.Tests.Email;
 public class SmtpEmailSenderTests
 {
     [Fact]
+    public void ProviderMetadata_DefaultSettings_ReturnsUnconfiguredSmtp()
+    {
+        var sut = new SmtpEmailSender(
+            Substitute.For<ILogger<SmtpEmailSender>>(),
+            Options.Create(new SmtpSettings
+            {
+                Host = "localhost",
+                DefaultFromAddress = "noreply@example.com"
+            }),
+            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()));
+
+        sut.ProviderName.Should().Be("SMTP");
+        sut.IsConfigured.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task SendEmailWithTemplate_ExternalTemplate_StillUsesDatabaseTemplate()
     {
         var templateRepository = Substitute.For<IRepository<EmailTemplate>>();

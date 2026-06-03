@@ -49,6 +49,15 @@ public class MailgunEmailSender(
     }
 
     /// <inheritdoc />
+    public string ProviderName => "Mailgun";
+
+    /// <inheritdoc />
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(_settings.ApiKey) &&
+        !string.IsNullOrWhiteSpace(_settings.BaseUrl) &&
+        !string.IsNullOrWhiteSpace(_settings.Domain);
+
+    /// <inheritdoc />
     public async Task SendEmailAsync(EmailWithBody email, CancellationToken cancellationToken = default)
     {
         Guard.Against.Null(email);

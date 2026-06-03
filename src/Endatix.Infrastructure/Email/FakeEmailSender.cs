@@ -14,6 +14,13 @@ namespace Endatix.Infrastructure.Email;
 /// <param name="logger"></param>
 public class FakeEmailSender(ILogger<FakeEmailSender> logger) : IEmailSender
 {
+    /// <inheritdoc />
+    public string ProviderName => "Fake";
+
+    /// <inheritdoc />
+    public bool IsConfigured => true;
+
+    /// <inheritdoc />
     public Task SendEmailAsync(EmailWithBody email, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Not actually sending an email to {To} from {From} with subject {Subject}", SensitiveValue.Email(email.To), email.From, email.Subject);

@@ -192,6 +192,13 @@ public class MailgunEmailSenderTests
     // -- SendEmailAsync(EmailWithBody) success tests --
 
     [Fact]
+    public void ProviderMetadata_ConfiguredSettings_ReturnsMailgun()
+    {
+        _sut.ProviderName.Should().Be("Mailgun");
+        _sut.IsConfigured.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task SendEmailWithBody_ValidEmail_SendsHttpPostWithCorrectContent()
     {
         var email = CreateValidEmailWithBody();

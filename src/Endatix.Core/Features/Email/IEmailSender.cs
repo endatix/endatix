@@ -9,6 +9,16 @@ namespace Endatix.Core.Features.Email;
 public interface IEmailSender
 {
     /// <summary>
+    /// The display name of the configured email provider.
+    /// </summary>
+    string ProviderName { get; }
+
+    /// <summary>
+    /// Whether this email sender has enough configuration to send email.
+    /// </summary>
+    bool IsConfigured { get; }
+
+    /// <summary>
     /// Send email async passing the body of the email
     /// </summary>
     /// <param name="email">Email model of type <see cref="EmailWithBody"/> </param>
