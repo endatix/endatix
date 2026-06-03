@@ -5,10 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
-using Endatix.Core.Infrastructure.Domain;
-using Endatix.Core.Specifications;
 using SendGrid.Extensions.DependencyInjection;
 using Ardalis.GuardClauses;
 
@@ -20,12 +17,12 @@ namespace Endatix.Infrastructure.Email;
 /// <param name="sendGridClient">The SendGrid client.</param>
 /// <param name="logger">The logger.</param>
 /// <param name="options">The sendgrid settings.</param>
-/// <param name="templateRepository">The email template repository.</param>
+/// <param name="templateRenderer">The email template renderer.</param>
 public class SendGridEmailSender(
         ISendGridClient sendGridClient,
         ILogger<SendGridEmailSender> logger,
         IOptions<SendGridSettings> options,
-        IRepository<EmailTemplate> templateRepository
+        EmailTemplateRenderer templateRenderer
       ) : IEmailSender, IHasConfigSection<SendGridSettings>, IPluginInitializer
 {
     private readonly ISendGridClient _sendGridClient = sendGridClient;
@@ -34,7 +31,7 @@ public class SendGridEmailSender(
 
     private readonly SendGridSettings _settings = options.Value;
 
-    private readonly IRepository<EmailTemplate> _templateRepository = templateRepository;
+    private readonly EmailTemplateRenderer _templateRenderer = templateRenderer;
 
     /// <inheritdoc />
     public static Action<IServiceCollection> InitializationDelegate => (services) =>
@@ -83,23 +80,7 @@ public class SendGridEmailSender(
     /// <inheritdoc />
     public async Task SendEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
     {
-        Guard.Against.Null(email);
-        Guard.Against.NullOrWhiteSpace(email.To);
-        Guard.Against.NullOrWhiteSpace(email.TemplateId);
-
-        var template = await _templateRepository.FirstOrDefaultAsync(new EmailTemplateByNameSpec(email.TemplateId), cancellationToken);
-        if (template == null)
-        {
-            throw new InvalidOperationException($"Email template '{email.TemplateId}' not found in database");
-        }
-
-        var variables = (email.Metadata ?? []).ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString() ?? string.Empty);
-
-        var emailWithBody = template.Render(
-            email.To,
-            variables,
-            subject: email.Subject,
-            from: email.From);
+        var emailWithBody = await _templateRenderer.RenderAsync(email, cancellationToken);
 
         await SendEmailAsync(emailWithBody, cancellationToken);
     }

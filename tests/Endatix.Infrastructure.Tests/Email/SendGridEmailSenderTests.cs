@@ -29,7 +29,11 @@ public class SendGridEmailSenderTests
             ApiKey = "test-api-key"
         });
         _templateRepository = Substitute.For<IRepository<EmailTemplate>>();
-        _sut = new SendGridEmailSender(_sendGridClient, _logger, _options, _templateRepository);
+        _sut = new SendGridEmailSender(
+            _sendGridClient,
+            _logger,
+            _options,
+            new EmailTemplateRenderer(_templateRepository));
     }
 
     private static EmailWithBody CreateValidEmailWithBody() => new()
@@ -151,68 +155,7 @@ public class SendGridEmailSenderTests
             Arg.Any<CancellationToken>());
     }
 
-    // -- SendEmailAsync(EmailWithTemplate) guard tests --
-
-    [Fact]
-    public async Task SendEmailWithTemplate_NullEmail_ThrowsArgumentNullException()
-    {
-        Func<Task> act = () => _sut.SendEmailAsync((EmailWithTemplate)null!, CancellationToken.None);
-
-        await act.Should().ThrowAsync<ArgumentNullException>();
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData(" ")]
-    [InlineData(null)]
-    public async Task SendEmailWithTemplate_InvalidTo_ThrowsArgumentException(string? to)
-    {
-        var email = new EmailWithTemplate
-        {
-            To = to!,
-            From = "sender@example.com",
-            Subject = "Test Subject",
-            TemplateId = "test-template"
-        };
-
-        Func<Task> act = () => _sut.SendEmailAsync(email, CancellationToken.None);
-
-        await act.Should().ThrowAsync<ArgumentException>();
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData(" ")]
-    [InlineData(null)]
-    public async Task SendEmailWithTemplate_InvalidTemplateId_ThrowsArgumentException(string? templateId)
-    {
-        var email = new EmailWithTemplate
-        {
-            To = "recipient@example.com",
-            From = "sender@example.com",
-            Subject = "Test Subject",
-            TemplateId = templateId!
-        };
-
-        Func<Task> act = () => _sut.SendEmailAsync(email, CancellationToken.None);
-
-        await act.Should().ThrowAsync<ArgumentException>();
-    }
-
-    // -- SendEmailAsync(EmailWithTemplate) template resolution tests --
-
-    [Fact]
-    public async Task SendEmailWithTemplate_TemplateNotFound_ThrowsInvalidOperationException()
-    {
-        _templateRepository.FirstOrDefaultAsync(Arg.Any<EmailTemplateByNameSpec>(), Arg.Any<CancellationToken>())
-            .Returns((EmailTemplate?)null);
-        var email = CreateValidEmailWithTemplate();
-
-        Func<Task> act = () => _sut.SendEmailAsync(email, CancellationToken.None);
-
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*test-template*");
-    }
+    // -- SendEmailAsync(EmailWithTemplate) provider transport tests --
 
     [Fact]
     public async Task SendEmailWithTemplate_ValidTemplate_RendersAndSendsViaSendGrid()
@@ -236,86 +179,4 @@ public class SendGridEmailSenderTests
             Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task SendEmailWithTemplate_WithMetadata_RendersVariablesCorrectly()
-    {
-        var template = new EmailTemplate(
-            "welcome-template",
-            "Welcome {{name}}!",
-            "<html>Hi {{name}}, your email is {{email}}</html>",
-            "Hi {{name}}, your email is {{email}}",
-            "noreply@example.com");
-        _templateRepository.FirstOrDefaultAsync(Arg.Any<EmailTemplateByNameSpec>(), Arg.Any<CancellationToken>())
-            .Returns(template);
-        _sendGridClient.SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
-            .Returns(CreateSuccessResponse());
-        var email = new EmailWithTemplate
-        {
-            To = "user@example.com",
-            TemplateId = "welcome-template",
-            Metadata = new Dictionary<string, object>
-            {
-                ["name"] = "Alice",
-                ["email"] = "alice@example.com"
-            }
-        };
-
-        await _sut.SendEmailAsync(email, CancellationToken.None);
-
-        await _sendGridClient.Received(1).SendEmailAsync(
-            Arg.Is<SendGridMessage>(msg =>
-                msg.Personalizations[0].Tos[0].Email == "user@example.com" &&
-                msg.From.Email == "noreply@example.com"),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task SendEmailWithTemplate_WithSubjectOverride_UsesProvidedSubject()
-    {
-        _sendGridClient.SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
-            .Returns(CreateSuccessResponse());
-        var template = CreateTestTemplate();
-        _templateRepository.FirstOrDefaultAsync(Arg.Any<EmailTemplateByNameSpec>(), Arg.Any<CancellationToken>())
-            .Returns(template);
-        var email = new EmailWithTemplate
-        {
-            To = "recipient@example.com",
-            From = "sender@example.com",
-            Subject = "Override Subject",
-            TemplateId = "test-template",
-            Metadata = new Dictionary<string, object> { ["name"] = "John" }
-        };
-
-        await _sut.SendEmailAsync(email, CancellationToken.None);
-
-        await _sendGridClient.Received(1).SendEmailAsync(
-            Arg.Is<SendGridMessage>(msg =>
-                msg.Personalizations[0].Subject == "Override Subject"),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task SendEmailWithTemplate_WithoutFromOverride_UsesTemplateFromAddress()
-    {
-        var template = CreateTestTemplate();
-        _templateRepository.FirstOrDefaultAsync(Arg.Any<EmailTemplateByNameSpec>(), Arg.Any<CancellationToken>())
-            .Returns(template);
-        _sendGridClient.SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
-            .Returns(CreateSuccessResponse());
-        var email = new EmailWithTemplate
-        {
-            To = "recipient@example.com",
-            From = null,
-            Subject = "Test Subject",
-            TemplateId = "test-template",
-            Metadata = new Dictionary<string, object> { ["name"] = "John" }
-        };
-
-        await _sut.SendEmailAsync(email, CancellationToken.None);
-
-        await _sendGridClient.Received(1).SendEmailAsync(
-            Arg.Is<SendGridMessage>(msg =>
-                msg.From.Email == "template-from@example.com"),
-            Arg.Any<CancellationToken>());
-    }
 }

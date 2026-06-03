@@ -48,7 +48,7 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Add specific Email sender implementation, which will also register configuration for the AppSettings and configure the DI container
     /// </summary>
-    /// <typeparam name="TEmailSender">Must implement <c>IEmailSender</c> & <c>IHasInstallLogic</c></typeparam>
+    /// <typeparam name="TEmailSender">Must implement <c>IEmailSender</c> and <c>IHasInstallLogic</c></typeparam>
     /// <typeparam name="TSettings">The POCO class that will be used for storing the configuration</typeparam>
     /// <param name="services"></param>
     /// <returns>Services ready to follow the AddServices pattern</returns>
@@ -69,6 +69,7 @@ public static class ServiceCollectionExtensions
             initializer?.Invoke(services);
         }
 
+        services.TryAddScoped<EmailTemplateRenderer>();
         services.AddScoped<IEmailSender, TEmailSender>();
 
         return services;
