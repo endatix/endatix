@@ -52,6 +52,12 @@ public class SendGridEmailSender(
     };
 
     /// <inheritdoc />
+    public string ProviderName => "SendGrid";
+
+    /// <inheritdoc />
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(_settings.ApiKey);
+
+    /// <inheritdoc />
     public async Task SendEmailAsync(EmailWithBody email, CancellationToken cancellationToken = default)
     {
         Guard.Against.Null(email);

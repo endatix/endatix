@@ -47,6 +47,12 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         // SmtpClient is created per email for thread safety
     };
 
+    /// <inheritdoc />
+    public string ProviderName => "SMTP";
+
+    /// <inheritdoc />
+    public bool IsConfigured => !string.Equals(_settings.Host, "localhost", StringComparison.OrdinalIgnoreCase);
+
     public async Task SendEmailAsync(EmailWithBody email, CancellationToken cancellationToken = default)
     {
         Guard.Against.Null(email);
