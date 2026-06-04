@@ -111,6 +111,20 @@ public sealed class ClaimsPrincipalExtensionsTests
     }
 
     [Fact]
+    public void GetTenantId_ReturnsRawTenantClaim_WhenPrincipalIsNotHydrated()
+    {
+        // Arrange
+        var identity = new ClaimsIdentity(
+        [
+            new Claim(ClaimNames.TenantId, "42")
+        ], "test");
+        var principal = new ClaimsPrincipal(identity);
+
+        // Act and Assert
+        principal.GetTenantId().Should().Be(42);
+    }
+
+    [Fact]
     public void GetIssuer_ReturnsIssClaim()
     {
         // Arrange

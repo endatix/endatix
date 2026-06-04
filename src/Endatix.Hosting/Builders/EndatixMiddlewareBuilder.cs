@@ -63,12 +63,17 @@ public class EndatixMiddlewareBuilder
 
         if (options.UseSecurity)
         {
-            UseSecurity();
+            UseAuthentication();
         }
 
         if (options.UseMultitenancy)
         {
             UseMultitenancy();
+        }
+
+        if (options.UseSecurity)
+        {
+            UseAuthorization();
         }
 
         if (options.UseHsts)
@@ -115,7 +120,21 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseSecurity()
     {
         _logger?.LogInformation("Adding security middleware");
+        UseAuthentication();
+        UseAuthorization();
+        return this;
+    }
+
+    private EndatixMiddlewareBuilder UseAuthentication()
+    {
+        _logger?.LogInformation("Adding authentication middleware");
         App.UseAuthentication();
+        return this;
+    }
+
+    private EndatixMiddlewareBuilder UseAuthorization()
+    {
+        _logger?.LogInformation("Adding authorization middleware");
         App.UseAuthorization();
         return this;
     }

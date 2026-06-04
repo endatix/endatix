@@ -46,4 +46,36 @@ public class DefaultAuthorizationDataProviderTenantScopeTests
         // Assert
         includedRoles.Should().BeEquivalentTo([currentTenantRole, globalSystemRole]);
     }
+
+    [Fact]
+    public void IsUserInAuthorizationTenantScope_ReturnsTrue_WhenUserBelongsToRequestedTenant()
+    {
+        // Arrange
+        AppUser user = new()
+        {
+            TenantId = 10
+        };
+
+        // Act
+        var isInScope = DefaultAuthorizationDataProvider.IsUserInAuthorizationTenantScope(user, 10);
+
+        // Assert
+        isInScope.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsUserInAuthorizationTenantScope_ReturnsFalse_WhenUserDoesNotBelongToRequestedTenant()
+    {
+        // Arrange
+        AppUser user = new()
+        {
+            TenantId = 10
+        };
+
+        // Act
+        var isInScope = DefaultAuthorizationDataProvider.IsUserInAuthorizationTenantScope(user, 20);
+
+        // Assert
+        isInScope.Should().BeFalse();
+    }
 }

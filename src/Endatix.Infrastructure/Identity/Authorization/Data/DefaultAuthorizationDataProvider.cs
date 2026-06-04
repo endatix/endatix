@@ -13,21 +13,18 @@ namespace Endatix.Infrastructure.Identity.Authorization.Data;
 /// </summary>
 /// <param name="userManager">The user manager.</param>
 /// <param name="identityDbContext">The identity database context.</param>
-/// <param name="tenantContext">The tenant context.</param>
 /// <param name="dateTimeProvider">The date time provider.</param>
 /// <param name="logger">The logger.</param>
 internal sealed class DefaultAuthorizationDataProvider(
     UserManager<AppUser> userManager,
     AppIdentityDbContext identityDbContext,
-    ITenantContext tenantContext,
     IDateTimeProvider dateTimeProvider,
     ILogger<DefaultAuthorizationDataProvider> logger) : IAuthorizationDataProvider
 {
     /// <inheritdoc />
-    public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(long userId, CancellationToken cancellationToken)
+    public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(long userId, long tenantId, CancellationToken cancellationToken)
     {
         var utcNow = dateTimeProvider.Now.UtcDateTime;
-        var tenantId = tenantContext.TenantId;
 
         try
         {
@@ -44,6 +41,16 @@ internal sealed class DefaultAuthorizationDataProvider(
                 return Result.Success(anonymousData);
             }
 
+            if (!IsUserInAuthorizationTenantScope(user, tenantId))
+            {
+                logger.LogWarning(
+                    "Blocked authorization data request for user {UserId} with mismatched tenant scope {TenantId}. User belongs to tenant {UserTenantId}.",
+                    userId,
+                    tenantId,
+                    user.TenantId);
+                return Result.Forbidden("User does not belong to the requested tenant.");
+            }
+
             var userRoleIds = identityDbContext.UserRoles
                 .Where(ur => ur.UserId == userId)
                 .Select(ur => ur.RoleId);
@@ -53,8 +60,7 @@ internal sealed class DefaultAuthorizationDataProvider(
                     r.IsActive &&
                     userRoleIds.Contains(r.Id))
                 .Where(IsRoleInAuthorizationScope(tenantId))
-                .Include(r => r.RolePermissions.Where(rp => rp.IsActive && (rp.
-                ExpiresAt == null || rp.ExpiresAt > utcNow)))
+                .Include(r => r.RolePermissions.Where(rp => rp.IsActive && (rp.ExpiresAt == null || rp.ExpiresAt > utcNow)))
                 .ThenInclude(rp => rp.Permission)
                 .AsSplitQuery()
                 .AsNoTracking()
@@ -63,11 +69,10 @@ internal sealed class DefaultAuthorizationDataProvider(
 
             var assignedRoles = userRoles
                 .Select(r => r.Name!)
-                .ToArray() ?? [];
+                .ToArray();
 
             var assignedPermissions = userRoles
-                .SelectMany(r => r.RolePermissions.Select(rp => rp.Permission.
-                Name))
+                .SelectMany(r => r.RolePermissions.Select(rp => rp.Permission.Name))
                 .Distinct()
                 .ToArray();
 
@@ -90,6 +95,11 @@ internal sealed class DefaultAuthorizationDataProvider(
     internal static Expression<Func<AppRole, bool>> IsRoleInAuthorizationScope(long tenantId)
     {
         return role => role.TenantId == tenantId || (role.IsSystemDefined && role.TenantId <= 0);
+    }
+
+    internal static bool IsUserInAuthorizationTenantScope(AppUser user, long tenantId)
+    {
+        return user.TenantId == tenantId;
     }
 }
 
