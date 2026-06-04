@@ -120,7 +120,7 @@ public sealed class AppUserService(
         return Result.Success(paged);
     }
 
-    private IQueryable<AppUser> ApplyStatusFilter(IQueryable<AppUser> query, string? status)
+    private static IQueryable<AppUser> ApplyStatusFilter(IQueryable<AppUser> query, string? status)
     {
         return status switch
         {
