@@ -52,7 +52,15 @@ public sealed class InviteUser(IMediator mediator, IRoleManagementService roleMa
         if (result.IsSuccess && result.Value is not null)
         {
             var rolesResult = await roleManagementService.GetUserRolesAsync(result.Value.Id, ct);
-            roles = rolesResult.IsSuccess ? rolesResult.Value!.ToList() : [];
+
+            if (!rolesResult.IsSuccess)
+            {
+                return TypedResults.Problem(
+                    detail: "User was invited, but assigned roles could not be loaded.",
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
+
+            roles = [.. rolesResult.Value];
         }
 
         return TypedResultsBuilder
