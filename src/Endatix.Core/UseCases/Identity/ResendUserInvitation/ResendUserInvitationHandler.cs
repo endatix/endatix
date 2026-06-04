@@ -60,7 +60,7 @@ public sealed class ResendUserInvitationHandler(
             await emailSender.SendEmailAsync(emailModel, cancellationToken);
             logger.LogInformation(
                 "Invitation email resent successfully to {Email}",
-                SensitiveValue.Email(userResult.Value.Email));
+                RedactEmail(userResult.Value.Email));
 
             return Result.Success();
         }
@@ -69,9 +69,14 @@ public sealed class ResendUserInvitationHandler(
             logger.LogError(
                 ex,
                 "Failed to resend invitation email to {Email}",
-                SensitiveValue.Email(userResult.Value.Email));
+                RedactEmail(userResult.Value.Email));
 
             return Result.Error("Failed to resend invitation email.");
         }
+    }
+
+    private static string RedactEmail(string email)
+    {
+        return PiiRedactor.Redact(email, SensitivityType.Email);
     }
 }

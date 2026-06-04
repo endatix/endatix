@@ -140,7 +140,7 @@ public sealed class AppUserRegistrationService(
         }
         else
         {
-            logger.LogInformation("Skipping email verification for {Email} - email is already confirmed", SensitiveValue.Email(normalizedEmail));
+            logger.LogInformation("Skipping email verification for {Email} - email is already confirmed", RedactEmail(normalizedEmail));
         }
 
         // If token creation or email sending fails, we should still return success but log the error
@@ -212,7 +212,7 @@ public sealed class AppUserRegistrationService(
         var rawToken = tokenResult.Value?.RawToken;
         if (string.IsNullOrWhiteSpace(rawToken))
         {
-            logger.LogError("Failed to send account email to {Email} during registration because the verification token is missing.", SensitiveValue.Email(email));
+            logger.LogError("Failed to send account email to {Email} during registration because the verification token is missing.", RedactEmail(email));
             return;
         }
 
@@ -226,11 +226,11 @@ public sealed class AppUserRegistrationService(
 
             logger.LogInformation("{EmailKind} email sent successfully to {Email} during registration",
                 sendInvitationEmail ? "Invitation" : "Verification",
-                SensitiveValue.Email(email));
+                RedactEmail(email));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send account email to {Email} during registration", SensitiveValue.Email(email));
+            logger.LogError(ex, "Failed to send account email to {Email} during registration", RedactEmail(email));
         }
     }
 
@@ -305,6 +305,11 @@ public sealed class AppUserRegistrationService(
             : tokenResult.Errors;
 
         logger.LogError("Failed to create verification token for user: {Email} (UserId: {UserId}). Errors: {Errors}",
-            SensitiveValue.Email(email), userId, string.Join(", ", errors));
+            RedactEmail(email), userId, string.Join(", ", errors));
+    }
+
+    private static string RedactEmail(string email)
+    {
+        return PiiRedactor.Redact(email, SensitivityType.Email);
     }
 }
