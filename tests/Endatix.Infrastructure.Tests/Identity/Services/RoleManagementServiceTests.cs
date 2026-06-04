@@ -363,6 +363,38 @@ public class RoleManagementServiceTests
 
     #endregion
 
+    #region ReplaceRolesForUserAsync Tests
+
+    [Fact]
+    public async Task ReplaceRolesForUserAsync_PlatformAdminUserByNonPlatformAdmin_ReturnsForbidden()
+    {
+        // Arrange
+        const long tenantId = 10;
+        const long userId = 1;
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var user = new AppUser { Id = userId, TenantId = tenantId };
+
+        _tenantContext.TenantId.Returns(tenantId);
+        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
+        _userManager.GetRolesAsync(user).Returns([SystemRole.PlatformAdmin.Name]);
+        _currentUserAuthorizationService
+            .IsPlatformAdminAsync(cancellationToken)
+            .Returns(Result<bool>.Success(false));
+
+        // Act
+        var result = await _service.ReplaceRolesForUserAsync(
+            userId,
+            [SystemRole.Admin.Name],
+            cancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        await _currentUserAuthorizationService.Received(1).IsPlatformAdminAsync(cancellationToken);
+        AssertPlatformAdminMutationWarningLogged();
+    }
+
+    #endregion
+
     #region GetUserRolesAsync Tests
 
     [Fact]

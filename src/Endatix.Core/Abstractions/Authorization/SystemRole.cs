@@ -103,9 +103,16 @@ public sealed record SystemRole
         .ToArray();
 
     /// <summary>
+    /// Checks if the given role name is the platform administrator role.
+    /// </summary>
+    /// <param name="roleName">The name of the role to check.</param>
+    /// <returns>True if the role name matches the platform administrator role, false otherwise.</returns>
+    public static bool IsPlatformAdminRoleName(string roleName) => string.Equals(roleName, PlatformAdmin.Name, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Checks if the given role name is a platform-scoped role.
     /// </summary>
     /// <param name="roleName">The name of the role to check.</param>
     /// <returns>True if the role is a platform-scoped role, false otherwise.</returns>
-    public static bool IsPlatformScopedRole(string roleName) => string.Equals(roleName, PlatformAdmin.Name, StringComparison.OrdinalIgnoreCase);
+    public static bool IsPlatformScopedRole(string roleName) => IsPlatformAdminRoleName(roleName);
 }

@@ -15,7 +15,8 @@ namespace Endatix.Infrastructure.Identity.Services;
 /// </summary>
 public sealed class RoleManagementService : IRoleManagementService
 {
-    private const string PlatformScopedRoleMutationForbiddenMessage = "Only platform administrators can assign or remove the PlatformAdmin role.";
+    private const string PlatformAdminRoleMutationForbiddenMessage = "Only platform administrators can assign or remove the PlatformAdmin role.";
+    private const string PlatformAdminUserMutationForbiddenMessage = "Only platform administrators can modify users with the PlatformAdmin role.";
 
     private readonly UserManager<AppUser> _userManager;
     private readonly AppIdentityDbContext _identityDbContext;
@@ -55,10 +56,10 @@ public sealed class RoleManagementService : IRoleManagementService
         }
 
         var trimmedRoleName = roleName.Trim();
-        var platformScopedRoleGuard = await EnsurePlatformScopedRoleMutationAllowedAsync(trimmedRoleName, cancellationToken);
-        if (!platformScopedRoleGuard.IsSuccess)
+        var platformAdminRoleGuard = await EnsureCurrentUserCanMutatePlatformAdminRoleAsync(trimmedRoleName, cancellationToken);
+        if (!platformAdminRoleGuard.IsSuccess)
         {
-            return platformScopedRoleGuard;
+            return platformAdminRoleGuard;
         }
 
         var user = await FindUserByIdAsync(userId);
@@ -97,10 +98,10 @@ public sealed class RoleManagementService : IRoleManagementService
         }
 
         var trimmedRoleName = roleName.Trim();
-        var platformScopedRoleGuard = await EnsurePlatformScopedRoleMutationAllowedAsync(trimmedRoleName, cancellationToken);
-        if (!platformScopedRoleGuard.IsSuccess)
+        var platformAdminRoleGuard = await EnsureCurrentUserCanMutatePlatformAdminRoleAsync(trimmedRoleName, cancellationToken);
+        if (!platformAdminRoleGuard.IsSuccess)
         {
-            return platformScopedRoleGuard;
+            return platformAdminRoleGuard;
         }
 
         var user = await FindUserByIdAsync(userId);
@@ -126,6 +127,96 @@ public sealed class RoleManagementService : IRoleManagementService
             return Result.Error(new ErrorList(errorMessages));
         }
 
+        return Result.Success();
+    }
+
+    /// <inheritdoc/>
+    public async Task<Result> ReplaceRolesForUserAsync(long userId, IReadOnlyList<string> roleNames, CancellationToken cancellationToken = default)
+    {
+        var userIdGuard = ValidateUserId(userId);
+        if (!userIdGuard.IsSuccess)
+        {
+            return userIdGuard;
+        }
+
+        var roleNamesGuard = ValidateReplacementRoleNames(roleNames);
+        if (!roleNamesGuard.IsSuccess)
+        {
+            return roleNamesGuard;
+        }
+
+        var tenantId = _tenantContext.TenantId;
+        var user = await FindUserByIdAsync(userId);
+        if (user is null || user.TenantId != tenantId)
+        {
+            return UserNotFound(userId);
+        }
+
+        var platformAdminUserGuard = await EnsureCurrentUserCanModifyPlatformAdminUserAsync(user, cancellationToken);
+        if (!platformAdminUserGuard.IsSuccess)
+        {
+            return platformAdminUserGuard;
+        }
+
+        var requestedRoleNames = GetDistinctRoleNames(roleNames);
+        var requestedNormalizedRoleNames = requestedRoleNames
+            .Select(NormalizeRoleName)
+            .ToList();
+
+        var requestedEditableRoles = requestedNormalizedRoleNames.Count == 0
+            ? new List<AppRole>()
+            : await _identityDbContext.Roles
+                .Where(role =>
+                    role.IsActive &&
+                    requestedNormalizedRoleNames.Contains(role.NormalizedName!) &&
+                    (role.TenantId == tenantId ||
+                     (role.IsSystemDefined && role.TenantId <= 0 && role.Name != SystemRole.PlatformAdmin.Name)))
+                .ToListAsync(cancellationToken);
+
+        var rolesGuard = EnsureAllRolesExist(requestedRoleNames, requestedEditableRoles);
+        if (!rolesGuard.IsSuccess)
+        {
+            return rolesGuard;
+        }
+
+        var currentEditableRoleAssignments = await _identityDbContext.UserRoles
+            .Join(
+                _identityDbContext.Roles,
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (userRole, role) => new { UserRole = userRole, Role = role })
+            .Where(item =>
+                item.UserRole.UserId == userId &&
+                (item.Role.TenantId == tenantId ||
+                 (item.Role.IsSystemDefined && item.Role.TenantId <= 0 && item.Role.Name != SystemRole.PlatformAdmin.Name)))
+            .ToListAsync(cancellationToken);
+
+        var requestedEditableRoleIds = requestedEditableRoles
+            .Select(role => role.Id)
+            .ToHashSet();
+        var currentEditableRoleIds = currentEditableRoleAssignments
+            .Select(item => item.UserRole.RoleId)
+            .ToHashSet();
+
+        var staleEditableRoleAssignments = currentEditableRoleAssignments
+            .Where(item => !requestedEditableRoleIds.Contains(item.UserRole.RoleId))
+            .Select(item => item.UserRole)
+            .ToList();
+        var missingEditableRoleIds = requestedEditableRoleIds
+            .Where(roleId => !currentEditableRoleIds.Contains(roleId))
+            .ToList();
+
+        _identityDbContext.UserRoles.RemoveRange(staleEditableRoleAssignments);
+        foreach (var roleId in missingEditableRoleIds)
+        {
+            _identityDbContext.UserRoles.Add(new IdentityUserRole<long>
+            {
+                UserId = userId,
+                RoleId = roleId
+            });
+        }
+
+        await _identityDbContext.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 
@@ -490,9 +581,9 @@ public sealed class RoleManagementService : IRoleManagementService
         return Result<string>.Success(role.Id.ToString());
     }
 
-    private async Task<Result> EnsurePlatformScopedRoleMutationAllowedAsync(string roleName, CancellationToken cancellationToken)
+    private async Task<Result> EnsureCurrentUserCanMutatePlatformAdminRoleAsync(string roleName, CancellationToken cancellationToken)
     {
-        if (!SystemRole.IsPlatformScopedRole(roleName))
+        if (!SystemRole.IsPlatformAdminRoleName(roleName))
         {
             return Result.Success();
         }
@@ -502,14 +593,37 @@ public sealed class RoleManagementService : IRoleManagementService
             return Result.Success();
         }
 
-        var isPlatformAdminResult = await _currentUserAuthorizationService.IsPlatformAdminAsync(cancellationToken);
-        if (isPlatformAdminResult.IsSuccess && isPlatformAdminResult.Value)
+        if (await CurrentUserIsPlatformAdminAsync(cancellationToken))
         {
             return Result.Success();
         }
 
         _logger.LogWarning("Blocked PlatformAdmin role mutation by a non-platform administrator.");
-        return Result.Forbidden(PlatformScopedRoleMutationForbiddenMessage);
+        return Result.Forbidden(PlatformAdminRoleMutationForbiddenMessage);
+    }
+
+    private async Task<Result> EnsureCurrentUserCanModifyPlatformAdminUserAsync(AppUser user, CancellationToken cancellationToken)
+    {
+        var targetUserRoles = await _userManager.GetRolesAsync(user);
+        if (!targetUserRoles.Any(SystemRole.IsPlatformAdminRoleName))
+        {
+            return Result.Success();
+        }
+
+        if (await CurrentUserIsPlatformAdminAsync(cancellationToken))
+        {
+            return Result.Success();
+        }
+
+        _logger.LogWarning("Blocked PlatformAdmin role mutation: non-platform administrator attempted to replace roles for a PlatformAdmin user.");
+
+        return Result.Forbidden(PlatformAdminUserMutationForbiddenMessage);
+    }
+
+    private async Task<bool> CurrentUserIsPlatformAdminAsync(CancellationToken cancellationToken)
+    {
+        var isPlatformAdminResult = await _currentUserAuthorizationService.IsPlatformAdminAsync(cancellationToken);
+        return isPlatformAdminResult.IsSuccess && isPlatformAdminResult.Value;
     }
 
     private Task<AppUser?> FindUserByIdAsync(long userId)
@@ -556,6 +670,43 @@ public sealed class RoleManagementService : IRoleManagementService
         });
     }
 
+    private static Result ValidateReplacementRoleNames(IReadOnlyList<string> roleNames)
+    {
+        if (roleNames is null)
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = nameof(roleNames),
+                ErrorMessage = "Role names are required."
+            });
+        }
+
+        if (roleNames.Any(string.IsNullOrWhiteSpace))
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = nameof(roleNames),
+                ErrorMessage = "Role names cannot be empty."
+            });
+        }
+
+        var platformAdminRoles = roleNames
+            .Where(SystemRole.IsPlatformAdminRoleName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (platformAdminRoles.Count == 0)
+        {
+            return Result.Success();
+        }
+
+        return Result.Invalid(new ValidationError
+        {
+            Identifier = nameof(roleNames),
+            ErrorMessage = $"The following roles cannot be assigned from tenant user management: {string.Join(", ", platformAdminRoles)}"
+        });
+    }
+
     private static Result ValidatePermissionNames(List<string> permissionNames, bool allowEmpty)
     {
         if (permissionNames is null)
@@ -596,6 +747,14 @@ public sealed class RoleManagementService : IRoleManagementService
             .ToList();
     }
 
+    private static List<string> GetDistinctRoleNames(IReadOnlyList<string> roleNames)
+    {
+        return roleNames
+            .Select(roleName => roleName.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     private static Result EnsureAllPermissionsExist(IReadOnlyCollection<string> requestedPermissionNames, IReadOnlyCollection<Permission> permissions)
     {
         var foundPermissionNames = permissions
@@ -614,6 +773,29 @@ public sealed class RoleManagementService : IRoleManagementService
         {
             Identifier = "permissionNames",
             ErrorMessage = $"The following permissions do not exist: {string.Join(", ", missingPermissionNames)}"
+        });
+    }
+
+    private static Result EnsureAllRolesExist(IReadOnlyCollection<string> requestedRoleNames, IReadOnlyCollection<AppRole> roles)
+    {
+        var foundRoleNames = roles
+            .Select(role => role.Name)
+            .Where(roleName => !string.IsNullOrWhiteSpace(roleName))
+            .Select(roleName => roleName!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missingRoleNames = requestedRoleNames
+            .Where(roleName => !foundRoleNames.Contains(roleName))
+            .ToList();
+
+        if (missingRoleNames.Count == 0)
+        {
+            return Result.Success();
+        }
+
+        return Result.Invalid(new ValidationError
+        {
+            Identifier = "roleNames",
+            ErrorMessage = $"The following roles do not exist: {string.Join(", ", missingRoleNames)}"
         });
     }
 

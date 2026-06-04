@@ -27,6 +27,15 @@ public interface IRoleManagementService
     Task<Result> RemoveRoleFromUserAsync(long userId, string roleName, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Replaces a user's editable tenant roles with the provided role set.
+    /// </summary>
+    /// <param name="userId">The ID of the user.</param>
+    /// <param name="roleNames">The full role set to assign.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A Result indicating success or failure.</returns>
+    Task<Result> ReplaceRolesForUserAsync(long userId, IReadOnlyList<string> roleNames, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets all roles assigned to a user.
     /// </summary>
     /// <param name="userId">The ID of the user.</param>

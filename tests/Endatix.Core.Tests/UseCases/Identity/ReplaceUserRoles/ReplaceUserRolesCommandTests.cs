@@ -1,20 +1,20 @@
-using Endatix.Core.UseCases.Identity.AssignRole;
+using Endatix.Core.UseCases.Identity.ReplaceUserRoles;
 using static Endatix.Core.Tests.ErrorMessages;
 using static Endatix.Core.Tests.ErrorType;
 
-namespace Endatix.Core.Tests.UseCases.Identity.AssignRole;
+namespace Endatix.Core.Tests.UseCases.Identity.ReplaceUserRoles;
 
-public class AssignRoleCommandTests
+public class ReplaceUserRolesCommandTests
 {
     [Fact]
     public void Constructor_NegativeOrZeroUserId_ThrowsArgumentException()
     {
         // Arrange
         var userId = 0L;
-        var roleName = "Admin";
+        var roleNames = new List<string> { "Admin" };
 
         // Act
-        Action act = () => new AssignRoleCommand(userId, roleName);
+        Action act = () => new ReplaceUserRolesCommand(userId, roleNames);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -22,18 +22,16 @@ public class AssignRoleCommandTests
     }
 
     [Fact]
-    public void Constructor_NullOrWhiteSpaceRoleName_ThrowsArgumentException()
+    public void Constructor_NullRoleNames_ThrowsArgumentException()
     {
         // Arrange
         var userId = 1L;
-        var roleName = "";
 
         // Act
-        Action act = () => new AssignRoleCommand(userId, roleName);
+        Action act = () => new ReplaceUserRolesCommand(userId, null!);
 
         // Assert
-        act.Should().Throw<ArgumentException>()
-            .WithMessage(GetErrorMessage(nameof(roleName), Empty));
+        act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
@@ -41,13 +39,13 @@ public class AssignRoleCommandTests
     {
         // Arrange
         var userId = 1L;
-        var roleName = "Admin";
+        var roleNames = new List<string> { "Admin", "Creator" };
 
         // Act
-        var command = new AssignRoleCommand(userId, roleName);
+        var command = new ReplaceUserRolesCommand(userId, roleNames);
 
         // Assert
         command.UserId.Should().Be(userId);
-        command.RoleName.Should().Be(roleName);
+        command.RoleNames.Should().BeEquivalentTo(roleNames);
     }
 }

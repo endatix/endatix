@@ -84,16 +84,16 @@ public sealed class InviteUserHandler(
         IReadOnlyList<string> roleNames,
         CancellationToken cancellationToken)
     {
-        var platformScopedRoles = roleNames
-            .Where(SystemRole.IsPlatformScopedRole)
+        var platformAdminRoles = roleNames
+            .Where(SystemRole.IsPlatformAdminRoleName)
             .ToList();
 
-        if (platformScopedRoles.Count > 0)
+        if (platformAdminRoles.Count > 0)
         {
             return Result.Invalid(new ValidationError
             {
                 Identifier = nameof(InviteUserCommand.RoleNames),
-                ErrorMessage = $"The following roles cannot be assigned from tenant user invitations: {string.Join(", ", platformScopedRoles)}"
+                ErrorMessage = $"The following roles cannot be assigned from tenant user invitations: {string.Join(", ", platformAdminRoles)}"
             });
         }
 
