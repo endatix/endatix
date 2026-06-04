@@ -1,5 +1,4 @@
 using Endatix.Core.Abstractions;
-using Endatix.Core.Entities.Identity;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
@@ -60,7 +59,7 @@ public sealed class ResendUserInvitationHandler(
             await emailSender.SendEmailAsync(emailModel, cancellationToken);
             logger.LogInformation(
                 "Invitation email resent successfully to {Email}",
-                RedactEmail(userResult.Value.Email));
+                PiiRedactor.RedactEmail());
 
             return Result.Success();
         }
@@ -69,14 +68,9 @@ public sealed class ResendUserInvitationHandler(
             logger.LogError(
                 ex,
                 "Failed to resend invitation email to {Email}",
-                RedactEmail(userResult.Value.Email));
+                PiiRedactor.RedactEmail());
 
             return Result.Error("Failed to resend invitation email.");
         }
-    }
-
-    private static string RedactEmail(string email)
-    {
-        return PiiRedactor.Redact(email, SensitivityType.Email);
     }
 }
