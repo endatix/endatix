@@ -53,7 +53,7 @@ public class SendVerificationEmailHandler(
             {
                 var emailModel = emailTemplateService.CreateVerificationEmail(
                     user.Email,
-                    tokenResult.Value!.Token);
+                    tokenResult.Value!.RawToken!);
 
                 await emailSender.SendEmailAsync(emailModel, cancellationToken);
 

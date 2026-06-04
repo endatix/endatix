@@ -10,8 +10,10 @@ public class EmailVerificationTokenByTokenSpec : Specification<EmailVerification
 {
     public EmailVerificationTokenByTokenSpec(string token)
     {
+        var tokenHash = EmailVerificationToken.HashToken(token);
+
         Query
             .AsNoTracking()
-            .Where(t => t.Token == token);
+            .Where(t => t.Token == tokenHash);
     }
 } 

@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
@@ -26,6 +27,7 @@ internal sealed class DefaultAuthorizationDataProvider(
     public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(long userId, CancellationToken cancellationToken)
     {
         var utcNow = dateTimeProvider.Now.UtcDateTime;
+        var tenantId = tenantContext.TenantId;
 
         try
         {
@@ -34,7 +36,7 @@ internal sealed class DefaultAuthorizationDataProvider(
             {
                 var anonymousData = AuthorizationData.ForAuthenticatedUser(
                     userId: userId.ToString(),
-                    tenantId: tenantContext.TenantId,
+                    tenantId: tenantId,
                     roles: [],
                     permissions: []
                     );
@@ -47,7 +49,10 @@ internal sealed class DefaultAuthorizationDataProvider(
                 .Select(ur => ur.RoleId);
 
             var userRoles = await identityDbContext.Roles
-                .Where(r => r.IsActive && userRoleIds.Contains(r.Id))
+                .Where(r =>
+                    r.IsActive &&
+                    userRoleIds.Contains(r.Id))
+                .Where(IsRoleInAuthorizationScope(tenantId))
                 .Include(r => r.RolePermissions.Where(rp => rp.IsActive && (rp.
                 ExpiresAt == null || rp.ExpiresAt > utcNow)))
                 .ThenInclude(rp => rp.Permission)
@@ -68,7 +73,7 @@ internal sealed class DefaultAuthorizationDataProvider(
 
             var authorizationData = AuthorizationData.ForAuthenticatedUser(
                     userId: userId.ToString(),
-                    tenantId: user.TenantId,
+                    tenantId: tenantId,
                     roles: assignedRoles,
                     permissions: assignedPermissions
             );
@@ -80,6 +85,11 @@ internal sealed class DefaultAuthorizationDataProvider(
             logger.LogError(ex, "Error getting user permissions info for user {UserId}", userId);
             return Result.Error("Failed to get user permissions info from the identity store");
         }
+    }
+
+    internal static Expression<Func<AppRole, bool>> IsRoleInAuthorizationScope(long tenantId)
+    {
+        return role => role.TenantId == tenantId || (role.IsSystemDefined && role.TenantId <= 0);
     }
 }
 

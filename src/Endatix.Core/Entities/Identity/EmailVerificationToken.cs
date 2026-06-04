@@ -1,5 +1,7 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Domain;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Endatix.Core.Entities.Identity;
 
@@ -17,7 +19,8 @@ public class EmailVerificationToken : BaseEntity, IAggregateRoot
         Guard.Against.InvalidInput(expiresAt, nameof(expiresAt), dt => dt > DateTime.UtcNow);
 
         UserId = userId;
-        Token = token;
+        Token = HashToken(token);
+        RawToken = token;
         ExpiresAt = expiresAt;
     }
 
@@ -27,9 +30,14 @@ public class EmailVerificationToken : BaseEntity, IAggregateRoot
     public long UserId { get; private set; }
 
     /// <summary>
-    /// The verification token value.
+    /// The verification token hash.
     /// </summary>
     public string Token { get; private set; } = null!;
+
+    /// <summary>
+    /// The raw token value. This is available only immediately after token creation and is never persisted.
+    /// </summary>
+    public string? RawToken { get; private set; }
 
     /// <summary>
     /// When the token expires.
@@ -53,4 +61,13 @@ public class EmailVerificationToken : BaseEntity, IAggregateRoot
     {
         IsUsed = true;
     }
-} 
+
+    public static string HashToken(string token)
+    {
+        Guard.Against.NullOrWhiteSpace(token, nameof(token));
+
+        byte[] tokenBytes = Encoding.UTF8.GetBytes(token);
+        byte[] hashBytes = SHA256.HashData(tokenBytes);
+        return Convert.ToHexString(hashBytes);
+    }
+}

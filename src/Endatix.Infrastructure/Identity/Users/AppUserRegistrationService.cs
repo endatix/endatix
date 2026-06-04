@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Features.Email;
@@ -22,6 +23,11 @@ public sealed class AppUserRegistrationService(
     private const string EmailAlreadyRegisteredMessage = "The email is already registered.";
     private const string SuspiciousEmailMessage = "The email is from a suspicious domain.";
     private const string UserAlreadyBelongsToTenantMessage = "The user already belongs to this tenant.";
+    private const string UppercaseChars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private const string LowercaseChars = "abcdefghijkmnopqrstuvwxyz";
+    private const string DigitChars = "23456789";
+    private const string SpecialChars = "!@$?_#*-+";
+    private const int TemporaryInvitePasswordLength = 24;
 
     // This is a short list of the top domains known to be used most frequently in disposable email registrations.
     // It is a good start but for better results more complete lists should be used, like from e.g. https://github.com/disposable-email-domains/disposable-email-domains
@@ -69,11 +75,11 @@ public sealed class AppUserRegistrationService(
     }
 
     /// <inheritdoc />
-    public async Task<Result<User>> RegisterInvitedUserAsync(string email, string password, long tenantId, CancellationToken cancellationToken)
+    public async Task<Result<User>> RegisterInvitedUserAsync(string email, long tenantId, CancellationToken cancellationToken)
     {
         return await RegisterUserAsync(
             email,
-            password,
+            GenerateTemporaryInvitePassword(),
             tenantId,
             isEmailConfirmed: false,
             sendInvitationEmail: true,
@@ -257,6 +263,39 @@ public sealed class AppUserRegistrationService(
     private static Result SuspiciousEmail()
     {
         return Result.Invalid(new ValidationError(SuspiciousEmailMessage));
+    }
+
+    private static string GenerateTemporaryInvitePassword()
+    {
+        var allChars = (UppercaseChars + LowercaseChars + DigitChars + SpecialChars).ToCharArray();
+        var password = new char[TemporaryInvitePasswordLength];
+
+        password[0] = GetRandomChar(UppercaseChars);
+        password[1] = GetRandomChar(LowercaseChars);
+        password[2] = GetRandomChar(DigitChars);
+        password[3] = GetRandomChar(SpecialChars);
+
+        for (var i = 4; i < password.Length; i++)
+        {
+            password[i] = allChars[RandomNumberGenerator.GetInt32(allChars.Length)];
+        }
+
+        Shuffle(password);
+        return new string(password);
+    }
+
+    private static char GetRandomChar(string charset)
+    {
+        return charset[RandomNumberGenerator.GetInt32(charset.Length)];
+    }
+
+    private static void Shuffle(Span<char> chars)
+    {
+        for (var i = chars.Length - 1; i > 0; i--)
+        {
+            var swapIndex = RandomNumberGenerator.GetInt32(i + 1);
+            (chars[i], chars[swapIndex]) = (chars[swapIndex], chars[i]);
+        }
     }
 
     private void LogVerificationTokenFailure(long userId, string email, Result<EmailVerificationToken> tokenResult)
