@@ -21,6 +21,15 @@ public sealed class InviteUserHandler(
         InviteUserCommand request,
         CancellationToken cancellationToken)
     {
+        var manageUsersResult = await currentUserAuthorizationService.ValidateAccessAsync(
+            Actions.Tenant.ManageUsers,
+            cancellationToken);
+
+        if (!manageUsersResult.IsSuccess)
+        {
+            return manageUsersResult.ToErrorResult<User>();
+        }
+
         if (request.RoleNames.Count > 0)
         {
             var rolesGuard = await ValidateRequestedRolesAsync(request.RoleNames, cancellationToken);
@@ -40,6 +49,7 @@ public sealed class InviteUserHandler(
             return registerResult;
         }
 
+        var assignedRoleNames = new List<string>();
         foreach (var roleName in request.RoleNames)
         {
             var assignResult = await roleManagementService.AssignRoleToUserAsync(
@@ -49,13 +59,26 @@ public sealed class InviteUserHandler(
 
             if (!assignResult.IsSuccess)
             {
+                await RollbackAssignedRolesAsync(registerResult.Value.Id, assignedRoleNames, cancellationToken);
                 return assignResult.ToErrorResult<User>();
             }
+
+            assignedRoleNames.Add(roleName);
         }
 
         return Result.Success(registerResult.Value);
     }
 
+    private async Task RollbackAssignedRolesAsync(
+        long userId,
+        IReadOnlyList<string> roleNames,
+        CancellationToken cancellationToken)
+    {
+        foreach (var roleName in roleNames)
+        {
+            await roleManagementService.RemoveRoleFromUserAsync(userId, roleName, cancellationToken);
+        }
+    }
 
     private async Task<Result> ValidateRequestedRolesAsync(
         IReadOnlyList<string> roleNames,
@@ -81,15 +104,6 @@ public sealed class InviteUserHandler(
                 Identifier = nameof(InviteUserCommand.RoleNames),
                 ErrorMessage = "Admin access can be assigned after the invited user verifies their account."
             });
-        }
-
-        var manageUsersResult = await currentUserAuthorizationService.ValidateAccessAsync(
-            Actions.Tenant.ManageUsers,
-            cancellationToken);
-
-        if (!manageUsersResult.IsSuccess)
-        {
-            return manageUsersResult;
         }
 
         var rolesResult = await roleManagementService.ListRolesAsync(0, int.MaxValue, null, null, cancellationToken);
