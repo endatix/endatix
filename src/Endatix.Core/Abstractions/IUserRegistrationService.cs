@@ -27,4 +27,9 @@ public interface IUserRegistrationService
     /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
     /// <returns>A a Task with Result of the registered User if successful.</returns>
     Task<Result<User>> RegisterUserAsync(string email, string password, long tenantId, bool isEmailConfirmed, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Registers or reattaches a pending invited user and sends a tenant invitation activation email when needed.
+    /// </summary>
+    Task<Result<User>> RegisterInvitedUserAsync(string email, string password, long tenantId, CancellationToken cancellationToken);
 }

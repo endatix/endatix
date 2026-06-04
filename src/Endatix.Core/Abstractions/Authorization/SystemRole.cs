@@ -101,4 +101,11 @@ public sealed record SystemRole
     public static readonly string[] AllSystemRoleNames = AllSystemRoles
         .Select(role => role.Name)
         .ToArray();
+
+    /// <summary>
+    /// Checks if the given role name is a platform-scoped role.
+    /// </summary>
+    /// <param name="roleName">The name of the role to check.</param>
+    /// <returns>True if the role is a platform-scoped role, false otherwise.</returns>
+    public static bool IsPlatformScopedRole(string roleName) => string.Equals(roleName, PlatformAdmin.Name, StringComparison.OrdinalIgnoreCase);
 }
