@@ -199,6 +199,7 @@ public class RoleManagementServiceTests
         // Assert
         result.Status.Should().Be(ResultStatus.Forbidden);
         await _userManager.DidNotReceiveWithAnyArgs().FindByIdAsync(default!);
+        AssertPlatformAdminMutationWarningLogged();
     }
 
     [Fact]
@@ -220,6 +221,7 @@ public class RoleManagementServiceTests
         result.IsSuccess.Should().BeTrue();
         await _currentUserAuthorizationService.DidNotReceive().IsPlatformAdminAsync(Arg.Any<CancellationToken>());
         await _userManager.Received(1).AddToRoleAsync(user, roleName);
+        AssertPlatformAdminMutationWarningNotLogged();
     }
 
     [Fact]
@@ -243,6 +245,7 @@ public class RoleManagementServiceTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         await _userManager.Received(1).AddToRoleAsync(user, roleName);
+        AssertPlatformAdminMutationWarningNotLogged();
     }
 
     #endregion
@@ -355,6 +358,7 @@ public class RoleManagementServiceTests
         // Assert
         result.Status.Should().Be(ResultStatus.Forbidden);
         await _userManager.DidNotReceiveWithAnyArgs().FindByIdAsync(default!);
+        AssertPlatformAdminMutationWarningLogged();
     }
 
     #endregion
@@ -434,6 +438,26 @@ public class RoleManagementServiceTests
     }
 
     #endregion
+
+    private void AssertPlatformAdminMutationWarningLogged()
+    {
+        _logger.Received(1).Log(
+            LogLevel.Warning,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(state => state.ToString()!.Contains("Blocked PlatformAdmin role mutation")),
+            null,
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    private void AssertPlatformAdminMutationWarningNotLogged()
+    {
+        _logger.DidNotReceive().Log(
+            LogLevel.Warning,
+            Arg.Any<EventId>(),
+            Arg.Any<object>(),
+            Arg.Any<Exception?>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
 
     #region Role Definition Tests
 
