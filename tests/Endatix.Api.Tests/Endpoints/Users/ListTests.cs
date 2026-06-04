@@ -25,12 +25,12 @@ public class ListTests
     {
         // Arrange
         var request = new ListUsersRequest { Page = 1, PageSize = 10 };
-        var errorResult = Result<IEnumerable<UserWithRoles>>.Error(
+        var errorResult = Result<Paged<UserWithRoles>>.Error(
             new ErrorList(["Service error"], null));
         _mediator.Send(Arg.Any<ListUsersQuery>(), Arg.Any<CancellationToken>()).Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
@@ -61,29 +61,45 @@ public class ListTests
                 Roles = []
             }
         };
-        var result = Result.Success<IEnumerable<UserWithRoles>>(usersWithRoles);
+        var result = Result.Success(new Paged<UserWithRoles>(
+            1,
+            20,
+            42,
+            3,
+            usersWithRoles));
         _mediator.Send(Arg.Any<ListUsersQuery>(), Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var okResult = response.Result as Ok<IEnumerable<ListUsersResponse>>;
+        var okResult = response.Result as Ok<Paged<ListUsersResponse>>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
-        okResult.Value.Should().HaveCount(2);
-        okResult.Value!.First().UserName.Should().Be("alice");
-        okResult.Value!.First().Roles.Should().Contain("Admin").And.Contain("Creator");
-        okResult.Value!.Last().UserName.Should().Be("bob");
-        okResult.Value!.Last().Roles.Should().BeEmpty();
+        okResult.Value!.Page.Should().Be(1);
+        okResult.Value.PageSize.Should().Be(20);
+        okResult.Value.TotalRecords.Should().Be(42);
+        okResult.Value.TotalPages.Should().Be(3);
+        okResult.Value.Items.Should().HaveCount(2);
+        okResult.Value.Items.First().UserName.Should().Be("alice");
+        okResult.Value.Items.First().Roles.Should().Contain("Admin").And.Contain("Creator");
+        okResult.Value.Items.Last().UserName.Should().Be("bob");
+        okResult.Value.Items.Last().Roles.Should().BeEmpty();
     }
 
     [Fact]
     public async Task ExecuteAsync_ShouldMapRequestToListUsersQuery()
     {
         // Arrange
-        var request = new ListUsersRequest { Page = 2, PageSize = 50 };
-        var result = Result.Success<IEnumerable<UserWithRoles>>(Array.Empty<UserWithRoles>());
+        var request = new ListUsersRequest
+        {
+            Page = 2,
+            PageSize = 50,
+            Search = "alice",
+            Role = "Admin",
+            Status = "pending"
+        };
+        var result = Result.Success(Paged<UserWithRoles>.Empty(50));
         _mediator.Send(Arg.Any<ListUsersQuery>(), Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
@@ -91,7 +107,12 @@ public class ListTests
 
         // Assert
         await _mediator.Received(1).Send(
-            Arg.Is<ListUsersQuery>(q => q.Page == 2 && q.PageSize == 50),
+            Arg.Is<ListUsersQuery>(q =>
+                q.Page == 2 &&
+                q.PageSize == 50 &&
+                q.Search == "alice" &&
+                q.Role == "Admin" &&
+                q.Status == "pending"),
             Arg.Any<CancellationToken>());
     }
 
@@ -100,16 +121,16 @@ public class ListTests
     {
         // Arrange
         var request = new ListUsersRequest();
-        var result = Result.Success<IEnumerable<UserWithRoles>>(Array.Empty<UserWithRoles>());
+        var result = Result.Success(Paged<UserWithRoles>.Empty(ListUsersQuery.DefaultPageSize));
         _mediator.Send(Arg.Any<ListUsersQuery>(), Arg.Any<CancellationToken>()).Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var okResult = response.Result as Ok<IEnumerable<ListUsersResponse>>;
+        var okResult = response.Result as Ok<Paged<ListUsersResponse>>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
-        okResult.Value.Should().BeEmpty();
+        okResult.Value!.Items.Should().BeEmpty();
     }
 }
