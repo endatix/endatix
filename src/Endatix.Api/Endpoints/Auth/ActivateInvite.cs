@@ -45,11 +45,11 @@ public sealed class ActivateInvite(IMediator mediator)
     /// <inheritdoc/>
     public override async Task<Results<Ok<ActivateInviteResponse>, ProblemHttpResult>> ExecuteAsync(
         ActivateInviteRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var result = await mediator.Send(
             new ActivateInviteCommand(request.Token, request.Password),
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, Map)

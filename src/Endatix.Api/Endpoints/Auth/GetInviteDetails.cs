@@ -41,11 +41,11 @@ public sealed class GetInviteDetails(IEmailVerificationService emailVerification
     /// <inheritdoc/>
     public override async Task<Results<Ok<GetInviteDetailsResponse>, ProblemHttpResult>> ExecuteAsync(
         GetInviteDetailsRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var result = await emailVerificationService.GetPendingInviteUserAsync(
             request.Token,
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, Map)

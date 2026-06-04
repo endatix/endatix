@@ -14,8 +14,8 @@ public class EmailVerificationToken : BaseEntity, IAggregateRoot
 
     public EmailVerificationToken(long userId, string token, DateTime expiresAt)
     {
-        Guard.Against.NegativeOrZero(userId, nameof(userId));
-        Guard.Against.NullOrWhiteSpace(token, nameof(token));
+        Guard.Against.NegativeOrZero(userId);
+        Guard.Against.NullOrWhiteSpace(token);
         Guard.Against.InvalidInput(expiresAt, nameof(expiresAt), dt => dt > DateTime.UtcNow);
 
         UserId = userId;

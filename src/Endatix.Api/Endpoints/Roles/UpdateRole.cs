@@ -45,11 +45,11 @@ public sealed class UpdateRole(IMediator mediator)
     /// <inheritdoc/>
     public override async Task<Results<Ok<UpdateRoleResponse>, ProblemHttpResult>> ExecuteAsync(
         UpdateRoleRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var result = await mediator.Send(
             new UpdateRoleCommand(request.RoleName!, request.Description, request.Permissions),
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, roleId => new UpdateRoleResponse(roleId))
