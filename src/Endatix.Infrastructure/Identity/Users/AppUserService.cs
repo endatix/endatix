@@ -17,8 +17,12 @@ public sealed class AppUserService(
     ITenantContext tenantContext,
     AppIdentityDbContext identityDbContext,
     IEmailVerificationService emailVerificationService,
+    IUserContext userContext,
     IRelationalSubstringLikeFilter substringLikeFilter) : IUserService
 {
+    private const string SelfRemovalForbiddenMessage = "You cannot remove your own tenant access.";
+    private const string LastTenantAdminRemovalForbiddenMessage = "Cannot remove the last active tenant admin.";
+
     /// <inheritdoc />
     public async Task<Result<Paged<UserWithRoles>>> ListUsersAsync(
         int skip,
@@ -243,6 +247,12 @@ public sealed class AppUserService(
             return Result.NotFound();
         }
 
+        var removalGuard = await EnsureTenantAccessRemovalAllowedAsync(user, tenantId, cancellationToken);
+        if (!removalGuard.IsSuccess)
+        {
+            return removalGuard;
+        }
+
         return await RemoveTenantAccessAsync(user, tenantId, cancellationToken);
     }
 
@@ -266,6 +276,12 @@ public sealed class AppUserService(
             return Result.Invalid(new ValidationError("Cannot cancel an invite after the user has activated their account."));
         }
 
+        var removalGuard = await EnsureTenantAccessRemovalAllowedAsync(user, tenantId, cancellationToken);
+        if (!removalGuard.IsSuccess)
+        {
+            return removalGuard;
+        }
+
         var invalidateResult = await emailVerificationService.InvalidateVerificationTokensAsync(user.Id, cancellationToken);
         if (!invalidateResult.IsSuccess)
         {
@@ -279,6 +295,84 @@ public sealed class AppUserService(
     {
         return identityDbContext.Users
             .FirstOrDefaultAsync(appUser => appUser.Id == userId && appUser.TenantId == tenantId, cancellationToken);
+    }
+
+    private async Task<Result> EnsureTenantAccessRemovalAllowedAsync(AppUser user, long tenantId, CancellationToken cancellationToken)
+    {
+        if (IsCurrentUser(user.Id))
+        {
+            return Result.Forbidden(SelfRemovalForbiddenMessage);
+        }
+
+        if (await RemovingUserWouldLeaveTenantWithoutActiveAdminAsync(user, tenantId, cancellationToken))
+        {
+            return Result.Conflict(LastTenantAdminRemovalForbiddenMessage);
+        }
+
+        return Result.Success();
+    }
+
+    private bool IsCurrentUser(long userId)
+    {
+        var currentUserId = userContext.GetCurrentUserId();
+        return long.TryParse(currentUserId, out var currentUserIdValue) && currentUserIdValue == userId;
+    }
+
+    private async Task<bool> RemovingUserWouldLeaveTenantWithoutActiveAdminAsync(
+        AppUser user,
+        long tenantId,
+        CancellationToken cancellationToken)
+    {
+        if (!user.EmailConfirmed)
+        {
+            return false;
+        }
+
+        var userHasTenantAdminRole = await UserHasTenantAdminRoleAsync(user.Id, tenantId, cancellationToken);
+        if (!userHasTenantAdminRole)
+        {
+            return false;
+        }
+
+        return !await TenantHasAnotherActiveAdminAsync(user.Id, tenantId, cancellationToken);
+    }
+
+    private Task<bool> UserHasTenantAdminRoleAsync(long userId, long tenantId, CancellationToken cancellationToken)
+    {
+        return identityDbContext.UserRoles
+            .Where(userRole => userRole.UserId == userId)
+            .Join(
+                TenantAdminRoles(tenantId),
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (_, _) => true)
+            .AnyAsync(cancellationToken);
+    }
+
+    private Task<bool> TenantHasAnotherActiveAdminAsync(long removedUserId, long tenantId, CancellationToken cancellationToken)
+    {
+        return identityDbContext.UserRoles
+            .Where(userRole => userRole.UserId != removedUserId)
+            .Join(
+                TenantAdminRoles(tenantId),
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (userRole, _) => userRole.UserId)
+            .Join(
+                identityDbContext.Users.Where(user => user.TenantId == tenantId && user.EmailConfirmed),
+                userId => userId,
+                user => user.Id,
+                (_, _) => true)
+            .AnyAsync(cancellationToken);
+    }
+
+    private IQueryable<AppRole> TenantAdminRoles(long tenantId)
+    {
+        var normalizedAdminRoleName = NormalizeRoleName(SystemRole.Admin.Name);
+
+        return identityDbContext.Roles.Where(role =>
+            (role.TenantId == tenantId || (role.IsSystemDefined && role.TenantId <= 0)) &&
+            (role.NormalizedName == normalizedAdminRoleName || role.Name == SystemRole.Admin.Name));
     }
 
     private async Task<Result> RemoveTenantAccessAsync(AppUser user, long tenantId, CancellationToken cancellationToken)

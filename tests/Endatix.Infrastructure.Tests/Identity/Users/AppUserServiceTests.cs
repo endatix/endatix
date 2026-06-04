@@ -16,6 +16,7 @@ public class AppUserServiceTests
     private readonly ITenantContext _tenantContext;
     private readonly AppIdentityDbContext _identityDbContext;
     private readonly IEmailVerificationService _emailVerificationService;
+    private readonly IUserContext _userContext;
     private readonly IRelationalSubstringLikeFilter _substringLikeFilter;
     private readonly AppUserService _userService;
 
@@ -30,12 +31,14 @@ public class AppUserServiceTests
         var idGenerator = Substitute.For<IIdGenerator<long>>();
         _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory, idGenerator);
         _emailVerificationService = Substitute.For<IEmailVerificationService>();
+        _userContext = Substitute.For<IUserContext>();
         _substringLikeFilter = Substitute.For<IRelationalSubstringLikeFilter>();
         _userService = new AppUserService(
             _userManager,
             _tenantContext,
             _identityDbContext,
             _emailVerificationService,
+            _userContext,
             _substringLikeFilter);
     }
 
