@@ -21,7 +21,7 @@ public class InviteUserHandlerTests
         _tenantContext = Substitute.For<ITenantContext>();
         _currentUserAuthorizationService = Substitute.For<ICurrentUserAuthorizationService>();
         _currentUserAuthorizationService
-            .ValidateAccessAsync(Actions.Tenant.ManageUsers, Arg.Any<CancellationToken>())
+            .ValidateAccessAsync(Actions.Tenant.InviteUsers, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         _handler = new InviteUserHandler(
             _userRegistrationService,
@@ -54,13 +54,13 @@ public class InviteUserHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenNoRolesRequestedWithoutManageUsersAccess_ReturnsForbidden()
+    public async Task Handle_WhenNoRolesRequestedWithoutInviteUsersAccess_ReturnsForbidden()
     {
         // Arrange
         var command = new InviteUserCommand("new-user@endatix.com");
         _currentUserAuthorizationService
-            .ValidateAccessAsync(Actions.Tenant.ManageUsers, Arg.Any<CancellationToken>())
-            .Returns(Result.Forbidden("Manage users permission is required."));
+            .ValidateAccessAsync(Actions.Tenant.InviteUsers, Arg.Any<CancellationToken>())
+            .Returns(Result.Forbidden("Invite users permission is required."));
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -82,13 +82,13 @@ public class InviteUserHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenRolesRequestedWithoutManageUsersAccess_ReturnsForbidden()
+    public async Task Handle_WhenRolesRequestedWithoutInviteUsersAccess_ReturnsForbidden()
     {
         // Arrange
         var command = new InviteUserCommand("new-user@endatix.com", [SystemRole.Creator.Name]);
         _currentUserAuthorizationService
-            .ValidateAccessAsync(Actions.Tenant.ManageUsers, Arg.Any<CancellationToken>())
-            .Returns(Result.Forbidden("Manage users permission is required."));
+            .ValidateAccessAsync(Actions.Tenant.InviteUsers, Arg.Any<CancellationToken>())
+            .Returns(Result.Forbidden("Invite users permission is required."));
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -110,7 +110,7 @@ public class InviteUserHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenRolesRequestedWithManageUsersAccess_AssignsRoles()
+    public async Task Handle_WhenRolesRequestedWithInviteUsersAccess_AssignsRoles()
     {
         // Arrange
         var command = new InviteUserCommand("new-user@endatix.com", [SystemRole.Creator.Name]);
@@ -123,7 +123,7 @@ public class InviteUserHandlerTests
 
         _tenantContext.TenantId.Returns(10);
         _currentUserAuthorizationService
-            .ValidateAccessAsync(Actions.Tenant.ManageUsers, Arg.Any<CancellationToken>())
+            .ValidateAccessAsync(Actions.Tenant.InviteUsers, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         _roleManagementService
             .ListRolesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())

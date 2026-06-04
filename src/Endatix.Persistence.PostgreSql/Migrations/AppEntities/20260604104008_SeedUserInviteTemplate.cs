@@ -19,7 +19,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("DELETE FROM public.\"EmailTemplates\" WHERE \"Name\" = 'tenant-invitation';");
+            migrationBuilder.Sql("DELETE FROM public.\"EmailTemplates\" WHERE \"Name\" = 'user-invitation';");
         }
     }
 }

@@ -21,13 +21,13 @@ public sealed class InviteUserHandler(
         InviteUserCommand request,
         CancellationToken cancellationToken)
     {
-        var manageUsersResult = await currentUserAuthorizationService.ValidateAccessAsync(
-            Actions.Tenant.ManageUsers,
+        var inviteUsersResult = await currentUserAuthorizationService.ValidateAccessAsync(
+            Actions.Tenant.InviteUsers,
             cancellationToken);
 
-        if (!manageUsersResult.IsSuccess)
+        if (!inviteUsersResult.IsSuccess)
         {
-            return manageUsersResult.ToErrorResult<User>();
+            return inviteUsersResult.ToErrorResult<User>();
         }
 
         if (request.RoleNames.Count > 0)
