@@ -63,7 +63,8 @@ public sealed class ListRoles(IMediator mediator)
                 Description = role.Description,
                 IsSystemDefined = role.IsSystemDefined,
                 IsActive = role.IsActive,
-                Permissions = role.Permissions
+                Permissions = role.Permissions,
+                UsersCount = role.UsersCount
             })
             .ToList();
 
@@ -127,4 +128,5 @@ public sealed record ListRolesResponse
     public bool IsSystemDefined { get; init; }
     public bool IsActive { get; init; }
     public IReadOnlyList<string> Permissions { get; init; } = [];
+    public int UsersCount { get; init; }
 }

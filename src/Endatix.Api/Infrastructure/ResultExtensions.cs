@@ -118,6 +118,18 @@ public static partial class ResultExtensions
             {
                 problemResult.ProblemDetails.Extensions.Add("errorCode", errorCode);
             }
+
+            var fields = result.ValidationErrors
+                .Where(error => !string.IsNullOrWhiteSpace(error.Identifier))
+                .GroupBy(error => error.Identifier)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Select(error => error.ErrorMessage).ToArray());
+
+            if (fields.Count > 0)
+            {
+                problemResult.ProblemDetails.Extensions.Add("fields", fields);
+            }
         }
 
         problemResult.ProblemDetails.Detail = details.ToString();
