@@ -19,7 +19,7 @@ public class RemoveRoleFromUser(IMediator mediator)
     public override void Configure()
     {
         Delete("users/{userId}/roles/{roleName}");
-        Permissions(Actions.Tenant.ManageUsers);
+        Permissions(Actions.Tenant.ManageRoles);
         Summary(s =>
         {
             s.Summary = "Remove a role from a user";
