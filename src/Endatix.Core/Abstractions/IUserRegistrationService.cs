@@ -31,5 +31,5 @@ public interface IUserRegistrationService
     /// <summary>
     /// Registers or reattaches a pending invited user and sends a tenant invitation activation email when needed.
     /// </summary>
-    Task<Result<User>> RegisterInvitedUserAsync(string email, string password, long tenantId, CancellationToken cancellationToken);
+    Task<Result<User>> RegisterInvitedUserAsync(string email, long tenantId, CancellationToken cancellationToken);
 }

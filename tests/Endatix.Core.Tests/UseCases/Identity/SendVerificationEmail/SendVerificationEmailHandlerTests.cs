@@ -44,7 +44,7 @@ public class SendVerificationEmailHandlerTests
             .Returns(Result.Success(user));
         _emailVerificationService.CreateVerificationTokenAsync(userId, Arg.Any<CancellationToken>())
             .Returns(Result.Success(token));
-        _emailTemplateService.CreateVerificationEmail(email, token.Token)
+        _emailTemplateService.CreateVerificationEmail(email, token.RawToken!)
             .Returns(new EmailWithTemplate
             {
                 To = email,
@@ -53,7 +53,7 @@ public class SendVerificationEmailHandlerTests
                 TemplateId = "email-verification",
                 Metadata = new Dictionary<string, object>
                 {
-                    ["verificationToken"] = token.Token,
+                    ["verificationToken"] = token.RawToken!,
                     ["hubUrl"] = "https://app.example.com"
                 }
             });
@@ -137,4 +137,4 @@ public class SendVerificationEmailHandlerTests
         await _userService.Received(1).GetUserAsync(email, Arg.Any<CancellationToken>());
         await _emailVerificationService.Received(1).CreateVerificationTokenAsync(userId, Arg.Any<CancellationToken>());
     }
-} 
+}

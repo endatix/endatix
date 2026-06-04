@@ -334,7 +334,6 @@ public class AppUserRegistrationServiceTests
         var tenantId = 10L;
         var userId = 123L;
         var email = "invitee@example.com";
-        var password = "P@ssw0rd";
         var cancellationToken = CancellationToken.None;
         var token = "invite-token";
         var emailWithTemplate = new EmailWithTemplate
@@ -378,10 +377,18 @@ public class AppUserRegistrationServiceTests
         _emailTemplateService.CreateInvitationEmail(email, token).Returns(emailWithTemplate);
 
         // Act
-        var result = await _sut.RegisterInvitedUserAsync(email, password, tenantId, cancellationToken);
+        var result = await _sut.RegisterInvitedUserAsync(email, tenantId, cancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
+        await _userManager.Received(1).CreateAsync(
+            Arg.Any<AppUser>(),
+            Arg.Is<string>(password =>
+                password.Length == 24 &&
+                password.Any(char.IsUpper) &&
+                password.Any(char.IsLower) &&
+                password.Any(char.IsDigit) &&
+                password.Any(character => "!@$?_#*-+".Contains(character))));
         _emailTemplateService.Received(1).CreateInvitationEmail(email, token);
         _emailTemplateService.DidNotReceive().CreateVerificationEmail(email, token);
         await _emailSender.Received(1).SendEmailAsync(emailWithTemplate, cancellationToken);

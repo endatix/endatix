@@ -9,20 +9,27 @@ namespace Endatix.Core.UseCases.Identity.ListUsers;
 /// Handles the ListUsersQuery to retrieve users for the current tenant with their roles.
 /// </summary>
 public class ListUsersHandler(IUserService userService)
-    : IQueryHandler<ListUsersQuery, Result<IEnumerable<UserWithRoles>>>
+    : IQueryHandler<ListUsersQuery, Result<Paged<UserWithRoles>>>
 {
     /// <inheritdoc/>
-    public async Task<Result<IEnumerable<UserWithRoles>>> Handle(
+    public async Task<Result<Paged<UserWithRoles>>> Handle(
         ListUsersQuery request,
         CancellationToken cancellationToken)
     {
-        var result = await userService.ListUsersAsync(cancellationToken);
+        var result = await userService.ListUsersAsync(
+            request.Skip,
+            request.PageSize,
+            request.Search,
+            request.Role,
+            request.Status,
+            cancellationToken);
+
         if (!result.IsSuccess)
         {
-            return Result<IEnumerable<UserWithRoles>>.Error(
+            return Result<Paged<UserWithRoles>>.Error(
                 new ErrorList(result.Errors ?? [], result.CorrelationId));
         }
 
-        return Result.Success<IEnumerable<UserWithRoles>>(result.Value);
+        return Result.Success(result.Value!);
     }
 }
