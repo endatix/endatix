@@ -24,7 +24,9 @@ public sealed class RemoveUserAccessTests
         // Arrange
         var request = new UserIdRequest { UserId = 123L };
 
-        _mediator.Send(Arg.Any<RemoveUserAccessCommand>(), Arg.Any<CancellationToken>())
+        _mediator.Send(
+                Arg.Is<RemoveUserAccessCommand>(command => command.UserId == request.UserId),
+                Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
         // Act
@@ -43,7 +45,9 @@ public sealed class RemoveUserAccessTests
         // Arrange
         var request = new UserIdRequest { UserId = 123L };
 
-        _mediator.Send(Arg.Any<RemoveUserAccessCommand>(), Arg.Any<CancellationToken>())
+        _mediator.Send(
+                Arg.Is<RemoveUserAccessCommand>(command => command.UserId == request.UserId),
+                Arg.Any<CancellationToken>())
             .Returns(Result.NotFound("User not found."));
 
         // Act

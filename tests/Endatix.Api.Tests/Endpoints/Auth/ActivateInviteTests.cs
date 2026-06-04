@@ -31,7 +31,11 @@ public sealed class ActivateInviteTests
         };
         var user = new User(123L, "user@example.com", "user@example.com", isVerified: true);
 
-        _mediator.Send(Arg.Any<ActivateInviteCommand>(), Arg.Any<CancellationToken>())
+        _mediator.Send(
+                Arg.Is<ActivateInviteCommand>(command =>
+                    command.Token == request.Token &&
+                    command.Password == request.Password),
+                Arg.Any<CancellationToken>())
             .Returns(Result.Success(user));
 
         // Act
@@ -56,7 +60,11 @@ public sealed class ActivateInviteTests
         };
         var invalidResult = Result<User>.Invalid(new ValidationError("Invite token has expired"));
 
-        _mediator.Send(Arg.Any<ActivateInviteCommand>(), Arg.Any<CancellationToken>())
+        _mediator.Send(
+                Arg.Is<ActivateInviteCommand>(command =>
+                    command.Token == request.Token &&
+                    command.Password == request.Password),
+                Arg.Any<CancellationToken>())
             .Returns(invalidResult);
 
         // Act
