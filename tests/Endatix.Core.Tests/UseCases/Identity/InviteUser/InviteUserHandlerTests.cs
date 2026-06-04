@@ -154,6 +154,10 @@ public class InviteUserHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         await _roleManagementService.Received(1)
+            .ListRolesAsync(0, int.MaxValue, null, null, Arg.Any<CancellationToken>());
+        await _userRegistrationService.Received(1)
+            .RegisterInvitedUserAsync(command.Email, 10, Arg.Any<CancellationToken>());
+        await _roleManagementService.Received(1)
             .AssignRoleToUserAsync(user.Id, SystemRole.Creator.Name, Arg.Any<CancellationToken>());
     }
 

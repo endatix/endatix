@@ -134,8 +134,16 @@ public class EmailVerificationService : IEmailVerificationService
             return inviteResult.ToErrorResult<User>();
         }
 
-        var verificationToken = inviteResult.Value.Token;
-        var user = inviteResult.Value.User;
+        return await ActivatePendingInviteAsync(inviteResult.Value, newPassword, cancellationToken);
+    }
+
+    private async Task<Result<User>> ActivatePendingInviteAsync(
+        PendingInvite invite,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        var verificationToken = invite.Token;
+        var user = invite.User;
         var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
         var resetResult = await _userManager.ResetPasswordAsync(user, resetToken, newPassword);
         if (!resetResult.Succeeded)

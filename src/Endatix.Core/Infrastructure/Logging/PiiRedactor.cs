@@ -5,12 +5,13 @@ namespace Endatix.Core.Infrastructure.Logging;
 /// <example>
 /// <code>
 /// var redactedEmail = PiiRedactor.Redact("john.doe@example.com", SensitivityType.Email);
-/// Console.WriteLine(redactedEmail); // Output: j***@example.com
+/// Console.WriteLine(redactedEmail); // Output: [redacted-email]
 /// </code>
 /// </example>
 /// </summary>
 public static class PiiRedactor
 {
+    internal const string REDACTED_EMAIL = "[redacted-email]";
     internal const int SECRET_LENGTH_MIN_LENGTH = 5;
     internal const int SECRET_LENGTH_MAX_LENGTH = 16;
     internal const char PHONE_NUMBER_COUNTRY_CODE_PREFIX = '+';
@@ -39,7 +40,7 @@ public static class PiiRedactor
         switch (sensitivityType)
         {
             case SensitivityType.Email:
-                return RedactEmail(input);
+                return RedactEmail();
             case SensitivityType.Secret:
                 return RedactSecret();
             case SensitivityType.PhoneNumber:
@@ -52,27 +53,12 @@ public static class PiiRedactor
     }
 
     /// <summary>
-    /// Redacts an email by replacing the username with asterisks and keeping the domain.
+    /// Redacts an email without preserving any input-derived characters.
     /// </summary>
-    /// <param name="email">The email to redact.</param>
     /// <returns>The redacted email.</returns>
-    internal static string RedactEmail(string email)
+    internal static string RedactEmail()
     {
-        var parts = email.Split('@');
-        if (parts.Length != 2)
-        {
-            return "*****@*****";
-        }
-
-        var username = parts[0];
-        var domain = parts[1];
-
-        if (username.Length <= 2)
-        {
-            return $"*@{domain}";
-        }
-
-        return $"{username[0]}*****{username[^1]}@{domain}";
+        return REDACTED_EMAIL;
     }
 
     /// <summary>
