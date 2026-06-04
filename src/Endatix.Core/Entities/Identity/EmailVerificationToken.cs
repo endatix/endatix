@@ -10,6 +10,11 @@ namespace Endatix.Core.Entities.Identity;
 /// </summary>
 public class EmailVerificationToken : BaseEntity, IAggregateRoot
 {
+    /// <summary>
+    /// Maximum accepted raw token length for verification and invitation endpoints.
+    /// </summary>
+    public const int MaxRawTokenLength = 512;
+
     private EmailVerificationToken() { } // For EF Core
 
     public EmailVerificationToken(long userId, string token, DateTime expiresAt)

@@ -88,6 +88,7 @@ public sealed class GetInviteDetailsValidator : Validator<GetInviteDetailsReques
     public GetInviteDetailsValidator()
     {
         RuleFor(request => request.Token)
-            .NotEmpty();
+            .NotEmpty()
+            .MaximumLength(EmailVerificationToken.MaxRawTokenLength);
     }
 }

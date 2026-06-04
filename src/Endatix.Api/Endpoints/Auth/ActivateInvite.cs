@@ -110,7 +110,7 @@ public sealed class ActivateInviteValidator : Validator<ActivateInviteRequest>
     {
         RuleFor(request => request.Token)
             .NotEmpty()
-            .MaximumLength(512);
+            .MaximumLength(EmailVerificationToken.MaxRawTokenLength);
 
         RuleFor(request => request.Password)
             .NotEmpty()

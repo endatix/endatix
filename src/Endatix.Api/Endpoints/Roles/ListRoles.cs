@@ -108,10 +108,14 @@ public sealed class ListRolesValidator : Validator<ListRolesRequest>
             .When(x => x.PageSize.HasValue);
 
         RuleFor(x => x.RoleType)
-            .Must(roleType => roleType is null ||
-                string.Equals(roleType, "all", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(roleType, "system", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(roleType, "custom", StringComparison.OrdinalIgnoreCase))
+            .Must(roleType =>
+            {
+                var normalized = roleType?.Trim();
+                return string.IsNullOrEmpty(normalized) ||
+                    string.Equals(normalized, "all", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(normalized, "system", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(normalized, "custom", StringComparison.OrdinalIgnoreCase);
+            })
             .WithMessage("RoleType must be 'all', 'system', or 'custom'.");
 
         RuleFor(x => x.Search)
