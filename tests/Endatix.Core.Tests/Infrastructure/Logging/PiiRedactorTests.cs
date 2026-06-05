@@ -50,19 +50,19 @@ public class PiiRedactorTests
     #region RedactEmail Tests
 
     [Theory]
-    [InlineData("john.doe@example.com", "j*****e@example.com")]
-    [InlineData("test@domain.com", "t*****t@domain.com")]
-    public void RedactEmail_WithValidEmail_RedactsUsernameCorrectly(string email, string expected)
+    [InlineData("john.doe@example.com")]
+    [InlineData("test@domain.com")]
+    public void RedactEmail_WithValidEmail_ReturnsConstantMarker(string email)
     {
         // Act
         var result = PiiRedactor.Redact(email, SensitivityType.Email);
 
         // Assert
-        result.Should().Be(expected);
+        result.Should().Be(PiiRedactor.REDACTED_EMAIL);
     }
 
     [Fact]
-    public void RedactEmail_WithShortUsername_ReturnsMaskedEmail()
+    public void RedactEmail_WithShortUsername_ReturnsConstantMarker()
     {
         // Arrange
         var email = "ab@example.com";
@@ -71,11 +71,11 @@ public class PiiRedactorTests
         var result = PiiRedactor.Redact(email, SensitivityType.Email);
 
         // Assert
-        result.Should().Be("*@example.com");
+        result.Should().Be(PiiRedactor.REDACTED_EMAIL);
     }
 
     [Fact]
-    public void RedactEmail_WithSingleCharacterUsername_ReturnsMaskedEmail()
+    public void RedactEmail_WithSingleCharacterUsername_ReturnsConstantMarker()
     {
         // Arrange
         var email = "a@example.com";
@@ -84,11 +84,11 @@ public class PiiRedactorTests
         var result = PiiRedactor.Redact(email, SensitivityType.Email);
 
         // Assert
-        result.Should().Be("*@example.com");
+        result.Should().Be(PiiRedactor.REDACTED_EMAIL);
     }
 
     [Fact]
-    public void RedactEmail_WithInvalidEmailFormat_ReturnsFullyMasked()
+    public void RedactEmail_WithInvalidEmailFormat_ReturnsConstantMarker()
     {
         // Arrange
         var invalidEmail = "not-an-email";
@@ -97,11 +97,11 @@ public class PiiRedactorTests
         var result = PiiRedactor.Redact(invalidEmail, SensitivityType.Email);
 
         // Assert
-        result.Should().Be("*****@*****");
+        result.Should().Be(PiiRedactor.REDACTED_EMAIL);
     }
 
     [Fact]
-    public void RedactEmail_WithMultipleAtSymbols_ReturnsFullyMasked()
+    public void RedactEmail_WithMultipleAtSymbols_ReturnsConstantMarker()
     {
         // Arrange
         var invalidEmail = "test@test@example.com";
@@ -110,11 +110,11 @@ public class PiiRedactorTests
         var result = PiiRedactor.Redact(invalidEmail, SensitivityType.Email);
 
         // Assert
-        result.Should().Be("*****@*****");
+        result.Should().Be(PiiRedactor.REDACTED_EMAIL);
     }
 
     [Fact]
-    public void RedactEmail_WithEmptyString_ReturnsFullyMasked()
+    public void RedactEmail_WithEmptyString_ReturnsConstantMarker()
     {
         // Arrange
         var emptyEmail = string.Empty;
@@ -123,7 +123,7 @@ public class PiiRedactorTests
         var result = PiiRedactor.Redact(emptyEmail, SensitivityType.Email);
 
         // Assert
-        result.Should().Be("*****@*****");
+        result.Should().Be(PiiRedactor.REDACTED_EMAIL);
     }
 
     #endregion

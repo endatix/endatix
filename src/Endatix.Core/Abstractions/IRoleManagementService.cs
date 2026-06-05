@@ -1,4 +1,5 @@
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Entities.Identity;
 
 namespace Endatix.Core.Abstractions;
 
@@ -26,6 +27,15 @@ public interface IRoleManagementService
     Task<Result> RemoveRoleFromUserAsync(long userId, string roleName, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Replaces a user's editable tenant roles with the provided role set.
+    /// </summary>
+    /// <param name="userId">The ID of the user.</param>
+    /// <param name="roleNames">The full role set to assign.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A Result indicating success or failure.</returns>
+    Task<Result> ReplaceRolesForUserAsync(long userId, IReadOnlyList<string> roleNames, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets all roles assigned to a user.
     /// </summary>
     /// <param name="userId">The ID of the user.</param>
@@ -50,4 +60,23 @@ public interface IRoleManagementService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A Result indicating success or failure.</returns>
     Task<Result> DeleteRoleAsync(string roleName, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists roles visible in the current tenant context with paging and optional role type filtering.
+    /// </summary>
+    Task<Result<Paged<RoleListItem>>> ListRolesAsync(int skip, int take, string? roleType, string? search, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists active permissions available for custom roles.
+    /// </summary>
+    Task<Result<IReadOnlyList<PermissionListItem>>> ListPermissionsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates a tenant role description and permission set.
+    /// </summary>
+    Task<Result<string>> UpdateRoleAsync(
+        string roleName,
+        string? description,
+        List<string> permissionNames,
+        CancellationToken cancellationToken = default);
 }

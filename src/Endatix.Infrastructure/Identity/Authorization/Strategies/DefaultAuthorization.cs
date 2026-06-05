@@ -48,6 +48,12 @@ public sealed class DefaultAuthorization(
             return Result.Error("User ID is required");
         }
 
-        return await authorizationDataProvider.GetAuthorizationDataAsync(endatixUserId, cancellationToken);
+        var tenantId = principal.GetTenantId();
+        if (tenantId <= 0)
+        {
+            return Result.Error("Tenant ID is required");
+        }
+
+        return await authorizationDataProvider.GetAuthorizationDataAsync(endatixUserId, tenantId, cancellationToken);
     }
 }

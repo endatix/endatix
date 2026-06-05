@@ -12,8 +12,9 @@ public interface IAuthorizationDataProvider
     /// Gets authorization data for a user.
     /// </summary>
     /// <param name="userId">The ID of the user.</param>
+    /// <param name="tenantId">The tenant scope to resolve authorization for.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The authorization data for the user.</returns>
-    Task<Result<AuthorizationData>> GetAuthorizationDataAsync(long userId, CancellationToken cancellationToken);
+    Task<Result<AuthorizationData>> GetAuthorizationDataAsync(long userId, long tenantId, CancellationToken cancellationToken);
 }
 

@@ -90,4 +90,56 @@ public class EmailTemplateTests
         result.PlainTextBody.Should().Be("Welcome John! Your token is {{verificationToken}}");
         result.To.Should().Be("test@example.com");
     }
-} 
+
+    [Fact]
+    public void Render_WithHtmlVariableContent_EncodesHtmlBodyValues()
+    {
+        // Arrange
+        var template = new EmailTemplate(
+            name: "test-template",
+            subject: "Hello {{name}}",
+            htmlContent: "<p>{{name}}</p><a href=\"{{url}}\">Open</a>",
+            plainTextContent: "Hello {{name}} {{url}}",
+            fromAddress: "noreply@example.com"
+        );
+
+        var variables = new Dictionary<string, string>
+        {
+            ["name"] = "<script>alert('xss')</script>",
+            ["url"] = "https://app.example.com/verify?token=a&next=\"<bad>\""
+        };
+
+        // Act
+        var result = template.Render("test@example.com", variables);
+
+        // Assert
+        result.HtmlBody.Should().Be("<p>&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;</p><a href=\"https://app.example.com/verify?token=a&amp;next=&quot;&lt;bad&gt;&quot;\">Open</a>");
+        result.HtmlBody.Should().NotContain("<script>");
+    }
+
+    [Fact]
+    public void Render_WithHtmlVariableContent_DoesNotEncodeSubjectOrPlainTextValues()
+    {
+        // Arrange
+        var template = new EmailTemplate(
+            name: "test-template",
+            subject: "Hello {{name}}",
+            htmlContent: "<p>{{name}}</p>",
+            plainTextContent: "Hello {{name}}",
+            fromAddress: "noreply@example.com"
+        );
+
+        var variables = new Dictionary<string, string>
+        {
+            ["name"] = "A & B"
+        };
+
+        // Act
+        var result = template.Render("test@example.com", variables);
+
+        // Assert
+        result.Subject.Should().Be("Hello A & B");
+        result.PlainTextBody.Should().Be("Hello A & B");
+        result.HtmlBody.Should().Be("<p>A &amp; B</p>");
+    }
+}

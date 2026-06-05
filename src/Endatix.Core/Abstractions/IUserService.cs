@@ -34,9 +34,30 @@ public interface IUserService
     Task<Result<User>> GetUserAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Lists all users for the current tenant with their role names. Multi-tenancy is assumed; tenant filter is applied by the implementation.
+    /// Lists users for the current tenant with their role names. Multi-tenancy is assumed; tenant filter is applied by the implementation.
     /// </summary>
-    /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
-    /// <returns>A Result containing the list of users with roles for the current tenant.</returns>
-    Task<Result<IReadOnlyList<UserWithRoles>>> ListUsersAsync(CancellationToken cancellationToken = default);
+    Task<Result<Paged<UserWithRoles>>> ListUsersAsync(
+        int skip,
+        int take,
+        string? search,
+        string? role,
+        string? status,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a user for the current tenant with their assigned role names.
+    /// </summary>
+    Task<Result<UserWithRoles>> GetUserWithRolesAsync(
+        long userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes the user's access to the current tenant without deleting their global identity.
+    /// </summary>
+    Task<Result> RemoveUserAccessAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Cancels a pending invite for a user in the current tenant.
+    /// </summary>
+    Task<Result> CancelUserInviteAsync(long userId, CancellationToken cancellationToken = default);
 }

@@ -263,7 +263,7 @@ public class SensitiveValueTests
     #region ToString Tests
 
     [Theory]
-    [InlineData(SensitivityType.Email, "john.doe@example.com", "j*****e@example.com")]
+    [InlineData(SensitivityType.Email, "john.doe@example.com", PiiRedactor.REDACTED_EMAIL)]
     [InlineData(SensitivityType.Name, "John Doe", "J*** D**")]
     [InlineData(SensitivityType.PhoneNumber, "+1234567890", "+123***7890")]
     [InlineData(SensitivityType.Generic, "test-value", "**********")]

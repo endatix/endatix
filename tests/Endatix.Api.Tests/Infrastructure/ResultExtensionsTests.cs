@@ -267,6 +267,11 @@ public class ResultExtensionsTests
         problemDetails.Detail.Should().Contain("Validation error");
         problemDetails.Extensions.Should().ContainKey("errorCode");
         problemDetails.Extensions["errorCode"].Should().Be("ERROR_CODE");
+        problemDetails.Extensions.Should().ContainKey("fields");
+        var fields =
+            problemDetails.Extensions["fields"].Should().BeOfType<Dictionary<string, string[]>>().Subject;
+        fields.Should().ContainKey("Field");
+        fields["Field"].Should().ContainSingle("Validation error");
     }
 
     [Fact]

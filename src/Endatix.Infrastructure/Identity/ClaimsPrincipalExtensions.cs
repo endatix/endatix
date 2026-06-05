@@ -80,6 +80,12 @@ public static class ClaimsPrincipalExtensions
             return endatixIdentity.TenantId;
         }
 
+        var tenantIdClaim = identity.FindFirst(ClaimNames.TenantId);
+        if (tenantIdClaim is not null && long.TryParse(tenantIdClaim.Value, out var tenantId))
+        {
+            return tenantId;
+        }
+
         return AuthConstants.DEFAULT_TENANT_ID;
     }
 

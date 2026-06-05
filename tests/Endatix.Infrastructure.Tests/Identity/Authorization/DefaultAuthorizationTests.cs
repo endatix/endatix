@@ -87,19 +87,37 @@ public sealed class DefaultAuthorizationTests
         // Arrange
         var context = CreateTestContext();
         context.RegisterEndatixProvider(TestIssuer, activate: true);
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TestIssuer, tenantId: 10);
         var expected = AuthorizationData.ForAuthenticatedUser("123", 10, ["Role"], ["perm"]);
         context.AuthorizationDataProvider
-            .GetAuthorizationDataAsync(123, Arg.Any<CancellationToken>())
+            .GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>())
             .Returns(Result.Success(expected));
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
 
         // Assert
-        await context.AuthorizationDataProvider.Received(1).GetAuthorizationDataAsync(123, Arg.Any<CancellationToken>());
+        await context.AuthorizationDataProvider.Received(1).GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>());
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task GetAuthorizationDataAsync_ReturnsError_WhenTenantIdMissing()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterEndatixProvider(TestIssuer, activate: true);
+        var principal = CreatePrincipal("123", TestIssuer);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain("Tenant ID is required");
+        await context.AuthorizationDataProvider.DidNotReceive()
+            .GetAuthorizationDataAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -108,9 +126,9 @@ public sealed class DefaultAuthorizationTests
         // Arrange
         var context = CreateTestContext();
         context.RegisterEndatixProvider(TestIssuer, activate: true);
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TestIssuer, tenantId: 10);
         context.AuthorizationDataProvider
-            .GetAuthorizationDataAsync(123, Arg.Any<CancellationToken>())
+            .GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>())
             .Returns(Result<AuthorizationData>.Error("failed"));
 
         // Act
@@ -121,13 +139,20 @@ public sealed class DefaultAuthorizationTests
         result.Errors.Should().Contain("failed");
     }
 
-    private static ClaimsPrincipal CreatePrincipal(string userId, string issuer)
+    private static ClaimsPrincipal CreatePrincipal(string userId, string issuer, long? tenantId = null)
     {
-        var identity = new ClaimsIdentity(
-        [
+        var claims = new List<Claim>
+        {
             new Claim(ClaimNames.UserId, userId),
             new Claim(JwtRegisteredClaimNames.Iss, issuer)
-        ], "test");
+        };
+
+        if (tenantId is not null)
+        {
+            claims.Add(new Claim(ClaimNames.TenantId, tenantId.Value.ToString()));
+        }
+
+        var identity = new ClaimsIdentity(claims, "test");
 
         return new ClaimsPrincipal(identity);
     }

@@ -29,6 +29,11 @@ public partial class SendTestEmailHandler(
             return Result.Invalid(new ValidationError("Email address cannot be empty."));
         }
 
+        if (string.IsNullOrWhiteSpace(request.FromEmail))
+        {
+            return Result.Invalid(new ValidationError("Sender email address cannot be empty."));
+        }
+
         if (!emailSender.IsConfigured)
         {
             return Result.Unavailable("Email provider is not configured.");
@@ -41,6 +46,7 @@ public partial class SendTestEmailHandler(
                 var emailWithTemplate = new EmailWithTemplate
                 {
                     To = request.ToEmail,
+                    From = request.FromEmail,
                     TemplateId = request.TemplateId,
                     Subject = "Test Email from Endatix",
                     Metadata = new Dictionary<string, object>
@@ -57,6 +63,7 @@ public partial class SendTestEmailHandler(
                 var emailWithBody = new EmailWithBody
                 {
                     To = request.ToEmail,
+                    From = request.FromEmail,
                     Subject = "Test Email from Endatix",
                     PlainTextBody = "This is a test email sent from the Endatix admin panel.",
                     HtmlBody = "<h1>Test Email</h1><p>This is a test email sent from the Endatix admin panel.</p>"

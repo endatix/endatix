@@ -1,7 +1,10 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Email.SendTestEmail;
+using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using NSubstitute;
 
 namespace Endatix.Core.Tests.UseCases.Email.SendTestEmail;
 
@@ -13,16 +16,81 @@ public class SendTestEmailHandlerTests
     public SendTestEmailHandlerTests()
     {
         _emailSender = Substitute.For<IEmailSender>();
-        _sut = new SendTestEmailHandler(
-            _emailSender,
-            Substitute.For<ILogger<SendTestEmailHandler>>());
+        var logger = Substitute.For<ILogger<SendTestEmailHandler>>();
+        _sut = new SendTestEmailHandler(_emailSender, logger);
+    }
+
+    [Fact]
+    public async Task Handle_PlainTextTestEmail_SendsEmailWithFromAddress()
+    {
+        // Arrange
+        const string toEmail = "admin@example.com";
+        const string fromEmail = "noreply@example.com";
+        var command = new SendTestEmailCommand(toEmail, fromEmail);
+        _emailSender.IsConfigured.Returns(true);
+
+        // Act
+        var result = await _sut.Handle(command, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        await _emailSender
+            .Received(1)
+            .SendEmailAsync(
+                Arg.Is<EmailWithBody>(email =>
+                    email.To == toEmail &&
+                    email.From == fromEmail),
+                TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Handle_TemplateTestEmail_SendsEmailWithFromAddress()
+    {
+        // Arrange
+        const string toEmail = "admin@example.com";
+        const string fromEmail = "noreply@example.com";
+        const string templateId = "user-invitation";
+        var command = new SendTestEmailCommand(toEmail, fromEmail, templateId);
+        _emailSender.IsConfigured.Returns(true);
+
+        // Act
+        var result = await _sut.Handle(command, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        await _emailSender
+            .Received(1)
+            .SendEmailAsync(
+                Arg.Is<EmailWithTemplate>(email =>
+                    email.To == toEmail &&
+                    email.From == fromEmail &&
+                    email.TemplateId == templateId),
+                TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Handle_MissingFromEmail_ReturnsInvalid()
+    {
+        // Arrange
+        var command = new SendTestEmailCommand("admin@example.com", string.Empty);
+        _emailSender.IsConfigured.Returns(true);
+
+        // Act
+        var result = await _sut.Handle(command, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ValidationErrors.Should().ContainSingle();
+        await _emailSender
+            .DidNotReceive()
+            .SendEmailAsync(Arg.Any<EmailWithBody>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_UnconfiguredSenderForBodyEmail_ReturnsUnavailableWithoutSending()
     {
         _emailSender.IsConfigured.Returns(false);
-        var command = new SendTestEmailCommand("admin@example.com");
+        var command = new SendTestEmailCommand("admin@example.com", "noreply@example.com");
 
         var result = await _sut.Handle(command, CancellationToken.None);
 
@@ -40,7 +108,7 @@ public class SendTestEmailHandlerTests
     public async Task Handle_UnconfiguredSenderForTemplateEmail_ReturnsUnavailableWithoutSending()
     {
         _emailSender.IsConfigured.Returns(false);
-        var command = new SendTestEmailCommand("admin@example.com", "welcome-email");
+        var command = new SendTestEmailCommand("admin@example.com", "noreply@example.com", "welcome-email");
 
         var result = await _sut.Handle(command, CancellationToken.None);
 
@@ -58,7 +126,7 @@ public class SendTestEmailHandlerTests
     public async Task Handle_WhitespaceTemplateId_SendsBodyEmail()
     {
         _emailSender.IsConfigured.Returns(true);
-        var command = new SendTestEmailCommand("admin@example.com", " ");
+        var command = new SendTestEmailCommand("admin@example.com", "noreply@example.com", " ");
 
         var result = await _sut.Handle(command, CancellationToken.None);
 
@@ -78,7 +146,7 @@ public class SendTestEmailHandlerTests
         _emailSender
             .SendEmailAsync(Arg.Any<EmailWithBody>(), Arg.Any<CancellationToken>())
             .Returns<Task>(_ => throw new InvalidOperationException("SMTP auth failed"));
-        var command = new SendTestEmailCommand("admin@example.com");
+        var command = new SendTestEmailCommand("admin@example.com", "noreply@example.com");
 
         var result = await _sut.Handle(command, CancellationToken.None);
 
@@ -94,7 +162,7 @@ public class SendTestEmailHandlerTests
         _emailSender
             .SendEmailAsync(Arg.Any<EmailWithTemplate>(), Arg.Any<CancellationToken>())
             .Returns<Task>(_ => throw new InvalidOperationException("HTTP provider failed"));
-        var command = new SendTestEmailCommand("admin@example.com", "welcome-email");
+        var command = new SendTestEmailCommand("admin@example.com", "noreply@example.com", "welcome-email");
 
         var result = await _sut.Handle(command, CancellationToken.None);
 

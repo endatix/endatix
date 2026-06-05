@@ -26,7 +26,10 @@ public class SendTestEmail(IMediator mediator)
         {
             s.Summary = "Send test email";
             s.Description = "Sends a test email to verify email provider configuration.";
-            s.ExampleRequest = new SendTestEmailRequest("admin@example.com", null);
+            s.ExampleRequest = new SendTestEmailRequest(
+                "admin@example.com",
+                "noreply@example.com",
+                null);
             s.ResponseExamples[200] = "Test email sent successfully.";
             s.Responses[200] = "Test email sent successfully.";
             s.Responses[400] = "Invalid input data.";
@@ -39,7 +42,10 @@ public class SendTestEmail(IMediator mediator)
     /// <inheritdoc/>
     public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(SendTestEmailRequest request, CancellationToken ct)
     {
-        var command = new SendTestEmailCommand(request.ToEmail, request.TemplateId);
+        var command = new SendTestEmailCommand(
+            request.ToEmail,
+            request.FromEmail,
+            request.TemplateId);
         var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
@@ -61,6 +67,10 @@ public class SendTestEmailValidator : Validator<SendTestEmailRequest>
         RuleFor(x => x.ToEmail)
             .NotEmpty()
             .EmailAddress();
+
+        RuleFor(x => x.FromEmail)
+            .NotEmpty()
+            .EmailAddress();
     }
 }
 
@@ -68,5 +78,9 @@ public class SendTestEmailValidator : Validator<SendTestEmailRequest>
 /// Request model for sending a test email.
 /// </summary>
 /// <param name="ToEmail">The email address to send the test email to.</param>
+/// <param name="FromEmail">The email address to send the test email from.</param>
 /// <param name="TemplateId">The ID of the email template to send.</param>
-public record SendTestEmailRequest(string ToEmail, string? TemplateId = null);
+public record SendTestEmailRequest(
+    string ToEmail,
+    string FromEmail,
+    string? TemplateId = null);
