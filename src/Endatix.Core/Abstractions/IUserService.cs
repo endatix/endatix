@@ -45,6 +45,13 @@ public interface IUserService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a user for the current tenant with their assigned role names.
+    /// </summary>
+    Task<Result<UserWithRoles>> GetUserWithRolesAsync(
+        long userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Removes the user's access to the current tenant without deleting their global identity.
     /// </summary>
     Task<Result> RemoveUserAccessAsync(long userId, CancellationToken cancellationToken = default);

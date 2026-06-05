@@ -170,6 +170,75 @@ public sealed class AppUserService(
         return userNameMatches.Union(emailMatches);
     }
 
+    /// <inheritdoc />
+    public async Task<Result<UserWithRoles>> GetUserWithRolesAsync(long userId, CancellationToken cancellationToken = default)
+    {
+        if (userId <= 0)
+        {
+            return Result.NotFound();
+        }
+
+        var tenantId = tenantContext.TenantId;
+        var userRows = await identityDbContext.Users
+            .AsNoTracking()
+            .Where(user =>
+                user.Id == userId &&
+                user.TenantId == tenantId &&
+                user.UserName != null &&
+                user.UserName != string.Empty &&
+                user.Email != null &&
+                user.Email != string.Empty)
+            .LeftJoin(
+                identityDbContext.UserRoles.AsNoTracking(),
+                user => user.Id,
+                userRole => userRole.UserId,
+                (user, userRole) => new
+                {
+                    user,
+                    userRole
+                })
+            .LeftJoin(
+                identityDbContext.Roles.AsNoTracking(),
+                userAssignment => userAssignment.userRole == null
+                    ? (long?)null
+                    : userAssignment.userRole.RoleId,
+                role => role.Id,
+                (userAssignment, role) => new
+                {
+                    userAssignment.user.Id,
+                    UserName = userAssignment.user.UserName!,
+                    Email = userAssignment.user.Email!,
+                    userAssignment.user.EmailConfirmed,
+                    RoleName = role == null ? null : role.Name
+                })
+            .ToListAsync(cancellationToken);
+
+        var firstUserRow = userRows.FirstOrDefault();
+        if (firstUserRow is null)
+        {
+            return Result.NotFound();
+        }
+
+        var roles = userRows
+            .Select(user => user.RoleName)
+            .Where(roleName => roleName != null)
+            .Distinct()
+            .OrderBy(roleName => roleName)
+            .Select(roleName => roleName!)
+            .ToList();
+
+        UserWithRoles userWithRoles = new()
+        {
+            Id = firstUserRow.Id,
+            UserName = firstUserRow.UserName,
+            Email = firstUserRow.Email,
+            IsVerified = firstUserRow.EmailConfirmed,
+            Roles = roles
+        };
+
+        return Result.Success(userWithRoles);
+    }
+
     private static int NormalizeSkip(int skip, int take, long totalRecords)
     {
         if (totalRecords == 0 || skip < totalRecords)
