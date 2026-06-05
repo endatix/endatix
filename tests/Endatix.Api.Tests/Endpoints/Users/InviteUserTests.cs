@@ -31,7 +31,7 @@ public sealed class InviteUserTests
             Email = "invitee@endatix.com",
             Roles = ["Respondent"]
         };
-        User user = new(123L, "invitee@endatix.com", "invitee@endatix.com", false);
+        User user = new(1507759960832868352L, "invitee@endatix.com", "invitee@endatix.com", false);
 
         _mediator
             .Send(

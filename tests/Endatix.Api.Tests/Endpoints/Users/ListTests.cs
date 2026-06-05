@@ -46,7 +46,7 @@ public class ListTests
         {
             new()
             {
-                Id = 1,
+                Id = 1507759960832868352L,
                 UserName = "alice",
                 Email = "alice@example.com",
                 IsVerified = true,
@@ -54,7 +54,7 @@ public class ListTests
             },
             new()
             {
-                Id = 2,
+                Id = 1507759960832868353L,
                 UserName = "bob",
                 Email = "bob@example.com",
                 IsVerified = false,
@@ -81,8 +81,10 @@ public class ListTests
         okResult.Value.TotalRecords.Should().Be(42);
         okResult.Value.TotalPages.Should().Be(3);
         okResult.Value.Items.Should().HaveCount(2);
+        okResult.Value.Items.First().Id.Should().Be(1507759960832868352L);
         okResult.Value.Items.First().UserName.Should().Be("alice");
         okResult.Value.Items.First().Roles.Should().Contain("Admin").And.Contain("Creator");
+        okResult.Value.Items.Last().Id.Should().Be(1507759960832868353L);
         okResult.Value.Items.Last().UserName.Should().Be("bob");
         okResult.Value.Items.Last().Roles.Should().BeEmpty();
     }
