@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
@@ -7,6 +8,7 @@ using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Data;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
+using Endatix.Infrastructure.Identity.Provisioning;
 using Endatix.Infrastructure.Identity.Services;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication;
@@ -74,6 +76,21 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder ConfigureAuthOptions(Action<AuthOptions> configure)
     {
         LogSetupInfo("Configuring authentication options");
+        Services.Configure(configure);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Configures submitter claim extraction options.
+    /// </summary>
+    /// <param name="configure">Action to configure submitter options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public InfrastructureSecurityBuilder ConfigureSubmitters(Action<SubmitterOptions> configure)
+    {
+        Guard.Against.Null(configure);
+
+        LogSetupInfo("Configuring submitter options");
         Services.Configure(configure);
 
         return this;
@@ -235,6 +252,8 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();
         Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
         Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
+        Services.AddScoped<IKeycloakTokenIntrospectionService, KeycloakTokenIntrospectionService>();
+        Services.AddScoped<IExternalOperatorProvisioner, ExternalOperatorProvisioner>();
 
         // Register authorization handlers
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();

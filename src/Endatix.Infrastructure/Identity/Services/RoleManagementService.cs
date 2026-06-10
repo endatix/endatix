@@ -17,6 +17,7 @@ public sealed class RoleManagementService : IRoleManagementService
 {
     private const string PlatformAdminRoleMutationForbiddenMessage = "Only platform administrators can assign or remove the PlatformAdmin role.";
     private const string PlatformAdminUserMutationForbiddenMessage = "Only platform administrators can modify users with the PlatformAdmin role.";
+    private const string ExternalUserRoleMutationForbiddenMessage = "External users receive roles from their identity provider and cannot be edited locally.";
 
     private readonly UserManager<AppUser> _userManager;
     private readonly AppIdentityDbContext _identityDbContext;
@@ -68,6 +69,12 @@ public sealed class RoleManagementService : IRoleManagementService
             return UserNotFound(userId);
         }
 
+        var externalUserGuard = EnsureExternalUserRolesAreReadOnly(user);
+        if (!externalUserGuard.IsSuccess)
+        {
+            return externalUserGuard;
+        }
+
         var isInRole = await _userManager.IsInRoleAsync(user, trimmedRoleName);
         if (isInRole)
         {
@@ -110,6 +117,12 @@ public sealed class RoleManagementService : IRoleManagementService
             return UserNotFound(userId);
         }
 
+        var externalUserGuard = EnsureExternalUserRolesAreReadOnly(user);
+        if (!externalUserGuard.IsSuccess)
+        {
+            return externalUserGuard;
+        }
+
         var isInRole = await _userManager.IsInRoleAsync(user, trimmedRoleName);
         if (!isInRole)
         {
@@ -150,6 +163,12 @@ public sealed class RoleManagementService : IRoleManagementService
         if (user is null || user.TenantId != tenantId)
         {
             return UserNotFound(userId);
+        }
+
+        var externalUserGuard = EnsureExternalUserRolesAreReadOnly(user);
+        if (!externalUserGuard.IsSuccess)
+        {
+            return externalUserGuard;
         }
 
         var platformAdminUserGuard = await EnsureCurrentUserCanModifyPlatformAdminUserAsync(user, cancellationToken);
@@ -618,6 +637,13 @@ public sealed class RoleManagementService : IRoleManagementService
         _logger.LogWarning("Blocked PlatformAdmin role mutation: non-platform administrator attempted to replace roles for a PlatformAdmin user.");
 
         return Result.Forbidden(PlatformAdminUserMutationForbiddenMessage);
+    }
+
+    private static Result EnsureExternalUserRolesAreReadOnly(AppUser user)
+    {
+        return user.IsExternal
+            ? Result.Forbidden(ExternalUserRoleMutationForbiddenMessage)
+            : Result.Success();
     }
 
     private async Task<bool> CurrentUserIsPlatformAdminAsync(CancellationToken cancellationToken)

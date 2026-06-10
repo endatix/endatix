@@ -4,6 +4,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -14,6 +15,7 @@ public sealed class AuthorizationCacheTests
 {
     private readonly HybridCache _hybridCache;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly HttpContextAccessor _httpContextAccessor;
     private readonly AuthorizationCache _cache;
     private readonly DateTimeOffset _now;
 
@@ -21,13 +23,17 @@ public sealed class AuthorizationCacheTests
     {
         _hybridCache = Substitute.For<HybridCache>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
+        _httpContextAccessor = new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext()
+        };
         _now = new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero);
         _dateTimeProvider.Now.Returns(_now);
         var jwtOptions = Options.Create(new EndatixJwtOptions
         {
             SigningKey = "test-signing-key-32-characters",
         });
-        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, jwtOptions);
+        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, _httpContextAccessor, jwtOptions);
     }
 
     [Fact]
@@ -162,6 +168,48 @@ public sealed class AuthorizationCacheTests
         capturedKey.Should().NotBeNull();
         capturedKey.Should().StartWith("jwt_auth:");
         capturedKey.Should().NotContain("jti_123");
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_UsesAccessTokenWhenPresent()
+    {
+        const string jti = "custom-jti";
+        const string accessToken = "raw-access-token";
+        var principal = CreatePrincipal("123", jti);
+        var capturedKeys = new List<string>();
+
+        _hybridCache.GetOrCreateAsync(
+                Arg.Do<string>(key => capturedKeys.Add(key)),
+                Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<string[]>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var factory = callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>();
+                var token = callInfo.Arg<CancellationToken>();
+                return factory(token);
+            });
+
+        _httpContextAccessor.HttpContext!.Request.Headers.Authorization = $"Bearer {accessToken}";
+
+        await _cache.GetOrCreateAsync(
+            principal,
+            _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))),
+            CancellationToken.None);
+
+        _httpContextAccessor.HttpContext.Request.Headers.Remove("Authorization");
+
+        await _cache.GetOrCreateAsync(
+            principal,
+            _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))),
+            CancellationToken.None);
+
+        capturedKeys.Should().HaveCount(2);
+        capturedKeys[0].Should().StartWith("jwt_auth:");
+        capturedKeys[0].Should().NotBe(capturedKeys[1]);
+        capturedKeys[0].Should().NotContain(jti);
+        capturedKeys[0].Should().NotContain(accessToken);
     }
 
     [Fact]

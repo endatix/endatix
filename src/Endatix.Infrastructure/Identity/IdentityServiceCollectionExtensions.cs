@@ -51,6 +51,7 @@ public static class IdentityServiceCollectionExtensions
                     // identityOptions.User.RequireUniqueEmail = true;
                 })
                 .AddRoles<AppRole>()
+                .AddUserValidator<ExternalAppUserValidator>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
 

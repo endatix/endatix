@@ -18,6 +18,7 @@ public class AppUserServiceTests
     private readonly IEmailVerificationService _emailVerificationService;
     private readonly IUserContext _userContext;
     private readonly IRelationalSubstringLikeFilter _substringLikeFilter;
+    private readonly IAuthorizationCache _authorizationCache;
     private readonly AppUserService _userService;
 
     public AppUserServiceTests()
@@ -33,13 +34,15 @@ public class AppUserServiceTests
         _emailVerificationService = Substitute.For<IEmailVerificationService>();
         _userContext = Substitute.For<IUserContext>();
         _substringLikeFilter = Substitute.For<IRelationalSubstringLikeFilter>();
+        _authorizationCache = Substitute.For<IAuthorizationCache>();
         _userService = new AppUserService(
             _userManager,
             _tenantContext,
             _identityDbContext,
             _emailVerificationService,
             _userContext,
-            _substringLikeFilter);
+            _substringLikeFilter,
+            _authorizationCache);
     }
 
     [Fact]

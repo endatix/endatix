@@ -3,11 +3,13 @@ using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
+using Endatix.Infrastructure.Identity.Provisioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,7 +69,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     }
 
     [Fact]
-    public async Task GetAuthorizationDataAsync_ReturnsDefault_WhenAuthorizationSectionMissing()
+    public async Task GetAuthorizationDataAsync_ReturnsSuccessWithEmptyRoles_WhenAuthorizationSectionMissing()
     {
         // Arrange
         var context = CreateTestContext();
@@ -80,11 +82,13 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.Roles.Should().Contain(SystemRole.Authenticated.Name);
+        result.Value.Roles.Should().BeEquivalentTo(SystemRole.Authenticated.Name);
+        result.Value.Permissions.Should().BeEquivalentTo(SystemRole.Authenticated.Permissions);
+        result.Value.UserId.Should().Be("123");
     }
 
     [Fact]
-    public async Task GetAuthorizationDataAsync_ReturnsError_WhenAuthorizationHeaderMissing()
+    public async Task GetAuthorizationDataAsync_ReturnsError_WhenAccessTokenMissing()
     {
         // Arrange
         var context = CreateTestContext();
@@ -97,7 +101,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain("Authorization header is not found");
+        result.Errors.Should().Contain("Access token is not found");
     }
 
     [Fact]
@@ -114,7 +118,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain("Failed to introspect token");
+        result.Errors.Should().Contain("Failed to introspect token.");
     }
 
     [Fact]
@@ -134,7 +138,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain("Failed to get roles");
+        result.Errors.Should().Contain("Failed to get roles.");
     }
 
     [Fact]
@@ -157,6 +161,24 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     }
 
     [Fact]
+    public async Task GetAuthorizationDataAsync_ReturnsForbidden_WhenEmailClaimMissing()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TestIssuer, activate: true);
+        context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
+        var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        result.Errors.Should().Contain("Operator email is required.");
+    }
+
+    [Fact]
     public async Task GetAuthorizationDataAsync_ReturnsAuthorizationData_WhenMappingSucceeds()
     {
         // Arrange
@@ -176,13 +198,20 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         result.Value.Permissions.Should().Contain("perm.read");
     }
 
-    private static ClaimsPrincipal CreatePrincipal(string userId, string issuer)
+    private static ClaimsPrincipal CreatePrincipal(string userId, string issuer, bool includeEmail = true)
     {
-        var identity = new ClaimsIdentity(
+        List<Claim> claims =
         [
             new Claim(ClaimNames.UserId, userId),
             new Claim(JwtRegisteredClaimNames.Iss, issuer)
-        ], "test");
+        ];
+
+        if (includeEmail)
+        {
+            claims.Add(new Claim(JwtRegisteredClaimNames.Email, "operator@example.com"));
+        }
+
+        ClaimsIdentity identity = new(claims, "test");
 
         return new ClaimsPrincipal(identity);
     }
@@ -214,13 +243,24 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         {
             HttpContext = new DefaultHttpContext()
         };
-        httpContextAccessor.HttpContext!.Request.Headers["Authorization"] = "Bearer token-123";
+        httpContextAccessor.HttpContext!.Request.Headers.Authorization = "Bearer token-123";
 
         var handler = new ConfigurableHttpMessageHandler();
         var httpClient = new HttpClient(handler);
         var httpClientFactory = Substitute.For<IHttpClientFactory>();
         httpClientFactory.CreateClient().Returns(httpClient);
         httpClientFactory.CreateClient(Arg.Any<string>()).Returns(httpClient);
+        var tokenIntrospectionService = new KeycloakTokenIntrospectionService(httpClientFactory);
+        var externalOperatorProvisioner = Substitute.For<IExternalOperatorProvisioner>();
+        externalOperatorProvisioner
+            .ProvisionAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<ExternalIdentityProfile>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new AppUser { Id = 123 }));
 
         var logger = Substitute.For<ILogger<KeycloakTokenIntrospectionAuthorization>>();
 
@@ -229,7 +269,8 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             options,
             mapper,
             httpContextAccessor,
-            httpClientFactory,
+            tokenIntrospectionService,
+            externalOperatorProvisioner,
             logger);
 
         return new TestContext(
@@ -238,6 +279,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             Mapper: mapper,
             HttpContextAccessor: httpContextAccessor,
             HttpClientFactory: httpClientFactory,
+            ExternalOperatorProvisioner: externalOperatorProvisioner,
             Handler: handler,
             Strategy: strategy);
     }
@@ -248,6 +290,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         IExternalAuthorizationMapper Mapper,
         IHttpContextAccessor HttpContextAccessor,
         IHttpClientFactory HttpClientFactory,
+        IExternalOperatorProvisioner ExternalOperatorProvisioner,
         ConfigurableHttpMessageHandler Handler,
         KeycloakTokenIntrospectionAuthorization Strategy)
     {

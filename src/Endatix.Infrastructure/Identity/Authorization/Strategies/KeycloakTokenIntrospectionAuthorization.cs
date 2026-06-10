@@ -3,7 +3,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
-using Endatix.Infrastructure.Utils;
+using Endatix.Infrastructure.Identity.Provisioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,7 +15,8 @@ public class KeycloakTokenIntrospectionAuthorization(
     IOptions<KeycloakOptions> keycloakOptions,
     IExternalAuthorizationMapper externalAuthorizationMapper,
     IHttpContextAccessor httpContextAccessor,
-    IHttpClientFactory httpClientFactory,
+    IKeycloakTokenIntrospectionService tokenIntrospectionService,
+    IExternalOperatorProvisioner externalOperatorProvisioner,
     ILogger<KeycloakTokenIntrospectionAuthorization> logger
     ) : IAuthorizationStrategy
 {
@@ -50,64 +51,66 @@ public class KeycloakTokenIntrospectionAuthorization(
                 userId: principal.GetUserId() ?? string.Empty,
                 tenantId: keycloakSettings.DefaultTenantId,
                 roles: [],
-                permissions: []
-            ));
+                permissions: []));
         }
 
-        var authHeader = httpContextAccessor.HttpContext?.Request.Headers["Authorization"].FirstOrDefault();
-        if (authHeader is null)
+        var accessTokenResult = ResolveAccessToken();
+        if (!accessTokenResult.IsSuccess)
         {
-            return Result.Error("Authorization header is not found");
+            return accessTokenResult.ToErrorResult<AuthorizationData>();
         }
 
-        var accessToken = authHeader["Bearer ".Length..];
-        if (accessToken is null)
-        {
-            return Result.Error("Access token is not found");
-        }
-
-        var httpClient = httpClientFactory.CreateClient();
-
-        var introspectionRequest = new HttpRequestMessage(HttpMethod.Post, $"{keycloakSettings.Issuer}/protocol/openid-connect/token/introspect");
-        var payload = new List<KeyValuePair<string, string>>
-        {
-            new KeyValuePair<string, string>("token", accessToken),
-            new KeyValuePair<string, string>("client_id", keycloakSettings.ClientId),
-            new KeyValuePair<string, string>("client_secret", keycloakSettings.ClientSecret)
-        };
-
-        var content = new FormUrlEncodedContent(payload);
-        introspectionRequest.Content = content;
-
-        var introspectionResponse = await httpClient.SendAsync(introspectionRequest, cancellationToken);
-        if (!introspectionResponse.IsSuccessStatusCode)
-        {
-            return Result<AuthorizationData>.Error("Failed to introspect token");
-        }
-
-        var introspectionResponseContent = await introspectionResponse.Content.ReadAsStringAsync(cancellationToken);
+        var accessToken = accessTokenResult.Value;
 
         try
         {
-            var rolesPathSelector = keycloakSettings.Authorization.ResolveRolesPath(keycloakSettings.ClientId);
-            using var jsonExtractor = new JsonExtractor(introspectionResponseContent);
-            var parsedRolesResult = jsonExtractor.ExtractArrayOfStrings(rolesPathSelector);
-            if (!parsedRolesResult.IsSuccess)
+            var introspectionResult = await tokenIntrospectionService.IntrospectAsync(accessToken, keycloakSettings, cancellationToken);
+            if (!introspectionResult.IsSuccess)
             {
-                return Result.Error("Failed to get roles");
+                return introspectionResult.ToErrorResult<AuthorizationData>();
             }
 
             var rolesMappingConfig = keycloakSettings.Authorization.RoleMappings;
-            var rolesPath = keycloakSettings.Authorization.RolesPath;
-
-            var mappingResult = await externalAuthorizationMapper.MapToAppRolesAsync(parsedRolesResult.Value, rolesMappingConfig, cancellationToken);
+            var mappingResult = await externalAuthorizationMapper.MapToAppRolesAsync(
+                introspectionResult.Value.ExternalRoles,
+                rolesMappingConfig,
+                cancellationToken);
             if (!mappingResult.IsSuccess)
             {
                 return Result.Error(mappingResult.ErrorMessage!);
             }
 
+            if (mappingResult.Roles.Length == 0 || AllExternalRolesAreExcluded(introspectionResult.Value.ExternalRoles, keycloakSettings))
+            {
+                return Result<AuthorizationData>.NotFound("No mapped Hub operator roles.");
+            }
+
+            var subject = GetExternalSubjectId(principal);
+            if (string.IsNullOrWhiteSpace(subject))
+            {
+                return Result<AuthorizationData>.Unauthorized("External subject id is required.");
+            }
+
+            var identityProfileResult = ResolveIdentityProfile(principal);
+            if (!identityProfileResult.IsSuccess)
+            {
+                return identityProfileResult.ToErrorResult<AuthorizationData>();
+            }
+
+            var provisionResult = await externalOperatorProvisioner.ProvisionAsync(
+                keycloakSettings.DefaultTenantId,
+                AuthProviders.Keycloak,
+                subject,
+                mappingResult.Roles,
+                identityProfileResult.Value,
+                cancellationToken);
+            if (!provisionResult.IsSuccess)
+            {
+                return provisionResult.ToErrorResult<AuthorizationData>();
+            }
+
             var authorizationData = AuthorizationData.ForAuthenticatedUser(
-                userId: principal.GetUserId() ?? string.Empty,
+                userId: provisionResult.Value.Id.ToString(),
                 tenantId: keycloakSettings.DefaultTenantId,
                 roles: mappingResult.Roles,
                 permissions: mappingResult.Permissions
@@ -121,5 +124,45 @@ public class KeycloakTokenIntrospectionAuthorization(
             logger.LogError(ex, "Error getting authorization data from Keycloak");
             return Result.Error("Failed to get authorization data from Keycloak");
         }
+    }
+
+    private Result<string> ResolveAccessToken()
+    {
+        var accessToken = BearerAccessTokenResolver.Resolve(httpContextAccessor);
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return Result<string>.Error("Access token is not found");
+        }
+
+        return Result.Success(accessToken);
+    }
+
+    private static Result<ExternalIdentityProfile> ResolveIdentityProfile(ClaimsPrincipal principal)
+    {
+        var principalProfile = ExternalIdentityClaimReader.FromClaimsPrincipal(principal);
+
+        if (string.IsNullOrWhiteSpace(principalProfile.Email))
+        {
+            return Result<ExternalIdentityProfile>.Forbidden("Operator email is required.");
+        }
+
+        return Result.Success(principalProfile);
+    }
+
+    private static string? GetExternalSubjectId(ClaimsPrincipal principal)
+    {
+        return principal.FindFirst(ClaimNames.UserId)?.Value ??
+            principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    }
+
+    private static bool AllExternalRolesAreExcluded(string[] externalRoles, KeycloakOptions keycloakSettings)
+    {
+        if (externalRoles.Length == 0 || keycloakSettings.Provisioning.ExcludedIdpRoles.Count == 0)
+        {
+            return false;
+        }
+
+        HashSet<string> excludedRoles = new(keycloakSettings.Provisioning.ExcludedIdpRoles, StringComparer.OrdinalIgnoreCase);
+        return externalRoles.All(excludedRoles.Contains);
     }
 }

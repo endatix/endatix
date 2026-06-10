@@ -18,11 +18,6 @@ public interface IAuthorizationStrategy
     bool CanHandle(ClaimsPrincipal principal);
 
     /// <summary>
-    /// Gets whether this strategy must bypass the shared authorization cache.
-    /// </summary>
-    bool BypassesAuthorizationCache => false;
-
-    /// <summary>
     /// Extracts authorization data (roles, permissions) from the authentication context.
     /// </summary>
     /// <param name="principal">The claims principal from authentication.</param>

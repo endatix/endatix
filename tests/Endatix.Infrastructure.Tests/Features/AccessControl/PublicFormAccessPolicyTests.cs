@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure;
@@ -76,6 +77,7 @@ public partial class PublicFormAccessPolicyTests
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HybridCache _cache;
     private readonly IOptions<EndatixJwtOptions> _jwtOptions;
+    private readonly ISubmitterResolver _submitterResolver;
     private readonly PublicFormAccessPolicy _policy;
 
     public PublicFormAccessPolicyTests()
@@ -88,6 +90,9 @@ public partial class PublicFormAccessPolicyTests
         _formFrameTokenService = Substitute.For<IFormAccessTokenService>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _cache = Substitute.For<HybridCache>();
+        _submitterResolver = Substitute.For<ISubmitterResolver>();
+        _submitterResolver.ResolveAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
+            .Returns(new SubmitterResolution(null, null, null, null, null));
         _jwtOptions = Options.Create(new EndatixJwtOptions
         {
             SigningKey = "test-signing-key-32-characters",
@@ -128,7 +133,7 @@ public partial class PublicFormAccessPolicyTests
                 return factory(token);
             });
 
-        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _formFrameTokenService, _authorizationService, _dateTimeProvider, _jwtOptions, _cache);
+        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _formFrameTokenService, _authorizationService, _dateTimeProvider, _jwtOptions, _cache, _submitterResolver);
     }
 
     #region Helper Methods
@@ -377,8 +382,16 @@ public partial class PublicFormAccessPolicyTests
         // Arrange
         var formId = 1L;
         var userId = "user-with-submission";
+        var submitterId = 123L;
         var context = new PublicFormAccessContext(formId);
         SetupFormAccessRoutingMetadata(formId, isPublic: false, limitOnePerUser: true);
+        _submitterResolver.ResolveAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
+            .Returns(new SubmitterResolution(
+                submitterId,
+                submitterId.ToString(),
+                submitterId.ToString(),
+                null,
+                Submitter.AuthProviderEndatix));
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -398,7 +411,7 @@ public partial class PublicFormAccessPolicyTests
                 [Actions.Access.PrivateForms])));
 
         _submissionRepository
-            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>())
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmitterIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         // Act
@@ -411,7 +424,7 @@ public partial class PublicFormAccessPolicyTests
         result.Value.Data.CanStartNewSubmission.Should().BeFalse();
         result.Value.Data.IsRespondentTestMode.Should().BeFalse();
         await _formRepository
-            .DidNotReceive()
+            .Received(1)
             .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>());
     }
 
