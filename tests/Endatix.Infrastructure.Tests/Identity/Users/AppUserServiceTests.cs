@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
 using Endatix.Infrastructure.Data;
 using Endatix.Core.Abstractions;
@@ -138,6 +139,44 @@ public class AppUserServiceTests
         // Assert
         result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.Ok);
         await _userManager.Received(1).FindByEmailAsync(email);
+    }
+
+    [Fact]
+    public void AppUser_IsVerified_ReturnsTrueForExternalUserWithoutConfirmedEmail()
+    {
+        // Arrange
+        var appUser = new AppUser
+        {
+            AuthProvider = AuthProviders.Keycloak,
+            EmailConfirmed = false
+        };
+
+        // Act
+        var isVerified = appUser.IsVerified;
+
+        // Assert
+        isVerified.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ToUserEntity_UsesVerifiedStatusForExternalUser()
+    {
+        // Arrange
+        var appUser = new AppUser
+        {
+            Id = 22_111_111_111_111_112,
+            TenantId = 1,
+            AuthProvider = AuthProviders.Keycloak,
+            UserName = "external-keycloak-user",
+            Email = "external@example.com",
+            EmailConfirmed = false
+        };
+
+        // Act
+        var user = appUser.ToUserEntity();
+
+        // Assert
+        user.IsVerified.Should().BeTrue();
     }
 
     [Fact]

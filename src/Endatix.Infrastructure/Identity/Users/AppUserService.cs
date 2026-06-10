@@ -116,7 +116,7 @@ public sealed class AppUserService(
                     Id = user.Id,
                     UserName = user.UserName,
                     Email = user.Email,
-                    IsVerified = user.EmailConfirmed,
+                    IsVerified = IsVerified(user.AuthProvider, user.EmailConfirmed),
                     AuthProvider = user.AuthProvider,
                     IsExternal = user.AuthProvider != AuthProviders.Endatix,
                     IsLockedOut = IsLockedOut(user.LockoutEnd),
@@ -142,8 +142,10 @@ public sealed class AppUserService(
     {
         return status switch
         {
-            "active" => query.Where(user => user.EmailConfirmed && (user.LockoutEnd == null || user.LockoutEnd <= DateTimeOffset.UtcNow)),
-            "pending" => query.Where(user => !user.EmailConfirmed),
+            "active" => query.Where(user =>
+                (user.EmailConfirmed || user.AuthProvider != AuthProviders.Endatix) &&
+                (user.LockoutEnd == null || user.LockoutEnd <= DateTimeOffset.UtcNow)),
+            "pending" => query.Where(user => user.AuthProvider == AuthProviders.Endatix && !user.EmailConfirmed),
             "locked" => query.Where(user => user.LockoutEnd != null && user.LockoutEnd > DateTimeOffset.UtcNow),
             _ => query
         };
@@ -224,7 +226,7 @@ public sealed class AppUserService(
             Id = user.Id,
             UserName = user.UserName!,
             Email = user.Email,
-            IsVerified = user.EmailConfirmed,
+            IsVerified = user.IsVerified,
             AuthProvider = user.AuthProvider,
             IsExternal = user.IsExternal,
             IsLockedOut = IsLockedOut(user.LockoutEnd),
@@ -337,7 +339,7 @@ public sealed class AppUserService(
             return Result.NotFound();
         }
 
-        if (user.EmailConfirmed)
+        if (user.IsVerified)
         {
             return Result.Invalid(new ValidationError("Cannot cancel an invite after the user has activated their account."));
         }
@@ -450,7 +452,7 @@ public sealed class AppUserService(
         long tenantId,
         CancellationToken cancellationToken)
     {
-        if (!user.EmailConfirmed)
+        if (!user.IsVerified)
         {
             return false;
         }
@@ -486,7 +488,9 @@ public sealed class AppUserService(
                 role => role.Id,
                 (userRole, _) => userRole.UserId)
             .Join(
-                identityDbContext.Users.Where(user => user.TenantId == tenantId && user.EmailConfirmed),
+                identityDbContext.Users.Where(user =>
+                    user.TenantId == tenantId &&
+                    (user.EmailConfirmed || user.AuthProvider != AuthProviders.Endatix)),
                 userId => userId,
                 user => user.Id,
                 (_, _) => true)
@@ -584,6 +588,11 @@ public sealed class AppUserService(
     private static bool IsLockedOut(DateTimeOffset? lockoutEnd)
     {
         return lockoutEnd is not null && lockoutEnd > DateTimeOffset.UtcNow;
+    }
+
+    private static bool IsVerified(string authProvider, bool emailConfirmed)
+    {
+        return authProvider != AuthProviders.Endatix || emailConfirmed;
     }
 
     private static Result ToErrorResult(IdentityResult result)

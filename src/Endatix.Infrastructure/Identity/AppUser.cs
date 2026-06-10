@@ -53,6 +53,8 @@ public class AppUser : IdentityUser<long>, ITenantOwned
 
     public bool IsExternal => AuthProvider != AuthProviders.Endatix;
 
+    public bool IsVerified => IsExternal || EmailConfirmed;
+
     public User ToUserEntity()
     {
         Guard.Against.NullOrEmpty(UserName);
@@ -66,7 +68,7 @@ public class AppUser : IdentityUser<long>, ITenantOwned
                 tenantId: TenantId,
                 userName: UserName,
                 email: email,
-                isVerified: EmailConfirmed
+                isVerified: IsVerified
             );
         }
         else
@@ -76,7 +78,7 @@ public class AppUser : IdentityUser<long>, ITenantOwned
                 id: Id,
                 userName: UserName,
                 email: email,
-                isVerified: EmailConfirmed
+                isVerified: IsVerified
             );
         }
 
