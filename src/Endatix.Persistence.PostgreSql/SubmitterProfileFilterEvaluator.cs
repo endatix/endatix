@@ -9,14 +9,12 @@ namespace Endatix.Persistence.PostgreSql;
 
 internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
 {
-    private const string SubmitterProfileFieldPrefix = "submitterProfile.";
-
     public bool IsCriteriaEvaluator => true;
 
     public IQueryable<T> GetQuery<T>(IQueryable<T> query, ISpecification<T> specification) where T : class
     {
         if (typeof(T) != typeof(Submission) ||
-            specification is not ISubmitterProfileFilterSpecification profileFilterSpecification ||
+            specification is not ISubmissionProfileFilterSource profileFilterSpecification ||
             profileFilterSpecification.SubmitterProfileFilters.Count is 0)
         {
             return query;
@@ -25,9 +23,9 @@ internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
         var submissionQuery = (IQueryable<Submission>)query;
         foreach (var filter in profileFilterSpecification.SubmitterProfileFilters)
         {
-            var profileField = filter.Field[SubmitterProfileFieldPrefix.Length..];
+            var profileField = SubmissionFilterFields.GetSubmitterProfileFieldName(filter);
             var payloads = filter.Values
-                .Select(value => JsonSerializer.Serialize(new Dictionary<string, string> { [profileField] = value }))
+                .Select(value => BuildJsonContainsPayload(profileField, value))
                 .ToList();
 
             submissionQuery = filter.Operator switch
@@ -44,4 +42,7 @@ internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
 
         return (IQueryable<T>)submissionQuery;
     }
+
+    private static string BuildJsonContainsPayload(string profileField, string value) =>
+        JsonSerializer.Serialize(new Dictionary<string, string> { [profileField] = value });
 }

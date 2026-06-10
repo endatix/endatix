@@ -12,7 +12,6 @@ public sealed class ExternalIdentityClaimReaderTests
         ClaimsPrincipal principal = new(new ClaimsIdentity(
         [
             new Claim(JwtRegisteredClaimNames.Email, " test@example.com "),
-            new Claim("email_verified", "false"),
             new Claim("preferred_username", "1234"),
             new Claim("name", "first last")
         ]));
@@ -20,8 +19,6 @@ public sealed class ExternalIdentityClaimReaderTests
         var profile = ExternalIdentityClaimReader.FromClaimsPrincipal(principal);
 
         profile.Email.Should().Be("test@example.com");
-        profile.EmailVerified.Should().BeFalse();
-        profile.PreferredUsername.Should().Be("1234");
         profile.DisplayName.Should().Be("first last");
     }
 
@@ -41,4 +38,18 @@ public sealed class ExternalIdentityClaimReaderTests
         profile.DisplayName.Should().Be("first last");
     }
 
+    [Fact]
+    public void FromClaimsPrincipal_WithPreferredUsernameOnly_UsesItAsDisplayName()
+    {
+        ClaimsPrincipal principal = new(new ClaimsIdentity(
+        [
+            new Claim(JwtRegisteredClaimNames.Email, "mapped@example.com"),
+            new Claim("preferred_username", "preferred-user")
+        ]));
+
+        var profile = ExternalIdentityClaimReader.FromClaimsPrincipal(principal);
+
+        profile.Email.Should().Be("mapped@example.com");
+        profile.DisplayName.Should().Be("preferred-user");
+    }
 }

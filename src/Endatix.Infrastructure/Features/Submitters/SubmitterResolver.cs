@@ -91,14 +91,14 @@ internal sealed class SubmitterResolver(
         if (input.AppUserId is not null && input.AuthProvider == AuthProviders.Endatix)
         {
             return await submitterRepository.SingleOrDefaultAsync(
-                new SubmitterByAppUserSpec(tenantId, input.AuthProvider, input.AppUserId.Value),
+                new SubmitterSpecifications.ByAppUserSpec(tenantId, input.AuthProvider, input.AppUserId.Value),
                 cancellationToken);
         }
 
         if (!string.IsNullOrWhiteSpace(input.ExternalSubjectId))
         {
             return await submitterRepository.SingleOrDefaultAsync(
-                new SubmitterByExternalSubjectSpec(tenantId, input.AuthProvider, input.ExternalSubjectId),
+                new SubmitterSpecifications.ByExternalSubjectSpec(tenantId, input.AuthProvider, input.ExternalSubjectId),
                 cancellationToken);
         }
 

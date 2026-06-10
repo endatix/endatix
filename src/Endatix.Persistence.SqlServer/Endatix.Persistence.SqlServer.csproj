@@ -28,4 +28,8 @@
     <EmbeddedResource Include="Scripts\**\*.sql" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Endatix.Infrastructure.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure;
@@ -10,6 +11,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
 
@@ -28,7 +30,9 @@ public sealed class PublicFormAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
     IDateTimeProvider dateTimeProvider,
     IOptions<EndatixJwtOptions> endatixJwtOptions,
-    HybridCache cache
+    HybridCache cache,
+    ISubmitterResolver submitterResolver,
+    IHttpContextAccessor? httpContextAccessor = null
 ) : IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>
 {
     private static readonly TimeSpan _defaultTtl = TimeSpan.FromMinutes(10);
@@ -254,14 +258,31 @@ public sealed class PublicFormAccessPolicy(
             return canAccessFormResult.ToErrorResult<PublicFormAccessData>();
         }
 
-        var userId = authData?.UserId;
         var isRespondentTestMode = HasPermission(authData, Actions.Forms.Test);
         var hasUserSubmitted = false;
-        if (!string.IsNullOrWhiteSpace(userId) && !isRespondentTestMode)
+        if (!isRespondentTestMode)
         {
-            hasUserSubmitted = await submissionRepository.AnyAsync(
-                new SubmissionByFormIdAndSubmittedBySpec(formId, userId),
+            var form = await formRepository.FirstOrDefaultAsync(
+                new FormSpecifications.ByIdWithRelatedForPublicAccess(formId),
                 cancellationToken);
+
+            if (form is null)
+            {
+                return Result.NotFound("Form not found");
+            }
+
+            var submitterResolution = await submitterResolver.ResolveAsync(
+                new SubmitterResolveContext(
+                    form.TenantId,
+                    httpContextAccessor?.HttpContext?.User),
+                cancellationToken);
+
+            if (submitterResolution.SubmitterId is not null)
+            {
+                hasUserSubmitted = await submissionRepository.AnyAsync(
+                    new SubmissionByFormIdAndSubmitterIdSpec(formId, submitterResolution.SubmitterId.Value),
+                    cancellationToken);
+            }
         }
 
         return Result.Success(PublicFormAccessData.CreatePublicForm(

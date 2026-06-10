@@ -9,7 +9,6 @@ namespace Endatix.Core.Specifications;
 internal static class SubmissionSpecificationExtensions
 {
     private const string STATUS_FIELD_NAME = "status";
-    private const string SUBMITTER_PROFILE_FIELD_PREFIX = "submitterProfile.";
 
     internal static ISpecificationBuilder<Submission> WhereFormIdAndFilters(
         this ISpecificationBuilder<Submission> query,
@@ -35,7 +34,7 @@ internal static class SubmissionSpecificationExtensions
         filterParams.Criteria
             .Where(c =>
                 !c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase) &&
-                !c.Field.StartsWith(SUBMITTER_PROFILE_FIELD_PREFIX, StringComparison.OrdinalIgnoreCase))
+                !SubmissionFilterFields.IsSubmitterProfileField(c.Field))
             .ToList()
             .ForEach(nonStatusFilters.AddFilter);
 
