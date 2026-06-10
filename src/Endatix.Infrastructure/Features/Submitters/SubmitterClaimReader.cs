@@ -13,7 +13,7 @@ public sealed class SubmitterClaimReader
     /// </summary>
     /// <param name="principal">The claims principal to resolve the subject from.</param>
     /// <returns>The Endatix subject.</returns>
-    public static string? ResolveEndatixSubject(ClaimsPrincipal principal) => principal.GetUserId();
+    public string? ResolveEndatixSubject(ClaimsPrincipal principal) => principal.GetUserId();
 
     /// <summary>
     /// Resolves the external subject from a claims principal.
@@ -21,7 +21,7 @@ public sealed class SubmitterClaimReader
     /// <param name="principal">The claims principal to resolve the subject from.</param>
     /// <returns>The external subject.</returns>
 
-    public static string? ResolveExternalSubject(ClaimsPrincipal principal)
+    public string? ResolveExternalSubject(ClaimsPrincipal principal)
     {
         var subject = principal.FindFirst(ClaimNames.UserId) ??
             principal.FindFirst(ClaimTypes.NameIdentifier);
@@ -55,7 +55,7 @@ public sealed class SubmitterClaimReader
     /// <param name="principal">The claims principal to resolve the profile from.</param>
     /// <param name="options">The submitter options.</param>
     /// <returns>The profile.</returns>
-    public static IReadOnlyDictionary<string, string>? ResolveProfile(ClaimsPrincipal principal, SubmitterOptions options)
+    public IReadOnlyDictionary<string, string>? ResolveProfile(ClaimsPrincipal principal, SubmitterOptions options)
     {
         if (options.ProfileSnapshotFields.Count is 0)
         {
@@ -80,7 +80,7 @@ public sealed class SubmitterClaimReader
     /// </summary>
     /// <param name="principal">The claims principal to resolve the preferred user name from.</param>
     /// <returns>The preferred user name.</returns>
-    public static string? ResolvePreferredUserName(ClaimsPrincipal principal)
+    public string? ResolvePreferredUserName(ClaimsPrincipal principal)
     {
         return Normalize(principal.FindFirst("preferred_username")?.Value) ??
             Normalize(principal.Identity?.Name) ??
