@@ -56,7 +56,7 @@ public sealed class PublicFormAccessPolicy(
             ct => ExecuteAccessRouteAsync(context, accessRoute, ct),
             accessRoute.Ttl,
             dateTimeProvider.Now.UtcDateTime,
-            tags: ["permissions", $"form:{context.FormId}"],
+            tags: ["permissions", .. FormAccessCacheTags.ForFormAndAccess(context.FormId)],
             cancellationToken: cancellationToken);
     }
 
@@ -331,7 +331,7 @@ public sealed class PublicFormAccessPolicy(
             $"meta:form:access_routing:{formId}",
             ct => GetFormAccessRoutingMetadataFromDbAsync(formId, ct),
             new HybridCacheEntryOptions { Expiration = _formMetadataTtl },
-            tags: [$"form:{formId}"],
+            tags: FormAccessCacheTags.ForFormAndAccess(formId),
             cancellationToken: cancellationToken);
 
     private async Task<Result<FormProjections.FormAccessRoutingDto>> GetFormAccessRoutingMetadataFromDbAsync(long formId, CancellationToken cancellationToken)
