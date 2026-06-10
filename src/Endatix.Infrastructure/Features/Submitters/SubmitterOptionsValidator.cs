@@ -7,8 +7,9 @@ namespace Endatix.Infrastructure.Features.Submitters;
 
 internal sealed class SubmitterOptionsValidator(IConfiguration configuration) : IValidateOptions<SubmitterOptions>
 {
+    private static readonly TimeSpan _regexMatchTimeout = TimeSpan.FromMilliseconds(50);
     private const int MaxClaimTypeCount = 20;
-    private static readonly Regex _claimNameRegex = new("^[A-Za-z][A-Za-z0-9_./-]*$", RegexOptions.Compiled);
+    private static readonly Regex _claimNameRegex = new("^[A-Za-z][A-Za-z0-9_./-]*$", RegexOptions.Compiled, _regexMatchTimeout);
 
     public ValidateOptionsResult Validate(string? name, SubmitterOptions options)
     {

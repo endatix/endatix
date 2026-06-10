@@ -22,11 +22,13 @@ namespace Endatix.Core.Specifications.Parameters;
 /// </remarks>
 public class FilterCriterion
 {
+    private static readonly TimeSpan _regexMatchTimeout = TimeSpan.FromMilliseconds(50);
+
     public string Field { get; private set; }
     public ExpressionType Operator { get; private set; }
     public IReadOnlyList<string> Values { get; private set; }
 
-    private static readonly Regex _fieldNameRegex = new("^[A-Za-z][A-Za-z0-9_./-]*$", RegexOptions.Compiled);
+    private static readonly Regex _fieldNameRegex = new("^[A-Za-z][A-Za-z0-9_./-]*$", RegexOptions.Compiled, _regexMatchTimeout);
 
     private static readonly Dictionary<string, ExpressionType> _operatorMap = new()
     {
