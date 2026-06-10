@@ -9,13 +9,25 @@
 -- Database: PostgreSQL
 -- =============================================
 
+DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint);
+DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint, bigint, int);
+
 CREATE OR REPLACE FUNCTION export_form_submissions_nested_loops(form_id bigint, after_id bigint DEFAULT NULL, page_size int DEFAULT NULL)
- RETURNS TABLE("FormId" bigint, "Id" bigint, "IsComplete" boolean, "CompletedAt" timestamp with time zone, "CreatedAt" timestamp with time zone, "ModifiedAt" timestamp with time zone, "AnswersModel" jsonb)
+ RETURNS TABLE("FormId" bigint, "Id" bigint, "IsComplete" boolean, "CompletedAt" timestamp with time zone, "CreatedAt" timestamp with time zone, "ModifiedAt" timestamp with time zone, "SubmitterId" bigint, "SubmitterDisplayId" text, "AnswersModel" jsonb)
  LANGUAGE plpgsql
 AS $function$
 DECLARE
     submission_cursor CURSOR FOR
-        SELECT s."Id", s."FormId", s."IsComplete", s."CompletedAt", s."CreatedAt", s."ModifiedAt", s."JsonData"::jsonb
+        SELECT
+            s."Id",
+            s."FormId",
+            s."IsComplete",
+            s."CompletedAt",
+            s."CreatedAt",
+            s."ModifiedAt",
+            s."SubmitterId"::bigint AS "SubmitterId",
+            s."SubmitterDisplayId"::text AS "SubmitterDisplayId",
+            s."JsonData"::jsonb AS "JsonData"
         FROM "Submissions" s
         WHERE s."FormId" = export_form_submissions_nested_loops.form_id
           AND (export_form_submissions_nested_loops.after_id IS NULL OR s."Id" > export_form_submissions_nested_loops.after_id)
@@ -446,6 +458,8 @@ BEGIN
         "CompletedAt" := submission_record."CompletedAt";
         "CreatedAt" := submission_record."CreatedAt";
         "ModifiedAt" := submission_record."ModifiedAt";
+        "SubmitterId" := submission_record."SubmitterId";
+        "SubmitterDisplayId" := submission_record."SubmitterDisplayId";
         "AnswersModel" := COALESCE(v_flat_data, '{}'::jsonb);
 
         RETURN NEXT;

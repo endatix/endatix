@@ -10,6 +10,9 @@
 -- Database: PostgreSQL
 -- =============================================
 
+DROP FUNCTION IF EXISTS export_form_submissions(bigint);
+DROP FUNCTION IF EXISTS export_form_submissions(bigint, bigint, int);
+
 CREATE OR REPLACE FUNCTION export_form_submissions(form_id bigint, after_id bigint DEFAULT NULL, page_size int DEFAULT NULL)
 RETURNS TABLE (
     "FormId" bigint,
@@ -18,6 +21,8 @@ RETURNS TABLE (
     "CompletedAt" timestamptz,
     "CreatedAt" timestamptz,
     "ModifiedAt" timestamptz,
+    "SubmitterId" bigint,
+    "SubmitterDisplayId" text,
     "AnswersModel" jsonb
 ) AS $$
 BEGIN
@@ -57,6 +62,8 @@ BEGIN
             s."CompletedAt",
             s."CreatedAt",
             s."ModifiedAt",
+            s."SubmitterId"::bigint AS "SubmitterId",
+            s."SubmitterDisplayId"::text AS "SubmitterDisplayId",
             (
                 SELECT jsonb_object_agg(q.name, COALESCE(s."JsonData" -> q.name, '""'::jsonb))
                 FROM question_names q
@@ -73,7 +80,9 @@ BEGIN
         sf."CompletedAt",
         sf."CreatedAt",
         sf."ModifiedAt",
-        sf.AnswersModel
+        sf."SubmitterId"::bigint AS "SubmitterId",
+        sf."SubmitterDisplayId"::text AS "SubmitterDisplayId",
+        sf.AnswersModel::jsonb AS "AnswersModel"
     FROM submission_fields sf
     ORDER BY sf."Id"
     LIMIT export_form_submissions.page_size;
