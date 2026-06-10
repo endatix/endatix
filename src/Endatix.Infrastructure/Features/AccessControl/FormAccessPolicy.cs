@@ -38,7 +38,7 @@ public sealed class FormAccessPolicy(
             factory: _ => Task.FromResult(ComputeResourceAccess(context, authData)),
             ttl: ttl,
             utcNow: now,
-            tags: ["permissions", $"form:{context.FormId}"],
+            tags: ["permissions", .. FormAccessCacheTags.ForFormAndAccess(context.FormId)],
             cancellationToken: cancellationToken);
     }
 
