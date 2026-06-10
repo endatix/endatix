@@ -11,6 +11,7 @@ internal sealed class FormAccessCacheInvalidator(
     {
         try
         {
+            // ForForm evicts every entry tagged form:{id}, including access/routing entries that also carry ForFormAccess.
             await hybridCache.RemoveByTagAsync([FormAccessCacheTags.ForForm(formId)], cancellationToken);
             logger.LogDebug("Invalidated form access cache for form {FormId}", formId);
         }
