@@ -391,7 +391,7 @@ public partial class PublicFormAccessPolicyTests
                 submitterId.ToString(),
                 submitterId.ToString(),
                 null,
-                Submitter.AuthProviderEndatix));
+                SubmitterAuthProviders.Native));
 
         _cache
             .GetOrCreateAsync<bool>(

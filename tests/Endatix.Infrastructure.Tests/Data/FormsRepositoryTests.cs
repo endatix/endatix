@@ -17,7 +17,7 @@ public class FormsRepositoryTests
     {
         _dbContext = Substitute.For<AppDbContext>();
         _unitOfWork = Substitute.For<IUnitOfWork>();
-        _sut = new FormsRepository(_dbContext, _unitOfWork);
+        _sut = new FormsRepository(_dbContext, _unitOfWork, new EndatixSpecificationEvaluator([]));
     }
 
     [Fact]

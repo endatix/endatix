@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions.Account;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Builders;
+using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
@@ -16,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 using Endatix.Infrastructure.Identity.Authorization.Data;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Builders;
 
@@ -189,6 +191,26 @@ public class InfrastructureSecurityBuilderTests
         Assert.Same(builder, result);
         var registry = GetRegistryFromBuilder(builder);
         Assert.True(registry.IsProviderRegistrationRequested("CustomProvider"));
+    }
+
+    [Fact]
+    public void ConfigureSubmitters_ShouldConfigureSubmitterOptions()
+    {
+        // Arrange
+        var builder = new InfrastructureSecurityBuilder(_parentBuilder);
+
+        // Act
+        var result = builder.ConfigureSubmitters(options =>
+        {
+            options.DisplayIdClaimTypes = ["employee_number"];
+        });
+
+        using var serviceProvider = _services.BuildServiceProvider();
+        var configuredOptions = serviceProvider.GetRequiredService<IOptions<SubmitterOptions>>().Value;
+
+        // Assert
+        Assert.Same(builder, result);
+        configuredOptions.DisplayIdClaimTypes.Should().Equal("employee_number");
     }
 
     [Fact]
@@ -565,4 +587,5 @@ public class InfrastructureSecurityBuilderTests
         Assert.NotNull(permissionsHandlerDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, permissionsHandlerDescriptor.Lifetime);
     }
+
 }

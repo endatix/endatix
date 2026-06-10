@@ -23,15 +23,11 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
         JsonData = jsonData;
         CurrentPage = options.CurrentPage;
         Metadata = options.Metadata;
-        SubmittedBy = options.SubmittedBy;
         IsTestSubmission = options.IsTestSubmission;
-        RestrictionKey = options.EnforceSingleSubmissionGate &&
-            !options.IsTestSubmission &&
-            !string.IsNullOrWhiteSpace(options.SubmittedBy)
-                ? CreateSingleSubmissionRestrictionKey(formId, options.SubmittedBy)
-                : null;
         Status = SubmissionStatus.New;
 
+        SetSubmitter(options.SubmitterId, options.SubmitterDisplayId, options.SubmitterProfileSnapshot);
+        ApplySingleSubmissionRestriction(formId, options.EnforceSingleSubmissionGate && !options.IsTestSubmission);
         SetCompletionStatus(options.IsComplete);
     }
 
@@ -55,7 +51,6 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
                 IsComplete: isComplete,
                 CurrentPage: currentPage,
                 Metadata: metadata,
-                SubmittedBy: submittedBy,
                 IsTestSubmission: isTestSubmission))
     {
     }
@@ -79,6 +74,10 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
     public int? CurrentPage { get; private set; }
     public string? Metadata { get; private set; }
     public string? SubmittedBy { get; private set; }
+    public long? SubmitterId { get; private set; }
+    public Submitter? Submitter { get; private set; }
+    public string? SubmitterDisplayId { get; private set; }
+    public string? SubmitterProfileSnapshot { get; private set; }
     public bool IsTestSubmission { get; private set; }
     public string? RestrictionKey { get; private set; }
     public DateTime? CompletedAt { get; private set; }
@@ -118,6 +117,20 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
         Status = newStatus;
     }
 
+    /// <summary>
+    /// Sets the submitter for the submission.
+    /// </summary>
+    /// <param name="submitterId">The ID of the submitter.</param>
+    /// <param name="displayId">The display ID of the submitter.</param>
+    /// <param name="profileSnapshot">The profile snapshot of the submitter.</param>    
+    public void SetSubmitter(long? submitterId, string? displayId, string? profileSnapshot)
+    {
+        SubmitterId = submitterId;
+        SubmittedBy = submitterId?.ToString();
+        SubmitterDisplayId = string.IsNullOrWhiteSpace(displayId) ? null : displayId;
+        SubmitterProfileSnapshot = string.IsNullOrWhiteSpace(profileSnapshot) ? null : profileSnapshot;
+    }
+
     private void SetCompletionStatus(bool newIsCompleteValue)
     {
         if (!IsComplete && newIsCompleteValue)
@@ -127,16 +140,18 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
         }
     }
 
-    public string? OwnerId => SubmittedBy;
+    public string? OwnerId => SubmitterId?.ToString() ?? SubmittedBy;
 
     public override void Delete()
     {
         base.Delete();
     }
 
-    private static string CreateSingleSubmissionRestrictionKey(long formId, string submittedBy)
+    private void ApplySingleSubmissionRestriction(long formId, bool shouldEnforce)
     {
-        return $"{SINGLE_SUBMISSION_RESTRICTION_PREFIX}:Form:{formId}:User:{submittedBy}";
+        RestrictionKey = shouldEnforce && SubmitterId is not null
+            ? $"{SINGLE_SUBMISSION_RESTRICTION_PREFIX}:Form:{formId}:Submitter:{SubmitterId}"
+            : null;
     }
 }
 
@@ -144,6 +159,8 @@ public sealed record SubmissionCreateOptions(
     bool IsComplete = true,
     int CurrentPage = 0,
     string? Metadata = null,
-    string? SubmittedBy = null,
+    long? SubmitterId = null,
+    string? SubmitterDisplayId = null,
+    string? SubmitterProfileSnapshot = null,
     bool IsTestSubmission = false,
     bool EnforceSingleSubmissionGate = false);

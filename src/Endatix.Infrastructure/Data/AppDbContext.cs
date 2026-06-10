@@ -43,6 +43,8 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<Submission> Submissions { get; set; }
 
+    public DbSet<Submitter> Submitters { get; set; }
+
     public DbSet<SubmissionVersion> SubmissionVersions { get; set; }
 
     public DbSet<Theme> Themes { get; set; }
