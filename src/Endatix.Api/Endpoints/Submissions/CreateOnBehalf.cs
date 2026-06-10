@@ -14,7 +14,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// Authenticated endpoint for creating a new form submission on behalf of another user.
 /// </summary>
 public sealed class CreateOnBehalf(IMediator mediator)
-    : Endpoint<CreateSubmissionOnBehalfRequest, Results<Created<CreateSubmissionOnBehalfResponse>, ProblemHttpResult>>
+    : Endpoint<CreateSubmissionOnBehalfRequest, Results<Created<SubmissionModel>, ProblemHttpResult>>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -30,15 +30,15 @@ public sealed class CreateOnBehalf(IMediator mediator)
             s.Responses[404] = "Form not found. Cannot create a submission.";
         });
         Description(builder => builder
-            .Produces<CreateSubmissionOnBehalfResponse>(201, "application/json")
+            .Produces<SubmissionModel>(201, "application/json")
             .ProducesProblem(400)
             .ProducesProblem(404));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Created<CreateSubmissionOnBehalfResponse>, ProblemHttpResult>> ExecuteAsync(
+    public override async Task<Results<Created<SubmissionModel>, ProblemHttpResult>> ExecuteAsync(
         CreateSubmissionOnBehalfRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var result = await mediator.Send(
             new CreateSubmissionCommand(
@@ -50,11 +50,11 @@ public sealed class CreateOnBehalf(IMediator mediator)
                 ReCaptchaToken: null,
                 RequiredPermission: Actions.Submissions.CreateOnBehalf,
                 Submitter: request.Submitter),
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
-            .MapResult(result, SubmissionMapper.Map<CreateSubmissionOnBehalfResponse>)
-            .SetTypedResults<Created<CreateSubmissionOnBehalfResponse>, ProblemHttpResult>();
+            .MapResult(result, SubmissionMapper.Map<SubmissionModel>)
+            .SetTypedResults<Created<SubmissionModel>, ProblemHttpResult>();
     }
 }
 
@@ -68,11 +68,6 @@ public sealed class CreateSubmissionOnBehalfRequest : BaseSubmissionRequest
     /// </summary>
     public SubmitterInput? Submitter { get; set; }
 }
-
-/// <summary>
-/// Response model for a submission created on behalf of another user.
-/// </summary>
-public sealed class CreateSubmissionOnBehalfResponse : SubmissionModel;
 
 /// <summary>
 /// Validation rules for <see cref="CreateSubmissionOnBehalfRequest"/>.

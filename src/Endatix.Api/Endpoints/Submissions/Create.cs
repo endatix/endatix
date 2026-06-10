@@ -2,7 +2,6 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Submissions.Create;
 using FastEndpoints;
-using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -13,7 +12,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// Endpoint for creating a new form submission.
 /// </summary>
 public sealed class Create(IMediator mediator)
-    : Endpoint<CreateSubmissionRequest, Results<Created<CreateSubmissionResponse>, ProblemHttpResult>>
+    : Endpoint<CreateSubmissionRequest, Results<Created<SubmissionModel>, ProblemHttpResult>>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -30,16 +29,16 @@ public sealed class Create(IMediator mediator)
             s.Responses[409] = "A submission already exists for this user and form.";
         });
         Description(builder => builder
-            .Produces<CreateSubmissionResponse>(201, "application/json")
+            .Produces<SubmissionModel>(201, "application/json")
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(409));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Created<CreateSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(
+    public override async Task<Results<Created<SubmissionModel>, ProblemHttpResult>> ExecuteAsync(
         CreateSubmissionRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var result = await mediator.Send(
             new CreateSubmissionCommand(
@@ -51,11 +50,11 @@ public sealed class Create(IMediator mediator)
                 ReCaptchaToken: request.ReCaptchaToken,
                 RequiredPermission: Actions.Submissions.Create,
                 SubmitterPrincipal: User),
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
-            .MapResult(result, SubmissionMapper.Map<CreateSubmissionResponse>)
-            .SetTypedResults<Created<CreateSubmissionResponse>, ProblemHttpResult>();
+            .MapResult(result, SubmissionMapper.Map<SubmissionModel>)
+            .SetTypedResults<Created<SubmissionModel>, ProblemHttpResult>();
     }
 }
 
@@ -63,11 +62,6 @@ public sealed class Create(IMediator mediator)
 /// Request payload for <see cref="Create"/>.
 /// </summary>
 public sealed class CreateSubmissionRequest : BasePublicSubmissionRequest;
-
-/// <summary>
-/// Response model for a created submission.
-/// </summary>
-public sealed class CreateSubmissionResponse : SubmissionModel;
 
 /// <summary>
 /// Validation rules for <see cref="CreateSubmissionRequest"/>.

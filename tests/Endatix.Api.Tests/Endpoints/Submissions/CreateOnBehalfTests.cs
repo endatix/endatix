@@ -34,7 +34,7 @@ public class CreateOnBehalfTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
@@ -65,10 +65,10 @@ public class CreateOnBehalfTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var createdResult = response.Result as Created<CreateSubmissionOnBehalfResponse>;
+        var createdResult = response.Result as Created<SubmissionModel>;
         createdResult.Should().NotBeNull();
         createdResult!.Value.Should().NotBeNull();
         createdResult!.Value!.Id.Should().Be("1");

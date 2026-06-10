@@ -6,20 +6,27 @@ sidebar_position: 8
 
 # Collecting Submitters Data
 
-Endatix links form respondents to a dedicated `Submitter` record. This cleanly separates external respondent identities (like survey panelists) from your internal Hub operators. 
+Endatix links form respondents to a dedicated `Submitter` record. This cleanly separates external respondent identities (like survey panelists) from your internal Hub operators.
 
 Whether a user logs in via an external Identity Provider (Keycloak, Google) or submits anonymously using a token, Endatix records their data alongside the submission. Each submission stores a stable `SubmitterId` and an immutable snapshot of the submitter's profile, powering your grids, filters, and exports.
 
 ## How submitter resolution works
 
-When a submission is created, Endatix resolves the respondent's identity directly from the authenticated `ClaimsPrincipal`.
+When a submission is created, Endatix resolves the respondent's identity from one of two trusted sources:
+
+1. The authenticated `ClaimsPrincipal` for normal public form and Hub flows.
+2. An explicit `Submitter` payload sent to the protected "create on behalf" API for trusted integrations.
 
 ```mermaid
 flowchart LR
   principal["Authenticated ClaimsPrincipal"] --> resolver["ISubmitterResolver"]
-  resolver --> extractors["ISubmitterClaimExtractor strategies"]
-  extractors --> input["SubmitterExtractionInput"]
-  input --> submitter["Upsert tenant-scoped Submitter"]
+  trustedPayload["Trusted Submitter payload"] --> resolver
+  resolver --> source{"Trusted payload present?"}
+  source -->|"No"| extractors["ISubmitterClaimExtractor strategies"]
+  source -->|"Yes"| submitterInput["SubmitterInput"]
+  extractors --> extractionInput["SubmitterExtractionInput"]
+  extractionInput --> submitter["Upsert tenant-scoped Submitter"]
+  submitterInput --> submitter
   submitter --> submission["Submission SubmitterId + profile snapshot"]
 
 ```
@@ -29,6 +36,8 @@ Endatix provides built-in extractors for common scenarios:
 * **Keycloak:** Matches the external subject claim (`sub`) and configured display IDs.
 * **Endatix JWT:** Links the submitter to the Hub operator's `AppUserId`.
 * **Anonymous:** Processes the submission without persisting a submitter record.
+
+The default resolver upserts a tenant-scoped `Submitter` by provider identity (`AuthProvider` + `ExternalSubjectId`) or Endatix `AppUserId`, refreshes its display/profile data, and stores the submission-time profile snapshot on the new submission.
 
 ## Configuration
 
@@ -52,10 +61,150 @@ Endatix evaluates this ordered list and uses the first non-empty claim value as 
 
 ### ProfileSnapshotFields
 
-Controls which claims are copied into the submitter's rolling profile JSON, snapshotted at submission time, and exposed for profile filtering. Because these claims often contain Personal Identifiable Information (PII), keep this list intentionally small and limited to what you need for downstream workflows.
+Controls which claims are copied into the submitter's rolling profile JSON, snapshotted at submission time, and exposed for profile filtering. Because these claims often contain Personally Identifiable Information (PII), keep this list intentionally small and limited to what you need for downstream workflows.
 
 * **Immutability:** Snapshots ensure historical accuracy. If a submitter changes their email later, past submissions retain the email they used at the time of submission.
 * **Filtering:** You can filter the Hub and API using the `submitterProfile.<field>:<value>` grammar (e.g., `submitterProfile.email:respondent@example.com`).
+
+The same `ProfileSnapshotFields` allow-list is used for authenticated claims and trusted on-behalf payloads. If a field is not configured here, it is not copied into the submission snapshot.
+
+## Recipe 1: Collect submitters from authenticated claims
+
+Use this path when respondents authenticate before submitting a form. Configure which claims identify the respondent, then let Endatix resolve the submitter automatically.
+
+1. Pick one stable claim for the primary display ID, such as `panelistId` or `preferred_username`.
+2. Add only the profile fields you need for grid columns, filtering, exports, or downstream reconciliation.
+3. Ensure your Identity Provider issues those claims in the access token used by the public form.
+
+Example:
+
+```json
+{
+  "Endatix": {
+    "Submitter": {
+      "DisplayIdClaimTypes": ["panelistId", "preferred_username"],
+      "ProfileSnapshotFields": ["email", "given_name", "family_name"]
+    }
+  }
+}
+```
+
+At submission time, Endatix uses the first matching built-in extractor:
+
+* `EndatixSubmitterClaimExtractor` for Endatix JWTs.
+* `KeycloakSubmitterClaimExtractor` for external Keycloak subjects.
+* `AnonymousSubmitterClaimExtractor` when no authenticated submitter can be resolved.
+
+## Recipe 2: Create submissions on behalf of a submitter
+
+Use this path for trusted server-to-server integrations, imports, panel-provider callbacks, or operator workflows where your backend already knows the respondent identity.
+
+The endpoint is:
+
+```http
+POST /forms/{formId}/submissions/onbehalf
+```
+
+It is protected by the `Submissions.CreateOnBehalf` permission. Public clients should not call this endpoint directly.
+
+The route value supplies `formId`. The request body extends the normal submission payload with an optional `submitter` object:
+
+```json
+{
+  "isComplete": true,
+  "currentPage": 0,
+  "jsonData": "{\"question1\":\"answer\"}",
+  "metadata": "{\"source\":\"panel-provider\"}",
+  "submitter": {
+    "externalSubjectId": "panel-user-7831",
+    "displayId": "7831",
+    "authProvider": "PanelProvider",
+    "profile": {
+      "email": "respondent@example.com",
+      "given_name": "Alex",
+      "country": "BG"
+    }
+  }
+}
+```
+
+When `submitter` is present, `externalSubjectId` and `displayId` are required. `authProvider` is optional; if omitted, Endatix treats the payload as an `Integration` submitter. `appUserId` is also available for Endatix-owned users, but most external integrations should use `externalSubjectId`.
+
+Resolution behavior:
+
+* Endatix normalizes the trusted payload, then upserts a tenant-scoped `Submitter` by `AuthProvider` + `ExternalSubjectId`.
+* `displayId` becomes the submission's `SubmitterDisplayId`.
+* `profile` is filtered through `ProfileSnapshotFields` before it becomes `SubmitterProfileSnapshot`.
+* The resulting submission response includes the same submitter fields used by Hub details, grids, filters, and exports.
+
+Use this endpoint when the integration is already trusted. Do not accept submitter identity from an untrusted browser and forward it as-is.
+
+## Recipe 3: Customize submitter extraction
+
+Most customizations should add an `ISubmitterClaimExtractor`, not replace the whole resolver. A custom extractor is the right extension point when your authentication provider uses different claim names, multiple tenant-specific claim formats, or a non-Keycloak external provider.
+
+```csharp
+using System.Security.Claims;
+using Endatix.Core.Abstractions.Submitters;
+
+public sealed class PanelSubmitterClaimExtractor : ISubmitterClaimExtractor
+{
+    public int Priority => 50; // Run before the built-in extractors.
+
+    public bool CanExtract(ClaimsPrincipal principal) =>
+        principal.Identity?.IsAuthenticated == true &&
+        principal.HasClaim(claim => claim.Type == "panel_subject");
+
+    public SubmitterExtractionInput Extract(ClaimsPrincipal principal)
+    {
+        string subject = principal.FindFirst("panel_subject")!.Value;
+        string displayId = principal.FindFirst("panelist_id")?.Value ?? subject;
+
+        Dictionary<string, string> profile = new();
+        AddIfPresent(profile, principal, "email");
+        AddIfPresent(profile, principal, "country");
+
+        return new SubmitterExtractionInput(
+            AuthProvider: "PanelProvider",
+            ExternalSubjectId: subject,
+            DisplayId: displayId,
+            AppUserId: null,
+            Profile: profile);
+    }
+
+    private static void AddIfPresent(
+        Dictionary<string, string> profile,
+        ClaimsPrincipal principal,
+        string claimType)
+    {
+        string? value = principal.FindFirst(claimType)?.Value;
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            profile[claimType] = value;
+        }
+    }
+}
+```
+
+Register it with your application services:
+
+```csharp
+builder.Services.AddScoped<ISubmitterClaimExtractor, PanelSubmitterClaimExtractor>();
+```
+
+Use a priority lower than the built-ins when your extractor should win. Built-in priorities are currently `100` for Endatix JWT, `150` for Keycloak, and `300` for anonymous.
+
+### When to replace `ISubmitterResolver`
+
+Replacing `ISubmitterResolver` is an advanced option. It is only needed if you want to change resolution semantics, such as loading profile data from an external CRM, mapping several external identities to one submitter, or changing how submitter records are upserted.
+
+If you replace it, preserve these invariants:
+
+* Keep submitters tenant-scoped.
+* Return a stable `SubmitterId` when the same respondent submits again.
+* Return a meaningful `DisplayId` for grids and support workflows.
+* Return a profile snapshot that is safe to persist with the submission.
+* Preserve the single-submission gate behavior for forms that limit one submission per submitter.
 
 ## Security Model
 

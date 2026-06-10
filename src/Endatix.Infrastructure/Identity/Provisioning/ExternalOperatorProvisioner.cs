@@ -131,7 +131,7 @@ internal sealed class ExternalOperatorProvisioner(
                 return Result<AppUser>.Forbidden("External user is locked out.");
             }
 
-            var emailResult = await ApplyEmailAsync(user, identityProfile, cancellationToken);
+            var emailResult = await ApplyEmailAsync(user, identityProfile);
             if (!emailResult.IsSuccess)
             {
                 return emailResult.ToErrorResult<AppUser>();
@@ -297,8 +297,7 @@ internal sealed class ExternalOperatorProvisioner(
 
     private async Task<Result> ApplyEmailAsync(
         AppUser user,
-        ExternalIdentityProfile identityProfile,
-        CancellationToken cancellationToken)
+        ExternalIdentityProfile identityProfile)
     {
         var email = NormalizeEmailValue(identityProfile.Email);
         if (string.IsNullOrWhiteSpace(email))
