@@ -10,6 +10,7 @@ using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Features.ReCaptcha;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Exceptions;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
@@ -20,7 +21,8 @@ public class CreateSubmissionHandler(
     ISubmissionTokenService tokenService,
     IReCaptchaPolicyService recaptchaService,
     IMediator mediator,
-    ICurrentUserAuthorizationService authorizationService
+    ICurrentUserAuthorizationService authorizationService,
+    ISubmitterResolver submitterResolver
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
@@ -57,8 +59,16 @@ public class CreateSubmissionHandler(
             }
         }
 
+        var submitterResolution = await submitterResolver.ResolveAsync(
+            new SubmitterResolveContext(
+                activeDefinition!.TenantId,
+                request.SubmitterPrincipal,
+                request.Submitter),
+            cancellationToken);
+
+        var submitterId = submitterResolution.SubmitterId;
         var canBypassSingleSubmissionLimit = false;
-        if (formWithActiveDefinition.LimitOnePerUser && !string.IsNullOrWhiteSpace(request.SubmittedBy))
+        if (formWithActiveDefinition.LimitOnePerUser && submitterId is not null)
         {
             var hasTestPermissionResult = await authorizationService.HasPermissionAsync(Actions.Forms.Test, cancellationToken);
             if (!hasTestPermissionResult.IsSuccess)
@@ -88,7 +98,7 @@ public class CreateSubmissionHandler(
 
         var shouldEnforceSingleSubmissionGate =
             formWithActiveDefinition.LimitOnePerUser &&
-            !string.IsNullOrWhiteSpace(request.SubmittedBy) &&
+            submitterId is not null &&
             !canBypassSingleSubmissionLimit;
 
         var submission = Submission.Create(
@@ -100,7 +110,9 @@ public class CreateSubmissionHandler(
                 IsComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
                 CurrentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
                 Metadata: request.Metadata ?? DEFAULT_METADATA,
-                SubmittedBy: request.SubmittedBy,
+                SubmitterId: submitterId,
+                SubmitterDisplayId: submitterResolution.DisplayId,
+                SubmitterProfileSnapshot: submitterResolution.ProfileSnapshot,
                 IsTestSubmission: canBypassSingleSubmissionLimit,
                 EnforceSingleSubmissionGate: shouldEnforceSingleSubmissionGate)
         );
@@ -110,7 +122,7 @@ public class CreateSubmissionHandler(
             if (shouldEnforceSingleSubmissionGate)
             {
                 // Fast path only; the UX_Submissions_RestrictionKey unique index is the concurrency authority.
-                var duplicateSpec = new SubmissionByFormIdAndSubmittedBySpec(request.FormId, request.SubmittedBy!);
+                var duplicateSpec = new SubmissionByFormIdAndSubmitterIdSpec(request.FormId, submitterId!.Value);
                 var hasExistingSubmission = await submissionRepository.AnyAsync(
                     duplicateSpec,
                     cancellationToken);
