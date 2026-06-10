@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -15,6 +16,7 @@ namespace Endatix.Infrastructure.Identity.Authentication;
 internal sealed class ClaimsTransformer(
     IEnumerable<IAuthorizationStrategy> authorizationStrategies,
     IAuthorizationCache authorizationCache,
+    IHttpContextAccessor httpContextAccessor,
     ILogger<ClaimsTransformer> logger,
     IOptions<EndatixJwtOptions> endatixJwtOptions) : IClaimsTransformation
 {
@@ -71,9 +73,11 @@ internal sealed class ClaimsTransformer(
 
         try
         {
+            var accessToken = GetBearerAccessToken();
+
             var authorizationData = await authorizationCache.GetOrCreateAsync(
                 principal,
-                async _ => await authorizationStrategy.GetAuthorizationDataAsync(principal, cancellationToken),
+                async _ => await authorizationStrategy.GetAuthorizationDataAsync(principal, accessToken, cancellationToken),
                 cancellationToken
             );
             return authorizationData;
@@ -95,4 +99,16 @@ internal sealed class ClaimsTransformer(
 
         return authorizationStrategies.FirstOrDefault(provider => provider.CanHandle(principal));
     }
+
+    private string? GetBearerAccessToken()
+    {
+        var authHeader = httpContextAccessor.HttpContext?.Request.Headers.Authorization.FirstOrDefault();
+        if (authHeader is null || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return authHeader["Bearer ".Length..];
+    }
+
 }

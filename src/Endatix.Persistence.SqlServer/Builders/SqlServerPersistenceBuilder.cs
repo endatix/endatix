@@ -1,4 +1,5 @@
 using System.Reflection;
+using Ardalis.Specification;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Infrastructure.Data.Querying;
 using Endatix.Persistence.SqlServer.Options;
@@ -110,6 +111,8 @@ public class SqlServerPersistenceBuilder
     public SqlServerPersistenceBuilder AddDbSpecificRepositories()
     {
         Services.AddScoped<IRelationalSubstringLikeFilter, SqlServerSubstringLikeFilter>();
+        // submitterProfile filters are PostgreSQL-only in the MVP; this guard fails fast instead of silently ignoring them.
+        Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
         return this;

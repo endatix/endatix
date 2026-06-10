@@ -40,11 +40,10 @@ public sealed class User : TenantEntity, IAggregateRoot
     {
         Guard.Against.NegativeOrZero(id);
         Guard.Against.NullOrWhiteSpace(userName);
-        Guard.Against.NullOrWhiteSpace(email);
 
         Id = id;
         UserName = userName;
-        Email = email;
+        Email = email ?? string.Empty;
         IsVerified = isVerified;
     }
 
