@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using Endatix.Core.Abstractions.Submitters;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Infrastructure.Identity;
@@ -15,15 +14,15 @@ public sealed class KeycloakSubmitterClaimExtractorTests
     public void CanExtract_WithHydratedKeycloakOperatorPrincipal_UsesRawExternalSubject()
     {
         const string externalSubjectId = "0f6d8b28-e761-4033-8e84-2ddebcec49ce";
-        ClaimsPrincipal principal = CreateAuthenticatedPrincipal(
+        var principal = CreateAuthenticatedPrincipal(
         [
             new Claim(ClaimNames.EndatixUserId, "123456789"),
             new Claim(ClaimNames.UserId, externalSubjectId),
             new Claim("preferred_username", "operator@example.com")
         ]);
 
-        bool canExtract = _extractor.CanExtract(principal);
-        SubmitterExtractionInput input = _extractor.Extract(principal);
+        var canExtract = _extractor.CanExtract(principal);
+        var input = _extractor.Extract(principal);
 
         canExtract.Should().BeTrue();
         input.AuthProvider.Should().Be(AuthProviders.Keycloak);
@@ -36,14 +35,14 @@ public sealed class KeycloakSubmitterClaimExtractorTests
     public void CanExtract_WithMappedNameIdentifierGuid_ReturnsTrue()
     {
         const string externalSubjectId = "bf89d22f-acbc-4574-bf7d-53dbcf438bb7";
-        ClaimsPrincipal principal = CreateAuthenticatedPrincipal(
+        var principal = CreateAuthenticatedPrincipal(
         [
             new Claim(ClaimTypes.NameIdentifier, externalSubjectId),
             new Claim("panelistId", "1234")
         ]);
 
-        bool canExtract = _extractor.CanExtract(principal);
-        SubmitterExtractionInput input = _extractor.Extract(principal);
+        var canExtract = _extractor.CanExtract(principal);
+        var input = _extractor.Extract(principal);
 
         canExtract.Should().BeTrue();
         input.ExternalSubjectId.Should().Be(externalSubjectId);
@@ -53,12 +52,12 @@ public sealed class KeycloakSubmitterClaimExtractorTests
     [Fact]
     public void CanExtract_WithNativeLongSubject_ReturnsFalse()
     {
-        ClaimsPrincipal principal = CreateAuthenticatedPrincipal(
+        var principal = CreateAuthenticatedPrincipal(
         [
             new Claim(ClaimNames.UserId, "123456789")
         ]);
 
-        bool canExtract = _extractor.CanExtract(principal);
+        var canExtract = _extractor.CanExtract(principal);
 
         canExtract.Should().BeFalse();
     }
@@ -66,18 +65,18 @@ public sealed class KeycloakSubmitterClaimExtractorTests
     [Fact]
     public void Extract_WithConfiguredDisplayIdPriority_UsesFirstConfiguredClaim()
     {
-        KeycloakSubmitterClaimExtractor extractor = CreateExtractor(new SubmitterOptions
+        var extractor = CreateExtractor(new SubmitterOptions
         {
             DisplayIdClaimTypes = ["employee_number", "preferred_username"]
         });
-        ClaimsPrincipal principal = CreateAuthenticatedPrincipal(
+        var principal = CreateAuthenticatedPrincipal(
         [
             new Claim(ClaimNames.UserId, "bf89d22f-acbc-4574-bf7d-53dbcf438bb7"),
             new Claim("employee_number", "E-123"),
             new Claim("preferred_username", "panelist@example.com")
         ]);
 
-        SubmitterExtractionInput input = extractor.Extract(principal);
+        var input = extractor.Extract(principal);
 
         input.DisplayId.Should().Be("E-123");
     }

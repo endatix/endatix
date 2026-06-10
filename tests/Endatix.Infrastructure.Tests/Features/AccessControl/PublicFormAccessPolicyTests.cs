@@ -92,7 +92,7 @@ public partial class PublicFormAccessPolicyTests
         _cache = Substitute.For<HybridCache>();
         _submitterResolver = Substitute.For<ISubmitterResolver>();
         _submitterResolver.ResolveAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
-            .Returns(new SubmitterResolution(null, null, null, null, null));
+            .Returns(new SubmitterResolution(null, null, null));
         _jwtOptions = Options.Create(new EndatixJwtOptions
         {
             SigningKey = "test-signing-key-32-characters",
@@ -389,9 +389,7 @@ public partial class PublicFormAccessPolicyTests
             .Returns(new SubmitterResolution(
                 submitterId,
                 submitterId.ToString(),
-                submitterId.ToString(),
-                null,
-                SubmitterAuthProviders.Native));
+                null));
 
         _cache
             .GetOrCreateAsync<bool>(

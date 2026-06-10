@@ -6,7 +6,6 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.Create;
-using Endatix.Core.Abstractions;
 using Errors = Microsoft.AspNetCore.Mvc;
 using Endatix.Core.Features.ReCaptcha;
 
@@ -15,14 +14,12 @@ namespace Endatix.Api.Tests.Endpoints.Submissions;
 public class CreateTests
 {
     private readonly IMediator _mediator;
-    private readonly IUserContext _userContext;
     private readonly Create _endpoint;
 
     public CreateTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _userContext = Substitute.For<IUserContext>();
-        _endpoint = Factory.Create<Create>(_mediator, _userContext);
+        _endpoint = Factory.Create<Create>(_mediator);
     }
 
     [Fact]
@@ -83,7 +80,6 @@ public class CreateTests
     public async Task ExecuteAsync_ShouldMapRequestToCommandCorrectly()
     {
         // Arrange
-        const string userId = "123";
         var request = new CreateSubmissionRequest
         {
             FormId = 123,
@@ -95,7 +91,6 @@ public class CreateTests
         };
         var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
 
-        _userContext.GetCurrentUserId().Returns(userId);
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -111,7 +106,6 @@ public class CreateTests
                 cmd.JsonData == request.JsonData &&
                 cmd.Metadata == request.Metadata &&
                 cmd.ReCaptchaToken == request.ReCaptchaToken &&
-                cmd.SubmittedBy == userId &&
                 cmd.RequiredPermission == "submissions.create"
             ),
             Arg.Any<CancellationToken>()
@@ -133,7 +127,6 @@ public class CreateTests
         };
         var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
 
-        _userContext.GetCurrentUserId().Returns((string?)null);
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -149,7 +142,6 @@ public class CreateTests
                 cmd.JsonData == request.JsonData &&
                 cmd.Metadata == request.Metadata &&
                 cmd.ReCaptchaToken == request.ReCaptchaToken &&
-                cmd.SubmittedBy == null &&
                 cmd.RequiredPermission == "submissions.create"
             ),
             Arg.Any<CancellationToken>()

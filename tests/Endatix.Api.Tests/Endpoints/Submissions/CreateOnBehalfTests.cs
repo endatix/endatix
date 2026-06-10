@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
+using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.UseCases.Submissions.Create;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
@@ -75,7 +76,7 @@ public class CreateOnBehalfTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithSubmittedBy_UsesProvidedValue()
+    public async Task ExecuteAsync_WithSubmitter_UsesTrustedSubmitterPayload()
     {
         // Arrange
         const string targetUserId = "target-user-456";
@@ -83,7 +84,10 @@ public class CreateOnBehalfTests
         {
             FormId = 123,
             JsonData = """{ "field": "value" }""",
-            SubmittedBy = targetUserId
+            Submitter = new SubmitterInput(
+                ExternalSubjectId: targetUserId,
+                DisplayId: targetUserId,
+                AuthProvider: SubmitterAuthProviders.Integration)
         };
         var result = Result<Submission>.Created(
             new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
@@ -99,7 +103,7 @@ public class CreateOnBehalfTests
             Arg.Is<CreateSubmissionCommand>(cmd =>
                 cmd.FormId == request.FormId &&
                 cmd.JsonData == request.JsonData &&
-                cmd.SubmittedBy == targetUserId &&
+                cmd.Submitter == request.Submitter &&
                 cmd.RequiredPermission == "submissions.create.onbehalf"
             ),
             Arg.Any<CancellationToken>()
@@ -107,14 +111,13 @@ public class CreateOnBehalfTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithoutSubmittedBy_UsesNull()
+    public async Task ExecuteAsync_WithoutSubmitter_UsesNull()
     {
         // Arrange
         var request = new CreateSubmissionOnBehalfRequest
         {
             FormId = 123,
-            JsonData = """{ "field": "value" }""",
-            SubmittedBy = null
+            JsonData = """{ "field": "value" }"""
         };
         var result = Result<Submission>.Created(
             new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
@@ -130,7 +133,7 @@ public class CreateOnBehalfTests
             Arg.Is<CreateSubmissionCommand>(cmd =>
                 cmd.FormId == request.FormId &&
                 cmd.JsonData == request.JsonData &&
-                cmd.SubmittedBy == null &&
+                cmd.Submitter == null &&
                 cmd.RequiredPermission == "submissions.create.onbehalf"
             ),
             Arg.Any<CancellationToken>()
