@@ -17,6 +17,7 @@ using Endatix.Core.Abstractions.Account;
 using Endatix.Infrastructure.Identity.Services;
 using Endatix.Infrastructure.Identity.Repositories;
 using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Infrastructure.Features.Authorization.PublicForm;
@@ -85,6 +86,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, AppUserService>();
         services.AddScoped<IUserContext, UserContext>();
+        services.AddSubmitterResolution(configuration);
 
         // Register security related domain services
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();

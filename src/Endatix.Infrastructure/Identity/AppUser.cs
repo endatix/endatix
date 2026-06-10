@@ -11,6 +11,12 @@ namespace Endatix.Infrastructure.Identity;
 /// </summary>
 public class AppUser : IdentityUser<long>, ITenantOwned
 {
+    public static class UniqueConstraints
+    {
+        public const string EmailPerTenant = "IX_Users_TenantId_NormalizedEmail";
+        public const string ExternalIdentityPerTenant = "IX_Users_TenantId_AuthProvider_ExternalSubjectId";
+    }
+
     /// <summary>
     /// The ID of the tenant this user belongs to.
     /// </summary>

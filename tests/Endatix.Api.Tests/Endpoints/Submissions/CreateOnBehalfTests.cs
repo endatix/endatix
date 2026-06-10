@@ -6,6 +6,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.Abstractions.Submitters;
+using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Core.UseCases.Submissions.Create;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;

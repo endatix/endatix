@@ -40,7 +40,10 @@ public sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
             user.TenantId,
             user.AuthProvider,
             user.ExternalSubjectId
-        });
+        })
+            .IsUnique()
+            .HasDatabaseName(AppUser.UniqueConstraints.ExternalIdentityPerTenant)
+            .HasFilter("\"ExternalSubjectId\" IS NOT NULL");
 
         builder.HasIndex(user => new
         {
@@ -54,7 +57,7 @@ public sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
             user.NormalizedEmail
         })
             .IsUnique()
-            .HasDatabaseName("IX_Users_TenantId_NormalizedEmail")
+            .HasDatabaseName(AppUser.UniqueConstraints.EmailPerTenant)
             .HasFilter("\"Email\" IS NOT NULL");
     }
 }
