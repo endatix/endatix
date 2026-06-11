@@ -162,6 +162,12 @@ public class PublicFormAccessData : AccessDataBase
             submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.EditSubmission);
         }
 
+        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Submit.Name))
+        {
+            submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.ViewOnly);
+            submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.EditSubmission);
+        }
+
         if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Export.Name))
         {
             submissionPermissions.Add(ResourcePermissions.Submission.Export);
