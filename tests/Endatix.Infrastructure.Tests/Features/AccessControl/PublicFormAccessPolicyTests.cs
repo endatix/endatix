@@ -444,7 +444,7 @@ public partial class PublicFormAccessPolicyTests
                 [Actions.Access.PrivateForms, Actions.Forms.Test])));
 
         _submissionRepository
-            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>())
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmitterIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         // Act
@@ -458,7 +458,7 @@ public partial class PublicFormAccessPolicyTests
         result.Value.Data.IsRespondentTestMode.Should().BeTrue();
         await _submissionRepository
             .DidNotReceive()
-            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>());
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmitterIdSpec>(), Arg.Any<CancellationToken>());
         await _formRepository
             .DidNotReceive()
             .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>());

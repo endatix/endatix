@@ -38,7 +38,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
     }
 
     /// <inheritdoc />
-    public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
+    public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
         if (!CanHandle(principal))
         {
@@ -103,11 +103,6 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             if (!identityProfileResult.IsSuccess)
             {
                 return identityProfileResult.ToErrorResult<AuthorizationData>();
-            }
-
-            if (string.IsNullOrWhiteSpace(identityProfileResult.Value.Email))
-            {
-                return Result<AuthorizationData>.Forbidden("Operator email is required.");
             }
 
             var provisionResult = await externalOperatorProvisioner.ProvisionAsync(

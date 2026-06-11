@@ -80,8 +80,8 @@ BEGIN
         sf."CompletedAt",
         sf."CreatedAt",
         sf."ModifiedAt",
-        sf."SubmitterId"::bigint AS "SubmitterId",
-        sf."SubmitterDisplayId"::text AS "SubmitterDisplayId",
+        sf."SubmitterId",
+        sf."SubmitterDisplayId",
         sf.AnswersModel::jsonb AS "AnswersModel"
     FROM submission_fields sf
     ORDER BY sf."Id"

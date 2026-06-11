@@ -20,8 +20,13 @@ public sealed record ExternalIdentityProfile(
 
     private static string? Coalesce(string? primary, string? fallback)
     {
-        return !string.IsNullOrWhiteSpace(primary)
-            ? primary.Trim()
-            : string.IsNullOrWhiteSpace(fallback) ? null : fallback.Trim();
+        if (!string.IsNullOrWhiteSpace(primary))
+        {
+            return primary.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(fallback)
+            ? null
+            : fallback.Trim();
     }
 }

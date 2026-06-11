@@ -161,7 +161,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     }
 
     [Fact]
-    public async Task GetAuthorizationDataAsync_ReturnsForbidden_WhenEmailClaimMissing()
+    public async Task GetAuthorizationDataAsync_ProvisionsExternalUser_WhenEmailClaimMissing()
     {
         // Arrange
         var context = CreateTestContext();
@@ -173,9 +173,18 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
 
         // Assert
-        result.IsSuccess.Should().BeFalse();
-        result.Status.Should().Be(ResultStatus.Forbidden);
-        result.Errors.Should().Contain("Operator email is required.");
+        result.IsSuccess.Should().BeTrue();
+        result.Value.UserId.Should().Be("123");
+        result.Value.TenantId.Should().Be(context.Options.DefaultTenantId);
+        await context.ExternalOperatorProvisioner
+            .Received(1)
+            .ProvisionAsync(
+                context.Options.DefaultTenantId,
+                AuthProviders.Keycloak,
+                "123",
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Is<ExternalIdentityProfile>(profile => profile.Email == null),
+                Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -343,7 +352,12 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
                 Arg.Any<IReadOnlyCollection<string>>(),
                 Arg.Any<ExternalIdentityProfile>(),
                 Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new AppUser { Id = 123 }));
+            .Returns(Result.Success(new AppUser
+            {
+                Id = 123,
+                AuthProvider = AuthProviders.Keycloak,
+                ExternalSubjectId = "123"
+            }));
 
         var logger = Substitute.For<ILogger<KeycloakTokenIntrospectionAuthorization>>();
 

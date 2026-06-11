@@ -174,11 +174,6 @@ internal sealed class ExternalOperatorProvisioner(
         CancellationToken cancellationToken)
     {
         var email = NormalizeEmailValue(identityProfile.Email);
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            return Result<AppUser>.Forbidden("Operator email is required.");
-        }
-
         AppUser user = new()
         {
             TenantId = tenantId,
@@ -186,7 +181,7 @@ internal sealed class ExternalOperatorProvisioner(
             ExternalSubjectId = externalSubjectId,
             UserName = BuildExternalUserName(authProvider, externalSubjectId),
             Email = email,
-            EmailConfirmed = true,
+            EmailConfirmed = email is not null,
             DisplayName = identityProfile.DisplayName,
             LastLoginAt = DateTimeOffset.UtcNow,
             ExternalRolesJson = JsonSerializer.Serialize(mappedAppRoles.OrderBy(role => role).ToArray()),
@@ -301,7 +296,7 @@ internal sealed class ExternalOperatorProvisioner(
         var email = NormalizeEmailValue(identityProfile.Email);
         if (string.IsNullOrWhiteSpace(email))
         {
-            return Result.Forbidden("Operator email is required.");
+            return Result.Success();
         }
 
         if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
