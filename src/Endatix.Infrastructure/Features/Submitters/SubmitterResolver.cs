@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -14,7 +15,8 @@ internal sealed class SubmitterResolver(
     IRepository<Submitter> submitterRepository,
     IEnumerable<ISubmitterClaimExtractor> claimExtractors,
     SubmitterProfileSnapshotBuilder profileSnapshotBuilder,
-    IDateTimeProvider dateTimeProvider) : ISubmitterResolver
+    IDateTimeProvider dateTimeProvider,
+    IUniqueConstraintViolationChecker uniqueConstraintViolationChecker) : ISubmitterResolver
 {
     private static readonly SubmitterResolution _empty = new(null, null, null);
 
@@ -47,7 +49,24 @@ internal sealed class SubmitterResolver(
                 profileSnapshot,
                 now);
 
-            await submitterRepository.AddAsync(submitter, cancellationToken);
+            try
+            {
+                await submitterRepository.AddAsync(submitter, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                var violation = uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(exception);
+                if (!violation.IsUniqueConstraintViolation || !violation.IsSubmitterIdentityViolation())
+                {
+                    throw;
+                }
+
+                submitter = await FindExistingSubmitterAsync(context.TenantId, input, cancellationToken)
+                    ?? throw exception;
+
+                submitter.Refresh(input.DisplayId, profileSnapshot, now);
+                await submitterRepository.UpdateAsync(submitter, cancellationToken);
+            }
         }
         else
         {

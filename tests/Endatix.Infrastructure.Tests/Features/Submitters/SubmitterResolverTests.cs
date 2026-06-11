@@ -1,30 +1,33 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Features.Submitters;
 
 public sealed class SubmitterResolverTests
 {
+    private readonly IRepository<Submitter> _repository = Substitute.For<IRepository<Submitter>>();
+    private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
+    private readonly IUniqueConstraintViolationChecker _uniqueConstraintViolationChecker =
+        Substitute.For<IUniqueConstraintViolationChecker>();
+    private readonly SubmitterProfileSnapshotBuilder _snapshotBuilder =
+        new(Options.Create(new SubmitterOptions()));
+
     [Fact]
     public async Task ResolveAsync_WithHigherPriorityCustomExtractor_UsesCustomExtractorBeforeBuiltIn()
     {
         SubmitterClaimReader claimReader = new();
         KeycloakSubmitterClaimExtractor keycloakExtractor = new(Options.Create(new SubmitterOptions()), claimReader);
         CustomSubmitterClaimExtractor customExtractor = new();
-        IRepository<Submitter> repository = Substitute.For<IRepository<Submitter>>();
-        IDateTimeProvider dateTimeProvider = Substitute.For<IDateTimeProvider>();
-        SubmitterProfileSnapshotBuilder snapshotBuilder = new(Options.Create(new SubmitterOptions()));
-        SubmitterResolver resolver = new(
-            repository,
-            [keycloakExtractor, customExtractor],
-            snapshotBuilder,
-            dateTimeProvider);
+        SubmitterResolver resolver = CreateResolver(keycloakExtractor, customExtractor);
         ClaimsPrincipal principal = new(new ClaimsIdentity(
         [
             new Claim(ClaimNames.UserId, "bf89d22f-acbc-4574-bf7d-53dbcf438bb7")
@@ -37,8 +40,68 @@ public sealed class SubmitterResolverTests
         resolution.SubmitterId.Should().BeNull();
         resolution.DisplayId.Should().BeNull();
         resolution.ProfileSnapshot.Should().BeNull();
-        await repository.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await _repository.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
     }
+
+    [Fact]
+    public async Task ResolveAsync_WhenInsertRacesWithExistingSubmitter_ReturnsExistingWithoutThrowing()
+    {
+        const long tenantId = 1;
+        const long existingSubmitterId = 42;
+        const string externalSubjectId = "subject-123";
+        DateTimeOffset now = new(2026, 6, 11, 12, 0, 0, TimeSpan.Zero);
+        _dateTimeProvider.UtcNow.Returns(now);
+
+        Submitter existingSubmitter = Submitter.Create(
+            tenantId,
+            AuthProviders.Keycloak,
+            externalSubjectId,
+            "display-id",
+            null,
+            null,
+            now);
+        existingSubmitter.Id = existingSubmitterId;
+
+        _repository
+            .SingleOrDefaultAsync(
+                Arg.Any<SubmitterSpecifications.ByExternalSubjectSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(null, existingSubmitter);
+
+        _repository
+            .AddAsync(Arg.Any<Submitter>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<Submitter>(new InvalidOperationException("duplicate key")));
+
+        _uniqueConstraintViolationChecker
+            .AnalyzeUniqueConstraint(Arg.Any<Exception>())
+            .Returns(new UniqueConstraintViolationResult(
+                true,
+                Submitter.UniqueConstraints.IdentityPerTenant,
+                null));
+
+        SubmitterResolver resolver = CreateResolver();
+        SubmitterResolution resolution = await resolver.ResolveAsync(
+            new SubmitterResolveContext(
+                tenantId,
+                null,
+                new SubmitterInput(
+                    externalSubjectId,
+                    "display-id",
+                    AuthProviders.Keycloak)),
+            CancellationToken.None);
+
+        resolution.SubmitterId.Should().Be(existingSubmitterId);
+        resolution.DisplayId.Should().Be("display-id");
+        await _repository.Received(1).UpdateAsync(existingSubmitter, Arg.Any<CancellationToken>());
+    }
+
+    private SubmitterResolver CreateResolver(params ISubmitterClaimExtractor[] extractors) =>
+        new(
+            _repository,
+            extractors,
+            _snapshotBuilder,
+            _dateTimeProvider,
+            _uniqueConstraintViolationChecker);
 
     private sealed class CustomSubmitterClaimExtractor : ISubmitterClaimExtractor
     {

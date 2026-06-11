@@ -37,19 +37,5 @@ public sealed class SubmitterConfiguration : IEntityTypeConfiguration<Submitter>
 
         builder.Property(submitter => submitter.LastSeenAt)
             .IsRequired();
-
-        builder.HasIndex(submitter => new
-        {
-            submitter.TenantId,
-            submitter.AuthProvider,
-            submitter.ExternalSubjectId
-        });
-
-        builder.HasIndex(submitter => new
-        {
-            submitter.TenantId,
-            submitter.AuthProvider,
-            submitter.AppUserId
-        });
     }
 }

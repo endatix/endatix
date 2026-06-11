@@ -130,7 +130,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         context.RegisterProvider(TestIssuer, activate: true);
         context.SetHttpResponse(new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent("""{"resource_access":{}}""", Encoding.UTF8, "application/json")
+            Content = new StringContent("""{"active":true,"resource_access":{}}""", Encoding.UTF8, "application/json")
         });
         var principal = CreatePrincipal("123", TestIssuer);
 
@@ -473,7 +473,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         private HttpResponseMessage _response = new(HttpStatusCode.OK)
         {
-            Content = new StringContent("""{"resource_access":{}}""", Encoding.UTF8, "application/json")
+            Content = new StringContent("""{"active":true,"resource_access":{}}""", Encoding.UTF8, "application/json")
         };
 
         public void SetResponse(HttpResponseMessage response)

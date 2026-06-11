@@ -62,7 +62,7 @@ internal sealed class KeycloakTokenIntrospectionService(
         using var document = JsonDocument.Parse(responseContent);
         if (!document.RootElement.TryGetProperty("active", out var activeElement))
         {
-            return true;
+            return false;
         }
 
         return activeElement.ValueKind == JsonValueKind.True;

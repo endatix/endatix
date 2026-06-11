@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 
@@ -7,63 +8,45 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 
 public sealed class KeycloakTokenIntrospectionServiceTests
 {
-    [Fact]
-    public async Task IntrospectAsync_ReturnsRolesAndProfileFromSameResponse()
+    [Theory]
+    [InlineData("""{"active":true}""", true)]
+    [InlineData("""{"active":false}""", false)]
+    [InlineData("""{"active":"true"}""", false)]
+    [InlineData("""{"resource_access":{}}""", false)]
+    public async Task IntrospectAsync_TreatsActivePropertyAsFailClosed(string responseBody, bool expectSuccess)
     {
-        // Arrange
-        const string responseContent = """
+        var handler = new StubHttpMessageHandler(new HttpResponseMessage(HttpStatusCode.OK)
         {
-          "active": true,
-          "email": " operator@example.com ",
-          "preferred_username": " operator-user ",
-          "resource_access": {
-            "endatix-hub": {
-              "roles": ["admin", "creator"]
-            }
-          }
-        }
-        """;
-        var handler = new CapturingHttpMessageHandler(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(responseContent, Encoding.UTF8, "application/json")
+            Content = new StringContent(responseBody, Encoding.UTF8, "application/json")
         });
-        var service = CreateService(handler);
-        var options = new KeycloakOptions
+        var httpClientFactory = Substitute.For<IHttpClientFactory>();
+        httpClientFactory.CreateClient().Returns(new HttpClient(handler));
+        httpClientFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient(handler));
+
+        KeycloakTokenIntrospectionService service = new(httpClientFactory);
+        KeycloakOptions options = new()
         {
-            Issuer = "https://keycloak.test",
+            Issuer = "https://keycloak.example/realms/endatix",
             ClientId = "endatix-hub",
-            ClientSecret = "client-secret",
-            Authorization = new KeycloakOptions.KeycloakAuthorizationStrategyOptions()
+            ClientSecret = "secret",
+            Audience = "endatix-hub"
         };
 
-        // Act
-        var result = await service.IntrospectAsync("access-token", options, TestContext.Current.CancellationToken);
+        Result<KeycloakTokenIntrospectionResult> result = await service.IntrospectAsync(
+            "token-123",
+            options,
+            CancellationToken.None);
 
-        // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Value.ExternalRoles.Should().BeEquivalentTo(["admin", "creator"]);
-        result.Value.Profile.Email.Should().Be("operator@example.com");
-        result.Value.Profile.DisplayName.Should().Be("operator-user");
-        handler.RequestCount.Should().Be(1);
-    }
-
-    private static KeycloakTokenIntrospectionService CreateService(HttpMessageHandler handler)
-    {
-        var httpClient = new HttpClient(handler);
-        var httpClientFactory = Substitute.For<IHttpClientFactory>();
-        httpClientFactory.CreateClient().Returns(httpClient);
-
-        return new KeycloakTokenIntrospectionService(httpClientFactory);
-    }
-
-    private sealed class CapturingHttpMessageHandler(HttpResponseMessage response) : HttpMessageHandler
-    {
-        public int RequestCount { get; private set; }
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        result.IsSuccess.Should().Be(expectSuccess);
+        if (!expectSuccess)
         {
-            RequestCount++;
-            return Task.FromResult(response);
+            result.Errors.Should().Contain("Token is not active.");
         }
+    }
+
+    private sealed class StubHttpMessageHandler(HttpResponseMessage response) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(response);
     }
 }

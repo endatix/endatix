@@ -8,6 +8,11 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public sealed class Submitter : TenantEntity, IAggregateRoot
 {
+    public static class UniqueConstraints
+    {
+        public const string IdentityPerTenant = "IX_Submitters_TenantId_AuthProvider_AppUserId_ExternalSubjectId";
+    }
+
     private Submitter() { } // For EF Core
 
     private Submitter(

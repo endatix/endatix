@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Endatix.Infrastructure.Identity.Provisioning;
 
@@ -7,7 +7,8 @@ namespace Endatix.Infrastructure.Identity.Provisioning;
 /// </summary>
 internal static class ExternalProvisioningLock
 {
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
+    private static readonly TimeSpan _slidingExpiration = TimeSpan.FromMinutes(30);
+    private static readonly MemoryCache _cache = new(new MemoryCacheOptions());
 
     /// <summary>
     /// Gets a lock for external operator provisioning.
@@ -19,6 +20,20 @@ internal static class ExternalProvisioningLock
     public static SemaphoreSlim Get(long tenantId, string authProvider, string externalSubjectId)
     {
         var key = $"{tenantId}:{authProvider}:{externalSubjectId}";
-        return _locks.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
+        return _cache.GetOrCreate(key, CreateEntry)!;
+    }
+
+    private static SemaphoreSlim CreateEntry(ICacheEntry entry)
+    {
+        entry.SlidingExpiration = _slidingExpiration;
+        entry.RegisterPostEvictionCallback(static (_, value, _, _) =>
+        {
+            if (value is SemaphoreSlim semaphore)
+            {
+                semaphore.Dispose();
+            }
+        });
+
+        return new SemaphoreSlim(1, 1);
     }
 }
