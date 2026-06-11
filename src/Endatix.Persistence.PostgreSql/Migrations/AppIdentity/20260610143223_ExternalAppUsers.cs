@@ -70,7 +70,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                 table: "Users",
                 columns: new[] { "TenantId", "NormalizedEmail" },
                 unique: true,
-                filter: "\"Email\" IS NOT NULL");
+                filter: "\"NormalizedEmail\" IS NOT NULL");
         }
 
         /// <inheritdoc />

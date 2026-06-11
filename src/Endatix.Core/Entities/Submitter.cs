@@ -56,16 +56,8 @@ public sealed class Submitter : TenantEntity, IAggregateRoot
 
     public void Refresh(string? displayId, string? profileJson, DateTimeOffset lastSeenAt)
     {
-        if (!string.IsNullOrWhiteSpace(displayId))
-        {
-            DisplayId = displayId;
-        }
-
-        if (!string.IsNullOrWhiteSpace(profileJson))
-        {
-            ProfileJson = profileJson;
-        }
-
+        DisplayId = NormalizeOptional(displayId);
+        ProfileJson = NormalizeOptional(profileJson);
         LastSeenAt = lastSeenAt.UtcDateTime;
     }
 

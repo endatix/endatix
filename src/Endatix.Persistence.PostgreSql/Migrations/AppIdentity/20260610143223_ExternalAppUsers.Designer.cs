@@ -297,7 +297,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                     b.HasIndex("TenantId", "NormalizedEmail")
                         .IsUnique()
                         .HasDatabaseName("IX_Users_TenantId_NormalizedEmail")
-                        .HasFilter("\"Email\" IS NOT NULL");
+                        .HasFilter("\"NormalizedEmail\" IS NOT NULL");
 
                     b.HasIndex("TenantId", "AuthProvider", "ExternalSubjectId")
                         .IsUnique()

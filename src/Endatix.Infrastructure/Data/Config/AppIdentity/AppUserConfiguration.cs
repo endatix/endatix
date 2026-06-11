@@ -58,6 +58,6 @@ public sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
         })
             .IsUnique()
             .HasDatabaseName(AppUser.UniqueConstraints.EmailPerTenant)
-            .HasFilter("\"Email\" IS NOT NULL");
+            .HasFilter("\"NormalizedEmail\" IS NOT NULL");
     }
 }

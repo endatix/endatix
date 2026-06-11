@@ -75,6 +75,13 @@ public class SubmissionMapper
             return null;
         }
 
-        return JsonSerializer.Deserialize<Dictionary<string, string>>(snapshot);
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(snapshot);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 }
