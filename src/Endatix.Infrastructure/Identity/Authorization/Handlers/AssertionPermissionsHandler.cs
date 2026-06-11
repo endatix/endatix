@@ -230,6 +230,6 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
 
         var subject = currentUser.FindFirst(ClaimNames.UserId)?.Value;
         return !string.IsNullOrWhiteSpace(subject) &&
-            string.Equals(submitter.ExternalSubjectId, subject, StringComparison.OrdinalIgnoreCase);
+            string.Equals(submitter.ExternalSubjectId, subject, StringComparison.Ordinal);
     }
 }

@@ -28,7 +28,7 @@ internal sealed class KeycloakTokenIntrospectionService(
 
         introspectionRequest.Content = new FormUrlEncodedContent(payload);
 
-        var introspectionResponse = await httpClient.SendAsync(introspectionRequest, cancellationToken);
+        using var introspectionResponse = await httpClient.SendAsync(introspectionRequest, cancellationToken);
         if (!introspectionResponse.IsSuccessStatusCode)
         {
             return Result<KeycloakTokenIntrospectionResult>.Error("Failed to introspect token.");

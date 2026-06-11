@@ -162,6 +162,24 @@ public class AppUserServiceTests
         isVerified.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData("Endatix")]
+    [InlineData("endatix")]
+    [InlineData("ENDATIX")]
+    public void AppUser_IsExternal_ReturnsFalseForEndatixProviderRegardlessOfCasing(string authProvider)
+    {
+        // Arrange
+        var appUser = new AppUser
+        {
+            AuthProvider = authProvider,
+            EmailConfirmed = false
+        };
+
+        // Act & Assert
+        appUser.IsExternal.Should().BeFalse();
+        appUser.IsVerified.Should().BeFalse();
+    }
+
     [Fact]
     public void ToUserEntity_UsesVerifiedStatusForExternalUser()
     {

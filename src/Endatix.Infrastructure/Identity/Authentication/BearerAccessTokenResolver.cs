@@ -19,6 +19,7 @@ internal static class BearerAccessTokenResolver
             return null;
         }
 
-        return authHeader[BEARER_PREFIX.Length..];
+        var token = authHeader[BEARER_PREFIX.Length..].Trim();
+        return string.IsNullOrWhiteSpace(token) ? null : token;
     }
 }

@@ -95,6 +95,59 @@ public sealed class SubmitterResolverTests
         await _repository.Received(1).UpdateAsync(existingSubmitter, Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task ResolveAsync_WhenNativeInsertRacesWithExistingSubmitter_ReturnsExistingWithoutThrowing()
+    {
+        const long tenantId = 1;
+        const long existingSubmitterId = 43;
+        const long appUserId = 123;
+        DateTimeOffset now = new(2026, 6, 11, 12, 0, 0, TimeSpan.Zero);
+        _dateTimeProvider.UtcNow.Returns(now);
+
+        Submitter existingSubmitter = Submitter.Create(
+            tenantId,
+            AuthProviders.Endatix,
+            null,
+            "native-display",
+            appUserId,
+            null,
+            now);
+        existingSubmitter.Id = existingSubmitterId;
+
+        _repository
+            .SingleOrDefaultAsync(
+                Arg.Any<SubmitterSpecifications.ByAppUserSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(null, existingSubmitter);
+
+        _repository
+            .AddAsync(Arg.Any<Submitter>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<Submitter>(new InvalidOperationException("duplicate key")));
+
+        _uniqueConstraintViolationChecker
+            .AnalyzeUniqueConstraint(Arg.Any<Exception>())
+            .Returns(new UniqueConstraintViolationResult(
+                true,
+                "IX_Submitters_TenantId_AuthProvider_AppUserId",
+                null));
+
+        SubmitterResolver resolver = CreateResolver();
+        SubmitterResolution resolution = await resolver.ResolveAsync(
+            new SubmitterResolveContext(
+                tenantId,
+                null,
+                new SubmitterInput(
+                    "native-subject-is-ignored-for-endatix-app-user",
+                    "native-display",
+                    AuthProviders.Endatix,
+                    appUserId)),
+            CancellationToken.None);
+
+        resolution.SubmitterId.Should().Be(existingSubmitterId);
+        resolution.DisplayId.Should().Be("native-display");
+        await _repository.Received(1).UpdateAsync(existingSubmitter, Arg.Any<CancellationToken>());
+    }
+
     private SubmitterResolver CreateResolver(params ISubmitterClaimExtractor[] extractors) =>
         new(
             _repository,

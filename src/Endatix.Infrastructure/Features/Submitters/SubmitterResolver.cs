@@ -61,9 +61,13 @@ internal sealed class SubmitterResolver(
                     throw;
                 }
 
-                submitter = await FindExistingSubmitterAsync(context.TenantId, input, cancellationToken)
-                    ?? throw exception;
+                var existingSubmitter = await FindExistingSubmitterAsync(context.TenantId, input, cancellationToken);
+                if (existingSubmitter is null)
+                {
+                    throw;
+                }
 
+                submitter = existingSubmitter;
                 submitter.Refresh(input.DisplayId, profileSnapshot, now);
                 await submitterRepository.UpdateAsync(submitter, cancellationToken);
             }

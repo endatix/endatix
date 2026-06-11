@@ -57,7 +57,7 @@ public class AppUser : IdentityUser<long>, ITenantOwned
     /// </summary>
     public string? ExternalRolesJson { get; set; }
 
-    public bool IsExternal => AuthProvider != AuthProviders.Endatix;
+    public bool IsExternal => !string.Equals(AuthProvider, AuthProviders.Endatix, StringComparison.OrdinalIgnoreCase);
 
     public bool IsVerified => IsExternal || EmailConfirmed;
 

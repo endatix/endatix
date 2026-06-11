@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using System.Reflection;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
@@ -242,6 +244,48 @@ public sealed class AssertionPermissionsHandlerTests
     // database access, and cache interactions have been removed as they are integration tests.
     // These should be tested in integration test projects with proper test infrastructure.
 
+    [Fact]
+    public void UserOwnsSubmitter_WithExternalSubjectMatchingOnlyByCase_ReturnsFalse()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(ClaimNames.UserId, "SubjectA")
+        ], "test"));
+        Submitter submitter = Submitter.Create(
+            tenantId: 1,
+            authProvider: "Keycloak",
+            externalSubjectId: "subjecta",
+            displayId: null,
+            appUserId: null,
+            profileJson: null,
+            lastSeenAt: DateTimeOffset.UtcNow);
+
+        var result = InvokeUserOwnsSubmitter(user, "not-an-app-user-id", submitter);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UserOwnsSubmitter_WithExactExternalSubjectMatch_ReturnsTrue()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(ClaimNames.UserId, "SubjectA")
+        ], "test"));
+        Submitter submitter = Submitter.Create(
+            tenantId: 1,
+            authProvider: "Keycloak",
+            externalSubjectId: "SubjectA",
+            displayId: null,
+            appUserId: null,
+            profileJson: null,
+            lastSeenAt: DateTimeOffset.UtcNow);
+
+        var result = InvokeUserOwnsSubmitter(user, "not-an-app-user-id", submitter);
+
+        result.Should().BeTrue();
+    }
+
     #region Helper Methods
 
     private ClaimsPrincipal? CreateClaimsPrincipal(string? userId, bool isAdmin)
@@ -300,6 +344,17 @@ public sealed class AssertionPermissionsHandlerTests
         httpContext.GetEndpoint().Returns(endpoint);
 
         _httpContextAccessor.HttpContext.Returns(httpContext);
+    }
+
+    private static bool InvokeUserOwnsSubmitter(ClaimsPrincipal user, string userId, Submitter submitter)
+    {
+        var method = typeof(AssertionPermissionsHandler).GetMethod(
+            "UserOwnsSubmitter",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        method.Should().NotBeNull();
+
+        return (bool)method!.Invoke(null, [user, userId, submitter])!;
     }
 
     private sealed class TestEndpointWithoutEntity : Endpoint<object, object>
