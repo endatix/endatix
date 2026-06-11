@@ -161,21 +161,29 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     }
 
     [Fact]
-    public async Task GetAuthorizationDataAsync_ProvisionsExternalUser_WhenEmailClaimMissing()
+    public async Task GetAuthorizationDataAsync_ReturnsInvalid_WhenEmailClaimMissing()
     {
         // Arrange
         var context = CreateTestContext();
         context.RegisterProvider(TestIssuer, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
+        context.ExternalOperatorProvisioner
+            .ProvisionAsync(
+                context.Options.DefaultTenantId,
+                AuthProviders.Keycloak,
+                "123",
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Is<ExternalIdentityProfile>(profile => profile.Email == null),
+                Arg.Any<CancellationToken>())
+            .Returns(Result<AppUser>.Invalid(new ValidationError("Operator email is required.")));
         var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Value.UserId.Should().Be("123");
-        result.Value.TenantId.Should().Be(context.Options.DefaultTenantId);
+        result.IsSuccess.Should().BeFalse();
+        result.ValidationErrors.Should().ContainSingle(error => error.ErrorMessage == "Operator email is required.");
         await context.ExternalOperatorProvisioner
             .Received(1)
             .ProvisionAsync(

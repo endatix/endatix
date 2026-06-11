@@ -44,6 +44,35 @@ public sealed class KeycloakTokenIntrospectionServiceTests
         }
     }
 
+    [Fact]
+    public async Task IntrospectAsync_WithMalformedJson_ReturnsControlledFailure()
+    {
+        var handler = new StubHttpMessageHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"active":true""", Encoding.UTF8, "application/json")
+        });
+        var httpClientFactory = Substitute.For<IHttpClientFactory>();
+        httpClientFactory.CreateClient().Returns(new HttpClient(handler));
+        httpClientFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient(handler));
+
+        KeycloakTokenIntrospectionService service = new(httpClientFactory);
+        KeycloakOptions options = new()
+        {
+            Issuer = "https://keycloak.example/realms/endatix",
+            ClientId = "endatix-hub",
+            ClientSecret = "secret",
+            Audience = "endatix-hub"
+        };
+
+        var result = await service.IntrospectAsync(
+            "token-123",
+            options,
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain("Failed to parse introspection response.");
+    }
+
     private sealed class StubHttpMessageHandler(HttpResponseMessage response) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>

@@ -21,6 +21,7 @@ internal sealed class ExternalOperatorProvisioner(
 {
     private const int MAX_USER_NAME_LENGTH = 256;
     private const string DUPLICATE_EMAIL_MESSAGE = "Email already in use.";
+    private const string OPERATOR_EMAIL_REQUIRED_MESSAGE = "Operator email is required.";
     private static readonly string[] _duplicateEmailIndexNames =
     [
         AppUser.UniqueConstraints.EmailPerTenant,
@@ -45,6 +46,11 @@ internal sealed class ExternalOperatorProvisioner(
         if (mappedAppRoles.Count == 0)
         {
             return Result<AppUser>.NotFound("No mapped Hub operator roles.");
+        }
+
+        if (RequireEmail(identityProfile) is null)
+        {
+            return Result<AppUser>.Invalid(new ValidationError(OPERATOR_EMAIL_REQUIRED_MESSAGE));
         }
 
         var existingUser = await FindByExternalKeyAsync(tenantId, authProvider, externalSubjectId, cancellationToken);
@@ -173,7 +179,12 @@ internal sealed class ExternalOperatorProvisioner(
         IReadOnlyCollection<string> mappedAppRoles,
         CancellationToken cancellationToken)
     {
-        var email = NormalizeEmailValue(identityProfile.Email);
+        var email = RequireEmail(identityProfile);
+        if (email is null)
+        {
+            return Result<AppUser>.Invalid(new ValidationError(OPERATOR_EMAIL_REQUIRED_MESSAGE));
+        }
+
         AppUser user = new()
         {
             TenantId = tenantId,
@@ -181,7 +192,7 @@ internal sealed class ExternalOperatorProvisioner(
             ExternalSubjectId = externalSubjectId,
             UserName = BuildExternalUserName(authProvider, externalSubjectId),
             Email = email,
-            EmailConfirmed = email is not null,
+            EmailConfirmed = true,
             DisplayName = identityProfile.DisplayName,
             LastLoginAt = DateTimeOffset.UtcNow,
             ExternalRolesJson = JsonSerializer.Serialize(mappedAppRoles.OrderBy(role => role).ToArray()),
@@ -293,10 +304,10 @@ internal sealed class ExternalOperatorProvisioner(
         AppUser user,
         ExternalIdentityProfile identityProfile)
     {
-        var email = NormalizeEmailValue(identityProfile.Email);
-        if (string.IsNullOrWhiteSpace(email))
+        var email = RequireEmail(identityProfile);
+        if (email is null)
         {
-            return Result.Success();
+            return Result.Invalid(new ValidationError(OPERATOR_EMAIL_REQUIRED_MESSAGE));
         }
 
         if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
@@ -351,9 +362,9 @@ internal sealed class ExternalOperatorProvisioner(
         return string.IsNullOrWhiteSpace(alphaNumeric) ? "External" : alphaNumeric;
     }
 
-    private static string? NormalizeEmailValue(string? email)
+    private static string? RequireEmail(ExternalIdentityProfile identityProfile)
     {
-        return string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+        return string.IsNullOrWhiteSpace(identityProfile.Email) ? null : identityProfile.Email.Trim();
     }
 
     private static bool IsDuplicateEmailConstraintViolation(DbUpdateException dbUpdateException)

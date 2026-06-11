@@ -35,10 +35,19 @@ internal sealed class KeycloakTokenIntrospectionService(
         }
 
         var responseContent = await introspectionResponse.Content.ReadAsStringAsync(cancellationToken);
-        var profile = ExternalIdentityClaimReader.FromJsonObject(responseContent);
-        if (!IsTokenActive(responseContent))
+        ExternalIdentityProfile profile;
+        try
         {
-            return Result<KeycloakTokenIntrospectionResult>.Unauthorized("Token is not active.");
+            using var document = JsonDocument.Parse(responseContent);
+            profile = ExternalIdentityClaimReader.FromJsonObject(document.RootElement);
+            if (!IsTokenActive(document.RootElement))
+            {
+                return Result<KeycloakTokenIntrospectionResult>.Unauthorized("Token is not active.");
+            }
+        }
+        catch (JsonException)
+        {
+            return Result<KeycloakTokenIntrospectionResult>.Error("Failed to parse introspection response.");
         }
 
         var rolesPathSelector = keycloakOptions.Authorization?.ResolveRolesPath(keycloakOptions.ClientId);
@@ -57,10 +66,9 @@ internal sealed class KeycloakTokenIntrospectionService(
         return Result.Success(new KeycloakTokenIntrospectionResult(parsedRolesResult.Value, profile));
     }
 
-    private static bool IsTokenActive(string responseContent)
+    private static bool IsTokenActive(JsonElement rootElement)
     {
-        using var document = JsonDocument.Parse(responseContent);
-        if (!document.RootElement.TryGetProperty("active", out var activeElement))
+        if (!rootElement.TryGetProperty("active", out var activeElement))
         {
             return false;
         }

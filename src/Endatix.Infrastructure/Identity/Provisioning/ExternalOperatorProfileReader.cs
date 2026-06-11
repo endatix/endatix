@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Identity.Provisioning;
@@ -10,6 +11,9 @@ internal sealed class ExternalOperatorProfileReader(AppIdentityDbContext identit
         string externalSubjectId,
         CancellationToken cancellationToken)
     {
+        Guard.Against.NullOrWhiteSpace(authProvider);
+        Guard.Against.NullOrWhiteSpace(externalSubjectId);
+
         return identityDbContext.Users
             .Where(user =>
                 user.TenantId == tenantId &&

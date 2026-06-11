@@ -16,7 +16,5 @@ internal static class SubmitterUniqueViolationExtensions
     public static bool IsSubmitterIdentityViolation(this UniqueConstraintViolationResult violation) =>
         string.Equals(violation.ConstraintName, Submitter.UniqueConstraints.IdentityPerTenant, StringComparison.OrdinalIgnoreCase)
         || string.Equals(violation.ConstraintName, APP_USER_IDENTITY_PER_TENANT, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(violation.ConstraintName, EXTERNAL_SUBJECT_IDENTITY_PER_TENANT, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(violation.ColumnName, nameof(Submitter.AppUserId), StringComparison.OrdinalIgnoreCase)
-        || string.Equals(violation.ColumnName, nameof(Submitter.ExternalSubjectId), StringComparison.OrdinalIgnoreCase);
+        || string.Equals(violation.ConstraintName, EXTERNAL_SUBJECT_IDENTITY_PER_TENANT, StringComparison.OrdinalIgnoreCase);
 }
