@@ -18,12 +18,20 @@ public sealed class SubmitterConfigurationSqlServer : IEntityTypeConfiguration<S
         {
             submitter.TenantId,
             submitter.AuthProvider,
-            submitter.AppUserId,
+            submitter.AppUserId
+        })
+            .HasDatabaseName(Submitter.UniqueConstraints.AppUserPerTenant)
+            .IsUnique()
+            .HasFilter($"[{nameof(Submitter.AppUserId)}] IS NOT NULL AND [{nameof(Submitter.IsDeleted)}] = 0");
+
+        builder.HasIndex(submitter => new
+        {
+            submitter.TenantId,
+            submitter.AuthProvider,
             submitter.ExternalSubjectId
         })
-            .HasDatabaseName(Submitter.UniqueConstraints.IdentityPerTenant)
+            .HasDatabaseName(Submitter.UniqueConstraints.ExternalSubjectPerTenant)
             .IsUnique()
-            .HasFilter(
-                $"([{nameof(Submitter.AppUserId)}] IS NOT NULL OR [{nameof(Submitter.ExternalSubjectId)}] IS NOT NULL) AND [{nameof(Submitter.IsDeleted)}] = 0");
+            .HasFilter($"[{nameof(Submitter.ExternalSubjectId)}] IS NOT NULL AND [{nameof(Submitter.IsDeleted)}] = 0");
     }
 }

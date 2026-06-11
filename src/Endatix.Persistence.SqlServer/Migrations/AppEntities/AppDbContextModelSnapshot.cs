@@ -683,10 +683,15 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "AuthProvider", "AppUserId", "ExternalSubjectId")
+                    b.HasIndex("TenantId", "AuthProvider", "AppUserId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_AppUserId_ExternalSubjectId")
-                        .HasFilter("([AppUserId] IS NOT NULL OR [ExternalSubjectId] IS NOT NULL) AND [IsDeleted] = 0");
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_AppUserId")
+                        .HasFilter("[AppUserId] IS NOT NULL AND [IsDeleted] = 0");
+
+                    b.HasIndex("TenantId", "AuthProvider", "ExternalSubjectId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_ExternalSubjectId")
+                        .HasFilter("[ExternalSubjectId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("Submitters", (string)null);
                 });

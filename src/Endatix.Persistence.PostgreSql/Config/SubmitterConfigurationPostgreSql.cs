@@ -18,13 +18,20 @@ public sealed class SubmitterConfigurationPostgreSql : IEntityTypeConfiguration<
         {
             submitter.TenantId,
             submitter.AuthProvider,
-            submitter.AppUserId,
+            submitter.AppUserId
+        })
+            .HasDatabaseName(Submitter.UniqueConstraints.AppUserPerTenant)
+            .IsUnique()
+            .HasFilter($"\"{nameof(Submitter.AppUserId)}\" IS NOT NULL AND \"{nameof(Submitter.IsDeleted)}\" = false");
+
+        builder.HasIndex(submitter => new
+        {
+            submitter.TenantId,
+            submitter.AuthProvider,
             submitter.ExternalSubjectId
         })
-            .HasDatabaseName(Submitter.UniqueConstraints.IdentityPerTenant)
+            .HasDatabaseName(Submitter.UniqueConstraints.ExternalSubjectPerTenant)
             .IsUnique()
-            .AreNullsDistinct(false)
-            .HasFilter(
-                $"(\"{nameof(Submitter.AppUserId)}\" IS NOT NULL OR \"{nameof(Submitter.ExternalSubjectId)}\" IS NOT NULL) AND \"{nameof(Submitter.IsDeleted)}\" = false");
+            .HasFilter($"\"{nameof(Submitter.ExternalSubjectId)}\" IS NOT NULL AND \"{nameof(Submitter.IsDeleted)}\" = false");
     }
 }

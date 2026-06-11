@@ -7,9 +7,8 @@ namespace Endatix.Infrastructure.Tests.Features.Submitters;
 public sealed class SubmitterUniqueViolationExtensionsTests
 {
     [Theory]
-    [InlineData("IX_Submitters_TenantId_AuthProvider_AppUserId_ExternalSubjectId")]
-    [InlineData("IX_Submitters_TenantId_AuthProvider_AppUserId")]
-    [InlineData("IX_Submitters_TenantId_AuthProvider_ExternalSubjectId")]
+    [InlineData(Submitter.UniqueConstraints.AppUserPerTenant)]
+    [InlineData(Submitter.UniqueConstraints.ExternalSubjectPerTenant)]
     public void IsSubmitterIdentityViolation_WithSubmitterConstraint_ReturnsTrue(string constraintName)
     {
         UniqueConstraintViolationResult violation = new(true, constraintName, null);
@@ -20,9 +19,17 @@ public sealed class SubmitterUniqueViolationExtensionsTests
     [Theory]
     [InlineData(nameof(Submitter.AppUserId))]
     [InlineData(nameof(Submitter.ExternalSubjectId))]
-    public void IsSubmitterIdentityViolation_WithColumnNameOnly_ReturnsFalse(string columnName)
+    public void IsSubmitterIdentityViolation_WithColumnName_ReturnsTrue(string columnName)
     {
         UniqueConstraintViolationResult violation = new(true, null, columnName);
+
+        violation.IsSubmitterIdentityViolation().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsSubmitterIdentityViolation_WithUnrelatedConstraint_ReturnsFalse()
+    {
+        UniqueConstraintViolationResult violation = new(true, "IX_Other_Constraint", null);
 
         violation.IsSubmitterIdentityViolation().Should().BeFalse();
     }

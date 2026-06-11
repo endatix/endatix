@@ -76,11 +76,11 @@ public sealed class SubmitterResolverTests
             .AnalyzeUniqueConstraint(Arg.Any<Exception>())
             .Returns(new UniqueConstraintViolationResult(
                 true,
-                Submitter.UniqueConstraints.IdentityPerTenant,
+                Submitter.UniqueConstraints.ExternalSubjectPerTenant,
                 null));
 
-        SubmitterResolver resolver = CreateResolver();
-        SubmitterResolution resolution = await resolver.ResolveAsync(
+        var resolver = CreateResolver();
+        var resolution = await resolver.ResolveAsync(
             new SubmitterResolveContext(
                 tenantId,
                 null,
@@ -128,11 +128,11 @@ public sealed class SubmitterResolverTests
             .AnalyzeUniqueConstraint(Arg.Any<Exception>())
             .Returns(new UniqueConstraintViolationResult(
                 true,
-                "IX_Submitters_TenantId_AuthProvider_AppUserId",
+                Submitter.UniqueConstraints.AppUserPerTenant,
                 null));
 
-        SubmitterResolver resolver = CreateResolver();
-        SubmitterResolution resolution = await resolver.ResolveAsync(
+        var resolver = CreateResolver();
+        var resolution = await resolver.ResolveAsync(
             new SubmitterResolveContext(
                 tenantId,
                 null,

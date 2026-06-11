@@ -10,7 +10,8 @@ public sealed class Submitter : TenantEntity, IAggregateRoot
 {
     public static class UniqueConstraints
     {
-        public const string IdentityPerTenant = "IX_Submitters_TenantId_AuthProvider_AppUserId_ExternalSubjectId";
+        public const string AppUserPerTenant = "IX_Submitters_TenantId_AuthProvider_AppUserId";
+        public const string ExternalSubjectPerTenant = "IX_Submitters_TenantId_AuthProvider_ExternalSubjectId";
     }
 
     private Submitter() { } // For EF Core

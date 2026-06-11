@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260611081056_SubmitterEntity")]
+    [Migration("20260611084620_SubmitterEntity")]
     partial class SubmitterEntity
     {
         /// <inheritdoc />
@@ -691,12 +691,15 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "AuthProvider", "AppUserId", "ExternalSubjectId")
+                    b.HasIndex("TenantId", "AuthProvider", "AppUserId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_AppUserId_ExternalSubjectId")
-                        .HasFilter("(\"AppUserId\" IS NOT NULL OR \"ExternalSubjectId\" IS NOT NULL) AND \"IsDeleted\" = false");
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_AppUserId")
+                        .HasFilter("\"AppUserId\" IS NOT NULL AND \"IsDeleted\" = false");
 
-                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("TenantId", "AuthProvider", "AppUserId", "ExternalSubjectId"), false);
+                    b.HasIndex("TenantId", "AuthProvider", "ExternalSubjectId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_ExternalSubjectId")
+                        .HasFilter("\"ExternalSubjectId\" IS NOT NULL AND \"IsDeleted\" = false");
 
                     b.ToTable("Submitters", (string)null);
                 });

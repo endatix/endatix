@@ -688,12 +688,15 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "AuthProvider", "AppUserId", "ExternalSubjectId")
+                    b.HasIndex("TenantId", "AuthProvider", "AppUserId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_AppUserId_ExternalSubjectId")
-                        .HasFilter("(\"AppUserId\" IS NOT NULL OR \"ExternalSubjectId\" IS NOT NULL) AND \"IsDeleted\" = false");
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_AppUserId")
+                        .HasFilter("\"AppUserId\" IS NOT NULL AND \"IsDeleted\" = false");
 
-                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("TenantId", "AuthProvider", "AppUserId", "ExternalSubjectId"), false);
+                    b.HasIndex("TenantId", "AuthProvider", "ExternalSubjectId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_ExternalSubjectId")
+                        .HasFilter("\"ExternalSubjectId\" IS NOT NULL AND \"IsDeleted\" = false");
 
                     b.ToTable("Submitters", (string)null);
                 });
