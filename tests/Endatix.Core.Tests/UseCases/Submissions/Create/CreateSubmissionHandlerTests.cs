@@ -34,7 +34,7 @@ public class CreateSubmissionHandlerTests
         _mediator = Substitute.For<IMediator>();
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
         _submitterResolver = Substitute.For<ISubmitterResolver>();
-        _submitterResolver.ResolveAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
+        _submitterResolver.EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
             .Returns(new SubmitterResolution(null, null, null));
         _handler = new CreateSubmissionHandler(
             _submissionsRepository,
@@ -844,7 +844,7 @@ public class CreateSubmissionHandlerTests
 
     private void SetupSubmitterResolution(long? submitterId, string? profileSnapshot = null)
     {
-        _submitterResolver.ResolveAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
+        _submitterResolver.EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
             .Returns(new SubmitterResolution(
                 submitterId,
                 submitterId?.ToString(),

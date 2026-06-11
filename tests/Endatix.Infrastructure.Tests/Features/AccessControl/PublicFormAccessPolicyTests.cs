@@ -91,7 +91,7 @@ public partial class PublicFormAccessPolicyTests
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _cache = Substitute.For<HybridCache>();
         _submitterResolver = Substitute.For<ISubmitterResolver>();
-        _submitterResolver.ResolveAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
+        _submitterResolver.FindExistingAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
             .Returns(new SubmitterResolution(null, null, null));
         _jwtOptions = Options.Create(new EndatixJwtOptions
         {
@@ -385,7 +385,7 @@ public partial class PublicFormAccessPolicyTests
         var submitterId = 123L;
         var context = new PublicFormAccessContext(formId);
         SetupFormAccessRoutingMetadata(formId, isPublic: false, limitOnePerUser: true);
-        _submitterResolver.ResolveAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
+        _submitterResolver.FindExistingAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
             .Returns(new SubmitterResolution(
                 submitterId,
                 submitterId.ToString(),
@@ -424,6 +424,12 @@ public partial class PublicFormAccessPolicyTests
         await _formRepository
             .Received(1)
             .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>());
+        await _submitterResolver
+            .Received(1)
+            .FindExistingAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>());
+        await _submitterResolver
+            .DidNotReceive()
+            .EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

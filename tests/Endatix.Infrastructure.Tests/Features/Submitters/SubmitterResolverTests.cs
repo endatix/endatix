@@ -26,7 +26,7 @@ public sealed class SubmitterResolverTests
         new(Options.Create(new SubmitterOptions()));
 
     [Fact]
-    public async Task ResolveAsync_WithHigherPriorityCustomExtractor_UsesCustomExtractorBeforeBuiltIn()
+    public async Task EnsureSubmitterAsync_WithHigherPriorityCustomExtractor_UsesCustomExtractorBeforeBuiltIn()
     {
         SubmitterClaimReader claimReader = new();
         KeycloakSubmitterClaimExtractor keycloakExtractor = new(
@@ -41,7 +41,7 @@ public sealed class SubmitterResolverTests
             new Claim(JwtRegisteredClaimNames.Iss, "https://keycloak.test")
         ], authenticationType: "Keycloak"));
 
-        var resolution = await resolver.ResolveAsync(
+        var resolution = await resolver.EnsureSubmitterAsync(
             new SubmitterResolveContext(1, principal),
             CancellationToken.None);
 
@@ -52,7 +52,69 @@ public sealed class SubmitterResolverTests
     }
 
     [Fact]
-    public async Task ResolveAsync_WhenInsertRacesWithExistingSubmitter_ReturnsExistingWithoutThrowing()
+    public async Task FindExistingAsync_WhenNoExistingSubmitter_ReturnsEmptyWithoutWriting()
+    {
+        // Arrange
+        const long tenantId = 1;
+        const string externalSubjectId = "subject-lookup";
+        var resolver = CreateResolver();
+        var input = new SubmitterInput(externalSubjectId, "display-id", AuthProviders.Keycloak);
+
+        // Act
+        var resolution = await resolver.FindExistingAsync(
+            new SubmitterResolveContext(tenantId, null, input),
+            CancellationToken.None);
+
+        // Assert
+        resolution.SubmitterId.Should().BeNull();
+        await _repository.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await _repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task FindExistingAsync_WhenExistingSubmitter_ReturnsIdWithoutWriting()
+    {
+        // Arrange
+        const long tenantId = 1;
+        const long existingSubmitterId = 55;
+        const string externalSubjectId = "subject-existing";
+        DateTimeOffset now = new(2026, 6, 11, 12, 0, 0, TimeSpan.Zero);
+        var existingSubmitter = Submitter.Create(
+            tenantId,
+            AuthProviders.Keycloak,
+            externalSubjectId,
+            "display-id",
+            null,
+            "{\"email\":\"a@b.com\"}",
+            now);
+        existingSubmitter.Id = existingSubmitterId;
+
+        _repository
+            .SingleOrDefaultAsync(
+                Arg.Any<SubmitterSpecifications.ByExternalSubjectSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(existingSubmitter);
+
+        var resolver = CreateResolver();
+
+        // Act
+        var resolution = await resolver.FindExistingAsync(
+            new SubmitterResolveContext(
+                tenantId,
+                null,
+                new SubmitterInput(externalSubjectId, "display-id", AuthProviders.Keycloak)),
+            CancellationToken.None);
+
+        // Assert
+        resolution.SubmitterId.Should().Be(existingSubmitterId);
+        resolution.DisplayId.Should().Be("display-id");
+        resolution.ProfileSnapshot.Should().Be("{\"email\":\"a@b.com\"}");
+        await _repository.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await _repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task EnsureSubmitterAsync_WhenInsertRacesWithExistingSubmitter_ReturnsExistingWithoutThrowing()
     {
         const long tenantId = 1;
         const long existingSubmitterId = 42;
@@ -88,7 +150,7 @@ public sealed class SubmitterResolverTests
                 null));
 
         var resolver = CreateResolver();
-        var resolution = await resolver.ResolveAsync(
+        var resolution = await resolver.EnsureSubmitterAsync(
             new SubmitterResolveContext(
                 tenantId,
                 null,
@@ -104,7 +166,7 @@ public sealed class SubmitterResolverTests
     }
 
     [Fact]
-    public async Task ResolveAsync_WhenNativeInsertRacesWithExistingSubmitter_ReturnsExistingWithoutThrowing()
+    public async Task EnsureSubmitterAsync_WhenNativeInsertRacesWithExistingSubmitter_ReturnsExistingWithoutThrowing()
     {
         const long tenantId = 1;
         const long existingSubmitterId = 43;
@@ -140,7 +202,7 @@ public sealed class SubmitterResolverTests
                 null));
 
         var resolver = CreateResolver();
-        var resolution = await resolver.ResolveAsync(
+        var resolution = await resolver.EnsureSubmitterAsync(
             new SubmitterResolveContext(
                 tenantId,
                 null,

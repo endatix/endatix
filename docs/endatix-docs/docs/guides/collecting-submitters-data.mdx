@@ -255,12 +255,25 @@ Submitter identity is strictly resolved from trusted server-side authentication 
 
 To support zero-downtime upgrades, the system uses an Expand-Contract migration pattern. The new typed `SubmitterId` is the canonical reference, while the legacy `SubmittedBy` string column is maintained temporarily as a compatibility mirror.
 
-**Recommended Rollout Strategy:**
+The single-submission gate (`RestrictionKey` + `UX_Submissions_RestrictionKey`) also changed format when submitter identity was introduced:
 
-1. **Schema Update:** Apply the additive migration. This adds the nullable `Submissions.SubmitterId` and `Submissions.SubmitterProfileSnapshot` columns, and converts submitter JSON columns to provider-native JSON (keeping `SubmittedBy` intact).
-2. **Backfill Data:** Run the SQL script below to populate `SubmitterId` from existing `SubmittedBy` values.
-3. **Normalize:** Normalize backfilled rows so `SubmittedBy` cleanly mirrors the new `SubmitterId`.
-4. **Deprecate:** Once your application reads are fully migrated to `SubmitterId`, verify that no orphaned records remain, and drop the `SubmittedBy` column in a future release.
+| Era | `RestrictionKey` shape |
+| --- | --- |
+| Legacy | `SingleSubmission:Form:{formId}:User:{submittedBy}` |
+| Current | `SingleSubmission:Form:{formId}:Submitter:{submitterId}` |
+
+The unique index deduplicates **identical key strings only**. If legacy rows keep `:User:…` while new code writes `:Submitter:…`, the same respondent can create a second submission on a `LimitOnePerUser` form even though they represent one person. The handler fast-path (`SubmissionByFormIdAndSubmitterIdSpec`) helps only after `SubmitterId` is populated; rows with `SubmitterId IS NULL` still bypass that check.
+
+**Recommended rollout strategy**
+
+1. **Schema update:** Apply the additive migration (`Submitters` table + nullable `Submissions.SubmitterId` and related columns). This does **not** rewrite existing `RestrictionKey` values.
+2. **Ensure `Submitters` exist:** Sections A–C below link submissions to **existing** submitter rows. They do not create submitters. Before backfill, ensure legacy identities have matching `Submitters` rows (for example via first authenticated submission after upgrade, a one-time import, or operator-driven provisioning). Unmatched legacy `SubmittedBy` values remain orphaned until a submitter row exists.
+3. **Backfill `SubmitterId`:** Run sections A–D below.
+4. **Backfill `RestrictionKey`:** Run section E to normalize gated rows to the `:Submitter:` format **before** or immediately after deploying code that writes the new shape—especially on forms with `LimitOnePerUser = true`.
+5. **Normalize mirror:** Section D keeps `SubmittedBy` aligned with `SubmitterId`.
+6. **Deprecate:** Once reads are fully migrated to `SubmitterId`, verify no orphaned records remain, then drop `SubmittedBy` in a future release.
+
+Deploying application code that writes `:Submitter:…` keys **before** steps 3–4 completes leaves a window where legacy rows (`:User:…`, `SubmitterId IS NULL`) do not collide with new rows at the index and may not match the fast-path spec. Complete backfill (or accept that window on non-limited forms only) before relying on single-submission enforcement for returning respondents.
 
 ### PostgreSQL Backfill Script
 
@@ -299,20 +312,96 @@ WHERE s."SubmitterId" IS NULL
 UPDATE "Submissions"
 SET "SubmittedBy" = "SubmitterId"::text
 WHERE "SubmitterId" IS NOT NULL
-  AND ("SubmittedBy" IS NULL OR "SubmittedBy" <> "SubmitterId"::text);
+  AND ("SubmittedBy" IS NULL OR "SubmittedBy" <> "SubmitterId"::text);
 
+-- E) Normalize RestrictionKey to the Submitter-based format (run after SubmitterId backfill)
+UPDATE "Submissions"
+SET "RestrictionKey" = 'SingleSubmission:Form:' || "FormId" || ':Submitter:' || "SubmitterId"
+WHERE "SubmitterId" IS NOT NULL
+  AND "IsTestSubmission" = false
+  AND "RestrictionKey" IS NOT NULL
+  AND "RestrictionKey" NOT LIKE '%:Submitter:%';
+
+```
+
+### SQL Server Backfill Script
+
+Use the same section order (A–E). Adjust types and concatenation for T-SQL:
+
+```sql
+-- A) SubmittedBy already matches a numeric Submitter.Id
+UPDATE s
+SET s.SubmitterId = CAST(s.SubmittedBy AS bigint)
+FROM Submissions s
+WHERE s.SubmitterId IS NULL
+  AND s.SubmittedBy NOT LIKE '%[^0-9]%'
+  AND EXISTS (
+    SELECT 1
+    FROM Submitters sub
+    WHERE sub.Id = CAST(s.SubmittedBy AS bigint)
+  );
+
+-- B) Legacy Endatix rows: SubmittedBy matches AppUser.Id
+UPDATE s
+SET s.SubmitterId = sub.Id
+FROM Submissions s
+INNER JOIN Submitters sub
+  ON sub.AuthProvider = 'Endatix'
+ AND sub.AppUserId = CAST(s.SubmittedBy AS bigint)
+WHERE s.SubmitterId IS NULL
+  AND s.SubmittedBy NOT LIKE '%[^0-9]%';
+
+-- C) Legacy Keycloak rows: SubmittedBy matches an external subject GUID
+UPDATE s
+SET s.SubmitterId = sub.Id
+FROM Submissions s
+INNER JOIN Submitters sub
+  ON sub.AuthProvider = 'Keycloak'
+ AND sub.ExternalSubjectId = s.SubmittedBy
+WHERE s.SubmitterId IS NULL
+  AND s.SubmittedBy IS NOT NULL
+  AND s.SubmittedBy LIKE '%[^0-9]%';
+
+-- D) Normalize the temporary mirror after backfill
+UPDATE Submissions
+SET SubmittedBy = CAST(SubmitterId AS nvarchar(64))
+WHERE SubmitterId IS NOT NULL
+  AND (SubmittedBy IS NULL OR SubmittedBy <> CAST(SubmitterId AS nvarchar(64)));
+
+-- E) Normalize RestrictionKey to the Submitter-based format (run after SubmitterId backfill)
+UPDATE Submissions
+SET RestrictionKey = CONCAT('SingleSubmission:Form:', FormId, ':Submitter:', SubmitterId)
+WHERE SubmitterId IS NOT NULL
+  AND IsTestSubmission = 0
+  AND RestrictionKey IS NOT NULL
+  AND RestrictionKey NOT LIKE '%:Submitter:%';
 ```
 
 ### Verification Step
 
-Run this query before planning the final drop of the `SubmittedBy` column. It should return `0`.
+Run these queries before planning the final drop of the `SubmittedBy` column. Each should return `0`.
+
+**Orphaned legacy identifiers (no resolved submitter):**
 
 ```sql
 SELECT COUNT(*)
 FROM "Submissions"
 WHERE "SubmitterId" IS NULL
-  AND "SubmittedBy" IS NOT NULL;
+  AND "SubmittedBy" IS NOT NULL;
 ```
+
+**Legacy RestrictionKey shape still present after backfill:**
+
+```sql
+SELECT COUNT(*)
+FROM "Submissions"
+WHERE "SubmitterId" IS NOT NULL
+  AND "IsTestSubmission" = false
+  AND "RestrictionKey" IS NOT NULL
+  AND "RestrictionKey" NOT LIKE '%:Submitter:%';
+```
+
+On SQL Server, replace quoted identifiers and use `IsTestSubmission = 0` in the second query.
 
 *Performance Note: `submitterProfile.<field>` filters are PostgreSQL-only in the current MVP and use a GIN index on `SubmitterProfileSnapshot`. SQL Server profile filtering is deferred until computed-column indexes are designed for configured hot keys (e.g., email).*
 

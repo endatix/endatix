@@ -59,7 +59,7 @@ public class CreateSubmissionHandler(
             }
         }
 
-        var submitterResolution = await submitterResolver.ResolveAsync(
+        var submitterResolution = await submitterResolver.EnsureSubmitterAsync(
             new SubmitterResolveContext(
                 activeDefinition!.TenantId,
                 request.SubmitterPrincipal,

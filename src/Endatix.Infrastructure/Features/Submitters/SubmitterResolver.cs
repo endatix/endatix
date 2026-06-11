@@ -21,15 +21,29 @@ internal sealed class SubmitterResolver(
     private static readonly SubmitterResolution _empty = new(null, null, null);
 
     /// <inheritdoc />
-    public async Task<SubmitterResolution> ResolveAsync(
+    public async Task<SubmitterResolution> FindExistingAsync(
         SubmitterResolveContext context,
         CancellationToken cancellationToken)
     {
-        var input = context.Submitter is not null
-            ? CreateInputFromTrustedPayload(context.Submitter)
-            : ExtractFromPrincipal(context);
+        var input = GetExtractionInput(context);
+        if (input is null)
+        {
+            return _empty;
+        }
 
-        if (input is null || input.AuthProvider == SubmitterAuthProviders.Anonymous)
+        var submitter = await FindExistingSubmitterAsync(context.TenantId, input, cancellationToken);
+        return submitter is null
+            ? _empty
+            : new SubmitterResolution(submitter.Id, submitter.DisplayId, submitter.ProfileJson);
+    }
+
+    /// <inheritdoc />
+    public async Task<SubmitterResolution> EnsureSubmitterAsync(
+        SubmitterResolveContext context,
+        CancellationToken cancellationToken)
+    {
+        var input = GetExtractionInput(context);
+        if (input is null)
         {
             return _empty;
         }
@@ -82,6 +96,20 @@ internal sealed class SubmitterResolver(
             submitter.Id,
             submitter.DisplayId,
             profileSnapshot);
+    }
+
+    private SubmitterExtractionInput? GetExtractionInput(SubmitterResolveContext context)
+    {
+        var input = context.Submitter is not null
+            ? CreateInputFromTrustedPayload(context.Submitter)
+            : ExtractFromPrincipal(context);
+
+        if (input is null || input.AuthProvider == SubmitterAuthProviders.Anonymous)
+        {
+            return null;
+        }
+
+        return input;
     }
 
     private SubmitterExtractionInput? ExtractFromPrincipal(SubmitterResolveContext context)

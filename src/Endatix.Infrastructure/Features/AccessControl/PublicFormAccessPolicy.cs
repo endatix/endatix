@@ -271,7 +271,8 @@ public sealed class PublicFormAccessPolicy(
                 return Result.NotFound("Form not found");
             }
 
-            var submitterResolution = await submitterResolver.ResolveAsync(
+            // Access checks must not upsert Submitters on view-only visits.
+            var submitterResolution = await submitterResolver.FindExistingAsync(
                 new SubmitterResolveContext(
                     form.TenantId,
                     httpContextAccessor?.HttpContext?.User),
