@@ -50,7 +50,7 @@ internal sealed class ExternalOperatorProvisioner(
         var existingUser = await FindByExternalKeyAsync(tenantId, authProvider, externalSubjectId, cancellationToken);
         if (existingUser is not null)
         {
-            return await ProcessExistingUserAsync(existingUser, externalSubjectId, identityProfile, mappedAppRoles, cancellationToken);
+            return await ProcessExistingUserAsync(existingUser, externalSubjectId, identityProfile, mappedAppRoles);
         }
 
         var semaphore = ExternalProvisioningLock.Get(tenantId, authProvider, externalSubjectId);
@@ -60,7 +60,7 @@ internal sealed class ExternalOperatorProvisioner(
             var user = await FindByExternalKeyAsync(tenantId, authProvider, externalSubjectId, cancellationToken);
             if (user is not null)
             {
-                return await ProcessExistingUserAsync(user, externalSubjectId, identityProfile, mappedAppRoles, cancellationToken);
+                return await ProcessExistingUserAsync(user, externalSubjectId, identityProfile, mappedAppRoles);
             }
 
             return await ProvisionNewUserAsync(
@@ -116,8 +116,7 @@ internal sealed class ExternalOperatorProvisioner(
         AppUser user,
         string externalSubjectId,
         ExternalIdentityProfile identityProfile,
-        IReadOnlyCollection<string> mappedAppRoles,
-        CancellationToken cancellationToken)
+        IReadOnlyCollection<string> mappedAppRoles)
     {
         try
         {
@@ -260,7 +259,7 @@ internal sealed class ExternalOperatorProvisioner(
         var recoveredUser = await FindByExternalKeyAsync(tenantId, authProvider, externalSubjectId, cancellationToken);
         return recoveredUser is null
             ? null
-            : await ProcessExistingUserAsync(recoveredUser, externalSubjectId, identityProfile, mappedAppRoles, cancellationToken);
+            : await ProcessExistingUserAsync(recoveredUser, externalSubjectId, identityProfile, mappedAppRoles);
     }
 
     private async Task<Result<AppUser>> RecoverExternalIdentityRaceAsync(
@@ -281,7 +280,7 @@ internal sealed class ExternalOperatorProvisioner(
 
         var recoveredUser = await FindByExternalKeyAsync(tenantId, authProvider, externalSubjectId, cancellationToken);
         return recoveredUser is not null
-            ? await ProcessExistingUserAsync(recoveredUser, externalSubjectId, identityProfile, mappedAppRoles, cancellationToken)
+            ? await ProcessExistingUserAsync(recoveredUser, externalSubjectId, identityProfile, mappedAppRoles)
             : Result<AppUser>.Error("Failed to provision external user.");
     }
 

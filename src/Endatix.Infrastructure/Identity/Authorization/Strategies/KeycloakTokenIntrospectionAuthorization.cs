@@ -10,12 +10,13 @@ using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Identity.Authorization.Strategies;
 
-public class KeycloakTokenIntrospectionAuthorization(
+internal sealed class KeycloakTokenIntrospectionAuthorization(
     AuthProviderRegistry authProviderRegistry,
     IOptions<KeycloakOptions> keycloakOptions,
     IExternalAuthorizationMapper externalAuthorizationMapper,
     IHttpContextAccessor httpContextAccessor,
     IKeycloakTokenIntrospectionService tokenIntrospectionService,
+    KeycloakExternalIdentityProfileResolver identityProfileResolver,
     IExternalOperatorProvisioner externalOperatorProvisioner,
     ILogger<KeycloakTokenIntrospectionAuthorization> logger
     ) : IAuthorizationStrategy
@@ -37,7 +38,7 @@ public class KeycloakTokenIntrospectionAuthorization(
     }
 
     /// <inheritdoc />
-    public virtual async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
+    public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
     {
         if (!CanHandle(principal))
         {
@@ -91,10 +92,22 @@ public class KeycloakTokenIntrospectionAuthorization(
                 return Result<AuthorizationData>.Unauthorized("External subject id is required.");
             }
 
-            var identityProfileResult = ResolveIdentityProfile(principal);
+            var identityProfileResult = await identityProfileResolver.ResolveAsync(
+                keycloakSettings.DefaultTenantId,
+                AuthProviders.Keycloak,
+                subject,
+                principal,
+                introspectionResult.Value.Profile,
+                accessToken,
+                cancellationToken);
             if (!identityProfileResult.IsSuccess)
             {
                 return identityProfileResult.ToErrorResult<AuthorizationData>();
+            }
+
+            if (string.IsNullOrWhiteSpace(identityProfileResult.Value.Email))
+            {
+                return Result<AuthorizationData>.Forbidden("Operator email is required.");
             }
 
             var provisionResult = await externalOperatorProvisioner.ProvisionAsync(
@@ -135,18 +148,6 @@ public class KeycloakTokenIntrospectionAuthorization(
         }
 
         return Result.Success(accessToken);
-    }
-
-    private static Result<ExternalIdentityProfile> ResolveIdentityProfile(ClaimsPrincipal principal)
-    {
-        var principalProfile = ExternalIdentityClaimReader.FromClaimsPrincipal(principal);
-
-        if (string.IsNullOrWhiteSpace(principalProfile.Email))
-        {
-            return Result<ExternalIdentityProfile>.Forbidden("Operator email is required.");
-        }
-
-        return Result.Success(principalProfile);
     }
 
     private static string? GetExternalSubjectId(ClaimsPrincipal principal)

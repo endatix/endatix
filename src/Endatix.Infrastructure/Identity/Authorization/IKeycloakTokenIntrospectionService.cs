@@ -6,7 +6,7 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// <summary>
 /// Service for introspecting Keycloak tokens.
 /// </summary>
-public interface IKeycloakTokenIntrospectionService
+internal interface IKeycloakTokenIntrospectionService
 {
     /// <summary>
     /// Introspects a Keycloak token.

@@ -9,7 +9,7 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// </summary>
 /// <param name="roleManager">The role manager to query roles.</param>
 /// <param name="keyNormalizer">The key normalizer for normalizing role names.</param>
-public class DefaultAuthorizationMapper(
+internal sealed class DefaultAuthorizationMapper(
         RoleManager<AppRole> roleManager,
         ILookupNormalizer keyNormalizer
 ) : IExternalAuthorizationMapper

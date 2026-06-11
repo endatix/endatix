@@ -7,4 +7,21 @@ namespace Endatix.Infrastructure.Identity.Provisioning;
 /// <param name="DisplayName">The display name of the external identity.</param>
 public sealed record ExternalIdentityProfile(
     string? Email,
-    string? DisplayName);
+    string? DisplayName)
+{
+    internal static ExternalIdentityProfile Merge(
+        ExternalIdentityProfile primary,
+        ExternalIdentityProfile fallback)
+    {
+        return new ExternalIdentityProfile(
+            Email: Coalesce(primary.Email, fallback.Email),
+            DisplayName: Coalesce(primary.DisplayName, fallback.DisplayName));
+    }
+
+    private static string? Coalesce(string? primary, string? fallback)
+    {
+        return !string.IsNullOrWhiteSpace(primary)
+            ? primary.Trim()
+            : string.IsNullOrWhiteSpace(fallback) ? null : fallback.Trim();
+    }
+}

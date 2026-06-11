@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Builders;
@@ -114,8 +115,7 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder AddKeycloakAuthProvider()
     {
         _authProviderRegistry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider(), Services, Configuration);
-
-        Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
+        RegisterKeycloakAuthorizationServices();
 
         return this;
     }
@@ -126,6 +126,22 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder AddGoogleAuthProvider()
     {
         _authProviderRegistry.RegisterProvider<GoogleOptions>(new GoogleAuthProvider(), Services, Configuration);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Registers shared services for external IdP Hub operator authorization:
+    /// role mapping, profile lookup, and JIT AppUser provisioning.
+    /// Call from external auth provider setup when registering an <see cref="IAuthorizationStrategy"/>
+    /// that provisions Hub operators from an external identity provider.
+    /// </summary>
+    public InfrastructureSecurityBuilder AddExternalOperatorAuthorizationServices()
+    {
+        LogSetupInfo("Adding external operator authorization services");
+        Services.TryAddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
+        Services.TryAddScoped<IExternalOperatorProfileReader, ExternalOperatorProfileReader>();
+        Services.TryAddScoped<IExternalOperatorProvisioner, ExternalOperatorProvisioner>();
 
         return this;
     }
@@ -251,9 +267,6 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
         Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();
         Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
-        Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
-        Services.AddScoped<IKeycloakTokenIntrospectionService, KeycloakTokenIntrospectionService>();
-        Services.AddScoped<IExternalOperatorProvisioner, ExternalOperatorProvisioner>();
 
         // Register authorization handlers
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
@@ -261,6 +274,15 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
 
         return this;
+    }
+
+    private void RegisterKeycloakAuthorizationServices()
+    {
+        AddExternalOperatorAuthorizationServices();
+        Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
+        Services.AddScoped<IKeycloakTokenIntrospectionService, KeycloakTokenIntrospectionService>();
+        Services.AddScoped<IKeycloakUserInfoProfileService, KeycloakUserInfoProfileService>();
+        Services.AddScoped<KeycloakExternalIdentityProfileResolver>();
     }
 
     private void ConfigureEnabledAuthProviders()

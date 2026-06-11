@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Identity.Provisioning;
 using Endatix.Infrastructure.Utils;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
@@ -34,6 +35,7 @@ internal sealed class KeycloakTokenIntrospectionService(
         }
 
         var responseContent = await introspectionResponse.Content.ReadAsStringAsync(cancellationToken);
+        var profile = ExternalIdentityClaimReader.FromJsonObject(responseContent);
         if (!IsTokenActive(responseContent))
         {
             return Result<KeycloakTokenIntrospectionResult>.Unauthorized("Token is not active.");
@@ -42,7 +44,7 @@ internal sealed class KeycloakTokenIntrospectionService(
         var rolesPathSelector = keycloakOptions.Authorization?.ResolveRolesPath(keycloakOptions.ClientId);
         if (string.IsNullOrWhiteSpace(rolesPathSelector))
         {
-            return Result.Success(new KeycloakTokenIntrospectionResult([]));
+            return Result.Success(new KeycloakTokenIntrospectionResult([], profile));
         }
 
         using JsonExtractor jsonExtractor = new(responseContent);
@@ -52,7 +54,7 @@ internal sealed class KeycloakTokenIntrospectionService(
             return Result<KeycloakTokenIntrospectionResult>.Error("Failed to get roles.");
         }
 
-        return Result.Success(new KeycloakTokenIntrospectionResult(parsedRolesResult.Value));
+        return Result.Success(new KeycloakTokenIntrospectionResult(parsedRolesResult.Value, profile));
     }
 
     private static bool IsTokenActive(string responseContent)

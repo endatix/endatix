@@ -17,4 +17,5 @@ public sealed class ExternalOperatorProvisionerTests
         userName.Should().StartWith("Keycloak0f6d8b28e76140338e842ddebcec49ce");
         userName.Length.Should().BeLessThanOrEqualTo(256);
     }
+
 }
