@@ -31,7 +31,10 @@ internal sealed class EndatixSubmitterClaimExtractor(
     public SubmitterExtractionInput Extract(ClaimsPrincipal principal)
     {
         var subject = claimReader.ResolveEndatixSubject(principal);
-        _ = long.TryParse(subject, out var appUserId);
+        if (!long.TryParse(subject, out var appUserId))
+        {
+            throw new InvalidOperationException($"Failed to parse Endatix subject '{subject}' as long. CanExtract should have prevented this.");
+        }
 
         return new SubmitterExtractionInput(
             AuthProviders.Endatix,

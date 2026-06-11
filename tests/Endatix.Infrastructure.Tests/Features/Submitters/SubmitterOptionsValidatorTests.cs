@@ -98,6 +98,23 @@ public sealed class SubmitterOptionsValidatorTests
         result.Succeeded.Should().BeTrue();
     }
 
+    [Fact]
+    public void Validate_WithPaddedClaimTypes_TrimsConfiguredValues()
+    {
+        SubmitterOptionsValidator validator = new(CreateConfiguration(keycloakEnabled: false));
+        SubmitterOptions options = new()
+        {
+            DisplayIdClaimTypes = [" preferred_username "],
+            ProfileSnapshotFields = [" email ", " given_name "]
+        };
+
+        ValidateOptionsResult result = validator.Validate(null, options);
+
+        result.Succeeded.Should().BeTrue();
+        options.DisplayIdClaimTypes.Should().Equal("preferred_username");
+        options.ProfileSnapshotFields.Should().Equal("email", "given_name");
+    }
+
     private static IConfiguration CreateConfiguration(bool keycloakEnabled)
     {
         Dictionary<string, string?> values = new()

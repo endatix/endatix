@@ -35,9 +35,16 @@ internal sealed class SubmitterOptionsValidator(IConfiguration configuration) : 
             failures.Add($"{optionName} cannot contain more than {MaxClaimTypeCount} entries.");
         }
 
-        failures.AddRange(claimTypes
-            .Where(claimType => string.IsNullOrWhiteSpace(claimType) || !_claimNameRegex.IsMatch(claimType.Trim()))
-            .Select(claimType => $"{optionName} contains an invalid claim type: '{claimType}'."));
+        for (var index = 0; index < claimTypes.Count; index++)
+        {
+            var trimmed = claimTypes[index]?.Trim() ?? string.Empty;
+            claimTypes[index] = trimmed;
+
+            if (string.IsNullOrWhiteSpace(trimmed) || !_claimNameRegex.IsMatch(trimmed))
+            {
+                failures.Add($"{optionName} contains an invalid claim type: '{trimmed}'.");
+            }
+        }
     }
 
     private bool IsKeycloakEnabled()
