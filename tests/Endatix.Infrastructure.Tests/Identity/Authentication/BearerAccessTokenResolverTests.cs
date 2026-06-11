@@ -11,6 +11,7 @@ public sealed class BearerAccessTokenResolverTests
     [InlineData("Bearer ", null)]
     [InlineData("Bearer    ", null)]
     [InlineData("Basic token-123", null)]
+    [InlineData(null, null)]
     public void Resolve_ReturnsOnlyNonEmptyBearerToken(string? authorizationHeader, string? expectedToken)
     {
         HttpContext httpContext = new DefaultHttpContext();
