@@ -108,7 +108,7 @@ public sealed class SubmitterOptionsValidatorTests
             ProfileSnapshotFields = [" email ", " given_name "]
         };
 
-        ValidateOptionsResult result = validator.Validate(null, options);
+        var result = validator.Validate(null, options);
 
         result.Succeeded.Should().BeTrue();
         options.DisplayIdClaimTypes.Should().Equal("preferred_username");

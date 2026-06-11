@@ -1,8 +1,10 @@
+using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
-using PostgreSqlEvaluator = Endatix.Persistence.PostgreSql.SubmitterProfileFilterEvaluator;
-using SqlServerEvaluator = Endatix.Persistence.SqlServer.SubmitterProfileFilterEvaluator;
+using Endatix.Persistence.PostgreSql.Builders;
+using Endatix.Persistence.SqlServer.Builders;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Infrastructure.Tests.Persistence;
 
@@ -11,7 +13,8 @@ public class SubmitterProfileFilterEvaluatorTests
     [Fact]
     public void PostgreSqlEvaluator_WithSubmitterProfileFilter_AppliesJsonContainsPredicate()
     {
-        PostgreSqlEvaluator evaluator = new();
+        using ServiceProvider serviceProvider = CreatePostgreSqlProvider();
+        IEvaluator evaluator = serviceProvider.GetRequiredService<IEvaluator>();
         IQueryable<Submission> query = Enumerable.Empty<Submission>().AsQueryable();
         SubmissionsByFormIdCountSpec specification = CreateCountSpec("submitterProfile.email:test@example.com");
 
@@ -24,7 +27,8 @@ public class SubmitterProfileFilterEvaluatorTests
     [Fact]
     public void PostgreSqlEvaluator_WithoutSubmitterProfileFilter_ReturnsOriginalQuery()
     {
-        PostgreSqlEvaluator evaluator = new();
+        using ServiceProvider serviceProvider = CreatePostgreSqlProvider();
+        IEvaluator evaluator = serviceProvider.GetRequiredService<IEvaluator>();
         IQueryable<Submission> query = Enumerable.Empty<Submission>().AsQueryable();
         SubmissionsByFormIdCountSpec specification = CreateCountSpec("submitterDisplayId:panelist-1");
 
@@ -36,7 +40,8 @@ public class SubmitterProfileFilterEvaluatorTests
     [Fact]
     public void SqlServerEvaluator_WithSubmitterProfileFilter_ThrowsNotSupportedException()
     {
-        SqlServerEvaluator evaluator = new();
+        using ServiceProvider serviceProvider = CreateSqlServerProvider();
+        IEvaluator evaluator = serviceProvider.GetRequiredService<IEvaluator>();
         IQueryable<Submission> query = Enumerable.Empty<Submission>().AsQueryable();
         SubmissionsByFormIdCountSpec specification = CreateCountSpec("submitterProfile.email:test@example.com");
 
@@ -49,7 +54,8 @@ public class SubmitterProfileFilterEvaluatorTests
     [Fact]
     public void SqlServerEvaluator_WithoutSubmitterProfileFilter_ReturnsOriginalQuery()
     {
-        SqlServerEvaluator evaluator = new();
+        using ServiceProvider serviceProvider = CreateSqlServerProvider();
+        IEvaluator evaluator = serviceProvider.GetRequiredService<IEvaluator>();
         IQueryable<Submission> query = Enumerable.Empty<Submission>().AsQueryable();
         SubmissionsByFormIdCountSpec specification = CreateCountSpec("submitterDisplayId:panelist-1");
 
@@ -60,4 +66,20 @@ public class SubmitterProfileFilterEvaluatorTests
 
     private static SubmissionsByFormIdCountSpec CreateCountSpec(string filterExpression) =>
         new(1, new FilterParameters([filterExpression]));
+
+    private static ServiceProvider CreatePostgreSqlProvider()
+    {
+        ServiceCollection services = new();
+        new PostgreSqlPersistenceBuilder(services).AddDbSpecificRepositories();
+
+        return services.BuildServiceProvider();
+    }
+
+    private static ServiceProvider CreateSqlServerProvider()
+    {
+        ServiceCollection services = new();
+        new SqlServerPersistenceBuilder(services).AddDbSpecificRepositories();
+
+        return services.BuildServiceProvider();
+    }
 }

@@ -8,6 +8,7 @@ using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Identity.Users;
 
@@ -21,7 +22,8 @@ public sealed class AppUserService(
     IEmailVerificationService emailVerificationService,
     IUserContext userContext,
     IRelationalSubstringLikeFilter substringLikeFilter,
-    IAuthorizationCache authorizationCache) : IUserService
+    IAuthorizationCache authorizationCache,
+    ILogger<AppUserService> logger) : IUserService
 {
     private const string SelfRemovalForbiddenMessage = "You cannot remove your own tenant access.";
     private const string LastTenantAdminRemovalForbiddenMessage = "Cannot remove the last active tenant admin.";
@@ -123,7 +125,7 @@ public sealed class AppUserService(
                     DisplayName = user.DisplayName,
                     LastLoginAt = user.LastLoginAt,
                     Roles = user.AuthProvider != AuthProviders.Endatix
-                        ? ReadExternalRoles(user.ExternalRolesJson)
+                        ? ReadExternalRoles(user.Id, user.ExternalRolesJson)
                         : rolesByUserId.GetValueOrDefault(user.Id) ?? []
                 };
             })
@@ -218,7 +220,7 @@ public sealed class AppUserService(
         }
 
         var roles = user.IsExternal
-            ? ReadExternalRoles(user.ExternalRolesJson)
+            ? ReadExternalRoles(user.Id, user.ExternalRolesJson)
             : await GetAssignedRoleNamesAsync(user.Id, cancellationToken);
 
         UserWithRoles userWithRoles = new()
@@ -564,7 +566,7 @@ public sealed class AppUserService(
             .ToListAsync(cancellationToken);
     }
 
-    private static IReadOnlyList<string> ReadExternalRoles(string? externalRolesJson)
+    private IReadOnlyList<string> ReadExternalRoles(long userId, string? externalRolesJson)
     {
         if (string.IsNullOrWhiteSpace(externalRolesJson))
         {
@@ -579,8 +581,14 @@ public sealed class AppUserService(
                 .OrderBy(role => role)
                 .ToList() ?? [];
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            logger.LogWarning(
+                ex,
+                "Failed to deserialize external roles for user {UserId}. ExternalRolesJson: {ExternalRolesJson}",
+                userId,
+                externalRolesJson);
+
             return [];
         }
     }
