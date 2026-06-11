@@ -17,7 +17,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
     IHttpContextAccessor httpContextAccessor,
     IKeycloakTokenIntrospectionService tokenIntrospectionService,
     KeycloakExternalIdentityProfileResolver identityProfileResolver,
-    IExternalOperatorProvisioner externalOperatorProvisioner,
+    IExternalAppUserProvisioner externalAppUserProvisioner,
     ILogger<KeycloakTokenIntrospectionAuthorization> logger
     ) : IAuthorizationStrategy
 {
@@ -83,13 +83,22 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
 
             if (mappingResult.Roles.Length == 0 || AllExternalRolesAreExcluded(introspectionResult.Value.ExternalRoles, keycloakSettings))
             {
-                return Result<AuthorizationData>.NotFound("No mapped Hub operator roles.");
+                return Result<AuthorizationData>.NotFound("No mapped roles.");
             }
 
             var subject = GetExternalSubjectId(principal);
             if (string.IsNullOrWhiteSpace(subject))
             {
                 return Result<AuthorizationData>.Unauthorized("External subject id is required.");
+            }
+
+            if (!ShouldProvisionHubAppUser(mappingResult))
+            {
+                return Result.Success(AuthorizationData.ForAuthenticatedUser(
+                    userId: subject,
+                    tenantId: keycloakSettings.DefaultTenantId,
+                    roles: mappingResult.Roles,
+                    permissions: mappingResult.Permissions));
             }
 
             var identityProfileResult = await identityProfileResolver.ResolveAsync(
@@ -105,7 +114,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                 return identityProfileResult.ToErrorResult<AuthorizationData>();
             }
 
-            var provisionResult = await externalOperatorProvisioner.ProvisionAsync(
+            var provisionResult = await externalAppUserProvisioner.ProvisionAsync(
                 keycloakSettings.DefaultTenantId,
                 AuthProviders.Keycloak,
                 subject,
@@ -160,5 +169,13 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
 
         HashSet<string> excludedRoles = new(keycloakSettings.Provisioning.ExcludedIdpRoles, StringComparer.OrdinalIgnoreCase);
         return externalRoles.All(excludedRoles.Contains);
+    }
+
+    private static bool ShouldProvisionHubAppUser(IExternalAuthorizationMapper.MappingResult mappingResult)
+    {
+        return mappingResult.Roles.Any(role =>
+                string.Equals(role, SystemRole.Admin.Name, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(role, SystemRole.PlatformAdmin.Name, StringComparison.OrdinalIgnoreCase)) ||
+            mappingResult.Permissions.Contains(Actions.Access.Hub, StringComparer.OrdinalIgnoreCase);
     }
 }

@@ -9,19 +9,19 @@ using Microsoft.Extensions.Logging;
 namespace Endatix.Infrastructure.Identity.Provisioning;
 
 /// <summary>
-/// Provides external operator provisioning functionality.
+/// Provides AppUser provisioning functionality.
 /// </summary>
 /// <param name="identityDbContext">The identity database context.</param>
 /// <param name="userManager">The user manager.</param>
 /// <param name="logger">The logger.</param>
-internal sealed class ExternalOperatorProvisioner(
+internal sealed class ExternalAppUserProvisioner(
     AppIdentityDbContext identityDbContext,
     UserManager<AppUser> userManager,
-    ILogger<ExternalOperatorProvisioner> logger) : IExternalOperatorProvisioner
+    ILogger<ExternalAppUserProvisioner> logger) : IExternalAppUserProvisioner
 {
     private const int MAX_USER_NAME_LENGTH = 256;
     private const string DUPLICATE_EMAIL_MESSAGE = "Email already in use.";
-    private const string OPERATOR_EMAIL_REQUIRED_MESSAGE = "Operator email is required.";
+    private const string APP_USER_EMAIL_REQUIRED_MESSAGE = "App user email is required.";
     private static readonly string[] _duplicateEmailIndexNames =
     [
         AppUser.UniqueConstraints.EmailPerTenant,
@@ -45,12 +45,12 @@ internal sealed class ExternalOperatorProvisioner(
     {
         if (mappedAppRoles.Count == 0)
         {
-            return Result<AppUser>.NotFound("No mapped Hub operator roles.");
+            return Result<AppUser>.NotFound("No mapped Hub AppUser roles.");
         }
 
         if (RequireEmail(identityProfile) is null)
         {
-            return Result<AppUser>.Invalid(new ValidationError(OPERATOR_EMAIL_REQUIRED_MESSAGE));
+            return Result<AppUser>.Invalid(new ValidationError(APP_USER_EMAIL_REQUIRED_MESSAGE));
         }
 
         var existingUser = await FindByExternalKeyAsync(tenantId, authProvider, externalSubjectId, cancellationToken);
@@ -83,7 +83,7 @@ internal sealed class ExternalOperatorProvisioner(
             {
                 logger.LogWarning(
                     ex,
-                    "Rejected external operator provisioning for provider {AuthProvider}, subject {ExternalSubjectId}, tenant {TenantId} because email is already in use.",
+                    "Rejected AppUser provisioning for provider {AuthProvider}, subject {ExternalSubjectId}, tenant {TenantId} because email is already in use.",
                     authProvider,
                     externalSubjectId,
                     tenantId);
@@ -164,7 +164,7 @@ internal sealed class ExternalOperatorProvisioner(
         {
             logger.LogWarning(
                 ex,
-                "Rejected external operator profile refresh for user {UserId} because email is already in use.",
+                "Rejected AppUser profile refresh for user {UserId} because email is already in use.",
                 user.Id);
 
             return Result<AppUser>.Conflict(DUPLICATE_EMAIL_MESSAGE);
@@ -182,7 +182,7 @@ internal sealed class ExternalOperatorProvisioner(
         var email = RequireEmail(identityProfile);
         if (email is null)
         {
-            return Result<AppUser>.Invalid(new ValidationError(OPERATOR_EMAIL_REQUIRED_MESSAGE));
+            return Result<AppUser>.Invalid(new ValidationError(APP_USER_EMAIL_REQUIRED_MESSAGE));
         }
 
         AppUser user = new()
@@ -240,7 +240,7 @@ internal sealed class ExternalOperatorProvisioner(
         }
 
         logger.LogInformation(
-            "Provisioned external Hub operator {UserId} for provider {AuthProvider}, tenant {TenantId}.",
+            "Provisioned external Hub AppUser {UserId} for provider {AuthProvider}, tenant {TenantId}.",
             user.Id,
             authProvider,
             tenantId);
@@ -279,7 +279,7 @@ internal sealed class ExternalOperatorProvisioner(
     {
         logger.LogWarning(
             exception,
-            "Recovered external operator provisioning race for provider {AuthProvider}, subject {ExternalSubjectId}, tenant {TenantId}.",
+            "Recovered AppUser provisioning race for provider {AuthProvider}, subject {ExternalSubjectId}, tenant {TenantId}.",
             authProvider,
             externalSubjectId,
             tenantId);
@@ -307,7 +307,7 @@ internal sealed class ExternalOperatorProvisioner(
         var email = RequireEmail(identityProfile);
         if (email is null)
         {
-            return Result.Invalid(new ValidationError(OPERATOR_EMAIL_REQUIRED_MESSAGE));
+            return Result.Invalid(new ValidationError(APP_USER_EMAIL_REQUIRED_MESSAGE));
         }
 
         if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))

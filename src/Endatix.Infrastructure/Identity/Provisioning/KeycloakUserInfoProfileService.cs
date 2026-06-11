@@ -44,7 +44,7 @@ internal sealed class KeycloakUserInfoProfileService(
 
         try
         {
-            return Result.Success(ExternalIdentityClaimReader.FromJsonObject(responseContent));
+            return Result.Success(IdentityClaimsReader.FromJsonObject(responseContent));
         }
         catch (JsonException)
         {

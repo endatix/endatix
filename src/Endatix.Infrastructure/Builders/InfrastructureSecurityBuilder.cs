@@ -131,17 +131,17 @@ public class InfrastructureSecurityBuilder
     }
 
     /// <summary>
-    /// Registers shared services for external IdP Hub operator authorization:
+    /// Registers shared services for external IdP Hub AppUser authorization:
     /// role mapping, profile lookup, and JIT AppUser provisioning.
     /// Call from external auth provider setup when registering an <see cref="IAuthorizationStrategy"/>
-    /// that provisions Hub operators from an external identity provider.
+    /// that provisions Hub AppUsers from an external identity provider.
     /// </summary>
-    public InfrastructureSecurityBuilder AddExternalOperatorAuthorizationServices()
+    public InfrastructureSecurityBuilder AddExternalAppUserAuthorizationServices()
     {
-        LogSetupInfo("Adding external operator authorization services");
+        LogSetupInfo("Adding external AppUser authorization services");
         Services.TryAddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
-        Services.TryAddScoped<IExternalOperatorProfileReader, ExternalOperatorProfileReader>();
-        Services.TryAddScoped<IExternalOperatorProvisioner, ExternalOperatorProvisioner>();
+        Services.TryAddScoped<IExternalAppUserProfileReader, ExternalAppUserProfileReader>();
+        Services.TryAddScoped<IExternalAppUserProvisioner, ExternalAppUserProvisioner>();
 
         return this;
     }
@@ -278,7 +278,7 @@ public class InfrastructureSecurityBuilder
 
     private void RegisterKeycloakAuthorizationServices()
     {
-        AddExternalOperatorAuthorizationServices();
+        AddExternalAppUserAuthorizationServices();
         Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
         Services.AddScoped<IKeycloakTokenIntrospectionService, KeycloakTokenIntrospectionService>();
         Services.AddScoped<IKeycloakUserInfoProfileService, KeycloakUserInfoProfileService>();

@@ -7,11 +7,8 @@ namespace Endatix.Infrastructure.Identity.Provisioning;
 /// <summary>
 /// Resolves the external identity profile for a Keycloak principal.
 /// </summary>
-/// <param name="externalOperatorProfileReader">The external operator profile reader.</param>
-/// <param name="userInfoProfileService">The user info profile service.</param>
-/// <param name="logger">The logger.</param>
 internal sealed class KeycloakExternalIdentityProfileResolver(
-    IExternalOperatorProfileReader externalOperatorProfileReader,
+    IExternalAppUserProfileReader externalAppUserProfileReader,
     IKeycloakUserInfoProfileService userInfoProfileService,
     ILogger<KeycloakExternalIdentityProfileResolver> logger)
 {
@@ -24,7 +21,7 @@ internal sealed class KeycloakExternalIdentityProfileResolver(
         string accessToken,
         CancellationToken cancellationToken)
     {
-        var principalProfile = ExternalIdentityClaimReader.FromClaimsPrincipal(principal);
+        var principalProfile = IdentityClaimsReader.FromClaimsPrincipal(principal);
         var profile = ExternalIdentityProfile.Merge(principalProfile, introspectionProfile);
         if (!await ShouldUseUserInfoAsync(
                 tenantId,
@@ -41,7 +38,7 @@ internal sealed class KeycloakExternalIdentityProfileResolver(
         if (!userInfoProfileResult.IsSuccess)
         {
             logger.LogWarning(
-                "Failed to resolve Keycloak operator profile from UserInfo: {Errors}",
+                "Failed to resolve Keycloak AppUser profile from UserInfo: {Errors}",
                 string.Join("; ", userInfoProfileResult.Errors));
 
             return Result.Success(profile);
@@ -73,7 +70,7 @@ internal sealed class KeycloakExternalIdentityProfileResolver(
             return false;
         }
 
-        var existingDisplayName = await externalOperatorProfileReader.GetDisplayNameAsync(
+        var existingDisplayName = await externalAppUserProfileReader.GetDisplayNameAsync(
             tenantId,
             authProvider,
             externalSubjectId,

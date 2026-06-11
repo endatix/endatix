@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
@@ -8,6 +9,9 @@ using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Features.Submitters;
@@ -25,15 +29,19 @@ public sealed class SubmitterResolverTests
     public async Task ResolveAsync_WithHigherPriorityCustomExtractor_UsesCustomExtractorBeforeBuiltIn()
     {
         SubmitterClaimReader claimReader = new();
-        KeycloakSubmitterClaimExtractor keycloakExtractor = new(Options.Create(new SubmitterOptions()), claimReader);
+        KeycloakSubmitterClaimExtractor keycloakExtractor = new(
+            CreateRegistry(AuthProviders.Keycloak, "https://keycloak.test"),
+            Options.Create(new SubmitterOptions()),
+            claimReader);
         CustomSubmitterClaimExtractor customExtractor = new();
-        SubmitterResolver resolver = CreateResolver(keycloakExtractor, customExtractor);
+        var resolver = CreateResolver(keycloakExtractor, customExtractor);
         ClaimsPrincipal principal = new(new ClaimsIdentity(
         [
-            new Claim(ClaimNames.UserId, "bf89d22f-acbc-4574-bf7d-53dbcf438bb7")
+            new Claim(ClaimNames.UserId, "bf89d22f-acbc-4574-bf7d-53dbcf438bb7"),
+            new Claim(JwtRegisteredClaimNames.Iss, "https://keycloak.test")
         ], authenticationType: "Keycloak"));
 
-        SubmitterResolution resolution = await resolver.ResolveAsync(
+        var resolution = await resolver.ResolveAsync(
             new SubmitterResolveContext(1, principal),
             CancellationToken.None);
 
@@ -52,7 +60,7 @@ public sealed class SubmitterResolverTests
         DateTimeOffset now = new(2026, 6, 11, 12, 0, 0, TimeSpan.Zero);
         _dateTimeProvider.UtcNow.Returns(now);
 
-        Submitter existingSubmitter = Submitter.Create(
+        var existingSubmitter = Submitter.Create(
             tenantId,
             AuthProviders.Keycloak,
             externalSubjectId,
@@ -104,7 +112,7 @@ public sealed class SubmitterResolverTests
         DateTimeOffset now = new(2026, 6, 11, 12, 0, 0, TimeSpan.Zero);
         _dateTimeProvider.UtcNow.Returns(now);
 
-        Submitter existingSubmitter = Submitter.Create(
+        var existingSubmitter = Submitter.Create(
             tenantId,
             AuthProviders.Endatix,
             null,
@@ -170,5 +178,32 @@ public sealed class SubmitterResolverTests
                 null,
                 null);
         }
+    }
+
+    private static AuthProviderRegistry CreateRegistry(string schemeName, string issuer)
+    {
+        AuthProviderRegistry registry = new();
+        TestAuthProvider provider = new(schemeName, issuer);
+        registry.RegisterProvider<TestAuthProviderOptions>(
+            provider,
+            new ServiceCollection(),
+            new ConfigurationBuilder().Build());
+        registry.AddActiveProvider(provider);
+
+        return registry;
+    }
+
+    private sealed class TestAuthProvider(string schemeName, string issuer) : IAuthProvider
+    {
+        public string SchemeName => schemeName;
+
+        public bool CanHandle(string tokenIssuer, string rawToken) =>
+            string.Equals(tokenIssuer, issuer, StringComparison.Ordinal);
+
+        public bool Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false) => true;
+    }
+
+    private sealed class TestAuthProviderOptions : AuthProviderOptions
+    {
     }
 }

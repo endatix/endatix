@@ -39,7 +39,7 @@ internal sealed class KeycloakTokenIntrospectionService(
         try
         {
             using var document = JsonDocument.Parse(responseContent);
-            profile = ExternalIdentityClaimReader.FromJsonObject(document.RootElement);
+            profile = IdentityClaimsReader.FromJsonObject(document.RootElement);
             if (!IsTokenActive(document.RootElement))
             {
                 return Result<KeycloakTokenIntrospectionResult>.Unauthorized("Token is not active.");

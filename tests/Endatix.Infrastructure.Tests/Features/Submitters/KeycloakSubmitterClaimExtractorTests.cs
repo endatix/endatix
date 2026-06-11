@@ -1,13 +1,18 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Features.Submitters;
 
 public sealed class KeycloakSubmitterClaimExtractorTests
 {
+    private const string KeycloakIssuer = "https://keycloak.test";
     private readonly KeycloakSubmitterClaimExtractor _extractor = CreateExtractor(new SubmitterOptions());
 
     [Fact]
@@ -18,6 +23,8 @@ public sealed class KeycloakSubmitterClaimExtractorTests
         [
             new Claim(ClaimNames.EndatixUserId, "123456789"),
             new Claim(ClaimNames.UserId, externalSubjectId),
+            new Claim(JwtRegisteredClaimNames.Iss, KeycloakIssuer),
+            new Claim("panelistId", "P-123"),
             new Claim("preferred_username", "operator@example.com")
         ]);
 
@@ -28,7 +35,7 @@ public sealed class KeycloakSubmitterClaimExtractorTests
         input.AuthProvider.Should().Be(AuthProviders.Keycloak);
         input.ExternalSubjectId.Should().Be(externalSubjectId);
         input.AppUserId.Should().BeNull();
-        input.DisplayId.Should().Be("operator@example.com");
+        input.DisplayId.Should().Be("P-123");
     }
 
     [Fact]
@@ -38,6 +45,7 @@ public sealed class KeycloakSubmitterClaimExtractorTests
         var principal = CreateAuthenticatedPrincipal(
         [
             new Claim(ClaimTypes.NameIdentifier, externalSubjectId),
+            new Claim(JwtRegisteredClaimNames.Iss, KeycloakIssuer),
             new Claim("panelistId", "1234")
         ]);
 
@@ -54,7 +62,8 @@ public sealed class KeycloakSubmitterClaimExtractorTests
     {
         var principal = CreateAuthenticatedPrincipal(
         [
-            new Claim(ClaimNames.UserId, "123456789")
+            new Claim(ClaimNames.UserId, "123456789"),
+            new Claim(JwtRegisteredClaimNames.Iss, KeycloakIssuer)
         ]);
 
         var canExtract = _extractor.CanExtract(principal);
@@ -72,6 +81,7 @@ public sealed class KeycloakSubmitterClaimExtractorTests
         var principal = CreateAuthenticatedPrincipal(
         [
             new Claim(ClaimNames.UserId, "bf89d22f-acbc-4574-bf7d-53dbcf438bb7"),
+            new Claim(JwtRegisteredClaimNames.Iss, KeycloakIssuer),
             new Claim("employee_number", "E-123"),
             new Claim("preferred_username", "panelist@example.com")
         ]);
@@ -88,6 +98,36 @@ public sealed class KeycloakSubmitterClaimExtractorTests
 
     private static KeycloakSubmitterClaimExtractor CreateExtractor(SubmitterOptions options)
     {
-        return new KeycloakSubmitterClaimExtractor(Options.Create(options), new SubmitterClaimReader());
+        return new KeycloakSubmitterClaimExtractor(
+            CreateRegistry(AuthProviders.Keycloak, KeycloakIssuer),
+            Options.Create(options),
+            new SubmitterClaimReader());
+    }
+
+    private static AuthProviderRegistry CreateRegistry(string schemeName, string issuer)
+    {
+        AuthProviderRegistry registry = new();
+        TestAuthProvider provider = new(schemeName, issuer);
+        registry.RegisterProvider<TestAuthProviderOptions>(
+            provider,
+            new ServiceCollection(),
+            new ConfigurationBuilder().Build());
+        registry.AddActiveProvider(provider);
+
+        return registry;
+    }
+
+    private sealed class TestAuthProvider(string schemeName, string issuer) : IAuthProvider
+    {
+        public string SchemeName => schemeName;
+
+        public bool CanHandle(string tokenIssuer, string rawToken) =>
+            string.Equals(tokenIssuer, issuer, StringComparison.Ordinal);
+
+        public bool Configure(AuthenticationBuilder builder, IConfigurationSection providerConfig, bool isDevelopment = false) => true;
+    }
+
+    private sealed class TestAuthProviderOptions : AuthProviderOptions
+    {
     }
 }

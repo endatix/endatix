@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Submitters;
+using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.Extensions.Options;
 
@@ -9,6 +10,7 @@ namespace Endatix.Infrastructure.Features.Submitters;
 /// Extracts submitter claims from a Keycloak principal.
 /// </summary>
 internal sealed class KeycloakSubmitterClaimExtractor(
+    AuthProviderRegistry authProviderRegistry,
     IOptions<SubmitterOptions> options,
     SubmitterClaimReader claimReader)
     : ISubmitterClaimExtractor
@@ -21,6 +23,14 @@ internal sealed class KeycloakSubmitterClaimExtractor(
     /// <inheritdoc />
     public bool CanExtract(ClaimsPrincipal principal)
     {
+        if (!string.Equals(
+            authProviderRegistry.ResolveAuthProviderFromIssuer(principal.GetIssuer()),
+            AuthProviders.Keycloak,
+            StringComparison.Ordinal))
+        {
+            return false;
+        }
+
         var subject = claimReader.ResolveExternalSubject(principal);
         if (principal.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(subject) || long.TryParse(subject, out _))
         {

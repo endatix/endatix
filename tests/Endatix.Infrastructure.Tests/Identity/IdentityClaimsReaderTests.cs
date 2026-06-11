@@ -1,10 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using Endatix.Infrastructure.Identity.Provisioning;
+using Endatix.Infrastructure.Identity;
 
 namespace Endatix.Infrastructure.Tests.Identity.Provisioning;
 
-public sealed class ExternalIdentityClaimReaderTests
+public sealed class IdentityClaimsReaderTests
 {
     [Fact]
     public void FromClaimsPrincipal_WithShortJwtClaims_ReturnsExternalIdentityProfile()
@@ -16,7 +16,7 @@ public sealed class ExternalIdentityClaimReaderTests
             new Claim("name", "first last")
         ]));
 
-        var profile = ExternalIdentityClaimReader.FromClaimsPrincipal(principal);
+        var profile = IdentityClaimsReader.FromClaimsPrincipal(principal);
 
         profile.Email.Should().Be("test@example.com");
         profile.DisplayName.Should().Be("first last");
@@ -32,7 +32,7 @@ public sealed class ExternalIdentityClaimReaderTests
             new Claim(ClaimTypes.Surname, "last")
         ]));
 
-        var profile = ExternalIdentityClaimReader.FromClaimsPrincipal(principal);
+        var profile = IdentityClaimsReader.FromClaimsPrincipal(principal);
 
         profile.Email.Should().Be("mapped@example.com");
         profile.DisplayName.Should().Be("first last");
@@ -47,7 +47,7 @@ public sealed class ExternalIdentityClaimReaderTests
             new Claim("preferred_username", "preferred-user")
         ]));
 
-        var profile = ExternalIdentityClaimReader.FromClaimsPrincipal(principal);
+        var profile = IdentityClaimsReader.FromClaimsPrincipal(principal);
 
         profile.Email.Should().Be("mapped@example.com");
         profile.DisplayName.Should().Be("preferred-user");

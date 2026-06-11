@@ -167,7 +167,10 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         var context = CreateTestContext();
         context.RegisterProvider(TestIssuer, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
-        context.ExternalOperatorProvisioner
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
+            [SystemRole.Admin.Name],
+            ["perm.read"]);
+        context.ExternalAppUserProvisioner
             .ProvisionAsync(
                 context.Options.DefaultTenantId,
                 AuthProviders.Keycloak,
@@ -175,7 +178,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
                 Arg.Any<IReadOnlyCollection<string>>(),
                 Arg.Is<ExternalIdentityProfile>(profile => profile.Email == null),
                 Arg.Any<CancellationToken>())
-            .Returns(Result<AppUser>.Invalid(new ValidationError("Operator email is required.")));
+            .Returns(Result<AppUser>.Invalid(new ValidationError("App user email is required.")));
         var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
 
         // Act
@@ -183,8 +186,8 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.ValidationErrors.Should().ContainSingle(error => error.ErrorMessage == "Operator email is required.");
-        await context.ExternalOperatorProvisioner
+        result.ValidationErrors.Should().ContainSingle(error => error.ErrorMessage == "App user email is required.");
+        await context.ExternalAppUserProvisioner
             .Received(1)
             .ProvisionAsync(
                 context.Options.DefaultTenantId,
@@ -205,6 +208,9 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             ["kc-admin"],
             email: "operator@example.com",
             preferredUsername: "operator-user");
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
+            [SystemRole.Admin.Name],
+            ["perm.read"]);
         var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
 
         // Act
@@ -213,7 +219,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         context.UserInfoProfileService.CallCount.Should().Be(0);
-        await context.ExternalOperatorProvisioner
+        await context.ExternalAppUserProvisioner
             .Received(1)
             .ProvisionAsync(
                 context.Options.DefaultTenantId,
@@ -252,6 +258,9 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         var context = CreateTestContext();
         context.RegisterProvider(TestIssuer, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
+            [SystemRole.Admin.Name],
+            ["perm.read"]);
         context.UserInfoProfileService.ProfileResult =
             Result.Success(new ExternalIdentityProfile("userinfo@example.com", "userinfo-user"));
         var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
@@ -263,7 +272,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         result.IsSuccess.Should().BeTrue();
         context.UserInfoProfileService.CallCount.Should().Be(1);
         context.UserInfoProfileService.AccessToken.Should().Be("token-123");
-        await context.ExternalOperatorProvisioner
+        await context.ExternalAppUserProvisioner
             .Received(1)
             .ProvisionAsync(
                 context.Options.DefaultTenantId,
@@ -283,7 +292,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         var context = CreateTestContext();
         context.RegisterProvider(TestIssuer, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
-        context.ExternalOperatorProfileReader.DisplayName = "existing-user";
+        context.ExternalAppUserProfileReader.DisplayName = "existing-user";
         var principal = CreatePrincipal("123", TestIssuer);
 
         // Act
@@ -345,13 +354,13 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         httpClientFactory.CreateClient().Returns(httpClient);
         httpClientFactory.CreateClient(Arg.Any<string>()).Returns(httpClient);
         var tokenIntrospectionService = new KeycloakTokenIntrospectionService(httpClientFactory);
-        var externalOperatorProfileReader = new StubExternalOperatorProfileReader();
+        var externalOperatorProfileReader = new StubExternalAppUserProfileReader();
         var userInfoProfileService = new StubKeycloakUserInfoProfileService();
         var profileResolver = new KeycloakExternalIdentityProfileResolver(
             externalOperatorProfileReader,
             userInfoProfileService,
             Substitute.For<ILogger<KeycloakExternalIdentityProfileResolver>>());
-        var externalOperatorProvisioner = Substitute.For<IExternalOperatorProvisioner>();
+        var externalOperatorProvisioner = Substitute.For<IExternalAppUserProvisioner>();
         externalOperatorProvisioner
             .ProvisionAsync(
                 Arg.Any<long>(),
@@ -385,9 +394,9 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             Mapper: mapper,
             HttpContextAccessor: httpContextAccessor,
             HttpClientFactory: httpClientFactory,
-            ExternalOperatorProfileReader: externalOperatorProfileReader,
+            ExternalAppUserProfileReader: externalOperatorProfileReader,
             UserInfoProfileService: userInfoProfileService,
-            ExternalOperatorProvisioner: externalOperatorProvisioner,
+            ExternalAppUserProvisioner: externalOperatorProvisioner,
             Handler: handler,
             Strategy: strategy);
     }
@@ -398,9 +407,9 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         StubExternalAuthorizationMapper Mapper,
         IHttpContextAccessor HttpContextAccessor,
         IHttpClientFactory HttpClientFactory,
-        StubExternalOperatorProfileReader ExternalOperatorProfileReader,
+        StubExternalAppUserProfileReader ExternalAppUserProfileReader,
         StubKeycloakUserInfoProfileService UserInfoProfileService,
-        IExternalOperatorProvisioner ExternalOperatorProvisioner,
+        IExternalAppUserProvisioner ExternalAppUserProvisioner,
         ConfigurableHttpMessageHandler Handler,
         KeycloakTokenIntrospectionAuthorization Strategy)
     {
@@ -509,7 +518,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         }
     }
 
-    private sealed class StubExternalOperatorProfileReader : IExternalOperatorProfileReader
+    private sealed class StubExternalAppUserProfileReader : IExternalAppUserProfileReader
     {
         public string? DisplayName { get; set; }
 

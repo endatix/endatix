@@ -582,7 +582,7 @@ public class InfrastructureSecurityBuilderTests
     }
 
     [Fact]
-    public void AddExternalOperatorAuthorizationServices_ShouldRegisterSharedExternalOperatorServices()
+    public void AddExternalAppUserAuthorizationServices_ShouldRegisterSharedExternalAppUserServices()
     {
         // Arrange
         var builder = new InfrastructureSecurityBuilder(_parentBuilder);
@@ -590,18 +590,18 @@ public class InfrastructureSecurityBuilderTests
         // Act
         builder
             .UseDefaults()
-            .AddExternalOperatorAuthorizationServices()
+            .AddExternalAppUserAuthorizationServices()
             .Build();
 
         // Assert
         Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IExternalAuthorizationMapper>());
-        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IExternalOperatorProvisioner>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IExternalAppUserProvisioner>());
         Assert.False(IsKeycloakAuthorizationStrategyRegistered());
         Assert.False(IsServiceRegistered<IKeycloakTokenIntrospectionService>());
 
         var profileReaderDescriptor = _services
-            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalOperatorProfileReader) &&
-                                  sd.ImplementationType == typeof(ExternalOperatorProfileReader));
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalAppUserProfileReader) &&
+                                  sd.ImplementationType == typeof(ExternalAppUserProfileReader));
         Assert.NotNull(profileReaderDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, profileReaderDescriptor.Lifetime);
     }
@@ -622,11 +622,11 @@ public class InfrastructureSecurityBuilderTests
         Assert.True(IsKeycloakAuthorizationStrategyRegistered());
         Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IExternalAuthorizationMapper>());
         Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IKeycloakTokenIntrospectionService>());
-        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IExternalOperatorProvisioner>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IExternalAppUserProvisioner>());
 
         var profileReaderDescriptor = _services
-            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalOperatorProfileReader) &&
-                                  sd.ImplementationType == typeof(ExternalOperatorProfileReader));
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalAppUserProfileReader) &&
+                                  sd.ImplementationType == typeof(ExternalAppUserProfileReader));
         Assert.NotNull(profileReaderDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, profileReaderDescriptor.Lifetime);
 

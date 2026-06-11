@@ -77,12 +77,12 @@ public class KeycloakOptions : JwtAuthProviderOptions
     public sealed class KeycloakProvisioningOptions
     {
         /// <summary>
-        /// IdP roles that must never be used to provision Hub operators.
+        /// IdP roles that must never be used to provision Hub AppUsers.
         /// </summary>
         public List<string> ExcludedIdpRoles { get; set; } = [];
 
         /// <summary>
-        /// Whether to reject external operators whose email is already used by another user in the tenant.
+        /// Whether to reject external AppUsers whose email is already used by another user in the tenant.
         /// </summary>
         public bool RejectDuplicateEmail { get; set; } = true;
     }

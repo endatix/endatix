@@ -29,29 +29,39 @@ public class SubmissionAccessTokenPermissionsTests
     }
 
     [Fact]
-    public void All_ShouldContainAllThreePermissions()
+    public void Submit_ShouldHaveCorrectNameAndCode()
+    {
+        SubmissionAccessTokenPermissions.Submit.Name.Should().Be("submit");
+        SubmissionAccessTokenPermissions.Submit.Code.Should().Be('s');
+    }
+
+    [Fact]
+    public void All_ShouldContainAllPermissions()
     {
         // Assert
-        SubmissionAccessTokenPermissions.All.Should().HaveCount(3);
+        SubmissionAccessTokenPermissions.All.Should().HaveCount(4);
         SubmissionAccessTokenPermissions.All.Should().Contain(SubmissionAccessTokenPermissions.View);
         SubmissionAccessTokenPermissions.All.Should().Contain(SubmissionAccessTokenPermissions.Edit);
         SubmissionAccessTokenPermissions.All.Should().Contain(SubmissionAccessTokenPermissions.Export);
+        SubmissionAccessTokenPermissions.All.Should().Contain(SubmissionAccessTokenPermissions.Submit);
     }
 
     [Fact]
     public void AllNames_ShouldContainAllPermissionNames()
     {
         // Assert
-        SubmissionAccessTokenPermissions.AllNames.Should().HaveCount(3);
+        SubmissionAccessTokenPermissions.AllNames.Should().HaveCount(4);
         SubmissionAccessTokenPermissions.AllNames.Should().Contain("view");
         SubmissionAccessTokenPermissions.AllNames.Should().Contain("edit");
         SubmissionAccessTokenPermissions.AllNames.Should().Contain("export");
+        SubmissionAccessTokenPermissions.AllNames.Should().Contain("submit");
     }
 
     [Theory]
     [InlineData("view", true)]
     [InlineData("edit", true)]
     [InlineData("export", true)]
+    [InlineData("submit", true)]
     [InlineData("View", true)]  // Case insensitive
     [InlineData("EDIT", true)]  // Case insensitive
     [InlineData("invalid", false)]
@@ -98,6 +108,7 @@ public class SubmissionAccessTokenPermissionsTests
     [InlineData('r', "view")]
     [InlineData('w', "edit")]
     [InlineData('x', "export")]
+    [InlineData('s', "submit")]
     public void GetByCode_ValidCode_ShouldReturnPermission(char code, string expectedName)
     {
         // Act

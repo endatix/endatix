@@ -74,6 +74,15 @@ public sealed record SystemRole
         permissions: [Actions.Access.Authenticated],
         isPersisted: false);
 
+    public static readonly SystemRole Respondent = new(
+        name: "Respondent",
+        description: "Authenticated respondent who can access private forms and submit responses without Hub access.",
+        isSystemDefined: true,
+        hasHubAccess: false,
+        permissions: [
+            Actions.Submissions.Create
+        ]);
+
     public static readonly SystemRole Public = new(
         name: "Public",
         description: "Anonymous user who can only access public forms and submit responses.",
@@ -94,6 +103,7 @@ public sealed record SystemRole
         Admin,
         Creator,
         Authenticated,
+        Respondent,
         Public,
         PlatformAdmin
         ];
