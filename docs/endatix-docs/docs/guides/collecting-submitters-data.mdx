@@ -6,9 +6,9 @@ sidebar_position: 8
 
 # Collecting Submitters Data
 
-Endatix links form respondents to a dedicated `Submitter` record. This cleanly separates external respondent identities (like survey panelists) from your internal Hub operators.
+Endatix links identified form respondents to a dedicated `Submitter` record. This cleanly separates external respondent identities (like survey panelists) from your internal Hub operators.
 
-Whether a user logs in via an external Identity Provider (Keycloak, Google) or submits anonymously using a token, Endatix records their data alongside the submission. Each submission stores a stable `SubmitterId` and an immutable snapshot of the submitter's profile, powering your grids, filters, and exports.
+When a user is resolved from authenticated claims or a trusted integration payload, Endatix records their submitter data alongside the submission. The submission stores a stable `SubmitterId`, a `SubmitterDisplayId`, and an immutable snapshot of the configured submitter profile fields, powering your grids, filters, and exports. Anonymous submissions can still be accepted, but they do not persist a submitter record.
 
 ## How submitter resolution works
 
@@ -27,7 +27,7 @@ flowchart LR
   extractors --> extractionInput["SubmitterExtractionInput"]
   extractionInput --> submitter["Upsert tenant-scoped Submitter"]
   submitterInput --> submitter
-  submitter --> submission["Submission SubmitterId + profile snapshot"]
+  submitter --> submission["Submission SubmitterId + SubmitterDisplayId + profile snapshot"]
 
 ```
 
@@ -61,12 +61,28 @@ Endatix evaluates this ordered list and uses the first non-empty claim value as 
 
 ### ProfileSnapshotFields
 
-Controls which claims are copied into the submitter's rolling profile JSON, snapshotted at submission time, and exposed for profile filtering. Because these claims often contain Personally Identifiable Information (PII), keep this list intentionally small and limited to what you need for downstream workflows.
+Controls which claims are copied into the submitter's rolling profile JSON, snapshotted at submission time, and exposed for profile filtering. Claim names are matched exactly, so `email`, `Email`, and `emails.primary` are different fields. Because these claims often contain Personally Identifiable Information (PII), keep this list intentionally small and limited to what you need for downstream workflows.
 
 * **Immutability:** Snapshots ensure historical accuracy. If a submitter changes their email later, past submissions retain the email they used at the time of submission.
 * **Filtering:** You can filter the Hub and API using the `submitterProfile.<field>:<value>` grammar (e.g., `submitterProfile.email:respondent@example.com`).
 
 The same `ProfileSnapshotFields` allow-list is used for authenticated claims and trusted on-behalf payloads. If a field is not configured here, it is not copied into the submission snapshot.
+
+### Hub grid profile columns
+
+`ProfileSnapshotFields` controls what the API stores. Hub controls which stored profile fields appear as grid columns through the `NEXT_PUBLIC_SUBMITTER_GRID_PROFILE_FIELDS` environment variable.
+
+For example, to store `email` in the snapshot and display it as a Hub grid column:
+
+```bash
+NEXT_PUBLIC_SUBMITTER_GRID_PROFILE_FIELDS=email
+```
+
+The submitter display ID is already a built-in system column (`SubmitterDisplayId`) and does not need to be repeated in `NEXT_PUBLIC_SUBMITTER_GRID_PROFILE_FIELDS`. You can customize the primary display ID filter placeholder with:
+
+```bash
+NEXT_PUBLIC_SUBMITTER_PRIMARY_FILTER_LABEL="Panelist ID"
+```
 
 ## Recipe 1: Collect submitters from authenticated claims
 
@@ -74,7 +90,7 @@ Use this path when respondents authenticate before submitting a form. Configure 
 
 1. Pick one stable claim for the primary display ID, such as `panelistId` or `preferred_username`.
 2. Add only the profile fields you need for grid columns, filtering, exports, or downstream reconciliation.
-3. Ensure your Identity Provider issues those claims in the access token used by the public form.
+3. Ensure your Identity Provider issues those exact claim names in the access token used by the public form.
 
 Example:
 
@@ -87,6 +103,26 @@ Example:
     }
   }
 }
+```
+
+For a common panel setup where `panelistId` should appear as the Display ID and `email` should appear in the submission grid profile data, keep `panelistId` in `DisplayIdClaimTypes` and `email` in `ProfileSnapshotFields`:
+
+```json
+{
+  "Endatix": {
+    "Submitter": {
+      "DisplayIdClaimTypes": ["panelistId"],
+      "ProfileSnapshotFields": ["email"]
+    }
+  }
+}
+```
+
+Then configure Hub:
+
+```bash
+NEXT_PUBLIC_SUBMITTER_GRID_PROFILE_FIELDS=email
+NEXT_PUBLIC_SUBMITTER_PRIMARY_FILTER_LABEL="Panelist ID"
 ```
 
 At submission time, Endatix uses the first matching built-in extractor:
@@ -134,7 +170,7 @@ Resolution behavior:
 
 * Endatix normalizes the trusted payload, then upserts a tenant-scoped `Submitter` by `AuthProvider` + `ExternalSubjectId`.
 * `displayId` becomes the submission's `SubmitterDisplayId`.
-* `profile` is filtered through `ProfileSnapshotFields` before it becomes `SubmitterProfileSnapshot`.
+* `profile` is filtered through `ProfileSnapshotFields` before it becomes `SubmitterProfileSnapshot`. The profile dictionary keys must match the configured field names exactly.
 * The resulting submission response includes the same submitter fields used by Hub details, grids, filters, and exports.
 
 Use this endpoint when the integration is already trusted. Do not accept submitter identity from an untrusted browser and forward it as-is.

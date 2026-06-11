@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260610142723_SubmitterEntity")]
+    [Migration("20260611081056_SubmitterEntity")]
     partial class SubmitterEntity
     {
         /// <inheritdoc />
@@ -691,9 +691,12 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "AuthProvider", "AppUserId");
+                    b.HasIndex("TenantId", "AuthProvider", "AppUserId", "ExternalSubjectId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_AppUserId_ExternalSubjectId")
+                        .HasFilter("(\"AppUserId\" IS NOT NULL OR \"ExternalSubjectId\" IS NOT NULL) AND \"IsDeleted\" = false");
 
-                    b.HasIndex("TenantId", "AuthProvider", "ExternalSubjectId");
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("TenantId", "AuthProvider", "AppUserId", "ExternalSubjectId"), false);
 
                     b.ToTable("Submitters", (string)null);
                 });

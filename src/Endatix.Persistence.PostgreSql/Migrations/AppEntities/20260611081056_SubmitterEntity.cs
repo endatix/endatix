@@ -77,14 +77,12 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 .Annotation("Npgsql:IndexOperators", new[] { "jsonb_path_ops" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Submitters_TenantId_AuthProvider_AppUserId",
+                name: "IX_Submitters_TenantId_AuthProvider_AppUserId_ExternalSubjectId",
                 table: "Submitters",
-                columns: new[] { "TenantId", "AuthProvider", "AppUserId" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Submitters_TenantId_AuthProvider_ExternalSubjectId",
-                table: "Submitters",
-                columns: new[] { "TenantId", "AuthProvider", "ExternalSubjectId" });
+                columns: new[] { "TenantId", "AuthProvider", "AppUserId", "ExternalSubjectId" },
+                unique: true,
+                filter: "(\"AppUserId\" IS NOT NULL OR \"ExternalSubjectId\" IS NOT NULL) AND \"IsDeleted\" = false")
+                .Annotation("Npgsql:NullsDistinct", false);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Submissions_Submitters_SubmitterId",

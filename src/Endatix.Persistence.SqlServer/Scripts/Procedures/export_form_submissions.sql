@@ -25,6 +25,8 @@ BEGIN
         CompletedAt datetime2,
         CreatedAt datetime2,
         ModifiedAt datetime2,
+        SubmitterId bigint,
+        SubmitterDisplayId nvarchar(256),
         JsonData nvarchar(max), -- Store JsonData locally to avoid repeated lookups
         AnswersJson nvarchar(max)
     );
@@ -39,6 +41,8 @@ BEGIN
             CompletedAt,
             CreatedAt,
             ModifiedAt,
+            SubmitterId,
+            SubmitterDisplayId,
             JsonData,
             '{}' AS AnswersJson
         FROM dbo.Submissions
@@ -46,7 +50,7 @@ BEGIN
           AND (@after_id IS NULL OR Id > @after_id)
     )
     INSERT INTO #Results
-        (FormId, Id, IsComplete, CompletedAt, CreatedAt, ModifiedAt, JsonData, AnswersJson)
+        (FormId, Id, IsComplete, CompletedAt, CreatedAt, ModifiedAt, SubmitterId, SubmitterDisplayId, JsonData, AnswersJson)
     SELECT TOP (ISNULL(@page_size, 2147483647))
         FormId,
         Id,
@@ -54,6 +58,8 @@ BEGIN
         CompletedAt,
         CreatedAt,
         ModifiedAt,
+        SubmitterId,
+        SubmitterDisplayId,
         JsonData,
         AnswersJson
     FROM BaseSubmissions
@@ -137,6 +143,8 @@ BEGIN
         CompletedAt,
         CreatedAt,
         ModifiedAt,
+        SubmitterId,
+        SubmitterDisplayId,
         AnswersJson AS AnswersModel
     FROM #Results
     ORDER BY Id;
