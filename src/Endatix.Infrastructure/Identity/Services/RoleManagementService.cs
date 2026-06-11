@@ -1,7 +1,9 @@
+using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -18,6 +20,11 @@ public sealed class RoleManagementService : IRoleManagementService
     private const string PlatformAdminRoleMutationForbiddenMessage = "Only platform administrators can assign or remove the PlatformAdmin role.";
     private const string PlatformAdminUserMutationForbiddenMessage = "Only platform administrators can modify users with the PlatformAdmin role.";
     private const string ExternalUserRoleMutationForbiddenMessage = "External users receive roles from their identity provider and cannot be edited locally.";
+
+    private static readonly IReadOnlyDictionary<string, SystemRole> _persistedSystemRolesByName =
+        SystemRole.AllSystemRoles.ToDictionary(role => role.Name, StringComparer.OrdinalIgnoreCase);
+
+    private static readonly JsonSerializerOptions _externalRolesJsonSerializerOptions = new();
 
     private readonly UserManager<AppUser> _userManager;
     private readonly AppIdentityDbContext _identityDbContext;
@@ -378,89 +385,132 @@ public sealed class RoleManagementService : IRoleManagementService
     {
         var tenantId = _tenantContext.TenantId;
 
-        var roles = await _identityDbContext.Roles
-            .Where(role => role.TenantId == tenantId || (role.IsSystemDefined && role.TenantId <= 0))
-            .GroupJoin(
-                _identityDbContext.RolePermissions.Where(rolePermission => rolePermission.IsActive),
-                role => role.Id,
-                rolePermission => rolePermission.RoleId,
-                (role, rolePermissions) => new
-                {
-                    Role = role,
-                    RolePermissions = rolePermissions
-                })
-            .SelectMany(
-                roleGroup => roleGroup.RolePermissions.DefaultIfEmpty(),
-                (roleGroup, rolePermission) => new
-                {
-                    roleGroup.Role,
-                    PermissionId = rolePermission != null ? rolePermission.PermissionId : default
-                })
-            .GroupJoin(
-                _identityDbContext.Permissions,
-                rolePermission => rolePermission.PermissionId,
-                permission => permission.Id,
-                (rolePermission, permissions) => new
-                {
-                    rolePermission.Role,
-                    Permissions = permissions
-                })
-            .SelectMany(
-                roleGroup => roleGroup.Permissions.DefaultIfEmpty(),
-                (roleGroup, permission) => new
-                {
-                    roleGroup.Role.Id,
-                    roleGroup.Role.Name,
-                    roleGroup.Role.Description,
-                    roleGroup.Role.IsSystemDefined,
-                    roleGroup.Role.IsActive,
-                    PermissionName = permission != null ? permission.Name : null
-                })
+        var roles = await LoadPersistedRolesWithPermissionsAsync(tenantId, cancellationToken);
+        var nativeRoleUserCounts = await LoadNativeRoleUserCountsAsync(tenantId, cancellationToken);
+        var externalRoleUserCountsByName =
+            await LoadExternalRoleUserCountsByNameAsync(tenantId, cancellationToken);
+
+        var persistedItems = BuildPersistedRoleListItems(
+            roles,
+            nativeRoleUserCounts,
+            externalRoleUserCountsByName);
+
+        var allItems = MergeWithPersistedSystemRolePlaceholders(persistedItems);
+        allItems = ApplyRoleListFilters(allItems, roleType, search);
+
+        var totalRecords = allItems.Count;
+        var pagedItems = allItems.Skip(skip).Take(take).ToList();
+
+        return Result<Paged<RoleListItem>>.Success(
+            Paged<RoleListItem>.FromSkipAndTake(skip, take, totalRecords, pagedItems));
+    }
+
+    private async Task<IReadOnlyList<PersistedRoleRow>> LoadPersistedRolesWithPermissionsAsync(
+        long tenantId,
+        CancellationToken cancellationToken)
+    {
+        var roleHeaders = await _identityDbContext.Roles
             .AsNoTracking()
+            .Where(role => role.TenantId == tenantId || (role.IsSystemDefined && role.TenantId <= 0))
+            .Select(role => new RoleHeaderRow(
+                role.Id,
+                role.Name ?? string.Empty,
+                role.Description,
+                role.IsSystemDefined,
+                role.IsActive))
             .ToListAsync(cancellationToken);
 
-        var roleUserCounts = await _identityDbContext.UserRoles
-            .Join(
-                _identityDbContext.Users.AsNoTracking(),
-                ur => ur.UserId,
-                u => u.Id,
-                (ur, u) => new { ur.RoleId, u.TenantId })
-            .Where(x => x.TenantId == tenantId)
-            .GroupBy(x => x.RoleId)
-            .Select(group => new { RoleId = group.Key, Count = group.Count() })
-            .ToDictionaryAsync(x => x.RoleId, x => x.Count, cancellationToken);
+        if (roleHeaders.Count == 0)
+        {
+            return [];
+        }
 
-        var persistedItems = roles
-            .GroupBy(role => role.Id)
-            .Select(group =>
+        var roleIds = roleHeaders.Select(role => role.Id).ToList();
+        var permissionNamesByRoleId = await LoadActivePermissionNamesByRoleIdAsync(
+            roleIds,
+            cancellationToken);
+
+        return roleHeaders
+            .Select(role => new PersistedRoleRow(
+                role.Id,
+                role.Name,
+                role.Description,
+                role.IsSystemDefined,
+                role.IsActive,
+                permissionNamesByRoleId.GetValueOrDefault(role.Id, [])))
+            .ToList();
+    }
+
+    private async Task<Dictionary<long, List<string>>> LoadActivePermissionNamesByRoleIdAsync(
+        IReadOnlyCollection<long> roleIds,
+        CancellationToken cancellationToken)
+    {
+        var permissionRows = await _identityDbContext.RolePermissions
+            .AsNoTracking()
+            .Where(rolePermission => rolePermission.IsActive && roleIds.Contains(rolePermission.RoleId))
+            .Join(
+                _identityDbContext.Permissions.AsNoTracking(),
+                rolePermission => rolePermission.PermissionId,
+                permission => permission.Id,
+                (rolePermission, permission) => new RolePermissionNameRow(rolePermission.RoleId, permission.Name))
+            .ToListAsync(cancellationToken);
+
+        return permissionRows
+            .GroupBy(row => row.RoleId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .Select(row => row.Name)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList());
+    }
+
+    private async Task<IReadOnlyDictionary<long, int>> LoadNativeRoleUserCountsAsync(
+        long tenantId,
+        CancellationToken cancellationToken)
+    {
+        return await (
+            from userRole in _identityDbContext.UserRoles.AsNoTracking()
+            join user in _identityDbContext.Users.AsNoTracking() on userRole.UserId equals user.Id
+            where user.TenantId == tenantId
+            group userRole by userRole.RoleId into roleGroup
+            select new { RoleId = roleGroup.Key, Count = roleGroup.Count() })
+            .ToDictionaryAsync(item => item.RoleId, item => item.Count, cancellationToken);
+    }
+
+    private static List<RoleListItem> BuildPersistedRoleListItems(
+        IReadOnlyList<PersistedRoleRow> roles,
+        IReadOnlyDictionary<long, int> nativeRoleUserCounts,
+        IReadOnlyDictionary<string, int> externalRoleUserCountsByName)
+    {
+        return roles
+            .Select(role =>
             {
-                var role = group.First();
-                var permissions = group
-                    .Select(item => item.PermissionName)
-                    .Where(permissionName => !string.IsNullOrWhiteSpace(permissionName))
-                    .Select(permissionName => permissionName!)
-                    .Distinct()
-                    .OrderBy(permissionName => permissionName)
-                    .ToList();
-                    
-                var systemRole = SystemRole.AllSystemRoles.FirstOrDefault(
-                    systemRole => string.Equals(systemRole.Name, role.Name, StringComparison.OrdinalIgnoreCase));
+                _persistedSystemRolesByName.TryGetValue(role.Name, out var systemRole);
 
                 return new RoleListItem
                 {
                     Id = role.Id,
-                    Name = role.Name ?? string.Empty,
+                    Name = role.Name,
                     Description = role.Description ?? systemRole?.Description,
                     IsSystemDefined = role.IsSystemDefined,
                     IsActive = role.IsActive,
-                    Permissions = permissions.Count > 0 || systemRole is null
-                        ? permissions
-                        : systemRole.Permissions.OrderBy(permissionName => permissionName).ToList(),
-                    UsersCount = roleUserCounts.GetValueOrDefault(role.Id)
+                    Permissions = role.PermissionNames.Count > 0 || systemRole is null
+                        ? role.PermissionNames
+                        : systemRole.Permissions
+                            .OrderBy(permissionName => permissionName, StringComparer.OrdinalIgnoreCase)
+                            .ToList(),
+                    UsersCount = nativeRoleUserCounts.GetValueOrDefault(role.Id) +
+                        externalRoleUserCountsByName.GetValueOrDefault(role.Name)
                 };
             })
             .ToList();
+    }
 
+    private static List<RoleListItem> MergeWithPersistedSystemRolePlaceholders(IReadOnlyList<RoleListItem> persistedItems)
+    {
         var itemsByName = SystemRole.AllSystemRoles
             .Where(role => role.IsPersisted)
             .Select((role, index) => new RoleListItem
@@ -470,7 +520,9 @@ public sealed class RoleManagementService : IRoleManagementService
                 Description = role.Description,
                 IsSystemDefined = true,
                 IsActive = true,
-                Permissions = role.Permissions.OrderBy(permissionName => permissionName).ToList()
+                Permissions = role.Permissions
+                    .OrderBy(permissionName => permissionName, StringComparer.OrdinalIgnoreCase)
+                    .ToList()
             })
             .ToDictionary(role => role.Name, StringComparer.OrdinalIgnoreCase);
 
@@ -479,32 +531,35 @@ public sealed class RoleManagementService : IRoleManagementService
             itemsByName[persistedItem.Name] = persistedItem;
         }
 
-        var allItems = itemsByName.Values
-            .OrderBy(role => role.Name)
+        return itemsByName.Values
+            .OrderBy(role => role.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static List<RoleListItem> ApplyRoleListFilters(
+        List<RoleListItem> roles,
+        string? roleType,
+        string? search)
+    {
+        IEnumerable<RoleListItem> filteredRoles = roles;
 
         if (!string.IsNullOrWhiteSpace(roleType))
         {
-            allItems = roleType switch
+            filteredRoles = roleType switch
             {
-                "system" => allItems.Where(r => r.IsSystemDefined).ToList(),
-                "custom" => allItems.Where(r => !r.IsSystemDefined).ToList(),
-                _ => allItems
+                "system" => filteredRoles.Where(role => role.IsSystemDefined),
+                "custom" => filteredRoles.Where(role => !role.IsSystemDefined),
+                _ => filteredRoles
             };
         }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            allItems = allItems
-                .Where(r => r.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            filteredRoles = filteredRoles.Where(role =>
+                role.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
         }
 
-        var totalRecords = allItems.Count;
-        var pagedItems = allItems.Skip(skip).Take(take).ToList();
-
-        return Result<Paged<RoleListItem>>.Success(
-            Paged<RoleListItem>.FromSkipAndTake(skip, take, totalRecords, pagedItems));
+        return filteredRoles.ToList();
     }
 
     /// <inheritdoc/>
@@ -780,6 +835,88 @@ public sealed class RoleManagementService : IRoleManagementService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
+
+    private async Task<IReadOnlyDictionary<string, int>> LoadExternalRoleUserCountsByNameAsync(
+        long tenantId,
+        CancellationToken cancellationToken)
+    {
+        var externalRolesJson = await _identityDbContext.Users
+            .AsNoTracking()
+            .Where(user =>
+                user.TenantId == tenantId &&
+                user.AuthProvider != AuthProviders.Endatix &&
+                user.ExternalRolesJson != null)
+            .Select(user => user.ExternalRolesJson!)
+            .ToListAsync(cancellationToken);
+
+        return AggregateExternalRoleUserCounts(externalRolesJson);
+    }
+
+    private static Dictionary<string, int> AggregateExternalRoleUserCounts(IEnumerable<string> externalRolesJsonValues)
+    {
+        Dictionary<string, int> roleCounts = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var rolesJson in externalRolesJsonValues)
+        {
+            foreach (var roleName in DeserializeExternalRoles(rolesJson))
+            {
+                if (roleCounts.TryGetValue(roleName, out var count))
+                {
+                    roleCounts[roleName] = count + 1;
+                }
+                else
+                {
+                    roleCounts[roleName] = 1;
+                }
+            }
+        }
+
+        return roleCounts;
+    }
+
+    private static IReadOnlyList<string> DeserializeExternalRoles(string externalRolesJson)
+    {
+        try
+        {
+            var roleNames = JsonSerializer.Deserialize<string[]>(externalRolesJson, _externalRolesJsonSerializerOptions);
+            if (roleNames is null || roleNames.Length == 0)
+            {
+                return [];
+            }
+
+            HashSet<string> distinctRoleNames = new(StringComparer.OrdinalIgnoreCase);
+            foreach (var roleName in roleNames)
+            {
+                if (!string.IsNullOrWhiteSpace(roleName))
+                {
+                    distinctRoleNames.Add(roleName.Trim());
+                }
+            }
+
+            return distinctRoleNames.Count == 0 ? [] : [.. distinctRoleNames];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private sealed record RoleHeaderRow(
+        long Id,
+        string Name,
+        string? Description,
+        bool IsSystemDefined,
+        bool IsActive);
+
+    private sealed record RolePermissionNameRow(long RoleId, string Name);
+
+    private sealed record PersistedRoleRow(
+        long Id,
+        string Name,
+        string? Description,
+        bool IsSystemDefined,
+        bool IsActive,
+        List<string> PermissionNames);
 
     private static Result EnsureAllPermissionsExist(IReadOnlyCollection<string> requestedPermissionNames, IReadOnlyCollection<Permission> permissions)
     {
