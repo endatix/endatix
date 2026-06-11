@@ -20,7 +20,7 @@ public sealed class BearerAccessTokenResolverTests
             httpContext.Request.Headers.Authorization = authorizationHeader;
         }
 
-        IHttpContextAccessor httpContextAccessor = Substitute.For<IHttpContextAccessor>();
+        var httpContextAccessor = Substitute.For<IHttpContextAccessor>();
         httpContextAccessor.HttpContext.Returns(httpContext);
 
         var token = BearerAccessTokenResolver.Resolve(httpContextAccessor);
