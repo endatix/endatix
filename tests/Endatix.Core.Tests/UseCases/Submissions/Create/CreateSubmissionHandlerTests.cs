@@ -671,6 +671,116 @@ public class CreateSubmissionHandlerTests
     }
 
     [Fact]
+    public async Task Handle_OnBehalfPrivateLimitedFormWithTrustedSubmitter_CreatesRealSubmissionWithRestrictionKey()
+    {
+        // Arrange
+        SetupSubmitterResolution(123);
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var submitter = new SubmitterInput(
+            ExternalSubjectId: "panelist-123",
+            DisplayId: "P-123",
+            AuthProvider: "PanelProvider");
+        var request = new CreateSubmissionCommand(
+            1,
+            "{ }",
+            null,
+            null,
+            true,
+            "test-token",
+            Actions.Submissions.CreateOnBehalf,
+            Submitter: submitter);
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+        _authorizationService.ValidateAccessAsync(Actions.Submissions.CreateOnBehalf, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _submissionsRepository.AnyAsync(
+            Arg.Is<SubmissionByFormIdAndSubmitterIdSpec>(spec =>
+                spec.FormId == request.FormId &&
+                spec.SubmitterId == 123),
+            Arg.Any<CancellationToken>())
+            .Returns(false);
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.IsTestSubmission.Should().BeFalse();
+        result.Value.RestrictionKey.Should().Be("SingleSubmission:Form:1:Submitter:123");
+        await _authorizationService
+            .DidNotReceive()
+            .HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>());
+        await _submitterResolver
+            .Received(1)
+            .EnsureSubmitterAsync(
+                Arg.Is<SubmitterResolveContext>(context => context.Submitter == submitter),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_OnBehalfPrivateLimitedFormWithTrustedSubmitterAndDuplicate_ReturnsConflict()
+    {
+        // Arrange
+        SetupSubmitterResolution(123);
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var submitter = new SubmitterInput(
+            ExternalSubjectId: "panelist-123",
+            DisplayId: "P-123",
+            AuthProvider: "PanelProvider");
+        var request = new CreateSubmissionCommand(
+            1,
+            "{ }",
+            null,
+            null,
+            true,
+            "test-token",
+            Actions.Submissions.CreateOnBehalf,
+            Submitter: submitter);
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+        _authorizationService.ValidateAccessAsync(Actions.Submissions.CreateOnBehalf, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _submissionsRepository.AnyAsync(
+            Arg.Is<SubmissionByFormIdAndSubmitterIdSpec>(spec =>
+                spec.FormId == request.FormId &&
+                spec.SubmitterId == 123),
+            Arg.Any<CancellationToken>())
+            .Returns(true);
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        await _authorizationService
+            .DidNotReceive()
+            .HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>());
+        await _submissionsRepository
+            .DidNotReceive()
+            .AddAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_PrivateLimitedFormWithNoTestPermission_CreatesSubmissionWithRestrictionKey()
     {
         // Arrange

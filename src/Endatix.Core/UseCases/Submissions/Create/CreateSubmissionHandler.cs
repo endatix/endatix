@@ -67,8 +67,9 @@ public class CreateSubmissionHandler(
             cancellationToken);
 
         var submitterId = submitterResolution.SubmitterId;
+        var hasTrustedSubmitterPayload = request.Submitter is not null;
         var canBypassSingleSubmissionLimit = false;
-        if (formWithActiveDefinition.LimitOnePerUser && submitterId is not null)
+        if (formWithActiveDefinition.LimitOnePerUser && submitterId is not null && !hasTrustedSubmitterPayload)
         {
             var hasTestPermissionResult = await authorizationService.HasPermissionAsync(Actions.Forms.Test, cancellationToken);
             if (!hasTestPermissionResult.IsSuccess)
