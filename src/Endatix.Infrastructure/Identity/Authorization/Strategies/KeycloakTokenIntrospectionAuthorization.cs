@@ -81,11 +81,6 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                 return Result.Error(mappingResult.ErrorMessage!);
             }
 
-            if (mappingResult.Roles.Length == 0 || AllExternalRolesAreExcluded(introspectionResult.Value.ExternalRoles, keycloakSettings))
-            {
-                return Result<AuthorizationData>.NotFound("No mapped roles.");
-            }
-
             var subject = GetExternalSubjectId(principal);
             if (string.IsNullOrWhiteSpace(subject))
             {
@@ -158,17 +153,6 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
     {
         return principal.FindFirst(ClaimNames.UserId)?.Value ??
             principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-    }
-
-    private static bool AllExternalRolesAreExcluded(string[] externalRoles, KeycloakOptions keycloakSettings)
-    {
-        if (externalRoles.Length == 0 || keycloakSettings.Provisioning.ExcludedIdpRoles.Count == 0)
-        {
-            return false;
-        }
-
-        HashSet<string> excludedRoles = new(keycloakSettings.Provisioning.ExcludedIdpRoles, StringComparer.OrdinalIgnoreCase);
-        return externalRoles.All(excludedRoles.Contains);
     }
 
     private static bool ShouldProvisionHubAppUser(IExternalAuthorizationMapper.MappingResult mappingResult)

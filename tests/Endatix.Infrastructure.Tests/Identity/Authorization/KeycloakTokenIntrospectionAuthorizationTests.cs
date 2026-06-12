@@ -233,6 +233,35 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     }
 
     [Fact]
+    public async Task GetAuthorizationDataAsync_ReturnsAuthenticatedOnly_WhenNoRolesMapped()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TestIssuer, activate: true);
+        context.SetSuccessfulIntrospectionResponse(["panelist"]);
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Empty();
+        var principal = CreatePrincipal("123", TestIssuer);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.UserId.Should().Be("123");
+        result.Value.Roles.Should().BeEquivalentTo(SystemRole.Authenticated.Name);
+        result.Value.Permissions.Should().BeEquivalentTo(SystemRole.Authenticated.Permissions);
+        await context.ExternalAppUserProvisioner
+            .DidNotReceive()
+            .ProvisionAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<ExternalIdentityProfile>(),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task GetAuthorizationDataAsync_ReturnsAuthorizationData_WhenMappingSucceeds()
     {
         // Arrange
