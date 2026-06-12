@@ -111,6 +111,27 @@ public class PublicFormAccessData : AccessDataBase
     }
 
     /// <summary>
+    /// Creates form access data without permission to start a submission.
+    /// </summary>
+    public static PublicFormAccessData CreateViewOnlyForm(
+        long formId,
+        PublicFormAccessOptions? options = null)
+    {
+        var resolved = options ?? new PublicFormAccessOptions();
+        var accessOptions = resolved with
+        {
+            CanStartNewSubmission = false,
+        };
+
+        return new PublicFormAccessData(
+            formId.ToString(),
+            submissionId: null,
+            formPermissions: ResourcePermissions.Form.Sets.ViewForm,
+            submissionPermissions: EmptyPermissions,
+            options: accessOptions);
+    }
+
+    /// <summary>
     /// Creates public form access data for a submission token.
     /// </summary>
     public static PublicFormAccessData CreateWithSubmissionToken(long formId, long submissionId)
@@ -159,6 +180,12 @@ public class PublicFormAccessData : AccessDataBase
 
         if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Edit.Name))
         {
+            submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.EditSubmission);
+        }
+
+        if (claims.Permissions.Contains(SubmissionAccessTokenPermissions.Submit.Name))
+        {
+            submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.ViewOnly);
             submissionPermissions.UnionWith(ResourcePermissions.Submission.Sets.EditSubmission);
         }
 

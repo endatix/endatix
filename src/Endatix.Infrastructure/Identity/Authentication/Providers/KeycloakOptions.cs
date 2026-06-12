@@ -22,6 +22,11 @@ public class KeycloakOptions : JwtAuthProviderOptions
     public string IntrospectionEndpoint => $"{Issuer}/protocol/openid-connect/token/introspect";
 
     /// <summary>
+    /// Keycloak OpenID Connect UserInfo endpoint.
+    /// </summary>
+    public string UserInfoEndpoint => $"{Issuer}/protocol/openid-connect/userinfo";
+
+    /// <summary>
     /// Keycloak client secret
     /// </summary>
     [Required]
@@ -37,6 +42,11 @@ public class KeycloakOptions : JwtAuthProviderOptions
     /// Keycloak authorization strategy options
     /// </summary>
     public KeycloakAuthorizationStrategyOptions? Authorization { get; set; }
+
+    /// <summary>
+    /// Keycloak external operator provisioning options.
+    /// </summary>
+    public KeycloakProvisioningOptions Provisioning { get; set; } = new();
 
 
     /// <summary>
@@ -59,5 +69,21 @@ public class KeycloakOptions : JwtAuthProviderOptions
         /// Resolve the roles path with the client ID. For example: "resource_access.endatix.roles" -> "resource_access.endatix-hub.roles".
         /// </summary>
         public string ResolveRolesPath(string clientId) => RolesPath.Replace("{ClientId}", clientId);
+    }
+
+    /// <summary>
+    /// Options for just-in-time AppUser provisioning from Keycloak identities.
+    /// </summary>
+    public sealed class KeycloakProvisioningOptions
+    {
+        /// <summary>
+        /// IdP roles that must never be used to provision Hub AppUsers.
+        /// </summary>
+        public List<string> ExcludedIdpRoles { get; set; } = [];
+
+        /// <summary>
+        /// Whether to reject external AppUsers whose email is already used by another user in the tenant.
+        /// </summary>
+        public bool RejectDuplicateEmail { get; set; } = true;
     }
 }

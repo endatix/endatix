@@ -34,6 +34,7 @@ const sidebars: SidebarsConfig = {
         "guides/webhooks",
         "guides/session-bridge",
         "guides/customize-exports",
+        "guides/collecting-submitters-data",
         "guides/external-authorization",
         "guides/api-permissions-reference",
         "guides/form-prefilling",

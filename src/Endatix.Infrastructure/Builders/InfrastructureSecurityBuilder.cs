@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
@@ -7,12 +8,14 @@ using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Data;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
+using Endatix.Infrastructure.Identity.Provisioning;
 using Endatix.Infrastructure.Identity.Services;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Builders;
@@ -80,6 +83,21 @@ public class InfrastructureSecurityBuilder
     }
 
     /// <summary>
+    /// Configures submitter claim extraction options.
+    /// </summary>
+    /// <param name="configure">Action to configure submitter options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public InfrastructureSecurityBuilder ConfigureSubmitters(Action<SubmitterOptions> configure)
+    {
+        Guard.Against.Null(configure);
+
+        LogSetupInfo("Configuring submitter options");
+        Services.Configure(configure);
+
+        return this;
+    }
+
+    /// <summary>
     /// Add Endatix JWT provider (required for token issuance).
     /// </summary>
     /// <returns>The builder for chaining.</returns>
@@ -97,8 +115,7 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder AddKeycloakAuthProvider()
     {
         _authProviderRegistry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider(), Services, Configuration);
-
-        Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
+        RegisterKeycloakAuthorizationServices();
 
         return this;
     }
@@ -109,6 +126,22 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder AddGoogleAuthProvider()
     {
         _authProviderRegistry.RegisterProvider<GoogleOptions>(new GoogleAuthProvider(), Services, Configuration);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Registers shared services for external IdP Hub AppUser authorization:
+    /// role mapping, profile lookup, and JIT AppUser provisioning.
+    /// Call from external auth provider setup when registering an <see cref="IAuthorizationStrategy"/>
+    /// that provisions Hub AppUsers from an external identity provider.
+    /// </summary>
+    public InfrastructureSecurityBuilder AddExternalAppUserAuthorizationServices()
+    {
+        LogSetupInfo("Adding external AppUser authorization services");
+        Services.TryAddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
+        Services.TryAddScoped<IExternalAppUserProfileReader, ExternalAppUserProfileReader>();
+        Services.TryAddScoped<IExternalAppUserProvisioner, ExternalAppUserProvisioner>();
 
         return this;
     }
@@ -234,7 +267,6 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
         Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();
         Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
-        Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
 
         // Register authorization handlers
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
@@ -242,6 +274,15 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
 
         return this;
+    }
+
+    private void RegisterKeycloakAuthorizationServices()
+    {
+        AddExternalAppUserAuthorizationServices();
+        Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
+        Services.AddScoped<IKeycloakTokenIntrospectionService, KeycloakTokenIntrospectionService>();
+        Services.AddScoped<IKeycloakUserInfoProfileService, KeycloakUserInfoProfileService>();
+        Services.AddScoped<KeycloakExternalIdentityProfileResolver>();
     }
 
     private void ConfigureEnabledAuthProviders()

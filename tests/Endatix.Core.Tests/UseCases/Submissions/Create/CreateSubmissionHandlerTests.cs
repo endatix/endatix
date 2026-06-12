@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Features.ReCaptcha;
@@ -21,6 +22,7 @@ public class CreateSubmissionHandlerTests
     private readonly IReCaptchaPolicyService _recaptchaService;
     private readonly IMediator _mediator;
     private readonly ICurrentUserAuthorizationService _authorizationService;
+    private readonly ISubmitterResolver _submitterResolver;
     private readonly CreateSubmissionHandler _handler;
 
     public CreateSubmissionHandlerTests()
@@ -31,20 +33,24 @@ public class CreateSubmissionHandlerTests
         _recaptchaService = Substitute.For<IReCaptchaPolicyService>();
         _mediator = Substitute.For<IMediator>();
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
+        _submitterResolver = Substitute.For<ISubmitterResolver>();
+        _submitterResolver.EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
+            .Returns(new SubmitterResolution(null, null, null));
         _handler = new CreateSubmissionHandler(
             _submissionsRepository,
             _formsRepository,
             _submissionTokenService,
             _recaptchaService,
             _mediator,
-            _authorizationService);
+            _authorizationService,
+            _submitterResolver);
     }
 
     [Fact]
     public async Task Handle_FormNotFound_ReturnsNotFoundResult()
     {
         // Arrange
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, null, null, "submissions.create");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, null, "submissions.create");
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             Arg.Any<CancellationToken>())
@@ -73,7 +79,6 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
             ReCaptchaToken: "test-token",
-            SubmittedBy: "123",
             RequiredPermission: "submissions.create"
         );
 
@@ -102,8 +107,7 @@ public class CreateSubmissionHandlerTests
                 s.JsonData == request.JsonData &&
                 s.IsComplete == request.IsComplete &&
                 s.CurrentPage == request.CurrentPage &&
-                s.Metadata == request.Metadata &&
-                s.SubmittedBy == request.SubmittedBy
+                s.Metadata == request.Metadata
             ),
             Arg.Any<CancellationToken>()
         );
@@ -117,7 +121,7 @@ public class CreateSubmissionHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, "test-token", null, "submissions.create");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, null, "test-token", "submissions.create");
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -158,7 +162,6 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
             ReCaptchaToken: "test-token",
-            SubmittedBy: "123",
             RequiredPermission: "submissions.create"
         );
 
@@ -202,7 +205,6 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 5,
             Metadata: null,
             ReCaptchaToken: "test-token",
-            SubmittedBy: null,
             RequiredPermission: "submissions.create"
         );
 
@@ -242,7 +244,6 @@ public class CreateSubmissionHandlerTests
             CurrentPage: null,
             Metadata: null,
             ReCaptchaToken: "test-token",
-            SubmittedBy: "456",
             RequiredPermission: "submissions.create"
         );
 
@@ -274,7 +275,7 @@ public class CreateSubmissionHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "789", "submissions.create");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "submissions.create");
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -297,10 +298,11 @@ public class CreateSubmissionHandlerTests
     }
 
     [Fact]
-    public async Task Handle_AuthenticatedUser_SetsSubmittedByToUserId()
+    public async Task Handle_AuthenticatedUser_SetsSubmitterIdAndSubmittedByMirror()
     {
         // Arrange
         const long userId = 123;
+        SetupSubmitterResolution(userId);
         var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
@@ -312,7 +314,6 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
             ReCaptchaToken: "test-token",
-            SubmittedBy: userId.ToString(),
             RequiredPermission: "submissions.create"
         );
 
@@ -342,10 +343,57 @@ public class CreateSubmissionHandlerTests
                 s.IsComplete == request.IsComplete &&
                 s.CurrentPage == request.CurrentPage &&
                 s.Metadata == request.Metadata &&
+                s.SubmitterId == userId &&
                 s.SubmittedBy == userId.ToString()
             ),
             Arg.Any<CancellationToken>()
         );
+    }
+
+    [Fact]
+    public async Task Handle_AuthenticatedUser_PersistsSubmitterProfileSnapshot()
+    {
+        // Arrange
+        const long submitterId = 123;
+        const string profileSnapshot = """{"department":"sales"}""";
+        SetupSubmitterResolution(submitterId, profileSnapshot);
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ \"field\": \"value\" }",
+            IsComplete: true,
+            CurrentPage: 3,
+            Metadata: "{ \"meta\": \"data\" }",
+            ReCaptchaToken: "test-token",
+            RequiredPermission: "submissions.create"
+        );
+        Submission? createdSubmission = null;
+
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        _submissionsRepository
+            .When(repository => repository.AddAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>()))
+            .Do(call => createdSubmission = call.Arg<Submission>());
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.Created);
+        createdSubmission.Should().NotBeNull();
+        createdSubmission!.SubmitterProfileSnapshot.Should().Be(profileSnapshot);
     }
 
     [Fact]
@@ -363,7 +411,6 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
             ReCaptchaToken: "test-token",
-            SubmittedBy: null,
             RequiredPermission: "submissions.create"
         );
 
@@ -416,7 +463,6 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 0,
             Metadata: null,
             ReCaptchaToken: "test-token",
-            SubmittedBy: null,
             RequiredPermission: "submissions.create"
         );
 
@@ -451,7 +497,6 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 0,
             Metadata: null,
             ReCaptchaToken: "test-token",
-            SubmittedBy: "123",
             RequiredPermission: "submissions.create"
         );
 
@@ -486,7 +531,6 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
             ReCaptchaToken: "test-token",
-            SubmittedBy: "123",
             RequiredPermission: "submissions.create"
         );
 
@@ -527,7 +571,6 @@ public class CreateSubmissionHandlerTests
             CurrentPage: 3,
             Metadata: "{ \"meta\": \"data\" }",
             ReCaptchaToken: "test-token",
-            SubmittedBy: null,
             RequiredPermission: "submissions.create"
         );
 
@@ -557,11 +600,12 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_PrivateLimitedFormWithDuplicateAndNoTestPermission_ReturnsConflict()
     {
         // Arrange
+        SetupSubmitterResolution(123);
         var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "submissions.create");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -579,7 +623,9 @@ public class CreateSubmissionHandlerTests
             .Returns(Result.Success());
 
         _submissionsRepository.AnyAsync(
-            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
+            Arg.Is<SubmissionByFormIdAndSubmitterIdSpec>(spec =>
+                spec.FormId == request.FormId &&
+                spec.SubmitterId == 123),
             Arg.Any<CancellationToken>())
             .Returns(true);
 
@@ -594,11 +640,12 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_PrivateLimitedFormWithTestPermission_CreatesTestSubmission()
     {
         // Arrange
+        SetupSubmitterResolution(123);
         var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "submissions.create");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -624,26 +671,38 @@ public class CreateSubmissionHandlerTests
     }
 
     [Fact]
-    public async Task Handle_PrivateLimitedFormWithNoTestPermission_CreatesSubmissionWithRestrictionKey()
+    public async Task Handle_OnBehalfPrivateLimitedFormWithTrustedSubmitter_CreatesRealSubmissionWithRestrictionKey()
     {
         // Arrange
+        SetupSubmitterResolution(123);
         var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+        var submitter = new SubmitterInput(
+            ExternalSubjectId: "panelist-123",
+            DisplayId: "P-123",
+            AuthProvider: "PanelProvider");
+        var request = new CreateSubmissionCommand(
+            1,
+            "{ }",
+            null,
+            null,
+            true,
+            "test-token",
+            Actions.Submissions.CreateOnBehalf,
+            Submitter: submitter);
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             Arg.Any<CancellationToken>())
             .Returns(form);
-
-        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
+        _authorizationService.ValidateAccessAsync(Actions.Submissions.CreateOnBehalf, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(false));
         _submissionsRepository.AnyAsync(
-            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
+            Arg.Is<SubmissionByFormIdAndSubmitterIdSpec>(spec =>
+                spec.FormId == request.FormId &&
+                spec.SubmitterId == 123),
             Arg.Any<CancellationToken>())
             .Returns(false);
         _recaptchaService.ValidateReCaptchaAsync(
@@ -656,18 +715,120 @@ public class CreateSubmissionHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Created);
-        result.Value.RestrictionKey.Should().Be("SingleSubmission:Form:1:User:123");
+        result.Value.IsTestSubmission.Should().BeFalse();
+        result.Value.RestrictionKey.Should().Be("SingleSubmission:Form:1:Submitter:123");
+        await _authorizationService
+            .DidNotReceive()
+            .HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>());
+        await _submitterResolver
+            .Received(1)
+            .EnsureSubmitterAsync(
+                Arg.Is<SubmitterResolveContext>(context => context.Submitter == submitter),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_OnBehalfPrivateLimitedFormWithTrustedSubmitterAndDuplicate_ReturnsConflict()
+    {
+        // Arrange
+        SetupSubmitterResolution(123);
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var submitter = new SubmitterInput(
+            ExternalSubjectId: "panelist-123",
+            DisplayId: "P-123",
+            AuthProvider: "PanelProvider");
+        var request = new CreateSubmissionCommand(
+            1,
+            "{ }",
+            null,
+            null,
+            true,
+            "test-token",
+            Actions.Submissions.CreateOnBehalf,
+            Submitter: submitter);
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+        _authorizationService.ValidateAccessAsync(Actions.Submissions.CreateOnBehalf, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _submissionsRepository.AnyAsync(
+            Arg.Is<SubmissionByFormIdAndSubmitterIdSpec>(spec =>
+                spec.FormId == request.FormId &&
+                spec.SubmitterId == 123),
+            Arg.Any<CancellationToken>())
+            .Returns(true);
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        await _authorizationService
+            .DidNotReceive()
+            .HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>());
+        await _submissionsRepository
+            .DidNotReceive()
+            .AddAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_PrivateLimitedFormWithNoTestPermission_CreatesSubmissionWithRestrictionKey()
+    {
+        // Arrange
+        SetupSubmitterResolution(123);
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "submissions.create");
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        _authorizationService.ValidateAccessAsync("submissions.create", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(false));
+        _submissionsRepository.AnyAsync(
+            Arg.Is<SubmissionByFormIdAndSubmitterIdSpec>(spec =>
+                spec.FormId == request.FormId &&
+                spec.SubmitterId == 123),
+            Arg.Any<CancellationToken>())
+            .Returns(false);
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.RestrictionKey.Should().Be("SingleSubmission:Form:1:Submitter:123");
     }
 
     [Fact]
     public async Task Handle_PrivateLimitedFormWithTestPermission_DoesNotCreateRestrictionKey()
     {
         // Arrange
+        SetupSubmitterResolution(123);
         var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "submissions.create");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -695,11 +856,12 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_PublicForm_DoesNotCreateRestrictionKey()
     {
         // Arrange
+        SetupSubmitterResolution(123);
         var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: true, limitOnePerUser: false) { Id = 1 };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "submissions.create");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -722,11 +884,12 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_AddAsyncThrowsDuplicateSubmissionException_ReturnsConflict()
     {
         // Arrange
+        SetupSubmitterResolution(123);
         var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "submissions.create");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -738,7 +901,9 @@ public class CreateSubmissionHandlerTests
         _authorizationService.HasPermissionAsync(Actions.Forms.Test, Arg.Any<CancellationToken>())
             .Returns(Result.Success(false));
         _submissionsRepository.AnyAsync(
-            Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(),
+            Arg.Is<SubmissionByFormIdAndSubmitterIdSpec>(spec =>
+                spec.FormId == request.FormId &&
+                spec.SubmitterId == 123),
             Arg.Any<CancellationToken>())
             .Returns(false);
 
@@ -761,11 +926,12 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_PrivateLimitedFormWhenTestPermissionCheckUnauthorized_PropagatesUnauthorized()
     {
         // Arrange
+        SetupSubmitterResolution(123);
         var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "123", "submissions.create");
+        var request = new CreateSubmissionCommand(1, "{ }", null, null, true, "test-token", "submissions.create");
 
         _formsRepository.SingleOrDefaultAsync(
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
@@ -785,4 +951,13 @@ public class CreateSubmissionHandlerTests
     }
 
     #endregion
+
+    private void SetupSubmitterResolution(long? submitterId, string? profileSnapshot = null)
+    {
+        _submitterResolver.EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
+            .Returns(new SubmitterResolution(
+                submitterId,
+                submitterId?.ToString(),
+                profileSnapshot));
+    }
 }

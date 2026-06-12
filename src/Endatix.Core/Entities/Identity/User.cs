@@ -14,7 +14,7 @@ public sealed class User : TenantEntity, IAggregateRoot
     public User(
         long id,
         string userName,
-        string email,
+        string? email,
         bool isVerified
         ) : base()
     {
@@ -25,7 +25,7 @@ public sealed class User : TenantEntity, IAggregateRoot
         long id,
         long tenantId,
         string userName,
-        string email,
+        string? email,
         bool isVerified
         ) : base(tenantId)
     {
@@ -35,16 +35,15 @@ public sealed class User : TenantEntity, IAggregateRoot
     private void Initialize(
         long id,
         string userName,
-        string email,
+        string? email,
         bool isVerified)
     {
         Guard.Against.NegativeOrZero(id);
         Guard.Against.NullOrWhiteSpace(userName);
-        Guard.Against.NullOrWhiteSpace(email);
 
         Id = id;
         UserName = userName;
-        Email = email;
+        Email = email ?? string.Empty;
         IsVerified = isVerified;
     }
 
@@ -54,7 +53,7 @@ public sealed class User : TenantEntity, IAggregateRoot
     public string UserName { get; private set; } = null!;
 
     /// <summary>
-    /// The user's email address.
+    /// The user's email address, or an empty string when email is unavailable.
     /// </summary>
     public string Email { get; private set; } = null!;
 

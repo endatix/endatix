@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Text.RegularExpressions;
 using Ardalis.GuardClauses;
 
 namespace Endatix.Core.Specifications.Parameters;
@@ -21,18 +22,22 @@ namespace Endatix.Core.Specifications.Parameters;
 /// </remarks>
 public class FilterCriterion
 {
+    private static readonly TimeSpan _regexMatchTimeout = TimeSpan.FromMilliseconds(50);
+
     public string Field { get; private set; }
     public ExpressionType Operator { get; private set; }
     public IReadOnlyList<string> Values { get; private set; }
+
+    private static readonly Regex _fieldNameRegex = new("^[A-Za-z][A-Za-z0-9_./-]*$", RegexOptions.Compiled, _regexMatchTimeout);
 
     private static readonly Dictionary<string, ExpressionType> _operatorMap = new()
     {
         ["!:"] = ExpressionType.NotEqual,
         [">:"] = ExpressionType.GreaterThanOrEqual,
         ["<:"] = ExpressionType.LessThanOrEqual,
-        [":" ] = ExpressionType.Equal,
-        [">" ] = ExpressionType.GreaterThan,
-        ["<" ] = ExpressionType.LessThan,
+        [":"] = ExpressionType.Equal,
+        [">"] = ExpressionType.GreaterThan,
+        ["<"] = ExpressionType.LessThan,
     };
 
     /// <summary>
@@ -45,25 +50,36 @@ public class FilterCriterion
     {
         Guard.Against.NullOrWhiteSpace(filterExpression, nameof(filterExpression));
 
-        var fieldEndIndex = 0;
-        while (fieldEndIndex < filterExpression.Length && char.IsLetterOrDigit(filterExpression[fieldEndIndex]))
-        {
-            fieldEndIndex++;
-        }
+        var operatorMatch = _operatorMap.Keys
+            .Select(op => new
+            {
+                Operator = op,
+                Index = filterExpression.IndexOf(op, StringComparison.Ordinal)
+            })
+            .Where(match => match.Index >= 0)
+            .OrderBy(match => match.Index)
+            .ThenByDescending(match => match.Operator.Length)
+            .FirstOrDefault();
+
+        Guard.Against.Null(
+            operatorMatch,
+            nameof(filterExpression),
+            $"Filter must have a valid operator after the field name. Valid operators are: {string.Join(", ", _operatorMap.Keys)}");
+
+        var fieldEndIndex = operatorMatch.Index;
 
         Field = Guard.Against.NullOrWhiteSpace(
             filterExpression[..fieldEndIndex],
             nameof(filterExpression),
             "Filter must have a field name");
 
-        var @operator = _operatorMap.Keys
-            .FirstOrDefault(op => filterExpression.IndexOf(op, fieldEndIndex) == fieldEndIndex);
-
-        Guard.Against.Null(
-            @operator,
+        Guard.Against.InvalidInput(
+            Field,
             nameof(filterExpression),
-            $"Filter must have a valid operator after the field name. Valid operators are: {string.Join(", ", _operatorMap.Keys)}");
+            field => _fieldNameRegex.IsMatch(field),
+            "Filter field name contains invalid characters");
 
+        var @operator = operatorMatch.Operator;
         Operator = _operatorMap[@operator];
 
         var valueStartIndex = fieldEndIndex + @operator.Length;

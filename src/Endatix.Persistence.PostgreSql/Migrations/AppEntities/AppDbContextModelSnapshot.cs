@@ -536,6 +536,16 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("SubmitterDisplayId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<long?>("SubmitterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SubmitterProfileSnapshot")
+                        .HasColumnType("jsonb");
+
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
@@ -551,6 +561,16 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasFilter("\"RestrictionKey\" IS NOT NULL");
 
                     b.HasIndex("SubmittedBy");
+
+                    b.HasIndex("SubmitterDisplayId");
+
+                    b.HasIndex("SubmitterId");
+
+                    b.HasIndex("SubmitterProfileSnapshot")
+                        .HasDatabaseName("IX_Submissions_SubmitterProfileSnapshot_GIN");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SubmitterProfileSnapshot"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("SubmitterProfileSnapshot"), new[] { "jsonb_path_ops" });
 
                     b.HasIndex("TenantId");
 
@@ -580,6 +600,12 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SubmitterDisplayId")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("SubmitterId")
+                        .HasColumnType("bigint");
 
                     b.ToTable("SubmissionExportRows", null, t =>
                         {
@@ -616,6 +642,63 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.HasIndex("SubmissionId");
 
                     b.ToTable("SubmissionVersions", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Submitter", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("AppUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AuthProvider")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ExternalSubjectId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProfileJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "AuthProvider", "AppUserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_AppUserId")
+                        .HasFilter("\"AppUserId\" IS NOT NULL AND \"IsDeleted\" = false");
+
+                    b.HasIndex("TenantId", "AuthProvider", "ExternalSubjectId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_ExternalSubjectId")
+                        .HasFilter("\"ExternalSubjectId\" IS NOT NULL AND \"IsDeleted\" = false");
+
+                    b.ToTable("Submitters", (string)null);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Tenant", b =>
@@ -872,6 +955,11 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("Endatix.Core.Entities.Submitter", "Submitter")
+                        .WithMany()
+                        .HasForeignKey("SubmitterId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
                         .WithMany("Submissions")
                         .HasForeignKey("TenantId")
@@ -927,6 +1015,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Navigation("Status")
                         .IsRequired();
 
+                    b.Navigation("Submitter");
+
                     b.Navigation("Tenant");
 
                     b.Navigation("Token");
@@ -941,6 +1031,17 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .IsRequired();
 
                     b.Navigation("Submission");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Submitter", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.TenantSettings", b =>

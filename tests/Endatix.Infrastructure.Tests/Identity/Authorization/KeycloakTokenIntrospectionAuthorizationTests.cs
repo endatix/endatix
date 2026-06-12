@@ -2,12 +2,15 @@ using System.Net;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
+using Endatix.Infrastructure.Identity.Provisioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,7 +70,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     }
 
     [Fact]
-    public async Task GetAuthorizationDataAsync_ReturnsDefault_WhenAuthorizationSectionMissing()
+    public async Task GetAuthorizationDataAsync_ReturnsSuccessWithEmptyRoles_WhenAuthorizationSectionMissing()
     {
         // Arrange
         var context = CreateTestContext();
@@ -80,11 +83,13 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.Roles.Should().Contain(SystemRole.Authenticated.Name);
+        result.Value.Roles.Should().BeEquivalentTo(SystemRole.Authenticated.Name);
+        result.Value.Permissions.Should().BeEquivalentTo(SystemRole.Authenticated.Permissions);
+        result.Value.UserId.Should().Be("123");
     }
 
     [Fact]
-    public async Task GetAuthorizationDataAsync_ReturnsError_WhenAuthorizationHeaderMissing()
+    public async Task GetAuthorizationDataAsync_ReturnsError_WhenAccessTokenMissing()
     {
         // Arrange
         var context = CreateTestContext();
@@ -97,7 +102,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain("Authorization header is not found");
+        result.Errors.Should().Contain("Access token is not found");
     }
 
     [Fact]
@@ -114,7 +119,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain("Failed to introspect token");
+        result.Errors.Should().Contain("Failed to introspect token.");
     }
 
     [Fact]
@@ -125,7 +130,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         context.RegisterProvider(TestIssuer, activate: true);
         context.SetHttpResponse(new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent("""{"resource_access":{}}""", Encoding.UTF8, "application/json")
+            Content = new StringContent("""{"active":true,"resource_access":{}}""", Encoding.UTF8, "application/json")
         });
         var principal = CreatePrincipal("123", TestIssuer);
 
@@ -134,7 +139,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain("Failed to get roles");
+        result.Errors.Should().Contain("Failed to get roles.");
     }
 
     [Fact]
@@ -144,8 +149,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         var context = CreateTestContext();
         context.RegisterProvider(TestIssuer, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
-        context.Mapper.MapToAppRolesAsync(Arg.Any<string[]>(), Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>())
-            .Returns(IExternalAuthorizationMapper.MappingResult.Failure("mapping-error"));
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Failure("mapping-error");
         var principal = CreatePrincipal("123", TestIssuer);
 
         // Act
@@ -157,14 +161,114 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     }
 
     [Fact]
+    public async Task GetAuthorizationDataAsync_ReturnsInvalid_WhenEmailClaimMissing()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TestIssuer, activate: true);
+        context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
+            [SystemRole.Admin.Name],
+            ["perm.read"]);
+        context.ExternalAppUserProvisioner
+            .ProvisionAsync(
+                context.Options.DefaultTenantId,
+                AuthProviders.Keycloak,
+                "123",
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Is<ExternalIdentityProfile>(profile => profile.Email == null),
+                Arg.Any<CancellationToken>())
+            .Returns(Result<AppUser>.Invalid(new ValidationError("App user email is required.")));
+        var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ValidationErrors.Should().ContainSingle(error => error.ErrorMessage == "App user email is required.");
+        await context.ExternalAppUserProvisioner
+            .Received(1)
+            .ProvisionAsync(
+                context.Options.DefaultTenantId,
+                AuthProviders.Keycloak,
+                "123",
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Is<ExternalIdentityProfile>(profile => profile.Email == null),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetAuthorizationDataAsync_UsesIntrospectionProfile_WhenPrincipalEmailMissing()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TestIssuer, activate: true);
+        context.SetSuccessfulIntrospectionResponse(
+            ["kc-admin"],
+            email: "operator@example.com",
+            preferredUsername: "operator-user");
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
+            [SystemRole.Admin.Name],
+            ["perm.read"]);
+        var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        context.UserInfoProfileService.CallCount.Should().Be(0);
+        await context.ExternalAppUserProvisioner
+            .Received(1)
+            .ProvisionAsync(
+                context.Options.DefaultTenantId,
+                AuthProviders.Keycloak,
+                "123",
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Is<ExternalIdentityProfile>(profile =>
+                    profile.Email == "operator@example.com" &&
+                    profile.DisplayName == "operator-user"),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetAuthorizationDataAsync_ReturnsAuthenticatedOnly_WhenNoRolesMapped()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TestIssuer, activate: true);
+        context.SetSuccessfulIntrospectionResponse(["panelist"]);
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Empty();
+        var principal = CreatePrincipal("123", TestIssuer);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.UserId.Should().Be("123");
+        result.Value.Roles.Should().BeEquivalentTo(SystemRole.Authenticated.Name);
+        result.Value.Permissions.Should().BeEquivalentTo(SystemRole.Authenticated.Permissions);
+        await context.ExternalAppUserProvisioner
+            .DidNotReceive()
+            .ProvisionAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<ExternalIdentityProfile>(),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task GetAuthorizationDataAsync_ReturnsAuthorizationData_WhenMappingSucceeds()
     {
         // Arrange
         var context = CreateTestContext();
         context.RegisterProvider(TestIssuer, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
-        context.Mapper.MapToAppRolesAsync(Arg.Any<string[]>(), Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>())
-            .Returns(IExternalAuthorizationMapper.MappingResult.Success(["Admin"], ["perm.read"]));
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(["Admin"], ["perm.read"]);
         var principal = CreatePrincipal("123", TestIssuer);
 
         // Act
@@ -176,13 +280,72 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         result.Value.Permissions.Should().Contain("perm.read");
     }
 
-    private static ClaimsPrincipal CreatePrincipal(string userId, string issuer)
+    [Fact]
+    public async Task GetAuthorizationDataAsync_UsesUserInfo_WhenPrincipalAndIntrospectionProfileAreMissingEmail()
     {
-        var identity = new ClaimsIdentity(
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TestIssuer, activate: true);
+        context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
+            [SystemRole.Admin.Name],
+            ["perm.read"]);
+        context.UserInfoProfileService.ProfileResult =
+            Result.Success(new ExternalIdentityProfile("userinfo@example.com", "userinfo-user"));
+        var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        context.UserInfoProfileService.CallCount.Should().Be(1);
+        context.UserInfoProfileService.AccessToken.Should().Be("token-123");
+        await context.ExternalAppUserProvisioner
+            .Received(1)
+            .ProvisionAsync(
+                context.Options.DefaultTenantId,
+                AuthProviders.Keycloak,
+                "123",
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Is<ExternalIdentityProfile>(profile =>
+                    profile.Email == "userinfo@example.com" &&
+                    profile.DisplayName == "userinfo-user"),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetAuthorizationDataAsync_SkipsUserInfo_WhenExistingUserHasDisplayName()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TestIssuer, activate: true);
+        context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
+        context.ExternalAppUserProfileReader.DisplayName = "existing-user";
+        var principal = CreatePrincipal("123", TestIssuer);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        context.UserInfoProfileService.CallCount.Should().Be(0);
+    }
+
+    private static ClaimsPrincipal CreatePrincipal(string userId, string issuer, bool includeEmail = true)
+    {
+        List<Claim> claims =
         [
             new Claim(ClaimNames.UserId, userId),
             new Claim(JwtRegisteredClaimNames.Iss, issuer)
-        ], "test");
+        ];
+
+        if (includeEmail)
+        {
+            claims.Add(new Claim(JwtRegisteredClaimNames.Email, "operator@example.com"));
+        }
+
+        ClaimsIdentity identity = new(claims, "test");
 
         return new ClaimsPrincipal(identity);
     }
@@ -206,21 +369,41 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         };
         var options = Options.Create(optionsInstance);
 
-        var mapper = Substitute.For<IExternalAuthorizationMapper>();
-        mapper.MapToAppRolesAsync(Arg.Any<string[]>(), Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>())
-            .Returns(IExternalAuthorizationMapper.MappingResult.Success(["User"], ["perm.view"]));
+        var mapper = new StubExternalAuthorizationMapper();
 
         var httpContextAccessor = new HttpContextAccessor
         {
             HttpContext = new DefaultHttpContext()
         };
-        httpContextAccessor.HttpContext!.Request.Headers["Authorization"] = "Bearer token-123";
+        httpContextAccessor.HttpContext!.Request.Headers.Authorization = "Bearer token-123";
 
         var handler = new ConfigurableHttpMessageHandler();
         var httpClient = new HttpClient(handler);
         var httpClientFactory = Substitute.For<IHttpClientFactory>();
         httpClientFactory.CreateClient().Returns(httpClient);
         httpClientFactory.CreateClient(Arg.Any<string>()).Returns(httpClient);
+        var tokenIntrospectionService = new KeycloakTokenIntrospectionService(httpClientFactory);
+        var externalOperatorProfileReader = new StubExternalAppUserProfileReader();
+        var userInfoProfileService = new StubKeycloakUserInfoProfileService();
+        var profileResolver = new KeycloakExternalIdentityProfileResolver(
+            externalOperatorProfileReader,
+            userInfoProfileService,
+            Substitute.For<ILogger<KeycloakExternalIdentityProfileResolver>>());
+        var externalOperatorProvisioner = Substitute.For<IExternalAppUserProvisioner>();
+        externalOperatorProvisioner
+            .ProvisionAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<ExternalIdentityProfile>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new AppUser
+            {
+                Id = 123,
+                AuthProvider = AuthProviders.Keycloak,
+                ExternalSubjectId = "123"
+            }));
 
         var logger = Substitute.For<ILogger<KeycloakTokenIntrospectionAuthorization>>();
 
@@ -229,7 +412,9 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             options,
             mapper,
             httpContextAccessor,
-            httpClientFactory,
+            tokenIntrospectionService,
+            profileResolver,
+            externalOperatorProvisioner,
             logger);
 
         return new TestContext(
@@ -238,6 +423,9 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             Mapper: mapper,
             HttpContextAccessor: httpContextAccessor,
             HttpClientFactory: httpClientFactory,
+            ExternalAppUserProfileReader: externalOperatorProfileReader,
+            UserInfoProfileService: userInfoProfileService,
+            ExternalAppUserProvisioner: externalOperatorProvisioner,
             Handler: handler,
             Strategy: strategy);
     }
@@ -245,9 +433,12 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     private sealed record TestContext(
         AuthProviderRegistry Registry,
         KeycloakOptions Options,
-        IExternalAuthorizationMapper Mapper,
+        StubExternalAuthorizationMapper Mapper,
         IHttpContextAccessor HttpContextAccessor,
         IHttpClientFactory HttpClientFactory,
+        StubExternalAppUserProfileReader ExternalAppUserProfileReader,
+        StubKeycloakUserInfoProfileService UserInfoProfileService,
+        IExternalAppUserProvisioner ExternalAppUserProvisioner,
         ConfigurableHttpMessageHandler Handler,
         KeycloakTokenIntrospectionAuthorization Strategy)
     {
@@ -284,22 +475,42 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             Handler.SetResponse(response);
         }
 
-        public void SetSuccessfulIntrospectionResponse(IEnumerable<string> roles)
+        public void SetSuccessfulIntrospectionResponse(
+            IEnumerable<string> roles,
+            string? email = null,
+            string? preferredUsername = null,
+            string? name = null)
         {
-            var rolesJson = string.Join(',', roles.Select(r => $"\"{r}\""));
-            var payload = $$"""
+            Dictionary<string, object?> payload = new()
             {
-              "resource_access": {
-                "{{Options.ClientId}}": {
-                  "roles": [{{rolesJson}}]
+                ["active"] = true,
+                ["resource_access"] = new Dictionary<string, object?>
+                {
+                    [Options.ClientId] = new Dictionary<string, object?>
+                    {
+                        ["roles"] = roles.ToArray()
+                    }
                 }
-              }
+            };
+
+            if (email is not null)
+            {
+                payload["email"] = email;
             }
-            """;
+
+            if (preferredUsername is not null)
+            {
+                payload["preferred_username"] = preferredUsername;
+            }
+
+            if (name is not null)
+            {
+                payload["name"] = name;
+            }
 
             SetHttpResponse(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(payload, Encoding.UTF8, "application/json")
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
             });
         }
     }
@@ -308,7 +519,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         private HttpResponseMessage _response = new(HttpStatusCode.OK)
         {
-            Content = new StringContent("""{"resource_access":{}}""", Encoding.UTF8, "application/json")
+            Content = new StringContent("""{"active":true,"resource_access":{}}""", Encoding.UTF8, "application/json")
         };
 
         public void SetResponse(HttpResponseMessage response)
@@ -319,6 +530,52 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             return Task.FromResult(_response);
+        }
+    }
+
+    private sealed class StubExternalAuthorizationMapper : IExternalAuthorizationMapper
+    {
+        public IExternalAuthorizationMapper.MappingResult Result { get; set; } =
+            IExternalAuthorizationMapper.MappingResult.Success(["User"], ["perm.view"]);
+
+        public Task<IExternalAuthorizationMapper.MappingResult> MapToAppRolesAsync(
+            string[] externalRoles,
+            Dictionary<string, string> roleMappings,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result);
+        }
+    }
+
+    private sealed class StubExternalAppUserProfileReader : IExternalAppUserProfileReader
+    {
+        public string? DisplayName { get; set; }
+
+        public Task<string?> GetDisplayNameAsync(
+            long tenantId,
+            string authProvider,
+            string externalSubjectId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(DisplayName);
+        }
+    }
+
+    private sealed class StubKeycloakUserInfoProfileService : IKeycloakUserInfoProfileService
+    {
+        public int CallCount { get; private set; }
+        public string? AccessToken { get; private set; }
+        public Result<ExternalIdentityProfile> ProfileResult { get; set; } =
+            Result<ExternalIdentityProfile>.Error("userinfo-not-configured");
+
+        public Task<Result<ExternalIdentityProfile>> GetProfileAsync(
+            string accessToken,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            AccessToken = accessToken;
+
+            return Task.FromResult(ProfileResult);
         }
     }
 

@@ -29,7 +29,9 @@ public abstract class SubmissionExporterBase(
         [nameof(SubmissionExportRow.IsComplete)] = row => row.IsComplete,
         [nameof(SubmissionExportRow.CreatedAt)] = row => row.CreatedAt,
         [nameof(SubmissionExportRow.ModifiedAt)] = row => row.ModifiedAt,
-        [nameof(SubmissionExportRow.CompletedAt)] = row => row.CompletedAt
+        [nameof(SubmissionExportRow.CompletedAt)] = row => row.CompletedAt is null ? NOT_AVAILABLE_VALUE : row.CompletedAt,
+        [nameof(SubmissionExportRow.SubmitterId)] = row => row.SubmitterId is null ? NOT_AVAILABLE_VALUE : row.SubmitterId,
+        [nameof(SubmissionExportRow.SubmitterDisplayId)] = row => row.SubmitterDisplayId ?? NOT_AVAILABLE_VALUE
     };
 
     /// <inheritdoc/>

@@ -14,7 +14,7 @@ namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 public class KeycloakAuthProvider : IAuthProvider
 {
     private string? _cachedIssuer;
-    public string SchemeName => "Keycloak";
+    public string SchemeName => AuthProviders.Keycloak;
 
     /// <inheritdoc />
     public bool CanHandle(string issuer, string rawToken)

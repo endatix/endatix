@@ -28,6 +28,8 @@ public sealed class AuthorizedIdentityTests
 
         // Assert
         identity.IsHydrated.Should().BeTrue();
+        identity.UserId.Should().Be("123");
+        identity.FindFirst(ClaimNames.EndatixUserId)?.Value.Should().Be("123");
         identity.TenantId.Should().Be(42);
         identity.Roles.Should().Contain(SystemRole.Admin.Name);
         identity.Permissions.Should().Contain("forms.read");

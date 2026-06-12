@@ -5,6 +5,8 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
 using Endatix.Core.UseCases.Submissions;
+using Endatix.Infrastructure.Features.Submitters;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
@@ -65,8 +67,8 @@ public class ListByFormIdTests
         var request = new ListByFormIdRequest { FormId = formId, Page = 1, PageSize = 10 };
         var submissions = new List<SubmissionDto>
         {
-            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null, false),
-            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7", true),
+            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null, null, null, null, false),
+            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7", 7, "7", null, true),
         };
         var result = Result.Success(new Paged<SubmissionDto>(
             page: 1,
@@ -127,7 +129,7 @@ public class ListByFormIdTests
     public void Validator_IsTestSubmissionFilter_IsAccepted()
     {
         // Arrange
-        var validator = new ListByFormIdValidator();
+        var validator = new ListByFormIdValidator(Options.Create(new SubmitterOptions()));
         var request = new ListByFormIdRequest
         {
             FormId = 1,

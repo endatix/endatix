@@ -28,7 +28,9 @@ public class PartialUpdateByAccessTokenHandler(
 
         var tokenClaims = tokenValidationResult.Value;
 
-        if (!tokenClaims.Permissions.Contains(SubmissionAccessTokenPermissions.Edit.Name))
+        var hasEditPermission = tokenClaims.Permissions.Contains(SubmissionAccessTokenPermissions.Edit.Name) ||
+                                tokenClaims.Permissions.Contains(SubmissionAccessTokenPermissions.Submit.Name);
+        if (!hasEditPermission)
         {
             return Result.Forbidden("Token does not have edit permission");
         }

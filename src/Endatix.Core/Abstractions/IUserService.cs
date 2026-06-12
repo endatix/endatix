@@ -60,4 +60,14 @@ public interface IUserService
     /// Cancels a pending invite for a user in the current tenant.
     /// </summary>
     Task<Result> CancelUserInviteAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Locks out a user in the current tenant.
+    /// </summary>
+    Task<Result> LockoutUserAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Clears a user's local lockout in the current tenant.
+    /// </summary>
+    Task<Result> UnlockUserAsync(long userId, CancellationToken cancellationToken = default);
 }

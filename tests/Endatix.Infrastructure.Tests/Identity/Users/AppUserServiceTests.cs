@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
 using Endatix.Infrastructure.Data;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using System.Security.Claims;
 using Endatix.Infrastructure.Data.Querying;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Tests.Identity.Users;
 
@@ -18,6 +20,8 @@ public class AppUserServiceTests
     private readonly IEmailVerificationService _emailVerificationService;
     private readonly IUserContext _userContext;
     private readonly IRelationalSubstringLikeFilter _substringLikeFilter;
+    private readonly IAuthorizationCache _authorizationCache;
+    private readonly ILogger<AppUserService> _logger;
     private readonly AppUserService _userService;
 
     public AppUserServiceTests()
@@ -33,13 +37,17 @@ public class AppUserServiceTests
         _emailVerificationService = Substitute.For<IEmailVerificationService>();
         _userContext = Substitute.For<IUserContext>();
         _substringLikeFilter = Substitute.For<IRelationalSubstringLikeFilter>();
+        _authorizationCache = Substitute.For<IAuthorizationCache>();
+        _logger = Substitute.For<ILogger<AppUserService>>();
         _userService = new AppUserService(
             _userManager,
             _tenantContext,
             _identityDbContext,
             _emailVerificationService,
             _userContext,
-            _substringLikeFilter);
+            _substringLikeFilter,
+            _authorizationCache,
+            _logger);
     }
 
     [Fact]
@@ -135,6 +143,62 @@ public class AppUserServiceTests
         // Assert
         result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.Ok);
         await _userManager.Received(1).FindByEmailAsync(email);
+    }
+
+    [Fact]
+    public void AppUser_IsVerified_ReturnsTrueForExternalUserWithoutConfirmedEmail()
+    {
+        // Arrange
+        var appUser = new AppUser
+        {
+            AuthProvider = AuthProviders.Keycloak,
+            EmailConfirmed = false
+        };
+
+        // Act
+        var isVerified = appUser.IsVerified;
+
+        // Assert
+        isVerified.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("Endatix")]
+    [InlineData("endatix")]
+    [InlineData("ENDATIX")]
+    public void AppUser_IsExternal_ReturnsFalseForEndatixProviderRegardlessOfCasing(string authProvider)
+    {
+        // Arrange
+        var appUser = new AppUser
+        {
+            AuthProvider = authProvider,
+            EmailConfirmed = false
+        };
+
+        // Act & Assert
+        appUser.IsExternal.Should().BeFalse();
+        appUser.IsVerified.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ToUserEntity_UsesVerifiedStatusForExternalUser()
+    {
+        // Arrange
+        var appUser = new AppUser
+        {
+            Id = 22_111_111_111_111_112,
+            TenantId = 1,
+            AuthProvider = AuthProviders.Keycloak,
+            UserName = "external-keycloak-user",
+            Email = "external@example.com",
+            EmailConfirmed = false
+        };
+
+        // Act
+        var user = appUser.ToUserEntity();
+
+        // Assert
+        user.IsVerified.Should().BeTrue();
     }
 
     [Fact]

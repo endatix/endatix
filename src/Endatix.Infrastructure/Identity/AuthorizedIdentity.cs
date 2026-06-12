@@ -25,6 +25,11 @@ public sealed class AuthorizedIdentity : ClaimsIdentity
     public bool IsHydrated => HasClaim(ClaimNames.Hydrated, "true");
 
     /// <summary>
+    /// Gets the canonical Endatix user ID from this hydrated identity.
+    /// </summary>
+    public string? UserId => FindFirst(ClaimNames.EndatixUserId)?.Value;
+
+    /// <summary>
     /// Gets the tenant ID from this identity.
     /// </summary>
     public long TenantId
@@ -90,6 +95,11 @@ public sealed class AuthorizedIdentity : ClaimsIdentity
         if (authorizationData is null)
         {
             return claims;
+        }
+
+        if (!string.IsNullOrWhiteSpace(authorizationData.UserId))
+        {
+            claims.Add(new Claim(ClaimNames.EndatixUserId, authorizationData.UserId));
         }
 
         claims.Add(new Claim(ClaimNames.TenantId, authorizationData.TenantId.ToString()));

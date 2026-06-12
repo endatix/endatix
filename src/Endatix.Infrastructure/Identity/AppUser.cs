@@ -1,6 +1,7 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
+using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.AspNetCore.Identity;
 
 namespace Endatix.Infrastructure.Identity;
@@ -10,6 +11,12 @@ namespace Endatix.Infrastructure.Identity;
 /// </summary>
 public class AppUser : IdentityUser<long>, ITenantOwned
 {
+    public static class UniqueConstraints
+    {
+        public const string EmailPerTenant = "IX_Users_TenantId_NormalizedEmail";
+        public const string ExternalIdentityPerTenant = "IX_Users_TenantId_AuthProvider_ExternalSubjectId";
+    }
+
     /// <summary>
     /// The ID of the tenant this user belongs to.
     /// </summary>
@@ -25,10 +32,39 @@ public class AppUser : IdentityUser<long>, ITenantOwned
     /// </summary>
     public DateTime? RefreshTokenExpireAt { get; set; }
 
+    /// <summary>
+    /// The authentication provider that owns this user identity.
+    /// </summary>
+    public string AuthProvider { get; set; } = AuthProviders.Endatix;
+
+    /// <summary>
+    /// The external provider subject identifier for SSO identities.
+    /// </summary>
+    public string? ExternalSubjectId { get; set; }
+
+    /// <summary>
+    /// The display name provided by the external identity provider.
+    /// </summary>
+    public string? DisplayName { get; set; }
+
+    /// <summary>
+    /// The last time this user authenticated successfully.
+    /// </summary>
+    public DateTimeOffset? LastLoginAt { get; set; }
+
+    /// <summary>
+    /// Last mapped external roles snapshot for read-only user directory display.
+    /// </summary>
+    public string? ExternalRolesJson { get; set; }
+
+    public bool IsExternal => !string.Equals(AuthProvider, AuthProviders.Endatix, StringComparison.OrdinalIgnoreCase);
+
+    public bool IsVerified => IsExternal || EmailConfirmed;
+
     public User ToUserEntity()
     {
         Guard.Against.NullOrEmpty(UserName);
-        Guard.Against.NullOrEmpty(Email);
+        var email = Email ?? string.Empty;
 
         User user;
         if (TenantId > 0)
@@ -37,8 +73,8 @@ public class AppUser : IdentityUser<long>, ITenantOwned
                 id: Id,
                 tenantId: TenantId,
                 userName: UserName,
-                email: Email,
-                isVerified: EmailConfirmed
+                email: email,
+                isVerified: IsVerified
             );
         }
         else
@@ -47,8 +83,8 @@ public class AppUser : IdentityUser<long>, ITenantOwned
             user = new User(
                 id: Id,
                 userName: UserName,
-                email: Email,
-                isVerified: EmailConfirmed
+                email: email,
+                isVerified: IsVerified
             );
         }
 

@@ -30,13 +30,10 @@ internal sealed class ClaimsTransformer(
             return principal;
         }
 
-        // Intersect public access context (e.g. form + data lists) and skip hydration if the token is a ReBAC JWT token
-        var shouldSkipHydration = string.Equals(principal.GetIssuer(), endatixJwtOptions.Value.ReBacIssuer, StringComparison.Ordinal);
-        if (shouldSkipHydration)
+        if (string.Equals(principal.GetIssuer(), endatixJwtOptions.Value.ReBacIssuer, StringComparison.Ordinal))
         {
             return principal;
         }
-        
 
         var authorizationData = await GetAuthorizationDataAsync(principal);
         if (authorizationData is not null)
@@ -47,12 +44,6 @@ internal sealed class ClaimsTransformer(
         return principal;
     }
 
-
-    /// <summary>
-    /// Gets the authorization data for the claims principal.
-    /// </summary>
-    /// <param name="principal">The claims principal.</param>
-    /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
     private async Task<AuthorizationData?> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
     {
         var userId = principal.GetUserId();
@@ -62,7 +53,7 @@ internal sealed class ClaimsTransformer(
             return null;
         }
 
-        var authorizationStrategy = GetAuthorizationStrategy(principal);
+        var authorizationStrategy = authorizationStrategies.FirstOrDefault(strategy => strategy.CanHandle(principal));
         if (authorizationStrategy is null)
         {
             logger.LogWarning("No authorization strategy found for issuer {Issuer}", principal.GetIssuer() ?? "unknown");
@@ -71,28 +62,19 @@ internal sealed class ClaimsTransformer(
 
         try
         {
-            var authorizationData = await authorizationCache.GetOrCreateAsync(
+            return await authorizationCache.GetOrCreateAsync(
                 principal,
                 async _ => await authorizationStrategy.GetAuthorizationDataAsync(principal, cancellationToken),
-                cancellationToken
-            );
-            return authorizationData;
+                cancellationToken);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error getting authorization data for user {UserId} using strategy {AuthorizationStrategy}", userId, authorizationStrategy?.GetType().Name ?? "unknown");
+            logger.LogError(
+                ex,
+                "Error getting authorization data for user {UserId} using strategy {AuthorizationStrategy}",
+                userId,
+                authorizationStrategy.GetType().Name);
             return null;
         }
-    }
-
-    private IAuthorizationStrategy? GetAuthorizationStrategy(ClaimsPrincipal principal)
-    {
-        var issuer = principal.GetIssuer();
-        if (issuer is null)
-        {
-            return null;
-        }
-
-        return authorizationStrategies.FirstOrDefault(provider => provider.CanHandle(principal));
     }
 }

@@ -537,6 +537,16 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("SubmitterDisplayId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<long?>("SubmitterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SubmitterProfileSnapshot")
+                        .HasColumnType("json");
+
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
@@ -552,6 +562,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasFilter("[RestrictionKey] IS NOT NULL");
 
                     b.HasIndex("SubmittedBy");
+
+                    b.HasIndex("SubmitterDisplayId");
+
+                    b.HasIndex("SubmitterId");
 
                     b.HasIndex("TenantId");
 
@@ -581,6 +595,12 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("SubmitterDisplayId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("SubmitterId")
+                        .HasColumnType("bigint");
 
                     b.ToTable("SubmissionExportRows", null, t =>
                         {
@@ -617,6 +637,63 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasIndex("SubmissionId");
 
                     b.ToTable("SubmissionVersions", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Submitter", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("AppUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AuthProvider")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DisplayId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("ExternalSubjectId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProfileJson")
+                        .HasColumnType("json");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "AuthProvider", "AppUserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_AppUserId")
+                        .HasFilter("[AppUserId] IS NOT NULL AND [IsDeleted] = 0");
+
+                    b.HasIndex("TenantId", "AuthProvider", "ExternalSubjectId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Submitters_TenantId_AuthProvider_ExternalSubjectId")
+                        .HasFilter("[ExternalSubjectId] IS NOT NULL AND [IsDeleted] = 0");
+
+                    b.ToTable("Submitters", (string)null);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Tenant", b =>
@@ -873,6 +950,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("Endatix.Core.Entities.Submitter", "Submitter")
+                        .WithMany()
+                        .HasForeignKey("SubmitterId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
                         .WithMany("Submissions")
                         .HasForeignKey("TenantId")
@@ -928,6 +1010,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Navigation("Status")
                         .IsRequired();
 
+                    b.Navigation("Submitter");
+
                     b.Navigation("Tenant");
 
                     b.Navigation("Token");
@@ -942,6 +1026,17 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .IsRequired();
 
                     b.Navigation("Submission");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.Submitter", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.TenantSettings", b =>

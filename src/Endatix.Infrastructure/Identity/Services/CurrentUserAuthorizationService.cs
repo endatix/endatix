@@ -219,6 +219,4 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
 
         return authorizationData;
     }
-
-
 }

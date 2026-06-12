@@ -5,12 +5,9 @@ using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
-using NSubstitute;
-using Xunit;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authentication;
 
@@ -123,7 +120,7 @@ public class ClaimsTransformerTests
         result.Should().Be(principal);
         authorizationCache.ReceivedCalls().Should().BeEmpty();
         strategy.DidNotReceiveWithAnyArgs().CanHandle(default!);
-        await strategy.DidNotReceiveWithAnyArgs().GetAuthorizationDataAsync(default!, default);
+        await strategy.DidNotReceiveWithAnyArgs().GetAuthorizationDataAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -285,6 +282,64 @@ public class ClaimsTransformerTests
         authorizedIdentity.Should().NotBeNull();
         authorizedIdentity!.IsHydrated.Should().BeTrue();
         authorizedIdentity.TenantId.Should().Be(tenantId);
+    }
+
+    [Fact]
+    public async Task TransformAsync_UsesAuthorizationCacheForStrategy()
+    {
+        // Arrange
+        var userId = "123";
+        var tenantId = 1L;
+        var identity = new ClaimsIdentity(
+            [
+                new Claim(ClaimNames.UserId, userId),
+                new Claim(JwtRegisteredClaimNames.Iss, "test-issuer"),
+                new Claim(JwtRegisteredClaimNames.Exp, DateTimeOffset.UtcNow.AddMinutes(30).ToUnixTimeSeconds().ToString())
+            ],
+            "test");
+        var principal = new ClaimsPrincipal(identity);
+
+        var authorizationData = AuthorizationData.ForAuthenticatedUser(
+            userId: userId,
+            tenantId: tenantId,
+            roles: ["User"],
+            permissions: ["read:forms"],
+            cachedAt: DateTime.UtcNow,
+            expiresAt: DateTime.UtcNow.AddMinutes(15),
+            eTag: "etag-123");
+
+        var strategy = Substitute.For<IAuthorizationStrategy>();
+        strategy.CanHandle(principal).Returns(true);
+        strategy.GetAuthorizationDataAsync(principal, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(authorizationData));
+
+        _authorizationStrategies.Clear();
+        _authorizationStrategies.Add(strategy);
+
+        _authorizationCache
+            .GetOrCreateAsync(
+                Arg.Is<ClaimsPrincipal>(p => p == principal),
+                Arg.Any<Func<CancellationToken, Task<Result<AuthorizationData>>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var factory = callInfo.Arg<Func<CancellationToken, Task<Result<AuthorizationData>>>>();
+                var cancellationToken = callInfo.Arg<CancellationToken>();
+                var resultTask = factory(cancellationToken);
+                var result = resultTask.GetAwaiter().GetResult();
+                return Task.FromResult(result.Value);
+            });
+
+        // Act
+        var result = await _transformer.TransformAsync(principal);
+
+        // Assert
+        result.Identities.OfType<AuthorizedIdentity>().Should().ContainSingle();
+        await strategy.Received(1).GetAuthorizationDataAsync(principal, Arg.Any<CancellationToken>());
+        await _authorizationCache.Received(1).GetOrCreateAsync(
+            Arg.Is<ClaimsPrincipal>(p => p == principal),
+            Arg.Any<Func<CancellationToken, Task<Result<AuthorizationData>>>>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

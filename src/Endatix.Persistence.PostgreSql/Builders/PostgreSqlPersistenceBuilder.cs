@@ -1,4 +1,5 @@
 using System.Reflection;
+using Ardalis.Specification;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Infrastructure.Data.Querying;
 using Endatix.Persistence.PostgreSql.Options;
@@ -112,6 +113,7 @@ public class PostgreSqlPersistenceBuilder
     public PostgreSqlPersistenceBuilder AddDbSpecificRepositories()
     {
         Services.AddScoped<IRelationalSubstringLikeFilter, NpgsqlSubstringLikeFilter>();
+        Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
         return this;

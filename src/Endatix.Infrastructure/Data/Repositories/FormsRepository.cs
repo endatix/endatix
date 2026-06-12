@@ -10,8 +10,8 @@ namespace Endatix.Infrastructure.Repositories
         private readonly IUnitOfWork _unitOfWork;
         private readonly AppDbContext _dbContext;
 
-        public FormsRepository(AppDbContext dbContext, IUnitOfWork unitOfWork)
-            : base(dbContext)
+        public FormsRepository(AppDbContext dbContext, IUnitOfWork unitOfWork, EndatixSpecificationEvaluator specificationEvaluator)
+            : base(dbContext, specificationEvaluator)
         {
             _dbContext = dbContext;
             _unitOfWork = unitOfWork;

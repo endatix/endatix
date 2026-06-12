@@ -114,23 +114,23 @@ public class SubmissionConstructorTests
             formId: 123,
             formDefinitionId: 456,
             new SubmissionCreateOptions(
-                SubmittedBy: "user-1",
+                SubmitterId: 789,
                 EnforceSingleSubmissionGate: true));
 
         // Assert
-        submission.RestrictionKey.Should().Be("SingleSubmission:Form:123:User:user-1");
+        submission.RestrictionKey.Should().Be("SingleSubmission:Form:123:Submitter:789");
+        submission.SubmitterId.Should().Be(789);
+        submission.SubmittedBy.Should().Be("789");
     }
 
     [Theory]
-    [InlineData(false, false, "user-1")]
-    [InlineData(true, true, "user-1")]
+    [InlineData(false, false, 789L)]
+    [InlineData(true, true, 789L)]
     [InlineData(true, false, null)]
-    [InlineData(true, false, "")]
-    [InlineData(true, false, "   ")]
     public void Create_WhenSingleSubmissionGateDoesNotApply_DoesNotSetRestrictionKey(
         bool enforceSingleSubmissionGate,
         bool isTestSubmission,
-        string? submittedBy)
+        long? submitterId)
     {
         // Act
         var submission = Submission.Create(
@@ -139,7 +139,7 @@ public class SubmissionConstructorTests
             formId: 123,
             formDefinitionId: 456,
             new SubmissionCreateOptions(
-                SubmittedBy: submittedBy,
+                SubmitterId: submitterId,
                 IsTestSubmission: isTestSubmission,
                 EnforceSingleSubmissionGate: enforceSingleSubmissionGate));
 

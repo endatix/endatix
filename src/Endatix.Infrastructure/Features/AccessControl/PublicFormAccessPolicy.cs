@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure;
@@ -10,6 +11,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
 
@@ -28,7 +30,9 @@ public sealed class PublicFormAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
     IDateTimeProvider dateTimeProvider,
     IOptions<EndatixJwtOptions> endatixJwtOptions,
-    HybridCache cache
+    HybridCache cache,
+    ISubmitterResolver submitterResolver,
+    IHttpContextAccessor httpContextAccessor
 ) : IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>
 {
     private static readonly TimeSpan _defaultTtl = TimeSpan.FromMinutes(10);
@@ -50,6 +54,19 @@ public sealed class PublicFormAccessPolicy(
         }
 
         var accessRoute = routeResult.Value;
+        if (accessRoute.Type == RouteType.SingleResponse)
+        {
+            var accessDataResult = await ExecuteAccessRouteAsync(context, accessRoute, cancellationToken);
+            if (!accessDataResult.IsSuccess)
+            {
+                return accessDataResult.ToErrorResult<ICachedData<PublicFormAccessData>>();
+            }
+
+            return Result.Success(Cached<PublicFormAccessData>.Create(
+                accessDataResult.Value,
+                dateTimeProvider.Now.UtcDateTime,
+                _immediateTtl));
+        }
 
         return await cache.GetOrCreateCachedResultAsync(
             accessRoute.CacheKey,
@@ -91,9 +108,12 @@ public sealed class PublicFormAccessPolicy(
 
         if (isPublic)
         {
-            return hasSubmissionToken
-            ? ResolveSubmissionTokenRoute(context.FormId, context.Token!, isPublic: true, authData: null)
-            : ResolveFormOnlyRoute(context.FormId, isPublic: true);
+            if (hasSubmissionToken)
+            {
+                return ResolveSubmissionTokenRoute(context.FormId, context.Token!, isPublic: true, authData: null);
+            }
+
+            return ResolveFormOnlyRoute(context.FormId, isPublic: true);
         }
 
         var authDataResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
@@ -218,7 +238,7 @@ public sealed class PublicFormAccessPolicy(
     {
         RouteType.PublicForm => BuildPublicFormAccessData(context.FormId),
         RouteType.PrivateForm => BuildPrivateFormAccessData(context.FormId, route.AuthData!),
-        RouteType.SingleResponse => await BuildSingleResponseAccessData(context.FormId, route.AuthData!, ct),
+        RouteType.SingleResponse => await BuildSingleResponseAccessData(context.FormId, route.IsPublic, route.AuthData!, ct),
         RouteType.AccessToken => await BuildAccessTokenDataAsync(context.FormId, route.Claims!, ct),
         RouteType.SubmissionToken => await BuildSubmissionTokenDataAsync(context, route, ct),
         RouteType.FormAccessToken => BuildPublicFormReBacAccessData(route.FormTokenClaims!),
@@ -233,43 +253,68 @@ public sealed class PublicFormAccessPolicy(
             return canAccessFormResult.ToErrorResult<PublicFormAccessData>();
         }
 
-        return Result.Success(PublicFormAccessData.CreatePublicForm(formId));
+        return Result.Success(CreatePrivateFormAccessData(formId, authData!));
     }
 
     /// <summary>
     /// Builds the access data for a single response.
     /// </summary>
     /// <param name="formId">The form ID.</param>
+    /// <param name="isPublic">Whether the form is public.</param>
     /// <param name="authData">The authorization data.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The access data.</returns>
     private async Task<Result<PublicFormAccessData>> BuildSingleResponseAccessData(
         long formId,
+        bool isPublic,
         AuthorizationData? authData,
         CancellationToken cancellationToken)
     {
-        var canAccessFormResult = CanAccessForm(isPublic: false, authData);
+        var canAccessFormResult = CanAccessForm(isPublic, authData);
         if (!canAccessFormResult.IsSuccess)
         {
             return canAccessFormResult.ToErrorResult<PublicFormAccessData>();
         }
 
-        var userId = authData?.UserId;
-        var isRespondentTestMode = HasPermission(authData, Actions.Forms.Test);
+        var canCreateSubmission = isPublic || HasPermission(authData, Actions.Submissions.Create);
+        var isRespondentTestMode = canCreateSubmission && HasPermission(authData, Actions.Forms.Test);
         var hasUserSubmitted = false;
-        if (!string.IsNullOrWhiteSpace(userId) && !isRespondentTestMode)
+        if (canCreateSubmission && !isRespondentTestMode)
         {
-            hasUserSubmitted = await submissionRepository.AnyAsync(
-                new SubmissionByFormIdAndSubmittedBySpec(formId, userId),
+            var form = await formRepository.FirstOrDefaultAsync(
+                new FormSpecifications.ByIdWithRelatedForPublicAccess(formId),
                 cancellationToken);
+
+            if (form is null)
+            {
+                return Result.NotFound("Form not found");
+            }
+
+            // Access checks must not upsert Submitters on view-only visits.
+            var submitterResolution = await submitterResolver.FindExistingAsync(
+                new SubmitterResolveContext(
+                    form.TenantId,
+                    httpContextAccessor.HttpContext?.User),
+                cancellationToken);
+
+            if (submitterResolution.SubmitterId is not null)
+            {
+                hasUserSubmitted = await submissionRepository.AnyAsync(
+                    new SubmissionByFormIdAndSubmitterIdSpec(formId, submitterResolution.SubmitterId.Value),
+                    cancellationToken);
+            }
         }
 
-        return Result.Success(PublicFormAccessData.CreatePublicForm(
-            formId,
-            new PublicFormAccessOptions(
-                LimitOnePerUser: true,
-                HasUserSubmitted: hasUserSubmitted,
-                IsRespondentTestMode: isRespondentTestMode)));
+        var options = new PublicFormAccessOptions(
+            LimitOnePerUser: true,
+            HasUserSubmitted: hasUserSubmitted,
+            IsRespondentTestMode: isRespondentTestMode);
+
+        var accessData = isPublic
+            ? PublicFormAccessData.CreatePublicForm(formId, options)
+            : CreatePrivateFormAccessData(formId, authData!, options);
+
+        return Result.Success(accessData);
     }
 
     private static Result<PublicFormAccessData> BuildPublicFormAccessData(long formId) => Result.Success(PublicFormAccessData.CreatePublicForm(formId));
@@ -386,6 +431,19 @@ public sealed class PublicFormAccessPolicy(
         }
 
         return authData.Permissions.Contains(permission);
+    }
+
+    private static bool IsAuthenticatedUser(AuthorizationData authData) =>
+        authData.UserId != AuthorizationData.ANONYMOUS_USER_ID;
+
+    private static PublicFormAccessData CreatePrivateFormAccessData(
+        long formId,
+        AuthorizationData authData,
+        PublicFormAccessOptions? options = null)
+    {
+        return HasPermission(authData, Actions.Submissions.Create)
+            ? PublicFormAccessData.CreatePublicForm(formId, options)
+            : PublicFormAccessData.CreateViewOnlyForm(formId, options);
     }
 
     private enum RouteType { PublicForm, PrivateForm, SingleResponse, AccessToken, SubmissionToken, FormAccessToken }

@@ -7,7 +7,9 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
 
@@ -18,6 +20,7 @@ using Microsoft.Extensions.Options;
 internal class AuthorizationCache(
     HybridCache hybridCache,
     IDateTimeProvider dateTimeProvider,
+    IHttpContextAccessor httpContextAccessor,
     IOptions<EndatixJwtOptions> endatixJwtOptions) : IAuthorizationCache
 {
     private const short ETAG_LENGTH = 12;
@@ -43,7 +46,10 @@ internal class AuthorizationCache(
         }
 
         var cacheExpiration = ComputeExpiration(principal);
-        var claimIdentityId = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}";
+        var accessToken = BearerAccessTokenResolver.Resolve(httpContextAccessor);
+        var claimIdentityId = !string.IsNullOrWhiteSpace(accessToken)
+            ? accessToken
+            : principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}";
         var cacheKeyTokenPart = CacheKeyFingerprint.ComputeHmacSha256Hex(
             claimIdentityId,
             endatixJwtOptions.Value.SigningKey);

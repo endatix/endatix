@@ -45,8 +45,8 @@ public class ListByFormIdHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 1 };
         var submissions = new List<SubmissionDto>
         {
-            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null, false),
-            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7", true),
+            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null, null, null, null, false),
+            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7", 7, "7", null, true),
         };
         var request = new ListByFormIdQuery(1, 1, 10, []);
 
@@ -98,8 +98,8 @@ public class ListByFormIdHandlerTests
 
         // Assert
         await _submissionsRepository.Received(1).ListAsync(
-            Arg.Is<ISpecification<Submission, SubmissionDto>>(spec => 
-                spec.Skip == 20 && 
+            Arg.Is<ISpecification<Submission, SubmissionDto>>(spec =>
+                spec.Skip == 20 &&
                 spec.Take == 20
             ),
             Arg.Any<CancellationToken>()

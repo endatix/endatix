@@ -50,6 +50,7 @@ public class InfrastructureDataBuilder
         Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         Services.AddScoped<IUnitOfWork, AppUnitOfWork>();
         Services.AddSingleton<EfCoreValueGeneratorFactory>();
+        Services.AddScoped<EndatixSpecificationEvaluator>();
         Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         Services.AddScoped<IValueNormalizer, ValueNormalizer>();
         Services.AddSingleton<IUniqueConstraintViolationChecker, UniqueConstraintViolationChecker>();

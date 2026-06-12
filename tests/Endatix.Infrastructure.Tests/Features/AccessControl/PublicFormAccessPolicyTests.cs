@@ -1,8 +1,10 @@
 using Ardalis.Specification;
+using System.Security.Claims;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure;
@@ -12,6 +14,7 @@ using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
 using NSubstitute.Core;
@@ -76,6 +79,8 @@ public partial class PublicFormAccessPolicyTests
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HybridCache _cache;
     private readonly IOptions<EndatixJwtOptions> _jwtOptions;
+    private readonly ISubmitterResolver _submitterResolver;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly PublicFormAccessPolicy _policy;
 
     public PublicFormAccessPolicyTests()
@@ -88,6 +93,13 @@ public partial class PublicFormAccessPolicyTests
         _formFrameTokenService = Substitute.For<IFormAccessTokenService>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _cache = Substitute.For<HybridCache>();
+        _httpContextAccessor = new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext()
+        };
+        _submitterResolver = Substitute.For<ISubmitterResolver>();
+        _submitterResolver.FindExistingAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
+            .Returns(new SubmitterResolution(null, null, null));
         _jwtOptions = Options.Create(new EndatixJwtOptions
         {
             SigningKey = "test-signing-key-32-characters",
@@ -128,7 +140,7 @@ public partial class PublicFormAccessPolicyTests
                 return factory(token);
             });
 
-        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _formFrameTokenService, _authorizationService, _dateTimeProvider, _jwtOptions, _cache);
+        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _formFrameTokenService, _authorizationService, _dateTimeProvider, _jwtOptions, _cache, _submitterResolver, _httpContextAccessor);
     }
 
     #region Helper Methods
@@ -166,6 +178,22 @@ public partial class PublicFormAccessPolicyTests
                 Arg.Any<CancellationToken>())
             .Returns(new ValueTask<FormProjections.FormAccessRoutingDto>(
                 new FormProjections.FormAccessRoutingDto(isPublic, limitOnePerUser, formId)));
+    }
+
+    private void SetupCurrentPrincipal(ClaimsPrincipal principal)
+    {
+        _httpContextAccessor.HttpContext!.User = principal;
+    }
+
+    private static ClaimsPrincipal CreateAuthenticatedPrincipal(string userId)
+    {
+        ClaimsIdentity identity = new(
+        [
+            new Claim(ClaimTypes.NameIdentifier, userId),
+            new Claim("sub", userId)
+        ], authenticationType: "Keycloak");
+
+        return new ClaimsPrincipal(identity);
     }
 
     private void SetupTokenResolve(string token, long? resolvedSubmissionId)
@@ -220,6 +248,31 @@ public partial class PublicFormAccessPolicyTests
         result.Value.Data.SubmissionId.Should().BeNull();
         result.Value.Data.FormPermissions.Should().BeEquivalentTo(ResourcePermissions.Form.Sets.ViewForm);
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.CreateSubmission);
+    }
+
+    [Fact]
+    public async Task GetAccessDataAsync_PublicForm_WithLimitOnePerUserMetadata_ReturnsPublicFormPermissions()
+    {
+        // Arrange
+        var formId = 1L;
+        var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: true, limitOnePerUser: true);
+
+        // Act
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Data.LimitOnePerUser.Should().BeFalse();
+        result.Value.Data.HasUserSubmitted.Should().BeFalse();
+        result.Value.Data.CanStartNewSubmission.Should().BeTrue();
+        result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.CreateSubmission);
+        await _authorizationService
+            .DidNotReceive()
+            .GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+        await _submitterResolver
+            .DidNotReceive()
+            .FindExistingAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -337,7 +390,7 @@ public partial class PublicFormAccessPolicyTests
     }
 
     [Fact]
-    public async Task GetAccessDataAsync_PrivateForm_NoToken_UserWithPrivateFormsPermission_ReturnsSuccess()
+    public async Task GetAccessDataAsync_PrivateForm_NoToken_UserWithPrivateFormsPermission_ReturnsViewOnlyAccess()
     {
         // Arrange
         var formId = 1L;
@@ -368,7 +421,36 @@ public partial class PublicFormAccessPolicyTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Data.FormId.Should().Be(formId.ToString());
         result.Value.Data.FormPermissions.Should().BeEquivalentTo(ResourcePermissions.Form.Sets.ViewForm);
+        result.Value.Data.SubmissionPermissions.Should().BeEmpty();
+        result.Value.Data.CanStartNewSubmission.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetAccessDataAsync_PrivateForm_NoToken_UserWithCreateSubmissionPermission_ReturnsCreateAccess()
+    {
+        // Arrange
+        var formId = 1L;
+        var userId = "user-with-create-permission";
+        var context = new PublicFormAccessContext(formId);
+        SetupFormAccessRoutingMetadata(formId, isPublic: false);
+
+        _authorizationService
+            .GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success(AuthorizationData.ForAuthenticatedUser(
+                userId,
+                1,
+                [],
+                [Actions.Submissions.Create])));
+
+        // Act
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Data.FormId.Should().Be(formId.ToString());
+        result.Value.Data.FormPermissions.Should().BeEquivalentTo(ResourcePermissions.Form.Sets.ViewForm);
         result.Value.Data.SubmissionPermissions.Should().BeEquivalentTo(ResourcePermissions.Submission.Sets.CreateSubmission);
+        result.Value.Data.CanStartNewSubmission.Should().BeTrue();
     }
 
     [Fact]
@@ -377,8 +459,16 @@ public partial class PublicFormAccessPolicyTests
         // Arrange
         var formId = 1L;
         var userId = "user-with-submission";
+        var submitterId = 123L;
         var context = new PublicFormAccessContext(formId);
+        var principal = CreateAuthenticatedPrincipal(userId);
+        SetupCurrentPrincipal(principal);
         SetupFormAccessRoutingMetadata(formId, isPublic: false, limitOnePerUser: true);
+        _submitterResolver.FindExistingAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
+            .Returns(new SubmitterResolution(
+                submitterId,
+                submitterId.ToString(),
+                null));
 
         _cache
             .GetOrCreateAsync<bool>(
@@ -395,10 +485,10 @@ public partial class PublicFormAccessPolicyTests
                 userId,
                 1,
                 [],
-                [Actions.Access.PrivateForms])));
+                [Actions.Access.PrivateForms, Actions.Submissions.Create])));
 
         _submissionRepository
-            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>())
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmitterIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         // Act
@@ -411,8 +501,24 @@ public partial class PublicFormAccessPolicyTests
         result.Value.Data.CanStartNewSubmission.Should().BeFalse();
         result.Value.Data.IsRespondentTestMode.Should().BeFalse();
         await _formRepository
-            .DidNotReceive()
+            .Received(1)
             .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>());
+        await _submitterResolver
+            .Received(1)
+            .FindExistingAsync(
+                Arg.Is<SubmitterResolveContext>(resolveContext => ReferenceEquals(resolveContext.Principal, principal)),
+                Arg.Any<CancellationToken>());
+        await _cache
+            .DidNotReceive()
+            .GetOrCreateAsync<Cached<PublicFormAccessData>>(
+                Arg.Any<string>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<IEnumerable<string>?>(),
+                Arg.Any<CancellationToken>());
+        await _submitterResolver
+            .DidNotReceive()
+            .EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -430,10 +536,10 @@ public partial class PublicFormAccessPolicyTests
                 userId,
                 1,
                 [],
-                [Actions.Access.PrivateForms, Actions.Forms.Test])));
+                [Actions.Access.PrivateForms, Actions.Submissions.Create, Actions.Forms.Test])));
 
         _submissionRepository
-            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>())
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmitterIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         // Act
@@ -447,7 +553,7 @@ public partial class PublicFormAccessPolicyTests
         result.Value.Data.IsRespondentTestMode.Should().BeTrue();
         await _submissionRepository
             .DidNotReceive()
-            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmittedBySpec>(), Arg.Any<CancellationToken>());
+            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmitterIdSpec>(), Arg.Any<CancellationToken>());
         await _formRepository
             .DidNotReceive()
             .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>());
@@ -1074,8 +1180,10 @@ public partial class PublicFormAccessPolicyTests
         FormAccessTokenClaims claims = new(formId, tenantId, DateTime.UtcNow.AddMinutes(30));
         PublicFormAccessContext context = new(formId, rawJwt, SubmissionTokenType.FormToken);
 
-        Form form = new(tenantId, "Form token test");
-        form.Id = formId;
+        Form form = new(tenantId, "Form token test")
+        {
+            Id = formId
+        };
         FormDefinition definition = new(tenantId, isDraft: false, jsonData: "{}");
         form.AddFormDefinition(definition, isActive: true);
 
@@ -1099,7 +1207,7 @@ public partial class PublicFormAccessPolicyTests
             });
 
         // Act
-        Result<ICachedData<PublicFormAccessData>> result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
+        var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();

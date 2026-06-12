@@ -72,7 +72,12 @@ public sealed class List(IMediator mediator)
             UserName = u.UserName,
             Email = u.Email,
             IsVerified = u.IsVerified,
-            Roles = u.Roles
+            Roles = u.Roles,
+            AuthProvider = u.AuthProvider,
+            IsExternal = u.IsExternal,
+            IsLockedOut = u.IsLockedOut,
+            DisplayName = u.DisplayName,
+            LastLoginAt = u.LastLoginAt
         })
             .ToList();
 
@@ -130,7 +135,7 @@ public record ListUsersResponse
     /// <summary>
     /// The user's email address.
     /// </summary>
-    public string Email { get; init; } = null!;
+    public string? Email { get; init; }
 
     /// <summary>
     /// Indicates whether the user's email is verified.
@@ -141,6 +146,31 @@ public record ListUsersResponse
     /// The role names assigned to the user.
     /// </summary>
     public IReadOnlyList<string> Roles { get; init; } = [];
+
+    /// <summary>
+    /// Authentication provider for this user.
+    /// </summary>
+    public string AuthProvider { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Indicates whether the user is managed by an external provider.
+    /// </summary>
+    public bool IsExternal { get; init; }
+
+    /// <summary>
+    /// Indicates whether the user is locally locked out.
+    /// </summary>
+    public bool IsLockedOut { get; init; }
+
+    /// <summary>
+    /// External or friendly display name.
+    /// </summary>
+    public string? DisplayName { get; init; }
+
+    /// <summary>
+    /// Last successful login timestamp.
+    /// </summary>
+    public DateTimeOffset? LastLoginAt { get; init; }
 }
 
 /// <summary>
@@ -175,6 +205,7 @@ public class ListUsersValidator : Validator<ListUsersRequest>
     private static bool IsKnownStatus(string status)
     {
         return string.Equals(status, "active", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(status, "pending", StringComparison.OrdinalIgnoreCase);
+               string.Equals(status, "pending", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(status, "locked", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -32,7 +32,9 @@ internal static class SubmissionSpecificationExtensions
 
         var nonStatusFilters = new FilterParameters();
         filterParams.Criteria
-            .Where(c => !c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase))
+            .Where(c =>
+                !c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase) &&
+                !SubmissionFilterFields.IsSubmitterProfileField(c.Field))
             .ToList()
             .ForEach(nonStatusFilters.AddFilter);
 

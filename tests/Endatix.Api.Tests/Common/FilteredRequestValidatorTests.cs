@@ -16,6 +16,7 @@ public class FilteredRequestValidatorTests
             { "age", typeof(int) },
             { "created", typeof(DateTime) },
             { "folderId", typeof(long?) },
+            { "submitterProfile.email", typeof(string) },
         };
         _validator = new FilteredRequestValidator(validFields);
     }
@@ -49,7 +50,7 @@ public class FilteredRequestValidatorTests
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.Filter)
-            .WithErrorMessage($"Invalid filter '{filter}': Filter must start with a valid field name. Allowed fields: name, name1, age, created, folderId");
+            .WithErrorMessage($"Invalid filter '{filter}': Filter must start with a valid field name. Allowed fields: name, name1, age, created, folderId, submitterProfile.email");
     }
 
     [Fact]
@@ -109,6 +110,7 @@ public class FilteredRequestValidatorTests
     [InlineData("created>2025-01-05T15:14:13")]
     [InlineData("folderId:null")]
     [InlineData("folderId!:null")]
+    [InlineData("submitterProfile.email:respondent@example.com")]
     public void Validate_ValidFilter_PassesValidation(string filter)
     {
         // Arrange

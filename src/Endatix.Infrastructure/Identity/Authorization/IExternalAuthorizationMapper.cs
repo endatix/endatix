@@ -3,7 +3,7 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// <summary>
 /// Interface for mapping external authorization data to Endatix AuthorizationData details.
 /// </summary>
-public interface IExternalAuthorizationMapper
+internal interface IExternalAuthorizationMapper
 {
     /// <summary>
     /// Maps the external roles to the Endatix AppRoles.

@@ -207,9 +207,20 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
 
+                    b.Property<string>("AuthProvider")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasDefaultValue("Endatix");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -217,6 +228,16 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<string>("ExternalRolesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ExternalSubjectId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTimeOffset?>("LastLoginAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
@@ -269,6 +290,18 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("TenantId", "AuthProvider");
+
+                    b.HasIndex("TenantId", "NormalizedEmail")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Users_TenantId_NormalizedEmail")
+                        .HasFilter("\"NormalizedEmail\" IS NOT NULL");
+
+                    b.HasIndex("TenantId", "AuthProvider", "ExternalSubjectId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Users_TenantId_AuthProvider_ExternalSubjectId")
+                        .HasFilter("\"ExternalSubjectId\" IS NOT NULL");
 
                     b.ToTable("Users", "identity");
                 });

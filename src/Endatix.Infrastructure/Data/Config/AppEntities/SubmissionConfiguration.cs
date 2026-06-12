@@ -10,6 +10,7 @@ namespace Endatix.ApplicationCore.Infrastructure.Data.Config.AppEntities;
 public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 {
     private const int IDENTIFIER_MAX_LENGTH = 64;
+    private const int SUBMITTER_DISPLAY_ID_MAX_LENGTH = 256;
     private const int RESTRICTION_KEY_MAX_LENGTH = 256;
     private const int TOKEN_VALUE_MAX_LENGTH = 64;
 
@@ -30,6 +31,15 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
             .HasMaxLength(IDENTIFIER_MAX_LENGTH)
             .IsRequired(false);
 
+        builder.Property(s => s.SubmitterDisplayId)
+            .HasMaxLength(SUBMITTER_DISPLAY_ID_MAX_LENGTH)
+            .IsRequired(false);
+
+        builder.HasIndex(s => s.SubmitterDisplayId);
+
+        builder.Property(s => s.SubmitterProfileSnapshot)
+            .IsRequired(false);
+
         builder.Property(s => s.IsTestSubmission)
             .HasDefaultValue(false);
 
@@ -48,6 +58,12 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
             .HasForeignKey(s => s.FormId)
             .OnDelete(DeleteBehavior.NoAction)
             .IsRequired();
+
+        builder.HasOne(s => s.Submitter)
+            .WithMany()
+            .HasForeignKey(s => s.SubmitterId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
 
         builder.OwnsOne(s => s.Token, tokenBuilder =>
            {
@@ -72,5 +88,6 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
         builder.HasIndex(s => s.FormDefinitionId);
         // SubmittedBy index for filtering submissions by user
         builder.HasIndex(s => s.SubmittedBy);
+        builder.HasIndex(s => s.SubmitterId);
     }
 }
