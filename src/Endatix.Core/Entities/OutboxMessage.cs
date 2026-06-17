@@ -25,10 +25,10 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
         int schemaVersion,
         string? traceId = null)
     {
-        Guard.Against.NullOrWhiteSpace(eventType, nameof(eventType));
-        Guard.Against.NullOrWhiteSpace(payload, nameof(payload));
-        Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
-        Guard.Against.NegativeOrZero(schemaVersion, nameof(schemaVersion));
+        Guard.Against.NullOrWhiteSpace(eventType);
+        Guard.Against.NullOrWhiteSpace(payload);
+        Guard.Against.NegativeOrZero(tenantId);
+        Guard.Against.NegativeOrZero(schemaVersion);
 
         EventType = eventType;
         Payload = payload;
@@ -83,7 +83,7 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
     /// <summary>Takes a lease on this row for the given relay instance until <paramref name="lockedUntil"/>.</summary>
     public void Claim(string lockedBy, DateTime lockedUntil)
     {
-        Guard.Against.NullOrWhiteSpace(lockedBy, nameof(lockedBy));
+        Guard.Against.NullOrWhiteSpace(lockedBy);
         if (lockedUntil <= DateTime.UtcNow)
         {
             throw new ArgumentOutOfRangeException(nameof(lockedUntil), "Lease expiry must be in the future.");
