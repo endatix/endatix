@@ -61,4 +61,13 @@ public interface ICurrentUserAuthorizationService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task InvalidateAuthorizationDataCacheAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Invalidates the authorization data cache for a specific user.
+    /// </summary>
+    /// <param name="userId">The user identifier.</param>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task InvalidateAuthorizationDataCacheAsync(string userId, long tenantId, CancellationToken cancellationToken);
 }

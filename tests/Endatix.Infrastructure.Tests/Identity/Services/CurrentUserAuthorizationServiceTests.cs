@@ -593,5 +593,13 @@ public sealed class CurrentUserAuthorizationServiceTests
         await _authorizationCache.DidNotReceive().InvalidateAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task InvalidateAuthorizationDataCacheAsync_ForExplicitUser_InvokesCache()
+    {
+        await _service.InvalidateAuthorizationDataCacheAsync("123", 42, CancellationToken.None);
+
+        await _authorizationCache.Received(1).InvalidateAsync("123", 42, Arg.Any<CancellationToken>());
+    }
+
     #endregion
 }
