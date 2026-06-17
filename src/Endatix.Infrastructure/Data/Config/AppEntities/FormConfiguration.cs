@@ -21,6 +21,10 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
         builder.Property(f => f.LimitOnePerUser)
             .HasDefaultValue(false);
 
+        builder.Property(f => f.Revision)
+            .HasDefaultValue(1L)
+            .IsRequired();
+
         builder.Property(f => f.Metadata)
             .HasColumnType("json");
 
