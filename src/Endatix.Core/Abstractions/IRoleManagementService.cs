@@ -36,6 +36,22 @@ public interface IRoleManagementService
     Task<Result> ReplaceRolesForUserAsync(long userId, IReadOnlyList<string> roleNames, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Grants the platform administrator role to a user.
+    /// </summary>
+    /// <param name="userId">The ID of the user.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A Result indicating success or failure.</returns>
+    Task<Result> GrantPlatformAdminAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Revokes the platform administrator role from a user.
+    /// </summary>
+    /// <param name="userId">The ID of the user.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A Result indicating success or failure.</returns>
+    Task<Result> RevokePlatformAdminAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets all roles assigned to a user.
     /// </summary>
     /// <param name="userId">The ID of the user.</param>
