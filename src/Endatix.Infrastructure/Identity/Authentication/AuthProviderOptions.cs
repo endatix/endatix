@@ -29,4 +29,9 @@ public abstract class AuthProviderOptions
     /// The default tenant ID to use for the authentication provider
     /// </summary>
     public long DefaultTenantId { get; set; } = AuthConstants.DEFAULT_TENANT_ID;
+
+    /// <summary>
+    /// Admin UI label. When empty, the provider scheme name is used.
+    /// </summary>
+    public string DisplayName { get; set; } = string.Empty;
 }
