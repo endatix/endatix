@@ -118,7 +118,7 @@ public sealed class SearchDataListItemsValidator : Validator<SearchDataListItems
         RuleFor(x => x.FormId).GreaterThan(0);
         RuleFor(x => x.DataListId).GreaterThan(0);
         RuleFor(x => x.Skip).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.Take).GreaterThan(0).LessThanOrEqualTo(SearchDataListItemsQuery.MAX_TAKE);
+        RuleFor(x => x.Take).GreaterThan(0).LessThanOrEqualTo(SearchDataListItemsQuery.MaxTake);
     }
 }
 

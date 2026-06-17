@@ -1,5 +1,6 @@
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Messaging;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.Identity.ListUsers;
@@ -9,9 +10,9 @@ namespace Endatix.Core.UseCases.Identity.ListUsers;
 /// </summary>
 public sealed record ListUsersQuery : IQuery<Result<Paged<UserWithRoles>>>
 {
-    public const int DefaultPage = 1;
-    public const int DefaultPageSize = 10;
-    public const int MaxPageSize = 100;
+    public const int DefaultPage = PagedRequestLimits.DEFAULT_PAGE;
+    public const int DefaultPageSize = PagedRequestLimits.DEFAULT_PAGE_SIZE;
+    public const int MaxPageSize = PagedRequestLimits.MAX_PAGE_SIZE;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ListUsersQuery"/> class.

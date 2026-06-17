@@ -152,6 +152,21 @@ When touching a feature, prefer migrating **reads** to Infrastructure feature qu
 
 ---
 
+## Paged list requests (API)
+
+Searchable paged endpoints share validation and defaults:
+
+| Piece | Location |
+|-------|----------|
+| Limits (`MaxPageSize`, `MaxSearchLength`, defaults) | `Endatix.Core/Infrastructure/Paging/PagedRequestLimits.cs` |
+| Request contract | `ISearchablePagedRequest` extends `IPagedRequest` |
+| Validation | `SearchablePagedRequestValidator` (includes `PagedRequestValidator`) |
+| Resolved values in endpoints | `request.ResolvePage()`, `request.ResolvePageSize()` |
+
+Use for new list endpoints with optional `Search`. Feature-specific filters stay in the endpoint validator (see `ListUsersValidator` for role/status).
+
+---
+
 ## Decision log
 
 | Date | Decision |
@@ -159,4 +174,4 @@ When touching a feature, prefer migrating **reads** to Infrastructure feature qu
 | 2026-06 | Prefer Infrastructure feature queries over Core read handlers when logic is EF-heavy and persistence-specific. |
 | 2026-06 | Platform Admin lists: `*QueryService` → `List*` slice types; shared logic in `Common/`; register via `AddPlatformAdminFeatures()`. |
 | 2026-06 | Document Agents module as modular end-state; OSS monolith uses the same slice naming inside `Infrastructure/Features/`. |
-| 2026-06 | Align with Ardalis Minimal CA as north star; exact MediatR usage per slice and module extraction boundaries will evolve. |
+| 2026-06 | Shared paging: `PagedRequestLimits`, `ISearchablePagedRequest`, `SearchablePagedRequestValidator` for searchable list endpoints. |

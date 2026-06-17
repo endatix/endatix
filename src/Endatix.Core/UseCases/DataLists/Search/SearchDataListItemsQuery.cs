@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Messaging;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.DataLists.Search;
@@ -12,7 +13,7 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
     /// <summary>
     /// The maximum number of items to take.
     /// </summary>
-    public const int MAX_TAKE = 100;
+    public const int MaxTake = PagedRequestLimits.MAX_PAGE_SIZE;
 
     public long DataListId { get; init; }
     public string? Query { get; init; }
@@ -28,7 +29,7 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
         DataListId = dataListId;
         Query = query?.Trim();
         Skip = skip;
-        Take = Math.Min(take, MAX_TAKE);
+        Take = Math.Min(take, MaxTake);
     }
 }
 
