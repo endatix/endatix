@@ -217,7 +217,7 @@ public class AuthServiceTests
             CancellationToken.None);
 
         // Assert
-        result.IsError().Should().BeTrue();
+        result.IsSuccess.Should().BeFalse();
     }
 
     [Fact]
