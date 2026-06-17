@@ -191,6 +191,20 @@ const sidebars: SidebarsConfig = {
         },
       ],
     },
+    {
+      type: "category",
+      label: "Administration",
+      collapsed: false,
+      link: {
+        type: "generated-index",
+        slug: "administration",
+        title: "Administration",
+      },
+      items: [
+        "end-users/administration/platform-admins",
+        "end-users/administration/auth-settings",
+      ],
+    },
   ],
 };
 

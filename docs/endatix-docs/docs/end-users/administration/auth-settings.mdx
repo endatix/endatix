@@ -1,0 +1,67 @@
+---
+title: Auth Settings
+description: Understand how API and Hub authentication configuration are split and reviewed safely in Platform Admin.
+sidebar_position: 2
+---
+
+# Auth Settings
+
+Authentication in Endatix runs in two places:
+
+- **Endatix API** validates access tokens, issues JWTs, and applies external role mappings.
+- **Endatix Hub** runs the sign-in experience with NextAuth and bridges external OIDC sessions.
+
+The Platform Admin **Auth Settings** page reads both sides and shows a safe summary without exposing secrets.
+
+## API authentication
+
+Configured under `Endatix:Auth:Providers:*` in the API host configuration.
+
+Typical settings include:
+
+- Endatix JWT signing and expiry values
+- ReBAC token issuer and lifetime (Resource Based Authorization)
+- Keycloak issuer, audience, and role-mapping presence
+- Whether additional external provider authorization is active
+
+The API exposes a platform-admin endpoint:
+
+- `GET /admin/auth/settings`
+
+Responses include only allowlisted fields such as provider status, issuers, expiries, and `clientSecretConfigured` flags. Signing keys, client secrets, and raw role-mapping values are never returned.
+
+## Hub sign-in and session
+
+Configured in the Hub deployment environment and `hub/auth.ts` provider registration.
+
+Typical settings include:
+
+- `AUTH_SECRET`
+- `SESSION_MAX_AGE_IN_MINUTES`
+- `AUTH_KEYCLOAK_ENABLED`
+- `AUTH_KEYCLOAK_CLIENT_ID`
+- `AUTH_KEYCLOAK_CLIENT_SECRET`
+- `AUTH_KEYCLOAK_ISSUER`
+
+The Hub admin page reads these values server-side and exposes only presence flags and non-secret metadata to the UI.
+
+## Configuration drift
+
+Because API and Hub are separate processes, they can drift. The Auth Settings page highlights common mismatches, such as:
+
+- Keycloak enabled in the API but inactive in the Hub
+- Keycloak active in the Hub but disabled in the API
+- Different Keycloak issuer values between API and Hub
+
+When drift is detected, align the API `Endatix:Auth:Providers:Keycloak` section with the Hub `AUTH_KEYCLOAK_*` variables.
+
+## Security model
+
+- Platform Admin authorization is required in both Hub and API.
+- Settings are fetched server-side in Hub RSC pages; they are not exposed as public environment variables.
+- Transport security relies on HTTPS between browser, Hub, and API.
+- Admin responses are intentionally non-sensitive. Additional end-to-end encryption is not required for these metadata endpoints.
+
+## Platform admin approval
+
+External identity providers may nominate users for platform administrator access, but local approval is still required. Manage approvals from **Platform Admin → Platform Admins**.
