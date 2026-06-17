@@ -6,7 +6,9 @@ description: Learn about Endatix - the open-source backend for SurveyJS
 
 # What is Endatix?
 
-Endatix Platform is an open-source data collection and management library for .NET.
+Endatix is a modern self-hosted alternative to SaaS form and survey platforms. It enables you to launch your own form management system, packed with features that rival popular SaaS tools such as Typeform, Formstack, Alchemer, Qualtrics, and more.
+
+Endatix is built on top of the industry leading [SurveyJS](https://surveyjs.io/?utm_source=endatix&utm_medium=referral) form library.
 
 :::tip
 
@@ -14,7 +16,7 @@ If you just want to see how to install the platform and read about it later, ple
 
 :::
 
-It is designed for building secure, scalable, and integrated form-centric applications that work with [SurveyJS](https://surveyjs.io). Endatix empowers business users with advanced workflows, automation, and meaningful insights.
+It is designed for building secure, scalable, and integrated form-centric applications. Endatix empowers business users with advanced workflows, automation, and meaningful insights.
 
 The platform provides the necessary backend solution for end-to-end data management:
 - defining and managing complex SurveyJS forms

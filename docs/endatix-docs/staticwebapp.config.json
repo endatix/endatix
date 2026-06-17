@@ -28,7 +28,7 @@
     },
     {
       "route": "/docs/configuration/settings/jwt-settings",
-      "redirect": "docs/configuration/settings/auth-settings",
+      "redirect": "/docs/configuration/settings/auth-settings",
       "statusCode": 301
     },
     {
@@ -54,6 +54,11 @@
     {
       "route": "/docs/settings/persistence-settings",
       "redirect": "/docs/configuration/settings/persistence-settings",
+      "statusCode": 301
+    },
+    {
+      "route": "/docs/end-users/overview",
+      "redirect": "/docs/end-users/forms",
       "statusCode": 301
     }
   ],
