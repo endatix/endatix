@@ -28,6 +28,8 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
     {
         Guard.Against.NullOrWhiteSpace(eventType, nameof(eventType));
         Guard.Against.NullOrWhiteSpace(payload, nameof(payload));
+        Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
+        Guard.Against.NegativeOrZero(schemaVersion, nameof(schemaVersion));
 
         EventType = eventType;
         Payload = payload;
@@ -84,6 +86,15 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
     public void Claim(string lockedBy, DateTime lockedUntil)
     {
         Guard.Against.NullOrWhiteSpace(lockedBy, nameof(lockedBy));
+        if (lockedUntil <= DateTime.UtcNow)
+        {
+            throw new ArgumentOutOfRangeException(nameof(lockedUntil), "Lease expiry must be in the future.");
+        }
+        EnsurePending(nameof(Claim));
+        if (LockedUntil is { } currentLease && currentLease > DateTime.UtcNow)
+        {
+            throw new InvalidOperationException("Cannot claim an outbox message that is already leased.");
+        }
         LockedBy = lockedBy;
         LockedUntil = lockedUntil;
     }
@@ -91,6 +102,7 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
     /// <summary>Marks the message as successfully published and releases the lease.</summary>
     public void MarkSent(DateTime processedAt)
     {
+        EnsurePending(nameof(MarkSent));
         Status = OutboxMessageStatus.Sent;
         ProcessedAt = processedAt;
         ReleaseLease();
@@ -99,6 +111,7 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
     /// <summary>Records a failed attempt and schedules a retry, releasing the lease.</summary>
     public void Reschedule(DateTime nextAttemptAt)
     {
+        EnsurePending(nameof(Reschedule));
         Attempts++;
         NextAttemptAt = nextAttemptAt;
         ReleaseLease();
@@ -107,6 +120,7 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
     /// <summary>Records a final failed attempt and moves the message to <see cref="OutboxMessageStatus.Failed"/>.</summary>
     public void MarkFailed(DateTime processedAt)
     {
+        EnsurePending(nameof(MarkFailed));
         Attempts++;
         Status = OutboxMessageStatus.Failed;
         ProcessedAt = processedAt;
@@ -117,5 +131,16 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
     {
         LockedUntil = null;
         LockedBy = null;
+    }
+
+    // A message is only mutable while Pending (it may be Pending-and-leased). Sent/Failed are terminal,
+    // so guarding here prevents duplicate publishes and inconsistent rows from out-of-order relay calls.
+    private void EnsurePending(string operation)
+    {
+        if (Status != OutboxMessageStatus.Pending)
+        {
+            throw new InvalidOperationException(
+                $"Cannot {operation} an outbox message in status {Status}; only Pending messages are mutable.");
+        }
     }
 }
