@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Provisioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
     IKeycloakTokenIntrospectionService tokenIntrospectionService,
     KeycloakExternalIdentityProfileResolver identityProfileResolver,
     IExternalAppUserProvisioner externalAppUserProvisioner,
+    IPlatformAdminLocalApprovalGate platformAdminLocalApprovalGate,
     ILogger<KeycloakTokenIntrospectionAuthorization> logger
     ) : IAuthorizationStrategy
 {
@@ -34,7 +36,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             .GetActiveProviders()
             .FirstOrDefault(provider => provider.CanHandle(issuer, string.Empty));
 
-        return activeProvider is not null && activeProvider is KeycloakAuthProvider;
+        return activeProvider is KeycloakAuthProvider;
     }
 
     /// <inheritdoc />
@@ -71,10 +73,9 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                 return introspectionResult.ToErrorResult<AuthorizationData>();
             }
 
-            var rolesMappingConfig = keycloakSettings.Authorization.RoleMappings;
             var mappingResult = await externalAuthorizationMapper.MapToAppRolesAsync(
                 introspectionResult.Value.ExternalRoles,
-                rolesMappingConfig,
+                keycloakSettings.Authorization.RoleMappings,
                 cancellationToken);
             if (!mappingResult.IsSuccess)
             {
@@ -87,13 +88,17 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                 return Result<AuthorizationData>.Unauthorized("External subject id is required.");
             }
 
-            if (!ShouldProvisionHubAppUser(mappingResult))
+            if (!RequiresHubAppUser(mappingResult))
             {
-                return Result.Success(AuthorizationData.ForAuthenticatedUser(
+                return await BuildAuthorizationDataAsync(
+                    keycloakSettings.DefaultTenantId,
+                    AuthProviders.Keycloak,
+                    subject,
                     userId: subject,
-                    tenantId: keycloakSettings.DefaultTenantId,
-                    roles: mappingResult.Roles,
-                    permissions: mappingResult.Permissions));
+                    provisionedUserId: null,
+                    mappingResult.Roles,
+                    mappingResult.Permissions,
+                    cancellationToken);
             }
 
             var identityProfileResult = await identityProfileResolver.ResolveAsync(
@@ -121,21 +126,47 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                 return provisionResult.ToErrorResult<AuthorizationData>();
             }
 
-            var authorizationData = AuthorizationData.ForAuthenticatedUser(
+            return await BuildAuthorizationDataAsync(
+                keycloakSettings.DefaultTenantId,
+                AuthProviders.Keycloak,
+                subject,
                 userId: provisionResult.Value.Id.ToString(),
-                tenantId: keycloakSettings.DefaultTenantId,
-                roles: mappingResult.Roles,
-                permissions: mappingResult.Permissions
-            );
-
-            return Result.Success(authorizationData);
-
+                provisionedUserId: provisionResult.Value.Id,
+                mappingResult.Roles,
+                mappingResult.Permissions,
+                cancellationToken);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error getting authorization data from Keycloak");
             return Result.Error("Failed to get authorization data from Keycloak");
         }
+    }
+
+    private async Task<Result<AuthorizationData>> BuildAuthorizationDataAsync(
+        long tenantId,
+        string authProvider,
+        string externalSubjectId,
+        string userId,
+        long? provisionedUserId,
+        string[] mappedRoles,
+        string[] mappedPermissions,
+        CancellationToken cancellationToken)
+    {
+        var filteredAuthorization = await platformAdminLocalApprovalGate.ApplyAsync(
+            tenantId,
+            authProvider,
+            externalSubjectId,
+            provisionedUserId,
+            mappedRoles,
+            mappedPermissions,
+            cancellationToken);
+
+        return Result.Success(AuthorizationData.ForAuthenticatedUser(
+            userId: userId,
+            tenantId: tenantId,
+            roles: filteredAuthorization.Roles,
+            permissions: filteredAuthorization.Permissions));
     }
 
     private Result<string> ResolveAccessToken()
@@ -155,7 +186,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     }
 
-    private static bool ShouldProvisionHubAppUser(IExternalAuthorizationMapper.MappingResult mappingResult)
+    private static bool RequiresHubAppUser(IExternalAuthorizationMapper.MappingResult mappingResult)
     {
         return mappingResult.Roles.Any(role =>
                 string.Equals(role, SystemRole.Admin.Name, StringComparison.OrdinalIgnoreCase) ||

@@ -142,6 +142,7 @@ public class InfrastructureSecurityBuilder
         Services.TryAddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
         Services.TryAddScoped<IExternalAppUserProfileReader, ExternalAppUserProfileReader>();
         Services.TryAddScoped<IExternalAppUserProvisioner, ExternalAppUserProvisioner>();
+        Services.TryAddScoped<IPlatformAdminLocalApprovalGate, PlatformAdminLocalApprovalGate>();
 
         return this;
     }

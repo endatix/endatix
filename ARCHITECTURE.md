@@ -43,7 +43,7 @@ Core cannot reference EF and other infrastructure concerns. Forcing every list t
 1. **Vertical slices by feature** — colocate related code (queries, shared projection helpers, endpoints) under a feature name, not scattered by technical layer only.
 2. **Core owns rules, not every query** — entities, invariants, authorization, and ports for swappable integrations stay in Core. Paged admin lists and report-style reads live in Infrastructure (or a module).
 3. **Mediator/CQRS is optional** — use MediatR for mutations, workflows, and domain events; skip it for thin EF read models.
-4. **Interfaces at real boundaries only** — email, storage, role mutation ports, host plugins. Do not add `IListXQuery` with a single implementation used by one endpoint.
+4. **Interfaces at real boundaries only** — email, storage, role mutation ports, host plugins. **Internal** shared read contracts within a feature slice are fine when multiple queries reuse EF logic (e.g. `IPlatformAdminUserListing`). Avoid **endpoint-facing** `IListX` interfaces whose only purpose is mocking a single concrete query in API tests; prefer the patterns in [Testing](#testing) instead.
 5. **Specifications when reused** — Ardalis specs for repeatable aggregate filters in Core/repositories; LINQ in feature query classes for one-off admin projections.
 
 ### Work classification
@@ -99,17 +99,17 @@ Endatix.Infrastructure/Features/PlatformAdmin/
     PlatformTenantListItem.cs
 ```
 
-Endpoints inject the concrete query type:
+Endpoints inject the feature query type directly (or `IMediator` for mutations):
 
 ```csharp
+// Read — direct injection (today)
 public sealed class List(ListPlatformAdmins listPlatformAdmins) : Endpoint<...>
-{
-    public override async Task<...> ExecuteAsync(...)
-        => TypedResultsBuilder.MapResult(
-            await listPlatformAdmins.ExecuteAsync(...),
-            PlatformAdminUserResponse.MapPage);
-}
+
+// Write — MediatR + Core handler
+public sealed class Grant(IMediator mediator) : Endpoint<...>
 ```
+
+**Registration today** (`AddPlatformAdminFeatures`) mixes styles: shared EF behind `IPlatformAdminUserListing`, thin orchestrators as concrete `ListPlatformAdmins` / `ListPlatformAdminCandidates`, and `IListPlatformTenants` (a transitional endpoint-test seam). Align new work with the [testing evolution](#testing-evolution) below rather than adding more one-off `IList*` types.
 
 **Writes** (`Grant` / `Revoke`) still use MediatR + Core handlers + `IRoleManagementService` because they enforce governance and publish domain events.
 
@@ -126,7 +126,7 @@ This split is the template for new platform-admin and similar admin read endpoin
 | Shared pipeline behaviors (validation, logging) | Endpoint → `ListX.ExecuteAsync` |
 | Cross-feature orchestration in Core | Auth admin settings read (`IAuthSettingsReader`) |
 
-Modules may keep MediatR for reads when endpoints and handlers already live in one package; OSS monolith admin lists prefer **direct injection** to avoid Core indirection.
+Modules may keep MediatR for reads when endpoints and handlers already live in one package. OSS monolith admin lists use **direct `List*` injection** when a slice has shared `Common/` EF (path A); standalone reads should lean toward **Infrastructure `IQuery` + `IMediator`** (path B) for consistent endpoint tests — see [Testing evolution](#testing-evolution).
 
 ---
 
@@ -144,11 +144,56 @@ When touching a feature, prefer migrating **reads** to Infrastructure feature qu
 
 ## Testing
 
-| Layer | Approach |
-|-------|----------|
-| Core domain / mutation handlers | Unit tests with mocked ports |
-| Infrastructure feature queries | Integration tests with test DB when added |
-| API | Endpoint/functional tests; response mapping tests (e.g. `PlatformAdminUserResponseTests`) |
+We do **not** rely on integration or test-database coverage for feature read models. Testability comes from **layered unit tests** and **extracted collaborators**, not from registering mock-friendly interfaces on every query.
+
+### Layers
+
+| Layer | What to test | How |
+|-------|----------------|-----|
+| **API endpoints** | HTTP mapping, paging defaults, response shaping | `Factory.Create` + mock **`IMediator`** (preferred for reads that use it) or mock **internal** slice contract only when the endpoint already depends on one. Response mapper tests (e.g. `PlatformAdminUserResponseTests`) where mapping is non-trivial. |
+| **Thin orchestrators** | Parameter forwarding, early exits, scope selection | Unit-test the `List*` class with **mocked shared read contract** (e.g. `ListPlatformAdmins` + `IPlatformAdminUserListing`). |
+| **Shared EF read logic** | Query composition, filters, projections | Extract **pure or mockable** pieces and test those (`PlatformAdminUserRoleScope`, `PlatformAdminExternalRoleReader`, `IRelationalSubstringLikeFilter`). The DbContext-heavy class itself is an orchestrator of EF — cover behavior through collaborators + orchestrator tests above, not a live database. |
+| **Core mutations** | Invariants, events, port calls | Unit tests with mocked ports (`IRoleManagementService`, …) on `ICommandHandler` / handler types. |
+
+### `IListPlatformTenants` and similar
+
+Yes, the **`ListPlatformTenants` implementation** should be covered — but not via integration tests. Today the endpoint is tested through `IListPlatformTenants`; the EF implementation is the gap. Close it by:
+
+1. Extracting reusable, testable collaborators (search filter, role scope, external-role parsing — same playbook as Platform Admin users).
+2. Unit-testing the thin `List*` orchestrator if it gains branching logic.
+3. **Not** adding permanent endpoint-only interfaces; treat `IListPlatformTenants` as transitional.
+
+`PlatformAdminUserListing` follows the target shape: heavy EF stays in one class, testable logic lives in `Common/` helpers, and `ListPlatformAdmins` tests mock `IPlatformAdminUserListing`.
+
+### Testing evolution
+
+Core already defines MediatR markers — `ICommand<T>`, `IQuery<T>`, `ICommandHandler<,>`, `IQueryHandler<,>` — for **Core-owned** work (mutations, cross-cutting reads like `GetAuthSettingsQuery`). Infrastructure feature reads today mostly use **direct `List*` injection**, which forces ad hoc test seams (`IListPlatformTenants`) or skipped implementation tests.
+
+**Direction (no big-bang):**
+
+| Path | When | Endpoint tests | Implementation tests |
+|------|------|----------------|----------------------|
+| **A — Decomposed direct injection** (current Platform Admin users) | Shared EF across multiple lists in a slice | Inject concrete `List*`; mock only if an **internal** shared contract exists | Mock shared contract; unit-test extracted `Common/` helpers |
+| **B — Infrastructure MediatR reads** (Agents module style) | New or refactored OSS read endpoints | Always **`IMediator`** — one established mock | Handler unit tests with mocked DbContext ports / sub-services (same as Core handlers) |
+| **C — Core `IQuery`** | Read belongs in Core (persistence-agnostic, shared rules) | `IMediator` | Core handler + mocked ports |
+
+Prefer **A** when a slice has shared EF in `Common/`. Prefer **B** when a read is standalone and endpoint test consistency matters more than avoiding MediatR. Do **not** introduce parallel `IListX` interfaces solely for API tests — either use `IMediator` (B/C) or extract internal collaborators (A).
+
+Mutations stay on **Core `ICommand`** + handlers (or module commands) regardless of read path.
+
+```
+                    ┌─────────────────────────────────────┐
+  Endpoint          │  IMediator.Send(ListXQuery)         │  ← target for standalone reads (B)
+                    │  or  listX.ExecuteAsync(...)        │  ← OK when Common/ is decomposed (A)
+                    └─────────────────┬───────────────────┘
+                                      │
+          ┌───────────────────────────┼───────────────────────────┐
+          ▼                           ▼                           ▼
+   Core ICommandHandler      Infra IQueryHandler (B)     List* + IPlatformAdmin* (A)
+   + ports                   + DbContext / sub-services   + Common/* unit tests
+```
+
+When touching Platform Admin registration or new admin lists, migrate toward **one dispatch style per slice** and remove duplicate registrations (e.g. both `IListPlatformTenants` and concrete `ListPlatformTenants`).
 
 ---
 
@@ -175,3 +220,4 @@ Use for new list endpoints with optional `Search`. Feature-specific filters stay
 | 2026-06 | Platform Admin lists: `*QueryService` → `List*` slice types; shared logic in `Common/`; register via `AddPlatformAdminFeatures()`. |
 | 2026-06 | Document Agents module as modular end-state; OSS monolith uses the same slice naming inside `Infrastructure/Features/`. |
 | 2026-06 | Shared paging: `PagedRequestLimits`, `ISearchablePagedRequest`, `SearchablePagedRequestValidator` for searchable list endpoints. |
+| 2026-06 | Testing: unit-only for feature reads — decomposed collaborators + orchestrator mocks; evolve standalone reads toward Infrastructure `IQuery`/MediatR or internal `Common/` contracts; avoid permanent endpoint-facing `IList*` seams. |

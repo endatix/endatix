@@ -281,6 +281,28 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     }
 
     [Fact]
+    public async Task GetAuthorizationDataAsync_ExcludesPlatformAdmin_WhenLocalApprovalIsMissing()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TestIssuer, activate: true);
+        context.SetSuccessfulIntrospectionResponse(["kc-platform-admin"]);
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
+            [SystemRole.PlatformAdmin.Name],
+            []);
+        context.PlatformAdminLocalApprovalGate.StripPlatformAdmin = true;
+        var principal = CreatePrincipal("123", TestIssuer);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Roles.Should().Contain(SystemRole.Authenticated.Name);
+        result.Value.Roles.Should().NotContain(SystemRole.PlatformAdmin.Name);
+    }
+
+    [Fact]
     public async Task GetAuthorizationDataAsync_UsesUserInfo_WhenPrincipalAndIntrospectionProfileAreMissingEmail()
     {
         // Arrange
@@ -405,6 +427,8 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
                 ExternalSubjectId = "123"
             }));
 
+        var platformAdminLocalApprovalGate = new StubPlatformAdminLocalApprovalGate();
+
         var logger = Substitute.For<ILogger<KeycloakTokenIntrospectionAuthorization>>();
 
         var strategy = new KeycloakTokenIntrospectionAuthorization(
@@ -415,6 +439,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             tokenIntrospectionService,
             profileResolver,
             externalOperatorProvisioner,
+            platformAdminLocalApprovalGate,
             logger);
 
         return new TestContext(
@@ -426,6 +451,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             ExternalAppUserProfileReader: externalOperatorProfileReader,
             UserInfoProfileService: userInfoProfileService,
             ExternalAppUserProvisioner: externalOperatorProvisioner,
+            PlatformAdminLocalApprovalGate: platformAdminLocalApprovalGate,
             Handler: handler,
             Strategy: strategy);
     }
@@ -439,6 +465,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         StubExternalAppUserProfileReader ExternalAppUserProfileReader,
         StubKeycloakUserInfoProfileService UserInfoProfileService,
         IExternalAppUserProvisioner ExternalAppUserProvisioner,
+        StubPlatformAdminLocalApprovalGate PlatformAdminLocalApprovalGate,
         ConfigurableHttpMessageHandler Handler,
         KeycloakTokenIntrospectionAuthorization Strategy)
     {
@@ -512,6 +539,34 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             {
                 Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
             });
+        }
+    }
+
+    private sealed class StubPlatformAdminLocalApprovalGate : IPlatformAdminLocalApprovalGate
+    {
+        public bool StripPlatformAdmin { get; set; }
+
+        public Task<PlatformAdminFilteredAuthorization> ApplyAsync(
+            long tenantId,
+            string authProvider,
+            string externalSubjectId,
+            long? userId,
+            string[] mappedRoles,
+            string[] mappedPermissions,
+            CancellationToken cancellationToken)
+        {
+            if (!StripPlatformAdmin || !mappedRoles.Any(SystemRole.IsPlatformAdminRoleName))
+            {
+                return Task.FromResult(new PlatformAdminFilteredAuthorization(mappedRoles, mappedPermissions));
+            }
+
+            var filteredRoles = mappedRoles
+                .Where(role => !SystemRole.IsPlatformAdminRoleName(role))
+                .ToArray();
+
+            return Task.FromResult(new PlatformAdminFilteredAuthorization(
+                filteredRoles,
+                filteredRoles.Length == 0 ? [] : mappedPermissions));
         }
     }
 
