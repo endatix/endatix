@@ -497,10 +497,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<int>("Attempts")
                         .HasColumnType("integer");
 
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 

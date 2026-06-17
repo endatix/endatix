@@ -23,7 +23,6 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
         long tenantId,
         DateTime occurredAt,
         int schemaVersion,
-        string? correlationId = null,
         string? traceId = null)
     {
         Guard.Against.NullOrWhiteSpace(eventType, nameof(eventType));
@@ -36,7 +35,6 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
         TenantId = tenantId;
         OccurredAt = occurredAt;
         SchemaVersion = schemaVersion;
-        CorrelationId = correlationId;
         TraceId = traceId;
         Status = OutboxMessageStatus.Pending;
         Attempts = 0;
@@ -62,7 +60,7 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
     /// <summary>Number of publish attempts made so far.</summary>
     public int Attempts { get; private set; }
 
-    public string? CorrelationId { get; private set; }
+    /// <summary>Originating distributed-trace id (captured at write time) for cross-process correlation.</summary>
     public string? TraceId { get; private set; }
 
     /// <summary>When the message reached a terminal state (Sent or Failed).</summary>

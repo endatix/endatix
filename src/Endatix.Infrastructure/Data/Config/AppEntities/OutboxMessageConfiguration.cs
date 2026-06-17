@@ -40,10 +40,6 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
         builder.Property(o => o.Attempts)
             .IsRequired();
 
-        builder.Property(o => o.CorrelationId)
-            .HasMaxLength(IDENTIFIER_MAX_LENGTH)
-            .IsRequired(false);
-
         builder.Property(o => o.TraceId)
             .HasMaxLength(IDENTIFIER_MAX_LENGTH)
             .IsRequired(false);

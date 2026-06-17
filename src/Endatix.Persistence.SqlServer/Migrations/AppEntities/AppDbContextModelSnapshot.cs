@@ -498,10 +498,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<int>("Attempts")
                         .HasColumnType("int");
 
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 

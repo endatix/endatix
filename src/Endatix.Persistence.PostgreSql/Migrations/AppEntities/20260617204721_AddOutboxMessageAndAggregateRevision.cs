@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
+namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     /// <inheritdoc />
     public partial class AddOutboxMessageAndAggregateRevision : Migration
@@ -30,23 +30,22 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
-                    EventType = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                    Payload = table.Column<string>(type: "json", nullable: false),
+                    EventType = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    Payload = table.Column<string>(type: "jsonb", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
-                    OccurredAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    SchemaVersion = table.Column<int>(type: "int", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    Attempts = table.Column<int>(type: "int", nullable: false),
-                    CorrelationId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
-                    TraceId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
-                    ProcessedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    LockedUntil = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    LockedBy = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
-                    NextAttemptAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
+                    OccurredAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SchemaVersion = table.Column<int>(type: "integer", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    Attempts = table.Column<int>(type: "integer", nullable: false),
+                    TraceId = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
+                    ProcessedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LockedUntil = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LockedBy = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
+                    NextAttemptAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -57,7 +56,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 name: "IX_Outbox_Pending",
                 table: "OutboxMessages",
                 columns: new[] { "LockedUntil", "Id" },
-                filter: "[Status] = 0");
+                filter: "\"Status\" = 0");
         }
 
         /// <inheritdoc />

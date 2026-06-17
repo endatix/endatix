@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260617202646_AddOutboxMessageAndAggregateRevision")]
+    [Migration("20260617204721_AddOutboxMessageAndAggregateRevision")]
     partial class AddOutboxMessageAndAggregateRevision
     {
         /// <inheritdoc />
@@ -499,10 +499,6 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
                     b.Property<int>("Attempts")
                         .HasColumnType("integer");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");

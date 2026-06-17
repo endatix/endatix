@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260617202654_AddOutboxMessageAndAggregateRevision")]
+    [Migration("20260617204730_AddOutboxMessageAndAggregateRevision")]
     partial class AddOutboxMessageAndAggregateRevision
     {
         /// <inheritdoc />
@@ -500,10 +500,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<int>("Attempts")
                         .HasColumnType("int");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
