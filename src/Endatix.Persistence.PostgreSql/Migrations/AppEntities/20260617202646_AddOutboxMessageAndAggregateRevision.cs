@@ -31,7 +31,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     EventType = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    Payload = table.Column<string>(type: "text", nullable: false),
+                    Payload = table.Column<string>(type: "jsonb", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     OccurredAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     SchemaVersion = table.Column<int>(type: "integer", nullable: false),
@@ -54,9 +54,10 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_OutboxMessages_Status_LockedUntil_Id",
+                name: "IX_Outbox_Pending",
                 table: "OutboxMessages",
-                columns: new[] { "Status", "LockedUntil", "Id" });
+                columns: new[] { "LockedUntil", "Id" },
+                filter: "\"Status\" = 0");
         }
 
         /// <inheritdoc />

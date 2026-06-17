@@ -533,7 +533,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.Property<string>("Payload")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("timestamp with time zone");
@@ -553,7 +553,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Status", "LockedUntil", "Id");
+                    b.HasIndex("LockedUntil", "Id")
+                        .HasDatabaseName("IX_Outbox_Pending")
+                        .HasFilter("\"Status\" = 0");
 
                     b.ToTable("OutboxMessages", (string)null);
                 });

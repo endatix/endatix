@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260616134120_AddOutboxMessageAndAggregateRevision")]
+    [Migration("20260617202646_AddOutboxMessageAndAggregateRevision")]
     partial class AddOutboxMessageAndAggregateRevision
     {
         /// <inheritdoc />
@@ -536,7 +536,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
                     b.Property<string>("Payload")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("timestamp with time zone");
@@ -556,7 +556,9 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Status", "LockedUntil", "Id");
+                    b.HasIndex("LockedUntil", "Id")
+                        .HasDatabaseName("IX_Outbox_Pending")
+                        .HasFilter("\"Status\" = 0");
 
                     b.ToTable("OutboxMessages", (string)null);
                 });

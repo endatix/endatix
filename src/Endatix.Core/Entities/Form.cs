@@ -9,7 +9,7 @@ namespace Endatix.Core.Entities;
 /// <summary>
 /// Forms are main entities in the Endatix platform. They are used to create and manage forms, surveys or questionnaires that can be used to collect data from users.
 /// </summary>
-public partial class Form : TenantEntity, IAggregateRoot, IHasFolder
+public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevision
 {
     private readonly List<FormDefinition> _formDefinitions = [];
     private readonly List<FormDependency> _dependencies = [];

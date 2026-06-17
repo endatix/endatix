@@ -31,7 +31,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     EventType = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                    Payload = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Payload = table.Column<string>(type: "json", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     OccurredAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     SchemaVersion = table.Column<int>(type: "int", nullable: false),
@@ -54,9 +54,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_OutboxMessages_Status_LockedUntil_Id",
+                name: "IX_Outbox_Pending",
                 table: "OutboxMessages",
-                columns: new[] { "Status", "LockedUntil", "Id" });
+                columns: new[] { "LockedUntil", "Id" },
+                filter: "[Status] = 0");
         }
 
         /// <inheritdoc />

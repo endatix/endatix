@@ -4,7 +4,7 @@ using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
+public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHasRevision
 {
     private const string SINGLE_SUBMISSION_RESTRICTION_PREFIX = "SingleSubmission";
 

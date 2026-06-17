@@ -534,7 +534,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("Payload")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("datetime2");
@@ -554,7 +554,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Status", "LockedUntil", "Id");
+                    b.HasIndex("LockedUntil", "Id")
+                        .HasDatabaseName("IX_Outbox_Pending")
+                        .HasFilter("[Status] = 0");
 
                     b.ToTable("OutboxMessages", (string)null);
                 });

@@ -52,8 +52,7 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
             .HasMaxLength(IDENTIFIER_MAX_LENGTH)
             .IsRequired(false);
 
-        // Drives the relay claim query: filter on Status, skip leased rows, order by Id.
-        // A provider-specific filtered/partial index on Status = Pending is a later optimization.
-        builder.HasIndex(o => new { o.Status, o.LockedUntil, o.Id });
+        // The relay claim index and the Payload json/jsonb column type are provider-specific —
+        // see OutboxMessageConfigurationPostgreSql / OutboxMessageConfigurationSqlServer.
     }
 }

@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260616134136_AddOutboxMessageAndAggregateRevision")]
+    [Migration("20260617202654_AddOutboxMessageAndAggregateRevision")]
     partial class AddOutboxMessageAndAggregateRevision
     {
         /// <inheritdoc />
@@ -537,7 +537,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("Payload")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("datetime2");
@@ -557,7 +557,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Status", "LockedUntil", "Id");
+                    b.HasIndex("LockedUntil", "Id")
+                        .HasDatabaseName("IX_Outbox_Pending")
+                        .HasFilter("[Status] = 0");
 
                     b.ToTable("OutboxMessages", (string)null);
                 });
