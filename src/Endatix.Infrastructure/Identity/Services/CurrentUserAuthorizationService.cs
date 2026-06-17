@@ -185,7 +185,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         long tenantId,
         CancellationToken cancellationToken)
     {
-        Guard.Against.NullOrEmpty(userId, nameof(userId));
+        Guard.Against.NullOrEmpty(userId);
 
         return _authorizationCache.InvalidateAsync(userId, tenantId, cancellationToken);
     }

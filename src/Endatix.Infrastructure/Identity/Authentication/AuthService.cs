@@ -45,8 +45,8 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
         DateTime refreshTokenExpireAt,
         CancellationToken cancellationToken)
     {
-        Guard.Against.NegativeOrZero(userId, nameof(userId));
-        Guard.Against.NullOrEmpty(refreshToken, nameof(refreshToken));
+        Guard.Against.NegativeOrZero(userId);
+        Guard.Against.NullOrEmpty(refreshToken);
 
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user is null)
