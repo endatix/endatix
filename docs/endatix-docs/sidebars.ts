@@ -154,7 +154,6 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       link: {
         type: "generated-index",
-        slug: "forms",
         title: "Forms",
       },
       items: [
@@ -164,7 +163,6 @@ const sidebars: SidebarsConfig = {
           collapsed: false,
           link: {
             type: "generated-index",
-            slug: "form-builder",
             title: "Form Builder",
           },
           items: [
