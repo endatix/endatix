@@ -9,13 +9,27 @@ namespace Endatix.Core.Abstractions;
 public interface IAuthService
 {
     /// <summary>
-    /// Validates user credentials.
+    /// Validates user credentials without persisting session state.
     /// </summary>
     /// <param name="email">The email of the user.</param>
     /// <param name="password">The password of the user.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the validation result.</returns>
     Task<Result<User>> ValidateCredentials(string email, string password, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Persists login session state for an already authenticated user.
+    /// </summary>
+    /// <param name="userId">The ID of the user.</param>
+    /// <param name="refreshToken">The refresh token to store.</param>
+    /// <param name="refreshTokenExpireAt">The expiration date and time of the refresh token.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the persistence result.</returns>
+    Task<Result> PersistLoginSessionAsync(
+        long userId,
+        string refreshToken,
+        DateTime refreshTokenExpireAt,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Validates a refresh token for a user.

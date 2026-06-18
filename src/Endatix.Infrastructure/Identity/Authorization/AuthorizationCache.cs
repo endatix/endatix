@@ -54,6 +54,7 @@ internal class AuthorizationCache(
             claimIdentityId,
             endatixJwtOptions.Value.SigningKey);
         var cacheKey = GetClaimsCacheKey(cacheKeyTokenPart);
+        var tenantId = principal.GetTenantId();
         var now = dateTimeProvider.Now.UtcDateTime;
 
         return await hybridCache.GetOrCreateAsync(
@@ -74,7 +75,7 @@ internal class AuthorizationCache(
                 Expiration = cacheExpiration,
                 LocalCacheExpiration = cacheExpiration
             },
-            tags: AllAuthDataCacheTags,
+            tags: GetAuthDataCacheTags(userId, tenantId),
             cancellationToken
         );
     }
@@ -86,7 +87,7 @@ internal class AuthorizationCache(
         var expiration = principal is not null
             ? ComputeExpiration(principal)
             : _defaultExpiration;
-        var tags = AllAuthDataCacheTags;
+        var tags = GetAuthDataCacheTags(userId, tenantId);
         var now = dateTimeProvider.Now.UtcDateTime;
 
         return await hybridCache.GetOrCreateAsync(
@@ -116,6 +117,8 @@ internal class AuthorizationCache(
     {
         var cacheKey = GetUserAuthDataCacheKey(userId, tenantId);
         await hybridCache.RemoveAsync(cacheKey, cancellationToken);
+        await hybridCache.RemoveByTagAsync(GetUserAuthDataTag(userId), cancellationToken);
+        await hybridCache.RemoveByTagAsync(GetUserTenantAuthDataTag(userId, tenantId), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -130,8 +133,19 @@ internal class AuthorizationCache(
     // Generate cache key for saving authorization data for a user with explicit userId and tenantId
     private static string GetUserAuthDataCacheKey(string userId, long tenantId) => $"{USER_AUTH_DATA_CACHE_KEY_PREFIX}:{userId}:{tenantId}";
 
+    private static string GetUserAuthDataTag(string userId) => $"auth_data:user:{userId}";
+
+    private static string GetUserTenantAuthDataTag(string userId, long tenantId) => $"auth_data:user:{userId}:tenant:{tenantId}";
+
     // Cache tag for all authorization data
     private static string[] AllAuthDataCacheTags => [ALL_AUTH_DATA_TAG];
+
+    private static string[] GetAuthDataCacheTags(string userId, long tenantId) =>
+    [
+        ALL_AUTH_DATA_TAG,
+        GetUserAuthDataTag(userId),
+        GetUserTenantAuthDataTag(userId, tenantId)
+    ];
 
     /// <summary>
     /// Computes the expiration time for the authorization data cache.

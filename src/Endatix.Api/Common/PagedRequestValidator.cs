@@ -5,6 +5,7 @@ namespace Endatix.Api.Common;
 /// <summary>
 /// Reusable Fluent validation for the IPagedRequest implementations.
 /// To use in your Validators add this to the validation <c>Include(new PagedRequestValidator());</c>
+/// For searchable paged lists, prefer <see cref="SearchablePagedRequestValidator"/>.
 /// </summary>
 public class PagedRequestValidator : AbstractValidator<IPagedRequest>
 {

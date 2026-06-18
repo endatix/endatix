@@ -93,7 +93,7 @@ public sealed class List(IMediator mediator)
 /// <summary>
 /// Request for listing users in the current tenant. Tenant filter is implicit.
 /// </summary>
-public record ListUsersRequest : IPagedRequest
+public record ListUsersRequest : ISearchablePagedRequest
 {
     /// <inheritdoc />
     public int? Page { get; set; }
@@ -183,15 +183,7 @@ public class ListUsersValidator : Validator<ListUsersRequest>
     /// </summary>
     public ListUsersValidator()
     {
-        Include(new PagedRequestValidator());
-
-        RuleFor(x => x.PageSize)
-            .LessThanOrEqualTo(ListUsersQuery.MaxPageSize)
-            .When(x => x.PageSize.HasValue);
-
-        RuleFor(x => x.Search)
-            .MaximumLength(256)
-            .When(x => x.Search is not null);
+        Include(new SearchablePagedRequestValidator());
 
         RuleFor(x => x.Role)
             .MaximumLength(256)

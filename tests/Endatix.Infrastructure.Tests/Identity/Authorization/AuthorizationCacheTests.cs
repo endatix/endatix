@@ -250,6 +250,8 @@ public sealed class AuthorizationCacheTests
         await _cache.InvalidateAsync("123", 42, CancellationToken.None);
 
         await _hybridCache.Received(1).RemoveAsync("usr_auth:123:42", Arg.Any<CancellationToken>());
+        await _hybridCache.Received(1).RemoveByTagAsync("auth_data:user:123", Arg.Any<CancellationToken>());
+        await _hybridCache.Received(1).RemoveByTagAsync("auth_data:user:123:tenant:42", Arg.Any<CancellationToken>());
     }
 
     [Fact]

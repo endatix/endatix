@@ -20,8 +20,10 @@ using Endatix.Infrastructure.Features.AccessControl;
 using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Abstractions.Authorization.PublicForm;
+using Endatix.Core.Features.Auth;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.Authorization.PublicForm;
+using Endatix.Infrastructure.Features.PlatformAdmin;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -122,6 +124,8 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IResourceAccessQuery<FormTemplateAccessData, FormTemplateAccessContext>>(sp => sp.GetRequiredService<FormTemplateAccessPolicy>());
 
         services.AddScoped<IFormAccessCacheInvalidator, FormAccessCacheInvalidator>();
+        services.AddPlatformAdminFeatures();
+        services.AddScoped<IAuthSettingsReader, AuthSettingsReader>();
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()

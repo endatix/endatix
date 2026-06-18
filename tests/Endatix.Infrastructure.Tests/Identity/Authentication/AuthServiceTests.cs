@@ -22,6 +22,9 @@ public class AuthServiceTests
         _authService = new AuthService(_userManager, _passwordHasher);
     }
 
+    private const string RefreshToken = "refresh-token";
+    private static readonly DateTime _refreshTokenExpireAt = DateTime.UtcNow.AddDays(7);
+
     [Fact]
     public async Task ValidateCredentials_NullEmail_ThrowsArgumentNullException()
     {
@@ -134,10 +137,11 @@ public class AuthServiceTests
         result.IsSuccess.Should().BeFalse();
         result.ValidationErrors.Should().NotBeNull();
         result.ValidationErrors.First().ErrorMessage.Should().Contain(AuthService.INVALID_CREDENTIALS_ERROR_MESSAGE);
+        await _userManager.DidNotReceive().UpdateAsync(Arg.Any<AppUser>());
     }
 
     [Fact]
-    public async Task ValidateCredentials_ValidCredentials_ReturnsSuccessResult()
+    public async Task ValidateCredentials_ValidCredentials_ReturnsSuccessWithoutPersistingSession()
     {
         // Arrange
         var userId = 1;
@@ -166,6 +170,86 @@ public class AuthServiceTests
         result.Value.UserName.Should().Be(email);
         result.Value.Email.Should().Be(email);
         result.Value.IsVerified.Should().BeTrue();
+        await _userManager.DidNotReceive().UpdateAsync(Arg.Any<AppUser>());
+    }
+
+    [Fact]
+    public async Task PersistLoginSessionAsync_InvalidUserId_ThrowsArgumentException()
+    {
+        // Act
+        var act = () => _authService.PersistLoginSessionAsync(
+            0,
+            RefreshToken,
+            _refreshTokenExpireAt,
+            CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage(ErrorMessages.GetErrorMessage("userId", ErrorType.ZeroOrNegative));
+    }
+
+    [Fact]
+    public async Task PersistLoginSessionAsync_NullRefreshToken_ThrowsArgumentNullException()
+    {
+        // Act
+        var act = () => _authService.PersistLoginSessionAsync(
+            1,
+            null!,
+            _refreshTokenExpireAt,
+            CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentNullException>()
+            .WithMessage(ErrorMessages.GetErrorMessage("refreshToken", ErrorType.Null));
+    }
+
+    [Fact]
+    public async Task PersistLoginSessionAsync_UserNotFound_ReturnsError()
+    {
+        // Arrange
+        _userManager.FindByIdAsync(Arg.Any<string>()).Returns((AppUser?)null);
+
+        // Act
+        var result = await _authService.PersistLoginSessionAsync(
+            1,
+            RefreshToken,
+            _refreshTokenExpireAt,
+            CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PersistLoginSessionAsync_ValidInput_PersistsLastLoginAndRefreshTokenInSingleUpdate()
+    {
+        // Arrange
+        var userId = 1;
+        var user = new AppUser
+        {
+            Id = userId,
+            UserName = "email@example.com",
+            Email = "email@example.com",
+            EmailConfirmed = true
+        };
+        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
+        _userManager.UpdateAsync(user).Returns(IdentityResult.Success);
+        _passwordHasher.HashPassword(user, RefreshToken).Returns("hashedToken");
+
+        // Act
+        var result = await _authService.PersistLoginSessionAsync(
+            userId,
+            RefreshToken,
+            _refreshTokenExpireAt,
+            CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        user.LastLoginAt.Should().NotBeNull();
+        user.LastLoginAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+        user.RefreshTokenHash.Should().Be("hashedToken");
+        user.RefreshTokenExpireAt.Should().Be(_refreshTokenExpireAt);
+        await _userManager.Received(1).UpdateAsync(user);
     }
 
     [Fact]

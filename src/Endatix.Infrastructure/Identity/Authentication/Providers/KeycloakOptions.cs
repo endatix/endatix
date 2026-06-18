@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Endatix.Infrastructure.Identity.Authentication.Providers;
 
-public class KeycloakOptions : JwtAuthProviderOptions
+public class KeycloakOptions : JwtAuthProviderOptions, IValidatableObject
 {
     /// <summary>
     /// Keycloak audience
@@ -47,6 +47,30 @@ public class KeycloakOptions : JwtAuthProviderOptions
     /// Keycloak external operator provisioning options.
     /// </summary>
     public KeycloakProvisioningOptions Provisioning { get; set; } = new();
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        var roleMappings = Authorization?.RoleMappings;
+        if (roleMappings is not { Count: > 0 })
+        {
+            yield break;
+        }
+
+        var ambiguousKeys = roleMappings.Keys
+            .GroupBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => string.Join(", ", group.OrderBy(key => key, StringComparer.Ordinal)))
+            .ToList();
+
+        if (ambiguousKeys.Count == 0)
+        {
+            yield break;
+        }
+
+        yield return new ValidationResult(
+            $"Keycloak role mappings contain ambiguous case-insensitive keys: {string.Join("; ", ambiguousKeys)}.",
+            [nameof(Authorization)]);
+    }
 
 
     /// <summary>

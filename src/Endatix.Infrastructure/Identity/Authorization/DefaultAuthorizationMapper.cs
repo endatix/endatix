@@ -18,7 +18,13 @@ internal sealed class DefaultAuthorizationMapper(
     /// <inheritdoc />
     public async Task<MappingResult> MapToAppRolesAsync(string[] externalRoles, Dictionary<string, string> roleMappings, CancellationToken cancellationToken)
     {
-        var matchingRoles = GetMatchingRoles(externalRoles, roleMappings);
+        var normalizedMappingsResult = NormalizeRoleMappings(roleMappings);
+        if (!normalizedMappingsResult.IsSuccess)
+        {
+            return normalizedMappingsResult;
+        }
+
+        var matchingRoles = GetMatchingRoles(externalRoles, normalizedMappingsResult.RoleMappings);
         if (matchingRoles is not { Length: > 0 })
         {
             return MappingResult.Empty();
@@ -78,7 +84,7 @@ internal sealed class DefaultAuthorizationMapper(
             return [];
         }
 
-        HashSet<string> matchingRoles = [];
+        HashSet<string> matchingRoles = new(StringComparer.OrdinalIgnoreCase);
         foreach (var externalRole in externalRoles)
         {
             if (roleMappings.TryGetValue(externalRole, out var matchingRole) && !string.IsNullOrEmpty(matchingRole))
@@ -88,5 +94,55 @@ internal sealed class DefaultAuthorizationMapper(
         }
 
         return matchingRoles.ToArray();
+    }
+
+    private static NormalizedRoleMappingsResult NormalizeRoleMappings(Dictionary<string, string> roleMappings)
+    {
+        if (roleMappings is not { Count: > 0 })
+        {
+            return NormalizedRoleMappingsResult.Success([]);
+        }
+
+        var ambiguousKeys = roleMappings.Keys
+            .GroupBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => string.Join(", ", group.OrderBy(key => key, StringComparer.Ordinal)))
+            .ToList();
+
+        if (ambiguousKeys.Count > 0)
+        {
+            return NormalizedRoleMappingsResult.Failure(
+                $"External role mappings contain ambiguous case-insensitive keys: {string.Join("; ", ambiguousKeys)}.");
+        }
+
+        return NormalizedRoleMappingsResult.Success(new Dictionary<string, string>(
+            roleMappings,
+            StringComparer.OrdinalIgnoreCase));
+    }
+
+    private sealed record NormalizedRoleMappingsResult
+    {
+        private NormalizedRoleMappingsResult(
+            bool isSuccess,
+            Dictionary<string, string> roleMappings,
+            string? errorMessage = null)
+        {
+            IsSuccess = isSuccess;
+            RoleMappings = roleMappings;
+            ErrorMessage = errorMessage;
+        }
+
+        public bool IsSuccess { get; }
+        public Dictionary<string, string> RoleMappings { get; }
+        public string? ErrorMessage { get; }
+
+        public static NormalizedRoleMappingsResult Success(Dictionary<string, string> roleMappings) =>
+            new(true, roleMappings);
+
+        public static NormalizedRoleMappingsResult Failure(string errorMessage) =>
+            new(false, [], errorMessage);
+
+        public static implicit operator MappingResult(NormalizedRoleMappingsResult result) =>
+            MappingResult.Failure(result.ErrorMessage ?? "Invalid external role mappings.");
     }
 }

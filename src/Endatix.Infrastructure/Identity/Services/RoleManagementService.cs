@@ -33,6 +33,7 @@ public sealed class RoleManagementService : IRoleManagementService
     private readonly IIdGenerator<long> _idGenerator;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ICurrentUserAuthorizationService _currentUserAuthorizationService;
+    private readonly IAuthorizationCache _authorizationCache;
     private readonly ILogger<RoleManagementService> _logger;
 
     public RoleManagementService(
@@ -43,6 +44,7 @@ public sealed class RoleManagementService : IRoleManagementService
         IIdGenerator<long> idGenerator,
         IHttpContextAccessor httpContextAccessor,
         ICurrentUserAuthorizationService currentUserAuthorizationService,
+        IAuthorizationCache authorizationCache,
         ILogger<RoleManagementService> logger)
     {
         _userManager = userManager;
@@ -52,6 +54,7 @@ public sealed class RoleManagementService : IRoleManagementService
         _idGenerator = idGenerator;
         _httpContextAccessor = httpContextAccessor;
         _currentUserAuthorizationService = currentUserAuthorizationService;
+        _authorizationCache = authorizationCache;
         _logger = logger;
     }
     /// <inheritdoc/>
@@ -147,6 +150,100 @@ public sealed class RoleManagementService : IRoleManagementService
             return Result.Error(new ErrorList(errorMessages));
         }
 
+        return Result.Success();
+    }
+
+    /// <inheritdoc/>
+    public async Task<Result> GrantPlatformAdminAsync(long userId, CancellationToken cancellationToken = default)
+    {
+        var userIdGuard = ValidateUserId(userId);
+        if (!userIdGuard.IsSuccess)
+        {
+            return userIdGuard;
+        }
+
+        var mutationGuard = await EnsureCurrentUserCanMutatePlatformAdminRoleAsync(SystemRole.PlatformAdmin.Name, cancellationToken);
+        if (!mutationGuard.IsSuccess)
+        {
+            return mutationGuard;
+        }
+
+        var user = await FindUserByIdAsync(userId);
+        if (user is null)
+        {
+            return UserNotFound(userId);
+        }
+
+        var isInRole = await _userManager.IsInRoleAsync(user, SystemRole.PlatformAdmin.Name);
+        if (isInRole)
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = nameof(userId),
+                ErrorMessage = "User is already a platform administrator."
+            });
+        }
+
+        var result = await _userManager.AddToRoleAsync(user, SystemRole.PlatformAdmin.Name);
+        if (!result.Succeeded)
+        {
+            var errorMessages = result.Errors.Select(e => e.Description);
+            return Result.Error(new ErrorList(errorMessages));
+        }
+
+        await InvalidateUserAuthorizationAsync(user, cancellationToken);
+        return Result.Success();
+    }
+
+    /// <inheritdoc/>
+    public async Task<Result> RevokePlatformAdminAsync(long userId, CancellationToken cancellationToken = default)
+    {
+        var userIdGuard = ValidateUserId(userId);
+        if (!userIdGuard.IsSuccess)
+        {
+            return userIdGuard;
+        }
+
+        var mutationGuard = await EnsureCurrentUserCanMutatePlatformAdminRoleAsync(SystemRole.PlatformAdmin.Name, cancellationToken);
+        if (!mutationGuard.IsSuccess)
+        {
+            return mutationGuard;
+        }
+
+        if (IsCurrentUser(userId))
+        {
+            return Result.Forbidden("You cannot revoke your own PlatformAdmin role.");
+        }
+
+        var user = await FindUserByIdAsync(userId);
+        if (user is null)
+        {
+            return UserNotFound(userId);
+        }
+
+        var isInRole = await _userManager.IsInRoleAsync(user, SystemRole.PlatformAdmin.Name);
+        if (!isInRole)
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = nameof(userId),
+                ErrorMessage = "User is not a platform administrator."
+            });
+        }
+
+        if (!await HasAnotherActivePlatformAdminAsync(userId, cancellationToken))
+        {
+            return Result.Conflict("Cannot revoke the last active platform administrator.");
+        }
+
+        var result = await _userManager.RemoveFromRoleAsync(user, SystemRole.PlatformAdmin.Name);
+        if (!result.Succeeded)
+        {
+            var errorMessages = result.Errors.Select(e => e.Description);
+            return Result.Error(new ErrorList(errorMessages));
+        }
+
+        await InvalidateUserAuthorizationAsync(user, cancellationToken);
         return Result.Success();
     }
 
@@ -705,6 +802,46 @@ public sealed class RoleManagementService : IRoleManagementService
     {
         var isPlatformAdminResult = await _currentUserAuthorizationService.IsPlatformAdminAsync(cancellationToken);
         return isPlatformAdminResult.IsSuccess && isPlatformAdminResult.Value;
+    }
+
+    private bool IsCurrentUser(long userId)
+    {
+        var currentUserId = _httpContextAccessor.HttpContext?.User.GetUserId();
+        return long.TryParse(currentUserId, out var currentUserIdValue) && currentUserIdValue == userId;
+    }
+
+    private async Task<bool> HasAnotherActivePlatformAdminAsync(long removedUserId, CancellationToken cancellationToken)
+    {
+        var normalizedPlatformAdminRoleName = NormalizeRoleName(SystemRole.PlatformAdmin.Name);
+
+        return await _identityDbContext.UserRoles
+            .Where(userRole => userRole.UserId != removedUserId)
+            .Join(
+                _identityDbContext.Roles.Where(role =>
+                    role.IsActive &&
+                    role.NormalizedName == normalizedPlatformAdminRoleName),
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (userRole, _) => userRole.UserId)
+            .Join(
+                _identityDbContext.Users.Where(user =>
+                    user.TenantId > 0 &&
+                    (user.EmailConfirmed || user.AuthProvider != AuthProviders.Endatix) &&
+                    (user.LockoutEnd == null || user.LockoutEnd <= DateTimeOffset.UtcNow)),
+                userId => userId,
+                user => user.Id,
+                (_, _) => true)
+            .AnyAsync(cancellationToken);
+    }
+
+    private async Task InvalidateUserAuthorizationAsync(AppUser user, CancellationToken cancellationToken)
+    {
+        if (user.TenantId <= 0)
+        {
+            return;
+        }
+
+        await _authorizationCache.InvalidateAsync(user.Id.ToString(), user.TenantId, cancellationToken);
     }
 
     private Task<AppUser?> FindUserByIdAsync(long userId)

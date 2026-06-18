@@ -14,7 +14,7 @@ public class GetDashboard(IMediator mediator, ITenantContext tenantContext) : En
     public override void Configure()
     {
         Get("/admin/storage");
-        Policies(SystemRole.PlatformAdmin.Name);
+        Permissions(Actions.Tenant.ViewSettings);
         Summary(s =>
         {
             s.Summary = "Get storage statistics dashboard";
