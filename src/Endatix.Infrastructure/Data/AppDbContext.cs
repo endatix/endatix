@@ -65,6 +65,8 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<FormDependency> FormDependencies { get; set; }
 
+    public DbSet<OutboxMessage> OutboxMessages { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         base.OnConfiguring(optionsBuilder);

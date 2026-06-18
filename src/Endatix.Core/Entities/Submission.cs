@@ -4,7 +4,7 @@ using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
+public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHasRevision
 {
     private const string SINGLE_SUBMISSION_RESTRICTION_PREFIX = "SingleSubmission";
 
@@ -80,6 +80,14 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
     public string? SubmitterProfileSnapshot { get; private set; }
     public bool IsTestSubmission { get; private set; }
     public string? RestrictionKey { get; private set; }
+
+    /// <summary>
+    /// Monotonic aggregate revision, bumped on each business mutation (update, status change,
+    /// completion). Carried in integration event payloads so an order-sensitive consumer (e.g. a
+    /// future audit log) can reconstruct order or detect gaps. Increment wiring lands with the
+    /// event-raising work (Phase 5).
+    /// </summary>
+    public long Revision { get; private set; } = 1;
     public DateTime? CompletedAt { get; private set; }
     public Token? Token { get; private set; }
     public SubmissionStatus Status { get; private set; } = null!;
@@ -116,6 +124,9 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity
 
         Status = newStatus;
     }
+
+    /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
+    public void IncrementRevision() => Revision++;
 
     /// <summary>
     /// Sets the submitter for the submission.

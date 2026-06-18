@@ -43,6 +43,10 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
         builder.Property(s => s.IsTestSubmission)
             .HasDefaultValue(false);
 
+        builder.Property(s => s.Revision)
+            .HasDefaultValue(1L)
+            .IsRequired();
+
         builder.Property(s => s.RestrictionKey)
             .HasMaxLength(RESTRICTION_KEY_MAX_LENGTH)
             .IsRequired(false);

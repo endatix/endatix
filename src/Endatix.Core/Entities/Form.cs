@@ -9,7 +9,7 @@ namespace Endatix.Core.Entities;
 /// <summary>
 /// Forms are main entities in the Endatix platform. They are used to create and manage forms, surveys or questionnaires that can be used to collect data from users.
 /// </summary>
-public partial class Form : TenantEntity, IAggregateRoot, IHasFolder
+public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevision
 {
     private readonly List<FormDefinition> _formDefinitions = [];
     private readonly List<FormDependency> _dependencies = [];
@@ -38,6 +38,15 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder
     public bool IsPublic { get; set; }
     public bool LimitOnePerUser { get; set; }
     public string? Metadata { get; set; }
+
+    /// <summary>
+    /// Monotonic aggregate revision, bumped on each business mutation. Distinct from form-definition
+    /// versioning (<see cref="FormDefinitions"/>): it advances on every state change (rename, enable
+    /// toggle, folder move, …), not only schema edits. Carried in integration event payloads so an
+    /// order-sensitive consumer (e.g. a future audit log) can reconstruct order or detect gaps.
+    /// Increment wiring lands with the event-raising work (Phase 5).
+    /// </summary>
+    public long Revision { get; private set; } = 1;
 
     public long? ActiveDefinitionId { get; private set; }
     public FormDefinition? ActiveDefinition { get; private set; }
@@ -113,6 +122,9 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder
         Theme = theme;
         ThemeId = theme?.Id;
     }
+
+    /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
+    public void IncrementRevision() => Revision++;
 
     /// <summary>
     /// Updates the webhook configuration settings for this form.
