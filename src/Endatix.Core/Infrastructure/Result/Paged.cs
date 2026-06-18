@@ -30,7 +30,7 @@ public class Paged<T> : IPagedData
         Guard.Against.Null(items);
 
         var expectedTotalPages = totalRecords > 0
-            ? (totalRecords + pageSize - 1) / pageSize
+            ? CalculateTotalPages(totalRecords, pageSize)
             : 0;
 
         ValidateConstructorArguments(page, pageSize, totalRecords, totalPages, expectedTotalPages, items);
@@ -147,10 +147,10 @@ public class Paged<T> : IPagedData
             return Empty(take);
         }
 
-        var totalPages = (totalRecords + take - 1) / take;
+        var totalPages = CalculateTotalPages(totalRecords, take);
 
         var currentPage = (skip / take) + 1;
-        if (currentPage > totalPages)
+        if (totalPages > 0 && currentPage > totalPages)
         {
             currentPage = totalPages;
         }
@@ -174,4 +174,7 @@ public class Paged<T> : IPagedData
         totalRecords: 0,
         totalPages: 0,
         items: []);
+    
+    private static int CalculateTotalPages(int totalRecords, int pageSize) =>
+        (int)((totalRecords + (long)pageSize - 1) / pageSize);
 }

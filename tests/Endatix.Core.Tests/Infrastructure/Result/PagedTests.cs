@@ -21,7 +21,7 @@ public class PagedTests
     [Theory]
     [InlineData(0, 10, 10, 1)]
     [InlineData(-1, 10, 10, 1)]
-    public void Constructor_InvalidPage_ThrowsArgumentException(int page, int pageSize, long totalRecords, long totalPages)
+    public void Constructor_InvalidPage_ThrowsArgumentException(int page, int pageSize, int totalRecords, int totalPages)
     {
         var items = new[] { "a" };
 
@@ -33,7 +33,7 @@ public class PagedTests
     [Theory]
     [InlineData(1, 0, 10, 1)]
     [InlineData(1, -5, 10, 1)]
-    public void Constructor_InvalidPageSize_ThrowsArgumentException(int page, int pageSize, long totalRecords, long totalPages)
+    public void Constructor_InvalidPageSize_ThrowsArgumentException(int page, int pageSize, int totalRecords, int totalPages)
     {
         var items = new[] { "a" };
 
@@ -44,7 +44,7 @@ public class PagedTests
 
     [Theory]
     [InlineData(1, 10, -1, 1)]
-    public void Constructor_NegativeTotalRecords_ThrowsArgumentException(int page, int pageSize, long totalRecords, long totalPages)
+    public void Constructor_NegativeTotalRecords_ThrowsArgumentException(int page, int pageSize, int totalRecords, int totalPages)
     {
         var items = new[] { "a" };
 
@@ -55,7 +55,7 @@ public class PagedTests
 
     [Theory]
     [InlineData(1, 10, 10, -1)]
-    public void Constructor_NegativeTotalPages_ThrowsArgumentException(int page, int pageSize, long totalRecords, long totalPages)
+    public void Constructor_NegativeTotalPages_ThrowsArgumentException(int page, int pageSize, int totalRecords, int totalPages)
     {
         var items = new[] { "a" };
 
@@ -76,7 +76,7 @@ public class PagedTests
     [Theory]
     [InlineData(1, 10, 10, 3)]
     [InlineData(1, 10, 15, 1)]
-    public void Constructor_InconsistentTotalPages_ThrowsArgumentOutOfRangeException(int page, int pageSize, long totalRecords, long totalPages)
+    public void Constructor_InconsistentTotalPages_ThrowsArgumentOutOfRangeException(int page, int pageSize, int totalRecords, int totalPages)
     {
         var items = new[] { "a" };
 
@@ -88,7 +88,7 @@ public class PagedTests
     [Theory]
     [InlineData(3, 10, 20, 2)]
     [InlineData(4, 10, 25, 3)]
-    public void Constructor_PageGreaterThanTotalPages_ThrowsArgumentOutOfRangeException(int page, int pageSize, long totalRecords, long totalPages)
+    public void Constructor_PageGreaterThanTotalPages_ThrowsArgumentOutOfRangeException(int page, int pageSize, int totalRecords, int totalPages)
     {
         var items = new[] { "a", "b" };
 
@@ -216,6 +216,20 @@ public class PagedTests
 
         paged.TotalPages.Should().Be(0);
         paged.Page.Should().Be(1);
+    }
+
+    [Fact]
+    public void FromSkipAndTake_LargeTake_DoesNotOverflowTotalPages()
+    {
+        var items = new[] { "a", "b" };
+
+        var paged = Paged<string>.FromSkipAndTake(0, int.MaxValue, 2, items);
+
+        paged.Page.Should().Be(1);
+        paged.PageSize.Should().Be(int.MaxValue);
+        paged.TotalRecords.Should().Be(2);
+        paged.TotalPages.Should().Be(1);
+        paged.Items.Should().BeEquivalentTo(items);
     }
 
     [Fact]
