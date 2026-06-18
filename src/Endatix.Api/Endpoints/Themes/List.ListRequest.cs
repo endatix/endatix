@@ -5,7 +5,7 @@ namespace Endatix.Api.Endpoints.Themes;
 /// <summary>
 /// Request model for listing themes with optional pagination and filtering.
 /// </summary>
-public class ListRequest : IPageable, IFilterable
+public class ListRequest : IPagedRequest, IFilterable
 {
     /// <summary>
     /// The page number (1-based).

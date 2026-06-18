@@ -3,7 +3,7 @@ namespace Endatix.Api.Common;
 /// <summary>
 /// Paged list request capability.
 /// </summary>
-public interface IPageable
+public interface IPagedRequest
 {
     /// <summary>
     /// The page number.

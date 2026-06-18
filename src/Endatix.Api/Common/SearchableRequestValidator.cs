@@ -4,9 +4,9 @@ using FluentValidation;
 namespace Endatix.Api.Common;
 
 /// <summary>
-/// Reusable FluentValidation for <see cref="ISearchable"/> implementations.
+/// Reusable FluentValidation for <see cref="ISearchableRequest"/> implementations.
 /// </summary>
-public sealed class SearchableRequestValidator : AbstractValidator<ISearchable>
+public sealed class SearchableRequestValidator : AbstractValidator<ISearchableRequest>
 {
     public SearchableRequestValidator()
     {

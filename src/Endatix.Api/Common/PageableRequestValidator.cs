@@ -3,11 +3,11 @@ using FluentValidation;
 namespace Endatix.Api.Common;
 
 /// <summary>
-/// Reusable FluentValidation for <see cref="IPageable"/> implementations.
+/// Reusable FluentValidation for <see cref="IPagedRequest"/> implementations.
 /// To use in your validators add: <c>Include(new PageableRequestValidator());</c>
 /// For searchable paged lists, prefer <see cref="SearchablePagedRequestValidator"/>.
 /// </summary>
-public class PageableRequestValidator : AbstractValidator<IPageable>
+public class PageableRequestValidator : AbstractValidator<IPagedRequest>
 {
     public PageableRequestValidator()
     {

@@ -3,7 +3,7 @@ namespace Endatix.Api.Common;
 /// <summary>
 /// Free-text search capability for list requests.
 /// </summary>
-public interface ISearchable
+public interface ISearchableRequest
 {
     /// <summary>
     /// Optional free-text search term.

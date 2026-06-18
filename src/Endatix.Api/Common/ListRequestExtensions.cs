@@ -13,7 +13,7 @@ public static class ListRequestExtensions
     /// </summary>
     /// <param name="request">The request.</param>
     /// <returns>The resolved page number.</returns>
-    public static int ResolvePage(this IPageable request) =>
+    public static int ResolvePage(this IPagedRequest request) =>
         Math.Max(request.Page ?? PagedRequestLimits.DEFAULT_PAGE, PagedRequestLimits.DEFAULT_PAGE);
 
     /// <summary>
@@ -21,7 +21,7 @@ public static class ListRequestExtensions
     /// </summary>
     /// <param name="request">The request.</param>
     /// <returns>The resolved page size.</returns>
-    public static int ResolvePageSize(this IPageable request) =>
+    public static int ResolvePageSize(this IPagedRequest request) =>
         Math.Clamp(
             value: request.PageSize ?? PagedRequestLimits.DEFAULT_PAGE_SIZE,
             min: PagedRequestLimits.MIN_PAGE_SIZE,
@@ -32,7 +32,7 @@ public static class ListRequestExtensions
     /// </summary>
     /// <param name="request">The request.</param>
     /// <returns>The converted <see cref="PageRequest"/>.</returns>
-    public static PageRequest ToPageRequest(this IPageable request) =>
+    public static PageRequest ToPageRequest(this IPagedRequest request) =>
         new(request.ResolvePage(), request.ResolvePageSize());
 
     /// <summary>
@@ -41,7 +41,7 @@ public static class ListRequestExtensions
     /// <param name="request">The request.</param>
     /// <returns>The converted <see cref="SearchablePageRequest"/>.</returns>
     public static SearchablePageRequest ToSearchablePageRequest<TRequest>(this TRequest request)
-        where TRequest : IPageable, ISearchable =>
+        where TRequest : IPagedRequest, ISearchableRequest =>
         new(request.ResolvePage(), request.ResolvePageSize(), request.Search);
 
     /// <summary>
@@ -52,7 +52,7 @@ public static class ListRequestExtensions
     /// <param name="defaultDirection">The default direction.</param>
     /// <returns>The converted <see cref="SortRequest{TSortField}"/>.</returns>
     public static SortRequest<TSortField> ToSortRequest<TSortField>(
-        this ISortable<TSortField> request,
+        this ISortableRequest<TSortField> request,
         TSortField defaultField,
         SortDirection defaultDirection = SortDirection.Asc)
         where TSortField : struct, Enum =>

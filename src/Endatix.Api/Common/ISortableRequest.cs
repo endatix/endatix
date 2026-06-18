@@ -6,7 +6,7 @@ namespace Endatix.Api.Common;
 /// Typed sort capability for list requests.
 /// </summary>
 /// <typeparam name="TSortField">The closed set of sortable fields for the list.</typeparam>
-public interface ISortable<TSortField> where TSortField : struct, Enum
+public interface ISortableRequest<TSortField> where TSortField : struct, Enum
 {
     /// <summary>
     /// The field to sort by.

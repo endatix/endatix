@@ -49,7 +49,7 @@ public sealed class SortableRequestValidatorTests
         result.Direction.Should().Be(SortDirection.Desc);
     }
 
-    private sealed class TestSortableRequest : ISortable<TestSortField>
+    private sealed class TestSortableRequest : ISortableRequest<TestSortField>
     {
         public TestSortField? SortBy { get; set; }
         public SortDirection? Direction { get; set; }

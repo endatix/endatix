@@ -68,7 +68,7 @@ public sealed class DataListsListValidator : Validator<DataListsListRequest>
 /// <summary>
 /// Request to list data lists.
 /// </summary>
-public sealed class DataListsListRequest : IPageable
+public sealed class DataListsListRequest : IPagedRequest
 {
     /// <inheritdoc />
     public int? Page { get; set; }
