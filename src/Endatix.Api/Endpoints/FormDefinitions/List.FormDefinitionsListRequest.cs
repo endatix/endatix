@@ -5,7 +5,7 @@ namespace Endatix.Api.Endpoints.FormDefinitions;
 /// <summary>
 /// Request model for listing form definitions.
 /// </summary>
-public class FormDefinitionsListRequest : IPagedRequest
+public class FormDefinitionsListRequest : IPageable
 {
     /// <summary>
     /// The ID of the form.

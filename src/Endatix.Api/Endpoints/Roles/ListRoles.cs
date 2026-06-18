@@ -80,7 +80,7 @@ public sealed class ListRoles(IMediator mediator)
 /// <summary>
 /// Request for listing roles.
 /// </summary>
-public sealed record ListRolesRequest : IPagedRequest
+public sealed record ListRolesRequest : IPageable
 {
     public int? Page { get; set; }
 
@@ -101,7 +101,7 @@ public sealed class ListRolesValidator : Validator<ListRolesRequest>
     /// </summary>
     public ListRolesValidator()
     {
-        Include(new PagedRequestValidator());
+        Include(new PageableRequestValidator());
 
         RuleFor(x => x.PageSize)
             .LessThanOrEqualTo(ListRolesQuery.MaxPageSize)

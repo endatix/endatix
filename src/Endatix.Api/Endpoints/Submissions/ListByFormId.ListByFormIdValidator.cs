@@ -28,7 +28,7 @@ public class ListByFormIdValidator : Validator<ListByFormIdRequest>
 
     public ListByFormIdValidator(IOptions<SubmitterOptions> submitterOptions)
     {
-        Include(new PagedRequestValidator());
+        Include(new PageableRequestValidator());
         Include(new FilteredRequestValidator(BuildFilterableFields(submitterOptions.Value)));
 
         RuleFor(x => x.FormId)

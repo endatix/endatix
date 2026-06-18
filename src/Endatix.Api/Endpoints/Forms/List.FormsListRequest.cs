@@ -5,7 +5,7 @@ namespace Endatix.Api.Endpoints.Forms;
 /// <summary>
 /// Request model for listing forms.
 /// </summary>
-public class FormsListRequest : IPagedRequest, IFilteredRequest
+public class FormsListRequest : IPageable, IFilterable
 {
     /// <summary>
     /// The number of the page

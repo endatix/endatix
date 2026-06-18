@@ -2,7 +2,6 @@ using Endatix.Infrastructure.Features.PlatformAdmin.Common;
 using Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants;
 using Microsoft.Extensions.DependencyInjection;
 using ListPlatformAdminsQuery = Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformAdmins.ListPlatformAdmins;
-using ListPlatformAdminCandidatesQuery = Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformAdminCandidates.ListPlatformAdminCandidates;
 using ListPlatformTenantsImpl = Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants.ListPlatformTenants;
 
 namespace Endatix.Infrastructure.Features.PlatformAdmin;
@@ -22,7 +21,6 @@ public static class PlatformAdminFeatureExtensions
     {
         services.AddScoped<IPlatformAdminUserListing, PlatformAdminUserListing>();
         services.AddScoped<ListPlatformAdminsQuery>();
-        services.AddScoped<ListPlatformAdminCandidatesQuery>();
         services.AddScoped<IListPlatformTenants, ListPlatformTenantsImpl>();
 
         return services;

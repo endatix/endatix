@@ -36,9 +36,9 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
         CancellationToken ct)
     {
         var result = await listPlatformAdmins.ExecuteAsync(
-            request.ResolvePage(),
-            request.ResolvePageSize(),
-            request.Search,
+            request.ToSearchablePageRequest(),
+            PlatformAdminListScopeParser.Parse(request.Scope),
+            request.TenantId,
             ct);
 
         return TypedResultsBuilder
@@ -52,6 +52,16 @@ public sealed record ListPlatformAdminsRequest : ISearchablePagedRequest
     public int? Page { get; set; }
     public int? PageSize { get; set; }
     public string? Search { get; set; }
+
+    /// <summary>
+    /// Approval scope: all, approved, or candidates.
+    /// </summary>
+    public string? Scope { get; set; }
+
+    /// <summary>
+    /// Filters by tenant ID.
+    /// </summary>
+    public long? TenantId { get; set; }
 }
 
 /// <summary>
@@ -134,5 +144,18 @@ public sealed class ListPlatformAdminsValidator : Validator<ListPlatformAdminsRe
     public ListPlatformAdminsValidator()
     {
         Include(new SearchablePagedRequestValidator());
+
+        RuleFor(x => x.Scope)
+            .Must(scope => scope is null || IsKnownScope(scope))
+            .WithMessage("Scope must be 'all', 'approved', or 'candidates'.");
+
+        RuleFor(x => x.TenantId)
+            .GreaterThan(0)
+            .When(x => x.TenantId is not null);
     }
+
+    private static bool IsKnownScope(string scope) =>
+        string.Equals(scope, "all", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(scope, "approved", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(scope, "candidates", StringComparison.OrdinalIgnoreCase);
 }

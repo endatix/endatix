@@ -61,14 +61,14 @@ public sealed class DataListsListValidator : Validator<DataListsListRequest>
     /// </summary>
     public DataListsListValidator()
     {
-        Include(new PagedRequestValidator());
+        Include(new PageableRequestValidator());
     }
 }
 
 /// <summary>
 /// Request to list data lists.
 /// </summary>
-public sealed class DataListsListRequest : IPagedRequest
+public sealed class DataListsListRequest : IPageable
 {
     /// <inheritdoc />
     public int? Page { get; set; }

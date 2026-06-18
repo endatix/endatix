@@ -3,10 +3,10 @@
 namespace Endatix.Api.Common;
 
 /// <summary>
-/// Reusable Fluent validation for the IFilteredRequest implementations.
-/// To use in your Validators add this to the validation <c>Include(new FilteredRequestValidator());</c>
+/// Reusable Fluent validation for the <see cref="IFilterable"/> implementations.
+/// To use in your Validators add this to the validation <c>Include(new FilteredRequestValidator(validFields));</c>
 /// </summary>
-public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
+public class FilteredRequestValidator : AbstractValidator<IFilterable>
 {
     private static readonly string[] _validOperators = { "!:", ">:", "<:", ":", ">", "<" };
     private readonly Dictionary<string, Type> _validFields;
