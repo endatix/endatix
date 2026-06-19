@@ -92,8 +92,6 @@ Endatix.Infrastructure/Features/PlatformAdmin/
     PlatformAdminUserListing.cs       # shared EF logic (internal)
   ListPlatformAdmins/
     ListPlatformAdmins.cs
-  ListPlatformAdminCandidates/
-    ListPlatformAdminCandidates.cs
   ListPlatformTenants/
     ListPlatformTenants.cs
     PlatformTenantListItem.cs
@@ -109,7 +107,7 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins) : Endpoint<...>
 public sealed class Grant(IMediator mediator) : Endpoint<...>
 ```
 
-**Registration today** (`AddPlatformAdminFeatures`) mixes styles: shared EF behind `IPlatformAdminUserListing`, thin orchestrators as concrete `ListPlatformAdmins` / `ListPlatformAdminCandidates`, and `IListPlatformTenants` (a transitional endpoint-test seam). Align new work with the [testing evolution](#testing-evolution) below rather than adding more one-off `IList*` types.
+**Registration today** (`AddPlatformAdminFeatures`) mixes styles: shared EF behind `IPlatformAdminUserListing`, thin orchestrators as concrete `ListPlatformAdmins`, and `IListPlatformTenants` (a transitional endpoint-test seam). Align new work with the [testing evolution](#testing-evolution) below rather than adding more one-off `IList*` types.
 
 **Writes** (`Grant` / `Revoke`) still use MediatR + Core handlers + `IRoleManagementService` because they enforce governance and publish domain events.
 
@@ -197,18 +195,27 @@ When touching Platform Admin registration or new admin lists, migrate toward **o
 
 ---
 
-## Paged list requests (API)
+## Paged list requests
 
-Searchable paged endpoints share validation and defaults:
+**Api:** compose capability interfaces on the request DTO (`IPageable`, `ISearchable`, `ISortable<T>`, `IFilterable`; or `ISearchablePagedRequest` = page + search). Validate with the matching `*RequestValidator`. Map once via `ListRequestExtensions`.
 
-| Piece | Location |
-|-------|----------|
-| Limits (`MaxPageSize`, `MaxSearchLength`, defaults) | `Endatix.Core/Infrastructure/Paging/PagedRequestLimits.cs` |
-| Request contract | `ISearchablePagedRequest` extends `IPagedRequest` |
-| Validation | `SearchablePagedRequestValidator` (includes `PagedRequestValidator`) |
-| Resolved values in endpoints | `request.ResolvePage()`, `request.ResolvePageSize()` |
+**Core:** pass normalized records into read models — `PageRequest`, `SearchablePageRequest`, `SortRequest<T>`. Limits in `PagedRequestLimits.cs`.
 
-Use for new list endpoints with optional `Search`. Feature-specific filters stay in the endpoint validator (see `ListUsersValidator` for role/status).
+| Capability | Api | Core / notes |
+|------------|-----|--------------|
+| Paging | `IPageable` | `PageRequest` |
+| Search | `ISearchable` | `SearchablePageRequest` |
+| Sort | `ISortable<TEnum>` | `SortRequest<TEnum>` — enum per list |
+| Filter (REST) | `IFilterable` | `FilterParameters` via `FilteredRequestValidator(validFields)` |
+| Filter (domain) | explicit props / criteria record | e.g. `PlatformAdminUserListCriteria` |
+
+```csharp
+var paging = request.ToSearchablePageRequest();
+var sort = request.ToSortRequest(PlatformTenantSortField.Name);
+var filters = request.ToFilterParameters();
+```
+
+Infrastructure lists take Core paging + feature criteria; return **`Paged<T>` as output only** (not input). See `IPlatformAdminUserListing` + `PlatformAdminUserListCriteria`.
 
 ---
 
@@ -219,5 +226,5 @@ Use for new list endpoints with optional `Search`. Feature-specific filters stay
 | 2026-06 | Prefer Infrastructure feature queries over Core read handlers when logic is EF-heavy and persistence-specific. |
 | 2026-06 | Platform Admin lists: `*QueryService` → `List*` slice types; shared logic in `Common/`; register via `AddPlatformAdminFeatures()`. |
 | 2026-06 | Document Agents module as modular end-state; OSS monolith uses the same slice naming inside `Infrastructure/Features/`. |
-| 2026-06 | Shared paging: `PagedRequestLimits`, `ISearchablePagedRequest`, `SearchablePagedRequestValidator` for searchable list endpoints. |
+| 2026-06 | Shared list requests: composable Api capabilities (`IPageable`, `ISearchable`, `ISortable<T>`, `IFilterable`) map to Core `PageRequest` / `SearchablePageRequest` / `SortRequest<T>` via `ListRequestExtensions`. |
 | 2026-06 | Testing: unit-only for feature reads — decomposed collaborators + orchestrator mocks; evolve standalone reads toward Infrastructure `IQuery`/MediatR or internal `Common/` contracts; avoid permanent endpoint-facing `IList*` seams. |

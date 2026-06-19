@@ -21,7 +21,7 @@ public class Paged<T> : IPagedData
     /// <param name="totalRecords">The total number of records.</param>
     /// <param name="totalPages">The total number of pages.</param>
     /// <param name="items">The items on the page.</param>
-    public Paged(int page, int pageSize, long totalRecords, long totalPages, IReadOnlyList<T> items)
+    public Paged(int page, int pageSize, int totalRecords, int totalPages, IReadOnlyList<T> items)
     {
         Guard.Against.NegativeOrZero(page);
         Guard.Against.NegativeOrZero(pageSize);
@@ -30,7 +30,7 @@ public class Paged<T> : IPagedData
         Guard.Against.Null(items);
 
         var expectedTotalPages = totalRecords > 0
-            ? (totalRecords + pageSize - 1) / pageSize
+            ? CalculateTotalPages(totalRecords, pageSize)
             : 0;
 
         ValidateConstructorArguments(page, pageSize, totalRecords, totalPages, expectedTotalPages, items);
@@ -45,9 +45,9 @@ public class Paged<T> : IPagedData
     private static void ValidateConstructorArguments(
         int page,
         int pageSize,
-        long totalRecords,
-        long totalPages,
-        long expectedTotalPages,
+        int totalRecords,
+        int totalPages,
+        int expectedTotalPages,
         IReadOnlyList<T> items)
     {
         if (totalPages != expectedTotalPages)
@@ -86,8 +86,8 @@ public class Paged<T> : IPagedData
         }
 
         var remainingRecordsOnPage = totalPages > 0
-            ? totalRecords - ((long)(page - 1) * pageSize)
-            : 0L;
+            ? totalRecords - ((page - 1) * pageSize)
+            : 0;
 
         if (totalPages > 0 && items.Count > remainingRecordsOnPage)
         {
@@ -113,13 +113,13 @@ public class Paged<T> : IPagedData
     /// The total number of records.
     /// </summary>
     [JsonInclude]
-    public long TotalRecords { get; init; }
+    public int TotalRecords { get; init; }
 
     /// <summary>
     /// The total number of pages.
     /// </summary>
     [JsonInclude]
-    public long TotalPages { get; init; }
+    public int TotalPages { get; init; }
 
     /// <summary>
     /// The items on the page.
@@ -135,7 +135,7 @@ public class Paged<T> : IPagedData
     /// <param name="totalRecords">The total number of records.</param>
     /// <param name="items">The items on the page.</param>
     /// <returns>A new <see cref="Paged{T}"/>.</returns>
-    public static Paged<T> FromSkipAndTake(int skip, int take, long totalRecords, IReadOnlyList<T> items)
+    public static Paged<T> FromSkipAndTake(int skip, int take, int totalRecords, IReadOnlyList<T> items)
     {
         Guard.Against.Negative(skip);
         Guard.Against.NegativeOrZero(take);
@@ -147,12 +147,12 @@ public class Paged<T> : IPagedData
             return Empty(take);
         }
 
-        var totalPages = (totalRecords + take - 1) / take;
+        var totalPages = CalculateTotalPages(totalRecords, take);
 
         var currentPage = (skip / take) + 1;
-        if (currentPage > totalPages)
+        if (totalPages > 0 && currentPage > totalPages)
         {
-            currentPage = (int)totalPages;
+            currentPage = totalPages;
         }
 
         return new Paged<T>(
@@ -174,4 +174,7 @@ public class Paged<T> : IPagedData
         totalRecords: 0,
         totalPages: 0,
         items: []);
+    
+    private static int CalculateTotalPages(int totalRecords, int pageSize) =>
+        (int)((totalRecords + (long)pageSize - 1) / pageSize);
 }

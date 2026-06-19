@@ -5,37 +5,60 @@ using Endatix.Infrastructure.Features.PlatformAdmin.Common;
 namespace Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformAdmins;
 
 /// <summary>
-/// Platform-scoped read model: users with a local PlatformAdmin role assignment.
+/// Platform-scoped read model for listing users with optional approval scope filters.
 /// </summary>
 public sealed class ListPlatformAdmins(IPlatformAdminUserListing listing)
 {
     /// <summary>
-    /// Executes the list platform administrators query.
+    /// Executes the platform-admin user list query.
     /// </summary>
-    /// <param name="page">The page number.</param>
-    /// <param name="pageSize">The page size.</param>
-    /// <param name="search">The search query.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The result of the query.</returns>
     public async Task<Result<Paged<PlatformAdminUserListItem>>> ExecuteAsync(
-        int page,
-        int pageSize,
-        string? search,
+        SearchablePageRequest paging,
+        PlatformAdminListScope scope,
+        long? tenantId,
         CancellationToken cancellationToken)
     {
         var platformAdminRoleId = await listing.GetPlatformAdminRoleIdAsync(cancellationToken);
-        if (platformAdminRoleId is null)
+        if (scope == PlatformAdminListScope.Approved && platformAdminRoleId is null)
         {
-            return Result.Success(Paged<PlatformAdminUserListItem>.Empty(
-                Math.Clamp(pageSize, PagedRequestLimits.MIN_PAGE_SIZE, PagedRequestLimits.MAX_PAGE_SIZE)));
+            return Result.Success(Paged<PlatformAdminUserListItem>.Empty(paging.Paging.PageSize));
         }
 
-        return await listing.ListAsync(
-            page,
-            pageSize,
-            search,
+        var (scopeFilter, prioritizeExternalPlatformAdminRole, prioritizeLocalPlatformAdminRole) =
+            ResolveScopeFilter(scope, platformAdminRoleId);
+
+        var criteria = new PlatformAdminUserListCriteria(
             platformAdminRoleId,
-            PlatformAdminUserScopeFilter.MustHaveLocalPlatformAdminRole,
-            cancellationToken);
+            scopeFilter,
+            tenantId,
+            prioritizeExternalPlatformAdminRole,
+            prioritizeLocalPlatformAdminRole);
+
+        return await listing.ListAsync(paging, criteria, cancellationToken);
     }
+
+    internal static (
+        PlatformAdminUserScopeFilter ScopeFilter,
+        bool PrioritizeExternalPlatformAdminRole,
+        bool PrioritizeLocalPlatformAdminRole)
+        ResolveScopeFilter(PlatformAdminListScope scope, long? platformAdminRoleId) =>
+        scope switch
+        {
+            PlatformAdminListScope.Approved => (
+                PlatformAdminUserScopeFilter.MustHaveLocalPlatformAdminRole,
+                false,
+                false),
+            PlatformAdminListScope.Candidates when platformAdminRoleId is null => (
+                PlatformAdminUserScopeFilter.IgnoreLocalPlatformAdminRole,
+                true,
+                false),
+            PlatformAdminListScope.Candidates => (
+                PlatformAdminUserScopeFilter.MustNotHaveLocalPlatformAdminRole,
+                true,
+                false),
+            _ => (
+                PlatformAdminUserScopeFilter.IgnoreLocalPlatformAdminRole,
+                false,
+                true),
+        };
 }

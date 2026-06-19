@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Querying;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Features.PlatformAdmin.Common;
@@ -30,31 +31,37 @@ public sealed class PlatformAdminUserListing(
 
     /// <inheritdoc />
     public async Task<Result<Paged<PlatformAdminUserListItem>>> ListAsync(
-        int page,
-        int pageSize,
-        string? search,
-        long? platformAdminRoleId,
-        PlatformAdminUserScopeFilter scopeFilter,
-        CancellationToken cancellationToken,
-        bool prioritizeExternalPlatformAdminRole = false)
+        SearchablePageRequest paging,
+        PlatformAdminUserListCriteria criteria,
+        CancellationToken cancellationToken)
     {
-        var normalizedPage = Math.Max(page, PagedRequestLimits.DEFAULT_PAGE);
-        var normalizedPageSize = NormalizePageSize(pageSize);
-        var skip = (normalizedPage - 1) * normalizedPageSize;
+        var skip = paging.Paging.Skip;
+        var pageSize = paging.Paging.PageSize;
 
         var usersQuery = BuildTenantUsersQuery();
+        if (criteria.TenantId is > 0)
+        {
+            usersQuery = usersQuery.Where(user => user.TenantId == criteria.TenantId.Value);
+        }
+
         usersQuery = PlatformAdminUserRoleScope.Apply(
             usersQuery,
             identityDbContext.UserRoles.AsNoTracking(),
-            platformAdminRoleId,
-            scopeFilter);
-        usersQuery = ApplySearch(usersQuery, search);
+            criteria.PlatformAdminRoleId,
+            criteria.ScopeFilter);
+        usersQuery = ApplySearch(usersQuery, paging.Search);
 
         var totalRecords = await usersQuery.CountAsync(cancellationToken);
 
-        var users = await OrderUsers(usersQuery, prioritizeExternalPlatformAdminRole)
+        var userRoles = identityDbContext.UserRoles.AsNoTracking();
+        var users = await OrderUsers(
+                usersQuery,
+                userRoles,
+                criteria.PlatformAdminRoleId,
+                criteria.PrioritizeExternalPlatformAdminRole,
+                criteria.PrioritizeLocalPlatformAdminRole)
             .Skip(skip)
-            .Take(normalizedPageSize)
+            .Take(pageSize)
             .Select(user => new UserRow(
                 user.Id,
                 user.TenantId,
@@ -72,7 +79,7 @@ public sealed class PlatformAdminUserListing(
         {
             return Result.Success(Paged<PlatformAdminUserListItem>.FromSkipAndTake(
                 skip,
-                normalizedPageSize,
+                pageSize,
                 totalRecords,
                 []));
         }
@@ -95,7 +102,7 @@ public sealed class PlatformAdminUserListing(
 
         return Result.Success(Paged<PlatformAdminUserListItem>.FromSkipAndTake(
             skip,
-            normalizedPageSize,
+            pageSize,
             totalRecords,
             items));
     }
@@ -107,8 +114,7 @@ public sealed class PlatformAdminUserListing(
 
     private IQueryable<AppUser> ApplySearch(IQueryable<AppUser> usersQuery, string? search)
     {
-        var trimmedSearch = NormalizeSearch(search);
-        if (trimmedSearch is null)
+        if (search is null)
         {
             return usersQuery;
         }
@@ -116,54 +122,53 @@ public sealed class PlatformAdminUserListing(
         var userNameMatches = substringLikeFilter.WherePropertyMatchesLikeSubstring(
             usersQuery,
             nameof(AppUser.UserName),
-            trimmedSearch);
+            search);
         var emailMatches = substringLikeFilter.WherePropertyMatchesLikeSubstring(
             usersQuery,
             nameof(AppUser.Email),
-            trimmedSearch);
+            search);
         var displayNameMatches = substringLikeFilter.WherePropertyMatchesLikeSubstring(
             usersQuery,
             nameof(AppUser.DisplayName),
-            trimmedSearch);
+            search);
 
         return userNameMatches.Union(emailMatches).Union(displayNameMatches);
     }
 
-    private static string? NormalizeSearch(string? search)
-    {
-        if (string.IsNullOrWhiteSpace(search))
-        {
-            return null;
-        }
-
-        var trimmed = search.Trim();
-        if (trimmed.Length > PagedRequestLimits.MAX_SEARCH_LENGTH)
-        {
-            trimmed = trimmed[..PagedRequestLimits.MAX_SEARCH_LENGTH];
-        }
-
-        return trimmed;
-    }
-
     private static IOrderedQueryable<AppUser> OrderUsers(
         IQueryable<AppUser> usersQuery,
-        bool prioritizeExternalPlatformAdminRole)
+        IQueryable<IdentityUserRole<long>> userRoles,
+        long? platformAdminRoleId,
+        bool prioritizeExternalPlatformAdminRole,
+        bool prioritizeLocalPlatformAdminRole)
     {
         var quotedRoleName = PlatformAdminExternalRoleReader.QuotedPlatformAdminRoleName;
 
-        if (!prioritizeExternalPlatformAdminRole)
+        if (prioritizeExternalPlatformAdminRole)
         {
             return usersQuery
-                .OrderBy(user => user.Email)
+                .OrderByDescending(user =>
+                    user.AuthProvider != AuthProviders.Endatix &&
+                    user.ExternalRolesJson != null &&
+                    user.ExternalRolesJson.Contains(quotedRoleName))
+                .ThenBy(user => user.Email)
+                .ThenBy(user => user.UserName);
+        }
+
+        if (prioritizeLocalPlatformAdminRole && platformAdminRoleId is not null)
+        {
+            var platformAdminUserIds = userRoles
+                .Where(userRole => userRole.RoleId == platformAdminRoleId.Value)
+                .Select(userRole => userRole.UserId);
+
+            return usersQuery
+                .OrderByDescending(user => platformAdminUserIds.Contains(user.Id))
+                .ThenBy(user => user.Email)
                 .ThenBy(user => user.UserName);
         }
 
         return usersQuery
-            .OrderByDescending(user =>
-                user.AuthProvider != AuthProviders.Endatix &&
-                user.ExternalRolesJson != null &&
-                user.ExternalRolesJson.Contains(quotedRoleName))
-            .ThenBy(user => user.Email)
+            .OrderBy(user => user.Email)
             .ThenBy(user => user.UserName);
     }
 
@@ -238,9 +243,6 @@ public sealed class PlatformAdminUserListing(
             .Where(tenant => tenantIds.Contains(tenant.Id))
             .ToDictionaryAsync(tenant => tenant.Id, tenant => tenant.Name, cancellationToken);
     }
-
-    private static int NormalizePageSize(int pageSize) =>
-        Math.Clamp(pageSize, PagedRequestLimits.MIN_PAGE_SIZE, PagedRequestLimits.MAX_PAGE_SIZE);
 
     private sealed record UserRow(
         long Id,

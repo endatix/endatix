@@ -123,7 +123,7 @@ public class FilteredRequestValidatorTests
         result.ShouldNotHaveAnyValidationErrors();
     }
 
-    private class TestFilteredRequest : IFilteredRequest
+    private class TestFilteredRequest : IFilterable
     {
         public IEnumerable<string>? Filter { get; set; } = Array.Empty<string>();
     }

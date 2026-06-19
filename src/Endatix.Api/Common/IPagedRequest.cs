@@ -1,17 +1,17 @@
 namespace Endatix.Api.Common;
 
 /// <summary>
-/// Common interface to handle request that support paging. Use this for every request that should handle paging.
+/// Paged list request capability.
 /// </summary>
 public interface IPagedRequest
 {
     /// <summary>
-    /// The number of the page
+    /// The page number.
     /// </summary>
     int? Page { get; set; }
 
     /// <summary>
-    /// The number of items to take.
+    /// The number of items per page.
     /// </summary>
     int? PageSize { get; set; }
 }

@@ -101,7 +101,7 @@ public sealed class ListRolesValidator : Validator<ListRolesRequest>
     /// </summary>
     public ListRolesValidator()
     {
-        Include(new PagedRequestValidator());
+        Include(new PageableRequestValidator());
 
         RuleFor(x => x.PageSize)
             .LessThanOrEqualTo(ListRolesQuery.MaxPageSize)

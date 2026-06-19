@@ -5,7 +5,7 @@ namespace Endatix.Api.Endpoints.FormTemplates;
 /// <summary>
 /// Request model for listing form templates.
 /// </summary>
-public class FormTemplatesListRequest : IPagedRequest, IFilteredRequest
+public class FormTemplatesListRequest : IPagedRequest, IFilterable
 {
     /// <summary>
     /// The number of the page

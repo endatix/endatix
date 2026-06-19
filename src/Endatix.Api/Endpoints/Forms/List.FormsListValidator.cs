@@ -26,7 +26,7 @@ public class FormsListValidator : Validator<FormsListRequest>
     /// </summary>
     public FormsListValidator()
     {
-        Include(new PagedRequestValidator());
+        Include(new PageableRequestValidator());
         Include(new FilteredRequestValidator(_filterableFields));
     }
 }

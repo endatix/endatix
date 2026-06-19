@@ -19,7 +19,7 @@ public class FormTemplatesListValidator : Validator<FormTemplatesListRequest>
     /// </summary>
     public FormTemplatesListValidator()
     {
-        Include(new PagedRequestValidator());
+        Include(new PageableRequestValidator());
         Include(new FilteredRequestValidator(_filterableFields));
     }
 }

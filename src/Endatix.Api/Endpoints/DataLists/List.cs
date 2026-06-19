@@ -61,7 +61,7 @@ public sealed class DataListsListValidator : Validator<DataListsListRequest>
     /// </summary>
     public DataListsListValidator()
     {
-        Include(new PagedRequestValidator());
+        Include(new PageableRequestValidator());
     }
 }
 
