@@ -10,5 +10,10 @@ public abstract class HasDomainEventsBase
   public IEnumerable<DomainEventBase> DomainEvents => _domainEvents.AsReadOnly();
 
   protected void RegisterDomainEvent(DomainEventBase domainEvent) => _domainEvents.Add(domainEvent);
-  internal void ClearDomainEvents() => _domainEvents.Clear();
+
+  /// <summary>
+  /// Clears the registered domain events. Called after they have been captured/dispatched
+  /// (e.g. by the outbox capture in <c>AppDbContext.ProcessEntities</c>).
+  /// </summary>
+  public void ClearDomainEvents() => _domainEvents.Clear();
 }
