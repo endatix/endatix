@@ -144,15 +144,18 @@ public class Paged<T> : IPagedData
 
         if (totalRecords == 0)
         {
+            if (items.Count != 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(items),
+                    "Items must be empty when TotalRecords is 0.");
+            }
+
             return Empty(pageSize);
         }
 
         var totalPages = CalculateTotalPages(totalRecords, pageSize);
-        var currentPage = page;
-        if (currentPage > totalPages)
-        {
-            currentPage = totalPages;
-        }
+        var currentPage = ResolvePage(page, pageSize, totalRecords);
 
         return new Paged<T>(
             page: currentPage,
@@ -195,6 +198,29 @@ public class Paged<T> : IPagedData
         totalRecords: 0,
         totalPages: 0,
         items: []);
+
+    /// <summary>
+    /// Resolves the page number to use for querying and response metadata,
+    /// clamping to the last valid page when the requested page exceeds the total.
+    /// </summary>
+    /// <param name="page">The requested page number.</param>
+    /// <param name="pageSize">The page size.</param>
+    /// <param name="totalRecords">The total number of records.</param>
+    /// <returns>The page number to use for skip/take and <see cref="FromPage"/>.</returns>
+    public static int ResolvePage(int page, int pageSize, int totalRecords)
+    {
+        Guard.Against.NegativeOrZero(page);
+        Guard.Against.NegativeOrZero(pageSize);
+        Guard.Against.Negative(totalRecords);
+
+        if (totalRecords == 0)
+        {
+            return MIN_PAGE;
+        }
+
+        var totalPages = CalculateTotalPages(totalRecords, pageSize);
+        return page > totalPages ? totalPages : page;
+    }
 
     private static int CalculateTotalPages(int totalRecords, int pageSize) =>
         (int)((totalRecords + (long)pageSize - 1) / pageSize);

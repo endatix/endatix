@@ -196,6 +196,16 @@ public class PagedTests
         paged.TotalPages.Should().Be(2);
     }
 
+    [Theory]
+    [InlineData(5, 10, 15, 2)]
+    [InlineData(1, 10, 15, 1)]
+    [InlineData(2, 10, 15, 2)]
+    [InlineData(3, 10, 0, 1)]
+    public void ResolvePage_ClampsToValidRange(int page, int pageSize, int totalRecords, int expectedPage)
+    {
+        Paged<string>.ResolvePage(page, pageSize, totalRecords).Should().Be(expectedPage);
+    }
+
     [Fact]
     public void FromPage_TotalRecordsZero_ReturnsEmpty()
     {
@@ -205,6 +215,15 @@ public class PagedTests
 
         paged.TotalPages.Should().Be(0);
         paged.Page.Should().Be(1);
+    }
+
+    [Fact]
+    public void FromPage_TotalRecordsZeroWithItems_ThrowsArgumentOutOfRangeException()
+    {
+        var act = () => Paged<string>.FromPage(1, 10, 0, new[] { "a" });
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .And.ParamName.Should().Be("items");
     }
 
     [Fact]

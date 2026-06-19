@@ -108,4 +108,31 @@ public class ListFormsHandlerTests
             Arg.Any<FormsWithSubmissionsCountSpec>(),
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_PageBeyondTotalPages_QueriesLastPage()
+    {
+        // Arrange — 15 records, page size 10 → 2 pages; request page 5
+        var lastPageForms = new List<FormDto>
+        {
+            new() { Name = "Form 15", IsEnabled = true, SubmissionsCount = 0 },
+        };
+        var request = new ListFormsQuery(5, 10);
+        _repository.CountAsync(Arg.Any<FormsListFilterSpec>(), Arg.Any<CancellationToken>())
+            .Returns(15);
+        _repository.ListAsync(Arg.Any<FormsWithSubmissionsCountSpec>(), Arg.Any<CancellationToken>())
+            .Returns(lastPageForms);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value!.Page.Should().Be(2);
+        result.Value.TotalPages.Should().Be(2);
+        result.Value.Items.Should().BeEquivalentTo(lastPageForms);
+        await _repository.Received(1).ListAsync(
+            Arg.Is<FormsWithSubmissionsCountSpec>(spec => spec.Skip == 10 && spec.Take == 10),
+            Arg.Any<CancellationToken>());
+    }
 }

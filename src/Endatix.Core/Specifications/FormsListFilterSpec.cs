@@ -23,7 +23,7 @@ public sealed class FormsListFilterSpec : Specification<Form>
             return;
         }
 
-        var term = search.Trim().ToLower();
+        var term = search.Trim().ToLowerInvariant();
         query.Where(form => form.Name.ToLower().Contains(term));
     }
 }

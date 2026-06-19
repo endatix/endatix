@@ -26,15 +26,21 @@ public sealed class ListFormsHandler(IFormsRepository repository)
             var countSpec = new FormsListFilterSpec(filterParams, search);
             var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
 
+            var page = Paged<FormDto>.ResolvePage(
+                pagingParams.Page,
+                pagingParams.PageSize,
+                totalRecords);
+            var queryPagingParams = new PagingParameters(page, pagingParams.PageSize);
+
             var forms = await LoadFormsPageAsync(
                 totalRecords,
-                pagingParams,
+                queryPagingParams,
                 filterParams,
                 search,
                 cancellationToken);
 
             var paged = Paged<FormDto>.FromPage(
-                page: pagingParams.Page,
+                page: page,
                 pageSize: pagingParams.PageSize,
                 totalRecords: totalRecords,
                 items: [.. forms]);
