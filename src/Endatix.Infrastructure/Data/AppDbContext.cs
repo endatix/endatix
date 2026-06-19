@@ -274,7 +274,7 @@ public class AppDbContext : DbContext, ITenantDbContext
             return;
         }
 
-        var outboxMessages = _outboxDispatcher.Capture(entitiesWithEvents, GetTenantId());
+        var outboxMessages = _outboxDispatcher.Capture(entitiesWithEvents);
         foreach (var message in outboxMessages)
         {
             var entry = OutboxMessages.Add(message);

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Infrastructure.Identity.Authentication;
 
 namespace Endatix.Infrastructure.Features.Outbox;
 
@@ -23,12 +24,11 @@ public sealed class OutboxIntegrationEventDispatcher
 
     /// <summary>
     /// Builds an <see cref="OutboxMessage"/> for every <see cref="IIntegrationEvent"/> on the given
-    /// entities and clears their domain events. The caller is responsible for persisting the returned
-    /// rows (stamping <c>Id</c>/<c>CreatedAt</c> as it adds them).
+    /// entities and removes those events. The caller is responsible for persisting the returned rows
+    /// (stamping <c>Id</c>/<c>CreatedAt</c> as it adds them).
     /// </summary>
     /// <param name="entities">Tracked entities that may carry domain events.</param>
-    /// <param name="ambientTenantId">Fallback tenant id for events whose source is not tenant-owned.</param>
-    public IReadOnlyList<OutboxMessage> Capture(IEnumerable<HasDomainEventsBase> entities, long ambientTenantId)
+    public IReadOnlyList<OutboxMessage> Capture(IEnumerable<HasDomainEventsBase> entities)
     {
         var messages = new List<OutboxMessage>();
 
@@ -43,8 +43,9 @@ public sealed class OutboxIntegrationEventDispatcher
                 continue;
             }
 
-            // A tenant-owned aggregate carries the authoritative tenant; otherwise use the ambient one.
-            var tenantId = (entity as ITenantOwned)?.TenantId ?? ambientTenantId;
+            // Tenant is a pure function of the aggregate: a tenant-owned aggregate carries the
+            // authoritative tenant; a non-tenant-owned (global) aggregate's event is app-level.
+            var tenantId = (entity as ITenantOwned)?.TenantId ?? AuthConstants.DEFAULT_TENANT_ID;
 
             foreach (var domainEvent in integrationEvents)
             {

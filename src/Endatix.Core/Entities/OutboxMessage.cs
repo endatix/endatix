@@ -27,7 +27,8 @@ public class OutboxMessage : BaseEntity, IAggregateRoot
     {
         Guard.Against.NullOrWhiteSpace(eventType);
         Guard.Against.NullOrWhiteSpace(payload);
-        Guard.Against.NegativeOrZero(tenantId);
+        // 0 == AuthConstants.DEFAULT_TENANT_ID (app-level / cross-tenant events) is valid; only negatives are not.
+        Guard.Against.Negative(tenantId);
         Guard.Against.NegativeOrZero(schemaVersion);
 
         EventType = eventType;

@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Infrastructure.Identity.Authentication;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -57,7 +58,8 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
 
         outbox.Should().ContainSingle();
         outbox[0].EventType.Should().Be("probe.created");
-        outbox[0].TenantId.Should().Be(AmbientTenantId);
+        // The probe is not tenant-owned → app-level event (DEFAULT_TENANT_ID), regardless of ambient context.
+        outbox[0].TenantId.Should().Be(AuthConstants.DEFAULT_TENANT_ID);
         outbox[0].Status.Should().Be(OutboxMessageStatus.Pending);
         outbox[0].Attempts.Should().Be(0);
         outbox[0].Id.Should().BeGreaterThan(0, "ProcessEntities stamps the outbox row's Id explicitly");

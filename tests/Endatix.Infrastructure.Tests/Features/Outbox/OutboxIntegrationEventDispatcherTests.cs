@@ -1,13 +1,13 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Infrastructure.Identity.Authentication;
 using FluentAssertions;
 
 namespace Endatix.Infrastructure.Tests.Features.Outbox;
 
 public class OutboxIntegrationEventDispatcherTests
 {
-    private const long AmbientTenantId = 999;
     private readonly OutboxIntegrationEventDispatcher _sut = new();
 
     [Fact]
@@ -18,7 +18,7 @@ public class OutboxIntegrationEventDispatcherTests
         aggregate.RaiseIntegrationEvent(formId: 123, name: "Survey");
 
         // Act
-        var messages = _sut.Capture([aggregate], AmbientTenantId);
+        var messages = _sut.Capture([aggregate]);
 
         // Assert
         messages.Should().ContainSingle();
@@ -32,18 +32,18 @@ public class OutboxIntegrationEventDispatcherTests
     }
 
     [Fact]
-    public void Capture_WhenSourceIsNotTenantOwned_UsesAmbientTenantId()
+    public void Capture_WhenSourceIsNotTenantOwned_UsesDefaultTenantId()
     {
-        // Arrange
+        // Arrange — a non-tenant-owned (global) aggregate's event is app-level
         var aggregate = new NonTenantAggregate();
         aggregate.RaiseIntegrationEvent(formId: 1, name: "x");
 
         // Act
-        var messages = _sut.Capture([aggregate], AmbientTenantId);
+        var messages = _sut.Capture([aggregate]);
 
         // Assert
         messages.Should().ContainSingle();
-        messages[0].TenantId.Should().Be(AmbientTenantId);
+        messages[0].TenantId.Should().Be(AuthConstants.DEFAULT_TENANT_ID);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class OutboxIntegrationEventDispatcherTests
         aggregate.RaisePlainDomainEvent();
 
         // Act
-        var messages = _sut.Capture([aggregate], AmbientTenantId);
+        var messages = _sut.Capture([aggregate]);
 
         // Assert
         messages.Should().BeEmpty();
@@ -68,7 +68,7 @@ public class OutboxIntegrationEventDispatcherTests
         aggregate.RaiseIntegrationEvent(formId: 1, name: "x");
 
         // Act
-        _sut.Capture([aggregate], AmbientTenantId);
+        _sut.Capture([aggregate]);
 
         // Assert
         aggregate.DomainEvents.Should().BeEmpty("captured events must not be re-processed");
@@ -83,7 +83,7 @@ public class OutboxIntegrationEventDispatcherTests
         aggregate.RaisePlainDomainEvent();
 
         // Act
-        var messages = _sut.Capture([aggregate], AmbientTenantId);
+        var messages = _sut.Capture([aggregate]);
 
         // Assert — only the integration event is captured and removed; the plain one stays in-process
         messages.Should().ContainSingle();
@@ -102,7 +102,7 @@ public class OutboxIntegrationEventDispatcherTests
         second.RaiseIntegrationEvent(formId: 3, name: "c");
 
         // Act
-        var messages = _sut.Capture([first, second], AmbientTenantId);
+        var messages = _sut.Capture([first, second]);
 
         // Assert
         messages.Should().HaveCount(3);
