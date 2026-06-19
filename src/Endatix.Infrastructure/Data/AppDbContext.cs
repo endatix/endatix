@@ -7,6 +7,8 @@ using Endatix.Infrastructure.Data.Abstractions;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Endatix.Core.Exceptions;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Infrastructure.Features.Outbox;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -20,17 +22,20 @@ public class AppDbContext : DbContext, ITenantDbContext
     private readonly IIdGenerator<long> _idGenerator;
     private readonly ITenantContext _tenantContext;
     private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
+    private readonly OutboxIntegrationEventDispatcher _outboxDispatcher;
 
     protected AppDbContext() { }
     public AppDbContext(
         DbContextOptions<AppDbContext> options,
         IIdGenerator<long> idGenerator,
         ITenantContext tenantContext,
-        EfCoreValueGeneratorFactory valueGeneratorFactory) : base(options)
+        EfCoreValueGeneratorFactory valueGeneratorFactory,
+        OutboxIntegrationEventDispatcher outboxDispatcher) : base(options)
     {
         _idGenerator = idGenerator;
         _tenantContext = tenantContext;
         _valueGeneratorFactory = valueGeneratorFactory;
+        _outboxDispatcher = outboxDispatcher;
     }
 
     public DbSet<Form> Forms { get; set; }
@@ -75,6 +80,12 @@ public class AppDbContext : DbContext, ITenantDbContext
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        // Domain events live on entities (BaseEntity : HasDomainEventsBase) but are never persisted —
+        // they are captured to the outbox in ProcessEntities. Exclude the type from the model so EF
+        // doesn't try to map the [NotMapped] DomainEvents collection as a keyless/related entity.
+        builder.Ignore<DomainEventBase>();
+
         builder.ApplyEndatixQueryFilters(this);
         ConfigureEntityIdValueGenerators(builder);
 
@@ -235,6 +246,40 @@ public class AppDbContext : DbContext, ITenantDbContext
 
                     break;
             }
+        }
+
+        CaptureIntegrationEvents();
+    }
+
+    /// <summary>
+    /// Captures <see cref="IIntegrationEvent"/>s raised on tracked aggregates into <see cref="OutboxMessage"/>
+    /// rows in this same context, so they commit atomically with the aggregate. Runs after Id/timestamp
+    /// stamping (so the aggregates' Ids are set before payloads are materialized); the new outbox rows are
+    /// added afterwards, so their Id/CreatedAt are stamped explicitly here.
+    /// </summary>
+    private void CaptureIntegrationEvents()
+    {
+        if (_outboxDispatcher is null)
+        {
+            return;
+        }
+
+        var entitiesWithEvents = ChangeTracker.Entries<HasDomainEventsBase>()
+            .Select(entry => entry.Entity)
+            .Where(entity => entity.DomainEvents.Any())
+            .ToList();
+
+        if (entitiesWithEvents.Count == 0)
+        {
+            return;
+        }
+
+        var outboxMessages = _outboxDispatcher.Capture(entitiesWithEvents);
+        foreach (var message in outboxMessages)
+        {
+            var entry = OutboxMessages.Add(message);
+            entry.CurrentValues[nameof(BaseEntity.Id)] = _idGenerator.CreateId();
+            entry.CurrentValues[nameof(BaseEntity.CreatedAt)] = DateTime.UtcNow;
         }
     }
 
