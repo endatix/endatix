@@ -51,8 +51,12 @@ public sealed class OutboxIntegrationEventDispatcher
                 var integrationEvent = (IIntegrationEvent)domainEvent;
 
                 // Materialize the payload now, while the aggregate is still live (late-bound fields resolved).
+                // Serialize with the runtime type so derived properties are included; a null payload is
+                // stored as the JSON literal rather than aborting the whole SaveChanges.
                 var payloadDto = integrationEvent.GetPayload();
-                var payload = JsonSerializer.Serialize(payloadDto, payloadDto.GetType(), SerializerOptions);
+                var payload = payloadDto is null
+                    ? "null"
+                    : JsonSerializer.Serialize(payloadDto, payloadDto.GetType(), SerializerOptions);
 
                 messages.Add(new OutboxMessage(
                     eventType: integrationEvent.EventType,
@@ -63,7 +67,8 @@ public sealed class OutboxIntegrationEventDispatcher
                     traceId: Activity.Current?.TraceId.ToString()));
             }
 
-            entity.ClearDomainEvents();
+            // Remove only what we captured — any non-integration domain events stay in-process.
+            entity.RemoveDomainEvents(integrationEvents);
         }
 
         return messages;

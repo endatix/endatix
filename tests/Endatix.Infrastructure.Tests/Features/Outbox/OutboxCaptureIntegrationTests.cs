@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -20,6 +21,8 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
     private const long AmbientTenantId = 42;
     private readonly SqliteConnection _connection;
     private readonly ITenantContext _tenantContext;
+    // One generator for the fixture: contexts share the DB connection, so Ids must be unique across them.
+    private readonly IncrementingIdGenerator _idGenerator = new();
 
     public OutboxCaptureIntegrationTests()
     {
@@ -58,7 +61,9 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
         outbox[0].Status.Should().Be(OutboxMessageStatus.Pending);
         outbox[0].Attempts.Should().Be(0);
         outbox[0].Id.Should().BeGreaterThan(0, "ProcessEntities stamps the outbox row's Id explicitly");
-        outbox[0].Payload.Should().Contain("555");
+
+        using var payload = JsonDocument.Parse(outbox[0].Payload);
+        payload.RootElement.GetProperty("formId").GetInt64().Should().Be(555);
     }
 
     [Fact]
@@ -90,16 +95,15 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
 
     private TestAppDbContext CreateContext()
     {
-        var idGenerator = new IncrementingIdGenerator();
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(_connection)
             .Options;
 
         return new TestAppDbContext(
             options,
-            idGenerator,
+            _idGenerator,
             _tenantContext,
-            new EfCoreValueGeneratorFactory(idGenerator),
+            new EfCoreValueGeneratorFactory(_idGenerator),
             new OutboxIntegrationEventDispatcher());
     }
 

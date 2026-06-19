@@ -75,6 +75,23 @@ public class OutboxIntegrationEventDispatcherTests
     }
 
     [Fact]
+    public void Capture_RemovesOnlyTheCapturedIntegrationEvents_AndKeepsPlainDomainEvents()
+    {
+        // Arrange
+        var aggregate = new TestAggregate(tenantId: 42);
+        aggregate.RaiseIntegrationEvent(formId: 1, name: "x");
+        aggregate.RaisePlainDomainEvent();
+
+        // Act
+        var messages = _sut.Capture([aggregate], AmbientTenantId);
+
+        // Assert — only the integration event is captured and removed; the plain one stays in-process
+        messages.Should().ContainSingle();
+        aggregate.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<PlainDomainEvent>();
+    }
+
+    [Fact]
     public void Capture_WithMultipleEventsAcrossEntities_BuildsOneMessagePerIntegrationEvent()
     {
         // Arrange
