@@ -128,6 +128,41 @@ public class Paged<T> : IPagedData
     public IReadOnlyList<T> Items { get; init; }
 
     /// <summary>
+    /// Creates a new <see cref="Paged{T}"/> from page-based paging parameters.
+    /// </summary>
+    /// <param name="page">The page number.</param>
+    /// <param name="pageSize">The page size.</param>
+    /// <param name="totalRecords">The total number of records.</param>
+    /// <param name="items">The items on the page.</param>
+    /// <returns>A new <see cref="Paged{T}"/>.</returns>
+    public static Paged<T> FromPage(int page, int pageSize, int totalRecords, IReadOnlyList<T> items)
+    {
+        Guard.Against.NegativeOrZero(page);
+        Guard.Against.NegativeOrZero(pageSize);
+        Guard.Against.Negative(totalRecords);
+        Guard.Against.Null(items);
+
+        if (totalRecords == 0)
+        {
+            return Empty(pageSize);
+        }
+
+        var totalPages = CalculateTotalPages(totalRecords, pageSize);
+        var currentPage = page;
+        if (currentPage > totalPages)
+        {
+            currentPage = totalPages;
+        }
+
+        return new Paged<T>(
+            page: currentPage,
+            pageSize: pageSize,
+            totalRecords: totalRecords,
+            totalPages: totalPages,
+            items: items);
+    }
+
+    /// <summary>
     /// Creates a new <see cref="Paged{T}"/> from a paged request.
     /// </summary>
     /// <param name="skip">The number of items to skip.</param>
@@ -142,25 +177,11 @@ public class Paged<T> : IPagedData
         Guard.Against.Negative(totalRecords);
         Guard.Against.Null(items);
 
-        if (totalRecords == 0)
-        {
-            return Empty(take);
-        }
+        var page = totalRecords == 0
+            ? MIN_PAGE
+            : (skip / take) + 1;
 
-        var totalPages = CalculateTotalPages(totalRecords, take);
-
-        var currentPage = (skip / take) + 1;
-        if (totalPages > 0 && currentPage > totalPages)
-        {
-            currentPage = totalPages;
-        }
-
-        return new Paged<T>(
-            page: currentPage,
-            pageSize: take,
-            totalRecords: totalRecords,
-            totalPages: totalPages,
-            items: items);
+        return FromPage(page, take, totalRecords, items);
     }
 
     /// <summary>
@@ -174,7 +195,7 @@ public class Paged<T> : IPagedData
         totalRecords: 0,
         totalPages: 0,
         items: []);
-    
+
     private static int CalculateTotalPages(int totalRecords, int pageSize) =>
         (int)((totalRecords + (long)pageSize - 1) / pageSize);
 }

@@ -18,26 +18,31 @@ public class ListFormsHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ValidRequest_ReturnsForms()
+    public async Task Handle_ValidRequest_ReturnsPagedForms()
     {
         // Arrange
-        var formsList = new List<FormDto>        {
-            new(){
+        var formsList = new List<FormDto>
+        {
+            new()
+            {
                 Name = "Form 1",
                 Description = "Description 1",
                 IsEnabled = true,
-                SubmissionsCount = 3
+                SubmissionsCount = 3,
             },
-            new(){
-                Name = "Form 1",
+            new()
+            {
+                Name = "Form 2",
                 Description = "Description 2",
                 IsEnabled = true,
-                SubmissionsCount = 0
-            }
+                SubmissionsCount = 0,
+            },
         };
-        var request = new ListFormsQuery(1, 10, ["name:form1"]);
+        var request = new ListFormsQuery(1, 10, FilterExpressions: ["name:form1"]);
+        _repository.CountAsync(Arg.Any<FormsListFilterSpec>(), Arg.Any<CancellationToken>())
+            .Returns(2);
         _repository.ListAsync(Arg.Any<FormsWithSubmissionsCountSpec>(), Arg.Any<CancellationToken>())
-                   .Returns(formsList);
+            .Returns(formsList);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -46,30 +51,31 @@ public class ListFormsHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Should().BeEquivalentTo(formsList);
+        result.Value!.Items.Should().BeEquivalentTo(formsList);
+        result.Value.TotalRecords.Should().Be(2);
+        result.Value.Page.Should().Be(1);
+        result.Value.PageSize.Should().Be(10);
     }
 
-     [Fact]
-    public async Task Handle_ValidRequest_NullFilter_ReturnsForms()
+    [Fact]
+    public async Task Handle_ValidRequest_NullFilter_ReturnsPagedForms()
     {
         // Arrange
-        var formsList = new List<FormDto>        {
-            new(){
+        var formsList = new List<FormDto>
+        {
+            new()
+            {
                 Name = "Form 1",
                 Description = "Description 1",
                 IsEnabled = true,
-                SubmissionsCount = 2
+                SubmissionsCount = 2,
             },
-            new(){
-                Name = "Form 1",
-                Description = "Description 2",
-                IsEnabled = true,
-                SubmissionsCount = 0
-            }
         };
-        var request = new ListFormsQuery(1, 10, null);
+        var request = new ListFormsQuery(1, 10);
+        _repository.CountAsync(Arg.Any<FormsListFilterSpec>(), Arg.Any<CancellationToken>())
+            .Returns(1);
         _repository.ListAsync(Arg.Any<FormsWithSubmissionsCountSpec>(), Arg.Any<CancellationToken>())
-                   .Returns(formsList);
+            .Returns(formsList);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -78,6 +84,28 @@ public class ListFormsHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Should().BeEquivalentTo(formsList);
+        result.Value!.Items.Should().BeEquivalentTo(formsList);
+        result.Value.TotalRecords.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Handle_NoMatchingForms_DoesNotQueryList()
+    {
+        // Arrange
+        var request = new ListFormsQuery(1, 10, Search: "missing");
+        _repository.CountAsync(Arg.Any<FormsListFilterSpec>(), Arg.Any<CancellationToken>())
+            .Returns(0);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value.Should().NotBeNull();
+        result.Value!.TotalRecords.Should().Be(0);
+        result.Value.Items.Should().BeEmpty();
+        await _repository.DidNotReceive().ListAsync(
+            Arg.Any<FormsWithSubmissionsCountSpec>(),
+            Arg.Any<CancellationToken>());
     }
 }

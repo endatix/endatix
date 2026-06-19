@@ -8,15 +8,16 @@ namespace Endatix.Core.Specifications;
 
 public sealed class FormsWithSubmissionsCountSpec : Specification<Form, FormDto>
 {
-    public FormsWithSubmissionsCountSpec(PagingParameters pagingParams, FilterParameters filterParams)
+    public FormsWithSubmissionsCountSpec(
+        PagingParameters pagingParams,
+        FilterParameters filterParams,
+        string? search = null)
     {
-        Query
-            .Filter(filterParams)
-            .OrderByDescending(x => x.CreatedAt)
-            .Paginate(pagingParams)
-            .AsNoTracking();
-
+        Query.Filter(filterParams);
+        FormsListFilterSpec.ApplyNameSearch(Query, search);
+        Query.OrderByDescending(form => form.CreatedAt);
+        Query.Paginate(pagingParams);
+        Query.AsNoTracking();
         Query.Select(FormProjections.ToFormDtoWithSubmissionsCount);
     }
 }
-
