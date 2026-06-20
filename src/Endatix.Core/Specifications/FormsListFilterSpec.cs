@@ -24,6 +24,6 @@ public sealed class FormsListFilterSpec : Specification<Form>
         }
 
         var term = search.Trim().ToLowerInvariant();
-        query.Where(form => form.Name.ToLower().Contains(term));
+        query.Where(form => form.Name.ToLowerInvariant().Contains(term));
     }
 }
