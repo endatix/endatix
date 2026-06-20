@@ -162,6 +162,71 @@ public class PagedTests
     }
 
     [Fact]
+    public void FromPage_ValidInput_CreatesInstance()
+    {
+        var items = new[] { "a", "b" };
+
+        var paged = Paged<string>.FromPage(1, 10, 15, items);
+
+        paged.Page.Should().Be(1);
+        paged.PageSize.Should().Be(10);
+        paged.TotalRecords.Should().Be(15);
+        paged.TotalPages.Should().Be(2);
+        paged.Items.Should().BeEquivalentTo(items);
+    }
+
+    [Fact]
+    public void FromPage_SecondPage_CreatesCorrectPage()
+    {
+        var items = new[] { "c", "d" };
+
+        var paged = Paged<string>.FromPage(2, 10, 25, items);
+
+        paged.Page.Should().Be(2);
+    }
+
+    [Fact]
+    public void FromPage_PageBeyondTotalPages_ClampsToLastPage()
+    {
+        var items = new[] { "a" };
+
+        var paged = Paged<string>.FromPage(5, 10, 15, items);
+
+        paged.Page.Should().Be(2);
+        paged.TotalPages.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData(5, 10, 15, 2)]
+    [InlineData(1, 10, 15, 1)]
+    [InlineData(2, 10, 15, 2)]
+    [InlineData(3, 10, 0, 1)]
+    public void ResolvePage_ClampsToValidRange(int page, int pageSize, int totalRecords, int expectedPage)
+    {
+        Paged<string>.ResolvePage(page, pageSize, totalRecords).Should().Be(expectedPage);
+    }
+
+    [Fact]
+    public void FromPage_TotalRecordsZero_ReturnsEmpty()
+    {
+        var items = Array.Empty<string>();
+
+        var paged = Paged<string>.FromPage(1, 10, 0, items);
+
+        paged.TotalPages.Should().Be(0);
+        paged.Page.Should().Be(1);
+    }
+
+    [Fact]
+    public void FromPage_TotalRecordsZeroWithItems_ThrowsArgumentOutOfRangeException()
+    {
+        var act = () => Paged<string>.FromPage(1, 10, 0, new[] { "a" });
+
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .And.ParamName.Should().Be("items");
+    }
+
+    [Fact]
     public void FromSkipAndTake_ValidInput_CreatesInstance()
     {
         var items = new[] { "a", "b" };

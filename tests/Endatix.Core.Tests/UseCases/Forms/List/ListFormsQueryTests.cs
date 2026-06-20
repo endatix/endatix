@@ -14,7 +14,7 @@ public class ListFormsQueryTests
         IEnumerable<string>? filter = ["name:form1"];
 
         // Act
-        var query = new ListFormsQuery(page, pageSize, filter);
+        var query = new ListFormsQuery(page, pageSize, FilterExpressions: filter);
 
         // Assert
         query.Page.Should().Be(page);
@@ -38,19 +38,19 @@ public class ListFormsQueryTests
     }
 
     [Fact]
-    public void Constructor_NullFilter_SetsPropertiesCorrectly()
+    public void Constructor_SearchAndFilters_SetsPropertiesCorrectly()
     {
         // Arrange
-        int? page = 1;
-        int? pageSize = 10;
-        IEnumerable<string>? filter = null;
-
-        // Act
-        var query = new ListFormsQuery(page, pageSize, filter);
+        var query = new ListFormsQuery(
+            1,
+            25,
+            Search: "survey",
+            IsEnabled: true,
+            IsPublic: false);
 
         // Assert
-        query.Page.Should().Be(page);
-        query.PageSize.Should().Be(pageSize);
-        query.FilterExpressions.Should().BeNull();
+        query.Search.Should().Be("survey");
+        query.IsEnabled.Should().BeTrue();
+        query.IsPublic.Should().BeFalse();
     }
 }
