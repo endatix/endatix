@@ -1,0 +1,60 @@
+replicaCount: 1
+
+image:
+  repository: endatix/endatix-api
+  pullPolicy: Always
+  # tag defaults to chart appVersion
+
+imagePullSecrets: []
+
+db:
+  # Name of an existing secret with key: connection-string
+  # Example: Host=pg-host;Port=5432;Username=postgres;Password=xxx;Database=endatix
+  secretName: endatix-db-secret
+  provider: postgresql
+
+auth:
+  # Name of an existing secret with key: signing-key
+  secretName: endatix-auth-secret
+  accessExpiryInMinutes: 90
+  refreshExpiryInDays: 7
+  issuer: endatix-api
+  audiences:
+    - endatix-hub
+    - endatix-client
+
+initialUser:
+  # Name of an existing secret with keys: email, password
+  # Only used on first startup to seed the admin account
+  secretName: endatix-initial-user-secret
+
+data:
+  enableAutoMigrations: true
+  seedSampleData: false
+  seedSampleForms: false
+
+hub:
+  # Base URL of the Endatix Hub frontend, used for email links etc.
+  baseUrl: ""
+
+cors:
+  policyName: AllowAll
+
+aspnetcore:
+  environment: Production
+  forwardedHeadersEnabled: "true"
+
+otel:
+  enabled: false
+  endpoint: ""
+  protocol: grpc
+  serviceName: endatix-api
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+nodeSelector: {}
