@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Ardalis.GuardClauses;
+using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +36,12 @@ public static class DatabaseMigrationExtensions
 
             using var identityDbContext = scopedProvider.GetRequiredService<AppIdentityDbContext>();
             await ApplyMigrationForContextAsync(identityDbContext, logger);
+
+            var moduleContributors = scopedProvider.GetServices<IDbContextMigrationContributor>();
+            foreach (var contributor in moduleContributors)
+            {
+                await contributor.MigrateAsync(scopedProvider, logger);
+            }
 
             logger?.LogDebug("{Operation} operation executed successfully", nameof(ApplyDbMigrationsAsync));
         }

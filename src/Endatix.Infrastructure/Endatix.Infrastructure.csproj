@@ -27,6 +27,8 @@
 		<PackageReference Include="FastEndpoints.Security" />
 		<PackageReference Include="IdGen" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
 		<PackageReference Include="SendGrid" />
 		<PackageReference Include="SendGrid.Extensions.DependencyInjection" />
