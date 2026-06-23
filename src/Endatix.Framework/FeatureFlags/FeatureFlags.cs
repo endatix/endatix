@@ -30,4 +30,9 @@ public static class FeatureFlags
     /// Feature flag key for enabling Data Lists.
     /// </summary>
     public const string DataLists = "DataLists";
+
+    /// <summary>
+    /// Feature flag key for enabling the Reporting module (endpoints, DbContext, migrations).
+    /// </summary>
+    public const string ReportingModule = "ReportingModule";
 }

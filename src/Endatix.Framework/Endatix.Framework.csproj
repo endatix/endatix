@@ -12,6 +12,10 @@
   <PropertyGroup>
     <RootNamespace>Endatix.Framework</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Endatix.Hosting" />
+  </ItemGroup>
   
   <ItemGroup>
     <ProjectReference Include="..\Endatix.Core\Endatix.Core.csproj" />
@@ -22,6 +26,9 @@
     <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
     <PackageReference Include="Serilog.AspNetCore" />
   </ItemGroup>
 </Project>
