@@ -1,9 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { platform } from 'node:os';
 
-const SAFE_PATH = platform() === 'win32'
-  ? 'C:\\Program Files\\Git\\bin;C:\\Windows\\system32'
-  : '/usr/bin:/usr/local/bin:/opt/homebrew/bin:/bin';
+if (process.env.GITHUB_ACTIONS !== 'true') {
+  console.log('IndexNow submission is only allowed in GitHub Actions. Skipping.');
+  process.exit(0);
+}
+
+const SAFE_PATH = '/usr/bin:/bin';
 
 const HOST = 'docs.endatix.com';
 const KEY = 'b4e2f8a1d73c950682341f7e9b0d6a4c';
