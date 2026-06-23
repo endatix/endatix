@@ -2,6 +2,7 @@
 title: Products
 sidebar_position: 0
 sidebar_label: PRODUCTS
+description: An overview of the Endatix platform products - the API backend and the Hub frontend - with navigation to detailed documentation for each.
 ---
 
 # Products

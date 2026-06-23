@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 title: Storage Settings
+description: Configure Endatix external file storage - Azure Blob Storage and S3-compatible services — with all supported settings and environment variables.
 ---
 
 # Configuring Storage Settings in Endatix
