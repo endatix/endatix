@@ -5,7 +5,6 @@ if (process.env.GITHUB_ACTIONS !== 'true') {
   process.exit(0);
 }
 
-const SAFE_PATH = '/usr/bin:/bin';
 
 const HOST = 'docs.endatix.com';
 const KEY = 'b4e2f8a1d73c950682341f7e9b0d6a4c';
@@ -26,7 +25,7 @@ function filePathToUrl(filePath) {
     return null;
   }
 
-  return `${BASE_URL}/docs/${path}/`;
+  return path ? `${BASE_URL}/docs/${path}/` : `${BASE_URL}/docs/`;
 }
 
 async function submit(urlList) {
@@ -42,9 +41,8 @@ let changedFiles = [];
 let diffAvailable = false;
 try {
   changedFiles = execFileSync(
-    'git',
-    ['diff', '--name-only', 'HEAD~1', 'HEAD', '--', 'docs/endatix-docs/docs/'],
-    { env: { PATH: SAFE_PATH } }
+    '/usr/bin/git',
+    ['diff', '--name-only', 'HEAD~1', 'HEAD', '--', 'docs/endatix-docs/docs/']
   ).toString().trim().split('\n').filter(Boolean);
   diffAvailable = true;
 } catch {

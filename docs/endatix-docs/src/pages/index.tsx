@@ -158,7 +158,7 @@ export default function Home(): React.ReactNode {
   const { siteConfig } = useDocusaurusContext();
   return (
     <Layout
-      title={`${siteConfig.title} - self-hosted alternative to SaaS form and survey platforms`}
+      title="Self-hosted alternative to SaaS form and survey platforms"
       description="Endatix makes it easy to launch your own form management platform, packed with features that rival popular SaaS tools such as Qualtrics, Typeform, Formstack, and others."
     >
       <HomepageHeader />
