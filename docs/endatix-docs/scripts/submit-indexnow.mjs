@@ -1,4 +1,9 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
+import { platform } from 'node:os';
+
+const SAFE_PATH = platform() === 'win32'
+  ? 'C:\\Program Files\\Git\\bin;C:\\Windows\\system32'
+  : '/usr/bin:/usr/local/bin:/opt/homebrew/bin:/bin';
 
 const HOST = 'docs.endatix.com';
 const KEY = 'b4e2f8a1d73c950682341f7e9b0d6a4c';
@@ -34,11 +39,11 @@ async function submit(urlList) {
 let changedFiles = [];
 let diffAvailable = false;
 try {
-  changedFiles = execSync('git diff --name-only HEAD~1 HEAD -- docs/endatix-docs/docs/')
-    .toString()
-    .trim()
-    .split('\n')
-    .filter(Boolean);
+  changedFiles = execFileSync(
+    'git',
+    ['diff', '--name-only', 'HEAD~1', 'HEAD', '--', 'docs/endatix-docs/docs/'],
+    { env: { PATH: SAFE_PATH } }
+  ).toString().trim().split('\n').filter(Boolean);
   diffAvailable = true;
 } catch {
   // shallow clone or first commit — fall back to sitemap
