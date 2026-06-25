@@ -22,6 +22,9 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -72,6 +75,10 @@ jobs:
           skip_app_build: true
           skip_api_build: true
           api_location: ''
+
+      - name: 📡 Submit changed URLs to IndexNow
+        run: pnpm indexnow
+        continue-on-error: true
 
       - name: Summary message
         run: |

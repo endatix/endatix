@@ -13,7 +13,8 @@
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
     "typecheck": "tsc",
-    "pnpm:comments": "node ./scripts/echo-pnpm-comments.mjs"
+    "pnpm:comments": "node ./scripts/echo-pnpm-comments.mjs",
+    "indexnow": "node ./scripts/submit-indexnow.mjs"
   },
   "dependencies": {
     "@docusaurus/core": "^3.10.1",
