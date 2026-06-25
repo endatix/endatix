@@ -54,9 +54,11 @@ async function submit(urlList) {
 let changedFiles = [];
 let diffAvailable = false;
 try {
+  const repoRoot = execFileSync('/usr/bin/git', ['rev-parse', '--show-toplevel']).toString().trim();
   changedFiles = execFileSync(
     '/usr/bin/git',
-    ['diff', '--name-only', 'HEAD~1', 'HEAD', '--', 'docs/endatix-docs/docs/', 'docs/endatix-docs/blog/', 'docs/endatix-docs/src/pages/']
+    ['diff', '--name-only', 'HEAD~1', 'HEAD', '--', 'docs/endatix-docs/docs/', 'docs/endatix-docs/blog/', 'docs/endatix-docs/src/pages/'],
+    { cwd: repoRoot }
   ).toString().trim().split('\n').filter(Boolean);
   diffAvailable = true;
 } catch {
