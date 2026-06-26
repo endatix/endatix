@@ -25,9 +25,9 @@ public static class ModuleDbContextExtensions
         var moduleOptions = new ModuleDbContextOptions();
         configure(moduleOptions);
 
-        Guard.Against.NullOrEmpty(moduleOptions.MigrationsAssembly, nameof(moduleOptions.MigrationsAssembly));
-        Guard.Against.NullOrEmpty(moduleOptions.PostgreSqlMigrationsNamespace, nameof(moduleOptions.PostgreSqlMigrationsNamespace));
-        Guard.Against.NullOrEmpty(moduleOptions.SqlServerMigrationsNamespace, nameof(moduleOptions.SqlServerMigrationsNamespace));
+        Guard.Against.NullOrEmpty(moduleOptions.MigrationsAssembly);
+        Guard.Against.NullOrEmpty(moduleOptions.PostgreSqlMigrationsNamespace);
+        Guard.Against.NullOrEmpty(moduleOptions.SqlServerMigrationsNamespace);
 
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         var usePostgreSql = DatabaseProviderResolver.IsPostgreSql(configuration);
