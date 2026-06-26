@@ -3,6 +3,7 @@ using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Framework.Serialization;
 using Endatix.Infrastructure.Identity.Authentication;
 
 namespace Endatix.Infrastructure.Features.Outbox;
@@ -20,7 +21,12 @@ namespace Endatix.Infrastructure.Features.Outbox;
 public sealed class OutboxIntegrationEventDispatcher
 {
     // Web defaults (camelCase) — payloads are opaque JSON to the relay; consumers own their shape.
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    // LongToStringConverter keeps long IDs as strings on the wire, byte-compatible with the existing
+    // webhook payloads (WebHookServer applies the same converter today).
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new LongToStringConverter() }
+    };
 
     /// <summary>
     /// Builds an <see cref="OutboxMessage"/> for every <see cref="IIntegrationEvent"/> on the given

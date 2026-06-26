@@ -2,9 +2,11 @@ using System.Reflection;
 using Ardalis.Specification;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Infrastructure.Data.Querying;
+using Endatix.Outbox.Engine;
 using Endatix.Persistence.SqlServer.Options;
 using Endatix.Persistence.SqlServer.Querying;
 using Endatix.Persistence.SqlServer.Repositories;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -115,6 +117,14 @@ public class SqlServerPersistenceBuilder
         Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
+
+        // The engine's raw-ADO.NET outbox claim store. Builds an unopened connection from the SAME
+        // DefaultConnection string the DbContext uses, so the relay shares the SqlClient provider pool.
+        Services.AddSqlOutboxClaimStore(
+            OutboxSqlDialect.SqlServer,
+            sp => new SqlConnection(sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")),
+            OutboxSchema.DefaultTable);
+
         return this;
     }
 

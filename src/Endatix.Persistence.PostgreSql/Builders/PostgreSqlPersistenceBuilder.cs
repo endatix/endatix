@@ -2,6 +2,7 @@ using System.Reflection;
 using Ardalis.Specification;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Infrastructure.Data.Querying;
+using Endatix.Outbox.Engine;
 using Endatix.Persistence.PostgreSql.Options;
 using Endatix.Persistence.PostgreSql.Querying;
 using Endatix.Persistence.PostgreSql.Repositories;
@@ -9,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 
 namespace Endatix.Persistence.PostgreSql.Builders;
 
@@ -116,6 +118,14 @@ public class PostgreSqlPersistenceBuilder
         Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
+
+        // The engine's raw-ADO.NET outbox claim store. Builds an unopened connection from the SAME
+        // DefaultConnection string the DbContext uses, so the relay shares the Npgsql provider pool.
+        Services.AddSqlOutboxClaimStore(
+            OutboxSqlDialect.PostgreSql,
+            sp => new NpgsqlConnection(sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")),
+            OutboxSchema.DefaultTable);
+
         return this;
     }
 
