@@ -60,15 +60,15 @@ internal sealed class NamespaceFilteringMigrationsAssembly : IMigrationsAssembly
         return _inner.FindMigrationId(nameOrId);
     }
 
-    public Migration CreateMigration(TypeInfo migrationType, string activeProvider)
+    public Migration CreateMigration(TypeInfo migrationClass, string activeProvider)
     {
-        if (migrationType.Namespace?.StartsWith(_namespacePrefix, StringComparison.Ordinal) != true)
+        if (migrationClass.Namespace?.StartsWith(_namespacePrefix, StringComparison.Ordinal) != true)
         {
             throw new InvalidOperationException(
-                $"Migration type '{migrationType.Name}' is outside namespace '{_namespacePrefix}'.");
+                $"Migration type '{migrationClass.Name}' is outside namespace '{_namespacePrefix}'.");
         }
 
-        return _inner.CreateMigration(migrationType, activeProvider);
+        return _inner.CreateMigration(migrationClass, activeProvider);
     }
 
     private ModelSnapshot? ResolveModelSnapshot()
