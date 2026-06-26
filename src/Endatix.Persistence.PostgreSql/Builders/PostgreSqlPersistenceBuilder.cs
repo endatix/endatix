@@ -2,6 +2,7 @@ using System.Reflection;
 using Ardalis.Specification;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Infrastructure.Data.Querying;
+using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Outbox.Engine;
 using Endatix.Persistence.PostgreSql.Options;
 using Endatix.Persistence.PostgreSql.Querying;
@@ -125,6 +126,11 @@ public class PostgreSqlPersistenceBuilder
             OutboxSqlDialect.PostgreSql,
             sp => new NpgsqlConnection(sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")),
             OutboxSchema.DefaultTable);
+
+        // Register the in-process relay here (not in Infrastructure) so it is co-located with the claim store
+        // it hard-depends on — the relay exists iff a DB provider is configured. Inert until Phase 3b raises
+        // the slice events (the loop ticks but the outbox stays empty).
+        Services.AddEndatixOutboxRelay();
 
         return this;
     }

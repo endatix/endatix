@@ -7,7 +7,6 @@ using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Exporting;
 using Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -52,10 +51,9 @@ public class InfrastructureDataBuilder
         Services.AddScoped<IUnitOfWork, AppUnitOfWork>();
         Services.AddSingleton<EfCoreValueGeneratorFactory>();
         Services.AddSingleton<Endatix.Infrastructure.Features.Outbox.OutboxIntegrationEventDispatcher>();
-        // In-process outbox relay (engine loop + webhook publisher + OpenFeature gate). Inert until the slice
-        // events are raised (Phase 3b) — the relay ticks but the outbox stays empty. The per-provider claim
-        // store is registered by the active persistence builder's AddDbSpecificRepositories().
-        Services.AddEndatixOutboxRelay();
+        // NOTE: the in-process outbox relay (AddEndatixOutboxRelay) is registered by the active persistence
+        // builder's AddDbSpecificRepositories(), co-located with its claim store — so the relay exists only
+        // when a DB provider is configured (its hosted service hard-depends on IOutboxClaimStore).
         Services.AddScoped<EndatixSpecificationEvaluator>();
         Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         Services.AddScoped<IValueNormalizer, ValueNormalizer>();
