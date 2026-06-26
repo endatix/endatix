@@ -7,6 +7,11 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public static class DatabaseProviderResolver
 {
+    /// <summary>
+    /// Returns <see langword="true"/> when <c>ConnectionStrings:DefaultConnection_DbProvider</c>
+    /// is <c>postgresql</c> or <c>postgres</c>; otherwise <see langword="false"/> (SQL Server default).
+    /// Missing, empty, and unrecognized values intentionally fall back to SQL Server.
+    /// </summary>
     public static bool IsPostgreSql(IConfiguration configuration)
     {
         var providerName = configuration.GetConnectionString("DefaultConnection_DbProvider")?.ToLowerInvariant();
