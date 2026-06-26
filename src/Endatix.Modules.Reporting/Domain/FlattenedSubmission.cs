@@ -18,9 +18,10 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     /// </summary>
     public FlattenedSubmission(long submissionId, long tenantId, long formId)
     {
-        Guard.Against.NegativeOrZero(submissionId, nameof(submissionId));
-        Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
-        Guard.Against.NegativeOrZero(formId, nameof(formId));
+        Guard.Against.NegativeOrZero(submissionId);
+        Guard.Against.NegativeOrZero(tenantId);
+        Guard.Against.NegativeOrZero(formId);
+        Guard.Against.NullOrEmpty(dataJson);
 
         SubmissionId = submissionId;
         TenantId = tenantId;
