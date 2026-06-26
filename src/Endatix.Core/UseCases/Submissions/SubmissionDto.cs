@@ -7,22 +7,22 @@ namespace Endatix.Core.UseCases.Submissions;
 /// <summary>
 /// Represents a submission data transfer object.
 /// </summary>
-/// <param name="Id">The unique identifier of the submission.</param>
-/// <param name="IsComplete">Indicates if the submission is complete.</param>
-/// <param name="JsonData">The JSON data related to the submission.</param>
-/// <param name="FormId">The unique identifier of the form associated with the submission.</param>
-/// <param name="FormDefinitionId">The unique identifier of the form definition associated with the submission.</param>
-/// <param name="CurrentPage">The current page of the submission, if applicable.</param>
-/// <param name="CompletedAt">The date and time when the submission was completed, if applicable.</param>
-/// <param name="CreatedAt">The date and time when the submission was created.</param>
-/// <param name="Metadata">Additional metadata related to the submission.</param>
-/// <param name="Status">The status of the submission.</param>
-/// <param name="SubmittedBy">The unique identifier of the user who created the submission, if applicable.</param>
-/// <param name="SubmitterId">The canonical submitter identifier, if applicable.</param>
-/// <param name="SubmitterDisplayId">The submission-time display identifier of the submitter, if applicable.</param>
-/// <param name="SubmitterProfileSnapshot">The submission-time JSON snapshot of configured submitter profile fields.</param>
-/// <param name="IsTestSubmission">Indicates if this record was created through test bypass flow.</param>
-public record SubmissionDto(long Id, bool IsComplete, string JsonData, long FormId, long FormDefinitionId, int? CurrentPage, DateTime? CompletedAt, DateTime CreatedAt, string? Metadata, string Status, string? SubmittedBy, long? SubmitterId, string? SubmitterDisplayId, string? SubmitterProfileSnapshot, bool IsTestSubmission)
+public record SubmissionDto(
+    long Id,
+    bool IsComplete,
+    string JsonData,
+    long FormId,
+    long FormDefinitionId,
+    int? CurrentPage,
+    DateTime? CompletedAt,
+    DateTime CreatedAt,
+    string? Metadata,
+    string Status,
+    string? SubmittedBy,
+    long? SubmitterId,
+    string? SubmitterDisplayId,
+    string? SubmitterProfileSnapshot,
+    bool IsTestSubmission)
 {
     public long Id { get; init; } = Id;
     public bool IsComplete { get; init; } = IsComplete;
@@ -59,8 +59,7 @@ public record SubmissionDto(long Id, bool IsComplete, string JsonData, long Form
             SubmitterId: submission.SubmitterId,
             SubmitterDisplayId: submission.SubmitterDisplayId,
             SubmitterProfileSnapshot: submission.SubmitterProfileSnapshot,
-            IsTestSubmission: submission.IsTestSubmission
-        );
+            IsTestSubmission: submission.IsTestSubmission);
     }
 
     private static IReadOnlyDictionary<string, string>? ParseSubmitterProfile(string? snapshot)

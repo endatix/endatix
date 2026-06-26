@@ -5,7 +5,7 @@ This document describes how the Endatix API packages are organized today and the
 **Related**
 
 - [Ardalis Minimal Clean Architecture](https://ardalis.github.io/CleanArchitecture/minimal-clean-architecture/) — vertical slices, optional Mediator/CQRS, pragmatic DDD
-- SaaS module example: [`src/Endatix.Modules.Agents`](../../src/Endatix.Modules.Agents) + [`Endatix.Modules.Agents.Contracts`](../../src/Endatix.Modules.Agents.Contracts)
+- SaaS module examples: [`src/Endatix.Modules.Agents`](../../src/Endatix.Modules.Agents) + [`Endatix.Modules.Agents.Contracts`](../../src/Endatix.Modules.Agents.Contracts); OSS [`Endatix.Modules.Reporting`](src/Endatix.Modules.Reporting/) + [`Endatix.Modules.Reporting.Contracts`](src/Endatix.Modules.Reporting.Contracts/)
 - Workspace product notes: repo-root [`ARCHITECTURE.md`](../ARCHITECTURE.md)
 
 ---
@@ -19,13 +19,18 @@ This document describes how the Endatix API packages are organized today and the
 | `Endatix.Api` | FastEndpoints (HTTP), request/response DTOs, validation |
 | `Endatix.Framework` | Shared hosting/DI helpers |
 | `Endatix.Hosting` / `Endatix.WebHost` | Composition root |
+| `Endatix.Modules.*` | Optional bounded contexts (domain, persistence, features) |
+| `Endatix.Modules.*.Contracts` | Module **public** surface only — see [Module packaging](#module-packaging-contracts-vs-domain) |
 
 Dependency flow:
 
 ```
 Api → Infrastructure → Core
 Api → Core (policies, Result, shared types)
+Api → Modules.*.Contracts (when exposing module vocabulary on HTTP DTOs)
 Core → (no Infrastructure)
+Core → (no Modules.* — domain and module vocabulary stay out of Core)
+Modules.* → Core, Infrastructure, Modules.*.Contracts
 ```
 
 `Endatix.Api` references `Endatix.Infrastructure` so endpoints may inject concrete read-model types. That is intentional for admin/list queries.
@@ -66,7 +71,7 @@ Monolith features and modules follow the same vertical-slice mindset at differen
 | Concern | OSS monolith (`Infrastructure/Features/…`) | SaaS module (`Endatix.Modules.*`) |
 |---------|---------------------------------------------|-----------------------------------|
 | **Feature folder** | `Features/PlatformAdmin/ListPlatformAdmins/` | `Features/Conversations/ListConversations.cs` + handler |
-| **Public contracts** | API response DTOs in `Endatix.Api` endpoints | `Endatix.Modules.Agents.Contracts` (`AgentDto`, …) |
+| **Public contracts** | API response DTOs in `Endatix.Api` endpoints | `Endatix.Modules.*.Contracts` (DTOs, commands, queries, events, wire codes — not domain) |
 | **Domain** | Shared `Endatix.Core` entities | Module `Domain/` (e.g. `Agent`, `Conversation`) |
 | **Persistence** | Shared `AppDbContext` / `AppIdentityDbContext` | Module `Persistence/AgentsDbContext` |
 | **DI registration** | `AddPlatformAdminFeatures()` | `AddAgentsModule()` |
@@ -77,6 +82,33 @@ Monolith features and modules follow the same vertical-slice mindset at differen
 **Agents** (`ListConversationsHandler`) uses MediatR but injects `AgentsDbContext` directly — no `IConversationListService` in Core. That is the same pragmatic read-side pattern; only the dispatch mechanism differs (Mediator vs direct injection).
 
 **Direction:** large or optional capabilities extract to `Endatix.Modules.*` + `*.Contracts`. Core OSS features stay in `Infrastructure/Features/` with the same slice naming and registration style until extraction pays off.
+
+**Reference module:** [`Endatix.Modules.Reporting`](src/Endatix.Modules.Reporting/) — BI export read model; see [Module packaging](#module-packaging-contracts-vs-domain).
+
+---
+
+## Module packaging (Contracts vs domain)
+
+Follows [Modulith](https://github.com/foxminchan/Modulith)-style modules: **domain stays inside the module**; **Contracts is the only intentional outward face**.
+
+| Package | Put here | Do **not** put here |
+|---------|----------|---------------------|
+| `Endatix.Modules.{Name}.Contracts` | DTOs, commands, queries, integration events, **wire codes** (e.g. status strings for filters/API) | Domain entities, value objects, EF types, handlers |
+| `Endatix.Modules.{Name}` | `Domain/`, `Persistence/`, `Features/`, module `Setup.cs` | HTTP models owned by `Endatix.Api` unless the module ships its own endpoints |
+
+**Reporting example (`SubmissionIntegrationState`):**
+
+- **Contracts** — `SubmissionIntegrationStatusCodes`, `SubmissionIntegrationSnapshotDto` (future dedicated read API).
+- **Domain** — `SubmissionIntegrationState` value object (`[ComplexType]` on `FlattenedSubmission.Integration`), `FlattenedSubmission` (pipeline source of truth).
+- **Core `Submission`** — unchanged; integration state is not denormalized onto core rows. Hub can call a future reporting endpoint for integration snapshots.
+- **Do not** overload core `Submission.Status` — that is tenant **business workflow** (new/read/approved); integration status is **reporting pipeline** (pending/processed/failed).
+
+**Persistence notes (Reporting PR):**
+
+- Separate `reporting` schema + `ReportingDbContext` — CQRS read model, not bloating core `Submissions`.
+- Module entities use `BaseEntity` + `ITenantOwned`, not `TenantEntity`, when the context must stay isolated (`Tenant` navigation pulls the core EF graph).
+- EF Core 10: `[ComplexType]` + `ComplexProperty` on `FlattenedSubmission` integration state.
+- Provider-specific JSON columns and migrations live under `Persistence/Migrations/{PostgreSql|SqlServer}/`.
 
 ---
 
@@ -228,3 +260,6 @@ Infrastructure lists take Core paging + feature criteria; return **`Paged<T>` as
 | 2026-06 | Document Agents module as modular end-state; OSS monolith uses the same slice naming inside `Infrastructure/Features/`. |
 | 2026-06 | Shared list requests: composable Api capabilities (`IPageable`, `ISearchable`, `ISortable<T>`, `IFilterable`) map to Core `PageRequest` / `SearchablePageRequest` / `SortRequest<T>` via `ListRequestExtensions`. |
 | 2026-06 | Testing: unit-only for feature reads — decomposed collaborators + orchestrator mocks; evolve standalone reads toward Infrastructure `IQuery`/MediatR or internal `Common/` contracts; avoid permanent endpoint-facing `IList*` seams. |
+| 2026-06 | **Modules:** `*.Contracts` = public API (DTOs, commands, queries, events, wire codes); module `Domain/` owns entities and value objects. Core may reference `*.Contracts` only for denormalized mirrors / shared codes — not the module assembly. |
+| 2026-06 | **Reporting:** integration status on `FlattenedSubmission` only (source of truth in `reporting` schema); core `Submission` and list APIs stay free of reporting denormalization until a dedicated read endpoint is needed. |
+| 2026-06 | **Reporting:** isolated `ReportingDbContext`; avoid `TenantEntity` nav on module entities; EF Core 10 `[ComplexType]` on module side, scalar codes on core side. |

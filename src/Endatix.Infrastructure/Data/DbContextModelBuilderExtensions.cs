@@ -23,8 +23,14 @@ public static class DbContextModelBuilderExtensions
 
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
+            if (entityType.IsOwned())
+            {
+                continue;
+            }
+
             var parameter = Expression.Parameter(entityType.ClrType, "e");
-            var entityBuilder = builder.Entity(entityType.ClrType);
+            LambdaExpression? softDeleteFilter = null;
+            LambdaExpression? tenantFilter = null;
 
             var isDeletedProperty = entityType.ClrType.GetProperty(
                 nameof(BaseEntity.IsDeleted),
@@ -33,10 +39,9 @@ public static class DbContextModelBuilderExtensions
             if (isDeletedProperty is not null && isDeletedProperty.PropertyType == typeof(bool))
             {
                 var isDeletedExpression = Expression.Property(parameter, isDeletedProperty);
-                var softDeleteFilter = Expression.Equal(isDeletedExpression, Expression.Constant(false));
-                entityBuilder.HasQueryFilter(
-                    EndatixQueryFilterNames.SoftDelete,
-                    Expression.Lambda(softDeleteFilter, parameter));
+                softDeleteFilter = Expression.Lambda(
+                    Expression.Equal(isDeletedExpression, Expression.Constant(false)),
+                    parameter);
             }
 
             if (typeof(ITenantOwned).IsAssignableFrom(entityType.ClrType))
@@ -48,10 +53,26 @@ public static class DbContextModelBuilderExtensions
                 var tenantIdEquals = Expression.Equal(
                     tenantIdProperty,
                     Expression.Convert(currentTenantId, typeof(long)));
-                var tenantFilter = Expression.OrElse(currentTenantIdIsZero, tenantIdEquals);
-                entityBuilder.HasQueryFilter(
-                    EndatixQueryFilterNames.Tenant,
-                    Expression.Lambda(tenantFilter, parameter));
+                tenantFilter = Expression.Lambda(
+                    Expression.OrElse(currentTenantIdIsZero, tenantIdEquals),
+                    parameter);
+            }
+
+            if (softDeleteFilter is null && tenantFilter is null)
+            {
+                continue;
+            }
+
+            var entityBuilder = builder.Entity(entityType.ClrType);
+
+            if (softDeleteFilter is not null)
+            {
+                entityBuilder.HasQueryFilter(EndatixQueryFilterNames.SoftDelete, softDeleteFilter);
+            }
+
+            if (tenantFilter is not null)
+            {
+                entityBuilder.HasQueryFilter(EndatixQueryFilterNames.Tenant, tenantFilter);
             }
         }
     }

@@ -1,33 +1,32 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Modules.Reporting.Contracts;
 
 namespace Endatix.Modules.Reporting.Domain;
 
 /// <summary>
 /// BI-ready submission row aligned to <see cref="FormExportSchema"/>.
-/// Keyed by core <c>Submission.Id</c> — not a <see cref="Endatix.Core.Entities.BaseEntity"/> because the PK is external.
+/// Keyed by core <c>Submission.Id</c> — not a <see cref="BaseEntity"/> because the PK is external.
 /// </summary>
 public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
 {
     private FlattenedSubmission() { }
 
-    public FlattenedSubmission(
-        long submissionId,
-        long tenantId,
-        long formId,
-        string dataJson)
+    /// <summary>
+    /// Creates a tracking row when flattening is queued or first attempted.
+    /// </summary>
+    public FlattenedSubmission(long submissionId, long tenantId, long formId)
     {
         Guard.Against.NegativeOrZero(submissionId, nameof(submissionId));
         Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
         Guard.Against.NegativeOrZero(formId, nameof(formId));
-        Guard.Against.NullOrEmpty(dataJson, nameof(dataJson));
 
         SubmissionId = submissionId;
         TenantId = tenantId;
         FormId = formId;
-        DataJson = dataJson;
         CreatedAt = DateTime.UtcNow;
+        Integration = SubmissionIntegrationState.CreatePending(CreatedAt);
     }
 
     public long SubmissionId { get; private set; }
@@ -38,11 +37,15 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
 
     /// <summary>
     /// Flat key-value answers aligned to <see cref="FormExportSchema.SchemaJson"/>.
+    /// Populated when <see cref="Integration"/> is processed.
     /// </summary>
-    public string DataJson { get; private set; } = "{}";
+    public string? DataJson { get; private set; }
+
+    /// <summary>Reporting pipeline sync state (source of truth for integration/export readiness).</summary>
+    public SubmissionIntegrationState Integration { get; private set; } = null!;
 
     /// <summary>
-    /// Mirrors core submission deletion for export filtering. Not full <see cref="Endatix.Core.Entities.BaseEntity"/> soft-delete.
+    /// Mirrors core submission deletion for export filtering.
     /// </summary>
     public bool IsDeleted { get; private set; }
 
@@ -50,12 +53,32 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
 
     public DateTime? ModifiedAt { get; private set; }
 
-    public void UpdateData(string dataJson)
+    public void MarkProcessing()
+    {
+        Integration.MarkProcessing();
+        ModifiedAt = DateTime.UtcNow;
+    }
+
+    public void MarkProcessed(string dataJson)
     {
         Guard.Against.NullOrEmpty(dataJson, nameof(dataJson));
 
         DataJson = dataJson;
+        Integration.MarkProcessed();
         IsDeleted = false;
+        ModifiedAt = DateTime.UtcNow;
+    }
+
+    public void MarkFailed(string? error)
+    {
+        Integration.MarkFailed(error);
+        ModifiedAt = DateTime.UtcNow;
+    }
+
+    public void MarkSkipped()
+    {
+        DataJson = null;
+        Integration.MarkSkipped();
         ModifiedAt = DateTime.UtcNow;
     }
 
@@ -64,4 +87,6 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
         IsDeleted = true;
         ModifiedAt = DateTime.UtcNow;
     }
+
+    public SubmissionIntegrationSnapshotDto ToIntegrationSnapshot() => Integration.ToSnapshot();
 }

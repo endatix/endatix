@@ -2,6 +2,15 @@
 
 Reporting bounded context for BI-ready survey exports.
 
+## Module layout (Modulith)
+
+| Package | Contents |
+|---------|----------|
+| `Endatix.Modules.Reporting.Contracts` | Public API surface: status codes, read DTOs, future commands/queries/events |
+| `Endatix.Modules.Reporting` | Domain (`SubmissionIntegrationState`, `FlattenedSubmission`, …), persistence, features |
+
+Integration pipeline state lives on `FlattenedSubmission` in the `reporting` schema. A future reporting read API can expose `SubmissionIntegrationSnapshotDto` per submission without touching core `Submission` list endpoints.
+
 ## Schema
 
 Database schema: `reporting`
@@ -39,7 +48,7 @@ Set `ConnectionStrings:DefaultConnection_DbProvider` to match the provider you a
 ```bash
 dotnet ef migrations add <Name> \
   --startup-project src/Endatix.WebHost \
-  --project oss/src/Endatix.Modules.Reporting \
+  --project src/Endatix.Modules.Reporting \
   --context ReportingDbContext \
   --output-dir Persistence/Migrations/PostgreSql
 ```
@@ -50,7 +59,7 @@ dotnet ef migrations add <Name> \
 ConnectionStrings__DefaultConnection_DbProvider=SqlServer \
 dotnet ef migrations add <Name> \
   --startup-project src/Endatix.WebHost \
-  --project /src/Endatix.Modules.Reporting \
+  --project src/Endatix.Modules.Reporting \
   --context ReportingDbContext \
   --output-dir Persistence/Migrations/SqlServer
 ```
