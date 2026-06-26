@@ -45,9 +45,9 @@ internal sealed class NamespaceFilteringMigrationsAssembly : IMigrationsAssembly
     public ModelSnapshot? ModelSnapshot =>
         _modelSnapshot ??= ResolveModelSnapshot();
 
-    public string? FindMigrationId(string migrationName)
+    public string? FindMigrationId(string nameOrId)
     {
-        if (!_inner.Migrations.TryGetValue(migrationName, out var migrationType))
+        if (!_inner.Migrations.TryGetValue(nameOrId, out var migrationType))
         {
             return null;
         }
@@ -57,7 +57,7 @@ internal sealed class NamespaceFilteringMigrationsAssembly : IMigrationsAssembly
             return null;
         }
 
-        return _inner.FindMigrationId(migrationName);
+        return _inner.FindMigrationId(nameOrId);
     }
 
     public Migration CreateMigration(TypeInfo migrationType, string activeProvider)
