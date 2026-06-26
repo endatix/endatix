@@ -279,6 +279,14 @@ public class EndatixBuilder : IBuilderRoot
             return this;
         }
 
+        if (_modules.Any(existing => existing.Assembly == module.Assembly))
+        {
+            _logger.LogDebug(
+                "Skipped module {AssemblyName}: already registered",
+                module.Assembly.GetName().Name);
+            return this;
+        }
+
         _modules.Add(module);
         Infrastructure.Messaging.AddAssembly(module.Assembly);
         Api.ScanAssemblies(module.Assembly);
