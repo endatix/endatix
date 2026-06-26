@@ -44,6 +44,23 @@ public class ReportingDbContextTests
         context.Model.GetDefaultSchema().Should().Be("reporting");
     }
 
+    [Fact]
+    public void ApplyProviderSpecificConfigurations_WithUnsupportedProvider_ThrowsNotSupportedException()
+    {
+        // Arrange
+        var optionsBuilder = new DbContextOptionsBuilder<ReportingDbContext>();
+        optionsBuilder.UseInMemoryDatabase("ReportingTests");
+
+        using var context = CreateContext(optionsBuilder.Options);
+
+        // Act
+        var action = () => _ = context.Model;
+
+        // Assert
+        action.Should().Throw<NotSupportedException>()
+            .WithMessage("*not supported*");
+    }
+
     private static ReportingDbContext CreateContext(
         DbContextOptions<ReportingDbContext> options,
         ITenantContext? tenantContext = null)

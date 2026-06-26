@@ -49,9 +49,21 @@ public sealed class ReportingDbContext : DbContext, ITenantDbContext
 
     private void ApplyProviderSpecificConfigurations(ModelBuilder builder)
     {
-        var providerConfigNamespace = Database.IsNpgsql()
-            ? ReportingPersistence.PostgreSqlConfigNamespace
-            : ReportingPersistence.SqlServerConfigNamespace;
+        string providerConfigNamespace;
+        if (Database.IsNpgsql())
+        {
+            providerConfigNamespace = ReportingPersistence.PostgreSqlConfigNamespace;
+        }
+        else if (Database.IsSqlServer())
+        {
+            providerConfigNamespace = ReportingPersistence.SqlServerConfigNamespace;
+        }
+        else
+        {
+            throw new NotSupportedException(
+                $"Database provider '{Database.ProviderName}' is not supported. " +
+                $"Use Npgsql or SqlServer.");
+        }
 
         builder.ApplyConfigurationsFromAssembly(
             typeof(ReportingDbContext).Assembly,
