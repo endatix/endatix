@@ -16,17 +16,29 @@ public sealed class WebHookIntegrationEventPublisher(
     IWebHookService webHookService,
     ILogger<WebHookIntegrationEventPublisher> logger) : IIntegrationEventPublisher
 {
-    // Dotted contract EventType → existing WebHookOperation (whose EventName keeps the underscore form the
-    // per-form webhook config lookup expects). These 5 are the Phase-3 slice events.
+    // The webhook operations the relay delivers, keyed by their dotted contract EventType. The key is
+    // derived from a single source (WebHookOperation.EventName) rather than re-declaring the dotted literals,
+    // so a mistyped literal can't silently route to the "unmapped → skip" branch.
     private static readonly IReadOnlyDictionary<string, WebHookOperation> OperationsByEventType =
-        new Dictionary<string, WebHookOperation>(StringComparer.Ordinal)
+        new[]
         {
-            ["form.created"] = WebHookOperation.FormCreated,
-            ["form.updated"] = WebHookOperation.FormUpdated,
-            ["form.enabled_state_changed"] = WebHookOperation.FormEnabledStateChanged,
-            ["submission.completed"] = WebHookOperation.SubmissionCompleted,
-            ["form.deleted"] = WebHookOperation.FormDeleted,
-        };
+            WebHookOperation.FormCreated,
+            WebHookOperation.FormUpdated,
+            WebHookOperation.FormEnabledStateChanged,
+            WebHookOperation.SubmissionCompleted,
+            WebHookOperation.FormDeleted,
+        }.ToDictionary(operation => ToContractEventType(operation.EventName), StringComparer.Ordinal);
+
+    // Contract EventType = the operation's EventName with the entity/action separator (the FIRST underscore)
+    // as a dot, leaving any further underscores in the action intact:
+    // "form_created" → "form.created"; "form_enabled_state_changed" → "form.enabled_state_changed".
+    private static string ToContractEventType(string eventName)
+    {
+        var separator = eventName.IndexOf('_');
+        return separator < 0
+            ? eventName
+            : string.Concat(eventName.AsSpan(0, separator), ".", eventName.AsSpan(separator + 1));
+    }
 
     /// <inheritdoc />
     public async Task PublishAsync(IOutboxMessage message, CancellationToken cancellationToken)

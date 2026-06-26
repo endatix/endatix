@@ -42,12 +42,15 @@ public sealed class OutboxSchemaConformanceTests : IDisposable
     [Fact]
     public void OutboxMessage_maps_to_the_canonical_table_and_columns()
     {
+        // Arrange
         var entityType = _context.Model.FindEntityType(typeof(OutboxMessage))!;
-        entityType.GetTableName().Should().Be(OutboxSchema.DefaultTable);
 
+        // Act
         var store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)!.Value;
         var columns = entityType.GetProperties().Select(p => p.GetColumnName(store)!).ToHashSet();
 
+        // Assert
+        entityType.GetTableName().Should().Be(OutboxSchema.DefaultTable);
         columns.Should().Contain(new[]
         {
             OutboxSchema.Id, OutboxSchema.EventType, OutboxSchema.Payload, OutboxSchema.TenantId,
@@ -60,15 +63,20 @@ public sealed class OutboxSchemaConformanceTests : IDisposable
     [Fact]
     public void Status_is_stored_as_int()
     {
+        // Arrange
         var entityType = _context.Model.FindEntityType(typeof(OutboxMessage))!;
+
+        // Act
         var status = entityType.FindProperty(nameof(OutboxMessage.Status))!;
 
+        // Assert
         status.GetProviderClrType().Should().Be(typeof(int));
     }
 
     [Fact]
     public void OutboxMessageStatus_values_match_the_engine_OutboxStatus()
     {
+        // Assert — the host enum's int values must match the engine's, since the claim SQL filters on them.
         ((int)OutboxMessageStatus.Pending).Should().Be((int)OutboxStatus.Pending);
         ((int)OutboxMessageStatus.Sent).Should().Be((int)OutboxStatus.Sent);
         ((int)OutboxMessageStatus.Failed).Should().Be((int)OutboxStatus.Failed);
