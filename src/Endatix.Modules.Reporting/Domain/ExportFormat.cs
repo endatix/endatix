@@ -10,6 +10,10 @@ namespace Endatix.Modules.Reporting.Domain;
 /// </summary>
 public sealed class ExportFormat : BaseEntity, ITenantOwned, IAggregateRoot
 {
+    public const int NameMaxLength = 200;
+    public const int DescriptionMaxLength = 500;
+    public const int SerializationTypeMaxLength = 32;
+
     private ExportFormat() { }
 
     public ExportFormat(
@@ -20,6 +24,9 @@ public sealed class ExportFormat : BaseEntity, ITenantOwned, IAggregateRoot
     {
         Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
         Guard.Against.NullOrEmpty(name, nameof(name));
+        Guard.Against.InvalidInput(name, nameof(name), n => n.Length <= NameMaxLength);
+        Guard.Against.InvalidInput(serializationType, nameof(serializationType), Enum.IsDefined);
+        Guard.Against.InvalidInput(description, nameof(description), d => d is null || d.Length <= DescriptionMaxLength);
 
         TenantId = tenantId;
         Name = name;

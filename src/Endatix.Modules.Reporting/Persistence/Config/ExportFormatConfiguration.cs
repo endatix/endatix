@@ -15,12 +15,12 @@ internal sealed class ExportFormatConfiguration : IEntityTypeConfiguration<Expor
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.TenantId).IsRequired();
-        builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.Name).IsRequired().HasMaxLength(ExportFormat.NameMaxLength);
         builder.Property(x => x.SerializationType)
             .IsRequired()
             .HasConversion<string>()
-            .HasMaxLength(32);
-        builder.Property(x => x.Description).HasMaxLength(500);
+            .HasMaxLength(ExportFormat.SerializationTypeMaxLength);
+        builder.Property(x => x.Description).HasMaxLength(ExportFormat.DescriptionMaxLength);
         builder.Property(x => x.CreatedAt).IsRequired();
 
         builder.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
