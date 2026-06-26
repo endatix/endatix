@@ -20,8 +20,9 @@ public static class DatabaseMigrationExtensions
     /// Applies database migrations for all registered DbContext types.
     /// </summary>
     /// <param name="serviceProvider">The service provider.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public static async Task ApplyDbMigrationsAsync(this IServiceProvider serviceProvider)
+    public static async Task ApplyDbMigrationsAsync(this IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
         using var scope = serviceProvider.CreateScope();
         var logger = serviceProvider.GetRequiredService<ILogger<MigrationLogger>>();
@@ -40,7 +41,7 @@ public static class DatabaseMigrationExtensions
             var moduleContributors = scopedProvider.GetServices<IDbContextMigrationContributor>();
             foreach (var contributor in moduleContributors)
             {
-                await contributor.MigrateAsync(scopedProvider, logger);
+                await contributor.MigrateAsync(scopedProvider, logger, cancellationToken);
             }
 
             logger?.LogDebug("{Operation} operation executed successfully", nameof(ApplyDbMigrationsAsync));
