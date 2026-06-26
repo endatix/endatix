@@ -44,6 +44,46 @@ public class ReportingDbContextTests
         context.Model.GetDefaultSchema().Should().Be("reporting");
     }
 
+    [Theory]
+    [InlineData("Npgsql.EntityFrameworkCore.PostgreSQL", "\"SurveyTypeId\" IS NOT NULL", "\"SurveyTypeId\" IS NULL")]
+    [InlineData("Microsoft.EntityFrameworkCore.SqlServer", "[SurveyTypeId] IS NOT NULL", "[SurveyTypeId] IS NULL")]
+    public void Model_SurveyTypeExportMapping_UsesFilteredUniqueIndexes(
+        string providerName,
+        string typedMappingFilter,
+        string tenantDefaultFilter)
+    {
+        // Arrange
+        var optionsBuilder = new DbContextOptionsBuilder<ReportingDbContext>();
+        if (providerName.Contains("SqlServer", StringComparison.Ordinal))
+        {
+            optionsBuilder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=ReportingTests;Trusted_Connection=True");
+            ModuleDbContextExtensions.ConfigureProviderScopedMigrations(
+                optionsBuilder,
+                ReportingPersistence.SqlServerMigrationsNamespace);
+        }
+        else
+        {
+            optionsBuilder.UseNpgsql("Host=localhost;Database=reporting_tests;Username=postgres;Password=postgres");
+            ModuleDbContextExtensions.ConfigureProviderScopedMigrations(
+                optionsBuilder,
+                ReportingPersistence.PostgreSqlMigrationsNamespace);
+        }
+
+        using var context = CreateContext(optionsBuilder.Options);
+        var entityType = context.Model.FindEntityType(typeof(SurveyTypeExportMapping));
+
+        // Act
+        var indexFilters = entityType!
+            .GetIndexes()
+            .Where(index => index.IsUnique)
+            .Select(index => index.GetFilter())
+            .ToList();
+
+        // Assert
+        indexFilters.Should().Contain(typedMappingFilter);
+        indexFilters.Should().Contain(tenantDefaultFilter);
+    }
+
     [Fact]
     public void ApplyProviderSpecificConfigurations_WithUnsupportedProvider_ThrowsNotSupportedException()
     {

@@ -17,8 +17,6 @@ internal sealed class SurveyTypeExportMappingConfiguration : IEntityTypeConfigur
         builder.Property(x => x.TenantId).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
 
-        builder.HasIndex(x => new { x.TenantId, x.SurveyTypeId }).IsUnique();
-
         builder.HasOne(x => x.ExportFormat)
             .WithMany()
             .HasForeignKey(x => x.ExportFormatId)

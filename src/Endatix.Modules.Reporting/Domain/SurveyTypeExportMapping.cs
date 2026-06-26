@@ -17,8 +17,8 @@ public sealed class SurveyTypeExportMapping : BaseEntity, ITenantOwned, IAggrega
         long exportFormatId,
         long? surveyTypeId = null)
     {
-        Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
-        Guard.Against.NegativeOrZero(exportFormatId, nameof(exportFormatId));
+        Guard.Against.NegativeOrZero(tenantId);
+        Guard.Against.NegativeOrZero(exportFormatId);
 
         TenantId = tenantId;
         ExportFormatId = exportFormatId;
@@ -28,7 +28,7 @@ public sealed class SurveyTypeExportMapping : BaseEntity, ITenantOwned, IAggrega
     public long TenantId { get; private set; }
 
     /// <summary>
-    /// Nullable until survey types persistence is available.
+    /// Survey type when set; <see langword="null"/> is the tenant-wide default export format (one per tenant).
     /// </summary>
     public long? SurveyTypeId { get; private set; }
 

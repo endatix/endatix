@@ -50,6 +50,12 @@ public sealed class FormExportSchema : BaseEntity, ITenantOwned, IAggregateRoot
         Guard.Against.NegativeOrZero(formDefinitionRevision, nameof(formDefinitionRevision));
         Guard.Against.NullOrEmpty(schemaJson, nameof(schemaJson));
 
+        if (formDefinitionRevision < FormDefinitionRevision)
+        {
+            throw new InvalidOperationException(
+                $"Cannot roll back FormDefinitionRevision from {FormDefinitionRevision} to {formDefinitionRevision}.");
+        }
+
         FormDefinitionRevision = formDefinitionRevision;
         SchemaJson = schemaJson;
     }
