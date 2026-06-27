@@ -22,6 +22,12 @@ public class PostgreSqlPersistenceBuilder
 {
     private readonly ILogger? _logger;
 
+    // Resolves the connection string the active DbContext uses, so the outbox claim store polls the SAME
+    // database the app writes outbox rows to. Defaults to ConnectionStrings:DefaultConnection (the
+    // UseDefault path); Configure&lt;TContext&gt; overrides it with the supplied PostgreSqlOptions.ConnectionString.
+    private Func<IServiceProvider, string?> _connectionStringResolver =
+        sp => sp.GetService<IConfiguration>()?.GetConnectionString("DefaultConnection");
+
     /// <summary>
     /// Initializes a new instance of the PostgreSqlPersistenceBuilder class.
     /// </summary>
@@ -82,6 +88,9 @@ public class PostgreSqlPersistenceBuilder
         var postgresOptions = new PostgreSqlOptions();
         options(postgresOptions);
 
+        // Point the outbox claim store at the same connection string this DbContext uses (not DefaultConnection).
+        _connectionStringResolver = _ => postgresOptions.ConnectionString;
+
         Services.AddDbContext<TContext>((serviceProvider, dbContextOptions) =>
         {
             dbContextOptions.UseNpgsql(postgresOptions.ConnectionString, npgsqlOptions =>
@@ -121,10 +130,12 @@ public class PostgreSqlPersistenceBuilder
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
 
         // The engine's raw-ADO.NET outbox claim store. Builds an unopened connection from the SAME
-        // DefaultConnection string the DbContext uses, so the relay shares the Npgsql provider pool.
+        // connection string the DbContext uses (DefaultConnection by default, or the Configure<TContext>
+        // override), so the relay polls the right database and shares the Npgsql provider pool.
+        var connectionStringResolver = _connectionStringResolver;
         Services.AddSqlOutboxClaimStore(
             OutboxSqlDialect.PostgreSql,
-            sp => new NpgsqlConnection(sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")),
+            sp => new NpgsqlConnection(connectionStringResolver(sp)),
             OutboxSchema.DefaultTable);
 
         // Register the in-process relay here (not in Infrastructure) so it is co-located with the claim store

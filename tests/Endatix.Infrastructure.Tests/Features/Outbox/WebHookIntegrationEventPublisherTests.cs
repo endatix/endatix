@@ -65,17 +65,16 @@ public class WebHookIntegrationEventPublisherTests
     }
 
     [Fact]
-    public async Task Missing_formId_passes_null_formId()
+    public async Task Missing_formId_throws_and_does_not_deliver()
     {
-        // Arrange
+        // Arrange — a mapped (form-scoped) event whose payload has no formId is malformed.
         var message = new FakeOutboxMessage(Id: 9, EventType: "form.created", Payload: """{"name":"no-form-id"}""", TenantId: 7);
 
-        // Act
-        await CreateSut().PublishAsync(message, CancellationToken.None);
-
-        // Assert
-        await _webHooks.Received(1).DeliverWebHookAsync(
-            7L, Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), null);
+        // Act + Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => CreateSut().PublishAsync(message, CancellationToken.None));
+        await _webHooks.DidNotReceive().DeliverWebHookAsync(
+            Arg.Any<long>(), Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), Arg.Any<long?>());
     }
 
     [Fact]

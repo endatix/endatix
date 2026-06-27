@@ -58,14 +58,14 @@ public class BackgroundTaskWebHookService(
         var eventConfig = await GetEventConfigAsync(tenantId, message.operation.EventName, formId, cancellationToken);
         if (eventConfig == null || !eventConfig.IsEnabled)
         {
-            logger.LogTrace("WebHook for {eventName} event is disabled or not configured. Nothing to deliver.", message.operation.EventName);
+            logger.LogTrace("WebHook for {EventName} event is disabled or not configured. Nothing to deliver.", message.operation.EventName);
             return true;
         }
 
         var endpoints = eventConfig.WebHookEndpoints;
         if (endpoints == null || !endpoints.Any())
         {
-            logger.LogTrace("No webhook endpoints found for {eventName} event. Nothing to deliver.", message.operation.EventName);
+            logger.LogTrace("No webhook endpoints found for {EventName} event. Nothing to deliver.", message.operation.EventName);
             return true;
         }
 
@@ -80,7 +80,7 @@ public class BackgroundTaskWebHookService(
             if (!delivered)
             {
                 allDelivered = false;
-                logger.LogWarning("WebHook delivery to {uri} failed for {eventName} event (hook id {id}).", instructions.Uri, message.operation.EventName, message.id);
+                logger.LogWarning("WebHook delivery to {Uri} failed for {EventName} event (hook id {Id}).", instructions.Uri, message.operation.EventName, message.id);
             }
         }
 

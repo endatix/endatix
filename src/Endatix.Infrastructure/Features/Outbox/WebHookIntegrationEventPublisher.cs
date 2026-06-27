@@ -62,9 +62,16 @@ public sealed class WebHookIntegrationEventPublisher(
         using var document = JsonDocument.Parse(message.Payload);
         var payload = document.RootElement.Clone();
 
+        // All five mapped operations are form-scoped — they need a formId for the per-form webhook config
+        // lookup. A missing/unparsable formId is a malformed payload: throw so the relay retries (and
+        // dead-letters at MaxAttempts) instead of silently delivering at tenant scope.
+        var formId = TryGetFormId(payload)
+            ?? throw new InvalidOperationException(
+                $"Outbox message {message.Id} ({message.EventType}) is missing a valid formId.");
+
         var webHookMessage = new WebHookMessage<JsonElement>(message.Id, operation, payload);
         var delivered = await webHookService.DeliverWebHookAsync(
-            message.TenantId, webHookMessage, cancellationToken, TryGetFormId(payload));
+            message.TenantId, webHookMessage, cancellationToken, formId);
 
         if (!delivered)
         {
