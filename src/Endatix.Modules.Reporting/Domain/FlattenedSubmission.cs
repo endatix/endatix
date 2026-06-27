@@ -61,7 +61,7 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
 
     public void MarkProcessed(string dataJson)
     {
-        Guard.Against.NullOrEmpty(dataJson, nameof(dataJson));
+        Guard.Against.NullOrEmpty(dataJson);
 
         DataJson = dataJson;
         Integration.MarkProcessed();

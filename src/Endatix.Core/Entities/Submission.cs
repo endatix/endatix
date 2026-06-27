@@ -13,10 +13,10 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     public Submission(long tenantId, string jsonData, long formId, long formDefinitionId, SubmissionCreateOptions options)
         : base(tenantId)
     {
-        Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
-        Guard.Against.NegativeOrZero(formId, nameof(formId));
-        Guard.Against.NegativeOrZero(formDefinitionId, nameof(formDefinitionId));
-        Guard.Against.Null(options, nameof(options));
+        Guard.Against.NullOrEmpty(jsonData);
+        Guard.Against.NegativeOrZero(formId);
+        Guard.Against.NegativeOrZero(formDefinitionId);
+        Guard.Against.Null(options);
 
         FormId = formId;
         FormDefinitionId = formDefinitionId;
