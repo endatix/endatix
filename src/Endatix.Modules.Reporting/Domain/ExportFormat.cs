@@ -22,8 +22,8 @@ public sealed class ExportFormat : BaseEntity, ITenantOwned, IAggregateRoot
         ExportSerializationType serializationType,
         string? description = null)
     {
-        Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
-        Guard.Against.NullOrEmpty(name, nameof(name));
+        Guard.Against.NegativeOrZero(tenantId);
+        Guard.Against.NullOrEmpty(name);
         Guard.Against.InvalidInput(name, nameof(name), n => n.Length <= NameMaxLength);
         Guard.Against.InvalidInput(serializationType, nameof(serializationType), Enum.IsDefined);
         Guard.Against.InvalidInput(description, nameof(description), d => d is null || d.Length <= DescriptionMaxLength);
