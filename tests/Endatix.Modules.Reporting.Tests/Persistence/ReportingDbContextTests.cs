@@ -45,11 +45,17 @@ public class ReportingDbContextTests
     }
 
     [Theory]
-    [InlineData("Npgsql.EntityFrameworkCore.PostgreSQL", "\"SurveyTypeId\" IS NOT NULL", "\"SurveyTypeId\" IS NULL")]
-    [InlineData("Microsoft.EntityFrameworkCore.SqlServer", "[SurveyTypeId] IS NOT NULL", "[SurveyTypeId] IS NULL")]
+    [InlineData(
+        "Npgsql.EntityFrameworkCore.PostgreSQL",
+        "\"IsDefault\" = true AND \"SurveyTypeId\" IS NOT NULL",
+        "\"IsDefault\" = true AND \"SurveyTypeId\" IS NULL")]
+    [InlineData(
+        "Microsoft.EntityFrameworkCore.SqlServer",
+        "[IsDefault] = 1 AND [SurveyTypeId] IS NOT NULL",
+        "[IsDefault] = 1 AND [SurveyTypeId] IS NULL")]
     public void Model_SurveyTypeExportMapping_UsesFilteredUniqueIndexes(
         string providerName,
-        string typedMappingFilter,
+        string typedDefaultFilter,
         string tenantDefaultFilter)
     {
         // Arrange
@@ -80,8 +86,9 @@ public class ReportingDbContextTests
             .ToList();
 
         // Assert
-        indexFilters.Should().Contain(typedMappingFilter);
+        indexFilters.Should().Contain(typedDefaultFilter);
         indexFilters.Should().Contain(tenantDefaultFilter);
+        indexFilters.Should().HaveCount(2);
     }
 
     [Fact]

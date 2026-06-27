@@ -20,7 +20,7 @@ Database schema: `reporting`
 | `FormExportSchemas` | Append-only flattened column spec per tenant + form |
 | `FlattenedSubmissions` | Flat submission answers aligned to form schema |
 | `ExportFormats` | Export delivery configuration (CSV, JSON, codebook) |
-| `SurveyTypeExportMappings` | Default export format per survey type |
+| `SurveyTypeExportMappings` | Allowed export formats per survey type (with optional default and tenant fallback) |
 
 ## Registration
 

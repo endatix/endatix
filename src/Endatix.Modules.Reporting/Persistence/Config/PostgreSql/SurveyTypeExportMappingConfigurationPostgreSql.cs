@@ -12,10 +12,10 @@ internal sealed class SurveyTypeExportMappingConfigurationPostgreSql : IEntityTy
     {
         builder.HasIndex(x => new { x.TenantId, x.SurveyTypeId })
             .IsUnique()
-            .HasFilter("\"SurveyTypeId\" IS NOT NULL");
+            .HasFilter("\"IsDefault\" = true AND \"SurveyTypeId\" IS NOT NULL");
 
         builder.HasIndex(x => x.TenantId)
             .IsUnique()
-            .HasFilter("\"SurveyTypeId\" IS NULL");
+            .HasFilter("\"IsDefault\" = true AND \"SurveyTypeId\" IS NULL");
     }
 }
