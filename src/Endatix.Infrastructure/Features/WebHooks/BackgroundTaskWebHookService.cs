@@ -52,6 +52,41 @@ public class BackgroundTaskWebHookService(
         }
     }
 
+    /// <inheritdoc />
+    public async Task<bool> DeliverWebHookAsync<TPayload>(long tenantId, WebHookMessage<TPayload> message, CancellationToken cancellationToken, long? formId = null) where TPayload : notnull
+    {
+        var eventConfig = await GetEventConfigAsync(tenantId, message.operation.EventName, formId, cancellationToken);
+        if (eventConfig == null || !eventConfig.IsEnabled)
+        {
+            logger.LogTrace("WebHook for {eventName} event is disabled or not configured. Nothing to deliver.", message.operation.EventName);
+            return true;
+        }
+
+        var endpoints = eventConfig.WebHookEndpoints;
+        if (endpoints == null || !endpoints.Any())
+        {
+            logger.LogTrace("No webhook endpoints found for {eventName} event. Nothing to deliver.", message.operation.EventName);
+            return true;
+        }
+
+        // Deliver to every endpoint and AWAIT each result (no background queue). All-or-nothing: if any
+        // endpoint fails, report failure so the caller (the outbox relay) retries the whole row — duplicate
+        // deliveries to already-succeeded endpoints are absorbed by the X-Endatix-Hook-Id dedup header.
+        var allDelivered = true;
+        foreach (var endpoint in endpoints)
+        {
+            var instructions = TaskInstructions.FromWebHookEndpointConfig(endpoint);
+            var delivered = await httpServer.FireWebHookAsync(message, instructions, cancellationToken);
+            if (!delivered)
+            {
+                allDelivered = false;
+                logger.LogWarning("WebHook delivery to {uri} failed for {eventName} event (hook id {id}).", instructions.Uri, message.operation.EventName, message.id);
+            }
+        }
+
+        return allDelivered;
+    }
+
     /// <summary>
     /// Retrieves the webhook event configuration from the database.
     /// Form-specific configuration takes precedence over tenant-level configuration.

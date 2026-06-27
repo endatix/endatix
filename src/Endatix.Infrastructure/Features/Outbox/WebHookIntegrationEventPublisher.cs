@@ -12,6 +12,11 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// payload verbatim, and reuses the outbox <c>Id</c> as the webhook id so the <c>X-Endatix-Hook-Id</c> dedup
 /// header is stable across relay retries.
 /// </summary>
+/// <remarks>
+/// Delivery is <b>synchronous</b> (<see cref="IWebHookService.DeliverWebHookAsync"/>): on any endpoint failure
+/// this throws, so the engine relay reschedules/dead-letters the row and only marks it <c>Sent</c> after a real
+/// delivery — at-least-once, with duplicates absorbed by the hook-id dedup header.
+/// </remarks>
 public sealed class WebHookIntegrationEventPublisher(
     IWebHookService webHookService,
     ILogger<WebHookIntegrationEventPublisher> logger) : IIntegrationEventPublisher
@@ -58,8 +63,16 @@ public sealed class WebHookIntegrationEventPublisher(
         var payload = document.RootElement.Clone();
 
         var webHookMessage = new WebHookMessage<JsonElement>(message.Id, operation, payload);
-        await webHookService.EnqueueWebHookAsync(
+        var delivered = await webHookService.DeliverWebHookAsync(
             message.TenantId, webHookMessage, cancellationToken, TryGetFormId(payload));
+
+        if (!delivered)
+        {
+            // Throw so the relay treats this as a publish failure → reschedule (or dead-letter at MaxAttempts).
+            // Re-delivery to already-succeeded endpoints is absorbed by the X-Endatix-Hook-Id dedup header.
+            throw new InvalidOperationException(
+                $"Webhook delivery failed for outbox message {message.Id} ({message.EventType}); it will be retried.");
+        }
     }
 
     // formId drives the per-form webhook config lookup. IDs are stored as strings on the wire

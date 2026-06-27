@@ -9,11 +9,20 @@ namespace Endatix.Infrastructure.Tests.Features.Outbox;
 
 /// <summary>
 /// Unit tests for the Stage-1 webhook publisher: dotted EventType → WebHookOperation mapping, formId
-/// extraction from the stored (string-id) payload, stable hook id (= outbox row Id), and tenant routing.
+/// extraction from the stored (string-id) payload, stable hook id (= outbox row Id), tenant routing, and
+/// failure handling (a failed delivery throws so the relay retries).
 /// </summary>
 public class WebHookIntegrationEventPublisherTests
 {
     private readonly IWebHookService _webHooks = Substitute.For<IWebHookService>();
+
+    public WebHookIntegrationEventPublisherTests()
+    {
+        // Default: delivery succeeds. Individual tests override for the failure path.
+        _webHooks.DeliverWebHookAsync(
+            Arg.Any<long>(), Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), Arg.Any<long?>())
+            .Returns(true);
+    }
 
     private WebHookIntegrationEventPublisher CreateSut() =>
         new(_webHooks, NullLogger<WebHookIntegrationEventPublisher>.Instance);
@@ -24,7 +33,7 @@ public class WebHookIntegrationEventPublisherTests
     [InlineData("form.enabled_state_changed", "form_enabled_state_changed")]
     [InlineData("submission.completed", "submission_completed")]
     [InlineData("form.deleted", "form_deleted")]
-    public async Task Maps_event_type_and_enqueues_with_stable_hook_id_tenant_and_formId(string eventType, string expectedOperation)
+    public async Task Maps_event_type_and_delivers_with_stable_hook_id_tenant_and_formId(string eventType, string expectedOperation)
     {
         // Arrange
         var message = new FakeOutboxMessage(
@@ -34,7 +43,7 @@ public class WebHookIntegrationEventPublisherTests
         await CreateSut().PublishAsync(message, CancellationToken.None);
 
         // Assert
-        await _webHooks.Received(1).EnqueueWebHookAsync(
+        await _webHooks.Received(1).DeliverWebHookAsync(
             42L,
             Arg.Is<WebHookMessage<JsonElement>>(m => m.id == 777L && m.operation.EventName == expectedOperation),
             Arg.Any<CancellationToken>(),
@@ -42,7 +51,7 @@ public class WebHookIntegrationEventPublisherTests
     }
 
     [Fact]
-    public async Task Unmapped_event_type_is_skipped_and_not_enqueued()
+    public async Task Unmapped_event_type_is_skipped_and_not_delivered()
     {
         // Arrange
         var message = new FakeOutboxMessage(Id: 1, EventType: "form.archived", Payload: "{}", TenantId: 1);
@@ -51,7 +60,7 @@ public class WebHookIntegrationEventPublisherTests
         await CreateSut().PublishAsync(message, CancellationToken.None);
 
         // Assert
-        await _webHooks.DidNotReceive().EnqueueWebHookAsync(
+        await _webHooks.DidNotReceive().DeliverWebHookAsync(
             Arg.Any<long>(), Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), Arg.Any<long?>());
     }
 
@@ -65,8 +74,22 @@ public class WebHookIntegrationEventPublisherTests
         await CreateSut().PublishAsync(message, CancellationToken.None);
 
         // Assert
-        await _webHooks.Received(1).EnqueueWebHookAsync(
+        await _webHooks.Received(1).DeliverWebHookAsync(
             7L, Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), null);
+    }
+
+    [Fact]
+    public async Task Delivery_failure_throws_so_the_relay_retries()
+    {
+        // Arrange
+        _webHooks.DeliverWebHookAsync(
+            Arg.Any<long>(), Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), Arg.Any<long?>())
+            .Returns(false);
+        var message = new FakeOutboxMessage(Id: 5, EventType: "form.created", Payload: """{"formId":"555"}""", TenantId: 1);
+
+        // Act + Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => CreateSut().PublishAsync(message, CancellationToken.None));
     }
 
     private sealed record FakeOutboxMessage(long Id, string EventType, string Payload, long TenantId) : IOutboxMessage
