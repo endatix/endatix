@@ -123,12 +123,9 @@ public class ReportingDbContext : DbContext, ITenantDbContext
     {
         Guard.Against.Null(builder);
 
-        foreach (var entity in builder.Model.GetEntityTypes())
+        foreach (var entity in builder.Model.GetEntityTypes().Where(entity => !entity.IsOwned()))
         {
-            if (entity is not null && !entity.IsOwned())
-            {
-                builder.Entity(entity.Name).ToTable(entity.GetTableName());
-            }
+            builder.Entity(entity.Name).ToTable(entity.GetTableName());
         }
     }
 }
