@@ -74,7 +74,7 @@ Monolith features and modules follow the same vertical-slice mindset at differen
 | **Public contracts** | API response DTOs in `Endatix.Api` endpoints | `Endatix.Modules.*.Contracts` (DTOs, commands, queries, events, wire codes — not domain) |
 | **Domain** | Shared `Endatix.Core` entities | Module `Domain/` (e.g. `Agent`, `Conversation`) |
 | **Persistence** | Shared `AppDbContext` / `AppIdentityDbContext` | Module `Persistence/AgentsDbContext` |
-| **DI registration** | `AddPlatformAdminFeatures()` | `AddAgentsModule()` |
+| **DI registration** | `AddPlatformAdminFeatures()` | SaaS: `AddAgentsModule()` · OSS modules: `{Name}Module` + `EndatixBuilder.UseModule()` |
 | **Reads** | Concrete `List*` type → `ExecuteAsync` (no MediatR) | Often MediatR handler + DbContext **inside the module** (still no Core interface) |
 | **Writes** | MediatR + Core handler + port (`IRoleManagementService`) | MediatR command/handler in module |
 | **Endpoints** | `Endatix.Api/Endpoints/Admin/…` | FastEndpoints colocated in module `Features/*/…cs` |
@@ -94,7 +94,7 @@ Follows [Modulith](https://github.com/foxminchan/Modulith)-style modules: **doma
 | Package | Put here | Do **not** put here |
 |---------|----------|---------------------|
 | `Endatix.Modules.{Name}.Contracts` | DTOs, commands, queries, integration events, **wire codes** (e.g. status strings for filters/API) | Domain entities, value objects, EF types, handlers |
-| `Endatix.Modules.{Name}` | `Domain/`, `Persistence/`, `Features/`, module `Setup.cs` | HTTP models owned by `Endatix.Api` unless the module ships its own endpoints |
+| `Endatix.Modules.{Name}` | `Domain/`, `Persistence/`, `Features/`, `{Name}Module.cs` | HTTP models owned by `Endatix.Api` unless the module ships its own endpoints |
 
 **Reporting example (`SubmissionIntegrationState`):**
 
@@ -109,6 +109,25 @@ Follows [Modulith](https://github.com/foxminchan/Modulith)-style modules: **doma
 - Module entities use `BaseEntity` + `ITenantOwned`, not `TenantEntity`, when the context must stay isolated (`Tenant` navigation pulls the core EF graph).
 - EF Core 10: `[ComplexType]` + `ComplexProperty` on `FlattenedSubmission` integration state.
 - Provider-specific JSON columns and migrations live under `Persistence/Migrations/{PostgreSql|SqlServer}/`.
+
+### Module registration (OSS)
+
+Optional OSS modules implement `IEndatixModule` in a single `{Name}Module` class — no separate `Setup.cs`, no nested registration type.
+
+```csharp
+public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag
+{
+    public static readonly ReportingModule Instance = new();
+    private ReportingModule() { }
+
+    public Assembly Assembly => typeof(ReportingModule).Assembly;
+    public string FeatureFlag => FeatureFlags.ReportingModule;
+
+    public void ConfigureServices(EndatixModuleBuilder builder) { /* DbContext, options, services */ }
+}
+```
+
+Host wiring: `EndatixBuilder.UseDefaults()` calls `UseModule(ReportingModule.Instance)`, which scans `Assembly` for MediatR handlers and FastEndpoints and invokes `ConfigureServices` at finalization. Modules with `IHasFeatureFlag` are skipped when the flag is disabled.
 
 ---
 
@@ -261,5 +280,6 @@ Infrastructure lists take Core paging + feature criteria; return **`Paged<T>` as
 | 2026-06 | Shared list requests: composable Api capabilities (`IPageable`, `ISearchable`, `ISortable<T>`, `IFilterable`) map to Core `PageRequest` / `SearchablePageRequest` / `SortRequest<T>` via `ListRequestExtensions`. |
 | 2026-06 | Testing: unit-only for feature reads — decomposed collaborators + orchestrator mocks; evolve standalone reads toward Infrastructure `IQuery`/MediatR or internal `Common/` contracts; avoid permanent endpoint-facing `IList*` seams. |
 | 2026-06 | **Modules:** `*.Contracts` = public API (DTOs, commands, queries, events, wire codes); module `Domain/` owns entities and value objects. Core may reference `*.Contracts` only for denormalized mirrors / shared codes — not the module assembly. |
+| 2026-06 | **OSS module registration:** `{Name}Module` sealed class implements `IEndatixModule` (+ optional `IHasFeatureFlag`); host calls `UseModule({Name}Module.Instance)`. No `Setup.cs`. |
 | 2026-06 | **Reporting:** integration status on `FlattenedSubmission` only (source of truth in `reporting` schema); core `Submission` and list APIs stay free of reporting denormalization until a dedicated read endpoint is needed. |
 | 2026-06 | **Reporting:** isolated `ReportingDbContext`; avoid `TenantEntity` nav on module entities; EF Core 10 `[ComplexType]` on module side, scalar codes on core side. |

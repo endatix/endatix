@@ -24,7 +24,7 @@ Database schema: `reporting`
 
 ## Registration
 
-The Reporting module is registered by `EndatixBuilder.UseDefaults()` and implements `IHasFeatureFlag`. It is **disabled by default** until enabled in configuration:
+Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. The module class implements `IEndatixModule` and `IHasFeatureFlag`. It is **disabled by default** until enabled in configuration:
 
 ```json
 "Endatix": {
