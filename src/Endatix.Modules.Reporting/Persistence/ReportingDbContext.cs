@@ -11,7 +11,7 @@ namespace Endatix.Modules.Reporting.Persistence;
 /// <summary>
 /// Database context for the Reporting module export read model.
 /// </summary>
-public sealed class ReportingDbContext : DbContext, ITenantDbContext
+public class ReportingDbContext : DbContext, ITenantDbContext
 {
     private readonly IIdGenerator<long> _idGenerator;
     private readonly ITenantContext _tenantContext;

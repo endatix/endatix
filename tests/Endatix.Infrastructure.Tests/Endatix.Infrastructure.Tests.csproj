@@ -21,10 +21,6 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Endatix.Persistence.PostgreSql\Endatix.Persistence.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\Endatix.Persistence.SqlServer\Endatix.Persistence.SqlServer.csproj" />
