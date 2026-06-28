@@ -36,8 +36,6 @@ public sealed class DbContextMigrationContributor<TContext> : IDbContextMigratio
         }
 
         var startTime = Stopwatch.GetTimestamp();
-        logger.LogWarning("Applying database migrations for {DbContextName}", typeof(TContext).Name);
-
         await dbContext.Database.MigrateAsync(cancellationToken);
 
         var elapsedTime = Stopwatch.GetElapsedTime(startTime);
