@@ -1,9 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <EnablePackageValidation>false</EnablePackageValidation>
+  </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Endatix.Modules.Reporting</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,5 +23,4 @@
     <ProjectReference Include="..\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
     <ProjectReference Include="..\Endatix.Modules.Reporting.Contracts\Endatix.Modules.Reporting.Contracts.csproj" />
   </ItemGroup>
-
 </Project>
