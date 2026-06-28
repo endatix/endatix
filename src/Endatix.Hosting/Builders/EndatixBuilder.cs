@@ -318,7 +318,16 @@ public class EndatixBuilder : IBuilderRoot
 
         foreach (var module in _modules)
         {
-            module.ConfigureServices(new EndatixModuleBuilder(Services, Configuration));
+            var moduleBuilder = new EndatixModuleBuilder(Services, Configuration);
+            module.ConfigureServices(moduleBuilder);
+
+            if (module is IHasDbMigrations && !moduleBuilder.MigrationContributorRegistered)
+            {
+                _logger.LogWarning(
+                    "Module {AssemblyName} implements {Marker} but did not register a migration contributor via AddDbContextWithMigrations",
+                    module.Assembly.GetName().Name,
+                    nameof(IHasDbMigrations));
+            }
         }
 
         _logger.LogInformation("All configurations have been finalized");

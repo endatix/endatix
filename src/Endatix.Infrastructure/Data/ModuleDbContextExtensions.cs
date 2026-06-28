@@ -35,6 +35,10 @@ public static class ModuleDbContextExtensions
         var migrationsNamespace = usePostgreSql
             ? moduleOptions.PostgreSqlMigrationsNamespace
             : moduleOptions.SqlServerMigrationsNamespace;
+        var useProviderNamespaceFiltering = !string.Equals(
+            moduleOptions.PostgreSqlMigrationsNamespace,
+            moduleOptions.SqlServerMigrationsNamespace,
+            StringComparison.Ordinal);
 
         services.AddDbContext<TContext>(options =>
         {
@@ -55,7 +59,10 @@ public static class ModuleDbContextExtensions
                 });
             }
 
-            ConfigureProviderScopedMigrations(options, migrationsNamespace);
+            if (useProviderNamespaceFiltering)
+            {
+                ConfigureProviderScopedMigrations(options, migrationsNamespace);
+            }
         });
 
         return services;

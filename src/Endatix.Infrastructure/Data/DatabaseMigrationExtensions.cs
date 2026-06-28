@@ -1,8 +1,4 @@
-using System.Diagnostics;
-using Ardalis.GuardClauses;
-using Endatix.Infrastructure.Data.Abstractions;
-using Endatix.Infrastructure.Identity;
-using Microsoft.EntityFrameworkCore;
+using Endatix.Framework.Modules;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -13,16 +9,14 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public static class DatabaseMigrationExtensions
 {
-    // This internal class is only used as a logger category
     private class MigrationLogger { }
 
     /// <summary>
-    /// Applies database migrations for all registered DbContext types.
+    /// Applies database migrations for all registered <see cref="IDbContextMigrationContributor"/> instances.
     /// </summary>
-    /// <param name="serviceProvider">The service provider.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public static async Task ApplyDbMigrationsAsync(this IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
+    public static async Task ApplyDbMigrationsAsync(
+        this IServiceProvider serviceProvider,
+        CancellationToken cancellationToken = default)
     {
         using var scope = serviceProvider.CreateScope();
         var logger = serviceProvider.GetRequiredService<ILogger<MigrationLogger>>();
@@ -31,39 +25,19 @@ public static class DatabaseMigrationExtensions
         try
         {
             var scopedProvider = scope.ServiceProvider;
+            var contributors = scopedProvider.GetServices<IDbContextMigrationContributor>();
 
-            using var appDbContext = scopedProvider.GetRequiredService<AppDbContext>();
-            await ApplyMigrationForContextAsync(appDbContext, logger);
-
-            using var identityDbContext = scopedProvider.GetRequiredService<AppIdentityDbContext>();
-            await ApplyMigrationForContextAsync(identityDbContext, logger);
-
-            var moduleContributors = scopedProvider.GetServices<IDbContextMigrationContributor>();
-            foreach (var contributor in moduleContributors)
+            foreach (var contributor in contributors)
             {
                 await contributor.MigrateAsync(scopedProvider, logger, cancellationToken);
             }
 
-            logger?.LogDebug("{Operation} operation executed successfully", nameof(ApplyDbMigrationsAsync));
+            logger.LogDebug("{Operation} operation executed successfully", nameof(ApplyDbMigrationsAsync));
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "An error occurred while applying database migrations");
-            throw; // Rethrow for explicit migration calls
+            logger.LogError(ex, "An error occurred while applying database migrations");
+            throw;
         }
-    }
-
-    private static async Task ApplyMigrationForContextAsync<T>(T dbContext, ILogger logger) where T : DbContext
-    {
-        Guard.Against.Null(dbContext);
-        Guard.Against.Null(logger);
-
-        var startTime = Stopwatch.GetTimestamp();
-        logger.LogWarning("💽 Applying database migrations for {dbContextName}", typeof(T).Name);
-
-        await dbContext.Database.MigrateAsync();
-
-        var elapsedTime = Stopwatch.GetElapsedTime(startTime);
-        logger.LogWarning("💽 Database migrations applied for {dbContextName}. Took: {elapsedTime} ms.", typeof(T).Name, elapsedTime.TotalMilliseconds);
     }
 }

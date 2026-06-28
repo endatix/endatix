@@ -1,7 +1,5 @@
 using Endatix.Framework.Modules;
-using Endatix.Infrastructure.Data.Abstractions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -20,8 +18,8 @@ public static class EndatixModuleBuilderExtensions
         where TContext : DbContext
     {
         builder.Services.AddModuleDbContext<TContext>(builder.Configuration, configureDbContext);
-        builder.Services.AddSingleton<IDbContextMigrationContributor>(
-            _ => new DbContextMigrationContributor<TContext>(shouldMigrate));
+        builder.Services.AddDbContextMigrationContributor<TContext>(shouldMigrate);
+        builder.MarkMigrationContributorRegistered();
 
         return builder;
     }

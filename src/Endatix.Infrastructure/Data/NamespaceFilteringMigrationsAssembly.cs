@@ -10,6 +10,8 @@ namespace Endatix.Infrastructure.Data;
 
 /// <summary>
 /// Filters discovered migrations and model snapshots to a provider-specific namespace.
+/// Used when a single DbContext type shares PostgreSQL and SQL Server migration folders
+/// in one assembly. Prefer provider-split DbContext types (E813) to avoid this filter.
 /// </summary>
 internal sealed class NamespaceFilteringMigrationsAssembly : IMigrationsAssembly
 {

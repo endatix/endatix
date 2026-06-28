@@ -13,7 +13,7 @@ namespace Endatix.Modules.Reporting;
 /// <summary>
 /// Reporting module (export read model, flattening, export configuration).
 /// </summary>
-public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag
+public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations
 {
     public static readonly ReportingModule Instance = new();
 

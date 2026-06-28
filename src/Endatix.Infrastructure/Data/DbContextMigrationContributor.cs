@@ -1,4 +1,5 @@
-using Endatix.Infrastructure.Data.Abstractions;
+using System.Diagnostics;
+using Endatix.Framework.Modules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -6,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace Endatix.Infrastructure.Data;
 
 /// <summary>
-/// Applies EF migrations for a registered module DbContext at application startup.
+/// Applies EF migrations for a registered DbContext at application startup.
 /// </summary>
 public sealed class DbContextMigrationContributor<TContext> : IDbContextMigrationContributor
     where TContext : DbContext
@@ -34,7 +35,15 @@ public sealed class DbContextMigrationContributor<TContext> : IDbContextMigratio
             return;
         }
 
+        var startTime = Stopwatch.GetTimestamp();
         logger.LogWarning("Applying database migrations for {DbContextName}", typeof(TContext).Name);
+
         await dbContext.Database.MigrateAsync(cancellationToken);
+
+        var elapsedTime = Stopwatch.GetElapsedTime(startTime);
+        logger.LogWarning(
+            "Database migrations applied for {DbContextName}. Took: {ElapsedMs} ms.",
+            typeof(TContext).Name,
+            elapsedTime.TotalMilliseconds);
     }
 }
