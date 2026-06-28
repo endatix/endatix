@@ -19,10 +19,10 @@ public sealed class FormExportSchema : BaseEntity, ITenantOwned, IAggregateRoot
         long formDefinitionRevision,
         string schemaJson)
     {
-        Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
-        Guard.Against.NegativeOrZero(formId, nameof(formId));
-        Guard.Against.NegativeOrZero(formDefinitionRevision, nameof(formDefinitionRevision));
-        Guard.Against.NullOrEmpty(schemaJson, nameof(schemaJson));
+        Guard.Against.NegativeOrZero(tenantId);
+        Guard.Against.NegativeOrZero(formId);
+        Guard.Against.NegativeOrZero(formDefinitionRevision);
+        Guard.Against.NullOrEmpty(schemaJson);
 
         TenantId = tenantId;
         FormId = formId;
@@ -47,8 +47,8 @@ public sealed class FormExportSchema : BaseEntity, ITenantOwned, IAggregateRoot
 
     public void UpdateSchema(long formDefinitionRevision, string schemaJson)
     {
-        Guard.Against.NegativeOrZero(formDefinitionRevision, nameof(formDefinitionRevision));
-        Guard.Against.NullOrEmpty(schemaJson, nameof(schemaJson));
+        Guard.Against.NegativeOrZero(formDefinitionRevision);
+        Guard.Against.NullOrEmpty(schemaJson);
 
         if (formDefinitionRevision < FormDefinitionRevision)
         {
