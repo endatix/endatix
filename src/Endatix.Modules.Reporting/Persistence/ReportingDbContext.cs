@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Modules.Reporting.Domain;
@@ -36,15 +35,16 @@ public class ReportingDbContext : DbContext, ITenantDbContext
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
 
-    protected override void OnModelCreating(ModelBuilder builder)
+    /// <inheritdoc />
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        builder.HasDefaultSchema(ReportingPersistence.Schema);
+        modelBuilder.HasDefaultSchema(ReportingPersistence.Schema);
 
-        builder.ApplyEndatixQueryFilters(this);
-        builder.ApplyConfigurationsFor<ReportingDbContext>(typeof(ReportingDbContext).Assembly);
-        ApplyProviderSpecificConfigurations(builder);
+        modelBuilder.ApplyEndatixQueryFilters(this);
+        modelBuilder.ApplyConfigurationsFor<ReportingDbContext>(typeof(ReportingDbContext).Assembly);
+        ApplyProviderSpecificConfigurations(modelBuilder);
 
-        PrefixTableNames(builder);
+        PrefixTableNames(modelBuilder);
     }
 
     private void ApplyProviderSpecificConfigurations(ModelBuilder builder)

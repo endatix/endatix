@@ -30,7 +30,7 @@ public static class ModuleDbContextExtensions
         Guard.Against.NullOrEmpty(moduleOptions.SqlServerMigrationsNamespace);
 
         var connectionString = configuration.GetConnectionString("DefaultConnection");
-        Guard.Against.NullOrEmpty(connectionString);
+        Guard.Against.NullOrEmpty(connectionString, "DefaultConnection");
         var usePostgreSql = DatabaseProviderResolver.IsPostgreSql(configuration);
         var migrationsNamespace = usePostgreSql
             ? moduleOptions.PostgreSqlMigrationsNamespace
