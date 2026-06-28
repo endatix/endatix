@@ -70,7 +70,7 @@ public sealed class SubmissionIntegrationState
 
     public static SubmissionIntegrationState FromCode(string code)
     {
-        Guard.Against.NullOrWhiteSpace(code, nameof(code));
+        Guard.Against.NullOrWhiteSpace(code);
 
         var normalized = code.ToLowerInvariant();
         if (!SubmissionIntegrationStatusCodes.IsKnown(normalized))
