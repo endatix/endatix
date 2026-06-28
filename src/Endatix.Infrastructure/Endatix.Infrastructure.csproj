@@ -33,6 +33,7 @@
 		<PackageReference Include="SendGrid" />
 		<PackageReference Include="SendGrid.Extensions.DependencyInjection" />
 		<PackageReference Include="MediatR" />
+		<PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />

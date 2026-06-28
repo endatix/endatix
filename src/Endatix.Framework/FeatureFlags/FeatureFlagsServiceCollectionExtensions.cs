@@ -26,8 +26,7 @@ public static class FeatureFlagsServiceCollectionExtensions
 
         services.AddEndatixOptions<FeatureFlagsOptions>(configuration);
         services
-            .AddScopedFeatureManagement(featureSection)
-            .WithTargeting<FeatureFlagsTargetingContext>();
+            .AddScopedFeatureManagement(featureSection);
 
         services.AddScoped<IFeatureGate, FeatureGate>();
         return services;
