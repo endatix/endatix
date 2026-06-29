@@ -29,7 +29,7 @@ public class IntegrationEventPayloadTests
     }
 
     [Fact]
-    public void FormEnabledStateChangedEvent_has_dotted_type_and_omits_folderId()
+    public void FormEnabledStateChangedEvent_has_dotted_type_and_includes_folderId()
     {
         var form = new Form(tenantId: 1, name: "Test") { Id = 7 };
         var evt = new FormEnabledStateChangedEvent(form, isEnabled: true);
@@ -38,18 +38,18 @@ public class IntegrationEventPayloadTests
         var json = Payload(evt.GetPayload());
         json.GetProperty("formId").GetInt64().Should().Be(7);
         json.TryGetProperty("revision", out _).Should().BeTrue();
-        json.TryGetProperty("folderId", out _).Should().BeFalse("enabled-state payload omits folderId");
+        json.TryGetProperty("folderId", out _).Should().BeTrue("all form events carry folderId");
     }
 
     [Fact]
-    public void FormDeletedEvent_has_dotted_type_and_omits_folderId()
+    public void FormDeletedEvent_has_dotted_type_and_includes_folderId()
     {
         var form = new Form(tenantId: 1, name: "Test") { Id = 9 };
         var evt = new FormDeletedEvent(form);
 
         evt.EventType.Should().Be("form.deleted");
         var json = Payload(evt.GetPayload());
-        json.TryGetProperty("folderId", out _).Should().BeFalse();
+        json.TryGetProperty("folderId", out _).Should().BeTrue();
     }
 
     [Fact]

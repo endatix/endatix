@@ -31,7 +31,6 @@ public class PartialUpdateFormHandler(
             return Result.NotFound("Form not found.");
         }
 
-        var oldIsEnabled = form.IsEnabled;
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
 
         if (form.LimitOnePerUser && !requestedLimitOnePerUser)
@@ -116,13 +115,10 @@ public class PartialUpdateFormHandler(
         form.RaiseUpdated(); // raises form.updated (outbox), bumps revision — before save so capture is atomic
         await repository.UpdateAsync(form, cancellationToken);
 
-        // Kept for the in-process MediatR subscribers (cache invalidation); the webhook now flows via the outbox.
+        // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows
+        // via the outbox. The enabled-state change is raised on the aggregate (SetEnabled → outbox) and has no
+        // in-process subscriber, so it is not published here.
         await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);
-
-        if (request.IsEnabled.HasValue && oldIsEnabled != request.IsEnabled.Value)
-        {
-            await mediator.Publish(new FormEnabledStateChangedEvent(form, request.IsEnabled.Value), cancellationToken);
-        }
 
         return Result.Success(form);
     }

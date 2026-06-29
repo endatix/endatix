@@ -1,12 +1,10 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
-using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.Forms.Create;
-using MediatR;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Core.Tests.UseCases.Forms.Create;
@@ -15,15 +13,13 @@ public class CreateFormHandlerTests
 {
     private readonly IFormsRepository _repository;
     private readonly ITenantContext _tenantContext;
-    private readonly IMediator _mediator;
     private readonly CreateFormHandler _handler;
 
     public CreateFormHandlerTests()
     {
         _repository = Substitute.For<IFormsRepository>();
         _tenantContext = Substitute.For<ITenantContext>();
-        _mediator = Substitute.For<IMediator>();
-        _handler = new CreateFormHandler(_repository, _tenantContext, _mediator, FolderAssignmentPolicyStub.Relaxed(_tenantContext));
+        _handler = new CreateFormHandler(_repository, _tenantContext, FolderAssignmentPolicyStub.Relaxed(_tenantContext));
     }
 
     [Fact]
@@ -60,31 +56,6 @@ public class CreateFormHandlerTests
         result.Value.IsEnabled.Should().Be(request.IsEnabled);
 
         await _repository.Received(1).CreateFormWithDefinitionAsync(createdForm, createdFormDefinition, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_ValidRequest_PublishesFormCreatedEvent()
-    {
-        // Arrange
-        var request = new CreateFormCommand("Form Name", "Description", true, SampleData.FORM_DEFINITION_JSON_DATA_1);
-        var createdForm = new Form(SampleData.TENANT_ID, "Form Name", request.Description, request.IsEnabled) { Id = 123 };
-        var createdFormDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1) { Id = 456 };
-        createdForm.AddFormDefinition(createdFormDefinition);
-
-        _repository.CreateFormWithDefinitionAsync(Arg.Any<Form>(), Arg.Any<FormDefinition>(), Arg.Any<CancellationToken>())
-                   .Returns(createdForm);
-        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
-
-        // Act
-        await _handler.Handle(request, CancellationToken.None);
-
-        // Assert
-        await _mediator.Received(1).Publish(Arg.Is<FormCreatedEvent>(e =>
-            e.Form.Id == createdForm.Id &&
-            e.Form.Name == createdForm.Name &&
-            e.Form.Description == createdForm.Description &&
-            e.Form.IsEnabled == createdForm.IsEnabled),
-            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -167,7 +138,7 @@ public class CreateFormHandlerTests
             .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
             .Returns(settings);
         var strictHelper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, _tenantContext);
-        var handler = new CreateFormHandler(_repository, _tenantContext, _mediator, strictHelper);
+        var handler = new CreateFormHandler(_repository, _tenantContext, strictHelper);
 
         // Act
         var result = await handler.Handle(request, CancellationToken.None);

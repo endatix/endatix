@@ -96,6 +96,47 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
         (await verify.Probes.CountAsync()).Should().Be(1, "only the seeded row should remain");
     }
 
+    [Fact]
+    public async Task CreateFormWithDefinitionSequence_FormCreatedPayload_CarriesRealActiveDefinitionId()
+    {
+        // Replicates FormsRepository.CreateFormWithDefinitionAsync exactly: save the form, then add the
+        // active definition + RaiseCreated, then save again (which captures form.created).
+        _tenantContext.TenantId.Returns(0L); // bypass tenant query filter so we can read the outbox row back
+
+        long formDefinitionId;
+        using (var ctx = CreateContext())
+        {
+            await ctx.Database.EnsureCreatedAsync();
+
+            var tenant = new Tenant("acme");
+            ctx.Set<Tenant>().Add(tenant);
+            await ctx.SaveChangesAsync();
+
+            var form = new Form(tenant.Id, "webhook-form", "desc", isEnabled: true);
+            ctx.Set<Form>().Add(form);
+            await ctx.SaveChangesAsync(); // 1st save: form only, no event yet
+
+            var formDefinition = new FormDefinition(tenant.Id);
+            form.AddFormDefinition(formDefinition);
+            ctx.Set<FormDefinition>().Add(formDefinition);
+            form.RaiseCreated();
+            await ctx.SaveChangesAsync(); // 2nd save: captures form.created
+
+            formDefinitionId = formDefinition.Id;
+            formDefinitionId.Should().BeGreaterThan(0);
+        }
+
+        using var verify = CreateContext();
+        var created = (await verify.OutboxMessages.ToListAsync())
+            .Single(m => m.EventType == "form.created");
+
+        using var payload = JsonDocument.Parse(created.Payload);
+        var activeDefinitionId = payload.RootElement.GetProperty("activeDefinitionId");
+        activeDefinitionId.GetString().Should().Be(
+            formDefinitionId.ToString(),
+            "the form.created webhook payload must carry the real active definition id, not a stale 0/null");
+    }
+
     private TestAppDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

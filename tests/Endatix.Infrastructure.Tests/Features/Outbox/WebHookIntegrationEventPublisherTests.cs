@@ -1,5 +1,8 @@
 using System.Text.Json;
+using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Features.WebHooks;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -48,6 +51,40 @@ public class WebHookIntegrationEventPublisherTests
             Arg.Is<WebHookMessage<JsonElement>>(m => m.id == 777L && m.operation.EventName == expectedOperation),
             Arg.Any<CancellationToken>(),
             555L);
+    }
+
+    [Fact]
+    public async Task Every_slice_events_real_EventType_round_trips_to_a_delivery()
+    {
+        // Guards against drift between an event's EventType literal (capture side) and the publisher's
+        // mapping derived from WebHookOperation.EventName (lookup side): a mismatch would silently skip
+        // delivery. Drives the publisher with the EventType + payload the ACTUAL event classes produce.
+        const long formId = 555L;
+        var form = new Form(tenantId: 42, name: "f") { Id = formId };
+        var submission = Submission.Create(42, "{}", formId: formId, formDefinitionId: 1,
+            new SubmissionCreateOptions(IsComplete: true));
+
+        IIntegrationEvent[] events =
+        [
+            new FormCreatedEvent(form),
+            new FormUpdatedEvent(form),
+            new FormEnabledStateChangedEvent(form, isEnabled: true),
+            new FormDeletedEvent(form),
+            new SubmissionCompletedEvent(submission),
+        ];
+
+        var sut = CreateSut();
+        foreach (var integrationEvent in events)
+        {
+            var payload = JsonSerializer.Serialize(integrationEvent.GetPayload());
+            var message = new FakeOutboxMessage(Id: 1, EventType: integrationEvent.EventType, Payload: payload, TenantId: 42);
+
+            await sut.PublishAsync(message, CancellationToken.None);
+        }
+
+        // Every event's EventType must have mapped → been delivered for the right form (none skipped).
+        await _webHooks.Received(events.Length).DeliverWebHookAsync(
+            42L, Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), formId);
     }
 
     [Fact]

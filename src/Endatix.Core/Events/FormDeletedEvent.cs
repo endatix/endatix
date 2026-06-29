@@ -15,17 +15,5 @@ public sealed class FormDeletedEvent(Form form) : DomainEventBase, IIntegrationE
     public string EventType => "form.deleted";
 
     /// <inheritdoc />
-    public object GetPayload() => new
-    {
-        formId = Form.Id,
-        tenantId = Form.TenantId,
-        name = Form.Name,
-        description = Form.Description,
-        isEnabled = Form.IsEnabled,
-        activeDefinitionId = Form.ActiveDefinitionId,
-        themeId = Form.ThemeId,
-        createdAt = Form.CreatedAt,
-        modifiedAt = Form.ModifiedAt,
-        revision = Form.Revision,
-    };
+    public object GetPayload() => FormEventPayload.Create(Form);
 }
