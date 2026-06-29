@@ -13,8 +13,9 @@ public static class FeatureFlagsServiceCollectionExtensions
 {
     /// <summary>
     /// Adds feature management scoped to <c>Endatix:FeatureFlags</c> and <see cref="IFeatureGate"/>.
+    /// Endatix hosts should chain <c>WithEndatixTargeting()</c> (Infrastructure) for tenant/user targeting.
     /// </summary>
-    public static IServiceCollection AddEndatixFeatureFlags(
+    public static IFeatureManagementBuilder AddEndatixFeatureFlags(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -25,10 +26,9 @@ public static class FeatureFlagsServiceCollectionExtensions
         var featureSection = configuration.GetSection(sectionPath);
 
         services.AddEndatixOptions<FeatureFlagsOptions>(configuration);
-        services
-            .AddScopedFeatureManagement(featureSection);
+        var builder = services.AddScopedFeatureManagement(featureSection);
 
         services.AddScoped<IFeatureGate, FeatureGate>();
-        return services;
+        return builder;
     }
 }
