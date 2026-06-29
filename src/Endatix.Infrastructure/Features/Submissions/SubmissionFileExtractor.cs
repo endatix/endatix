@@ -7,32 +7,49 @@ namespace Endatix.Infrastructure.Features.Submissions;
 public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly SubmissionFileUrlPolicy _urlPolicy;
     private readonly ILogger<SubmissionFileExtractor> _logger;
 
-    public SubmissionFileExtractor(IHttpClientFactory httpClientFactory, ILogger<SubmissionFileExtractor> logger)
+    public SubmissionFileExtractor(
+        IHttpClientFactory httpClientFactory,
+        SubmissionFileUrlPolicy urlPolicy,
+        ILogger<SubmissionFileExtractor> logger)
     {
         _httpClientFactory = httpClientFactory;
+        _urlPolicy = urlPolicy;
         _logger = logger;
     }
 
     public async Task<List<ISubmissionFileExtractor.ExtractedFile>> ExtractFilesAsync(
-        JsonElement root, long submissionId, string prefix = "", CancellationToken cancellationToken = default)
+        JsonElement root,
+        long formId,
+        long submissionId,
+        string prefix = "",
+        CancellationToken cancellationToken = default)
     {
         var files = new List<ISubmissionFileExtractor.ExtractedFile>();
-        var context = new ExtractionContext(prefix, submissionId, cancellationToken, files);
+        var context = new ExtractionContext(prefix, formId, submissionId, cancellationToken, files);
         await FindFilesRecursiveAsync(root, string.Empty, context);
         return files;
     }
 
-    private class ExtractionContext
+    private sealed class ExtractionContext
     {
         public string Prefix { get; }
+        public long FormId { get; }
         public long SubmissionId { get; }
         public CancellationToken CancellationToken { get; }
         public List<ISubmissionFileExtractor.ExtractedFile> Files { get; }
-        public ExtractionContext(string prefix, long submissionId, CancellationToken token, List<ISubmissionFileExtractor.ExtractedFile> files)
+
+        public ExtractionContext(
+            string prefix,
+            long formId,
+            long submissionId,
+            CancellationToken token,
+            List<ISubmissionFileExtractor.ExtractedFile> files)
         {
             Prefix = prefix;
+            FormId = formId;
             SubmissionId = submissionId;
             CancellationToken = token;
             Files = files;
@@ -82,14 +99,6 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
             && element.TryGetProperty("content", out _);
     }
 
-    /// <summary>
-    /// Attempts to extract a file from a file JSON element and add it to the extraction context, handling different content encodings.
-    /// </summary>
-    /// <param name="questionName">The root question name associated with the file.</param>
-    /// <param name="fileElement">The JSON element representing the file object.</param>
-    /// <param name="context">The extraction context containing state and results.</param>
-    /// <param name="index">The index of the file in an array, if applicable.</param>
-    /// <param name="total">The total number of files in the array, if applicable.</param>
     private async Task TryExtractFileAsync(
         string questionName, JsonElement fileElement, ExtractionContext context, int index, int total)
     {
@@ -131,18 +140,20 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
         }
     }
 
-    /// <summary>
-    /// Downloads a file from a URL and adds it to the extraction context.
-    /// </summary>
-    /// <param name="url">The URL to fetch the file from.</param>
-    /// <param name="fileName">The sanitized file name for the extracted file.</param>
-    /// <param name="mimeType">The MIME type of the file.</param>
-    /// <param name="context">The extraction context containing state and results.</param>
     private async Task ExtractFromUrlAsync(string url, string fileName, string mimeType, ExtractionContext context)
     {
+        if (!_urlPolicy.TryValidateForFetch(url, context.FormId, context.SubmissionId))
+        {
+            _logger.LogWarning(
+                "Rejected URL fetch for submission file (Url: {Url}, SubmissionId: {SubmissionId})",
+                url,
+                context.SubmissionId);
+            return;
+        }
+
         try
         {
-            var httpClient = _httpClientFactory.CreateClient();
+            var httpClient = _httpClientFactory.CreateClient(SubmissionFileFetchHttpClient.Name);
             var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, context.CancellationToken);
             if (response.IsSuccessStatusCode)
             {
@@ -151,22 +162,25 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
             }
             else
             {
-                _logger.LogWarning("Failed to fetch file from URL: {Url} (Status: {StatusCode}, SubmissionId: {SubmissionId})", url, response.StatusCode, context.SubmissionId);
+                _logger.LogWarning(
+                    "Failed to fetch file from URL: {Url} (Status: {StatusCode}, SubmissionId: {SubmissionId})",
+                    url,
+                    response.StatusCode,
+                    context.SubmissionId);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception occurred while fetching file from URL: {Url} (FileName: {FileName}, MimeType: {MimeType}, SubmissionId: {SubmissionId})", url, fileName, mimeType, context.SubmissionId);
+            _logger.LogError(
+                ex,
+                "Exception occurred while fetching file from URL: {Url} (FileName: {FileName}, MimeType: {MimeType}, SubmissionId: {SubmissionId})",
+                url,
+                fileName,
+                mimeType,
+                context.SubmissionId);
         }
     }
 
-    /// <summary>
-    /// Decodes a file from a data URI and adds it to the extraction context.
-    /// </summary>
-    /// <param name="dataUri">The data URI string containing base64-encoded file data.</param>
-    /// <param name="fileName">The sanitized file name for the extracted file.</param>
-    /// <param name="mimeType">The MIME type of the file.</param>
-    /// <param name="context">The extraction context containing state and results.</param>
     private void ExtractFromDataUri(string dataUri, string fileName, string mimeType, ExtractionContext context)
     {
         var base64Index = dataUri.IndexOf(",", StringComparison.Ordinal);
@@ -189,13 +203,6 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
         }
     }
 
-    /// <summary>
-    /// Decodes a file from a raw base64 string and adds it to the extraction context.
-    /// </summary>
-    /// <param name="base64">The base64-encoded file content.</param>
-    /// <param name="fileName">The sanitized file name for the extracted file.</param>
-    /// <param name="mimeType">The MIME type of the file.</param>
-    /// <param name="context">The extraction context containing state and results.</param>
     private void ExtractFromBase64(string base64, string fileName, string mimeType, ExtractionContext context)
     {
         try

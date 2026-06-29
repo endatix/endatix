@@ -2,7 +2,8 @@ namespace Endatix.Infrastructure.Storage;
 
 /// <summary>
 /// Azure Blob Storage provider options used for URL detection when rewriting
-/// submission file URLs in exports. Path convention: {container}/s/{formId}/{submissionId}/{fileName}.
+/// submission file URLs in exports and validating submission file URL fetches.
+/// Path convention: {container}/s/{formId}/{submissionId}/{fileName}.
 /// </summary>
 public sealed class AzureBlobStorageProviderOptions
 {
@@ -19,5 +20,10 @@ public sealed class AzureBlobStorageProviderOptions
     /// <summary>
     /// Whether this provider is configured enough to detect submission-file URLs.
     /// </summary>
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(HostName) && !string.IsNullOrWhiteSpace(UserFilesContainerName);
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(HostName) &&
+        !string.IsNullOrWhiteSpace(UserFilesContainerName);
+
+    internal string NormalizedContainerName =>
+        UserFilesContainerName.Trim().ToLowerInvariant();
 }

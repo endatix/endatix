@@ -19,9 +19,15 @@ public interface ISubmissionFileExtractor
     /// Extracts files from a submission's JSON data by recursively traversing the JSON structure.
     /// </summary>
     /// <param name="root">The root JSON element to search for file objects.</param>
+    /// <param name="formId">The form ID for the submission being processed.</param>
     /// <param name="submissionId">The ID of the submission being processed.</param>
     /// <param name="prefix">Optional prefix to prepend to extracted file names.</param>
     /// <param name="cancellationToken">Optional cancellation token to cancel the operation.</param>
     /// <returns>A list of extracted files with their metadata and content streams.</returns>
-    Task<List<ExtractedFile>> ExtractFilesAsync(JsonElement root, long submissionId, string prefix = "", CancellationToken cancellationToken = default);
+    Task<List<ExtractedFile>> ExtractFilesAsync(
+        JsonElement root,
+        long formId,
+        long submissionId,
+        string prefix = "",
+        CancellationToken cancellationToken = default);
 }

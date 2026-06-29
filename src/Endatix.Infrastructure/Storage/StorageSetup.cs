@@ -1,4 +1,5 @@
 using Endatix.Infrastructure.Exporting.Transformers;
+using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Storage;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -16,10 +17,17 @@ public static class StorageSetup
         services.AddOptions<StorageOptions>()
             .BindConfiguration(StorageOptions.SectionName);
 
-        // Add Azure Blob storage provider options. To be encapsulated with Storage provider registry later.
         services.AddOptions<AzureBlobStorageProviderOptions>()
             .BindConfiguration($"{StorageOptions.SectionName}:Providers:AzureBlob")
             .ValidateOnStart();
+
+        services.AddSingleton<SubmissionFileUrlPolicy>();
+
+        services.AddHttpClient(SubmissionFileFetchHttpClient.Name)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                AllowAutoRedirect = false,
+            });
 
         services.AddExportTransformer<StorageUrlRewriteTransformer>();
         services.AddExportTransformer<LargeValuePlaceholderTransformer>();

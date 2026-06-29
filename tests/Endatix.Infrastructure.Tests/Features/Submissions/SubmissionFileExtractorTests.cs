@@ -1,206 +1,285 @@
-using System.Text.Json;
-using Endatix.Infrastructure.Features.Submissions;
 using System.Net;
 using System.Net.Http.Headers;
-using NSubstitute;
+using System.Text.Json;
+using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Infrastructure.Storage;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Features.Submissions;
 
 public sealed class SubmissionFileExtractorTests
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<SubmissionFileExtractor> _logger;
-    private readonly SubmissionFileExtractor _extractor;
+  private const long FormId = 1465276700186116096L;
+  private const long SubmissionId = 1470691429209604096L;
+  private const string StorageHost = "endatixstoragedev.blob.core.windows.net";
+  private const string Container = "secure-vault";
 
-     public SubmissionFileExtractorTests()
-    {
-        _httpClientFactory = Substitute.For<IHttpClientFactory>();
-        _logger = Substitute.For<ILogger<SubmissionFileExtractor>>();
-        // Default: returns a dummy HttpClient with a handler that always returns a canned response
-        var handler = new DummyHandler();
-        var httpClient = new HttpClient(handler);
-        _httpClientFactory.CreateClient(Arg.Any<string>()).Returns(httpClient);
+  private readonly IHttpClientFactory _httpClientFactory;
+  private readonly ILogger<SubmissionFileExtractor> _logger;
+  private readonly SubmissionFileUrlPolicy _urlPolicy;
+  private readonly SubmissionFileExtractor _extractor;
+  private DummyHandler? _handler;
 
-        _extractor = new SubmissionFileExtractor(_httpClientFactory, _logger);
-    }
-
-    [Fact]
-    public async Task ExtractFiles_Base64Content_Works()
-    {
-        // Arrange
-        var json = "{" +
-            "\"fileQuestion\": {" +
-            "\"name\": \"test.txt\"," +
-            "\"type\": \"text/plain\"," +
-            "\"content\": \"SGVsbG8gd29ybGQ=\"}" +
-            "}";
-        var doc = JsonDocument.Parse(json);
-        var submissionId = 12;
-
-        // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId);
-
-        // Assert
-        Assert.Single(files);
-        var file = files[0];
-        Assert.Equal("fileQuestion.txt", file.FileName);
-        Assert.Equal("text/plain", file.MimeType);
-        using var reader = new StreamReader(file.Content);
-        Assert.Equal("Hello world", reader.ReadToEnd());
-    }
-
-    [Fact]
-    public async Task ExtractFiles_DataUrlContent_Works()
-    {
-        // Arrange
-        var json = "{" +
-            "\"fileQuestion\": {" +
-            "\"name\": \"test.txt\"," +
-            "\"type\": \"text/plain\"," +
-            "\"content\": \"data:text/plain;base64,SGVsbG8gd29ybGQ=\"}" +
-            "}";
-        var doc = JsonDocument.Parse(json);
-        var submissionId = 12;
-
-        // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId);
-
-        // Assert
-        Assert.Single(files);
-        var file = files[0];
-        Assert.Equal("fileQuestion.txt", file.FileName);
-        Assert.Equal("text/plain", file.MimeType);
-        using var reader = new StreamReader(file.Content);
-        Assert.Equal("Hello world", reader.ReadToEnd());
-    }
-
-    private class DummyHandler : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StreamContent(new MemoryStream(new byte[] { 1, 2, 3 }))
-            };
-            response.Content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-            return Task.FromResult(response);
-        }
-    }
-
-    [Fact]
-    public async Task ExtractFiles_MultipleFilesWithIndexing_Works()
-    {
-        // Arrange
-        var json = @"{
-  ""question4"": ""Item 2"",
-  ""question5"": ""Item 1"",
-  ""imagesUpload"": [
-    {
-      ""name"": ""foo.png"",
-      ""type"": ""image/jpeg"",
-      ""content"": ""https://endatixstorage.blob.core.windows.net/1381655571790299137.png""
-    },
-    {
-      ""name"": ""bar.png"",
-      ""type"": ""image/jpeg"",
-      ""content"": ""https://endatixstorage.blob.core.windows.net/1381655571790299138.png""
-    }
-  ]
-}";
-        var doc = JsonDocument.Parse(json);
-        var submissionId = 12;
-
-        // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId);
-
-        // Assert
-        Assert.Equal(2, files.Count);
-        Assert.Contains(files, f => f.FileName == "imagesUpload-1.png");
-        Assert.Contains(files, f => f.FileName == "imagesUpload-2.png");
-        foreach (var file in files)
-        {
-            Assert.Equal("image/jpeg", file.MimeType);
-            using var ms = new MemoryStream();
-            file.Content.CopyTo(ms);
-            Assert.Equal(new byte[] { 1, 2, 3 }, ms.ToArray());
-        }
-    }
-
-    [Fact]
-    public async Task ExtractFiles_NoFiles_ReturnsEmptyList()
-    {
-        // Arrange
-        var json = @"{
-  ""q1"": ""a1"",
-  ""q2"": ""a2"",
-  ""q3"": ""a3""
-}";
-        var doc = JsonDocument.Parse(json);
-        var submissionId = 12;
-
-        // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId);
-
-        // Assert
-        Assert.Empty(files);
-    }
-
-    [Fact]
-    public async Task ExtractFiles_Prefix_Works()
-    {
-        // Arrange
-        var json = @"{
-  ""fileQuestion"": {
-    ""name"": ""test.txt"",
-    ""type"": ""text/plain"",
-    ""content"": ""SGVsbG8gd29ybGQ=""}
-}";
-        var doc = JsonDocument.Parse(json);
-        var prefix = "myprefix";
-        var submissionId = 12;
-
-        // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId, prefix);
-
-        // Assert
-        Assert.Single(files);
-        var file = files[0];
-        Assert.Equal("myprefixfileQuestion.txt", file.FileName);
-        Assert.Equal("text/plain", file.MimeType);
-        using var reader = new StreamReader(file.Content);
-        Assert.Equal("Hello world", reader.ReadToEnd());
-    }
-
-    [Fact]
-    public async Task ExtractFiles_CompositeQuestion_Works()
-    {
-        // Arrange
-        var json = @"{
-  ""q1"": ""Item 2"",
-  ""q2"": ""Item 1"",
-  ""question9"": {
-    ""audioUpload"": [
-      {
-    ""name"": ""audio.wav"",
-    ""type"": ""audio/wav"",
-    ""content"": ""SGVsbG8gd29ybGQ=""}
-    ]
+  public SubmissionFileExtractorTests()
+  {
+    _httpClientFactory = Substitute.For<IHttpClientFactory>();
+    _logger = Substitute.For<ILogger<SubmissionFileExtractor>>();
+    _urlPolicy = CreatePolicy();
+    _extractor = new SubmissionFileExtractor(_httpClientFactory, _urlPolicy, _logger);
   }
-}";
-        var doc = JsonDocument.Parse(json);
-        var submissionId = 12;
 
-        // Act
-        var files = await _extractor.ExtractFilesAsync(doc.RootElement, submissionId);
+  private static SubmissionFileUrlPolicy CreatePolicy()
+  {
+    var options = Options.Create(new AzureBlobStorageProviderOptions
+    {
+      HostName = StorageHost,
+      UserFilesContainerName = Container,
+    });
 
-        // Assert
-        Assert.Single(files);
-        var file = files[0];
-        Assert.Equal("question9.wav", file.FileName); // Should include composite question key
-        Assert.Equal("audio/wav", file.MimeType);
-        using var ms = new MemoryStream();
-        file.Content.CopyTo(ms);
-        Assert.Equal(Convert.FromBase64String("SGVsbG8gd29ybGQ="), ms.ToArray());
+    return new SubmissionFileUrlPolicy(options);
+  }
+
+  private static string CanonicalUrl(string fileName) =>
+      $"https://{StorageHost}/{Container}/s/{FormId}/{SubmissionId}/{fileName}";
+
+  private void ConfigureHttpClient()
+  {
+    _handler = new DummyHandler();
+    var httpClient = new HttpClient(_handler);
+    _httpClientFactory
+        .CreateClient(SubmissionFileFetchHttpClient.Name)
+        .Returns(httpClient);
+  }
+
+  [Fact]
+  public async Task ExtractFiles_Base64Content_Works()
+  {
+    // Arrange
+    var json = "{" +
+        "\"fileQuestion\": {" +
+        "\"name\": \"test.txt\"," +
+        "\"type\": \"text/plain\"," +
+        "\"content\": \"SGVsbG8gd29ybGQ=\"}" +
+        "}";
+    var doc = JsonDocument.Parse(json);
+
+    // Act
+    var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
+
+    // Assert
+    Assert.Single(files);
+    var file = files[0];
+    Assert.Equal("fileQuestion.txt", file.FileName);
+    Assert.Equal("text/plain", file.MimeType);
+    using var reader = new StreamReader(file.Content);
+    Assert.Equal("Hello world", reader.ReadToEnd());
+  }
+
+  [Fact]
+  public async Task ExtractFiles_DataUrlContent_Works()
+  {
+    // Arrange
+    var json = "{" +
+        "\"fileQuestion\": {" +
+        "\"name\": \"test.txt\"," +
+        "\"type\": \"text/plain\"," +
+        "\"content\": \"data:text/plain;base64,SGVsbG8gd29ybGQ=\"}" +
+        "}";
+    var doc = JsonDocument.Parse(json);
+
+    // Act
+    var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
+
+    // Assert
+    Assert.Single(files);
+    var file = files[0];
+    Assert.Equal("fileQuestion.txt", file.FileName);
+    Assert.Equal("text/plain", file.MimeType);
+    using var reader = new StreamReader(file.Content);
+    Assert.Equal("Hello world", reader.ReadToEnd());
+  }
+
+  [Fact]
+  public async Task ExtractFiles_CanonicalUrlContent_Works()
+  {
+    // Arrange
+    ConfigureHttpClient();
+    var json = $$"""
+        {
+          "imagesUpload": [{
+            "name": "foo.png",
+            "type": "image/jpeg",
+            "content": "{{CanonicalUrl("foo.png")}}"
+          }]
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+
+    // Act
+    var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
+
+    // Assert
+    Assert.Single(files);
+    Assert.Equal("imagesUpload.png", files[0].FileName);
+    Assert.True(_handler!.WasCalled);
+  }
+
+  [Fact]
+  public async Task ExtractFiles_MaliciousUrl_DoesNotInvokeHttpClient()
+  {
+    // Arrange
+    ConfigureHttpClient();
+    var json = $$"""
+        {
+          "imagesUpload": [{
+            "name": "foo.png",
+            "type": "image/jpeg",
+            "content": "http://169.254.169.254/latest/meta-data/"
+          }]
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+
+    // Act
+    var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
+
+    // Assert
+    Assert.Empty(files);
+    Assert.False(_handler!.WasCalled);
+  }
+
+  [Fact]
+  public async Task ExtractFiles_LegacyFlatBlobUrl_IsSkipped()
+  {
+    // Arrange
+    ConfigureHttpClient();
+    var json = """
+        {
+          "imagesUpload": [{
+            "name": "foo.png",
+            "type": "image/jpeg",
+            "content": "https://endatixstorage.blob.core.windows.net/1381655571790299137.png"
+          }]
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+
+    // Act
+    var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
+
+    // Assert
+    Assert.Empty(files);
+    Assert.False(_handler!.WasCalled);
+  }
+
+  [Fact]
+  public async Task ExtractFiles_MultipleFilesWithIndexing_Works()
+  {
+    // Arrange
+    ConfigureHttpClient();
+    var json = $$"""
+        {
+          "imagesUpload": [
+            {
+              "name": "foo.png",
+              "type": "image/jpeg",
+              "content": "{{CanonicalUrl("foo.png")}}"
+            },
+            {
+              "name": "bar.png",
+              "type": "image/jpeg",
+              "content": "{{CanonicalUrl("bar.png")}}"
+            }
+          ]
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+
+    // Act
+    var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
+
+    // Assert
+    Assert.Equal(2, files.Count);
+    Assert.Contains(files, f => f.FileName == "imagesUpload-1.png");
+    Assert.Contains(files, f => f.FileName == "imagesUpload-2.png");
+  }
+
+  [Fact]
+  public async Task ExtractFiles_NoFiles_ReturnsEmptyList()
+  {
+    // Arrange
+    var json = """
+        {
+          "q1": "a1",
+          "q2": "a2"
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+
+    // Act
+    var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
+
+    // Assert
+    Assert.Empty(files);
+  }
+
+  [Fact]
+  public async Task ExtractFiles_Prefix_Works()
+  {
+    var json = """
+        {
+          "fileQuestion": {
+            "name": "test.txt",
+            "type": "text/plain",
+            "content": "SGVsbG8gd29ybGQ="
+          }
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+    var prefix = "myprefix";
+
+    var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, prefix, cancellationToken: TestContext.Current.CancellationToken);
+
+    Assert.Single(files);
+    Assert.Equal("myprefixfileQuestion.txt", files[0].FileName);
+  }
+
+  [Fact]
+  public async Task ExtractFiles_CompositeQuestion_Works()
+  {
+    var json = """
+        {
+          "question9": {
+            "audioUpload": [{
+              "name": "audio.wav",
+              "type": "audio/wav",
+              "content": "SGVsbG8gd29ybGQ="
+            }]
+          }
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+
+    var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
+
+    Assert.Single(files);
+    Assert.Equal("question9.wav", files[0].FileName);
+  }
+
+  private sealed class DummyHandler : HttpMessageHandler
+  {
+    public bool WasCalled { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+      WasCalled = true;
+      var response = new HttpResponseMessage(HttpStatusCode.OK)
+      {
+        Content = new StreamContent(new MemoryStream([1, 2, 3])),
+      };
+      response.Content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+      return Task.FromResult(response);
     }
+  }
 }
