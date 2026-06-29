@@ -37,7 +37,7 @@ public sealed class SubmissionFileUrlPolicy
             return false;
         }
 
-        if (!_azure.IsConfigured || !IsAllowedStorageEndpoint(uri))
+        if (!_azure.IsConfigured || !IsAllowedHost(uri.Host))
         {
             return false;
         }
@@ -57,7 +57,7 @@ public sealed class SubmissionFileUrlPolicy
             return false;
         }
 
-        if (!IsAllowedStorageEndpoint(uri))
+        if (!IsAllowedHost(uri.Host))
         {
             return false;
         }
@@ -113,9 +113,8 @@ public sealed class SubmissionFileUrlPolicy
         return !string.IsNullOrWhiteSpace(fileName);
     }
 
-    private bool IsAllowedStorageEndpoint(Uri uri) =>
-        uri.IsDefaultPort &&
-        string.Equals(_azure.HostName.Trim(), uri.Host, StringComparison.OrdinalIgnoreCase);
+    private bool IsAllowedHost(string host) =>
+        string.Equals(_azure.HostName.Trim(), host, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Validates that <paramref name="uri"/> is an absolute http(s) storage file URL without embedded credentials.

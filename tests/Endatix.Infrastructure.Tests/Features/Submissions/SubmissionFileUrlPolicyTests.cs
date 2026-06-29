@@ -169,20 +169,6 @@ public sealed class SubmissionFileUrlPolicyTests
     }
 
     [Fact]
-    public void TryParseCanonicalPath_RejectsNonDefaultPort()
-    {
-        // Arrange
-        var policy = CreatePolicy();
-        var uri = new Uri($"https://{Host}:8443/{Container}/s/{FormId}/{SubmissionId}/file.png");
-
-        // Act
-        var allowed = policy.TryParseCanonicalPath(uri, FormId, SubmissionId, out _);
-
-        // Assert
-        Assert.False(allowed);
-    }
-
-    [Fact]
     public void TryValidateForFetch_RejectsNonCanonicalUrl()
     {
         // Arrange

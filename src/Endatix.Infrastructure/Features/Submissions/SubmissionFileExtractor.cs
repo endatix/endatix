@@ -145,8 +145,9 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
         if (!_urlPolicy.TryValidateForFetch(url, context.FormId, context.SubmissionId))
         {
             _logger.LogWarning(
-                "Rejected URL fetch for submission file (Url: {Url}, SubmissionId: {SubmissionId})",
+                "Rejected URL fetch for submission file by storage policy (Url: {Url}, FormId: {FormId}, SubmissionId: {SubmissionId})",
                 url,
+                context.FormId,
                 context.SubmissionId);
             return;
         }
