@@ -37,7 +37,7 @@ public sealed class SubmissionFileUrlPolicy
             return false;
         }
 
-        if (!_azure.IsConfigured || !IsAllowedHost(uri.Host))
+        if (!_azure.IsConfigured || !_azure.MatchesEndpoint(uri))
         {
             return false;
         }
@@ -57,7 +57,7 @@ public sealed class SubmissionFileUrlPolicy
             return false;
         }
 
-        if (!IsAllowedHost(uri.Host))
+        if (!_azure.MatchesEndpoint(uri))
         {
             return false;
         }
@@ -109,9 +109,6 @@ public sealed class SubmissionFileUrlPolicy
         fileName = string.Join('/', segments[4..]);
         return !string.IsNullOrWhiteSpace(fileName);
     }
-
-    private bool IsAllowedHost(string host) =>
-        string.Equals(_azure.HostName.Trim(), host, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Validates that <paramref name="uri"/> is an absolute http(s) storage file URL without embedded credentials.

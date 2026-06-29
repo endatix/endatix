@@ -6,6 +6,10 @@ namespace Endatix.Infrastructure.Features.Submissions;
 
 public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
 {
+    /// <summary>
+    /// Aligns with SurveyJS file-question <c>maxSize</c> defaults (10 MiB) used on upload.
+    /// </summary>
+    private const long MaxFetchedFileBytes = 10 * 1024 * 1024;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly SubmissionFileUrlPolicy _urlPolicy;
     private readonly ILogger<SubmissionFileExtractor> _logger;
@@ -156,19 +160,31 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
         {
             var httpClient = _httpClientFactory.CreateClient(SubmissionFileFetchHttpClient.Name);
             var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, context.CancellationToken);
-            if (response.IsSuccessStatusCode)
-            {
-                var stream = await response.Content.ReadAsStreamAsync(context.CancellationToken);
-                context.Files.Add(new ISubmissionFileExtractor.ExtractedFile(fileName, mimeType, stream));
-            }
-            else
+            if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning(
                     "Failed to fetch file from URL: {Url} (Status: {StatusCode}, SubmissionId: {SubmissionId})",
                     url,
                     response.StatusCode,
                     context.SubmissionId);
+                response.Dispose();
+                return;
             }
+
+            if (response.Content.Headers.ContentLength is long contentLength && contentLength > MaxFetchedFileBytes)
+            {
+                _logger.LogWarning(
+                    "Rejected oversized submission file fetch (Url: {Url}, ContentLength: {ContentLength}, MaxBytes: {MaxBytes}, SubmissionId: {SubmissionId})",
+                    url,
+                    contentLength,
+                    MaxFetchedFileBytes,
+                    context.SubmissionId);
+                response.Dispose();
+                return;
+            }
+
+            var stream = new BoundedHttpResponseStream(response, MaxFetchedFileBytes);
+            context.Files.Add(new ISubmissionFileExtractor.ExtractedFile(fileName, mimeType, stream));
         }
         catch (Exception ex)
         {

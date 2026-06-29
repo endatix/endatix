@@ -13,19 +13,25 @@ public sealed class SubmissionFileUrlPolicyTests
 
     private static SubmissionFileUrlPolicy CreatePolicy(
         string? host = Host,
-        string container = Container)
+        string container = Container,
+        int? port = null)
     {
         var options = Options.Create(new AzureBlobStorageProviderOptions
         {
             HostName = host ?? string.Empty,
             UserFilesContainerName = container,
+            Port = port,
         });
 
         return new SubmissionFileUrlPolicy(options);
     }
 
-    private static string CanonicalUrl(string fileName = "file.png") =>
-        $"https://{Host}/{Container}/s/{FormId}/{SubmissionId}/{fileName}";
+    private static string CanonicalUrl(string fileName = "file.png", string? host = null, int? port = null)
+    {
+        var resolvedHost = host ?? Host;
+        var authority = port is null ? resolvedHost : $"{resolvedHost}:{port}";
+        return $"https://{authority}/{Container}/s/{FormId}/{SubmissionId}/{fileName}";
+    }
 
     [Fact]
     public void TryParseCanonicalPath_AllowsMatchingCanonicalUrl()
@@ -110,6 +116,59 @@ public sealed class SubmissionFileUrlPolicyTests
         var allowed = policy.TryParseCanonicalPath(uri, FormId, SubmissionId, out _);
 
         // Assert
+        Assert.False(allowed);
+    }
+
+    [Fact]
+    public void TryParseCanonicalPath_RejectsUnconfiguredNonDefaultPort()
+    {
+        var policy = CreatePolicy();
+        var uri = new Uri($"https://{Host}:8080/{Container}/s/{FormId}/{SubmissionId}/file.png");
+
+        var allowed = policy.TryParseCanonicalPath(uri, FormId, SubmissionId, out _);
+
+        Assert.False(allowed);
+    }
+
+    [Fact]
+    public void TryValidateForFetch_RejectsUnconfiguredNonDefaultPort()
+    {
+        var policy = CreatePolicy();
+
+        var allowed = policy.TryValidateForFetch(
+            $"https://{Host}:8080/{Container}/s/{FormId}/{SubmissionId}/file.png",
+            FormId,
+            SubmissionId);
+
+        Assert.False(allowed);
+    }
+
+    [Fact]
+    public void TryValidateForFetch_AllowsConfiguredDevPort()
+    {
+        const string devHost = "127.0.0.1";
+        const int devPort = 10000;
+        var policy = CreatePolicy(host: devHost, port: devPort);
+
+        var allowed = policy.TryValidateForFetch(
+            $"http://{devHost}:{devPort}/{Container}/s/{FormId}/{SubmissionId}/file.png",
+            FormId,
+            SubmissionId);
+
+        Assert.True(allowed);
+    }
+
+    [Fact]
+    public void TryValidateForFetch_RejectsWrongPortWhenPortConfigured()
+    {
+        const string devHost = "localhost";
+        var policy = CreatePolicy(host: devHost, port: 9000);
+
+        var allowed = policy.TryValidateForFetch(
+            $"http://{devHost}:8080/{Container}/s/{FormId}/{SubmissionId}/file.png",
+            FormId,
+            SubmissionId);
+
         Assert.False(allowed);
     }
 

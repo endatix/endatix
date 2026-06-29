@@ -46,9 +46,9 @@ public sealed class SubmissionFileExtractorTests
   private static string LegacyFlatBlobUrl(string fileName = "1381655571790299137.png") =>
       $"https://{StorageHost}/{Container}/{fileName}";
 
-  private void ConfigureHttpClient()
+  private void ConfigureHttpClient(long? contentLength = null)
   {
-    _handler = new DummyHandler();
+    _handler = new DummyHandler(contentLength);
     var httpClient = new HttpClient(_handler);
     _httpClientFactory
         .CreateClient(SubmissionFileFetchHttpClient.Name)
@@ -101,6 +101,28 @@ public sealed class SubmissionFileExtractorTests
     Assert.Equal("text/plain", file.MimeType);
     using var reader = new StreamReader(file.Content);
     Assert.Equal("Hello world", reader.ReadToEnd());
+  }
+
+  [Fact]
+  public async Task ExtractFiles_OversizedContentLength_IsSkipped()
+  {
+    const long maxBytes = 10 * 1024 * 1024;
+    ConfigureHttpClient(contentLength: maxBytes + 1);
+    var json = $$"""
+        {
+          "imagesUpload": [{
+            "name": "foo.png",
+            "type": "image/jpeg",
+            "content": "{{CanonicalUrl("foo.png")}}"
+          }]
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+
+    var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
+
+    Assert.Empty(files);
+    Assert.True(_handler!.WasCalled);
   }
 
   [Fact]
@@ -270,7 +292,7 @@ public sealed class SubmissionFileExtractorTests
     Assert.Equal("question9.wav", files[0].FileName);
   }
 
-  private sealed class DummyHandler : HttpMessageHandler
+  private sealed class DummyHandler(long? contentLength = null) : HttpMessageHandler
   {
     public bool WasCalled { get; private set; }
 
@@ -282,6 +304,11 @@ public sealed class SubmissionFileExtractorTests
         Content = new StreamContent(new MemoryStream([1, 2, 3])),
       };
       response.Content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+      if (contentLength is not null)
+      {
+        response.Content.Headers.ContentLength = contentLength;
+      }
+
       return Task.FromResult(response);
     }
   }

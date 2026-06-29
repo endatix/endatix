@@ -20,8 +20,7 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
     private const string CONTENT_PROPERTY_NAME = "content";
 
     private readonly string _hubUrlBase;
-    private readonly string _storageHost;
-    private readonly string _storageContainer;
+    private readonly AzureBlobStorageProviderOptions? _azure;
     private readonly bool _shouldTransform;
 
     public StorageUrlRewriteTransformer(
@@ -36,17 +35,9 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
         var hubUrl = hubSettings.Value.HubBaseUrl?.Trim() ?? string.Empty;
         _hubUrlBase = string.IsNullOrWhiteSpace(hubUrl) ? string.Empty : hubUrl.TrimEnd('/');
 
-        var host = string.Empty;
-        var container = string.Empty;
-        if (azureBlobOptions.Value is { IsConfigured: true } azure)
-        {
-            host = azure.HostName.Trim();
-            container = azure.UserFilesContainerName.Trim();
-        }
+        _azure = azureBlobOptions.Value is { IsConfigured: true } azure ? azure : null;
 
-        _storageHost = host;
-        _storageContainer = container.ToLowerInvariant();
-        _shouldTransform = !string.IsNullOrWhiteSpace(_hubUrlBase) && !string.IsNullOrWhiteSpace(_storageHost);
+        _shouldTransform = !string.IsNullOrWhiteSpace(_hubUrlBase) && _azure is not null;
     }
 
     public JsonNode? Transform<T>(JsonNode? node, TransformationContext<T> context)
@@ -159,12 +150,12 @@ public sealed class StorageUrlRewriteTransformer : IValueTransformer
             return (false, null);
         }
 
-        if (!string.Equals(uri.Host, _storageHost, StringComparison.OrdinalIgnoreCase))
+        if (_azure is null || !_azure.MatchesEndpoint(uri))
         {
             return (false, null);
         }
 
-        if (!string.Equals(segments[0], _storageContainer, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(segments[0], _azure.NormalizedContainerName, StringComparison.OrdinalIgnoreCase))
         {
             return (false, null);
         }
