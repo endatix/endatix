@@ -55,6 +55,8 @@
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.ApplicationInsights" Version="5.0.0" />
     <PackageVersion Include="serilog.sinks.async" Version="2.1.0" />
+    <!-- GHSA-w3x6-4m5h-cxqf: override vulnerable transitive ref (EF Design); runtime via RuntimeFrameworkVersion in Directory.Build.props. -->
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.6" />
     <PackageVersion Include="xunit.v3" Version="3.2.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="AspNetCore.HealthChecks.Uris" Version="9.0.0" />
