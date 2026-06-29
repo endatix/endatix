@@ -56,7 +56,7 @@ public class UpdateFormHandler(
 
         form.Name = request.Name;
         form.Description = request.Description;
-        form.IsEnabled = request.IsEnabled;
+        form.SetEnabled(request.IsEnabled); // raises form.enabled_state_changed (outbox) on an actual change
         form.LimitOnePerUser = requestedLimitOnePerUser;
         form.Metadata = request.Metadata;
 
@@ -89,8 +89,10 @@ public class UpdateFormHandler(
 
         form.UpdateWebHookSettings(webHookConfig);
 
+        form.RaiseUpdated(); // raises form.updated (outbox), bumps revision — before save so capture is atomic
         await repository.UpdateAsync(form, cancellationToken);
 
+        // Kept for the in-process MediatR subscribers (cache invalidation); the webhook now flows via the outbox.
         await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);
 
         if (oldIsEnabled != request.IsEnabled)

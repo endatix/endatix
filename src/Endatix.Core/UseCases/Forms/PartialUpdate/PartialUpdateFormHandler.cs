@@ -59,7 +59,7 @@ public class PartialUpdateFormHandler(
 
         form.Name = request.Name ?? form.Name;
         form.Description = request.Description ?? form.Description;
-        form.IsEnabled = request.IsEnabled ?? form.IsEnabled;
+        form.SetEnabled(request.IsEnabled ?? form.IsEnabled); // raises form.enabled_state_changed (outbox) on a change
         form.IsPublic = request.IsPublic ?? form.IsPublic;
         form.Metadata = request.Metadata ?? form.Metadata;
         form.LimitOnePerUser = requestedLimitOnePerUser;
@@ -113,8 +113,10 @@ public class PartialUpdateFormHandler(
             }
         }
 
+        form.RaiseUpdated(); // raises form.updated (outbox), bumps revision — before save so capture is atomic
         await repository.UpdateAsync(form, cancellationToken);
 
+        // Kept for the in-process MediatR subscribers (cache invalidation); the webhook now flows via the outbox.
         await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);
 
         if (request.IsEnabled.HasValue && oldIsEnabled != request.IsEnabled.Value)
