@@ -35,6 +35,18 @@ public sealed class DbContextMigrationContributor<TContext> : IDbContextMigratio
             return;
         }
 
+        var migrations = dbContext.Database.GetMigrations();
+        if (!migrations.Any())
+        {
+            var message =
+                $"No EF Core migrations are registered for {typeof(TContext).Name}. " +
+                "Auto-migration cannot create the database schema for the active provider. " +
+                "Generate provider-specific migrations before enabling startup migrations " +
+                "(see module README; Reporting SQL Server: https://github.com/endatix/endatix/issues/813).";
+            logger.LogError(message);
+            throw new InvalidOperationException(message);
+        }
+
         var startTime = Stopwatch.GetTimestamp();
         await dbContext.Database.MigrateAsync(cancellationToken);
 

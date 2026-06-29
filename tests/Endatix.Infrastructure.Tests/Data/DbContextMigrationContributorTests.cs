@@ -56,6 +56,31 @@ public class DbContextMigrationContributorTests
         provider.GetServices<IDbContextMigrationContributor>().Should().HaveCount(1);
     }
 
+    [Fact]
+    public async Task MigrateAsync_WhenNoMigrationsRegistered_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<TestDbContext>(options =>
+        {
+            options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=MigrationContributorTests;Trusted_Connection=True");
+            ModuleDbContextExtensions.ConfigureProviderScopedMigrations(
+                options,
+                "Endatix.Tests.Migrations.SqlServer.Empty");
+        });
+        services.AddDbContextMigrationContributor<TestDbContext>();
+        await using var provider = services.BuildServiceProvider();
+
+        var contributor = provider.GetRequiredService<IDbContextMigrationContributor>();
+
+        // Act
+        Func<Task> action = () => contributor.MigrateAsync(provider, NullLogger.Instance);
+
+        // Assert
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage($"*No EF Core migrations are registered for {nameof(TestDbContext)}*");
+    }
+
     private class TestDbContext : DbContext
     {
         public TestDbContext(DbContextOptions<TestDbContext> options) : base(options) { }

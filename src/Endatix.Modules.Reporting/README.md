@@ -38,10 +38,12 @@ Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Ins
 
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/`
-- `Persistence/Migrations/SqlServer/`
+- `Persistence/Migrations/PostgreSql/` — **available** (`InitialReporting`)
+- `Persistence/Migrations/SqlServer/` — **not yet available** ([endatix/endatix#813](https://github.com/endatix/endatix/issues/813))
 
 Set `ConnectionStrings:DefaultConnection_DbProvider` to match the provider you are generating for.
+
+> **SQL Server hosts:** Do not enable `ReportingModule` with `Endatix:Data:EnableAutoMigrations` until SQL Server migrations land in #813. The module DbContext and migration contributor register on SQL Server, but startup auto-migration finds no migrations for the active provider and logs an error (the `reporting` schema is not created).
 
 ### PostgreSQL
 
@@ -54,6 +56,8 @@ dotnet ef migrations add <Name> \
 ```
 
 ### SQL Server
+
+> Blocked until [#813](https://github.com/endatix/endatix/issues/813). Use PostgreSQL for Reporting until SQL Server migrations are added.
 
 ```bash
 ConnectionStrings__DefaultConnection_DbProvider=SqlServer \
