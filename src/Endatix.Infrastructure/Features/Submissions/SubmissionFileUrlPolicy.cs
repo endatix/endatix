@@ -79,12 +79,9 @@ public sealed class SubmissionFileUrlPolicy
             return false;
         }
 
-        foreach (var segment in segments)
+        if (segments.Any(static segment => segment is "." or ".."))
         {
-            if (segment is "." or "..")
-            {
-                return false;
-            }
+            return false;
         }
 
         if (!string.Equals(segments[0], containerName, StringComparison.OrdinalIgnoreCase))
