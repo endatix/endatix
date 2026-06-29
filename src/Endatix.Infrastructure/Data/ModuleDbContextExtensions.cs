@@ -85,11 +85,10 @@ public static class ModuleDbContextExtensions
     /// <summary>
     /// Configures a module DbContext using the same options callback as runtime registration.
     /// </summary>
-    public static void ConfigureModuleDbContext<TContext>(
+    public static void ConfigureModuleDbContext(
         this DbContextOptionsBuilder optionsBuilder,
         IConfiguration configuration,
         Action<ModuleDbContextOptions> configure)
-        where TContext : DbContext
     {
         Guard.Against.Null(configure);
 

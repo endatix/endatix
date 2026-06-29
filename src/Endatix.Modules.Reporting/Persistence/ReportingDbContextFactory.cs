@@ -13,7 +13,7 @@ public sealed class ReportingDbContextFactory : IDesignTimeDbContextFactory<Repo
     {
         var configuration = ModuleDesignTimeConfiguration.Build();
         var optionsBuilder = new DbContextOptionsBuilder<ReportingDbContext>();
-        optionsBuilder.ConfigureModuleDbContext<ReportingDbContext>(configuration, ReportingPersistence.ConfigureDbContextOptions);
+        optionsBuilder.ConfigureModuleDbContext(configuration, ReportingPersistence.ConfigureDbContextOptions);
 
         return new ReportingDbContext(
             optionsBuilder.Options,
