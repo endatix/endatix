@@ -53,11 +53,7 @@ public class UpdateFormHandler(
             }
         }
 
-        form.Name = request.Name;
-        form.Description = request.Description;
         form.SetEnabled(request.IsEnabled); // raises form.enabled_state_changed (outbox) on an actual change
-        form.LimitOnePerUser = requestedLimitOnePerUser;
-        form.Metadata = request.Metadata;
 
         var folderCheck = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
             form.FolderId,
@@ -88,7 +84,9 @@ public class UpdateFormHandler(
 
         form.UpdateWebHookSettings(webHookConfig);
 
-        form.RaiseUpdated(); // raises form.updated (outbox), bumps revision — before save so capture is atomic
+        // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
+        // before save so the capture is atomic. (UpdateFormCommand doesn't change IsPublic, so it's preserved.)
+        form.UpdateDetails(request.Name, request.Description, form.IsPublic, requestedLimitOnePerUser, request.Metadata);
         await repository.UpdateAsync(form, cancellationToken);
 
         // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows

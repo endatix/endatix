@@ -25,12 +25,17 @@ public class FormIntegrationEventTests
     }
 
     [Fact]
-    public void RaiseUpdated_registers_FormUpdatedEvent_and_bumps_revision()
+    public void UpdateDetails_applies_fields_registers_FormUpdatedEvent_and_bumps_revision()
     {
         var form = CreateForm();
 
-        form.RaiseUpdated();
+        form.UpdateDetails("New name", "New desc", isPublic: false, limitOnePerUser: true, metadata: "m");
 
+        form.Name.Should().Be("New name");
+        form.Description.Should().Be("New desc");
+        form.IsPublic.Should().BeFalse();
+        form.LimitOnePerUser.Should().BeTrue();
+        form.Metadata.Should().Be("m");
         form.DomainEvents.OfType<FormUpdatedEvent>().Should().ContainSingle();
         form.Revision.Should().Be(2);
     }

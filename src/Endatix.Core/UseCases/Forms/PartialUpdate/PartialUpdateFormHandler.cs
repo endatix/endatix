@@ -56,12 +56,7 @@ public class PartialUpdateFormHandler(
             }
         }
 
-        form.Name = request.Name ?? form.Name;
-        form.Description = request.Description ?? form.Description;
         form.SetEnabled(request.IsEnabled ?? form.IsEnabled); // raises form.enabled_state_changed (outbox) on a change
-        form.IsPublic = request.IsPublic ?? form.IsPublic;
-        form.Metadata = request.Metadata ?? form.Metadata;
-        form.LimitOnePerUser = requestedLimitOnePerUser;
 
         if (request.ThemeId.HasValue && form.ThemeId != request.ThemeId)
         {
@@ -112,7 +107,14 @@ public class PartialUpdateFormHandler(
             }
         }
 
-        form.RaiseUpdated(); // raises form.updated (outbox), bumps revision — before save so capture is atomic
+        // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
+        // before save so the capture is atomic. Omitted fields keep their current value.
+        form.UpdateDetails(
+            request.Name ?? form.Name,
+            request.Description ?? form.Description,
+            request.IsPublic ?? form.IsPublic,
+            requestedLimitOnePerUser,
+            request.Metadata ?? form.Metadata);
         await repository.UpdateAsync(form, cancellationToken);
 
         // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows

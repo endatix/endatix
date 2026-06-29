@@ -134,11 +134,18 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     public void RaiseCreated() => RegisterDomainEvent(new FormCreatedEvent(this));
 
     /// <summary>
-    /// Bumps the revision and raises the <c>form.updated</c> integration event. Call after applying updates,
-    /// before saving.
+    /// Applies the editable form details, bumps the revision and raises the <c>form.updated</c> integration
+    /// event (captured to the outbox → webhook) in a single step — so a caller can't mutate the form and forget
+    /// the revision bump/event. The enabled-state change has its own method and event (see <see cref="SetEnabled"/>).
     /// </summary>
-    public void RaiseUpdated()
+    public void UpdateDetails(string name, string? description, bool isPublic, bool limitOnePerUser, string? metadata)
     {
+        Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
+        Name = name;
+        Description = description;
+        IsPublic = isPublic;
+        LimitOnePerUser = limitOnePerUser;
+        Metadata = metadata;
         IncrementRevision();
         RegisterDomainEvent(new FormUpdatedEvent(this));
     }
