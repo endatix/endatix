@@ -12,8 +12,7 @@ namespace Endatix.Infrastructure.Data;
 public static class DbContextModelBuilderExtensions
 {
     /// <summary>
-    /// Applies the endatix query filters to the model builder.
-    /// It adds a query filter for the tenant id and the is deleted property.
+    /// Applies named Endatix query filters for soft deletion and tenant isolation.
     /// </summary>
     /// <param name="builder">The model builder to apply the filters to.</param>
     /// <param name="dbContext">The database context to get the tenant id from.</param>
@@ -24,37 +23,59 @@ public static class DbContextModelBuilderExtensions
 
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
-            var parameter = Expression.Parameter(entityType.ClrType, "e");
-            var filters = new List<Expression>();
-
-            // Add deletion filter for BaseEntity descendants
-            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            if (entityType.IsOwned())
             {
-                var isDeletedProperty = Expression.Property(parameter, "IsDeleted");
-                var isDeletedFilter = Expression.Equal(isDeletedProperty, Expression.Constant(false));
-                filters.Add(isDeletedFilter);
+                continue;
             }
 
-            // Add tenant filter for TenantEntity descendants
+            var parameter = Expression.Parameter(entityType.ClrType, "e");
+            LambdaExpression? softDeleteFilter = null;
+            LambdaExpression? tenantFilter = null;
+
+            var isDeletedProperty = entityType.ClrType.GetProperty(
+                nameof(BaseEntity.IsDeleted),
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
+            if (isDeletedProperty is not null && isDeletedProperty.PropertyType == typeof(bool))
+            {
+                var isDeletedExpression = Expression.Property(parameter, isDeletedProperty);
+                softDeleteFilter = Expression.Lambda(
+                    Expression.Equal(isDeletedExpression, Expression.Constant(false)),
+                    parameter);
+            }
+
             if (typeof(ITenantOwned).IsAssignableFrom(entityType.ClrType))
             {
-
-                var currentTenantIdIsZero = Expression.Equal(Expression.Convert(currentTenantId, typeof(long)), Expression.Constant(0L));
-                var tenantIdProperty = Expression.Property(parameter, "TenantId");
-                var tenantIdEquals = Expression.Equal(tenantIdProperty, Expression.Convert(currentTenantId, typeof(long)));
-                var tenantFilter = Expression.OrElse(currentTenantIdIsZero, tenantIdEquals);
-                filters.Add(tenantFilter);
+                var currentTenantIdIsZero = Expression.Equal(
+                    Expression.Convert(currentTenantId, typeof(long)),
+                    Expression.Constant(0L));
+                var tenantIdProperty = Expression.Property(parameter, nameof(ITenantOwned.TenantId));
+                var tenantIdEquals = Expression.Equal(
+                    tenantIdProperty,
+                    Expression.Convert(currentTenantId, typeof(long)));
+                tenantFilter = Expression.Lambda(
+                    Expression.OrElse(currentTenantIdIsZero, tenantIdEquals),
+                    parameter);
             }
 
-            if (filters.Any())
+            if (softDeleteFilter is null && tenantFilter is null)
             {
-                var combinedFilter = filters.Aggregate(Expression.AndAlso);
-                var lambda = Expression.Lambda(combinedFilter, parameter);
-                builder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+                continue;
+            }
+
+            var entityBuilder = builder.Entity(entityType.ClrType);
+
+            if (softDeleteFilter is not null)
+            {
+                entityBuilder.HasQueryFilter(EndatixQueryFilterNames.SoftDelete, softDeleteFilter);
+            }
+
+            if (tenantFilter is not null)
+            {
+                entityBuilder.HasQueryFilter(EndatixQueryFilterNames.Tenant, tenantFilter);
             }
         }
     }
-
 
     /// <summary>
     /// Applies entity type configurations from the specified assembly, filtered by DbContext type using generic attributes.

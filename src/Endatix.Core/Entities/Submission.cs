@@ -4,7 +4,7 @@ using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHasRevision
+public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHasRevision
 {
     private const string SINGLE_SUBMISSION_RESTRICTION_PREFIX = "SingleSubmission";
 
@@ -13,10 +13,10 @@ public partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IH
     public Submission(long tenantId, string jsonData, long formId, long formDefinitionId, SubmissionCreateOptions options)
         : base(tenantId)
     {
-        Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
-        Guard.Against.NegativeOrZero(formId, nameof(formId));
-        Guard.Against.NegativeOrZero(formDefinitionId, nameof(formDefinitionId));
-        Guard.Against.Null(options, nameof(options));
+        Guard.Against.NullOrEmpty(jsonData);
+        Guard.Against.NegativeOrZero(formId);
+        Guard.Against.NegativeOrZero(formDefinitionId);
+        Guard.Against.Null(options);
 
         FormId = formId;
         FormDefinitionId = formDefinitionId;

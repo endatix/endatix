@@ -1,6 +1,9 @@
 using System.Reflection;
+using Ardalis.GuardClauses;
 using Endatix.Framework.Hosting;
+using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Identity;
+using Endatix.Modules.Reporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +27,7 @@ namespace Endatix.Hosting.Builders;
 /// </example>
 public class EndatixBuilder : IBuilderRoot
 {
+    private readonly List<IEndatixModule> _modules = [];
     private readonly EndatixLoggingBuilder? _loggingBuilder;
     private readonly ILogger<EndatixBuilder> _logger;
 
@@ -133,6 +137,8 @@ public class EndatixBuilder : IBuilderRoot
         // Configure health checks with default settings
         HealthChecks.UseDefaults();
         _logger.LogInformation("Health checks configuration completed");
+
+        UseModule(ReportingModule.Instance);
 
         _logger.LogInformation("Endatix configuration completed successfully");
         return this;
@@ -253,6 +259,43 @@ public class EndatixBuilder : IBuilderRoot
     }
 
     /// <summary>
+    /// Registers an Endatix module: scans its assembly for MediatR handlers and API endpoints,
+    /// and invokes <see cref="IEndatixModule.ConfigureServices"/> during finalization.
+    /// Modules implementing <see cref="IHasFeatureFlag"/> are skipped when their flag is disabled.
+    /// </summary>
+    /// <param name="module">The module to register.</param>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixBuilder UseModule(IEndatixModule module)
+    {
+        Guard.Against.Null(module);
+
+        if (!EndatixModuleRegistration.ShouldRegister(Configuration, module))
+        {
+            var featureFlag = module is IHasFeatureFlag gatedModule ? gatedModule.FeatureFlag : null;
+            _logger.LogDebug(
+                "Skipped module {AssemblyName}: feature flag {FeatureFlag} is disabled",
+                module.Assembly.GetName().Name,
+                featureFlag);
+            return this;
+        }
+
+        if (_modules.Any(existing => existing.Assembly == module.Assembly))
+        {
+            _logger.LogDebug(
+                "Skipped module {AssemblyName}: already registered",
+                module.Assembly.GetName().Name);
+            return this;
+        }
+
+        _modules.Add(module);
+        Infrastructure.Messaging.AddAssembly(module.Assembly);
+        Api.ScanAssemblies(module.Assembly);
+
+        _logger.LogDebug("Registered module from assembly {AssemblyName}", module.Assembly.GetName().Name);
+        return this;
+    }
+
+    /// <summary>
     /// Scans the specified assemblies for Entity Framework entity configurations.
     /// </summary>
     /// <param name="assemblies">The assemblies to scan.</param>
@@ -271,8 +314,21 @@ public class EndatixBuilder : IBuilderRoot
     {
         _logger.LogDebug("Finalizing all configurations");
 
-        // TODO: Add rest of the builders once they are implemented
         Infrastructure.Build();
+
+        foreach (var module in _modules)
+        {
+            var moduleBuilder = new EndatixModuleBuilder(Services, Configuration);
+            module.ConfigureServices(moduleBuilder);
+
+            if (module is IHasDbMigrations && !moduleBuilder.MigrationContributorRegistered)
+            {
+                _logger.LogWarning(
+                    "Module {AssemblyName} implements {Marker} but did not register a migration contributor via AddDbContextWithMigrations",
+                    module.Assembly.GetName().Name,
+                    nameof(IHasDbMigrations));
+            }
+        }
 
         _logger.LogInformation("All configurations have been finalized");
         return Services;

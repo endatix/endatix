@@ -8,7 +8,7 @@ namespace Endatix.Infrastructure.Features.PlatformAdmin;
 
 /// <summary>
 /// Registers platform-admin read models (vertical slice queries).
-/// Mirrors module-style registration such as <c>AddAgentsModule</c> in SaaS.
+/// Mirrors module-style registration via <see cref="Endatix.Framework.Modules.IEndatixModule"/> and <c>UseModule</c>.
 /// </summary>
 public static class PlatformAdminFeatureExtensions
 {

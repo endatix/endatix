@@ -2,6 +2,7 @@ using Ardalis.GuardClauses;
 using Endatix.Framework.Configuration;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Setup;
+using Endatix.Infrastructure.FeatureFlags;
 using Endatix.Hosting.Builders;
 using Endatix.Hosting.Options;
 using Microsoft.Extensions.Configuration;
@@ -34,7 +35,8 @@ internal static class EndatixServiceCollectionExtensions
         // Register standard Endatix options
         services.AddStandardEndatixOptions(configuration);
         services.AddEndatixReverseProxy();
-        services.AddEndatixFeatureFlags(configuration);
+        services.AddEndatixFeatureFlags(configuration)
+            .WithEndatixTargeting();
 
         // Now create the logging builder which will get environment from services
         var loggingBuilder = new EndatixLoggingBuilder(services, configuration);

@@ -5,7 +5,7 @@ namespace Endatix.Core.Entities;
 public sealed record SubmissionStatus : IComparable<SubmissionStatus>
 {
     public const int STATUS_CODE_MAX_LENGTH = 16;
-    
+
     // Required by EF Core
     private SubmissionStatus()
     {
@@ -25,8 +25,8 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
 
     private SubmissionStatus(string name, string code)
     {
-        Guard.Against.NullOrWhiteSpace(name, nameof(name));
-        Guard.Against.NullOrWhiteSpace(code, nameof(code));
+        Guard.Against.NullOrWhiteSpace(name);
+        Guard.Against.NullOrWhiteSpace(code);
 
         Name = name;
         Code = code.ToLowerInvariant();

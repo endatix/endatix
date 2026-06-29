@@ -83,14 +83,11 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
                           .HasColumnName("Status")
                           .HasMaxLength(SubmissionStatus.STATUS_CODE_MAX_LENGTH)
                           .IsRequired();
-               // Name can be resolved at runtime from Code
                statusBuilder.Ignore(s => s.Name);
            });
 
-        // FormId index is needed for frequent lookups by form
         builder.HasIndex(s => s.FormId);
         builder.HasIndex(s => s.FormDefinitionId);
-        // SubmittedBy index for filtering submissions by user
         builder.HasIndex(s => s.SubmittedBy);
         builder.HasIndex(s => s.SubmitterId);
     }

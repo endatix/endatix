@@ -25,7 +25,6 @@ public class SubmissionMapper
         IsTestSubmission = dto.IsTestSubmission
     };
 
-
     public static T Map<T>(Submission submission) where T : SubmissionModel, new() => new T
     {
         Id = submission.Id.ToString(),

@@ -1,17 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		  <PrivateAssets>all</PrivateAssets>
-		</PackageReference>
-    <PackageReference Include="System.Security.Cryptography.Xml" />
-    <ProjectReference Include="../Endatix.Hosting/Endatix.Hosting.csproj" />
-    <ProjectReference Include="../Endatix.Api.Host/Endatix.Api.Host.csproj" />
-  </ItemGroup>
-
   <PropertyGroup>
     <RootNamespace>Endatix.WebHost</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../Endatix.Hosting/Endatix.Hosting.csproj" />
+    <ProjectReference Include="../Endatix.Api.Host/Endatix.Api.Host.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="System.Security.Cryptography.Xml" />
+  </ItemGroup>
 </Project>
