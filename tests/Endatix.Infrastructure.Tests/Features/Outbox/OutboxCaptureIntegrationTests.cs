@@ -65,7 +65,8 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
         outbox[0].Id.Should().BeGreaterThan(0, "ProcessEntities stamps the outbox row's Id explicitly");
 
         using var payload = JsonDocument.Parse(outbox[0].Payload);
-        payload.RootElement.GetProperty("formId").GetInt64().Should().Be(555);
+        // Long IDs are serialized as strings on the wire (LongToStringConverter).
+        payload.RootElement.GetProperty("formId").GetString().Should().Be("555");
     }
 
     [Fact]

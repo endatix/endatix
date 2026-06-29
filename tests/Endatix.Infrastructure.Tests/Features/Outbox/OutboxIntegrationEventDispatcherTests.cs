@@ -28,7 +28,8 @@ public class OutboxIntegrationEventDispatcherTests
         message.TenantId.Should().Be(42, "a tenant-owned aggregate supplies the authoritative tenant");
         message.Status.Should().Be(OutboxMessageStatus.Pending);
         message.Attempts.Should().Be(0);
-        message.Payload.Should().Contain("\"formId\":123").And.Contain("\"name\":\"Survey\"");
+        // Long IDs are serialized as strings on the wire (LongToStringConverter), byte-compatible with webhooks.
+        message.Payload.Should().Contain("\"formId\":\"123\"").And.Contain("\"name\":\"Survey\"");
     }
 
     [Fact]
