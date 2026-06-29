@@ -29,14 +29,17 @@ public class IntegrationEventPayloadTests
     }
 
     [Fact]
-    public void FormEnabledStateChangedEvent_has_dotted_type_and_includes_folderId()
+    public void FormEnabledStateChangedEvent_uses_its_captured_enabled_state_and_includes_folderId()
     {
+        // The live form is still disabled; the event captured isEnabled: true. The payload must reflect the
+        // captured (event-creation-time) value, not the live form.
         var form = new Form(tenantId: 1, name: "Test") { Id = 7 };
         var evt = new FormEnabledStateChangedEvent(form, isEnabled: true);
 
         evt.EventType.Should().Be("form.enabled_state_changed");
         var json = Payload(evt.GetPayload());
         json.GetProperty("formId").GetInt64().Should().Be(7);
+        json.GetProperty("isEnabled").GetBoolean().Should().BeTrue("payload uses the event's captured enabled state");
         json.TryGetProperty("revision", out _).Should().BeTrue();
         json.TryGetProperty("folderId", out _).Should().BeTrue("all form events carry folderId");
     }

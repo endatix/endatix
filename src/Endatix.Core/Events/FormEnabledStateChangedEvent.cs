@@ -16,5 +16,5 @@ public sealed class FormEnabledStateChangedEvent(Form form, bool isEnabled) : Do
     public string EventType => "form.enabled_state_changed";
 
     /// <inheritdoc />
-    public object GetPayload() => FormEventPayload.Create(Form);
+    public object GetPayload() => FormEventPayload.Create(Form, IsEnabled);
 }
