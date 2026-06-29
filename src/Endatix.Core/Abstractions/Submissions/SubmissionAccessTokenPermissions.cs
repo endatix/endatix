@@ -28,9 +28,14 @@ public static class SubmissionAccessTokenPermissions
     public static readonly AccessTokenPermission Export = new("export", 'x');
 
     /// <summary>
+    /// Permission to continue and complete an incomplete submission (share/embed links).
+    /// </summary>
+    public static readonly AccessTokenPermission Submit = new("submit", 's');
+
+    /// <summary>
     /// All available permissions.
     /// </summary>
-    public static readonly AccessTokenPermission[] All = [View, Edit, Export];
+    public static readonly AccessTokenPermission[] All = [View, Edit, Export, Submit];
 
     /// <summary>
     /// All valid permission names.

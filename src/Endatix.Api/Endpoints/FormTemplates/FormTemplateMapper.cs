@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormTemplates;
 
@@ -17,14 +14,15 @@ public static class FormTemplateMapper
     /// <typeparam name="T">The type of the form template API model, which inherits FormTemplateModel.</typeparam>
     /// <param name="formTemplate">The form template entity.</param>
     /// <returns>The mapped form template API model.</returns>
-    public static T Map<T>(FormTemplate formTemplate) where T : FormTemplateModel, new() => new T
+    public static T ToFormTemplateModel<T>(this FormTemplate formTemplate) where T : FormTemplateModel, new() => new T
     {
         Id = formTemplate.Id.ToString(),
         Name = formTemplate.Name,
         Description = formTemplate.Description,
         JsonData = formTemplate.JsonData,
         CreatedAt = formTemplate.CreatedAt,
-        ModifiedAt = formTemplate.ModifiedAt
+        ModifiedAt = formTemplate.ModifiedAt,
+        FolderId = formTemplate.FolderId?.ToString()
     };
 }
 
@@ -54,6 +52,7 @@ public static class FormTemplateMapperExtensions
         Name = formTemplateDto.Name,
         Description = formTemplateDto.Description,
         CreatedAt = formTemplateDto.CreatedAt,
-        ModifiedAt = formTemplateDto.ModifiedAt
+        ModifiedAt = formTemplateDto.ModifiedAt,
+        FolderId = formTemplateDto.FolderId
     };
 }

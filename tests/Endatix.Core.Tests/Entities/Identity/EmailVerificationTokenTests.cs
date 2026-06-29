@@ -18,7 +18,9 @@ public class EmailVerificationTokenTests
         // Assert
         verificationToken.Should().NotBeNull();
         verificationToken.UserId.Should().Be(userId);
-        verificationToken.Token.Should().Be(token);
+        verificationToken.Token.Should().Be(EmailVerificationToken.HashToken(token));
+        verificationToken.Token.Should().NotBe(token);
+        verificationToken.RawToken.Should().Be(token);
         verificationToken.ExpiresAt.Should().Be(expiresAt);
         verificationToken.IsUsed.Should().BeFalse();
         verificationToken.IsExpired.Should().BeFalse();
@@ -92,10 +94,10 @@ public class EmailVerificationTokenTests
         var userId = 123L;
         var token = "test-token";
         var expiresAt = DateTime.UtcNow.AddHours(-1);
-        
+
         // We need to create the token with a valid expiry first, then modify it
         var verificationToken = new EmailVerificationToken(userId, token, DateTime.UtcNow.AddHours(1));
-        
+
         // Use reflection to set the expired date for testing
         var expiresAtProperty = typeof(EmailVerificationToken).GetProperty("ExpiresAt");
         expiresAtProperty!.SetValue(verificationToken, expiresAt);
@@ -119,4 +121,20 @@ public class EmailVerificationTokenTests
         // Assert
         verificationToken.IsUsed.Should().BeTrue();
     }
-} 
+
+    [Fact]
+    public void HashToken_WithSameToken_ReturnsStableSha256Hash()
+    {
+        // Arrange
+        var token = "test-token";
+
+        // Act
+        var firstHash = EmailVerificationToken.HashToken(token);
+        var secondHash = EmailVerificationToken.HashToken(token);
+
+        // Assert
+        firstHash.Should().Be(secondHash);
+        firstHash.Should().HaveLength(64);
+        firstHash.Should().NotBe(token);
+    }
+}

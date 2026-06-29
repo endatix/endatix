@@ -3,10 +3,10 @@
 namespace Endatix.Api.Common;
 
 /// <summary>
-/// Reusable Fluent validation for the IFilteredRequest implementations.
-/// To use in your Validators add this to the validation <c>Include(new FilteredRequestValidator());</c>
+/// Reusable Fluent validation for the <see cref="IFilterable"/> implementations.
+/// To use in your Validators add this to the validation <c>Include(new FilteredRequestValidator(validFields));</c>
 /// </summary>
-public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
+public class FilteredRequestValidator : AbstractValidator<IFilterable>
 {
     private static readonly string[] _validOperators = { "!:", ">:", "<:", ":", ">", "<" };
     private readonly Dictionary<string, Type> _validFields;
@@ -82,6 +82,11 @@ public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
                 return false;
             }
         }
+        else if (string.Equals(value.Trim(), "null", StringComparison.OrdinalIgnoreCase))
+        {
+            errorMessage = "Null is allowed only with ':' and '!:' operators.";
+            return false;
+        }
         else if (!IsValidType(value.Trim(), _validFields[field]))
         {
             errorMessage = $"Value is not valid for type {_validFields[field].Name}";
@@ -91,8 +96,18 @@ public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
         return true;
     }
 
-    private bool IsValidType(string value, Type type) => 
-        type switch
+    private bool IsValidType(string value, Type type)
+    {
+        var underlyingType = Nullable.GetUnderlyingType(type);
+        var isNullable = underlyingType is not null;
+        var actualType = underlyingType ?? type;
+
+        if (string.Equals(value, "null", StringComparison.OrdinalIgnoreCase))
+        {
+            return isNullable;
+        }
+
+        return actualType switch
         {
             Type t when t == typeof(int) => int.TryParse(value, out _),
             Type t when t == typeof(long) => long.TryParse(value, out _),
@@ -101,4 +116,5 @@ public class FilteredRequestValidator : AbstractValidator<IFilteredRequest>
             Type t when t == typeof(string) => true,
             _ => false
         };
+    }
 }

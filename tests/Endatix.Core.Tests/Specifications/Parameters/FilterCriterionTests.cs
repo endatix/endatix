@@ -21,7 +21,6 @@ public class FilterCriterionTests
 
     [Theory]
     [InlineData(":value")]
-    [InlineData("^&")]
     public void Constructor_EmptyField_ThrowsArgumentException(string filterExpression)
     {
         // Act
@@ -37,9 +36,7 @@ public class FilterCriterionTests
     [InlineData("field")]
     [InlineData("field=value")]
     [InlineData("field^value")]
-    [InlineData("field$:value")]
-    [InlineData("field@:value")]
-    [InlineData("field-name:value")]
+    [InlineData("^&")]
     public void Constructor_InvalidOperator_ThrowsArgumentException(string filterExpression)
     {
         // Act
@@ -77,6 +74,9 @@ public class FilterCriterionTests
     [InlineData("count>5", ExpressionType.GreaterThan, "count", new[] { "5" })]
     [InlineData("amount<10", ExpressionType.LessThan, "amount", new[] { "10" })]
     [InlineData("tags:draft|published", ExpressionType.Equal, "tags", new[] { "draft", "published" })]
+    [InlineData("FolderId:1501097134525513728", ExpressionType.Equal, "FolderId", new[] { "1501097134525513728" })]
+    [InlineData("submitterProfile.email:respondent@example.com", ExpressionType.Equal, "submitterProfile.email", new[] { "respondent@example.com" })]
+    [InlineData("submitterProfile.given_name!:Jane", ExpressionType.NotEqual, "submitterProfile.given_name", new[] { "Jane" })]
     public void Constructor_ValidExpression_CreatesFilterCriterion(
         string filterExpression,
         ExpressionType expectedOperator,

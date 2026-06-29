@@ -18,6 +18,16 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
             .IsRequired();
 
+        builder.Property(f => f.LimitOnePerUser)
+            .HasDefaultValue(false);
+
+        builder.Property(f => f.Revision)
+            .HasDefaultValue(1L)
+            .IsRequired();
+
+        builder.Property(f => f.Metadata)
+            .HasColumnType("json");
+
         builder.HasMany(f => f.FormDefinitions)
             .WithOne()
             .HasForeignKey(fd => fd.FormId)
@@ -35,5 +45,13 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
             .HasForeignKey(f => f.ThemeId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(f => f.Folder)
+            .WithMany()
+            .HasForeignKey(f => f.FolderId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(f => f.FolderId);
     }
 }

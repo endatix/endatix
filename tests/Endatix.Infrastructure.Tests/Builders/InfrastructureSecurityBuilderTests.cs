@@ -3,12 +3,13 @@ using Endatix.Core.Abstractions.Account;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Builders;
+using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
-using Endatix.Infrastructure.Identity.Services;
+using Endatix.Infrastructure.Identity.Provisioning;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -16,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 using Endatix.Infrastructure.Identity.Authorization.Data;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Builders;
 
@@ -66,6 +68,7 @@ public class InfrastructureSecurityBuilderTests
             ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = "endatix-api",
             ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters",
             ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = "endatix-hub",
+            ["Endatix:Auth:Providers:EndatixJwt:ReBacIssuer"] = "edx_res_auth",
             ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true",
             ["Endatix:Auth:Providers:Keycloak:Issuer"] = "http://localhost:8080/realms/endatix",
             ["Endatix:Auth:Providers:Keycloak:Audience"] = "endatix-hub",
@@ -159,6 +162,7 @@ public class InfrastructureSecurityBuilderTests
         // Assert
         Assert.Same(builder, result);
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
     }
 
     [Fact]
@@ -187,6 +191,26 @@ public class InfrastructureSecurityBuilderTests
         Assert.Same(builder, result);
         var registry = GetRegistryFromBuilder(builder);
         Assert.True(registry.IsProviderRegistrationRequested("CustomProvider"));
+    }
+
+    [Fact]
+    public void ConfigureSubmitters_ShouldConfigureSubmitterOptions()
+    {
+        // Arrange
+        var builder = new InfrastructureSecurityBuilder(_parentBuilder);
+
+        // Act
+        var result = builder.ConfigureSubmitters(options =>
+        {
+            options.DisplayIdClaimTypes = ["employee_number"];
+        });
+
+        using var serviceProvider = _services.BuildServiceProvider();
+        var configuredOptions = serviceProvider.GetRequiredService<IOptions<SubmitterOptions>>().Value;
+
+        // Assert
+        Assert.Same(builder, result);
+        configuredOptions.DisplayIdClaimTypes.Should().Equal("employee_number");
     }
 
     [Fact]
@@ -265,15 +289,17 @@ public class InfrastructureSecurityBuilderTests
 
         // Assert - All providers are registered (requested) regardless of enabled status
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
         Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
         Assert.True(registry.IsProviderRegistrationRequested("Google"));
-        Assert.Equal(3, registry.GetRequestedRegistrations().Count());
+        Assert.Equal(4, registry.GetRequestedRegistrations().Count());
 
         // But only enabled providers are active
         Assert.True(registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderActive(AuthSchemes.EndatixReBac));
         Assert.False(registry.IsProviderActive("Keycloak")); // Disabled
         Assert.True(registry.IsProviderActive("Google"));    // Enabled
-        Assert.Equal(2, registry.GetActiveProviders().Count());
+        Assert.Equal(3, registry.GetActiveProviders().Count());
     }
 
     [Fact]
@@ -297,8 +323,9 @@ public class InfrastructureSecurityBuilderTests
         // Assert - SelectScheme should only consider active providers
         // This test assumes the providers have different issuers configured
         var activeProviders = registry.GetActiveProviders().ToList();
-        Assert.Equal(2, activeProviders.Count);
+        Assert.Equal(3, activeProviders.Count);
         Assert.Contains(activeProviders, p => p.SchemeName == AuthSchemes.EndatixJwt);
+        Assert.Contains(activeProviders, p => p.SchemeName == AuthSchemes.EndatixReBac);
         Assert.Contains(activeProviders, p => p.SchemeName == "Google");
         Assert.DoesNotContain(activeProviders, p => p.SchemeName == "Keycloak");
     }
@@ -324,14 +351,16 @@ public class InfrastructureSecurityBuilderTests
         // Assert
         // All providers are registered in the registry regardless of enabled status
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
         Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
         Assert.True(registry.IsProviderRegistrationRequested("Google"));
 
         // But only enabled providers are active
         Assert.True(registry.IsProviderActive(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderActive(AuthSchemes.EndatixReBac));
         Assert.False(registry.IsProviderActive("Keycloak")); // Disabled
         Assert.True(registry.IsProviderActive("Google"));    // Enabled
-        Assert.Equal(2, registry.GetActiveProviders().Count());
+        Assert.Equal(3, registry.GetActiveProviders().Count());
     }
 
     [Fact]
@@ -353,6 +382,7 @@ public class InfrastructureSecurityBuilderTests
         Assert.Same(_parentBuilder, result);
         var registry = GetRegistryFromBuilder(builder);
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
         Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
         Assert.True(registry.IsProviderRegistrationRequested("Google"));
     }
@@ -362,7 +392,7 @@ public class InfrastructureSecurityBuilderTests
     {
         // Arrange
         var builder = new InfrastructureSecurityBuilder(_parentBuilder);
-        builder.AddEndatixJwtAuthProvider();
+        builder.AddEndatixAuthProviders();
 
         // Act
         var registry = builder.GetRegistry();
@@ -370,6 +400,7 @@ public class InfrastructureSecurityBuilderTests
         // Assert
         Assert.NotNull(registry);
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
     }
 
     [Fact]
@@ -380,14 +411,15 @@ public class InfrastructureSecurityBuilderTests
 
         // Act
         builder
-            .AddEndatixJwtAuthProvider()
+            .AddEndatixAuthProviders()
             .AddKeycloakAuthProvider()
             .AddGoogleAuthProvider();
 
         // Assert
         var registry = GetRegistryFromBuilder(builder);
-        Assert.Equal(3, registry.GetRequestedRegistrations().Count());
+        Assert.Equal(4, registry.GetRequestedRegistrations().Count());
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
         Assert.True(registry.IsProviderRegistrationRequested("Keycloak"));
         Assert.True(registry.IsProviderRegistrationRequested("Google"));
     }
@@ -472,11 +504,9 @@ public class InfrastructureSecurityBuilderTests
         Assert.NotNull(authorizationStrategyDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, authorizationStrategyDescriptor.Lifetime);
 
-        var authorizationMapperDescriptor = _services
-            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalAuthorizationMapper) &&
-                                  sd.ImplementationType == typeof(DefaultAuthorizationMapper));
-        Assert.NotNull(authorizationMapperDescriptor);
-        Assert.Equal(ServiceLifetime.Scoped, authorizationMapperDescriptor.Lifetime);
+        Assert.False(IsServiceRegistered<IExternalAuthorizationMapper>());
+        Assert.False(IsServiceRegistered<IKeycloakTokenIntrospectionService>());
+        Assert.False(IsKeycloakAuthorizationStrategyRegistered());
 
         var tenantAdminHandler = _services
             .FirstOrDefault(sd => sd.ServiceType == typeof(IAuthorizationHandler) &&
@@ -498,6 +528,7 @@ public class InfrastructureSecurityBuilderTests
         // Verify EndatixJwt provider is registered
         var registry = GetRegistryFromBuilder(builder);
         Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixJwt));
+        Assert.True(registry.IsProviderRegistrationRequested(AuthSchemes.EndatixReBac));
     }
 
     [Fact]
@@ -535,12 +566,7 @@ public class InfrastructureSecurityBuilderTests
         Assert.NotNull(authorizationStrategyDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, authorizationStrategyDescriptor.Lifetime);
 
-        // Authorization mapper should be Scoped
-        var authorizationMapperDescriptor = _services
-            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalAuthorizationMapper) &&
-                                  sd.ImplementationType == typeof(DefaultAuthorizationMapper));
-        Assert.NotNull(authorizationMapperDescriptor);
-        Assert.Equal(ServiceLifetime.Scoped, authorizationMapperDescriptor.Lifetime);
+        Assert.False(IsServiceRegistered<IExternalAuthorizationMapper>());
 
         // IUserAuthorizationReader should be Scoped
         var authorizationReaderDescriptor = FindServiceDescriptor<IAuthorizationDataProvider>();
@@ -554,4 +580,79 @@ public class InfrastructureSecurityBuilderTests
         Assert.NotNull(permissionsHandlerDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, permissionsHandlerDescriptor.Lifetime);
     }
+
+    [Fact]
+    public void AddExternalAppUserAuthorizationServices_ShouldRegisterSharedExternalAppUserServices()
+    {
+        // Arrange
+        var builder = new InfrastructureSecurityBuilder(_parentBuilder);
+
+        // Act
+        builder
+            .UseDefaults()
+            .AddExternalAppUserAuthorizationServices()
+            .Build();
+
+        // Assert
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IExternalAuthorizationMapper>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IExternalAppUserProvisioner>());
+        Assert.False(IsKeycloakAuthorizationStrategyRegistered());
+        Assert.False(IsServiceRegistered<IKeycloakTokenIntrospectionService>());
+
+        var profileReaderDescriptor = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalAppUserProfileReader) &&
+                                  sd.ImplementationType == typeof(ExternalAppUserProfileReader));
+        Assert.NotNull(profileReaderDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, profileReaderDescriptor.Lifetime);
+    }
+
+    [Fact]
+    public void AddKeycloakAuthProvider_ShouldRegisterKeycloakAuthorizationServices()
+    {
+        // Arrange
+        var builder = new InfrastructureSecurityBuilder(_parentBuilder);
+
+        // Act
+        builder
+            .UseDefaults()
+            .AddKeycloakAuthProvider()
+            .Build();
+
+        // Assert
+        Assert.True(IsKeycloakAuthorizationStrategyRegistered());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IExternalAuthorizationMapper>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IKeycloakTokenIntrospectionService>());
+        Assert.Equal(ServiceLifetime.Scoped, GetServiceLifetime<IExternalAppUserProvisioner>());
+
+        var profileReaderDescriptor = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalAppUserProfileReader) &&
+                                  sd.ImplementationType == typeof(ExternalAppUserProfileReader));
+        Assert.NotNull(profileReaderDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, profileReaderDescriptor.Lifetime);
+
+        var userInfoProfileDescriptor = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IKeycloakUserInfoProfileService) &&
+                                  sd.ImplementationType == typeof(KeycloakUserInfoProfileService));
+        Assert.NotNull(userInfoProfileDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, userInfoProfileDescriptor.Lifetime);
+
+        var profileResolverDescriptor = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(KeycloakExternalIdentityProfileResolver));
+        Assert.NotNull(profileResolverDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, profileResolverDescriptor.Lifetime);
+
+        var authorizationMapperDescriptor = _services
+            .FirstOrDefault(sd => sd.ServiceType == typeof(IExternalAuthorizationMapper) &&
+                                  sd.ImplementationType == typeof(DefaultAuthorizationMapper));
+        Assert.NotNull(authorizationMapperDescriptor);
+        Assert.Equal(ServiceLifetime.Scoped, authorizationMapperDescriptor.Lifetime);
+    }
+
+    private bool IsKeycloakAuthorizationStrategyRegistered()
+    {
+        return _services.Any(sd =>
+            sd.ServiceType == typeof(IAuthorizationStrategy) &&
+            sd.ImplementationType == typeof(KeycloakTokenIntrospectionAuthorization));
+    }
+
 }

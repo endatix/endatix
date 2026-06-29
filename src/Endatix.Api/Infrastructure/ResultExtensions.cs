@@ -15,6 +15,7 @@ public static partial class ResultExtensions
         public const string NOT_FOUND = "Resource not found";
         public const string UNAUTHORIZED = "Unauthorized access";
         public const string FORBIDDEN = "Forbidden access";
+        public const string CONFLICT = "There was a conflict";
         public const string BAD_REQUEST = "There was a problem with your request";
         public const string INTERNAL_SERVER_ERROR = "An unexpected error occurred";
     }
@@ -87,6 +88,7 @@ public static partial class ResultExtensions
         {
             ResultStatus.Invalid => (StatusCodes.Status400BadRequest, ResultTitles.BAD_REQUEST),
             ResultStatus.NotFound => (StatusCodes.Status404NotFound, ResultTitles.NOT_FOUND),
+            ResultStatus.Conflict => (StatusCodes.Status409Conflict, ResultTitles.CONFLICT),
             ResultStatus.Unauthorized => (StatusCodes.Status401Unauthorized, ResultTitles.UNAUTHORIZED),
             ResultStatus.Forbidden => (StatusCodes.Status403Forbidden, ResultTitles.FORBIDDEN),
             ResultStatus.Error => (StatusCodes.Status500InternalServerError, ResultTitles.INTERNAL_SERVER_ERROR),
@@ -115,6 +117,18 @@ public static partial class ResultExtensions
             if (errorCode != null)
             {
                 problemResult.ProblemDetails.Extensions.Add("errorCode", errorCode);
+            }
+
+            var fields = result.ValidationErrors
+                .Where(error => !string.IsNullOrWhiteSpace(error.Identifier))
+                .GroupBy(error => error.Identifier)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Select(error => error.ErrorMessage).ToArray());
+
+            if (fields.Count > 0)
+            {
+                problemResult.ProblemDetails.Extensions.Add("fields", fields);
             }
         }
 

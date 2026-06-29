@@ -23,6 +23,16 @@ public class CreateFormRequest
     public bool? IsEnabled { get; set; }
 
     /// <summary>
+    /// Indicates if one response per user is enforced.
+    /// </summary>
+    public bool? LimitOnePerUser { get; set; }
+
+    /// <summary>
+    /// Additional form-level metadata as raw JSON string.
+    /// </summary>
+    public string? Metadata { get; set; }
+
+    /// <summary>
     /// The JSON data of the active form definition as a string.
     /// </summary>
     [Obsolete("Use FormDefinitionSchema instead.")]
@@ -43,4 +53,9 @@ public class CreateFormRequest
     /// The webhook configuration settings as a JSON object.
     /// </summary>
     public JsonElement? WebHookSettings { get; set; }
+
+    /// <summary>
+    /// Optional folder id.
+    /// </summary>
+    public string? FolderId { get; set; }
 }

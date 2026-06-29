@@ -17,7 +17,13 @@ using Endatix.Core.Abstractions.Account;
 using Endatix.Infrastructure.Identity.Services;
 using Endatix.Infrastructure.Identity.Repositories;
 using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Abstractions.Authorization.PublicForm;
+using Endatix.Core.Features.Auth;
+using Endatix.Infrastructure.Caching;
+using Endatix.Infrastructure.Features.Authorization.PublicForm;
+using Endatix.Infrastructure.Features.PlatformAdmin;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -49,6 +55,7 @@ public static class IdentityServiceCollectionExtensions
                     // identityOptions.User.RequireUniqueEmail = true;
                 })
                 .AddRoles<AppRole>()
+                .AddUserValidator<ExternalAppUserValidator>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
 
@@ -82,6 +89,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, AppUserService>();
         services.AddScoped<IUserContext, UserContext>();
+        services.AddSubmitterResolution(configuration);
 
         // Register security related domain services
         services.AddScoped<IUserRegistrationService, AppUserRegistrationService>();
@@ -101,6 +109,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddEndatixOptions<SubmissionAccessTokenOptions>(configuration);
         services.AddScoped<ISubmissionAccessTokenService, SubmissionAccessTokenService>();
         services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
+        services.AddScoped<IFormAccessTokenService, FormAccessTokenService>();
 
         services.AddScoped<PublicFormAccessPolicy>();
         services.AddScoped<IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>>(sp => sp.GetRequiredService<PublicFormAccessPolicy>());
@@ -113,6 +122,10 @@ public static class IdentityServiceCollectionExtensions
 
         services.AddScoped<FormTemplateAccessPolicy>();
         services.AddScoped<IResourceAccessQuery<FormTemplateAccessData, FormTemplateAccessContext>>(sp => sp.GetRequiredService<FormTemplateAccessPolicy>());
+
+        services.AddScoped<IFormAccessCacheInvalidator, FormAccessCacheInvalidator>();
+        services.AddPlatformAdminFeatures();
+        services.AddScoped<IAuthSettingsReader, AuthSettingsReader>();
 
         // Register email verification options
         services.AddOptions<EmailVerificationOptions>()

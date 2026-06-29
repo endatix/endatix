@@ -20,7 +20,7 @@ public class PartialUpdateTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_InvalidRequest_ReturnsBadRequest()
+    public async Task ExecuteAsync_InvalidRequest_ReturnsProblemDetails()
     {
         // Arrange
         var formId = 1L;
@@ -34,12 +34,13 @@ public class PartialUpdateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
-        badRequestResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.ProblemDetails.Status.Should().Be(400);
     }
 
     [Fact]
-    public async Task ExecuteAsync_FormNotFound_ReturnsNotFound()
+    public async Task ExecuteAsync_FormNotFound_ReturnsProblemDetails()
     {
         // Arrange
         var formId = 1L;
@@ -53,8 +54,9 @@ public class PartialUpdateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var notFoundResult = response.Result as NotFound;
-        notFoundResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.ProblemDetails.Status.Should().Be(404);
     }
 
     [Fact]
@@ -85,6 +87,24 @@ public class PartialUpdateTests
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Id.Should().Be(formId.ToString());
         okResult!.Value!.Name.Should().Be(request.Name);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ConflictResult_ReturnsProblemDetails()
+    {
+        // Arrange
+        var request = new PartialUpdateFormRequest { FormId = 1L };
+        var result = Result<Core.Entities.Form>.Conflict("Cannot disable gate.");
+
+        _mediator.Send(Arg.Any<PartialUpdateFormCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        // Assert
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
     }
 
     [Fact]

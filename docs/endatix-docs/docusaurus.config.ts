@@ -6,7 +6,17 @@ import type * as Redocusaurus from "redocusaurus";
 const config: Config = {
   title: "Endatix Documentation",
   tagline: "Self-Hosted Alternative to SaaS Form or Survey Platforms",
-  favicon: "img/endatix.svg",
+  favicon: "img/favicon.ico",
+  headTags: [
+    {
+      tagName: "link",
+      attributes: { rel: "icon", type: "image/svg+xml", href: "/img/icon.svg" },
+    },
+    {
+      tagName: "link",
+      attributes: { rel: "apple-touch-icon", href: "/img/icon-apple-touch.png" },
+    },
+  ],
 
   // Set the production url of your site here
   url: "https://docs.endatix.com",
@@ -54,6 +64,13 @@ const config: Config = {
           trackingID: "G-EX59EFQH18",
           anonymizeIP: true,
         },
+        sitemap: {
+          lastmod: "date",
+          changefreq: null,
+          priority: null,
+          ignorePatterns: ["/tags/**"],
+          filename: "sitemap.xml",
+        },
       } satisfies Preset.Options,
     ],
     [
@@ -76,12 +93,19 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Replace with your project's social card
-    image: "img/endatix-transparent.png",
+    image: "img/endatix-social-card.png",
+    metadata: [
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@endatix_" },
+      { name: "twitter:creator", content: "@endatix_" },
+      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Endatix Documentation" },
+    ],
     navbar: {
       logo: {
-        alt: "Endatix Logo",
+        alt: "Endatix",
         src: "img/endatix.svg",
+        srcDark: "img/endatix-white.svg",
       },
       items: [
         {
@@ -99,7 +123,13 @@ const config: Config = {
         {
           href: "https://github.com/endatix",
           label: "GitHub",
-          position: "right",
+          position: "left",
+        },
+        {
+          href: "https://endatix.com/contact",
+          label: "Contact Us",
+          position: "left",
+          target: "_blank",
         },
       ],
     },
@@ -196,14 +226,27 @@ const config: Config = {
     },
   },
   themes: ["@docusaurus/theme-mermaid"],
+  stylesheets: [
+    {
+      href: "https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:ital,wght@0,400..500;1,400..500&display=swap",
+      type: "text/css",
+    },
+  ],
   plugins: [
-    // Shim gtag so plugin never throws when script is blocked or not loaded yet
-    function gtagShimPlugin() {
+    function headTagsPlugin() {
       return {
-        name: "gtag-shim",
+        name: "head-tags",
         injectHtmlTags() {
           return {
             headTags: [
+              {
+                tagName: "link",
+                attributes: { rel: "preconnect", href: "https://fonts.googleapis.com" },
+              },
+              {
+                tagName: "link",
+                attributes: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
+              },
               {
                 tagName: "script",
                 innerHTML: "window.gtag=window.gtag||function(){};",

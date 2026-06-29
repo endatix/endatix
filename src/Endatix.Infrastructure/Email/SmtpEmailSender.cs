@@ -5,10 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
-using Endatix.Core.Infrastructure.Domain;
-using Endatix.Core.Specifications;
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Logging;
 
@@ -22,16 +19,22 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
 {
     private readonly ILogger<SmtpEmailSender> _logger;
     private readonly SmtpSettings _settings;
-    private readonly IRepository<EmailTemplate> _templateRepository;
+    private readonly EmailTemplateRenderer _templateRenderer;
 
+    /// <summary>
+    /// Initializes a new instance of the SmtpEmailSender class.
+    /// </summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="options">The SMTP settings.</param>
+    /// <param name="templateRenderer">The email template renderer.</param>
     public SmtpEmailSender(
         ILogger<SmtpEmailSender> logger,
         IOptions<SmtpSettings> options,
-        IRepository<EmailTemplate> templateRepository)
+        EmailTemplateRenderer templateRenderer)
     {
         _logger = logger;
         _settings = options.Value;
-        _templateRepository = templateRepository;
+        _templateRenderer = templateRenderer;
 
         Guard.Against.Null(_settings);
         Guard.Against.NullOrEmpty(_settings.Host);
@@ -43,6 +46,12 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         // No additional services needed for SMTP
         // SmtpClient is created per email for thread safety
     };
+
+    /// <inheritdoc />
+    public string ProviderName => "SMTP";
+
+    /// <inheritdoc />
+    public bool IsConfigured => !string.Equals(_settings.Host, "localhost", StringComparison.OrdinalIgnoreCase);
 
     public async Task SendEmailAsync(EmailWithBody email, CancellationToken cancellationToken = default)
     {
@@ -59,26 +68,12 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
             SensitiveValue.Email(email.To), email.Subject);
     }
 
+    /// <inheritdoc />
     public async Task SendEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
     {
         Guard.Against.Null(email);
-        Guard.Against.NullOrEmpty(email.To);
-        Guard.Against.NullOrEmpty(email.TemplateId);
 
-        var template = await _templateRepository.FirstOrDefaultAsync(new EmailTemplateByNameSpec(email.TemplateId));
-        if (template == null)
-        {
-            throw new InvalidOperationException($"Email template '{email.TemplateId}' not found in database");
-        }
-
-        // Convert metadata to string dictionary for template rendering
-        var variables = email.Metadata.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString() ?? string.Empty);
-
-        var emailWithBody = template.Render(
-            email.To,
-            variables,
-            subject: email.Subject,
-            from: email.From);
+        var emailWithBody = await _templateRenderer.RenderAsync(email, cancellationToken);
 
         await SendEmailAsync(emailWithBody, cancellationToken);
     }

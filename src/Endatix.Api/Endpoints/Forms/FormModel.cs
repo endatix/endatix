@@ -33,6 +33,16 @@ public class FormModel
     public bool IsPublic { get; set; }
 
     /// <summary>
+    /// Indicates if one response per user is enforced.
+    /// </summary>
+    public bool LimitOnePerUser { get; set; }
+
+    /// <summary>
+    /// Additional form-level metadata as raw JSON string.
+    /// </summary>
+    public string? Metadata { get; set; }
+
+    /// <summary>
     /// The ID of the theme associated with the form.
     /// </summary>
     public string? ThemeId { get; set; }
@@ -56,6 +66,11 @@ public class FormModel
     /// The total number of submissions for the form
     /// </summary>
     public int? SubmissionsCount { get; init; }
+
+    /// <summary>
+    /// Optional folder id for organization.
+    /// </summary>
+    public string? FolderId { get; set; }
 
     /// <summary>
     /// The JSON data containing webhook configuration settings for this form as a string.

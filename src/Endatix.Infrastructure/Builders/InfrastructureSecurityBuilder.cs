@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
@@ -7,11 +8,14 @@ using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Data;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
+using Endatix.Infrastructure.Identity.Provisioning;
 using Endatix.Infrastructure.Identity.Services;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Builders;
@@ -55,7 +59,7 @@ public class InfrastructureSecurityBuilder
         Services.AddEndatixSecurityServices(Configuration);
         
         ConfigureIdentity();
-        AddEndatixJwtAuthProvider();
+        AddEndatixAuthProviders();
 
         // ASP.NET Core security
         ConfigureAspNetCoreAuthentication();
@@ -79,12 +83,28 @@ public class InfrastructureSecurityBuilder
     }
 
     /// <summary>
+    /// Configures submitter claim extraction options.
+    /// </summary>
+    /// <param name="configure">Action to configure submitter options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public InfrastructureSecurityBuilder ConfigureSubmitters(Action<SubmitterOptions> configure)
+    {
+        Guard.Against.Null(configure);
+
+        LogSetupInfo("Configuring submitter options");
+        Services.Configure(configure);
+
+        return this;
+    }
+
+    /// <summary>
     /// Add Endatix JWT provider (required for token issuance).
     /// </summary>
     /// <returns>The builder for chaining.</returns>
-    public InfrastructureSecurityBuilder AddEndatixJwtAuthProvider()
+    public InfrastructureSecurityBuilder AddEndatixAuthProviders()
     {
-        _authProviderRegistry.RegisterProvider<EndatixJwtOptions>(new EndatixJwtAuthProvider(), Services, Configuration);
+        _authProviderRegistry.RegisterProvider<EndatixJwtOptions>(new EndatixUserJwtAuthProvider(), Services, Configuration);
+        _authProviderRegistry.RegisterProvider<EndatixJwtOptions>(new EndatixResourceJwtAuthProvider(), Services, Configuration);
 
         return this;
     }
@@ -95,8 +115,7 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder AddKeycloakAuthProvider()
     {
         _authProviderRegistry.RegisterProvider<KeycloakOptions>(new KeycloakAuthProvider(), Services, Configuration);
-
-        Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
+        RegisterKeycloakAuthorizationServices();
 
         return this;
     }
@@ -107,6 +126,23 @@ public class InfrastructureSecurityBuilder
     public InfrastructureSecurityBuilder AddGoogleAuthProvider()
     {
         _authProviderRegistry.RegisterProvider<GoogleOptions>(new GoogleAuthProvider(), Services, Configuration);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Registers shared services for external IdP Hub AppUser authorization:
+    /// role mapping, profile lookup, and JIT AppUser provisioning.
+    /// Call from external auth provider setup when registering an <see cref="IAuthorizationStrategy"/>
+    /// that provisions Hub AppUsers from an external identity provider.
+    /// </summary>
+    public InfrastructureSecurityBuilder AddExternalAppUserAuthorizationServices()
+    {
+        LogSetupInfo("Adding external AppUser authorization services");
+        Services.TryAddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
+        Services.TryAddScoped<IExternalAppUserProfileReader, ExternalAppUserProfileReader>();
+        Services.TryAddScoped<IExternalAppUserProvisioner, ExternalAppUserProvisioner>();
+        Services.TryAddScoped<IPlatformAdminLocalApprovalGate, PlatformAdminLocalApprovalGate>();
 
         return this;
     }
@@ -209,8 +245,15 @@ public class InfrastructureSecurityBuilder
         {
             var defaultPolicy = new AuthorizationPolicyBuilder(MULTI_JWT_SCHEME_NAME)
                 .RequireAuthenticatedUser()
+                .RequireClaim(JwtRegisteredClaimNames.Sub)
                 .Build();
             options.DefaultPolicy = defaultPolicy;
+
+            options.AddPolicy(AuthorizationPolicies.PublicResourceAccess, policy =>
+            {
+                policy.AddAuthenticationSchemes(AuthSchemes.EndatixReBac);
+                policy.RequireAuthenticatedUser();
+            });
 
             options.AddPolicy("TenantAdmin", policy =>
                 policy.Requirements.Add(new TenantAdminRequirement()));
@@ -225,7 +268,6 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
         Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();
         Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
-        Services.AddScoped<IExternalAuthorizationMapper, DefaultAuthorizationMapper>();
 
         // Register authorization handlers
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
@@ -233,6 +275,15 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
 
         return this;
+    }
+
+    private void RegisterKeycloakAuthorizationServices()
+    {
+        AddExternalAppUserAuthorizationServices();
+        Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
+        Services.AddScoped<IKeycloakTokenIntrospectionService, KeycloakTokenIntrospectionService>();
+        Services.AddScoped<IKeycloakUserInfoProfileService, KeycloakUserInfoProfileService>();
+        Services.AddScoped<KeycloakExternalIdentityProfileResolver>();
     }
 
     private void ConfigureEnabledAuthProviders()
@@ -267,16 +318,19 @@ public class InfrastructureSecurityBuilder
     /// <exception cref="InvalidOperationException">Thrown when EndatixJwt provider is disabled.</exception>
     private void EnsureEndatixJwtAuthProviderIsEnabled()
     {
-        var endatixJwtRegistration = _authProviderRegistry
-            .GetRequestedRegistrations()
-            .FirstOrDefault(reg => reg.Provider.SchemeName == AuthSchemes.EndatixJwt) ??
+        var registrations = _authProviderRegistry.GetRequestedRegistrations().ToList();
+
+        var userRegistration = registrations.FirstOrDefault(reg => reg.Provider.SchemeName == AuthSchemes.EndatixJwt) ??
             throw new InvalidOperationException(
-                "EndatixJwt provider is required. Call AddEndatixJwtAuthProvider() in your authentication configuration.");
+                "EndatixJwt provider is required. Call AddEndatixAuthProviders() in your authentication configuration.");
 
+        _ = registrations.FirstOrDefault(reg => reg.Provider.SchemeName == AuthSchemes.EndatixReBac) ??
+            throw new InvalidOperationException(
+                "EndatixReBac provider is required. Call AddEndatixAuthProviders() in your authentication configuration.");
 
-        var configSection = Configuration.GetSection(endatixJwtRegistration.ConfigurationSectionPath);
+        var configSection = Configuration.GetSection(userRegistration.ConfigurationSectionPath);
 
-        if (configSection.Get(endatixJwtRegistration.ConfigType) is not AuthProviderOptions config || !config.Enabled)
+        if (configSection.Get(userRegistration.ConfigType) is not AuthProviderOptions config || !config.Enabled)
         {
             throw new InvalidOperationException(
                 $"EndatixJwt provider is required and must be enabled. " +

@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for listing submissions by form ID.
 /// </summary>
-public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Results<Ok<IEnumerable<SubmissionModel>>, ProblemHttpResult>>
+public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Results<Ok<Paged<SubmissionModel>>, ProblemHttpResult>>
 {
     public override void Configure()
     {
@@ -27,7 +28,7 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<IEnumerable<SubmissionModel>>, ProblemHttpResult>> ExecuteAsync(ListByFormIdRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<Paged<SubmissionModel>>, ProblemHttpResult>> ExecuteAsync(ListByFormIdRequest request, CancellationToken cancellationToken)
     {
         var filterExpressions = request.Filter ?? [];
         var getSubmissionsQuery = new ListByFormIdQuery(request.FormId, request.Page, request.PageSize, filterExpressions);
@@ -35,7 +36,7 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
         var result = await mediator.Send(getSubmissionsQuery, cancellationToken);
 
         return TypedResultsBuilder
-                    .MapResult(result, dtos => dtos.Select(SubmissionMapper.MapFromDto))
-                    .SetTypedResults<Ok<IEnumerable<SubmissionModel>>, ProblemHttpResult>();
+            .MapResult(result, submissions => submissions.MapToPaged(SubmissionMapper.MapFromDto))
+            .SetTypedResults<Ok<Paged<SubmissionModel>>, ProblemHttpResult>();
     }
 }

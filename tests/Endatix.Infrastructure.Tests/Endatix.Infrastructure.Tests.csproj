@@ -19,9 +19,17 @@
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- CVE-2025-6965: use Sqlite.Core + SQLite3MC instead of EF.Sqlite (vulnerable bundle_e_sqlite3).
+       Remove when EF 10.0.11+ ships the same bundle switch — see endatix#817, dotnet/efcore#38257. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite.Core" />
+    <PackageReference Include="SQLite3MC.PCLRaw.bundle" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Endatix.Persistence.PostgreSql\Endatix.Persistence.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\Endatix.Persistence.SqlServer\Endatix.Persistence.SqlServer.csproj" />
     <ProjectReference Include="..\Endatix.Core.Tests\Endatix.Core.Tests.csproj" />
   </ItemGroup>
 

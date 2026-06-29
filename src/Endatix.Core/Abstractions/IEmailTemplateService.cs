@@ -1,5 +1,3 @@
-using Endatix.Core.Features.Email;
-
 namespace Endatix.Core.Abstractions;
 
 /// <summary>
@@ -14,6 +12,14 @@ public interface IEmailTemplateService
     /// <param name="token">The verification token.</param>
     /// <returns>An EmailWithTemplate configured for verification.</returns>
     EmailWithTemplate CreateVerificationEmail(string userEmail, string token);
+
+    /// <summary>
+    /// Creates a tenant invitation email template for the specified user and token.
+    /// </summary>
+    /// <param name="userEmail">The email address of the invited user.</param>
+    /// <param name="token">The invitation activation token.</param>
+    /// <returns>An EmailWithTemplate configured for tenant invitation activation.</returns>
+    EmailWithTemplate CreateInvitationEmail(string userEmail, string token);
 
     /// <summary>
     /// Creates a reset password email template for the specified user and token.

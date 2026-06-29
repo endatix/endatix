@@ -30,7 +30,7 @@ public sealed class DefaultAuthorization(
             .GetActiveProviders()
             .FirstOrDefault(provider => provider.CanHandle(issuer, string.Empty));
 
-        return activeProvider is not null && activeProvider is EndatixJwtAuthProvider;
+        return activeProvider is not null && activeProvider is EndatixUserJwtAuthProvider;
     }
 
     /// <inheritdoc />
@@ -48,6 +48,12 @@ public sealed class DefaultAuthorization(
             return Result.Error("User ID is required");
         }
 
-        return await authorizationDataProvider.GetAuthorizationDataAsync(endatixUserId, cancellationToken);
+        var tenantId = principal.GetTenantId();
+        if (tenantId <= 0)
+        {
+            return Result.Error("Tenant ID is required");
+        }
+
+        return await authorizationDataProvider.GetAuthorizationDataAsync(endatixUserId, tenantId, cancellationToken);
     }
 }

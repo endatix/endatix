@@ -44,7 +44,7 @@ public class DatabaseMigrationService : IHostedService
 
         try
         {
-            await _serviceProvider.ApplyDbMigrationsAsync();
+            await _serviceProvider.ApplyDbMigrationsAsync(cancellationToken);
         }
         catch (Exception ex)
         {

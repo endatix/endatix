@@ -15,6 +15,8 @@ public class FilteredRequestValidatorTests
             { "name1", typeof(string) },
             { "age", typeof(int) },
             { "created", typeof(DateTime) },
+            { "folderId", typeof(long?) },
+            { "submitterProfile.email", typeof(string) },
         };
         _validator = new FilteredRequestValidator(validFields);
     }
@@ -48,7 +50,7 @@ public class FilteredRequestValidatorTests
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.Filter)
-            .WithErrorMessage($"Invalid filter '{filter}': Filter must start with a valid field name. Allowed fields: name, name1, age, created");
+            .WithErrorMessage($"Invalid filter '{filter}': Filter must start with a valid field name. Allowed fields: name, name1, age, created, folderId, submitterProfile.email");
     }
 
     [Fact]
@@ -86,6 +88,7 @@ public class FilteredRequestValidatorTests
     [InlineData("age:5|twenty", "One or more values are not valid for type Int32")]
     [InlineData("age>:abc", "Value is not valid for type Int32")]
     [InlineData("created>yesterday", "Value is not valid for type DateTime")]
+    [InlineData("folderId>null", "Null is allowed only with ':' and '!:' operators.")]
     public void Validate_InvalidValueType_ReturnsError(string filter, string expectedError)
     {
         // Arrange
@@ -105,6 +108,9 @@ public class FilteredRequestValidatorTests
     [InlineData("age:25")]
     [InlineData("age>:18")]
     [InlineData("created>2025-01-05T15:14:13")]
+    [InlineData("folderId:null")]
+    [InlineData("folderId!:null")]
+    [InlineData("submitterProfile.email:respondent@example.com")]
     public void Validate_ValidFilter_PassesValidation(string filter)
     {
         // Arrange
@@ -117,7 +123,7 @@ public class FilteredRequestValidatorTests
         result.ShouldNotHaveAnyValidationErrors();
     }
 
-    private class TestFilteredRequest : IFilteredRequest
+    private class TestFilteredRequest : IFilterable
     {
         public IEnumerable<string>? Filter { get; set; } = Array.Empty<string>();
     }

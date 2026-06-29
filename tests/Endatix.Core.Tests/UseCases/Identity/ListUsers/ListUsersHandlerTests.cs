@@ -20,7 +20,12 @@ public class ListUsersHandlerTests
     public async Task Handle_WhenServiceReturnsSuccess_ReturnsUserWithRoles()
     {
         // Arrange
-        var query = new ListUsersQuery(Page: 1, PageSize: 10);
+        var query = new ListUsersQuery(
+            page: 2,
+            pageSize: 10,
+            search: " user1 ",
+            role: "Admin",
+            status: "ACTIVE");
         var usersWithRoles = new List<UserWithRoles>
         {
             new()
@@ -32,51 +37,73 @@ public class ListUsersHandlerTests
                 Roles = ["Admin"]
             }
         };
-        _userService.ListUsersAsync(Arg.Any<CancellationToken>())
-            .Returns(Result<IReadOnlyList<UserWithRoles>>.Success(usersWithRoles));
+        var pagedUsers = new Paged<UserWithRoles>(2, 10, 11, 2, usersWithRoles);
+        _userService
+            .ListUsersAsync(
+                10,
+                10,
+                "user1",
+                "Admin",
+                "active",
+                Arg.Any<CancellationToken>())
+            .Returns(Result<Paged<UserWithRoles>>.Success(pagedUsers));
 
         // Act
-        Result<IEnumerable<UserWithRoles>> result = await _handler.Handle(query, CancellationToken.None);
+        var result = await _handler.Handle(query, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value.Should().HaveCount(1);
-        result.Value!.First().Id.Should().Be(1);
-        result.Value.First().UserName.Should().Be("user1");
-        result.Value.First().Roles.Should().ContainSingle("Admin");
+        result.Value!.Page.Should().Be(2);
+        result.Value.TotalRecords.Should().Be(11);
+        result.Value.Items.Should().HaveCount(1);
+        result.Value.Items.First().Id.Should().Be(1);
+        result.Value.Items.First().UserName.Should().Be("user1");
+        result.Value.Items.First().Roles.Should().ContainSingle("Admin");
 
-        await _userService.Received(1).ListUsersAsync(Arg.Any<CancellationToken>());
+        await _userService
+            .Received(1)
+            .ListUsersAsync(10, 10, "user1", "Admin", "active", Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_WhenServiceReturnsEmptyList_ReturnsEmptyEnumerable()
     {
         // Arrange
-        var query = new ListUsersQuery(null, null);
-        _userService.ListUsersAsync(Arg.Any<CancellationToken>())
-            .Returns(Result<IReadOnlyList<UserWithRoles>>.Success(new List<UserWithRoles>()));
+        var query = new ListUsersQuery(null, null, null, null, null);
+        var pagedUsers = Paged<UserWithRoles>.Empty(ListUsersQuery.DefaultPageSize);
+        _userService
+            .ListUsersAsync(
+                0,
+                ListUsersQuery.DefaultPageSize,
+                null,
+                null,
+                null,
+                Arg.Any<CancellationToken>())
+            .Returns(Result<Paged<UserWithRoles>>.Success(pagedUsers));
 
         // Act
-        Result<IEnumerable<UserWithRoles>> result = await _handler.Handle(query, CancellationToken.None);
+        var result = await _handler.Handle(query, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value.Should().BeEmpty();
+        result.Value!.Items.Should().BeEmpty();
     }
 
     [Fact]
     public async Task Handle_WhenServiceReturnsError_ReturnsErrorResult()
     {
         // Arrange
-        var query = new ListUsersQuery(1, 20);
-        var errorResult = Result<IReadOnlyList<UserWithRoles>>.Error(
+        var query = new ListUsersQuery(1, 20, null, null, null);
+        var errorResult = Result<Paged<UserWithRoles>>.Error(
             new ErrorList(["Something failed"], null));
-        _userService.ListUsersAsync(Arg.Any<CancellationToken>()).Returns(errorResult);
+        _userService
+            .ListUsersAsync(Arg.Any<int>(), Arg.Any<int>(), null, null, null, Arg.Any<CancellationToken>())
+            .Returns(errorResult);
 
         // Act
-        Result<IEnumerable<UserWithRoles>> result = await _handler.Handle(query, CancellationToken.None);
+        var result = await _handler.Handle(query, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeFalse();

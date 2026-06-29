@@ -5,6 +5,28 @@ namespace Endatix.Core.Tests.Entities;
 public class FormTests
 {
     [Fact]
+    public void MoveToFolder_WhenAllowed_UpdatesFolderId()
+    {
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
+
+        var moved = form.MoveToFolder(42);
+
+        moved.Should().BeTrue();
+        form.FolderId.Should().Be(42);
+    }
+
+    [Fact]
+    public void ClearFolder_WhenAssigned_RemovesFolderId()
+    {
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, folderId: 24);
+
+        var cleared = form.ClearFolder();
+
+        cleared.Should().BeTrue();
+        form.FolderId.Should().BeNull();
+    }
+
+    [Fact]
     public void AddFormDefinition_WhenFirstDefinition_SetsItAsActive()
     {
         // Arrange & Act

@@ -14,6 +14,7 @@ public class SpecificationHelperTests
         public string? StringProperty { get; set; }
         public TestEnum EnumProperty { get; set; }
         public DateTime DateTimeProperty { get; set; }
+        public long? NullableLongProperty { get; set; }
     }
 
     [Fact]
@@ -240,5 +241,31 @@ public class SpecificationHelperTests
 
         dateTimeValue.Kind.Should().Be(DateTimeKind.Utc);
         dateTimeValue.Should().Be(expectedUtcDate);
+    }
+
+    [Fact]
+    public void BuildFilterExpression_NullEquality_ForNullableProperty_ReturnsValidExpression()
+    {
+        var field = nameof(TestEntity.NullableLongProperty);
+        var filter = new FilterCriterion($"{field}:null");
+
+        var result = SpecificationHelper.BuildFilterExpression<TestEntity>(filter);
+
+        result.Should().NotBeNull();
+        result.Compile()(new TestEntity { NullableLongProperty = null }).Should().BeTrue();
+        result.Compile()(new TestEntity { NullableLongProperty = 12 }).Should().BeFalse();
+    }
+
+    [Fact]
+    public void BuildFilterExpression_NullInequality_ForNullableProperty_ReturnsValidExpression()
+    {
+        var field = nameof(TestEntity.NullableLongProperty);
+        var filter = new FilterCriterion($"{field}!:null");
+
+        var result = SpecificationHelper.BuildFilterExpression<TestEntity>(filter);
+
+        result.Should().NotBeNull();
+        result.Compile()(new TestEntity { NullableLongProperty = 12 }).Should().BeTrue();
+        result.Compile()(new TestEntity { NullableLongProperty = null }).Should().BeFalse();
     }
 }

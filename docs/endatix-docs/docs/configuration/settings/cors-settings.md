@@ -12,7 +12,7 @@ This guide will help you configure CORS (Cross-Origin Resource Sharing) settings
 
 To override these settings and apply custom CORS policies, follow this guide.
 
-:::note Note on importance
+:::note[Note on importance]
 
 CORS is essential for managing how your web application interacts with resources from different origins. Properly configuring CORS ensures security while enabling the necessary cross-origin requests. Following the principle of least privilege is a good practice—expose only what is needed via CORS, and nothing more.
 
@@ -73,7 +73,7 @@ The CorsPolicySetting class defines individual CORS policies. You can create mul
 - **PreflightMaxAgeInSeconds**: Specifies how long the preflight request can be cached (in seconds). This is optional
 - **AllowCredentials**: Determines if cross-origin credentials are allowed. By default, this is set to false to avoid security risks, especially when combined with `AllowAnyOrigin`.
 
-:::tip Recommended Practices
+:::tip[Recommended Practices]
 
 - **Avoid Insecure Configurations**: Never combine `AllowAnyOrigin` with `AllowCredentials` as it can lead to security vulnerabilities like cross-site request forgery (CSRF).
 - **Environment-Specific Policies**: Consider setting different policies for development and production to ensure both security and functionality.

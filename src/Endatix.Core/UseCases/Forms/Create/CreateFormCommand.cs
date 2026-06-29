@@ -13,10 +13,21 @@ public record CreateFormCommand : ICommand<Result<Form>>
     public string Name { get; init; }
     public string? Description { get; init; }
     public bool IsEnabled { get; init; }
+    public bool LimitOnePerUser { get; init; }
+    public string? Metadata { get; init; }
     public string FormDefinitionJsonData { get; init; }
     public string? WebHookSettingsJson { get; init; }
+    public long? FolderId { get; init; }
 
-    public CreateFormCommand(string name, string? description, bool isEnabled, string formDefinitionJsonData, string? webHookSettingsJson = null)
+    public CreateFormCommand(
+        string name,
+        string? description,
+        bool isEnabled,
+        string formDefinitionJsonData,
+        string? webHookSettingsJson = null,
+        bool limitOnePerUser = false,
+        string? metadata = null,
+        long? folderId = null)
     {
         Guard.Against.NullOrWhiteSpace(name);
         Guard.Against.NullOrWhiteSpace(formDefinitionJsonData);
@@ -24,7 +35,10 @@ public record CreateFormCommand : ICommand<Result<Form>>
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
+        LimitOnePerUser = limitOnePerUser;
+        Metadata = metadata;
         FormDefinitionJsonData = formDefinitionJsonData;
         WebHookSettingsJson = webHookSettingsJson;
+        FolderId = folderId;
     }
 }

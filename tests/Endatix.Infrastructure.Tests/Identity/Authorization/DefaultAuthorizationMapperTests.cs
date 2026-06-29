@@ -83,6 +83,46 @@ public sealed class DefaultAuthorizationMapperTests
 
     #endregion
 
+    #region Case-insensitive Mapping Tests
+
+    [Fact]
+    public void GetMatchingRoles_MatchesExternalRoleKeysCaseInsensitively_WhenMappingsUseOrdinalIgnoreCase()
+    {
+        // Arrange
+        var externalRoles = new[] { "KEYCLOAK-ADMIN" };
+        var roleMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "keycloak-admin", "Admin" }
+        };
+
+        // Act
+        var result = InvokeGetMatchingRoles(externalRoles, roleMappings);
+
+        // Assert
+        result.Should().BeEquivalentTo("Admin");
+    }
+
+    [Fact]
+    public async Task MapToAppRolesAsync_ReturnsFailure_WhenRoleMappingsHaveAmbiguousCaseInsensitiveKeys()
+    {
+        // Arrange
+        var externalRoles = new[] { "keycloak-admin" };
+        var roleMappings = new Dictionary<string, string>
+        {
+            { "keycloak-admin", "Admin" },
+            { "KEYCLOAK-ADMIN", "PlatformAdmin" }
+        };
+
+        // Act
+        var result = await _mapper.MapToAppRolesAsync(externalRoles, roleMappings, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("ambiguous case-insensitive keys");
+    }
+
+    #endregion
+
     #region Error Handling
 
     [Fact]

@@ -1,5 +1,3 @@
-using System.Linq.Expressions;
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
@@ -8,6 +6,9 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Endatix.Infrastructure.Data.Abstractions;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Endatix.Core.Exceptions;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Infrastructure.Features.Outbox;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -16,23 +17,38 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public class AppDbContext : DbContext, ITenantDbContext
 {
+    private const string DUPLICATE_SUBMISSION_CONSTRAINT_NAME = "UX_Submissions_RestrictionKey";
+
     private readonly IIdGenerator<long> _idGenerator;
     private readonly ITenantContext _tenantContext;
+    private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
+    private readonly OutboxIntegrationEventDispatcher _outboxDispatcher;
 
     protected AppDbContext() { }
-    public AppDbContext(DbContextOptions<AppDbContext> options, IIdGenerator<long> idGenerator, ITenantContext tenantContext) : base(options)
+    public AppDbContext(
+        DbContextOptions<AppDbContext> options,
+        IIdGenerator<long> idGenerator,
+        ITenantContext tenantContext,
+        EfCoreValueGeneratorFactory valueGeneratorFactory,
+        OutboxIntegrationEventDispatcher outboxDispatcher) : base(options)
     {
         _idGenerator = idGenerator;
         _tenantContext = tenantContext;
+        _valueGeneratorFactory = valueGeneratorFactory;
+        _outboxDispatcher = outboxDispatcher;
     }
 
     public DbSet<Form> Forms { get; set; }
+
+    public DbSet<Folder> Folders { get; set; }
 
     public DbSet<FormDefinition> FormDefinitions { get; set; }
 
     public DbSet<FormTemplate> FormTemplates { get; set; }
 
     public DbSet<Submission> Submissions { get; set; }
+
+    public DbSet<Submitter> Submitters { get; set; }
 
     public DbSet<SubmissionVersion> SubmissionVersions { get; set; }
 
@@ -48,6 +64,14 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<TenantSettings> TenantSettings { get; set; }
 
+    public DbSet<DataList> DataLists { get; set; }
+
+    public DbSet<DataListItem> DataListItems { get; set; }
+
+    public DbSet<FormDependency> FormDependencies { get; set; }
+
+    public DbSet<OutboxMessage> OutboxMessages { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         base.OnConfiguring(optionsBuilder);
@@ -56,7 +80,14 @@ public class AppDbContext : DbContext, ITenantDbContext
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        // Domain events live on entities (BaseEntity : HasDomainEventsBase) but are never persisted —
+        // they are captured to the outbox in ProcessEntities. Exclude the type from the model so EF
+        // doesn't try to map the [NotMapped] DomainEvents collection as a keyless/related entity.
+        builder.Ignore<DomainEventBase>();
+
         builder.ApplyEndatixQueryFilters(this);
+        ConfigureEntityIdValueGenerators(builder);
 
         // Apply base configurations from Infrastructure assembly
         builder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly);
@@ -79,19 +110,103 @@ public class AppDbContext : DbContext, ITenantDbContext
         PrefixTableNames(builder);
     }
 
+    private void ConfigureEntityIdValueGenerators(ModelBuilder builder)
+    {
+        var entityTypes = builder.Model.GetEntityTypes()
+            .Where(entityType =>
+                !entityType.IsOwned() &&
+                typeof(BaseEntity).IsAssignableFrom(entityType.ClrType));
+
+        foreach (var entityType in entityTypes)
+        {
+            builder.Entity(entityType.ClrType)
+                .Property<long>(nameof(BaseEntity.Id))
+                .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
+                .ValueGeneratedNever();
+        }
+    }
+
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
 
     public override int SaveChanges()
     {
-        ProcessEntities();
-        return base.SaveChanges();
+        try
+        {
+            ProcessEntities();
+            return base.SaveChanges();
+        }
+        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
+        {
+            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
+        }
     }
 
     /// <inheritdoc/>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        ProcessEntities();
-        return await base.SaveChangesAsync(true, cancellationToken);
+        try
+        {
+            ProcessEntities();
+            return await base.SaveChangesAsync(true, cancellationToken);
+        }
+        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
+        {
+            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
+        }
+    }
+
+    private static bool IsDuplicateSubmissionConstraintViolation(DbUpdateException dbUpdateException)
+    {
+        var current = dbUpdateException.InnerException;
+        while (current is not null)
+        {
+            if (IsPostgreSqlUniqueViolation(current) || IsSqlServerDuplicateKeyViolation(current))
+            {
+                return ContainsSubmissionConstraintName(current);
+            }
+
+            current = current.InnerException;
+        }
+
+        return false;
+    }
+
+    private static bool IsPostgreSqlUniqueViolation(Exception exception)
+    {
+        if (!string.Equals(exception.GetType().Name, "PostgresException", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var sqlState = exception.GetType().GetProperty("SqlState")?.GetValue(exception) as string;
+        return string.Equals(sqlState, "23505", StringComparison.Ordinal);
+    }
+
+    private static bool IsSqlServerDuplicateKeyViolation(Exception exception)
+    {
+        if (!string.Equals(exception.GetType().Name, "SqlException", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var number = exception.GetType().GetProperty("Number")?.GetValue(exception);
+        if (number is not int sqlErrorNumber)
+        {
+            return false;
+        }
+
+        return sqlErrorNumber is 2601 or 2627;
+    }
+
+    private static bool ContainsSubmissionConstraintName(Exception exception)
+    {
+        var constraintName = exception.GetType().GetProperty("ConstraintName")?.GetValue(exception) as string;
+        if (!string.IsNullOrWhiteSpace(constraintName))
+        {
+            return string.Equals(constraintName, DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal);
+        }
+
+        return exception.Message.Contains(DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal);
     }
 
     private void ProcessEntities()
@@ -132,6 +247,40 @@ public class AppDbContext : DbContext, ITenantDbContext
                     break;
             }
         }
+
+        CaptureIntegrationEvents();
+    }
+
+    /// <summary>
+    /// Captures <see cref="IIntegrationEvent"/>s raised on tracked aggregates into <see cref="OutboxMessage"/>
+    /// rows in this same context, so they commit atomically with the aggregate. Runs after Id/timestamp
+    /// stamping (so the aggregates' Ids are set before payloads are materialized); the new outbox rows are
+    /// added afterwards, so their Id/CreatedAt are stamped explicitly here.
+    /// </summary>
+    private void CaptureIntegrationEvents()
+    {
+        if (_outboxDispatcher is null)
+        {
+            return;
+        }
+
+        var entitiesWithEvents = ChangeTracker.Entries<HasDomainEventsBase>()
+            .Select(entry => entry.Entity)
+            .Where(entity => entity.DomainEvents.Any())
+            .ToList();
+
+        if (entitiesWithEvents.Count == 0)
+        {
+            return;
+        }
+
+        var outboxMessages = _outboxDispatcher.Capture(entitiesWithEvents);
+        foreach (var message in outboxMessages)
+        {
+            var entry = OutboxMessages.Add(message);
+            entry.CurrentValues[nameof(BaseEntity.Id)] = _idGenerator.CreateId();
+            entry.CurrentValues[nameof(BaseEntity.CreatedAt)] = DateTime.UtcNow;
+        }
     }
 
     private void PrefixTableNames(ModelBuilder builder)
@@ -147,7 +296,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             if (ShouldPrefixTable(entity))
             {
-                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name));
+                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name, entity.GetTableName()));
             }
         }
     }

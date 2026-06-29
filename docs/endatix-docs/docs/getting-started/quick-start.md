@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: Quick Start
-description: Get up and running with Endatix in minutes
+description: Get the Endatix form management solution up and running in minutes - spin up the API backend, connect your SurveyJS front end, and start collecting form responses.
 ---
 
 # Quick Start

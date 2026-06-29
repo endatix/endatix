@@ -45,8 +45,8 @@ public class ListByFormIdHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 1 };
         var submissions = new List<SubmissionDto>
         {
-            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null),
-            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7"),
+            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null, null, null, null, false),
+            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7", 7, "7", null, true),
         };
         var request = new ListByFormIdQuery(1, 1, 10, []);
 
@@ -56,6 +56,10 @@ public class ListByFormIdHandlerTests
             Arg.Any<ISpecification<Submission, SubmissionDto>>(),
             Arg.Any<CancellationToken>()
         ).Returns(submissions);
+        _submissionsRepository.CountAsync(
+            Arg.Any<ISpecification<Submission>>(),
+            Arg.Any<CancellationToken>()
+        ).Returns(23);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -64,7 +68,11 @@ public class ListByFormIdHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Count().Should().Be(2);
+        result.Value.Items.Count.Should().Be(2);
+        result.Value.TotalRecords.Should().Be(23);
+        result.Value.TotalPages.Should().Be(3);
+        result.Value.Page.Should().Be(1);
+        result.Value.PageSize.Should().Be(10);
     }
 
     [Fact]
@@ -76,16 +84,43 @@ public class ListByFormIdHandlerTests
 
         _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
+        _submissionsRepository.CountAsync(
+            Arg.Any<ISpecification<Submission>>(),
+            Arg.Any<CancellationToken>()
+        ).Returns(25);
+        _submissionsRepository.ListAsync(
+            Arg.Any<ISpecification<Submission, SubmissionDto>>(),
+            Arg.Any<CancellationToken>()
+        ).Returns([]);
 
         // Act
         await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         await _submissionsRepository.Received(1).ListAsync(
-            Arg.Is<ISpecification<Submission, SubmissionDto>>(spec => 
-                spec.Skip == 20 && 
+            Arg.Is<ISpecification<Submission, SubmissionDto>>(spec =>
+                spec.Skip == 20 &&
                 spec.Take == 20
             ),
+            Arg.Any<CancellationToken>()
+        );
+    }
+
+    [Fact]
+    public async Task Handle_ValidRequest_CountsWithUnpagedSpec()
+    {
+        // Arrange
+        var request = new ListByFormIdQuery(1, 2, 20, ["isComplete:true"]);
+
+        _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        // Act
+        await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        await _submissionsRepository.Received(1).CountAsync(
+            Arg.Is<ISpecification<Submission>>(spec => spec is SubmissionsByFormIdCountSpec),
             Arg.Any<CancellationToken>()
         );
     }

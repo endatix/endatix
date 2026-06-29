@@ -37,6 +37,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         submission.Update(
             request.JsonData,
             submission.FormDefinitionId,
+            submission.FormId,
             request.IsComplete ?? DEFAULT_IS_COMPLETE,
             request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
             request.Metadata ?? DEFAULT_METADATA

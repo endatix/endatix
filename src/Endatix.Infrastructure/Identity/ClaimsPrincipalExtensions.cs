@@ -48,7 +48,17 @@ public static class ClaimsPrincipalExtensions
             return null;
         }
 
-        var userIdClaim = identity.FindFirst(ClaimNames.UserId) ??
+        var endatixIdentity = principal.Identities
+            .OfType<AuthorizedIdentity>()
+            .FirstOrDefault(authorizedIdentity => !string.IsNullOrWhiteSpace(authorizedIdentity.UserId));
+
+        if (endatixIdentity is not null)
+        {
+            return endatixIdentity.UserId;
+        }
+
+        var userIdClaim = identity.FindFirst(ClaimNames.EndatixUserId) ??
+                         identity.FindFirst(ClaimNames.UserId) ??
                          identity.FindFirst(ClaimTypes.NameIdentifier);
 
         if (userIdClaim is null)
@@ -78,6 +88,12 @@ public static class ClaimsPrincipalExtensions
         if (endatixIdentity is not null)
         {
             return endatixIdentity.TenantId;
+        }
+
+        var tenantIdClaim = identity.FindFirst(ClaimNames.TenantId);
+        if (tenantIdClaim is not null && long.TryParse(tenantIdClaim.Value, out var tenantId))
+        {
+            return tenantId;
         }
 
         return AuthConstants.DEFAULT_TENANT_ID;

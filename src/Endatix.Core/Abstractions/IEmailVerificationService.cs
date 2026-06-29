@@ -23,4 +23,19 @@ public interface IEmailVerificationService
     /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
     /// <returns>A Result containing the verified User if successful.</returns>
     Task<Result<User>> VerifyEmailAsync(string token, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Activates a pending invited user by validating the invite token, setting their first password, and confirming email.
+    /// </summary>
+    Task<Result<User>> ActivateInviteAsync(string token, string newPassword, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the pending invited user for a valid invite token without consuming the token.
+    /// </summary>
+    Task<Result<User>> GetPendingInviteUserAsync(string token, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Invalidates all pending verification tokens for the specified user.
+    /// </summary>
+    Task<Result> InvalidateVerificationTokensAsync(long userId, CancellationToken cancellationToken);
 } 

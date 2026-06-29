@@ -17,6 +17,15 @@ public class EmailTemplateSettings
     public EmailTemplateConfig EmailVerification { get; set; } = new();
 
     /// <summary>
+    /// User invitation activation email template settings.
+    /// </summary>
+    public EmailTemplateConfig UserInvitation { get; set; } = new()
+    {
+        TemplateId = "user-invitation",
+        FromAddress = "noreply@endatix.com"
+    };
+
+    /// <summary>
     /// Welcome email template settings.
     /// </summary>
     public EmailTemplateConfig WelcomeEmail { get; set; } = new();

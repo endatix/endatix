@@ -23,15 +23,56 @@ public static class FormSpecifications
         }
     }
 
+    /// <summary>
+    /// Loads a form by id for public URL flows (share/embed, mint form access token) where the request may carry
+    /// a different tenant context than the form's tenant. Ignores global tenant filters; still excludes soft-deleted rows.
+    /// </summary>
+    public sealed class ByIdWithRelatedForPublicAccess : Specification<Form>
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ByIdWithRelatedForPublicAccess"/> class.
+        /// </summary>
+        /// <param name="id">The ID of the form to get.</param>
+        public ByIdWithRelatedForPublicAccess(long id)
+        {
+            Query
+                .IgnoreQueryFilters()
+                .Where(f => f.Id == id && !f.IsDeleted)
+                .Include(f => f.ActiveDefinition)
+                .Include(f => f.Theme);
+        }
+    }
+
 
     /// <summary>
     /// Specification to get a form by ID
     /// </summary>
-    public sealed class ById : Specification<Form>
+    public sealed class ById : Specification<Form>, ISingleResultSpecification<Form>
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ById"/> class.
+        /// </summary>
+        /// <param name="id">The ID of the form to get.</param>
         public ById(long id)
         {
             Query.Where(f => f.Id == id);
+        }
+    }
+
+    /// <summary>
+    /// Specification to get a form by ID as NoTracking.
+    /// </summary>
+    public sealed class ByIdReadOnly : Specification<Form>, ISingleResultSpecification<Form>
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ByIdReadOnly"/> class as NoTracking.
+        /// </summary>
+        /// <param name="id">The ID of the form to get.</param>
+        public ByIdReadOnly(long id)
+        {
+            Query
+                .Where(f => f.Id == id)
+                .AsNoTracking();
         }
     }
 
@@ -66,6 +107,17 @@ public static class FormSpecifications
         public ByNameContaining(string searchString)
         {
             Query.Where(f => f.Name.ToLower().Contains(searchString.ToLower()));
+        }
+    }
+
+    /// <summary>
+    /// Forms assigned to a folder.
+    /// </summary>
+    public sealed class ByFolderId : Specification<Form>
+    {
+        public ByFolderId(long folderId)
+        {
+            Query.Where(f => f.FolderId == folderId);
         }
     }
 }

@@ -1,10 +1,4 @@
 /* ********* Parameters ********** */
-
-@minLength(1)
-@maxLength(10)
-@description('Prefix for all resource names (e.g., "prod-", "dev-", "uat-")')
-param resourcePrefix string = 'temp-'
-
 @description('Azure region for deploying resources')
 param location string = resourceGroup().location
 
@@ -87,8 +81,23 @@ param enablePostgresqlHA bool = false
 @description('Enable private network access (VNet integration) for PostgreSQL')
 param enablePostgresqlPrivateNetwork bool = false
 
-@description('Existing VNet resource ID. Leave empty with enablePostgresqlPrivateNetwork to create a managed VNet (snet-app, snet-db, snet-pe).')
+@description('Existing VNet resource ID. Leave empty with enablePostgresqlPrivateNetwork to create a managed VNet (snet-app, snet-db, GatewaySubnet).')
 param vnetResourceId string = ''
+
+@description('Managed VNet address space (app/db/gateway subnets are derived via cidrSubnet). Example prod: 10.71.0.0/16')
+param vnetAddressPrefix string = '10.70.0.0/16'
+
+@description('Point-to-site VPN client address pool (separate from VNet space). Example prod: 10.0.2.0/24')
+param vpnAddressPoolPrefix string = '10.0.1.0/24'
+
+@description('Company segment for CAF-style resource names (e.g. acme)')
+param companyName string = project
+
+@description('Workload segment for CAF-style resource names (e.g. endatix)')
+param workloadName string = 'endatix'
+
+@description('Azure region abbreviation for CAF-style resource names (e.g. weu, eus)')
+param regionAbbreviation string = 'weu'
 
 @description('When enablePostgresqlPrivateNetwork and vnetResourceId is set: PostgreSQL delegated subnet name inside that VNet')
 param postgresSubnetName string = ''
@@ -112,22 +121,65 @@ param enableFailureAnomalyAlerts bool = false
 @description('The deployment mode for the Endatix Hub frontend (recommended: static-site for fastest evaluation; use web-app if you explicitly want App Service hosting)')
 param hubDeploymentMode string = 'static-site'
 
-// Resource naming variables
-var projectLower = toLower(project)
-var projectServiceToken = replace(replace(replace(replace(projectLower, ' ', '-'), '_', '-'), '.', '-'), '--', '-')
-var projectStorageToken = replace(replace(replace(replace(projectLower, '-', ''), '_', ''), '.', ''), ' ', '')
-var prefixServiceToken = toLower(resourcePrefix)
-var prefixStorageToken = replace(prefixServiceToken, '-', '')
-var defaultStorageSuffix = take(uniqueString(subscription().id, resourceGroup().id, resourcePrefix), 8)
+// --- Resource name overrides (optional) ---
+// Leave empty for CAF auto names: {abbr}-{companyName}-{workloadName}-{regionAbbreviation}-{environment}[-{role}]
 
-var endatixAppInsightsName = '${prefixServiceToken}${projectServiceToken}-appinsights'
-var endatixHubName = '${prefixServiceToken}${projectServiceToken}-hub'
-var endatixApiName = '${prefixServiceToken}${projectServiceToken}-api'
-var endatixServicePlanName = '${prefixServiceToken}${projectServiceToken}-serviceplan'
-var endatixVnetName = '${prefixServiceToken}${projectServiceToken}-vnet'
-var endatixStorageAccountName = projectStorageToken == 'endatix'
-  ? '${prefixStorageToken}${projectStorageToken}${defaultStorageSuffix}'
-  : take('${prefixStorageToken}${projectStorageToken}', 24)
+@description('Override: API App Service name. Leave empty for CAF auto name (app-...)')
+param apiAppNameOverride string = ''
+
+@description('Override: Hub App name. Leave empty for CAF auto name (stapp- or app- by hubDeploymentMode)')
+param hubAppNameOverride string = ''
+
+@description('Override: App Service Plan name. Leave empty for CAF auto name (plan-...)')
+param appServicePlanNameOverride string = ''
+
+@description('Override: Application Insights name. Leave empty for CAF auto name (appi-...)')
+param appInsightsNameOverride string = ''
+
+@description('Override: Log Analytics Workspace name. Leave empty for CAF auto name (log-...)')
+param logAnalyticsWorkspaceNameOverride string = ''
+
+@description('Override: PostgreSQL Flexible Server name. Leave empty for CAF auto name (psql-...)')
+param postgresqlServerNameOverride string = ''
+
+@description('Override: Storage Account name (3-24 chars, lowercase alphanumeric only). Leave empty for CAF auto name (st+segments)')
+param storageAccountNameOverride string = ''
+
+@description('Override: VNet name (managed VNet only). Leave empty for CAF auto name (vnet-...)')
+param vnetNameOverride string = ''
+
+var cafNameSuffix = '${companyName}-${workloadName}-${regionAbbreviation}-${environment}'
+
+func cafName(abbr string, suffix string, role string) string =>
+  empty(role) ? '${abbr}-${suffix}' : '${abbr}-${suffix}-${role}'
+
+func stripDashes(value string) string => replace(replace(value, '-', ''), '_', '')
+
+func cafStorageAccountName(company string, workload string, region string, env string) string =>
+  take('st${stripDashes(company)}${stripDashes(workload)}${region}${stripDashes(env)}', 24)
+
+func resolveResourceName(override string, abbr string, suffix string, role string) string =>
+  !empty(override) ? override : cafName(abbr, suffix, role)
+
+var hubCafAbbr = hubDeploymentMode == 'static-site' ? 'stapp' : 'app'
+
+var endatixAppInsightsName = resolveResourceName(appInsightsNameOverride, 'appi', cafNameSuffix, '')
+var endatixLogAnalyticsWsName = resolveResourceName(logAnalyticsWorkspaceNameOverride, 'log', cafNameSuffix, '')
+var endatixHubName = resolveResourceName(hubAppNameOverride, hubCafAbbr, cafNameSuffix, '')
+var endatixApiName = resolveResourceName(apiAppNameOverride, 'app', cafNameSuffix, '')
+var endatixServicePlanName = resolveResourceName(appServicePlanNameOverride, 'plan', cafNameSuffix, '')
+var endatixVnetName = resolveResourceName(vnetNameOverride, 'vnet', cafNameSuffix, '')
+var appSubnetPrefix = cidrSubnet(vnetAddressPrefix, 24, 0)
+var dbSubnetPrefix = cidrSubnet(vnetAddressPrefix, 24, 1)
+var gatewaySubnetPrefix = cidrSubnet(vnetAddressPrefix, 24, 3)
+var appNsgName = cafName('nsg', cafNameSuffix, 'app')
+var dbNsgName = cafName('nsg', cafNameSuffix, 'db')
+var vgwName = cafName('vgw', cafNameSuffix, '01')
+var vgwPipName = cafName('pip', cafNameSuffix, 'vgw-01')
+var endatixStorageAccountName = !empty(storageAccountNameOverride)
+  ? storageAccountNameOverride
+  : cafStorageAccountName(companyName, workloadName, regionAbbreviation, environment)
+var endatixPostgresqlServerName = resolveResourceName(postgresqlServerNameOverride, 'psql', cafNameSuffix, '')
 var deployManagedVnet = enablePostgresqlPrivateNetwork && vnetResourceId == ''
 var storageHostName = '${endatixStorageAccountName}.blob.${az.environment().suffixes.storage}'
 var resolvedHubDefaultHostName = hubDeploymentMode == 'static-site'
@@ -222,7 +274,7 @@ module appInsights './modules/app-insights.module.bicep' = {
   params: {
     location: location
     tags: tags
-    workspaceName: '${prefixServiceToken}${projectServiceToken}-appinsights-ws'
+    workspaceName: endatixLogAnalyticsWsName
     appInsightsName: endatixAppInsightsName
     enableFailureAnomalyAlerts: enableFailureAnomalyAlerts
   }
@@ -244,8 +296,17 @@ module vnetModule './modules/vnet.module.bicep' = if (deployManagedVnet) {
   name: 'vnetModule'
   params: {
     location: location
-    vnetName: endatixVnetName
     tags: tags
+    vnetName: endatixVnetName
+    vnetAddressPrefix: vnetAddressPrefix
+    appSubnetPrefix: appSubnetPrefix
+    dbSubnetPrefix: dbSubnetPrefix
+    gatewaySubnetPrefix: gatewaySubnetPrefix
+    vpnAddressPoolPrefix: vpnAddressPoolPrefix
+    appNsgName: appNsgName
+    dbNsgName: dbNsgName
+    vgwName: vgwName
+    vgwPublicIpName: vgwPipName
   }
 }
 
@@ -346,8 +407,7 @@ module postgresqlModule './modules/postgres.module.bicep' = {
   name: 'postgresqlModule'
   params: {
     location: location
-    resourcePrefix: resourcePrefix
-    project: projectServiceToken
+    serverName: endatixPostgresqlServerName
     tags: tags
     postgresAdminUsername: postgresAdminUsername
     postgresAdminPassword: postgresAdminPassword

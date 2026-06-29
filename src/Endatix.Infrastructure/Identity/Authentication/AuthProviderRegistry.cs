@@ -94,6 +94,26 @@ public sealed class AuthProviderRegistry
     }
 
     /// <summary>
+    /// Resolves the Endatix auth provider identity key from the JWT issuer.
+    /// </summary>
+    public string? ResolveAuthProviderFromIssuer(string? issuer)
+    {
+        if (string.IsNullOrWhiteSpace(issuer))
+        {
+            return null;
+        }
+
+        var schemeName = SelectScheme(issuer, string.Empty);
+
+        return schemeName switch
+        {
+            AuthSchemes.EndatixJwt or AuthSchemes.EndatixReBac => AuthProviders.Endatix,
+            AuthProviders.Keycloak => AuthProviders.Keycloak,
+            _ => schemeName
+        };
+    }
+
+    /// <summary>
     /// Check if a provider registration is requested
     /// </summary>
     public bool IsProviderRegistrationRequested(string schemeName) =>

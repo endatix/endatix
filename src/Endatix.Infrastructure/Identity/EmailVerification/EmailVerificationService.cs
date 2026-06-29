@@ -54,12 +54,12 @@ public class EmailVerificationService : IEmailVerificationService
 
         // Delete any existing tokens for this user
         var existingTokens = await _tokenRepository.ListAsync(
-            new EmailVerificationTokenByUserIdSpec(userId), 
+            new EmailVerificationTokenByUserIdSpec(userId),
             cancellationToken);
-        
-        foreach (var existingToken in existingTokens)
+
+        if (existingTokens.Count > 0)
         {
-            await _tokenRepository.DeleteAsync(existingToken, cancellationToken);
+            await _tokenRepository.DeleteRangeAsync(existingTokens, cancellationToken);
         }
 
         // Create new token
@@ -68,7 +68,6 @@ public class EmailVerificationService : IEmailVerificationService
         var verificationToken = new EmailVerificationToken(userId, tokenValue, expiresAt);
 
         await _tokenRepository.AddAsync(verificationToken, cancellationToken);
-        await _tokenRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success(verificationToken);
     }
@@ -76,10 +75,10 @@ public class EmailVerificationService : IEmailVerificationService
     /// <inheritdoc />
     public async Task<Result<User>> VerifyEmailAsync(string token, CancellationToken cancellationToken)
     {
-        Guard.Against.NullOrEmpty(token);
+        Guard.Against.NullOrWhiteSpace(token);
 
         var verificationToken = await _tokenRepository.FirstOrDefaultAsync(
-            new EmailVerificationTokenByTokenSpec(token), 
+            new EmailVerificationTokenByTokenSpec(token),
             cancellationToken);
 
         if (verificationToken == null)
@@ -119,9 +118,91 @@ public class EmailVerificationService : IEmailVerificationService
         // Mark token as used
         verificationToken.MarkAsUsed();
         await _tokenRepository.UpdateAsync(verificationToken, cancellationToken);
-        await _tokenRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success(user.ToUserEntity());
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<User>> ActivateInviteAsync(string token, string newPassword, CancellationToken cancellationToken)
+    {
+        Guard.Against.NullOrWhiteSpace(token);
+        Guard.Against.NullOrWhiteSpace(newPassword);
+
+        var inviteResult = await ResolvePendingInviteAsync(token, cancellationToken);
+        if (!inviteResult.IsSuccess || inviteResult.Value is null)
+        {
+            return inviteResult.ToErrorResult<User>();
+        }
+
+        return await ActivatePendingInviteAsync(inviteResult.Value, newPassword, cancellationToken);
+    }
+
+    private async Task<Result<User>> ActivatePendingInviteAsync(
+        PendingInvite invite,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        var verificationToken = invite.Token;
+        var user = invite.User;
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var resetResult = await _userManager.ResetPasswordAsync(user, resetToken, newPassword);
+        if (!resetResult.Succeeded)
+        {
+            return Result.Invalid(resetResult.Errors.Select(error => new ValidationError
+            {
+                Identifier = error.Code,
+                ErrorMessage = error.Description
+            }));
+        }
+
+        user.EmailConfirmed = true;
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return Result.Error(new ErrorList(updateResult.Errors.Select(error => error.Description)));
+        }
+
+        verificationToken.MarkAsUsed();
+        await _tokenRepository.UpdateAsync(verificationToken, cancellationToken);
+
+        return Result.Success(user.ToUserEntity());
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<User>> GetPendingInviteUserAsync(string token, CancellationToken cancellationToken)
+    {
+        Guard.Against.NullOrWhiteSpace(token);
+
+        var inviteResult = await ResolvePendingInviteAsync(token, cancellationToken);
+        return inviteResult.IsSuccess && inviteResult.Value is not null
+            ? Result.Success(inviteResult.Value.User.ToUserEntity())
+            : inviteResult.ToErrorResult<User>();
+    }
+
+    /// <inheritdoc />
+    public async Task<Result> InvalidateVerificationTokensAsync(long userId, CancellationToken cancellationToken)
+    {
+        Guard.Against.NegativeOrZero(userId);
+
+        var tokens = await _tokenRepository.ListAsync(
+            new EmailVerificationTokenByUserIdSpec(userId),
+            cancellationToken);
+        var unusedTokens = tokens
+            .Where(token => !token.IsUsed)
+            .ToList();
+
+        if (unusedTokens.Count == 0)
+        {
+            return Result.Success();
+        }
+
+        foreach (var token in unusedTokens)
+        {
+            token.MarkAsUsed();
+        }
+
+        await _tokenRepository.UpdateRangeAsync(unusedTokens, cancellationToken);
+        return Result.Success();
     }
 
     private string GenerateToken()
@@ -130,4 +211,41 @@ public class EmailVerificationService : IEmailVerificationService
         RandomNumberGenerator.Fill(tokenBytes);
         return Convert.ToHexString(tokenBytes);
     }
-} 
+
+    private async Task<Result<PendingInvite>> ResolvePendingInviteAsync(string token, CancellationToken cancellationToken)
+    {
+        var verificationToken = await _tokenRepository.FirstOrDefaultAsync(
+            new EmailVerificationTokenByTokenSpec(token),
+            cancellationToken);
+
+        if (verificationToken == null)
+        {
+            return Result.NotFound("Invalid invite token");
+        }
+
+        if (verificationToken.IsExpired)
+        {
+            return Result.Invalid(new ValidationError("Invite token has expired"));
+        }
+
+        if (verificationToken.IsUsed)
+        {
+            return Result.Invalid(new ValidationError("Invite token has already been used"));
+        }
+
+        var user = await _userManager.FindByIdAsync(verificationToken.UserId.ToString());
+        if (user == null)
+        {
+            return Result.NotFound("User not found");
+        }
+
+        if (user.EmailConfirmed)
+        {
+            return Result.Invalid(new ValidationError("Invite has already been activated"));
+        }
+
+        return Result.Success(new PendingInvite(verificationToken, user));
+    }
+
+    private sealed record PendingInvite(EmailVerificationToken Token, AppUser User);
+}

@@ -39,6 +39,11 @@ public static class ClaimNames
     public const string UserId = JwtRegisteredClaimNames.Sub;
 
     /// <summary>
+    /// Represents the canonical Endatix user id after external identities are provisioned.
+    /// </summary>
+    public const string EndatixUserId = "euid";
+
+    /// <summary>
     /// Represents a claim indicating whether the user is an administrator.
     /// When true, the user bypasses all permission checks for performance.
     /// </summary>

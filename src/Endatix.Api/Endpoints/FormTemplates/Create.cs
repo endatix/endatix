@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormTemplates.Create;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Api.Common;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
 /// <summary>
 /// Endpoint for creating a new form template.
 /// </summary>
-public class Create(IMediator mediator) : Endpoint<CreateFormTemplateRequest, Results<Created<CreateFormTemplateResponse>, BadRequest>>
+public class Create(IMediator mediator) : Endpoint<CreateFormTemplateRequest, Results<Created<CreateFormTemplateResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -29,13 +30,15 @@ public class Create(IMediator mediator) : Endpoint<CreateFormTemplateRequest, Re
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Created<CreateFormTemplateResponse>, BadRequest>> ExecuteAsync(CreateFormTemplateRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Created<CreateFormTemplateResponse>, ProblemHttpResult>> ExecuteAsync(CreateFormTemplateRequest request, CancellationToken ct)
     {
-        var createCommand = new CreateFormTemplateCommand(request.Name!, request.Description, request.JsonData!);
-        var result = await mediator.Send(createCommand, cancellationToken);
+        var folderId = request.FolderId.ParseToLong();
+
+        var createCommand = new CreateFormTemplateCommand(request.Name!, request.Description, request.JsonData!, folderId);
+        var result = await mediator.Send(createCommand, ct);
 
         return TypedResultsBuilder
-            .MapResult(result, FormTemplateMapper.Map<CreateFormTemplateResponse>)
-            .SetTypedResults<Created<CreateFormTemplateResponse>, BadRequest>();
+            .MapResult(result, formTemplate => formTemplate.ToFormTemplateModel<CreateFormTemplateResponse>())
+            .SetTypedResults<Created<CreateFormTemplateResponse>, ProblemHttpResult>();
     }
 }

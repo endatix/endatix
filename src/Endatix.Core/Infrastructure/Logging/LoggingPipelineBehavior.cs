@@ -38,11 +38,11 @@ public class LoggingPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TR
                 var sensitiveAttribute = prop.GetCustomAttribute<SensitiveAttribute>();
                 var value = prop.GetValue(request, null);
 
-                var redactedValue = sensitiveAttribute is not null
-                ? PiiRedactor.Redact(value, sensitiveAttribute.Type)
-                : value;
+                var logValue = sensitiveAttribute is not null
+                    ? PiiRedactor.Redact(value, sensitiveAttribute.Type)
+                    : LogPropertyFormatter.FormatForLog(value);
 
-                _logger.LogInformation("Property {Property} : {@Value}", prop.Name, redactedValue);
+                _logger.LogInformation("Property {Property} : {Value}", prop.Name, logValue);
             }
         }
 

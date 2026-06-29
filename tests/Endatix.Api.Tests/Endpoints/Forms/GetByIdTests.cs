@@ -2,9 +2,9 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Forms;
 using Endatix.Core.UseCases.Forms.GetById;
+using Endatix.Core.UseCases.Forms;
 
 namespace Endatix.Api.Tests.Endpoints.Forms;
 
@@ -63,7 +63,7 @@ public class GetByIdTests
         // Arrange
         var formId = 1L;
         var request = new GetFormByIdRequest { FormId = formId };
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = formId };
+        var form = new FormDto { Id = formId.ToString(), Name = "Test Form", SubmissionsCount = 5 };
         var result = Result.Success(form);
 
         _mediator.Send(Arg.Any<GetFormByIdQuery>(), Arg.Any<CancellationToken>())
@@ -76,8 +76,31 @@ public class GetByIdTests
         var okResult = response.Result as Ok<FormModel>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
-        okResult!.Value!.Id.Should().Be(formId.ToString());
+        okResult!.Value!.Id.Should().Be(form.Id);
         okResult!.Value!.Name.Should().Be(form.Name);
+        okResult!.Value!.SubmissionsCount.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ValidRequestWithNoSubmissions_ReturnsZeroSubmissionsCount()
+    {
+        // Arrange
+        var formId = 1L;
+        var request = new GetFormByIdRequest { FormId = formId };
+        var form = new FormDto { Id = formId.ToString(), Name = "Test Form", SubmissionsCount = 0 };
+        var result = Result.Success(form);
+
+        _mediator.Send(Arg.Any<GetFormByIdQuery>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        // Assert
+        var okResult = response.Result as Ok<FormModel>;
+        okResult.Should().NotBeNull();
+        okResult!.Value.Should().NotBeNull();
+        okResult!.Value!.SubmissionsCount.Should().Be(0);
     }
 
     [Fact]
@@ -85,7 +108,7 @@ public class GetByIdTests
     {
         // Arrange
         var request = new GetFormByIdRequest { FormId = 123 };
-        var result = Result.Success(new Form(SampleData.TENANT_ID, "Test Form"));
+        var result = Result.Success(new FormDto { Id = "123", Name = "Test Form", SubmissionsCount = 0 });
         
         _mediator.Send(Arg.Any<GetFormByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);

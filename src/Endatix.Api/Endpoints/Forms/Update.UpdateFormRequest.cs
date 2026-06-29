@@ -26,7 +26,22 @@ public class UpdateFormRequest
     public bool? IsEnabled { get; set; }
 
     /// <summary>
+    /// Indicates if one response per user is enforced.
+    /// </summary>
+    public bool? LimitOnePerUser { get; set; }
+
+    /// <summary>
+    /// Additional form-level metadata as raw JSON string.
+    /// </summary>
+    public string? Metadata { get; set; }
+
+    /// <summary>
     /// The JSON data containing webhook configuration settings for this form.
     /// </summary>
     public string? WebHookSettingsJson { get; set; }
+
+    /// <summary>
+    /// Optional folder id (omit to leave unchanged only if client sends full resource; use partial update for explicit clear).
+    /// </summary>
+    public string? FolderId { get; set; }
 }

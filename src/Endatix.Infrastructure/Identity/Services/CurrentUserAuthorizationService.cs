@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
@@ -178,6 +179,17 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         await _authorizationCache.InvalidateAsync(userId, tenantId, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public Task InvalidateAuthorizationDataCacheAsync(
+        string userId,
+        long tenantId,
+        CancellationToken cancellationToken)
+    {
+        Guard.Against.NullOrEmpty(userId);
+
+        return _authorizationCache.InvalidateAsync(userId, tenantId, cancellationToken);
+    }
+
 
     /// <summary>
     /// Gets the authorization data from the claims principal using the hydrated <see cref="AuthorizedIdentity"/> if present.
@@ -219,6 +231,4 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
 
         return authorizationData;
     }
-
-
 }

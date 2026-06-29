@@ -1,5 +1,6 @@
-﻿using Endatix.Core.Entities;
+using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions;
+using System.Text.Json;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -17,9 +18,12 @@ public class SubmissionMapper
         CreatedAt = dto.CreatedAt,
         Metadata = dto.Metadata,
         Status = dto.Status,
-        SubmittedBy = dto.SubmittedBy
+        SubmittedBy = dto.SubmittedBy,
+        SubmitterId = dto.SubmitterId?.ToString(),
+        SubmitterDisplayId = dto.SubmitterDisplayId,
+        SubmitterProfile = dto.SubmitterProfile,
+        IsTestSubmission = dto.IsTestSubmission
     };
-
 
     public static T Map<T>(Submission submission) where T : SubmissionModel, new() => new T
     {
@@ -35,7 +39,11 @@ public class SubmissionMapper
         CreatedAt = submission.CreatedAt,
         ModifiedAt = submission.ModifiedAt,
         Status = submission.Status.Code,
-        SubmittedBy = submission.SubmittedBy
+        SubmittedBy = submission.SubmittedBy,
+        SubmitterId = submission.SubmitterId?.ToString(),
+        SubmitterDisplayId = submission.SubmitterDisplayId,
+        SubmitterProfile = ParseSubmitterProfile(submission.SubmitterProfileSnapshot),
+        IsTestSubmission = submission.IsTestSubmission
     };
 
     public static SubmissionDetailsModel MapToSubmissionDetails(Submission submission)
@@ -58,4 +66,21 @@ public class SubmissionMapper
 
     public static IEnumerable<T> Map<T>(IEnumerable<Submission> submissions) where T : SubmissionModel, new() =>
         submissions.Select(Map<T>).ToList();
+
+    private static IReadOnlyDictionary<string, string>? ParseSubmitterProfile(string? snapshot)
+    {
+        if (string.IsNullOrWhiteSpace(snapshot))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(snapshot);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 }

@@ -1,6 +1,7 @@
 ﻿using FastEndpoints;
 using FluentValidation;
 using Endatix.Infrastructure.Data.Config;
+using Endatix.Api.Common;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -21,5 +22,9 @@ public class UpdateFormValidator : Validator<UpdateFormRequest>
 
         RuleFor(x => x.IsEnabled)
             .NotEmpty();
+
+        RuleFor(x => x.Metadata)
+            .ValidJsonString()
+            .When(x => x.Metadata != null);
     }
 }

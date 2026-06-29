@@ -7,6 +7,6 @@ public class ListValidator : Validator<ListRequest>
 {
     public ListValidator()
     {
-        Include(new PagedRequestValidator());
+        Include(new PageableRequestValidator());
     }
 }

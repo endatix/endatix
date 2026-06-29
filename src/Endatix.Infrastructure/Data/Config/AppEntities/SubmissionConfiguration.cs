@@ -10,6 +10,8 @@ namespace Endatix.ApplicationCore.Infrastructure.Data.Config.AppEntities;
 public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 {
     private const int IDENTIFIER_MAX_LENGTH = 64;
+    private const int SUBMITTER_DISPLAY_ID_MAX_LENGTH = 256;
+    private const int RESTRICTION_KEY_MAX_LENGTH = 256;
     private const int TOKEN_VALUE_MAX_LENGTH = 64;
 
     public void Configure(EntityTypeBuilder<Submission> builder)
@@ -29,6 +31,26 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
             .HasMaxLength(IDENTIFIER_MAX_LENGTH)
             .IsRequired(false);
 
+        builder.Property(s => s.SubmitterDisplayId)
+            .HasMaxLength(SUBMITTER_DISPLAY_ID_MAX_LENGTH)
+            .IsRequired(false);
+
+        builder.HasIndex(s => s.SubmitterDisplayId);
+
+        builder.Property(s => s.SubmitterProfileSnapshot)
+            .IsRequired(false);
+
+        builder.Property(s => s.IsTestSubmission)
+            .HasDefaultValue(false);
+
+        builder.Property(s => s.Revision)
+            .HasDefaultValue(1L)
+            .IsRequired();
+
+        builder.Property(s => s.RestrictionKey)
+            .HasMaxLength(RESTRICTION_KEY_MAX_LENGTH)
+            .IsRequired(false);
+
         builder.HasOne(s => s.FormDefinition)
             .WithMany(fd => fd.Submissions)
             .HasForeignKey(s => s.FormDefinitionId)
@@ -40,6 +62,12 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
             .HasForeignKey(s => s.FormId)
             .OnDelete(DeleteBehavior.NoAction)
             .IsRequired();
+
+        builder.HasOne(s => s.Submitter)
+            .WithMany()
+            .HasForeignKey(s => s.SubmitterId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
 
         builder.OwnsOne(s => s.Token, tokenBuilder =>
            {
@@ -55,14 +83,12 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
                           .HasColumnName("Status")
                           .HasMaxLength(SubmissionStatus.STATUS_CODE_MAX_LENGTH)
                           .IsRequired();
-               // Name can be resolved at runtime from Code
                statusBuilder.Ignore(s => s.Name);
            });
 
-        // FormId index is needed for frequent lookups by form
         builder.HasIndex(s => s.FormId);
         builder.HasIndex(s => s.FormDefinitionId);
-        // SubmittedBy index for filtering submissions by user
         builder.HasIndex(s => s.SubmittedBy);
+        builder.HasIndex(s => s.SubmitterId);
     }
 }

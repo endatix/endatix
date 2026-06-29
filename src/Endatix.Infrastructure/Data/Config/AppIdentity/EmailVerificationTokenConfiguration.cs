@@ -23,6 +23,8 @@ public class EmailVerificationTokenConfiguration : IEntityTypeConfiguration<Emai
             .IsRequired()
             .HasMaxLength(64);
 
+        builder.Ignore(t => t.RawToken);
+
         builder.Property(t => t.ExpiresAt)
             .IsRequired();
 

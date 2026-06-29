@@ -12,11 +12,13 @@ public class ListFormTemplatesQueryTests
         int? pageSize = 10;
 
         // Act
-        var query = new ListFormTemplatesQuery(page, pageSize);
+        var query = new ListFormTemplatesQuery(page, pageSize, null);
 
         // Assert
         query.Page.Should().Be(page);
         query.PageSize.Should().Be(pageSize);
+        query.FilterExpressions.Should().BeNull();
+        query.FolderId.Should().BeNull();
     }
 
     [Fact]
@@ -27,10 +29,12 @@ public class ListFormTemplatesQueryTests
         int? pageSize = null;
 
         // Act
-        var query = new ListFormTemplatesQuery(page, pageSize);
+        var query = new ListFormTemplatesQuery(page, pageSize, null);
 
         // Assert
         query.Page.Should().BeNull();
         query.PageSize.Should().BeNull();
+        query.FilterExpressions.Should().BeNull();
+        query.FolderId.Should().BeNull();
     }
 } 

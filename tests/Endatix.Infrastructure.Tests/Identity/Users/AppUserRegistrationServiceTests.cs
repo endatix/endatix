@@ -32,7 +32,7 @@ public class AppUserRegistrationServiceTests
         _emailSender = Substitute.For<IEmailSender>();
         _emailTemplateService = Substitute.For<IEmailTemplateService>();
         _logger = Substitute.For<ILogger<AppUserRegistrationService>>();
-        
+
         _sut = new AppUserRegistrationService(_userManager, _userStore, _emailVerificationService, _emailSender, _emailTemplateService, _logger);
     }
 
@@ -40,7 +40,6 @@ public class AppUserRegistrationServiceTests
     public async Task RegisterUserAsync_EmailStoreNotSupported_ThrowsNotSupportedException()
     {
         // Arrange
-        var tenantId = 1L;
         var email = "test@example.com";
         var password = "P@ssw0rd";
         _userManager.SupportsUserEmail.Returns(false);
@@ -57,11 +56,10 @@ public class AppUserRegistrationServiceTests
     public async Task RegisterUserAsync_UserCreationFails_ReturnsErrorResult()
     {
         // Arrange
-        var tenantId = 1L;
         var email = "test@example.com";
         var password = "P@ssw0rd";
         var identityError = new IdentityError { Code = "Error", Description = "Failed to create user" };
-        
+
         _userManager.SupportsUserEmail.Returns(true);
         _userManager.CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>())
             .Returns(IdentityResult.Failed(identityError));
@@ -79,7 +77,6 @@ public class AppUserRegistrationServiceTests
     public async Task RegisterUserAsync_ValidRequest_CreatesUserSuccessfully()
     {
         // Arrange
-        var tenantId = 1;
         var userId = 123L;
         var email = "test@example.com";
         var password = "P@ssw0rd";
@@ -129,24 +126,66 @@ public class AppUserRegistrationServiceTests
         result.Value.IsVerified.Should().BeFalse(); // Should be false since email is not confirmed
 
         await _userStore.Received(1).SetUserNameAsync(
-            Arg.Is<AppUser>(u => u.TenantId == 0 && !u.EmailConfirmed), 
-            email, 
-            cancellationToken);
-        
-        await _emailStore.Received(1).SetEmailAsync(
-            Arg.Is<AppUser>(u => u.TenantId == 0 && !u.EmailConfirmed), 
-            email, 
+            Arg.Is<AppUser>(u => u.TenantId == 0 && !u.EmailConfirmed),
+            email,
             cancellationToken);
 
-        _userManager.Received(1).CreateAsync(
-            Arg.Is<AppUser>(u => 
-                u.TenantId == 0 && 
-                !u.EmailConfirmed && 
-                u.UserName == email && 
+        await _emailStore.Received(1).SetEmailAsync(
+            Arg.Is<AppUser>(u => u.TenantId == 0 && !u.EmailConfirmed),
+            email,
+            cancellationToken);
+
+        await _userManager.Received(1).CreateAsync(
+            Arg.Is<AppUser>(u =>
+                u.TenantId == 0 &&
+                !u.EmailConfirmed &&
+                u.UserName == email &&
                 u.Email == email),
             password);
 
         await _emailVerificationService.Received(1).CreateVerificationTokenAsync(userId, cancellationToken);
+    }
+
+    [Fact]
+    public async Task RegisterUserAsync_EmailWithWhitespace_UsesTrimmedEmail()
+    {
+        // Arrange
+        var userId = 123L;
+        var email = "test@example.com";
+        var password = "P@ssw0rd";
+
+        _userManager.SupportsUserEmail.Returns(true);
+        _userManager.CreateAsync(Arg.Any<AppUser>(), password)
+            .Returns(callInfo =>
+            {
+                var user = callInfo.Arg<AppUser>();
+                user.Id = userId;
+                return Task.FromResult(IdentityResult.Success);
+            });
+        _userStore.SetUserNameAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                callInfo.Arg<AppUser>().UserName = callInfo.Arg<string>();
+                return Task.CompletedTask;
+            });
+        _emailStore.SetEmailAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                callInfo.Arg<AppUser>().Email = callInfo.Arg<string>();
+                return Task.CompletedTask;
+            });
+        _emailVerificationService.CreateVerificationTokenAsync(userId, TestContext.Current.CancellationToken)
+            .Returns(Result.Success(new EmailVerificationToken(userId, "test-token", DateTime.UtcNow.AddHours(24))));
+
+        // Act
+        var result = await _sut.RegisterUserAsync($" {email} ", password, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Email.Should().Be(email);
+        await _userManager.Received(1).FindByEmailAsync(email);
+        await _userStore.Received(1).SetUserNameAsync(Arg.Any<AppUser>(), email, TestContext.Current.CancellationToken);
+        await _emailStore.Received(1).SetEmailAsync(Arg.Any<AppUser>(), email, TestContext.Current.CancellationToken);
     }
 
     [Theory]
@@ -162,14 +201,14 @@ public class AppUserRegistrationServiceTests
     [InlineData("invalid-email")]
     [InlineData("test@")]
     [InlineData("@domain.com")]
-    public async Task RegisterUserAsync_DisposableEmail_ReturnsInvalidResult(string email)
+    public async Task RegisterUserAsync_DisposableEmail_ReturnsInvalidResult(string? email)
     {
         // Arrange
         var password = "P@ssw0rd";
         _userManager.SupportsUserEmail.Returns(true);
 
         // Act
-        var result = await _sut.RegisterUserAsync(email, password, CancellationToken.None);
+        var result = await _sut.RegisterUserAsync(email!, password, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -285,6 +324,73 @@ public class AppUserRegistrationServiceTests
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeTrue();
         _emailTemplateService.Received(1).CreateVerificationEmail(email, token);
+        await _emailSender.Received(1).SendEmailAsync(emailWithTemplate, cancellationToken);
+    }
+
+    [Fact]
+    public async Task RegisterInvitedUserAsync_ValidRequest_SendsInvitationEmailWithTemplate()
+    {
+        // Arrange
+        var tenantId = 10L;
+        var userId = 123L;
+        var email = "invitee@example.com";
+        var cancellationToken = CancellationToken.None;
+        var token = "invite-token";
+        var emailWithTemplate = new EmailWithTemplate
+        {
+            To = email,
+            From = "noreply@example.com",
+            Subject = "Accept your Endatix invitation",
+            TemplateId = "user-invitation",
+            Metadata = new Dictionary<string, object>
+            {
+                ["activationUrl"] = "https://app.example.com/activate-invite?token=invite-token"
+            }
+        };
+
+        _userManager.SupportsUserEmail.Returns(true);
+        _userManager.CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                var user = callInfo.Arg<AppUser>();
+                user.Id = userId;
+                return Task.FromResult(IdentityResult.Success);
+            });
+        _userStore.SetUserNameAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var user = callInfo.Arg<AppUser>();
+                var userName = callInfo.Arg<string>();
+                user.UserName = userName;
+                return Task.CompletedTask;
+            });
+        _emailStore.SetEmailAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var user = callInfo.Arg<AppUser>();
+                var emailArg = callInfo.Arg<string>();
+                user.Email = emailArg;
+                return Task.CompletedTask;
+            });
+        _emailVerificationService.CreateVerificationTokenAsync(userId, cancellationToken)
+            .Returns(Result.Success(new EmailVerificationToken(userId, token, DateTime.UtcNow.AddHours(24))));
+        _emailTemplateService.CreateInvitationEmail(email, token).Returns(emailWithTemplate);
+
+        // Act
+        var result = await _sut.RegisterInvitedUserAsync(email, tenantId, cancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        await _userManager.Received(1).CreateAsync(
+            Arg.Any<AppUser>(),
+            Arg.Is<string>(password =>
+                password.Length == 24 &&
+                password.Any(char.IsUpper) &&
+                password.Any(char.IsLower) &&
+                password.Any(char.IsDigit) &&
+                password.Any(character => "!@$?_#*-+".Contains(character))));
+        _emailTemplateService.Received(1).CreateInvitationEmail(email, token);
+        _emailTemplateService.DidNotReceive().CreateVerificationEmail(email, token);
         await _emailSender.Received(1).SendEmailAsync(emailWithTemplate, cancellationToken);
     }
 }

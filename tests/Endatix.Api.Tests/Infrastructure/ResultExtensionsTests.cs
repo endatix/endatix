@@ -14,6 +14,7 @@ public class ResultExtensionsTests
     private const string DEFAULT_NOT_FOUND_TITLE = ResultTitles.NOT_FOUND;
     private const string DEFAULT_UNAUTHORIZED_TITLE = ResultTitles.UNAUTHORIZED;
     private const string DEFAULT_FORBIDDEN_TITLE = ResultTitles.FORBIDDEN;
+    private const string DEFAULT_CONFLICT_TITLE = ResultTitles.CONFLICT;
 
     [Fact]
     public void ToNotFound_WithErrors_ReturnsProblemDetailsWithErrors()
@@ -138,6 +139,7 @@ public class ResultExtensionsTests
     [Theory]
     [InlineData(ResultStatus.Invalid, StatusCodes.Status400BadRequest)]
     [InlineData(ResultStatus.NotFound, StatusCodes.Status404NotFound)]
+    [InlineData(ResultStatus.Conflict, StatusCodes.Status409Conflict)]
     [InlineData(ResultStatus.Unauthorized, StatusCodes.Status401Unauthorized)]
     [InlineData(ResultStatus.Forbidden, StatusCodes.Status403Forbidden)]
     [InlineData(ResultStatus.Error, StatusCodes.Status500InternalServerError)]
@@ -265,6 +267,11 @@ public class ResultExtensionsTests
         problemDetails.Detail.Should().Contain("Validation error");
         problemDetails.Extensions.Should().ContainKey("errorCode");
         problemDetails.Extensions["errorCode"].Should().Be("ERROR_CODE");
+        problemDetails.Extensions.Should().ContainKey("fields");
+        var fields =
+            problemDetails.Extensions["fields"].Should().BeOfType<Dictionary<string, string[]>>().Subject;
+        fields.Should().ContainKey("Field");
+        fields["Field"].Should().ContainSingle("Validation error");
     }
 
     [Fact]
@@ -318,6 +325,20 @@ public class ResultExtensionsTests
         // Assert
         httpResult.ProblemDetails.Title.Should().Be(DEFAULT_FORBIDDEN_TITLE);
         httpResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
+    [Fact]
+    public void ToProblem_Conflict_UsesConflictDefaultTitle()
+    {
+        // Arrange
+        var result = Result.Conflict("Duplicate submission");
+
+        // Act
+        var httpResult = result.ToProblem();
+
+        // Assert
+        httpResult.ProblemDetails.Title.Should().Be(DEFAULT_CONFLICT_TITLE);
+        httpResult.StatusCode.Should().Be(StatusCodes.Status409Conflict);
     }
 
     [Fact]
@@ -484,6 +505,7 @@ public class ResultExtensionsTests
         {
             ResultStatus.Invalid => Result.Invalid(new ValidationError("Field", "Validation error", "ERROR_CODE", ValidationSeverity.Error)),
             ResultStatus.NotFound => Result.NotFound(errors),
+            ResultStatus.Conflict => Result.Conflict(errors),
             ResultStatus.Unauthorized => Result.Unauthorized(errors),
             ResultStatus.Forbidden => Result.Forbidden(errors),
             ResultStatus.Error => Result.Error(errors.FirstOrDefault() ?? "Error occurred"),

@@ -1,4 +1,4 @@
-﻿using Ardalis.GuardClauses;
+using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Identity;
@@ -36,6 +36,35 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
         }
 
         return Result.Success(user.ToUserEntity());
+    }
+
+    /// <inheritdoc/>
+    public async Task<Result> PersistLoginSessionAsync(
+        long userId,
+        string refreshToken,
+        DateTime refreshTokenExpireAt,
+        CancellationToken cancellationToken)
+    {
+        Guard.Against.NegativeOrZero(userId);
+        Guard.Against.NullOrEmpty(refreshToken);
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return Result.Error("Failed to persist login session.");
+        }
+
+        user.LastLoginAt = DateTimeOffset.UtcNow;
+        user.RefreshTokenHash = _passwordHasher.HashPassword(user, refreshToken);
+        user.RefreshTokenExpireAt = refreshTokenExpireAt;
+
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return Result.Error("Failed to persist login session.");
+        }
+
+        return Result.Success();
     }
 
     /// <inheritdoc/>

@@ -13,7 +13,7 @@ public class SubmissionUpdateTests
         var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
 
         // Act
-        var action = () => submission.Update(null, formDefinitionId: 123);
+        var action = () => submission.Update(null, formDefinitionId: 123, formDefinitionFormId: 123);
 
         // Assert
         action.Should().Throw<ArgumentNullException>()
@@ -27,7 +27,7 @@ public class SubmissionUpdateTests
         var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
 
         // Act
-        var action = () => submission.Update(string.Empty, formDefinitionId: 123);
+        var action = () => submission.Update(string.Empty, formDefinitionId: 123, formDefinitionFormId: 123);
 
         // Assert
         action.Should().Throw<ArgumentException>()
@@ -42,11 +42,22 @@ public class SubmissionUpdateTests
         const long invalidFormDefinitionId = -1;
 
         // Act
-        var action = () => submission.Update(SampleData.SUBMISSION_JSON_DATA_1, invalidFormDefinitionId);
+        var action = () => submission.Update(SampleData.SUBMISSION_JSON_DATA_1, invalidFormDefinitionId, formDefinitionFormId: 123);
 
         // Assert
         action.Should().Throw<ArgumentException>()
             .WithMessage(GetErrorMessage(nameof(Submission.FormDefinitionId), ZeroOrNegative));
+    }
+
+    [Fact]
+    public void Update_FormDefinitionFormIdMismatch_ThrowsArgumentException()
+    {
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
+
+        var act = () => submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 789, formDefinitionFormId: 999);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("formDefinitionFormId");
     }
 
     [Fact]
@@ -58,7 +69,7 @@ public class SubmissionUpdateTests
         const long updatedFormDefinitionId = 789;
 
         // Act
-        submission.Update(updatedJsonData, updatedFormDefinitionId, isComplete: false, currentPage: 3, metadata: "Updated");
+        submission.Update(updatedJsonData, updatedFormDefinitionId, formDefinitionFormId: 123, isComplete: false, currentPage: 3, metadata: "Updated");
 
         // Assert
         submission.Should().NotBeNull();
@@ -76,7 +87,7 @@ public class SubmissionUpdateTests
         var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
 
         // Act
-        submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 123, isComplete: true);
+        submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 123, formDefinitionFormId: 123, isComplete: true);
 
         // Assert
         submission.Should().NotBeNull();

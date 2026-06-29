@@ -24,4 +24,8 @@
     <ProjectReference Include="../Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
     <ProjectReference Include="../Endatix.Framework/Endatix.Framework.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Endatix.Api.Tests" />
+  </ItemGroup>
 </Project>

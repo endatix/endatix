@@ -26,6 +26,7 @@ public class SubmissionCompletedWebHookHandler(IWebHookService webHookService, I
             currentPage = notification.Submission.CurrentPage,
             metadata = notification.Submission.Metadata,
             submittedBy = notification.Submission.SubmittedBy,
+            submitterDisplayId = notification.Submission.SubmitterDisplayId,
             status = notification.Submission.Status.Code,
             createdAt = notification.Submission.CreatedAt,
             modifiedAt = notification.Submission.ModifiedAt,

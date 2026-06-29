@@ -4,8 +4,8 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Features.ReCaptcha;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.UseCases.FormDefinitions.GetActive;
 
@@ -56,7 +56,9 @@ public class GetActiveFormDefinitionHandler(
         {
             ThemeJsonData = formWithActiveDefinition.Theme?.JsonData,
             RequiresReCaptcha = reCaptchaPolicyService.RequiresReCaptcha(formWithActiveDefinition),
-            CustomQuestions = customQuestionsJson ?? []
+            LimitOnePerUser = formWithActiveDefinition.LimitOnePerUser,
+            CustomQuestions = customQuestionsJson ?? [],
+            Metadata = formWithActiveDefinition.Metadata
         };
 
         return Result.Success(activeDefinitionDto);

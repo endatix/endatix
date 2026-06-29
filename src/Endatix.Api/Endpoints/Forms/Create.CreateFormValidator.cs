@@ -1,6 +1,7 @@
 ﻿using FastEndpoints;
 using FluentValidation;
 using Endatix.Infrastructure.Data.Config;
+using Endatix.Api.Common;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -30,5 +31,9 @@ public class CreateFormValidator : Validator<CreateFormRequest>
         RuleFor(x => x.FormDefinitionJsonData)
             .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH)
             .When(x => x.FormDefinitionJsonData != null);
+
+        RuleFor(x => x.Metadata)
+            .ValidJsonString()
+            .When(x => x.Metadata != null);
     }
 }

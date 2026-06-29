@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: "Endatix Hub Docs"
-description: Modern React/Next.js application serving as the visual management layer for Endatix API
+description: Explore Endatix Hub - a modern React/Next.js application serving as the visual management layer for forms, submissions, and API configuration.
 ---
 
 # Endatix Hub Docs
@@ -31,4 +31,9 @@ A modern React/Next.js application that serves as the visual management layer fo
 ## Next Steps
 
 - [Customizing the UI](/docs/developers/hub/) — Learn how to extend and customize Hub components
-- [Deployment Guide](/docs/building-your-solution/deployment/subfolder-deployment) — Deploy Hub to production
+- [Azure Blob Storage](/docs/developers/hub/azure-storage) — Configure Hub asset storage on Azure
+- [RustFS storage](/docs/developers/hub/rustfs-storage) — Configure Hub with S3-compatible RustFS storage
+- [Asset storage overview](/docs/configuration/asset-storage) — Choose public/private storage mode and understand trade-offs
+- [Maintenance mode](/docs/developers/hub/maintenance-mode) — Enable Hub UI maintenance with env-driven proxy behavior
+- [Subfolder Deployment](/docs/building-your-solution/deployment/subfolder-deployment) — Deploy Hub under a path prefix
+- [Reverse Proxy Deployment](/docs/building-your-solution/deployment/reverse-proxy-deployment) — Run Hub and API behind a proxy

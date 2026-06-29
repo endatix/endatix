@@ -21,6 +21,11 @@ public record TenantSettingsDto
     public bool IsSubmissionTokenValidAfterCompletion { get; init; }
 
     /// <summary>
+    /// When true, forms and templates require a folder assignment.
+    /// </summary>
+    public bool RequireFolderAssignment { get; init; }
+
+    /// <summary>
     /// Slack integration settings with sensitive data masked.
     /// </summary>
     public SlackSettingsDto? SlackSettings { get; init; }

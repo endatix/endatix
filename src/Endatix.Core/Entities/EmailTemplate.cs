@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using Ardalis.GuardClauses;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Domain;
@@ -78,14 +79,14 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
         Guard.Against.NullOrWhiteSpace(to);
         Guard.Against.Null(variables);
 
-        var htmlContent = ReplaceVariables(HtmlContent, variables);
+        var htmlContent = ReplaceVariables(HtmlContent, variables, encodeValues: true);
         var plainTextContent = ReplaceVariables(PlainTextContent, variables);
-        
-        var finalSubject = !string.IsNullOrEmpty(subject) 
+
+        var finalSubject = !string.IsNullOrEmpty(subject)
             ? ReplaceVariables(subject, variables)
             : ReplaceVariables(Subject, variables);
-        
-        var finalFromAddress = !string.IsNullOrEmpty(from) 
+
+        var finalFromAddress = !string.IsNullOrEmpty(from)
             ? from
             : FromAddress;
 
@@ -99,14 +100,20 @@ public class EmailTemplate : BaseEntity, IAggregateRoot
         };
     }
 
-    private static string ReplaceVariables(string content, Dictionary<string, string> variables)
+    private static string ReplaceVariables(
+        string content,
+        Dictionary<string, string> variables,
+        bool encodeValues = false)
     {
         var result = content;
         foreach (var (key, value) in variables)
         {
             var placeholder = $"{{{{{key}}}}}";
-            result = result.Replace(placeholder, value);
+            var replacement = encodeValues
+                ? HtmlEncoder.Default.Encode(value)
+                : value;
+            result = result.Replace(placeholder, replacement);
         }
         return result;
     }
-} 
+}

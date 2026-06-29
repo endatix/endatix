@@ -69,7 +69,12 @@ public class ListTests
     public async Task ExecuteAsync_ShouldMapRequestToQueryCorrectly()
     {
         // Arrange
-        var request = new FormTemplatesListRequest { Page = 2, PageSize = 20 };
+        var request = new FormTemplatesListRequest
+        {
+            Page = 2,
+            PageSize = 20,
+            Filter = ["folderId:null"]
+        };
         var result = Result.Success(Enumerable.Empty<FormTemplateDto>());
         
         _mediator.Send(Arg.Any<ListFormTemplatesQuery>(), Arg.Any<CancellationToken>())
@@ -82,7 +87,9 @@ public class ListTests
         await _mediator.Received(1).Send(
             Arg.Is<ListFormTemplatesQuery>(query =>
                 query.Page == request.Page &&
-                query.PageSize == request.PageSize
+                query.PageSize == request.PageSize &&
+                query.FilterExpressions == request.Filter &&
+                query.FolderId == request.FolderId
             ),
             Arg.Any<CancellationToken>()
         );

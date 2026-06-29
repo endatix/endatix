@@ -22,10 +22,13 @@ public class FormMapper
         Description = form.Description,
         IsEnabled = form.IsEnabled,
         IsPublic = form.IsPublic,
+        LimitOnePerUser = form.LimitOnePerUser,
+        Metadata = form.Metadata,
         ThemeId = form.ThemeId?.ToString(),
         ActiveDefinitionId = form.ActiveDefinitionId?.ToString(),
         CreatedAt = form.CreatedAt,
         ModifiedAt = form.ModifiedAt,
+        FolderId = form.FolderId?.ToString(),
         WebHookSettingsJson = form.WebHookSettingsJson,
         WebHookSettings = ParseJsonString(form.WebHookSettingsJson)
     };
@@ -74,22 +77,27 @@ public static class FormMapperExtensions
 
     public static IEnumerable<FormModel> ToFormModelList(this IEnumerable<FormDto> forms)
     {
-        return forms.Select(formDto => formDto.ToFormModel());
+        return forms.Select(formDto => formDto.ToFormModel(includeWebHookSettings: false));
     }
 
-    public static FormModel ToFormModel(this FormDto formDto) => new FormModel()
+    public static FormModel ToFormModel(this FormDto formDto, bool includeWebHookSettings = true) => new FormModel()
     {
         Id = formDto.Id,
         Name = formDto.Name,
         Description = formDto.Description,
         IsEnabled = formDto.IsEnabled,
         IsPublic = formDto.IsPublic,
+        LimitOnePerUser = formDto.LimitOnePerUser,
+        Metadata = formDto.Metadata,
         ThemeId = formDto.ThemeId,
         ActiveDefinitionId = formDto.ActiveDefinitionId,
         CreatedAt = formDto.CreatedAt,
         ModifiedAt = formDto.ModifiedAt,
         SubmissionsCount = formDto.SubmissionsCount,
+        FolderId = formDto.FolderId,
         WebHookSettingsJson = formDto.WebHookSettingsJson,
-        WebHookSettings = FormMapper.ParseJsonString(formDto.WebHookSettingsJson)
+        WebHookSettings = includeWebHookSettings
+            ? FormMapper.ParseJsonString(formDto.WebHookSettingsJson)
+            : null
     };
 }

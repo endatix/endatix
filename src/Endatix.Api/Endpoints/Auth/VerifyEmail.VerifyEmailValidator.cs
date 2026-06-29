@@ -1,3 +1,4 @@
+using Endatix.Core.Entities.Identity;
 using FastEndpoints;
 using FluentValidation;
 
@@ -14,6 +15,7 @@ public class VerifyEmailValidator : Validator<VerifyEmailRequest>
     public VerifyEmailValidator()
     {
         RuleFor(x => x.Token)
-            .NotEmpty();
+            .NotEmpty()
+            .MaximumLength(EmailVerificationToken.MaxRawTokenLength);
     }
 }

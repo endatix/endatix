@@ -1,0 +1,149 @@
+---
+title: 'Using feature flags'
+description: 'Gate FastEndpoints, services, and background work with Endatix:FeatureFlags and Microsoft Feature Management'
+sidebar_position: 3
+---
+
+# Using feature flags
+
+Endatix API uses [Microsoft.FeatureManagement](https://github.com/microsoft/FeatureManagement-Dotnet) with configuration rooted at **`Endatix:FeatureFlags`**. This is automatically registered when you call `ConfigureEndatix` in your Program.cs. 
+
+You can use it to roll out API surface and behavior gradually, including **per-tenant** or **per-user** targeting. 
+
+## Flag names
+
+For product level feature, flags, we use the string constants on **`FeatureFlags`** in `Endatix.Framework.FeatureFlags` so configuration, code, and docs stay aligned (for example `FeatureFlags.DataLists`, `FeatureFlags.ExperimentalFeatures`). The same string is the **feature key** in configuration. 
+
+You can also define custom feature flags as the FeatureFlag's config is open for custom feature flag keys.
+
+## Configuration
+
+### Global toggle
+
+The simplest form is a boolean or string under `Endatix:FeatureFlags`:
+
+```json
+{
+  "Endatix": {
+    "FeatureFlags": {
+      "DataLists": true
+    }
+  }
+}
+```
+
+Equivalent flat keys (for example in environment variables) look like `Endatix__FeatureFlags__DataLists` = `true` or `false`.
+
+### Per-tenant targeting
+
+Endatix registers a targeting context that exposes the current tenant as a **group** named **`tenant-{TenantId}`** (for example tenant `1` → group `tenant-1`). Your targeting rules in configuration must use **that exact group name** so rollout matches the resolved `ITenantContext`.
+
+Example: enable **DataLists** only for tenant `1` at 100% rollout, using the `Microsoft.Targeting` filter (structure follows [Microsoft’s feature flag configuration](https://learn.microsoft.com/en-us/azure/azure-app-configuration/feature-management-dotnet-reference)):
+
+```json
+{
+  "Endatix": {
+    "FeatureFlags": {
+      "DataLists": {
+        "EnabledFor": [
+          {
+            "Name": "Microsoft.Targeting",
+            "Parameters": {
+              "Audience": {
+                "Groups": [
+                  {
+                    "Name": "tenant-1",
+                    "RolloutPercentage": 100
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+Feature keys in JSON **must** match the `FeatureFlags.*` constants (for example `DataLists`, not a renamed key). If a key does not match, the flag will not behave as your C# code expects.
+
+## FastEndpoints
+
+Declare a feature gate in **`Configure()`** so the endpoint is only active when the flag is enabled. This uses FastEndpoints’ **`FeatureFlag<EndpointFeatureGate>(...)`** together with **`EndpointFeatureGate`**, which resolves **`IFeatureGate`** from the HTTP request scope and evaluates the flag name passed into the attribute (here `FeatureFlags.DataLists`).
+
+```csharp
+using FastEndpoints;
+using Endatix.Api.Common.FeatureFlags;
+using Endatix.Framework.FeatureFlags;
+
+namespace Endatix.Api.Endpoints.Themes;
+
+public class YourCustomEndpoint() : Endpoint<GetByIdRequest, Results<Ok<ThemeModel>, BadRequest, NotFound>>
+{
+    public override void Configure()
+    {
+        Get("my-new-feature/{tokenId}");
+        FeatureFlag<EndpointFeatureGate>(FeatureFlags.DataLists); 
+        // or FeatureFlag<EndpointFeatureGate>("MyCustomeFeatureFlag");
+    }
+
+    public override async Task<Results<Ok<ThemeModel>, BadRequest, NotFound>> ExecuteAsync(
+        GetByIdRequest request,
+        CancellationToken cancellationToken)
+    {
+        ....
+    }
+}
+```
+
+`EndpointFeatureGate` requires a non-empty flag name; the pipeline supplies the name from `FeatureFlag<EndpointFeatureGate>(...)`. When the FeatureFlag returns false, the endpoint will respond with 404 Not Found.
+
+## Services, MediatR handlers, and request-scoped code
+
+Inject **`IFeatureGate`** (scoped) and branch before doing gated work:
+
+```csharp
+public sealed class MyAppService(IFeatureGate featureGate)
+{
+    public async Task DoWorkAsync(CancellationToken cancellationToken)
+    {
+        if (!await featureGate.IsEnabledAsync(FeatureFlags.DataLists, cancellationToken))
+        {
+            return;
+        }
+
+        // Gated logic
+    }
+}
+```
+
+Use the same pattern inside any type resolved **within a request scope** (validators, behaviors, etc.).
+
+## Background services and other non-request scopes
+
+`IFeatureGate` is **scoped**. A singleton **`BackgroundService`** must not take `IFeatureGate` in its constructor. Instead inject **`IServiceScopeFactory`**, create a scope per run (or per unit of work), resolve `IFeatureGate` or `IFeatureManager`, then evaluate the flag:
+
+```csharp
+public sealed class MyBackgroundService(IServiceScopeFactory scopeFactory) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+        IFeatureGate featureGate = scope.ServiceProvider.GetRequiredService<IFeatureGate>();
+
+        if (!await featureGate.IsEnabledAsync(FeatureFlags.DataLists, stoppingToken))
+        {
+            return;
+        }
+
+        // Gated background work
+    }
+}
+```
+
+If you need **`IFeatureManager`** (for example future variant APIs), resolve it from the same scope. For ordinary boolean checks, **`IFeatureGate`** remains the recommended default.
+
+## See also
+
+- [Health checks](/docs/developers/api/health-checks) — operational endpoints alongside the API

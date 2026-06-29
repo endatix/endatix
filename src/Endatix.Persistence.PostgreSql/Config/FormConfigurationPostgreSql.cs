@@ -14,6 +14,10 @@ namespace Endatix.Persistence.PostgreSql.Config
             // Configure WebHookSettingsJson as JSONB for PostgreSQL
             builder.Property(f => f.WebHookSettingsJson)
                 .HasColumnType("jsonb");
+
+            // Configure Metadata as JSONB for PostgreSQL
+            builder.Property(f => f.Metadata)
+                .HasColumnType("jsonb");
         }
     }
 }

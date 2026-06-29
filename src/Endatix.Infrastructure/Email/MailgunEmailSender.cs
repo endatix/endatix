@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,21 +11,33 @@ using Ardalis.GuardClauses;
 
 namespace Endatix.Infrastructure.Email;
 
-public class MailgunEmailSender : IEmailSender, IHasConfigSection<MailgunSettings>, IPluginInitializer
+/// <summary>
+/// Mailgun email sender implementation.
+/// </summary>
+/// <remarks>
+/// Initializes a new instance of the MailgunEmailSender class.
+/// </remarks>
+/// <param name="factory">The HTTP client factory.</param>
+/// <param name="logger">The logger.</param>
+/// <param name="options">The mailgun settings.</param>
+/// <param name="templateRenderer">The email template renderer.</param>
+public class MailgunEmailSender(
+    IHttpClientFactory factory,
+    ILogger<MailgunEmailSender> logger,
+    IOptions<MailgunSettings> options,
+    EmailTemplateRenderer templateRenderer
+    ) : IEmailSender, IHasConfigSection<MailgunSettings>, IPluginInitializer
 {
-    private readonly IHttpClientFactory _factory;
+    private readonly IHttpClientFactory _factory = factory;
 
-    private readonly ILogger _logger;
+    private readonly ILogger _logger = logger;
 
-    private readonly MailgunSettings _settings;
+    private readonly MailgunSettings _settings = options.Value;
 
-    public MailgunEmailSender(IHttpClientFactory factory, ILogger<MailgunEmailSender> logger, IOptions<MailgunSettings> options)
-    {
-        _factory = factory;
-        _logger = logger;
-        _settings = options.Value;
-    }
+    private readonly EmailTemplateRenderer _templateRenderer = templateRenderer;
 
+
+    /// <inheritdoc />
     public static Action<IServiceCollection> InitializationDelegate => (services) =>
     {
         services.AddHttpClient();
@@ -35,8 +48,20 @@ public class MailgunEmailSender : IEmailSender, IHasConfigSection<MailgunSetting
         services.AddHttpClient();
     }
 
+    /// <inheritdoc />
+    public string ProviderName => "Mailgun";
+
+    /// <inheritdoc />
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(_settings.ApiKey) &&
+        !string.IsNullOrWhiteSpace(_settings.BaseUrl) &&
+        !string.IsNullOrWhiteSpace(_settings.Domain);
+
+    /// <inheritdoc />
     public async Task SendEmailAsync(EmailWithBody email, CancellationToken cancellationToken = default)
     {
+        Guard.Against.Null(email);
+        Guard.Against.NullOrWhiteSpace(email.To);
         Guard.Against.NullOrWhiteSpace(email.From);
         Guard.Against.NullOrWhiteSpace(email.Subject);
         Guard.Against.NullOrWhiteSpace(email.PlainTextBody);
@@ -44,10 +69,10 @@ public class MailgunEmailSender : IEmailSender, IHasConfigSection<MailgunSetting
 
         var contentValues = new List<KeyValuePair<string, string>>
         {
-            new KeyValuePair<string, string>("from", email.From),
-            new KeyValuePair<string, string>("subject", email.Subject),
-            new KeyValuePair<string, string>("text", email.PlainTextBody),
-            new KeyValuePair<string, string>("html", email.HtmlBody)
+            new("from", email.From),
+            new("subject", email.Subject),
+            new("text", email.PlainTextBody),
+            new("html", email.HtmlBody)
         };
 
         var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
@@ -56,30 +81,46 @@ public class MailgunEmailSender : IEmailSender, IHasConfigSection<MailgunSetting
         _logger.LogInformation("Sending Mailgun message with status code {statusCode} and response: {response}", response.StatusCode, responseContent);
     }
 
+    /// <inheritdoc />
     public async Task SendEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
     {
+        Guard.Against.Null(email);
+
+        if (email.IsExternal)
+        {
+            await SendExternalTemplateEmailAsync(email, cancellationToken);
+            return;
+        }
+
+        var emailWithBody = await _templateRenderer.RenderAsync(email, cancellationToken);
+
+        await SendEmailAsync(emailWithBody, cancellationToken);
+    }
+
+    private async Task SendExternalTemplateEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
+    {
+        Guard.Against.Null(email);
+        Guard.Against.NullOrWhiteSpace(email.To);
         Guard.Against.NullOrWhiteSpace(email.TemplateId);
 
         var contentValues = new List<KeyValuePair<string, string>>
         {
-            new KeyValuePair<string, string>("template", email.TemplateId)
+            new("template", email.TemplateId)
         };
 
         if (!string.IsNullOrWhiteSpace(email.From))
         {
-            contentValues.Add(new KeyValuePair<string, string>("from", email.From));
-        }
-        if (!string.IsNullOrWhiteSpace(email.Subject))
-        {
-            contentValues.Add(new KeyValuePair<string, string>("subject", email.Subject));
+            contentValues.Add(new("from", email.From));
         }
 
-        foreach (var kvp in email.Metadata)
+        if (!string.IsNullOrWhiteSpace(email.Subject))
         {
-            var key = kvp.Key;
-            var value = kvp.Value?.ToString() ?? string.Empty;
-            var json = $"{{\"{key}\": \"{value}\"}}";
-            contentValues.Add(new KeyValuePair<string, string>("h:X-Mailgun-Variables", json));
+            contentValues.Add(new("subject", email.Subject));
+        }
+
+        if (email.Metadata.Count > 0)
+        {
+            contentValues.Add(new("h:X-Mailgun-Variables", JsonSerializer.Serialize(email.Metadata)));
         }
 
         var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
@@ -97,7 +138,7 @@ public class MailgunEmailSender : IEmailSender, IHasConfigSection<MailgunSetting
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(authToken));
 
         var baseUrl = _settings.BaseUrl.Trim();
-        if (baseUrl.EndsWith("/"))
+        if (baseUrl.EndsWith('/'))
         {
             baseUrl = baseUrl[..^1];
         }

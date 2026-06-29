@@ -101,11 +101,13 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
 
     private Submission CreateSubmission(SubmissionInfo submissionInfo, Form form, long? formDefinitionId = default)
     {
-        var submission = new Submission(tenantId: 1, submissionInfo.JsonData.GetRawText(), form.Id,
-            formDefinitionId ?? form.ActiveDefinition!.Id, submissionInfo.IsComplete)
-        {
-            Id = idGenerator.CreateId()
-        };
+        var submission = Submission.Create(
+            tenantId: 1,
+            jsonData: submissionInfo.JsonData.GetRawText(),
+            formId: form.Id,
+            formDefinitionId: formDefinitionId ?? form.ActiveDefinition!.Id,
+            options: new SubmissionCreateOptions(IsComplete: submissionInfo.IsComplete));
+        submission.Id = idGenerator.CreateId();
 
         // Use 'with {}' to create a fresh owned entity instance per submission.
         // Sharing the same static SubmissionStatus singleton across multiple Submission

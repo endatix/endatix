@@ -29,6 +29,11 @@ public class EndatixMiddlewareOptions
     public bool UseMultitenancy { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets a value indicating whether to use forwarded headers middleware.
+    /// </summary>
+    public bool UseForwardedHeaders { get; set; } = false;
+
+    /// <summary>
     /// Gets or sets a value indicating whether to use HSTS middleware.
     /// </summary>
     public bool UseHsts { get; set; } = true;
@@ -61,4 +66,4 @@ public class EndatixMiddlewareOptions
     /// Gets or sets a delegate to configure additional middleware.
     /// </summary>
     public Action<IApplicationBuilder>? ConfigureAdditionalMiddleware { get; set; }
-} 
+}

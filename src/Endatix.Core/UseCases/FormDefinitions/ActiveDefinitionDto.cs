@@ -36,6 +36,11 @@ public class ActiveDefinitionDto
     public bool? RequiresReCaptcha { get; init; }
 
     /// <summary>
+    /// Indicates whether one response per user is enforced for the form.
+    /// </summary>
+    public bool LimitOnePerUser { get; init; }
+
+    /// <summary>
     /// Indicates whether this form definition is in draft status.
     /// </summary>
     public bool IsDraft { get; set; }
@@ -65,6 +70,11 @@ public class ActiveDefinitionDto
     /// The list of custom questions' JSON data associated with this form definition's tenant.
     /// </summary>
     public IEnumerable<string> CustomQuestions { get; set; }
+
+    /// <summary>
+    /// Optional form-level metadata payload.
+    /// </summary>
+    public string? Metadata { get; set; }
 
 
 }

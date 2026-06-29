@@ -1,8 +1,13 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
-public abstract class BaseEntity
+/// <summary>
+/// Base type for persisted entities. Inherits <see cref="HasDomainEventsBase"/> so aggregates can
+/// raise domain/integration events (via <c>RegisterDomainEvent</c>) that the outbox capture picks up.
+/// </summary>
+public abstract class BaseEntity : HasDomainEventsBase
 {
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public virtual long Id { get; set; }

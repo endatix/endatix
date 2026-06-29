@@ -1,0 +1,194 @@
+---
+title: Azure Blob Storage
+description: Configure Endatix Hub asset storage with Azure Blob Storage.
+---
+
+import CallToAction from "@site/src/components/CallToAction";
+
+# Azure Blob Storage
+
+Use Azure Blob Storage when Hub runs in Azure or when your organization already manages Blob Storage accounts for application assets.
+
+## What Azure stores
+
+Hub uses Azure Blob Storage for two logical containers:
+
+- `user-files`: respondent uploads, signatures, and submission files.
+- `content`: form builder assets such as logos, images, and other content files.
+
+The names are configurable, but keeping the defaults makes support and troubleshooting easier.
+
+## Azure prerequisites
+
+Create or choose:
+
+1. A StorageV2 Azure Storage account.
+2. Two blob containers, usually `user-files` and `content`.
+3. A server-side credential with permission to create SAS URLs, list blobs, read blob properties, and delete blobs.
+4. A browser-reachable Blob endpoint. This can be the default Azure Blob endpoint or a custom routed endpoint such as a CDN/Front Door host that forwards the Blob Storage methods Hub uses.
+
+The current Hub provider uses the storage account name and account key. Store the key only in server runtime environment variables, preferably through your hosting platform secret store or Azure Key Vault integration.
+
+## Required settings
+
+```env
+STORAGE_PROVIDER=azure
+STORAGE_AZURE_ACCOUNT_NAME=your-storage-account
+STORAGE_AZURE_ACCOUNT_KEY=your-storage-account-key
+STORAGE_AZURE_ENDPOINT=https://your-storage-account.blob.core.windows.net
+```
+
+`STORAGE_AZURE_ENDPOINT` must be reachable by both the Hub server and the browser because Hub uses it for canonical asset URLs, presigned upload/read URLs, Azure Blob SDK operations, and Next.js image host allowlisting.
+
+Use the default Azure Blob endpoint for the simplest setup. Use a custom endpoint only when that host can route the Blob Storage REST operations Hub needs, including browser `PUT` uploads and server-side list/head/delete calls. A read-only CDN origin is not enough for uploads.
+
+Examples:
+
+```env
+# Default Azure Blob host
+STORAGE_AZURE_ENDPOINT=https://endatixassets.blob.core.windows.net
+
+# Custom routed endpoint, e.g. CDN or Azure Front Door in front of Blob Storage
+STORAGE_AZURE_ENDPOINT=https://files.example.com
+```
+
+## Optional settings
+
+```env
+# Defaults to true. Set to false only for public storage.
+STORAGE_IS_PRIVATE=true
+STORAGE_AZURE_SAS_READ_EXPIRY_MINUTES=15
+STORAGE_AZURE_SAS_WRITE_EXPIRY_SECONDS=180
+
+# Optional container name overrides.
+# Defaults: user-files and content.
+STORAGE_USER_FILES_CONTAINER_NAME=secure-vault
+STORAGE_CONTENT_FILES_CONTAINER_NAME=content-vault
+```
+
+Keep `STORAGE_IS_PRIVATE=true` for respondent uploads or any file that requires Hub authorization before read access. This is the default, so you only need to set it explicitly when you want the deployment to be self-documenting. Set `STORAGE_IS_PRIVATE=false` only when blobs should be publicly readable from the configured host.
+
+**Defaults:**
+```bash
+# following values will be used if you omit them (default values)
+STORAGE_IS_PRIVATE=true
+STORAGE_AZURE_SAS_READ_EXPIRY_MINUTES=15
+STORAGE_AZURE_SAS_WRITE_EXPIRY_SECONDS=180
+STORAGE_USER_FILES_CONTAINER_NAME=user-files
+STORAGE_CONTENT_FILES_CONTAINER_NAME=content
+```
+
+:::warning[Depreciated env variables]
+Endatix Hub still reads legacy env variables, but they will be decomissioned in future versions.
+
+- `USER_FILES_STORAGE_CONTAINER_NAME`
+- `CONTENT_STORAGE_CONTAINER_NAME`
+
+only when the canonical `STORAGE_*` container names are unset or empty. New deployments should use `STORAGE_USER_FILES_CONTAINER_NAME` and `STORAGE_CONTENT_FILES_CONTAINER_NAME`.
+:::
+
+Write URLs are intentionally short-lived because the browser only needs enough time to upload the selected file. Read URLs should also stay short because Hub can issue fresh URLs after access checks.
+
+## Create containers
+
+Using Azure CLI with the account key and default container names:
+
+```bash
+az storage container create \
+  --account-name "$STORAGE_AZURE_ACCOUNT_NAME" \
+  --account-key "$STORAGE_AZURE_ACCOUNT_KEY" \
+  --name user-files \
+  --public-access off
+
+az storage container create \
+  --account-name "$STORAGE_AZURE_ACCOUNT_NAME" \
+  --account-key "$STORAGE_AZURE_ACCOUNT_KEY" \
+  --name content \
+  --public-access off
+```
+
+If you override the names, create containers with those exact values instead:
+
+```bash
+az storage container create \
+  --account-name "$STORAGE_AZURE_ACCOUNT_NAME" \
+  --account-key "$STORAGE_AZURE_ACCOUNT_KEY" \
+  --name secure-vault \
+  --public-access off
+
+az storage container create \
+  --account-name "$STORAGE_AZURE_ACCOUNT_NAME" \
+  --account-key "$STORAGE_AZURE_ACCOUNT_KEY" \
+  --name content-vault \
+  --public-access off
+```
+
+For private mode, keep containers private. For public mode, the host configured in `STORAGE_AZURE_ENDPOINT` must be able to serve blobs directly to browsers, either through container/blob public access or a controlled CDN setup.
+
+## Configure CORS
+
+Hub uploads files directly from the browser to Azure using a short-lived SAS URL and `PUT`. The upload request may include:
+
+- `x-ms-blob-type: BlockBlob`
+- `x-ms-blob-content-type`
+- `x-ms-blob-content-disposition`
+- `x-ms-blob-content-language`
+- `x-ms-meta-*` metadata headers
+
+Configure Blob service CORS for your Hub origin:
+
+```bash
+az storage cors add \
+  --account-name "$STORAGE_AZURE_ACCOUNT_NAME" \
+  --account-key "$STORAGE_AZURE_ACCOUNT_KEY" \
+  --services b \
+  --origins "https://hub.example.com" \
+  --methods GET HEAD PUT OPTIONS \
+  --allowed-headers "*" \
+  --exposed-headers "ETag,x-ms-request-id,x-ms-version,x-ms-blob-type" \
+  --max-age 3000
+```
+
+For local development, add your local Hub origin as well:
+
+```bash
+az storage cors add \
+  --account-name "$STORAGE_AZURE_ACCOUNT_NAME" \
+  --account-key "$STORAGE_AZURE_ACCOUNT_KEY" \
+  --services b \
+  --origins "http://localhost:3000" \
+  --methods GET HEAD PUT OPTIONS \
+  --allowed-headers "*" \
+  --exposed-headers "ETag,x-ms-request-id,x-ms-version,x-ms-blob-type" \
+  --max-age 3000
+```
+
+In production, avoid `*` for origins. Scope CORS to the exact Hub domains that users load in the browser.
+
+## Legacy Azure environment variables
+
+Existing Azure deployments can continue using these names while migrating:
+
+```env
+AZURE_STORAGE_ACCOUNT_NAME=
+AZURE_STORAGE_ACCOUNT_KEY=
+AZURE_STORAGE_CUSTOM_DOMAIN=
+AZURE_STORAGE_IS_PRIVATE=
+```
+
+Canonical `STORAGE_IS_PRIVATE` and `STORAGE_AZURE_*` values win when both canonical and legacy names are set. New deployments should use `STORAGE_IS_PRIVATE` and `STORAGE_AZURE_ENDPOINT`.
+
+## Security guidance
+
+- Prefer private storage for respondent uploads.
+- Keep `STORAGE_AZURE_ACCOUNT_KEY` out of client-exposed env, `next.config.env`, browser logs, and screenshots.
+- Rotate account keys on a schedule and after any suspected exposure.
+- Use separate storage accounts or containers per environment.
+- Keep production CORS origins narrow.
+- If using a CDN/custom domain, make sure private-mode assets are not cached publicly unless that is intentional.
+
+<CallToAction
+  layout="standalone"
+  type="need-assistance"
+  title="Do you need assistance with setting your storage?"
+/>

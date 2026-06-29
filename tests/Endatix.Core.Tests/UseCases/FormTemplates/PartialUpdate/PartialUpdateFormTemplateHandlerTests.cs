@@ -1,7 +1,10 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormTemplates.PartialUpdate;
+using Endatix.Core.UseCases.Folders;
+using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Core.Tests.UseCases.FormTemplates.PartialUpdate;
 
@@ -13,7 +16,7 @@ public class PartialUpdateFormTemplateHandlerTests
     public PartialUpdateFormTemplateHandlerTests()
     {
         _repository = Substitute.For<IRepository<FormTemplate>>();
-        _handler = new PartialUpdateFormTemplateHandler(_repository);
+        _handler = new PartialUpdateFormTemplateHandler(_repository, FolderAssignmentPolicyStub.Relaxed(SampleData.TENANT_ID));
     }
 
     [Fact]
@@ -104,4 +107,40 @@ public class PartialUpdateFormTemplateHandlerTests
         result.Value.Description.Should().Be(request.Description);
         result.Value.JsonData.Should().Be(formTemplate.JsonData);
     }
-} 
+
+    [Fact]
+    public async Task Handle_MovingFromImmutableFolder_ReturnsConflict()
+    {
+        // Arrange
+        var tenantSettingsRepo = Substitute.For<IRepository<TenantSettingsEntity>>();
+        var folderRepo = Substitute.For<IRepository<Folder>>();
+        var tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+        var helper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, tenantContext);
+
+        var immutableFolder = new Folder(SampleData.TENANT_ID, "Immutable", "immutable", "IMMUTABLE")
+        {
+            Id = 7,
+            Immutable = true,
+        };
+        folderRepo
+            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<Folder>>(), Arg.Any<CancellationToken>())
+            .Returns(immutableFolder);
+        tenantSettingsRepo
+            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
+            .Returns((TenantSettingsEntity?)null);
+
+        var handler = new PartialUpdateFormTemplateHandler(_repository, helper);
+        var formTemplate = new FormTemplate(SampleData.TENANT_ID, SampleData.FORM_NAME_1, folderId: 7) { Id = 1 };
+        var request = new PartialUpdateFormTemplateCommand(1, null, null, null) { FolderId = 9 };
+        _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
+            .Returns(formTemplate);
+
+        // Act
+        var result = await handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().ContainSingle(e => e.Contains("locked folders", StringComparison.OrdinalIgnoreCase));
+    }
+}

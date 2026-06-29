@@ -31,6 +31,16 @@ public record FormDto
     public bool IsPublic { get; init; }
 
     /// <summary>
+    /// Indicates if one response per user is enforced.
+    /// </summary>
+    public bool LimitOnePerUser { get; init; }
+
+    /// <summary>
+    /// Additional form-level metadata as raw JSON string.
+    /// </summary>
+    public string? Metadata { get; init; }
+
+    /// <summary>
     /// The ID of the theme associated with the form.
     /// </summary>
     public string? ThemeId { get; init; }
@@ -59,4 +69,9 @@ public record FormDto
     /// The JSON data containing webhook configuration settings for this form.
     /// </summary>
     public string? WebHookSettingsJson { get; init; }
+
+    /// <summary>
+    /// Optional folder id for organization.
+    /// </summary>
+    public string? FolderId { get; init; }
 }

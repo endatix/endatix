@@ -24,7 +24,7 @@ public class GetFields(IMediator mediator) : Endpoint<GetFieldsRequest, Results<
                             "Each field includes name, title, and type (SurveyJS question type).";
             s.Responses[200] = "List of definition fields.";
             s.Responses[400] = "Invalid form ID.";
-            s.Responses[404] = "No definitions found for the given form.";
+            s.Responses[404] = "Form not found.";
         });
     }
 

@@ -288,6 +288,32 @@ public sealed class SubmissionExporterBaseTests
     }
 
     [Fact]
+    public async Task GetStreamContextAsync_ShouldUseNotAvailableValue_ForMissingSubmissionMetadata()
+    {
+        // Arrange
+        var records = CreateTestRecords(
+            new SubmissionExportRow
+            {
+                Id = 42,
+                FormId = 100
+            }
+        );
+
+        // Act
+        var contexts = new List<(SubmissionExportRow Row, JsonDocument? Doc, List<ColumnDefinition<SubmissionExportRow>> Columns)>();
+        await foreach (var context in _sut.GetStreamContextAsyncPublic(records, null, CancellationToken.None))
+        {
+            contexts.Add(context);
+        }
+
+        // Assert
+        var ctx = new TransformationContext<SubmissionExportRow>(contexts[0].Row, contexts[0].Doc, _logger);
+        Assert.Equal("N/A", contexts[0].Columns.First(c => c.Name == "CompletedAt").GetValue(ctx));
+        Assert.Equal("N/A", contexts[0].Columns.First(c => c.Name == "SubmitterId").GetValue(ctx));
+        Assert.Equal("N/A", contexts[0].Columns.First(c => c.Name == "SubmitterDisplayId").GetValue(ctx));
+    }
+
+    [Fact]
     public void GetFileName_ShouldUseFormIdFromMetadata_WhenAvailable()
     {
         // Arrange

@@ -39,7 +39,7 @@ External authorization works by using token introspection to retrieve authorizat
   }}
 />
 
-:::info Base line
+:::info[Base line]
 For this example, the user is already authenticated via Keycloak. As a result, Keycloak has issued a [Lightweight JWT Access Token](https://www.keycloak.org/docs/latest/server_admin/#_using_lightweight_access_token) to the Client Application (“Endatix Hub”). This token deliberately excludes sensitive information and bulky claims (like many roles/permissions), reducing the data payload & minimizing PII disclosure
 :::
 
@@ -51,7 +51,7 @@ Now, the client app needs to make a request to the resource server (“Endatix A
 4. **Introspection Response**: Keycloak returns the Introspection Response, which is a JSON document containing the token's active state (active: true) along with the full set of claims, including the necessary RBAC details (roles, permissions, scopes, etc.).
 5. **RBAC Enforcement**: The Resource Server ("Endatix API") uses this complete, validated authorization data from the introspection response to enforce its access policies and make the final grant or denial decision. In specific, it will use the roles and permissions returned from the introspection response and map them to the Endatix internal role system to hydrate the current user's context with authorization data. Using this data, the API will be able to determine if the user has access to the requested resource and return the appropriate response.
 
-:::tip Good to know
+:::tip[Good to know]
 Endatix uses an abstraction layer to handle the external authorization data. Current strategy uses token introspection to retrieve the authorization data from the external provider. But the `IAuthorizationStrategy` ( [GitHub link](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Identity/Authorization/IAuthorizationStrategy.cs)) interface allows you to implement your own strategy to retrieve the authorization data from the external provider e.g. fetch from custom database or external API.
 :::
 

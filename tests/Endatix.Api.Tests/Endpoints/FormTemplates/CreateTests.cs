@@ -20,7 +20,7 @@ public class CreateTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_InvalidRequest_ReturnsBadRequest()
+    public async Task ExecuteAsync_InvalidRequest_ReturnsProblemRequest()
     {
         // Arrange
         var request = new CreateFormTemplateRequest
@@ -39,8 +39,8 @@ public class CreateTests
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
-        badRequestResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
     }
 
     [Fact]

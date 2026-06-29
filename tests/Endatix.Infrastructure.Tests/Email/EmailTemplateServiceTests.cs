@@ -74,9 +74,87 @@ public class EmailTemplateServiceTests
         result.Subject.Should().Be(string.Empty); // Subject comes from template
         result.TemplateId.Should().Be("email-verification");
         result.Metadata.Should().NotBeNull();
-        result.Metadata.Should().HaveCount(2);
+        result.Metadata.Should().HaveCount(6);
         result.Metadata["hubUrl"].Should().Be("https://app.example.com");
         result.Metadata["verificationToken"].Should().Be("abc123-token");
+        result.Metadata["verificationUrl"].Should().Be("https://app.example.com/verify-email?token=abc123-token");
+        result.Metadata["headline"].Should().Be("Verify your email address");
+        result.Metadata["bodyText"].Should().Be("Verify your email address to activate your Endatix account.");
+        result.Metadata["actionText"].Should().Be("Verify email address");
+    }
+
+    [Fact]
+    public void CreateInvitationEmail_WithValidInputs_ReturnsActivationUrl()
+    {
+        // Arrange
+        var settings = new EmailTemplateSettings
+        {
+            UserInvitation = new EmailTemplateConfig
+            {
+                TemplateId = "user-invitation",
+                FromAddress = "noreply@example.com"
+            }
+        };
+        var options = Options.Create(settings);
+        var hubOptions = CreateHubOptions("https://app.example.com");
+        var service = new EmailTemplateService(options, hubOptions);
+
+        var userEmail = "test@example.com";
+        var token = "abc123-token";
+
+        // Act
+        var result = service.CreateInvitationEmail(userEmail, token);
+
+        // Assert
+        result.To.Should().Be(userEmail);
+        result.From.Should().Be("noreply@example.com");
+        result.TemplateId.Should().Be("user-invitation");
+        result.Metadata["activationUrl"].Should().Be("https://app.example.com/activate-invite?token=abc123-token");
+        result.Metadata["headline"].Should().Be("Accept your Endatix invitation");
+        result.Metadata["bodyText"].Should().Be("Set your password to activate your account and sign in to Endatix Hub.");
+        result.Metadata["actionText"].Should().Be("Accept invitation");
+    }
+
+    [Fact]
+    public void CreateVerificationEmail_WithUrlSensitiveToken_UrlEncodesQueryValue()
+    {
+        // Arrange
+        var settings = new EmailTemplateSettings
+        {
+            EmailVerification = new EmailTemplateConfig
+            {
+                TemplateId = "email-verification",
+                FromAddress = "noreply@example.com"
+            }
+        };
+        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions("https://app.example.com"));
+
+        // Act
+        var result = service.CreateVerificationEmail("test@example.com", "abc+123/==");
+
+        // Assert
+        result.Metadata["verificationUrl"].Should().Be("https://app.example.com/verify-email?token=abc%2B123%2F%3D%3D");
+    }
+
+    [Fact]
+    public void CreateForgotPasswordEmail_WithUrlSensitiveEmail_UrlEncodesQueryValues()
+    {
+        // Arrange
+        var settings = new EmailTemplateSettings
+        {
+            ForgotPasswordEmail = new EmailTemplateConfig
+            {
+                TemplateId = "forgot-password",
+                FromAddress = "noreply@example.com"
+            }
+        };
+        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions("https://app.example.com"));
+
+        // Act
+        var result = service.CreateForgotPasswordEmail("user+invite@example.com", "reset token");
+
+        // Assert
+        result.Metadata["resetCodeQuery"].ToString().Should().StartWith("email=user%2Binvite@example.com&resetCode=");
     }
 
     [Fact]

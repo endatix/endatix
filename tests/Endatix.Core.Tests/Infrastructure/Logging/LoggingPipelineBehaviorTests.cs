@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Endatix.Core.Infrastructure.Logging;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -56,6 +57,33 @@ public class LoggingPipelineBehaviorTests
     }
 
     [Fact]
+    public async Task Handle_LoggingEnabled_LogsClaimsPrincipalSummary()
+    {
+        // Arrange
+        var logger = Substitute.For<ILogger<Mediator>>();
+        var sut = new LoggingPipelineBehavior<TestRequestWithPrincipal, TestResponse>(logger);
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim("sub", "user-123")
+        ], authenticationType: "Keycloak"));
+        var request = new TestRequestWithPrincipal { Id = 1, SubmitterPrincipal = principal };
+        var response = new TestResponse { Result = "Success" };
+        var next = new RequestHandlerDelegate<TestResponse>(() => Task.FromResult(response));
+        logger.IsEnabled(LogLevel.Information).Returns(true);
+
+        // Act
+        await sut.Handle(request, next, CancellationToken.None);
+
+        // Assert
+        var logCalls = logger.ReceivedCalls()
+            .Where(call => call.GetMethodInfo().Name == "Log")
+            .Select(call => call.GetArguments()[2]?.ToString())
+            .ToList();
+
+        logCalls.Should().Contain("Property SubmitterPrincipal : ClaimsPrincipal(authenticated=True, userId=user-123)");
+    }
+
+    [Fact]
     public async Task Handle_LoggingEnabled_LogsRequestDetailsAndResponse()
     {
         // Arrange
@@ -90,6 +118,12 @@ public class LoggingPipelineBehaviorTests
             },
             s => s.Should().StartWith($"Handled TestRequest with {response} in")
         );
+    }
+
+    private class TestRequestWithPrincipal : IRequest<TestResponse>
+    {
+        public int Id { get; set; }
+        public ClaimsPrincipal? SubmitterPrincipal { get; set; }
     }
 
     private class TestRequest : IRequest<TestResponse>

@@ -1,4 +1,6 @@
-﻿namespace Endatix.Api.Endpoints.Submissions;
+using Endatix.Core.Entities;
+
+namespace Endatix.Api.Endpoints.Submissions;
 
 public class SubmissionModel
 {
@@ -13,6 +15,10 @@ public class SubmissionModel
     public DateTime? CompletedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ModifiedAt { get; set; }
-    public string Status { get; set; }
+    public string Status { get; set; } = string.Empty;
     public string? SubmittedBy { get; set; }
+    public string? SubmitterId { get; set; }
+    public string? SubmitterDisplayId { get; set; }
+    public IReadOnlyDictionary<string, string>? SubmitterProfile { get; set; }
+    public bool IsTestSubmission { get; set; }
 }

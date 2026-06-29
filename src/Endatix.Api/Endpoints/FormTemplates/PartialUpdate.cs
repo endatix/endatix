@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormTemplates.PartialUpdate;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Api.Common;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
 /// <summary>
 /// Endpoint for partially updating a form template.
 /// </summary>
-public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormTemplateRequest, Results<Ok<PartialUpdateFormTemplateResponse>, BadRequest, NotFound>>
+public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormTemplateRequest, Results<Ok<PartialUpdateFormTemplateResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -30,14 +31,23 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormTempl
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<PartialUpdateFormTemplateResponse>, BadRequest, NotFound>> ExecuteAsync(PartialUpdateFormTemplateRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<PartialUpdateFormTemplateResponse>, ProblemHttpResult>> ExecuteAsync(PartialUpdateFormTemplateRequest request, CancellationToken ct)
     {
+        var folderId = request.FolderId.ParseToLong();
+
         var result = await mediator.Send(
-            new PartialUpdateFormTemplateCommand(request.FormTemplateId, request.Name, request.Description, request.JsonData),
-            cancellationToken);
+            new PartialUpdateFormTemplateCommand(request.FormTemplateId, request.Name, request.Description, request.JsonData)
+            {
+                ClearFolderId = request.ClearFolderId,
+                FolderId = folderId,
+            },
+            ct);
 
         return TypedResultsBuilder
-            .MapResult(result, FormTemplateMapper.Map<PartialUpdateFormTemplateResponse>)
-            .SetTypedResults<Ok<PartialUpdateFormTemplateResponse>, BadRequest, NotFound>();
+         .MapResult(
+            result,
+            formTemplate => formTemplate.ToFormTemplateModel<PartialUpdateFormTemplateResponse>()
+        )
+        .SetTypedResults<Ok<PartialUpdateFormTemplateResponse>, ProblemHttpResult>();
     }
 }

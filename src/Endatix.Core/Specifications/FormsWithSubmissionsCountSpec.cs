@@ -8,27 +8,16 @@ namespace Endatix.Core.Specifications;
 
 public sealed class FormsWithSubmissionsCountSpec : Specification<Form, FormDto>
 {
-    public FormsWithSubmissionsCountSpec(PagingParameters pagingParams, FilterParameters filterParams)
+    public FormsWithSubmissionsCountSpec(
+        PagingParameters pagingParams,
+        FilterParameters filterParams,
+        string? search = null)
     {
-        Query
-            .Filter(filterParams)
-            .OrderByDescending(x => x.CreatedAt)
-            .Paginate(pagingParams)
-            .AsNoTracking();
-
-        Query.Select(form =>
-            new FormDto()
-            {
-                Id = form.Id.ToString(),
-                Name = form.Name,
-                Description = form.Description,
-                IsEnabled = form.IsEnabled,
-                IsPublic = form.IsPublic,
-                ActiveDefinitionId = form.ActiveDefinitionId.HasValue ? form.ActiveDefinitionId.Value.ToString() : null,
-                CreatedAt = form.CreatedAt,
-                ModifiedAt = form.ModifiedAt,
-                SubmissionsCount = form.FormDefinitions.SelectMany(fd => fd.Submissions).Count()
-            });
+        Query.Filter(filterParams);
+        FormsListFilterSpec.ApplyNameSearch(Query, search);
+        Query.OrderByDescending(form => form.CreatedAt);
+        Query.Paginate(pagingParams);
+        Query.AsNoTracking();
+        Query.Select(FormProjections.ToFormDtoWithSubmissionsCount);
     }
 }
-

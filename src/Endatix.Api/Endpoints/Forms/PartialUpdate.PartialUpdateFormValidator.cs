@@ -1,4 +1,5 @@
-﻿using FastEndpoints;
+﻿using Endatix.Api.Common;
+using FastEndpoints;
 using FluentValidation;
 
 namespace Endatix.Api.Endpoints.Forms;
@@ -15,5 +16,9 @@ public class PartialUpdateFormValidator : Validator<PartialUpdateFormRequest>
     {
         RuleFor(x => x.FormId)
             .GreaterThan(0);
+
+        RuleFor(x => x.Metadata)
+            .ValidJsonString()
+            .When(x => x.Metadata != null);
     }
 }

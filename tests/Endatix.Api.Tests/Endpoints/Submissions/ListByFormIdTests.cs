@@ -5,6 +5,8 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
 using Endatix.Core.UseCases.Submissions;
+using Endatix.Infrastructure.Features.Submitters;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
@@ -65,10 +67,15 @@ public class ListByFormIdTests
         var request = new ListByFormIdRequest { FormId = formId, Page = 1, PageSize = 10 };
         var submissions = new List<SubmissionDto>
         {
-            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null),
-            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7"),
+            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null, null, null, null, false),
+            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7", 7, "7", null, true),
         };
-        var result = Result.Success(submissions.AsEnumerable());
+        var result = Result.Success(new Paged<SubmissionDto>(
+            page: 1,
+            pageSize: 10,
+            totalRecords: 25,
+            totalPages: 3,
+            items: submissions));
 
         _mediator.Send(Arg.Any<ListByFormIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -77,10 +84,14 @@ public class ListByFormIdTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var okResult = response.Result as Ok<IEnumerable<SubmissionModel>>;
+        var okResult = response.Result as Ok<Paged<SubmissionModel>>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
-        okResult!.Value!.Count().Should().Be(2);
+        okResult!.Value!.Items.Count().Should().Be(2);
+        okResult.Value.TotalRecords.Should().Be(25);
+        okResult.Value.TotalPages.Should().Be(3);
+        okResult.Value.Page.Should().Be(1);
+        okResult.Value.PageSize.Should().Be(10);
     }
 
     [Fact]
@@ -92,9 +103,9 @@ public class ListByFormIdTests
             FormId = 123,
             Page = 2,
             PageSize = 20,
-            Filter = ["expression1", "expression1"]
+            Filter = ["isComplete:true", "isTestSubmission:true"]
         };
-        var result = Result.Success(Enumerable.Empty<SubmissionDto>());
+        var result = Result.Success(Paged<SubmissionDto>.Empty(20));
         
         _mediator.Send(Arg.Any<ListByFormIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -108,9 +119,27 @@ public class ListByFormIdTests
                 query.FormId == request.FormId &&
                 query.Page == request.Page &&
                 query.PageSize == request.PageSize &&
-                query.FilterExpressions == request.Filter
+                query.FilterExpressions.SequenceEqual(request.Filter!)
             ),
             Arg.Any<CancellationToken>()
         );
+    }
+
+    [Fact]
+    public void Validator_IsTestSubmissionFilter_IsAccepted()
+    {
+        // Arrange
+        var validator = new ListByFormIdValidator(Options.Create(new SubmitterOptions()));
+        var request = new ListByFormIdRequest
+        {
+            FormId = 1,
+            Filter = ["isTestSubmission:true"]
+        };
+
+        // Act
+        var validationResult = validator.Validate(request);
+
+        // Assert
+        validationResult.IsValid.Should().BeTrue();
     }
 }

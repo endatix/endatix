@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Core.Tests.Abstractions.Authorization;
@@ -66,6 +67,21 @@ public sealed class AuthorizationDataTests
         updated.ExpiresAt.Should().Be(expiresAt);
         updated.ETag.Should().Be(eTag);
         original.CachedAt.Should().NotBe(cachedAt);
+    }
+
+    [Fact]
+    public void JsonRoundTrip_PreservesIsAdminFromRoles()
+    {
+        var original = AuthorizationData.ForAuthenticatedUser(
+            userId: "u",
+            tenantId: 9,
+            roles: [SystemRole.PlatformAdmin.Name],
+            permissions: ["p"]);
+        var json = JsonSerializer.Serialize(original);
+        var roundTripped = JsonSerializer.Deserialize<AuthorizationData>(json);
+        roundTripped.Should().NotBeNull();
+        roundTripped!.IsAdmin.Should().BeTrue();
+        roundTripped.Roles.Should().Contain(SystemRole.PlatformAdmin.Name);
     }
 }
 

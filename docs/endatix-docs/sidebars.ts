@@ -34,6 +34,7 @@ const sidebars: SidebarsConfig = {
         "guides/webhooks",
         "guides/session-bridge",
         "guides/customize-exports",
+        "guides/collecting-submitters-data",
         "guides/external-authorization",
         "guides/api-permissions-reference",
         "guides/form-prefilling",
@@ -78,6 +79,7 @@ const sidebars: SidebarsConfig = {
             "building-your-solution/deployment/self-hosting",
             "building-your-solution/deployment/azure",
             "building-your-solution/deployment/subfolder-deployment",
+            "building-your-solution/deployment/reverse-proxy-deployment",
           ],
         },
       ],
@@ -89,6 +91,7 @@ const sidebars: SidebarsConfig = {
       link: { type: "doc", id: "configuration/index" },
       items: [
         "configuration/api-configuration",
+        "configuration/asset-storage",
         "configuration/data-configuration",
         "configuration/infrastructure-configuration",
         "configuration/security-configuration",
@@ -101,6 +104,7 @@ const sidebars: SidebarsConfig = {
             "configuration/settings/auth-settings",
             "configuration/settings/cors-settings",
             "configuration/settings/data-settings",
+            "configuration/settings/email-settings",
             "configuration/settings/health-checks",
             "configuration/settings/hub-settings",
             "configuration/settings/persistence-settings",
@@ -120,6 +124,9 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         "developers/api/index",
+        "developers/api/email-providers",
+        "developers/api/health-checks",
+        "developers/api/feature-flags",
         "developers/integration-testing",
         {
           type: "link",
@@ -132,7 +139,13 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Endatix Hub",
       collapsed: true,
-      items: ["developers/hub/index"],
+      items: [
+        "developers/hub/index",
+        "developers/hub/embed-events",
+        "developers/hub/azure-storage",
+        "developers/hub/rustfs-storage",
+        "developers/hub/maintenance-mode",
+      ],
     },
   ],
   userSidebar: [
@@ -142,7 +155,7 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       link: {
         type: "generated-index",
-        slug: "forms",
+        slug: "end-users/forms",
         title: "Forms",
       },
       items: [
@@ -152,7 +165,7 @@ const sidebars: SidebarsConfig = {
           collapsed: false,
           link: {
             type: "generated-index",
-            slug: "form-builder",
+            slug: "end-users/forms/form-builder",
             title: "Form Builder",
           },
           items: [
@@ -177,6 +190,20 @@ const sidebars: SidebarsConfig = {
             "end-users/forms/translation-and-localization/excel-import",
           ],
         },
+      ],
+    },
+    {
+      type: "category",
+      label: "Administration",
+      collapsed: false,
+      link: {
+        type: "generated-index",
+        slug: "administration",
+        title: "Administration",
+      },
+      items: [
+        "end-users/administration/platform-admins",
+        "end-users/administration/auth-settings",
       ],
     },
   ],

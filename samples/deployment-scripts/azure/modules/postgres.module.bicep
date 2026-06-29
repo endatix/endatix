@@ -5,10 +5,8 @@ This module deploys a PostgreSQL Flexible Server with database and security conf
 */
 
 param location string
-@description('Resource prefix for naming resources')
-param resourcePrefix string = 'temp-'
-@description('Project token for naming resources')
-param project string = 'endatix'
+@description('PostgreSQL Flexible Server resource name')
+param serverName string
 param tags object
 
 @secure()
@@ -48,7 +46,7 @@ param postgresDelegatedSubnetResourceId string = ''
 
 // PostgreSQL Flexible Server
 resource postgresql 'Microsoft.DBforPostgreSQL/flexibleServers@2026-01-01-preview' = {
-  name: '${resourcePrefix}${project}-postgresql'
+  name: serverName
   location: location
   sku: {
     name: 'Standard_D2ds_v5'

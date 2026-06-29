@@ -24,6 +24,10 @@ public class TenantSettingsConfiguration : IEntityTypeConfiguration<TenantSettin
             .IsRequired()
             .HasDefaultValue(false);
 
+        builder.Property(ts => ts.RequireFolderAssignment)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(ts => ts.ModifiedAt)
             .IsRequired(false);
 
@@ -32,6 +36,6 @@ public class TenantSettingsConfiguration : IEntityTypeConfiguration<TenantSettin
             .WithOne(t => t.Settings)
             .HasForeignKey<TenantSettings>(ts => ts.TenantId)
             .IsRequired()
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

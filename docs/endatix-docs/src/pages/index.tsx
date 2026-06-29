@@ -3,20 +3,22 @@ import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import HomepageFeatures from "@site/src/components/HomepageFeatures";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
-import clsx from "clsx";
-import { Code2, LayoutDashboard } from "lucide-react";
+import { Code2, LayoutDashboard, type LucideIcon } from "lucide-react";
 
 import styles from "./index.module.css";
 
 function HomepageHeader() {
   const { siteConfig } = useDocusaurusContext();
   return (
-    <header className={clsx("hero hero--primary", styles.heroBanner)}>
+    <header className={styles.heroSection}>
+      <div className={styles.heroGrid} aria-hidden="true" />
       <div className="container">
-        <Heading as="h1" className="hero__title">
-          Endatix Documentation
-        </Heading>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
+        <div className={styles.heroContent}>
+          <Heading as="h1" className={styles.heroTitle}>
+            Endatix Documentation
+          </Heading>
+          <p className={styles.heroSubtitle}>{siteConfig.tagline}</p>
+        </div>
       </div>
     </header>
   );
@@ -30,7 +32,7 @@ function HeroCard({
   primaryLink,
   secondaryLinks,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   title: string;
   description: string;
   primaryCTA: string;
@@ -111,9 +113,16 @@ function HomepageContent() {
               icon={LayoutDashboard}
               title="I am an End User"
               description="Create forms, manage responses, and analyze data. Learn how to use the Endatix Hub UI to power your business."
-              primaryCTA="Hub Basics"
-              primaryLink="/docs/end-users/overview"
-              secondaryLinks={[]}
+              primaryCTA="Endatix Hub Docs"
+              primaryLink="/docs/end-users/forms"
+              secondaryLinks={[{
+                  label: "Form Builder",
+                  href: "/docs/end-users/forms/form-builder",
+                },
+              {
+                  label: "Logic Expressions",
+                  href: "/docs/end-users/forms/form-builder/logic-expressions",
+                }]}
             />
           </div>
         </div>
@@ -149,8 +158,8 @@ export default function Home(): React.ReactNode {
   const { siteConfig } = useDocusaurusContext();
   return (
     <Layout
-      title={`${siteConfig.title} - Master the art of data collection`}
-      description="Master the art of data collection. Whether you are building custom workflows with our API or managing forms in the Hub, we have you covered."
+      title="Self-hosted alternative to SaaS form and survey platforms"
+      description="Endatix makes it easy to launch your own form management platform, packed with features that rival popular SaaS tools such as Qualtrics, Typeform, Formstack, and others."
     >
       <HomepageHeader />
       <main>

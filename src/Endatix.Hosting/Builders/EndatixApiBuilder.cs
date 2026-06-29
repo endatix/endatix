@@ -1,14 +1,9 @@
 using System.Reflection;
-using System.Security.Claims;
 using Endatix.Api.Builders;
-using Endatix.Api.Infrastructure;
-using Endatix.Framework.Serialization;
-using Endatix.Infrastructure.Identity;
+using Endatix.Api.Setup;
 using FastEndpoints;
-using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors.Infrastructure;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -340,46 +335,7 @@ public class EndatixApiBuilder
     {
         LogSetupInfo("Configuring API application middleware");
 
-        // Apply exception handling middleware if enabled
-        if (_apiOptions.UseExceptionHandler)
-        {
-            app.UseExceptionHandler(_apiOptions.ExceptionHandlerPath);
-        }
-
-        // Apply FastEndpoints middleware with configuration
-        app.UseFastEndpoints(c =>
-        {
-            // Apply versioning configuration
-            c.Versioning.Prefix = _apiOptions.VersioningPrefix;
-            c.Endpoints.RoutePrefix = _apiOptions.RoutePrefix;
-
-            // Apply serializer configuration
-            c.Serializer.Options.Converters.Add(new LongToStringConverter());
-
-            // Apply security configuration
-            c.Security.RoleClaimType = ClaimTypes.Role;
-            c.Security.PermissionsClaimType = ClaimNames.Permission;
-
-            // Apply any custom configuration
-            _apiOptions.ConfigureFastEndpoints?.Invoke(c);
-        });
-
-        // Apply Swagger middleware if enabled
-        if (_apiOptions.UseSwagger)
-        {
-            LogSetupInfo($"Enabling Swagger UI with path: {_apiOptions.SwaggerPath}");
-            app.UseSwaggerGen();
-        }
-        else
-        {
-            LogSetupInfo("Swagger UI disabled through configuration");
-        }
-
-        // Apply CORS middleware if enabled
-        if (_apiOptions.UseCors)
-        {
-            app.UseCors();
-        }
+        app.UseEndatixApi(_apiOptions);
 
         LogSetupInfo("API application middleware configured");
         return app;

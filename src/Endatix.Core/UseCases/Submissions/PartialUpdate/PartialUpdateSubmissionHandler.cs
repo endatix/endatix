@@ -42,6 +42,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         submission.Update(
             request.JsonData ?? submission.JsonData,
             submission.FormDefinitionId,
+            submission.FormId,
             request.IsComplete ?? submission.IsComplete,
             request.CurrentPage ?? submission.CurrentPage ?? DEFAULT_CURRENT_PAGE,
             mergedMetadata

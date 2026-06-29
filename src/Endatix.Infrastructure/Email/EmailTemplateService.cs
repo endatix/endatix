@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Encodings.Web;
 using Ardalis.GuardClauses;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
@@ -45,7 +44,36 @@ public class EmailTemplateService : IEmailTemplateService
             Metadata = new Dictionary<string, object>
             {
                 ["hubUrl"] = HubUrl,
-                ["verificationToken"] = token
+                ["verificationToken"] = token,
+                ["verificationUrl"] = token is not null
+                    ? BuildHubUrl("verify-email", new Dictionary<string, string?> { ["token"] = token })
+                    : string.Empty,
+                ["headline"] = "Verify your email address",
+                ["bodyText"] = "Verify your email address to activate your Endatix account.",
+                ["actionText"] = "Verify email address"
+            }
+        };
+    }
+
+    /// <inheritdoc />
+    public EmailWithTemplate CreateInvitationEmail(string userEmail, string token)
+    {
+        return new EmailWithTemplate
+        {
+            To = userEmail,
+            From = _emailTemplateSettings.Value.UserInvitation.FromAddress,
+            Subject = string.Empty, // Taken from the template
+            TemplateId = _emailTemplateSettings.Value.UserInvitation.TemplateId,
+            Metadata = new Dictionary<string, object>
+            {
+                ["hubUrl"] = HubUrl,
+                ["verificationToken"] = token,
+                ["activationUrl"] = token is not null
+                    ? BuildHubUrl("activate-invite", new Dictionary<string, string?> { ["token"] = token })
+                    : string.Empty,
+                ["headline"] = "Accept your Endatix invitation",
+                ["bodyText"] = "Set your password to activate your account and sign in to Endatix Hub.",
+                ["actionText"] = "Accept invitation"
             }
         };
     }
@@ -57,7 +85,11 @@ public class EmailTemplateService : IEmailTemplateService
         Guard.Against.NullOrWhiteSpace(token);
 
         var resetCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var query = $"email={HtmlEncoder.Default.Encode(userEmail)}&resetCode={HtmlEncoder.Default.Encode(resetCode)}";
+        var resetCodeQuery = BuildQueryString(new Dictionary<string, string?>
+        {
+            ["email"] = userEmail,
+            ["resetCode"] = resetCode
+        });
         return new EmailWithTemplate
         {
             To = userEmail,
@@ -66,7 +98,7 @@ public class EmailTemplateService : IEmailTemplateService
             Metadata = new Dictionary<string, object>
             {
                 ["hubUrl"] = HubUrl,
-                ["resetCodeQuery"] = query
+                ["resetCodeQuery"] = resetCodeQuery
             }
         };
     }
@@ -83,5 +115,17 @@ public class EmailTemplateService : IEmailTemplateService
             TemplateId = _emailTemplateSettings.Value.PasswordChangedEmail.TemplateId,
             Metadata = []
         };
+    }
+
+    private string BuildHubUrl(string path, Dictionary<string, string?> queryParams)
+    {
+        var url = $"{HubUrl.TrimEnd('/')}/{path.TrimStart('/')}";
+        return QueryHelpers.AddQueryString(url, queryParams);
+    }
+
+    private static string BuildQueryString(Dictionary<string, string?> queryParams)
+    {
+        var query = QueryHelpers.AddQueryString(string.Empty, queryParams);
+        return query.TrimStart('?');
     }
 }

@@ -42,15 +42,19 @@ public sealed class CurrentUserAuthorizationServiceTests
             "test");
         var authorizedIdentity = new AuthorizedIdentity(authorizationData);
         var principal = new ClaimsPrincipal(new[] { originalIdentity, authorizedIdentity });
-        var httpContext = Substitute.For<HttpContext>();
-        httpContext.User.Returns(principal);
+        var httpContext = new DefaultHttpContext
+        {
+            User = principal
+        };
         _httpContextAccessor.HttpContext.Returns(httpContext);
     }
 
     private void SetupPrincipal(ClaimsPrincipal principal)
     {
-        var httpContext = Substitute.For<HttpContext>();
-        httpContext.User.Returns(principal);
+        var httpContext = new DefaultHttpContext
+        {
+            User = principal
+        };
         _httpContextAccessor.HttpContext.Returns(httpContext);
     }
 
@@ -267,6 +271,61 @@ public sealed class CurrentUserAuthorizationServiceTests
         result.Value.Should().NotBeNull();
         result.Value!.UserId.Should().Be(userId);
         result.Value.TenantId.Should().Be(tenantId);
+    }
+
+    [Fact]
+    public async Task GetAuthorizationDataAsync_WithStrategy_UsesAuthorizationCache()
+    {
+        // Arrange
+        var userId = "123";
+        var tenantId = 1L;
+        var claims = new List<Claim> { new(ClaimNames.UserId, userId) };
+        var identity = new ClaimsIdentity(claims, "test");
+        var principal = new ClaimsPrincipal(identity);
+        var httpContext = Substitute.For<HttpContext>();
+        httpContext.User.Returns(principal);
+        _httpContextAccessor.HttpContext.Returns(httpContext);
+
+        var authorizationData = AuthorizationData.ForAuthenticatedUser(
+            userId: userId,
+            tenantId: tenantId,
+            roles: ["User"],
+            permissions: ["read:forms"],
+            cachedAt: DateTime.UtcNow,
+            expiresAt: DateTime.UtcNow.AddMinutes(15),
+            eTag: "etag-123");
+
+        var strategy = Substitute.For<IAuthorizationStrategy>();
+        strategy.CanHandle(principal).Returns(true);
+        strategy.GetAuthorizationDataAsync(principal, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(authorizationData));
+
+        _authorizationStrategies.Add(strategy);
+
+        _authorizationCache
+            .GetOrCreateAsync(
+                principal,
+                Arg.Any<Func<CancellationToken, Task<Result<AuthorizationData>>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var factory = callInfo.Arg<Func<CancellationToken, Task<Result<AuthorizationData>>>>();
+                var cancellationToken = callInfo.Arg<CancellationToken>();
+                var result = factory(cancellationToken).GetAwaiter().GetResult();
+                return Task.FromResult(result.Value);
+            });
+
+        // Act
+        var result = await _service.GetAuthorizationDataAsync(CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.UserId.Should().Be(userId);
+        await strategy.Received(1).GetAuthorizationDataAsync(principal, Arg.Any<CancellationToken>());
+        await _authorizationCache.Received(1).GetOrCreateAsync(
+            principal,
+            Arg.Any<Func<CancellationToken, Task<Result<AuthorizationData>>>>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -532,6 +591,14 @@ public sealed class CurrentUserAuthorizationServiceTests
         await _service.InvalidateAuthorizationDataCacheAsync(CancellationToken.None);
 
         await _authorizationCache.DidNotReceive().InvalidateAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InvalidateAuthorizationDataCacheAsync_ForExplicitUser_InvokesCache()
+    {
+        await _service.InvalidateAuthorizationDataCacheAsync("123", 42, CancellationToken.None);
+
+        await _authorizationCache.Received(1).InvalidateAsync("123", 42, Arg.Any<CancellationToken>());
     }
 
     #endregion

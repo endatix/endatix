@@ -26,4 +26,4 @@ namespace Endatix.Core.Abstractions.Data
         /// </summary>
         Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
     }
-} 
+}

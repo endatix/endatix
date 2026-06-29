@@ -11,6 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Ardalis.GuardClauses" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
@@ -24,6 +28,7 @@
     <ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
     <ProjectReference Include="..\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
     <ProjectReference Include="..\Endatix.Api\Endatix.Api.csproj" />
+    <ProjectReference Include="..\Endatix.Modules.Reporting\Endatix.Modules.Reporting.csproj" />
   </ItemGroup>
 
 </Project>

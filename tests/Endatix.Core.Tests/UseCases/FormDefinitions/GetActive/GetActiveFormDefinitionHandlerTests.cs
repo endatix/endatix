@@ -75,6 +75,7 @@ public class GetActiveFormDefinitionHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.Id.Should().Be(activeDefinition.Id);
         result.Value.CustomQuestions.Should().BeEmpty();
+        result.Value.LimitOnePerUser.Should().BeFalse();
     }
 
     [Fact]
@@ -285,6 +286,40 @@ public class GetActiveFormDefinitionHandlerTests
 
         // Verify permission check was not called for public form
         await _authorizationService.DidNotReceive().ValidateAccessAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_LimitOnePerUser_ReturnsLimitFlagWithoutSubmissionState()
+    {
+        // Arrange
+        const string userId = "user-123";
+        var formWithActiveDefinition = new Form(
+            SampleData.TENANT_ID,
+            SampleData.FORM_NAME_1,
+            isEnabled: true,
+            isPublic: false,
+            limitOnePerUser: true)
+        {
+            Id = 1
+        };
+        var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
+        formWithActiveDefinition.AddFormDefinition(activeDefinition);
+
+        var request = new GetActiveFormDefinitionQuery(1, userId, "access.authenticated");
+
+        _formsRepository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), CancellationToken.None)
+            .Returns(formWithActiveDefinition);
+        _customQuestionsRepository.ListAsync(Arg.Any<CustomQuestionSpecifications.ByTenantId>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+        _authorizationService.ValidateAccessAsync("access.authenticated", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value!.LimitOnePerUser.Should().BeTrue();
     }
 
     #endregion

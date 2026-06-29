@@ -13,5 +13,7 @@ public class SubmissionExportRow : IExportItem
     public DateTime CreatedAt { get; init; }
     public DateTime? ModifiedAt { get; init; }
     public DateTime? CompletedAt { get; init; }
+    public long? SubmitterId { get; init; }
+    public string? SubmitterDisplayId { get; init; }
     public string AnswersModel { get; init; } = string.Empty;
 } 

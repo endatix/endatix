@@ -95,6 +95,8 @@ public class EndatixPersistenceBuilder
             _parentBuilder.Services,
             _parentBuilder.LoggerFactory);
 
+        _parentBuilder.Services.AddDbContextMigrationContributor<TContext>();
+
         LogSetupInfo($"PostgreSQL persistence for {typeof(TContext).Name} configured successfully");
         return this;
     }
@@ -114,6 +116,8 @@ public class EndatixPersistenceBuilder
             configAction,
             _parentBuilder.LoggerFactory);
 
+        _parentBuilder.Services.AddDbContextMigrationContributor<TContext>();
+
         LogSetupInfo($"PostgreSQL persistence for {typeof(TContext).Name} configured successfully");
         return this;
     }
@@ -130,6 +134,8 @@ public class EndatixPersistenceBuilder
         Endatix.Persistence.SqlServer.Setup.EndatixPersistenceExtensions.AddSqlServerPersistence<TContext>(
             _parentBuilder.Services,
             _parentBuilder.LoggerFactory);
+
+        _parentBuilder.Services.AddDbContextMigrationContributor<TContext>();
 
         LogSetupInfo($"SQL Server persistence for {typeof(TContext).Name} configured successfully");
         return this;
@@ -149,6 +155,8 @@ public class EndatixPersistenceBuilder
             _parentBuilder.Services,
             configAction,
             _parentBuilder.LoggerFactory);
+
+        _parentBuilder.Services.AddDbContextMigrationContributor<TContext>();
 
         LogSetupInfo($"SQL Server persistence for {typeof(TContext).Name} configured successfully");
         return this;

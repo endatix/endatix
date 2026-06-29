@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -8,7 +9,7 @@ namespace Endatix.Core.Entities;
 /// <summary>
 /// Represents tenant-specific configuration settings.
 /// </summary>
-public class TenantSettings : IAggregateRoot
+public sealed class TenantSettings : IAggregateRoot, ITenantOwned
 {
     private string? _slackSettingsJson;
     private SlackSettings? _slackSettings;
@@ -29,6 +30,7 @@ public class TenantSettings : IAggregateRoot
         SlackSettingsJson = slackSettingsJson;
         WebHookSettingsJson = webHookSettingsJson;
         CustomExportsJson = customExportsJson;
+        RequireFolderAssignment = false;
     }
 
     /// <summary>
@@ -48,6 +50,11 @@ public class TenantSettings : IAggregateRoot
     /// When false (default), tokens become invalid once a submission is marked as complete.
     /// </summary>
     public bool IsSubmissionTokenValidAfterCompletion { get; private set; }
+
+    /// <summary>
+    /// When true, forms and templates must be assigned to a folder on create/update.
+    /// </summary>
+    public bool RequireFolderAssignment { get; private set; }
 
     public string? SlackSettingsJson
     {
@@ -154,6 +161,15 @@ public class TenantSettings : IAggregateRoot
     {
         _customExports = exports;
         CustomExportsJson = JsonSerializer.Serialize(exports);
+    }
+
+    /// <summary>
+    /// Updates whether folder assignment is required for forms and templates.
+    /// </summary>
+    public void UpdateRequireFolderAssignment(bool require)
+    {
+        RequireFolderAssignment = require;
+        ModifiedAt = DateTime.UtcNow;
     }
 
     private SlackSettings DeserializeSlackSettings()

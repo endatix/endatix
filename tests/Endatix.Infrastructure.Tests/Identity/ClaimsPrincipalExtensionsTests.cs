@@ -68,6 +68,31 @@ public sealed class ClaimsPrincipalExtensionsTests
     }
 
     [Fact]
+    public void GetUserId_ReturnsAuthorizedIdentityUserId_WhenHydrated()
+    {
+        // Arrange
+        var externalSubjectId = "external-subject";
+        var endatixUserId = "123";
+        var authData = AuthorizationData.ForAuthenticatedUser(
+            userId: endatixUserId,
+            tenantId: 1,
+            roles: [],
+            permissions: [],
+            cachedAt: DateTime.UtcNow,
+            expiresAt: DateTime.UtcNow.AddMinutes(5),
+            eTag: string.Empty);
+
+        var tokenIdentity = new ClaimsIdentity(
+        [
+            new Claim(ClaimNames.UserId, externalSubjectId)
+        ], "test");
+        var principal = new ClaimsPrincipal([tokenIdentity, new AuthorizedIdentity(authData)]);
+
+        // Act and Assert
+        principal.GetUserId().Should().Be(endatixUserId);
+    }
+
+    [Fact]
     public void GetUserId_FallsBackToNameIdentifier()
     {
         // Arrange
@@ -108,6 +133,20 @@ public sealed class ClaimsPrincipalExtensionsTests
 
         // Act and Assert
         principal.GetTenantId().Should().Be(99);
+    }
+
+    [Fact]
+    public void GetTenantId_ReturnsRawTenantClaim_WhenPrincipalIsNotHydrated()
+    {
+        // Arrange
+        var identity = new ClaimsIdentity(
+        [
+            new Claim(ClaimNames.TenantId, "42")
+        ], "test");
+        var principal = new ClaimsPrincipal(identity);
+
+        // Act and Assert
+        principal.GetTenantId().Should().Be(42);
     }
 
     [Fact]

@@ -20,7 +20,7 @@ public class UpdateTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_InvalidRequest_ReturnsBadRequest()
+    public async Task ExecuteAsync_InvalidRequest_ReturnsProblemDetails()
     {
         // Arrange
         var formId = 1L;
@@ -40,12 +40,13 @@ public class UpdateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
-        badRequestResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.ProblemDetails.Status.Should().Be(400);
     }
 
     [Fact]
-    public async Task ExecuteAsync_FormNotFound_ReturnsNotFound()
+    public async Task ExecuteAsync_FormNotFound_ReturnsProblemDetails()
     {
         // Arrange
         var formId = 1L;
@@ -65,8 +66,9 @@ public class UpdateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var notFoundResult = response.Result as NotFound;
-        notFoundResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.ProblemDetails.Status.Should().Be(404);
     }
 
     [Fact]
@@ -100,6 +102,29 @@ public class UpdateTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_ConflictResult_ReturnsProblemDetails()
+    {
+        // Arrange
+        var request = new UpdateFormRequest
+        {
+            FormId = 1,
+            Name = "Updated Form",
+            IsEnabled = true
+        };
+        var result = Result<Core.Entities.Form>.Conflict("Cannot disable gate.");
+
+        _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        // Assert
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ShouldMapRequestToCommandCorrectly()
     {
         // Arrange
@@ -125,6 +150,36 @@ public class UpdateTests
                 cmd.Name == request.Name &&
                 cmd.Description == request.Description &&
                 cmd.IsEnabled == request.IsEnabled
+            ),
+            Arg.Any<CancellationToken>()
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_OmittedLimitOnePerUser_MapsToNullInCommand()
+    {
+        // Arrange
+        var request = new UpdateFormRequest
+        {
+            FormId = 123,
+            Name = "Updated Form",
+            Description = "Updated Description",
+            IsEnabled = true,
+            LimitOnePerUser = null
+        };
+        var result = Result.Success(new Form(SampleData.TENANT_ID, "Updated Form"));
+
+        _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<UpdateFormCommand>(cmd =>
+                cmd.FormId == request.FormId &&
+                cmd.LimitOnePerUser == null
             ),
             Arg.Any<CancellationToken>()
         );
