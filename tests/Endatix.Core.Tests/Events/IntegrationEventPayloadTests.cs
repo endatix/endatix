@@ -56,6 +56,23 @@ public class IntegrationEventPayloadTests
     }
 
     [Fact]
+    public void Events_queued_in_one_transaction_keep_their_own_revision()
+    {
+        // An update that toggles enabled raises two events: enabled_state_changed (revision 2) then
+        // updated (revision 3). Each payload must keep the revision captured when it was raised, not the
+        // final live value — otherwise an order-sensitive consumer can't distinguish/order them.
+        var form = new Form(tenantId: 1, name: "Test") { Id = 1 }; // revision 1
+        form.SetEnabled(true); // revision 2, raises enabled_state_changed
+        form.UpdateDetails("New", null, isPublic: true, limitOnePerUser: false, metadata: null); // revision 3, raises updated
+
+        var enabled = form.DomainEvents.OfType<FormEnabledStateChangedEvent>().Single();
+        var updated = form.DomainEvents.OfType<FormUpdatedEvent>().Single();
+
+        Payload(enabled.GetPayload()).GetProperty("revision").GetInt64().Should().Be(2);
+        Payload(updated.GetPayload()).GetProperty("revision").GetInt64().Should().Be(3);
+    }
+
+    [Fact]
     public void SubmissionCompletedEvent_has_dotted_type_and_submission_payload_with_revision()
     {
         var submission = Submission.Create(1, "{}", formId: 100, formDefinitionId: 200,

@@ -12,9 +12,12 @@ public sealed class FormEnabledStateChangedEvent(Form form, bool isEnabled) : Do
     public Form Form { get; init; } = form;
     public bool IsEnabled { get; init; } = isEnabled;
 
+    // Revision captured at raise time, so the payload keeps this event's revision (not a later one).
+    private readonly long _revision = form.Revision;
+
     /// <inheritdoc />
     public string EventType => "form.enabled_state_changed";
 
     /// <inheritdoc />
-    public object GetPayload() => FormEventPayload.Create(Form, IsEnabled);
+    public object GetPayload() => FormEventPayload.Create(Form, IsEnabled, _revision);
 }

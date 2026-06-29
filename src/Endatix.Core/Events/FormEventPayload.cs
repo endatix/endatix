@@ -13,7 +13,12 @@ internal static class FormEventPayload
     /// Optional override letting an event supply its own captured enabled state, so the payload reflects the
     /// value at event-creation time rather than re-reading the live form. Defaults to the form's current value.
     /// </param>
-    public static object Create(Form form, bool? isEnabled = null) => new
+    /// <param name="revision">
+    /// Optional override letting an event supply the revision captured at event-raise time, so events queued
+    /// together in one transaction keep their own monotonic revision instead of all reading the final value.
+    /// Defaults to the form's current revision.
+    /// </param>
+    public static object Create(Form form, bool? isEnabled = null, long? revision = null) => new
     {
         formId = form.Id,
         tenantId = form.TenantId,
@@ -25,6 +30,6 @@ internal static class FormEventPayload
         folderId = form.FolderId,
         createdAt = form.CreatedAt,
         modifiedAt = form.ModifiedAt,
-        revision = form.Revision,
+        revision = revision ?? form.Revision,
     };
 }

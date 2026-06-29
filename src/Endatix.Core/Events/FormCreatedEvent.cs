@@ -11,9 +11,12 @@ public sealed class FormCreatedEvent(Form form) : DomainEventBase, IIntegrationE
 {
     public Form Form { get; init; } = form;
 
+    // Revision captured at raise time, so the payload keeps this event's revision (not a later one).
+    private readonly long _revision = form.Revision;
+
     /// <inheritdoc />
     public string EventType => "form.created";
 
     /// <inheritdoc />
-    public object GetPayload() => FormEventPayload.Create(Form);
+    public object GetPayload() => FormEventPayload.Create(Form, revision: _revision);
 }
