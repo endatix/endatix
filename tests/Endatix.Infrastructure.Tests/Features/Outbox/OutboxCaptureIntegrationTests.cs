@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Infrastructure.Repositories;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -97,10 +98,11 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateFormWithDefinitionSequence_FormCreatedPayload_CarriesRealActiveDefinitionId()
+    public async Task CreateFormWithDefinitionAsync_FormCreatedPayload_CarriesRealActiveDefinitionId()
     {
-        // Replicates FormsRepository.CreateFormWithDefinitionAsync exactly: save the form, then add the
-        // active definition + RaiseCreated, then save again (which captures form.created).
+        // Exercises the real FormsRepository.CreateFormWithDefinitionAsync so the regression stays tied to
+        // its two-save capture ordering (the active definition is added between saves, and form.created must
+        // capture a populated activeDefinitionId).
         _tenantContext.TenantId.Returns(0L); // bypass tenant query filter so we can read the outbox row back
 
         long formDefinitionId;
@@ -112,15 +114,11 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
             ctx.Set<Tenant>().Add(tenant);
             await ctx.SaveChangesAsync();
 
+            var repository = new FormsRepository(ctx, new AppUnitOfWork(ctx), new EndatixSpecificationEvaluator([]));
             var form = new Form(tenant.Id, "webhook-form", "desc", isEnabled: true);
-            ctx.Set<Form>().Add(form);
-            await ctx.SaveChangesAsync(); // 1st save: form only, no event yet
-
             var formDefinition = new FormDefinition(tenant.Id);
-            form.AddFormDefinition(formDefinition);
-            ctx.Set<FormDefinition>().Add(formDefinition);
-            form.RaiseCreated();
-            await ctx.SaveChangesAsync(); // 2nd save: captures form.created
+
+            await repository.CreateFormWithDefinitionAsync(form, formDefinition);
 
             formDefinitionId = formDefinition.Id;
             formDefinitionId.Should().BeGreaterThan(0);

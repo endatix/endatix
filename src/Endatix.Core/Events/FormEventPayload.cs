@@ -9,6 +9,7 @@ namespace Endatix.Core.Events;
 /// </summary>
 internal static class FormEventPayload
 {
+    /// <param name="form">The form whose state the payload is built from.</param>
     /// <param name="isEnabled">
     /// Optional override letting an event supply its own captured enabled state, so the payload reflects the
     /// value at event-creation time rather than re-reading the live form. Defaults to the form's current value.
