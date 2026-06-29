@@ -1,3 +1,5 @@
+using Endatix.Infrastructure.Data;
+
 namespace Endatix.Modules.Reporting.Persistence;
 
 /// <summary>
@@ -18,4 +20,15 @@ public static class ReportingPersistence
 
     public const string SqlServerConfigNamespace =
         "Endatix.Modules.Reporting.Persistence.Config.SqlServer";
+
+    /// <summary>
+    /// Shared module DbContext options for runtime and design-time registration.
+    /// </summary>
+    public static void ConfigureDbContextOptions(ModuleDbContextOptions options)
+    {
+        options.Schema = Schema;
+        options.MigrationsAssembly = typeof(ReportingDbContext).Assembly.GetName().Name!;
+        options.PostgreSqlMigrationsNamespace = PostgreSqlMigrationsNamespace;
+        options.SqlServerMigrationsNamespace = SqlServerMigrationsNamespace;
+    }
 }

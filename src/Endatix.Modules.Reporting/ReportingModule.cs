@@ -26,13 +26,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
         builder.AddDbContextWithMigrations<ReportingDbContext>(
-            opts =>
-            {
-                opts.Schema = ReportingPersistence.Schema;
-                opts.MigrationsAssembly = typeof(ReportingDbContext).Assembly.GetName().Name!;
-                opts.PostgreSqlMigrationsNamespace = ReportingPersistence.PostgreSqlMigrationsNamespace;
-                opts.SqlServerMigrationsNamespace = ReportingPersistence.SqlServerMigrationsNamespace;
-            },
+            ReportingPersistence.ConfigureDbContextOptions,
             shouldMigrate: sp =>
             {
                 var options = sp.GetService<IOptions<ReportingOptions>>();

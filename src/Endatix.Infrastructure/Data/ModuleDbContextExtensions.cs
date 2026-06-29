@@ -29,8 +29,27 @@ public static class ModuleDbContextExtensions
         Guard.Against.NullOrEmpty(moduleOptions.PostgreSqlMigrationsNamespace);
         Guard.Against.NullOrEmpty(moduleOptions.SqlServerMigrationsNamespace);
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
-        Guard.Against.NullOrEmpty(connectionString, "DefaultConnection");
+        ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
+
+        services.AddDbContext<TContext>(options =>
+            options.ConfigureModuleDbContext(configuration, moduleOptions));
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configures a module DbContext for design-time tooling or explicit options building.
+    /// </summary>
+    public static void ConfigureModuleDbContext(
+        this DbContextOptionsBuilder optionsBuilder,
+        IConfiguration configuration,
+        ModuleDbContextOptions moduleOptions)
+    {
+        Guard.Against.Null(optionsBuilder);
+        Guard.Against.Null(configuration);
+        Guard.Against.Null(moduleOptions);
+
+        var connectionString = ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
         var usePostgreSql = DatabaseProviderResolver.IsPostgreSql(configuration);
         var migrationsNamespace = usePostgreSql
             ? moduleOptions.PostgreSqlMigrationsNamespace
@@ -40,32 +59,48 @@ public static class ModuleDbContextExtensions
             moduleOptions.SqlServerMigrationsNamespace,
             StringComparison.Ordinal);
 
-        services.AddDbContext<TContext>(options =>
+        if (usePostgreSql)
         {
-            if (usePostgreSql)
+            optionsBuilder.UseNpgsql(connectionString, dbOptions =>
             {
-                options.UseNpgsql(connectionString, dbOptions =>
-                {
-                    dbOptions.MigrationsAssembly(moduleOptions.MigrationsAssembly);
-                    dbOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName, moduleOptions.Schema);
-                });
-            }
-            else
+                dbOptions.MigrationsAssembly(moduleOptions.MigrationsAssembly);
+                dbOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName, moduleOptions.Schema);
+            });
+        }
+        else
+        {
+            optionsBuilder.UseSqlServer(connectionString, dbOptions =>
             {
-                options.UseSqlServer(connectionString, dbOptions =>
-                {
-                    dbOptions.MigrationsAssembly(moduleOptions.MigrationsAssembly);
-                    dbOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName, moduleOptions.Schema);
-                });
-            }
+                dbOptions.MigrationsAssembly(moduleOptions.MigrationsAssembly);
+                dbOptions.MigrationsHistoryTable(HistoryRepository.DefaultTableName, moduleOptions.Schema);
+            });
+        }
 
-            if (useProviderNamespaceFiltering)
-            {
-                ConfigureProviderScopedMigrations(options, migrationsNamespace);
-            }
-        });
+        if (useProviderNamespaceFiltering)
+        {
+            ConfigureProviderScopedMigrations(optionsBuilder, migrationsNamespace);
+        }
+    }
 
-        return services;
+    /// <summary>
+    /// Configures a module DbContext using the same options callback as runtime registration.
+    /// </summary>
+    public static void ConfigureModuleDbContext<TContext>(
+        this DbContextOptionsBuilder optionsBuilder,
+        IConfiguration configuration,
+        Action<ModuleDbContextOptions> configure)
+        where TContext : DbContext
+    {
+        Guard.Against.Null(configure);
+
+        var moduleOptions = new ModuleDbContextOptions();
+        configure(moduleOptions);
+
+        Guard.Against.NullOrEmpty(moduleOptions.MigrationsAssembly);
+        Guard.Against.NullOrEmpty(moduleOptions.PostgreSqlMigrationsNamespace);
+        Guard.Against.NullOrEmpty(moduleOptions.SqlServerMigrationsNamespace);
+
+        optionsBuilder.ConfigureModuleDbContext(configuration, moduleOptions);
     }
 
     /// <summary>
