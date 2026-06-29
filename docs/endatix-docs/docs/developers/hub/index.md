@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: "Endatix Hub Docs"
-description: Modern React/Next.js application serving as the visual management layer for Endatix API
+description: Explore Endatix Hub - a modern React/Next.js application serving as the visual management layer for forms, submissions, and API configuration.
 ---
 
 # Endatix Hub Docs

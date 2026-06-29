@@ -6,7 +6,17 @@ import type * as Redocusaurus from "redocusaurus";
 const config: Config = {
   title: "Endatix Documentation",
   tagline: "Self-Hosted Alternative to SaaS Form or Survey Platforms",
-  favicon: "img/endatix.svg",
+  favicon: "img/favicon.ico",
+  headTags: [
+    {
+      tagName: "link",
+      attributes: { rel: "icon", type: "image/svg+xml", href: "/img/icon.svg" },
+    },
+    {
+      tagName: "link",
+      attributes: { rel: "apple-touch-icon", href: "/img/icon-apple-touch.png" },
+    },
+  ],
 
   // Set the production url of your site here
   url: "https://docs.endatix.com",
@@ -83,7 +93,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: "img/endatix-transparent.png",
+    image: "img/endatix-social-card.png",
     metadata: [
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@endatix_" },

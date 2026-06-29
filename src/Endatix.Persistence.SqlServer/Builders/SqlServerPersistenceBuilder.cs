@@ -2,9 +2,12 @@ using System.Reflection;
 using Ardalis.Specification;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Infrastructure.Data.Querying;
+using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Outbox.Engine;
 using Endatix.Persistence.SqlServer.Options;
 using Endatix.Persistence.SqlServer.Querying;
 using Endatix.Persistence.SqlServer.Repositories;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +21,12 @@ namespace Endatix.Persistence.SqlServer.Builders;
 public class SqlServerPersistenceBuilder
 {
     private readonly ILogger? _logger;
+
+    // Resolves the connection string the active DbContext uses, so the outbox claim store polls the SAME
+    // database the app writes outbox rows to. Defaults to ConnectionStrings:DefaultConnection (the
+    // UseDefault path); Configure&lt;TContext&gt; overrides it with the supplied SqlServerOptions.ConnectionString.
+    private Func<IServiceProvider, string?> _connectionStringResolver =
+        sp => sp.GetService<IConfiguration>()?.GetConnectionString("DefaultConnection");
 
     /// <summary>
     /// Initializes a new instance of the SqlServerPersistenceBuilder class.
@@ -76,6 +85,9 @@ public class SqlServerPersistenceBuilder
         var sqlServerOptions = new SqlServerOptions();
         options(sqlServerOptions);
 
+        // Point the outbox claim store at the same connection string this DbContext uses (not DefaultConnection).
+        _connectionStringResolver = _ => sqlServerOptions.ConnectionString;
+
         Services.AddDbContext<TContext>((serviceProvider, dbContextOptions) =>
         {
             dbContextOptions.UseSqlServer(sqlServerOptions.ConnectionString, sqlOptions =>
@@ -115,6 +127,21 @@ public class SqlServerPersistenceBuilder
         Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
+
+        // The engine's raw-ADO.NET outbox claim store. Builds an unopened connection from the SAME
+        // connection string the DbContext uses (DefaultConnection by default, or the Configure<TContext>
+        // override), so the relay polls the right database and shares the SqlClient provider pool.
+        var connectionStringResolver = _connectionStringResolver;
+        Services.AddSqlOutboxClaimStore(
+            OutboxSqlDialect.SqlServer,
+            sp => new SqlConnection(connectionStringResolver(sp)),
+            OutboxSchema.DefaultTable);
+
+        // Register the in-process relay here (not in Infrastructure) so it is co-located with the claim store
+        // it hard-depends on — the relay exists iff a DB provider is configured. Inert until Phase 3b raises
+        // the slice events (the loop ticks but the outbox stays empty).
+        Services.AddEndatixOutboxRelay();
+
         return this;
     }
 

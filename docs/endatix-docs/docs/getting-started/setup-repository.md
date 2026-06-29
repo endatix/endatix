@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Setup From Repository
-description: Clone and run Endatix directly from the source code
+description: Clone the Endatix form management repository and run the platform from source - ideal for contributors, custom builds, and exploring the codebase internals.
 ---
 
 import Tabs from "@theme/Tabs";
@@ -9,7 +9,7 @@ import TabItem from "@theme/TabItem";
 
 # Setup From Repository
 
-If you want to explore the source code, contribute to the project, or customize Endatix for your specific needs, you can clone the Git repository and run it directly. This approach is recommended for developers who want to understand the internals or contribute to the project.
+If you want to explore the source code, contribute to the project, or customize the Endatix form management system for your specific needs, you can clone the Git repository and run it directly. This approach is recommended for developers who want to understand the internals or contribute to the project.
 
 ## Prerequisites
 

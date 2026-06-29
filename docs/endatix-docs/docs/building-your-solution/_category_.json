@@ -1,4 +1,8 @@
 {
   "label": "Building Your Solution",
-  "position": 1
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "description": "Guides for deploying, securing, and operating Endatix in production — Docker, authentication providers, authorization, and deployment patterns."
+  }
 }

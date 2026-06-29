@@ -158,8 +158,8 @@ export default function Home(): React.ReactNode {
   const { siteConfig } = useDocusaurusContext();
   return (
     <Layout
-      title={`${siteConfig.title} - Master the art of data collection`}
-      description="Master the art of data collection. Whether you are building custom workflows with our API or managing forms in the Hub, we have you covered."
+      title="Self-hosted alternative to SaaS form and survey platforms"
+      description="Endatix makes it easy to launch your own form management platform, packed with features that rival popular SaaS tools such as Qualtrics, Typeform, Formstack, and others."
     >
       <HomepageHeader />
       <main>

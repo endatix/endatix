@@ -34,6 +34,9 @@
 		<PackageReference Include="SendGrid.Extensions.DependencyInjection" />
 		<PackageReference Include="MediatR" />
 		<PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
+		<PackageReference Include="Endatix.Outbox.Engine" />
+		<PackageReference Include="OpenFeature" />
+		<PackageReference Include="OpenFeature.Hosting" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />
