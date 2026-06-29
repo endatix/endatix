@@ -43,6 +43,9 @@ public sealed class SubmissionFileExtractorTests
   private static string CanonicalUrl(string fileName) =>
       $"https://{StorageHost}/{Container}/s/{FormId}/{SubmissionId}/{fileName}";
 
+  private static string LegacyFlatBlobUrl(string fileName = "1381655571790299137.png") =>
+      $"https://{StorageHost}/{Container}/{fileName}";
+
   private void ConfigureHttpClient()
   {
     _handler = new DummyHandler();
@@ -154,12 +157,12 @@ public sealed class SubmissionFileExtractorTests
   {
     // Arrange
     ConfigureHttpClient();
-    var json = """
+    var json = $$"""
         {
           "imagesUpload": [{
             "name": "foo.png",
             "type": "image/jpeg",
-            "content": "https://endatixstorage.blob.core.windows.net/1381655571790299137.png"
+            "content": "{{LegacyFlatBlobUrl()}}"
           }]
         }
         """;
