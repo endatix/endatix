@@ -25,6 +25,7 @@ internal static class EndatixTestcontainers
     private static string _connectionString = string.Empty;
     private static string? _runId;
     private static bool _databaseStarted;
+    private static IntegrationDatabaseSettings? _activeDatabaseSettings;
 
     public static string RunId =>
         _runId ??= Environment.GetEnvironmentVariable("ENDATIX_TEST_RUN_ID")
@@ -47,6 +48,11 @@ internal static class EndatixTestcontainers
                 await EnsureSessionStartedAsync(settings.ContainerSettings, cancellationToken);
                 await StartDatabaseContainerAsync(settings, cancellationToken);
                 _databaseStarted = true;
+                _activeDatabaseSettings = settings;
+            }
+            else
+            {
+                EnsureActiveDatabaseSettingsMatch(settings);
             }
 
             return new EndatixTestcontainersSession(
@@ -199,6 +205,49 @@ internal static class EndatixTestcontainers
                     "Unsupported test database provider.");
         }
     }
+
+    private static void EnsureActiveDatabaseSettingsMatch(IntegrationDatabaseSettings requested)
+    {
+        var active = _activeDatabaseSettings
+            ?? throw new InvalidOperationException(
+                $"{nameof(AcquireDatabaseAsync)} session is started but active database settings were not recorded.");
+
+        if (requested.Provider != _provider || requested.Provider != active.Provider)
+        {
+            throw new InvalidOperationException(
+                $"Cannot acquire {requested.Provider} database: this test process already started {_provider} via {nameof(AcquireDatabaseAsync)}.");
+        }
+
+        if (!ImageOverridesMatch(requested.PostgreSqlImage, active.PostgreSqlImage))
+        {
+            throw new InvalidOperationException(
+                $"PostgreSQL image override conflict: requested '{FormatImageOverride(requested.PostgreSqlImage)}' but active session uses '{FormatImageOverride(active.PostgreSqlImage)}'.");
+        }
+
+        if (!ImageOverridesMatch(requested.SqlServerImage, active.SqlServerImage))
+        {
+            throw new InvalidOperationException(
+                $"SQL Server image override conflict: requested '{FormatImageOverride(requested.SqlServerImage)}' but active session uses '{FormatImageOverride(active.SqlServerImage)}'.");
+        }
+
+        if (requested.ContainerSettings != active.ContainerSettings)
+        {
+            throw new InvalidOperationException(
+                $"Container settings conflict: requested ReuseContainers={requested.ContainerSettings.ReuseContainers} but active session uses ReuseContainers={active.ContainerSettings.ReuseContainers}.");
+        }
+    }
+
+    private static bool ImageOverridesMatch(string? requested, string? active) =>
+        string.Equals(
+            NormalizeImageOverride(requested),
+            NormalizeImageOverride(active),
+            StringComparison.Ordinal);
+
+    private static string? NormalizeImageOverride(string? image) =>
+        string.IsNullOrWhiteSpace(image) ? null : image.Trim();
+
+    private static string FormatImageOverride(string? image) =>
+        NormalizeImageOverride(image) ?? "(default)";
 
     private static string ComposeProjectName(EndatixTestcontainersSettings settings) =>
         settings.ReuseContainers ? "endatix-tests" : $"endatix-tests-{RunId}";

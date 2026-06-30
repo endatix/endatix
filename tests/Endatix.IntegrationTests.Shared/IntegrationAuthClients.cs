@@ -42,6 +42,12 @@ public static class IntegrationAuthClients
         var user = await ResolveUserAsync(world, persona, tenantIndex, userName, cancellationToken);
         var password = world.Options.DefaultPassword ?? world.Options.SeedOptions?.DefaultPassword;
 
+        if (mode == IntegrationAuthMode.Login && string.IsNullOrWhiteSpace(password))
+        {
+            throw new InvalidOperationException(
+                "Login auth mode requires IntegrationWorldOptions.DefaultPassword or SeedOptions.DefaultPassword.");
+        }
+
         var client = world.CreateClientFactory();
 
         var accessToken = mode switch
