@@ -1,0 +1,29 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "cars",
+          "valuePropertyName": "carType",
+          "choices": [
+            { "value": "ford", "text": "Ford" },
+            { "value": "bmw", "text": "BMW" }
+          ]
+        },
+        {
+          "type": "paneldynamic",
+          "name": "carDetails",
+          "valueName": "cars",
+          "templateElements": [
+            {
+              "type": "text",
+              "name": "model",
+              "title": "Model"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

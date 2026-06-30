@@ -27,4 +27,8 @@
     <ProjectReference Include="..\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
     <ProjectReference Include="..\Endatix.Modules.Reporting.Contracts\Endatix.Modules.Reporting.Contracts.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Endatix.Modules.Reporting.Tests" />
+  </ItemGroup>
 </Project>

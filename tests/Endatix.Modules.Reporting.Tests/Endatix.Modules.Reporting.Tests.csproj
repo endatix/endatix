@@ -11,4 +11,10 @@
     <ProjectReference Include="..\..\src\Endatix.Modules.Reporting\Endatix.Modules.Reporting.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Domain\SurveyJs\Fixtures\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

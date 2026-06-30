@@ -1,0 +1,19 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "ranking",
+          "name": "priorities",
+          "title": "Rank your priorities",
+          "choices": [
+            { "value": "price", "text": "Price" },
+            { "value": "design", "text": "Design" },
+            { "value": "reliability", "text": "Reliability" },
+            { "value": "color", "text": "Color" }
+          ]
+        }
+      ]
+    }
+  ]
+}
