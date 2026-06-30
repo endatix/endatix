@@ -58,22 +58,39 @@ public sealed class DatabaseCheckpoint
                 return existing;
             }
 
-            try
+            if (!await HasAnyTablesAsync(connection, provider, cancellationToken))
             {
-                var respawner = await Respawner.CreateAsync(connection, BuildOptions(provider));
-                _respawners[provider] = respawner;
-                return respawner;
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("No tables found", StringComparison.Ordinal))
-            {
-                // Fresh database before migrations; nothing to reset yet.
                 return null;
             }
+
+            var respawner = await Respawner.CreateAsync(connection, BuildOptions(provider));
+            _respawners[provider] = respawner;
+            return respawner;
         }
         finally
         {
             _init.Release();
         }
+    }
+
+    private static async Task<bool> HasAnyTablesAsync(DbConnection connection, TestDatabaseProvider provider, CancellationToken cancellationToken)
+    {
+        var schemas = provider switch
+        {
+            TestDatabaseProvider.PostgreSql => _postgresSchemas,
+            TestDatabaseProvider.SqlServer => _sqlServerSchemas,
+            _ => throw new ArgumentOutOfRangeException(nameof(provider))
+        };
+
+        var quotedSchemas = string.Join(", ", schemas.Select(s => $"'{s}'"));
+        var sql = provider == TestDatabaseProvider.PostgreSql
+            ? $"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema IN ({quotedSchemas}))"
+            : $"SELECT CASE WHEN EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN ({quotedSchemas})) THEN 1 ELSE 0 END";
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is bool b ? b : (int?)result == 1;
     }
 
     private static DbConnection CreateConnection(string connectionString, TestDatabaseProvider provider) =>

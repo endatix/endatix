@@ -6,34 +6,34 @@ sidebar_position: 2
 
 # Integration testing (Endatix API)
 
-This guide describes how to run and extend **API integration tests** for the open-source `Endatix.WebHost` stack. Tests use **Testcontainers** for PostgreSQL or SQL Server, **Respawn** for fast database resets, and **`WebApplicationFactory`** for an in-process HTTP client against the real startup pipeline.
+This guide describes how to run and extend **API integration tests** in the public [Endatix](https://github.com/endatix/endatix) repository. All paths below are relative to that repository root. Tests exercise the `Endatix.WebHost` stack with **Testcontainers** (PostgreSQL or SQL Server), **Respawn** for fast database resets, and **`WebApplicationFactory`** for an in-process HTTP client against the real startup pipeline.
 
 
 ## Prerequisites
 
 - **Docker** running locally (containers are pulled and started on demand).
-- **.NET SDK** matching the solution (see repository global.json or CI).
+- **.NET SDK** matching the solution (see `global.json` at the repository root or CI).
 
 **Note:** DB-backed integration tests require Docker and Testcontainers.
 
 ## Quick start
 
-From the repository root that contains `oss/`:
+From the Endatix repository root:
 
 ```bash
-dotnet test oss/tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
+dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
 ```
 
 Default runs typically exclude slow **Keycloak**-scoped tests. To match CI on **main**:
 
 ```bash
-dotnet test oss/tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak"
+dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak"
 ```
 
 Pull-request CI uses the faster gate (P0 + P1 only):
 
 ```bash
-dotnet test oss/tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak&Priority!=P2"
+dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak&Priority!=P2"
 ```
 
 Filter strings are defined in `IntegrationTestFilters` (`Endatix.IntegrationTests.Shared`).
@@ -43,7 +43,7 @@ Filter strings are defined in `IntegrationTestFilters` (`Endatix.IntegrationTest
 | Variable | Purpose |
 | -------- | ------- |
 | `ENDATIX_TEST_DB_PROVIDER` | `PostgreSql` (default) or `SqlServer` — same suite, different container. |
-| `ENDATIX_TEST_HOST_MODE` | `ProductionProgram` (default) or `DedicatedIntegrationHost` — see tests README. |
+| `ENDATIX_TEST_HOST_MODE` | `ProductionProgram` (default) or `DedicatedIntegrationHost` — see `tests/Endatix.IntegrationTests/AGENTS.md`. |
 | `ENDATIX_TEST_DB_POSTGRES_IMAGE` | Optional image override for PostgreSQL. |
 | `ENDATIX_TEST_DB_SQLSERVER_IMAGE` | Optional image override for SQL Server. |
 | `ENDATIX_TEST_DEBUG` | Set to `true` for extra diagnostics from tests that support it (e.g. auth flow debug output). |
@@ -107,13 +107,15 @@ See `AuthLoginFlowTests` for a reference implementation.
 4. **Data** — `IntegrationSeedBuilder` for granular seeding; `StandardSeedOptions` for multi-tenant baselines.
 5. **Naming** — Behavior-first test methods; flow-focused classes like `AuthLoginFlowTests`.
 
+Contributor-oriented fixture and collection guidance lives in `tests/Endatix.IntegrationTests/AGENTS.md`.
+
 ## Assertions
 
 Prefer **HTTP status + response contract + persistence effect** (or explicit lack of effect) for the scenario. Keep one primary behavior per test; extra asserts should support the same end-to-end outcome.
 
 ## CI
 
-Endatix API's `build-ci.yml` runs unit tests separately from an integration job (PostgreSQL, Testcontainers):
+`.github/workflows/build-ci.yml` runs unit tests separately from an integration job (PostgreSQL, Testcontainers):
 
 - **Pull requests / feature branches:** `Category!=Keycloak&Priority!=P2` (P0 + P1)
 - **`main` push:** `Category!=Keycloak` (full default breadth)

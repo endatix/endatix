@@ -5,8 +5,9 @@
       <DataCollector friendlyName="XPlat code coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Exclude>[*.Tests]*,[*]*.Migrations.*</Exclude>
+          <Exclude>[*.Tests]*,[*]*.Migrations.*,[Endatix.IntegrationTests]*,[Endatix.IntegrationTests.Shared]*,[Endatix.WebHost.IntegrationHost]*</Exclude>
           <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+          <ExcludeByFile>**/tests/**/*.cs</ExcludeByFile>
         </Configuration>
       </DataCollector>
     </DataCollectors>

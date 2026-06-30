@@ -60,3 +60,4 @@ Thumbs.db
 # Test coverage reports
 .coverage/
 .secrets
+.coverage-test/
