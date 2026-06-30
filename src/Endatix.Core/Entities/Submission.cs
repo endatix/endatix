@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -148,6 +149,10 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         {
             IsComplete = true;
             CompletedAt = DateTime.UtcNow;
+            IncrementRevision();
+            // Raised on the false→true transition (from the ctor or Update), so it fires once regardless of
+            // the Create/Update/PartialUpdate path. Captured to the outbox → submission.completed webhook.
+            RegisterDomainEvent(new SubmissionCompletedEvent(this));
         }
     }
 

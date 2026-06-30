@@ -29,7 +29,6 @@ public class UpdateFormHandler(
             return Result.NotFound("Form not found.");
         }
 
-        var oldIsEnabled = form.IsEnabled;
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
 
         if (form.LimitOnePerUser && !requestedLimitOnePerUser)
@@ -54,11 +53,7 @@ public class UpdateFormHandler(
             }
         }
 
-        form.Name = request.Name;
-        form.Description = request.Description;
-        form.IsEnabled = request.IsEnabled;
-        form.LimitOnePerUser = requestedLimitOnePerUser;
-        form.Metadata = request.Metadata;
+        form.SetEnabled(request.IsEnabled); // raises form.enabled_state_changed (outbox) on an actual change
 
         var folderCheck = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
             form.FolderId,
@@ -89,14 +84,15 @@ public class UpdateFormHandler(
 
         form.UpdateWebHookSettings(webHookConfig);
 
+        // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
+        // before save so the capture is atomic. (UpdateFormCommand doesn't change IsPublic, so it's preserved.)
+        form.UpdateDetails(request.Name, request.Description, form.IsPublic, requestedLimitOnePerUser, request.Metadata);
         await repository.UpdateAsync(form, cancellationToken);
 
+        // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows
+        // via the outbox. The enabled-state change is raised on the aggregate (SetEnabled → outbox) and has no
+        // in-process subscriber, so it is not published here.
         await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);
-
-        if (oldIsEnabled != request.IsEnabled)
-        {
-            await mediator.Publish(new FormEnabledStateChangedEvent(form, request.IsEnabled), cancellationToken);
-        }
 
         return Result.Success(form);
     }

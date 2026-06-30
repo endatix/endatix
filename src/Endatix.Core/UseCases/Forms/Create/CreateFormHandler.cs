@@ -2,11 +2,9 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
-using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Folders;
-using MediatR;
 
 namespace Endatix.Core.UseCases.Forms.Create;
 
@@ -16,7 +14,6 @@ namespace Endatix.Core.UseCases.Forms.Create;
 public class CreateFormHandler(
     IFormsRepository formsRepository,
     ITenantContext tenantContext,
-    IMediator mediator,
     FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<CreateFormCommand, Result<Form>>
 {
     /// <inheritdoc/>
@@ -42,9 +39,9 @@ public class CreateFormHandler(
             folderId: request.FolderId);
         var newFormDefinition = new FormDefinition(tenantContext.TenantId, isDraft: true, jsonData: request.FormDefinitionJsonData);
 
+        // form.created is captured to the outbox (→ webhook) inside CreateFormWithDefinitionAsync via
+        // form.RaiseCreated(); there are no in-process MediatR subscribers for it, so nothing is published here.
         var form = await formsRepository.CreateFormWithDefinitionAsync(newForm, newFormDefinition, cancellationToken);
-
-        await mediator.Publish(new FormCreatedEvent(form), cancellationToken);
 
         return Result<Form>.Created(form);
     }
