@@ -42,7 +42,11 @@ public sealed record TestPersona
     /// </summary>
     /// <param name="roleName">The name of the custom role.</param>
     /// <returns>A new <see cref="TestPersona"/> instance.</returns>
-    public static TestPersona CustomRole(string roleName) => new(nameof(CustomRole), roleName);
+    public static TestPersona CustomRole(string roleName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(roleName);
+        return new(nameof(CustomRole), roleName);
+    }
 
     /// <summary>
     /// Whether the persona is anonymous.

@@ -2,15 +2,15 @@
 
 This project (`Endatix.IntegrationTests`) exercises the real `Endatix.WebHost` startup pipeline in-process via `WebApplicationFactory`, backed by Testcontainers (PostgreSQL or SQL Server) and Respawn for fast DB resets.
 
-Shared infrastructure lives in `../Endatix.IntegrationTests.Shared/`. Human-oriented docs: `oss/docs/endatix-docs/docs/developers/integration-testing.mdx` and monorepo `tests/README.md`.
+Shared infrastructure lives in `../Endatix.IntegrationTests.Shared/`. Human-oriented docs: `docs/endatix-docs/docs/developers/integration-testing.mdx` and `tests/README.md`.
 
 ## Prerequisites
 
 - **Docker** running locally.
-- **.NET SDK** from `oss/global.json`.
+- **.NET SDK** from `global.json`.
 
 ```bash
-dotnet test oss/tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak"
+dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak"
 ```
 
 ## Project layout
@@ -119,7 +119,7 @@ Constants in `IntegrationTestFilters` (`Endatix.IntegrationTests.Shared`):
 
 **DbSpecific:** `PostgreSql` or `SqlServer` when a test only applies to one provider.
 
-When adding tests, set traits so PR CI stays fast. Update `oss/.github/workflows/build-ci.yml` only if filter policy changes — keep in sync with `IntegrationTestFilters`.
+When adding tests, set traits so PR CI stays fast. Update `.github/workflows/build-ci.yml` only if filter policy changes — keep in sync with `IntegrationTestFilters`.
 
 ## Assertions
 
@@ -196,7 +196,7 @@ EndatixIntegrationWebHostFixture ← DB + WebApplicationFactory (in IntegrationT
 6. **Labels and names** — use `EndatixTestcontainerLabels` and stable container names for local debugging.
 7. **Avoid `field` keyword pitfalls** — static lazy values need explicit `private static` backing fields, not C# 14 `field` in expression-bodied static properties.
 8. **Exception param names** — `ArgumentOutOfRangeException` `paramName` must be a method parameter (`nameof(settings)`), not `nameof(settings.Provider)`.
-9. **Test package versions** — use central versions from `oss/Directory.Packages.props`; do not duplicate packages in test csproj.
+9. **Test package versions** — use central versions from `Directory.Packages.props`; do not duplicate packages in test csproj.
 10. **Verify both consumers** — after Shared changes, build `Endatix.IntegrationTests` and `Endatix.SaaS.IntegrationTests` when working in the monorepo.
 
 ### Adding a new module's DB-only tests
