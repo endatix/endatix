@@ -1,0 +1,18 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "colors",
+          "title": "Favorite colors",
+          "choices": [
+            { "value": "red", "text": "Red" },
+            { "value": "blue", "text": "Blue" }
+          ],
+          "showOtherItem": true
+        }
+      ]
+    }
+  ]
+}

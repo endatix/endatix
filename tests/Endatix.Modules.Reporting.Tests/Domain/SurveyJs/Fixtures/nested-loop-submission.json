@@ -1,0 +1,6 @@
+{
+  "cars": [
+    { "carType": "ford", "model": "Focus" },
+    { "carType": "bmw", "model": "X5" }
+  ]
+}

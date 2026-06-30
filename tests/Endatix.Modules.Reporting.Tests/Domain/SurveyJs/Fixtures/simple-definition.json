@@ -1,0 +1,32 @@
+{
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "text",
+          "name": "firstName",
+          "title": "First name"
+        },
+        {
+          "type": "dropdown",
+          "name": "country",
+          "title": "Country",
+          "choices": ["US", "UK"]
+        },
+        {
+          "type": "html",
+          "name": "info",
+          "html": "<p>ignored</p>"
+        }
+      ]
+    }
+  ],
+  "calculatedValues": [
+    {
+      "name": "totalScore",
+      "expression": "1",
+      "includeIntoResult": true
+    }
+  ]
+}
