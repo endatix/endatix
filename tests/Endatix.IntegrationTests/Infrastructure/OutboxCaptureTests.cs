@@ -23,6 +23,8 @@ namespace Endatix.IntegrationTests;
 public sealed class OutboxCaptureTests
 {
     private const long AmbientTenantId = 42;
+    private const string ProbeSchema = "test_probes";
+    private const string ProbeTable = "OutboxCaptureProbes";
     private readonly EndatixIntegrationWebHostFixture _fixture;
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly IncrementingIdGenerator _idGenerator = new();
@@ -140,6 +142,7 @@ public sealed class OutboxCaptureTests
 
     private TestAppDbContext CreateContext()
     {
+        // PostgreSQL-only path — see [Trait("DbSpecific", "PostgreSql")]. Loads provider jsonb configs from the PG migrations assembly.
         const string postgresMigrationsAssembly = "Endatix.Persistence.PostgreSql";
         const string appMigrationsNamespace = "Endatix.Persistence.PostgreSql.Migrations.AppEntities";
 
@@ -156,24 +159,27 @@ public sealed class OutboxCaptureTests
             _idGenerator,
             _tenantContext,
             new EfCoreValueGeneratorFactory(_idGenerator),
-            new OutboxIntegrationEventDispatcher());
+            new OutboxIntegrationEventDispatcher(),
+            ProbeSchema,
+            ProbeTable);
     }
 
-    private static async Task EnsureProbeTableAsync(TestAppDbContext context, CancellationToken cancellationToken)
+    private async Task EnsureProbeTableAsync(TestAppDbContext context, CancellationToken cancellationToken)
     {
-        // Shared DB may already exist from WebHost migrations; EnsureCreated is a no-op then.
+        // Isolated schema keeps probe DDL out of public/migration-owned tables (Respawn resets data, not this schema).
         await context.Database.ExecuteSqlRawAsync(
-            """
-            DROP TABLE IF EXISTS "OutboxCaptureProbes";
-            CREATE TABLE "OutboxCaptureProbes" (
+            $"""
+            CREATE SCHEMA IF NOT EXISTS {ProbeSchema};
+            CREATE TABLE IF NOT EXISTS {ProbeSchema}."{ProbeTable}" (
                 "Id" bigint NOT NULL PRIMARY KEY,
                 "Name" text NOT NULL,
                 "CreatedAt" timestamp with time zone NOT NULL,
                 "ModifiedAt" timestamp with time zone,
                 "DeletedAt" timestamp with time zone,
                 "IsDeleted" boolean NOT NULL DEFAULT FALSE,
-                CONSTRAINT "UX_OutboxCaptureProbes_Name" UNIQUE ("Name")
+                CONSTRAINT "UX_{ProbeTable}_Name" UNIQUE ("Name")
             );
+            TRUNCATE {ProbeSchema}."{ProbeTable}";
             """,
             cancellationToken);
     }
@@ -187,14 +193,21 @@ public sealed class OutboxCaptureTests
 
 internal sealed class TestAppDbContext : AppDbContext
 {
+    private readonly string _probeSchema;
+    private readonly string _probeTable;
+
     public TestAppDbContext(
         DbContextOptions<AppDbContext> options,
         IIdGenerator<long> idGenerator,
         ITenantContext tenantContext,
         EfCoreValueGeneratorFactory valueGeneratorFactory,
-        OutboxIntegrationEventDispatcher outboxDispatcher)
+        OutboxIntegrationEventDispatcher outboxDispatcher,
+        string probeSchema,
+        string probeTable)
         : base(options, idGenerator, tenantContext, valueGeneratorFactory, outboxDispatcher)
     {
+        _probeSchema = probeSchema;
+        _probeTable = probeTable;
     }
 
     public DbSet<OutboxCaptureProbe> Probes => Set<OutboxCaptureProbe>();
@@ -205,7 +218,7 @@ internal sealed class TestAppDbContext : AppDbContext
 
         builder.Entity<OutboxCaptureProbe>(entity =>
         {
-            entity.ToTable("OutboxCaptureProbes");
+            entity.ToTable(_probeTable, _probeSchema);
             entity.HasKey(probe => probe.Id);
             entity.Property(probe => probe.Name).IsRequired();
             entity.HasIndex(probe => probe.Name).IsUnique();
