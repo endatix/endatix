@@ -2,8 +2,12 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
+    <!-- xUnit v3 MTTP entry point (self-hosted Exe) for IDE/local MTTP runs. -->
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <!-- Keep `dotnet test` on the VSTest adapter (xunit.runner.visualstudio), not the MTTP bridge.
+         CI and local `\-\-filter` use VSTest/xUnit trait syntax (see IntegrationTestFilters).
+         Do not set TestingPlatformDotnetTestSupport=true without migrating workflow filters to MTTP. -->
+    <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
