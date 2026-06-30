@@ -10,28 +10,38 @@ public sealed class KeycloakTestContainerFixture : IAsyncLifetime
 {
     private readonly EndatixTestcontainersSettings _settings = EndatixTestcontainersSettings.FromEnvironment();
 
+    private KeycloakContainer? _container;
+
     /// <summary>
     /// The Keycloak testcontainer.
     /// </summary>
-    public KeycloakContainer Container { get; private set; } = null!;
+    public KeycloakContainer Container =>
+        _container ?? throw new InvalidOperationException("Keycloak container was not initialized.");
 
     /// <summary>
     /// Initializes the Keycloak testcontainer.
     /// </summary>
     public async ValueTask InitializeAsync()
     {
-        var network =
-            await EndatixTestcontainers.AcquireNetworkAsync(_settings);
+        try
+        {
+            var network =
+                await EndatixTestcontainers.AcquireNetworkAsync(_settings);
 
-        var builder = new KeycloakBuilder()
-            .WithImage("quay.io/keycloak/keycloak:26.0")
-            .WithNetwork(network)
-            .WithNetworkAliases("keycloak");
+            var builder = new KeycloakBuilder("quay.io/keycloak/keycloak:26.0")
+                .WithNetwork(network)
+                .WithNetworkAliases("keycloak");
 
-        builder = EndatixTestcontainers.ConfigureKeycloakBuilder(builder, _settings);
+            builder = EndatixTestcontainers.ConfigureKeycloakBuilder(builder, _settings);
 
-        Container = builder.Build();
-        await Container.StartAsync();
+            _container = builder.Build();
+            await _container.StartAsync();
+        }
+        catch
+        {
+            await EndatixTestcontainers.ReleaseSessionAsync();
+            throw;
+        }
     }
 
     /// <summary>
@@ -44,7 +54,17 @@ public sealed class KeycloakTestContainerFixture : IAsyncLifetime
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        await Container.DisposeAsync();
-        await EndatixTestcontainers.ReleaseSessionAsync();
+        try
+        {
+            if (_container is not null)
+            {
+                await _container.DisposeAsync();
+                _container = null;
+            }
+        }
+        finally
+        {
+            await EndatixTestcontainers.ReleaseSessionAsync();
+        }
     }
 }
