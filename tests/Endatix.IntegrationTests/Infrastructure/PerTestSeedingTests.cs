@@ -6,15 +6,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
-[Collection(nameof(OssIntegrationTestCollection))]
+[Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class PerTestSeedingTests
 {
-    private readonly OssIntegrationWebHostFixture _fixture;
+    private readonly EndatixIntegrationWebHostFixture _fixture;
 
-    public PerTestSeedingTests(OssIntegrationWebHostFixture fixture)
+    public PerTestSeedingTests(EndatixIntegrationWebHostFixture fixture)
     {
         _fixture = fixture;
     }
@@ -37,7 +37,7 @@ public sealed class PerTestSeedingTests
         long tenantId;
         using (var tenantScope = _fixture.Factory.Services.CreateScope())
         {
-            AppDbContext db = tenantScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var db = tenantScope.ServiceProvider.GetRequiredService<AppDbContext>();
             Tenant tenant = new("integration-seed-tenant");
             db.Set<Tenant>().Add(tenant);
             await db.SaveChangesAsync(cancellationToken);
@@ -51,12 +51,12 @@ public sealed class PerTestSeedingTests
 
         // Assert
         using var scope = _fixture.Factory.Services.CreateScope();
-        AppIdentityDbContext identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-        AppDbContext appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        bool hasRole = await identityDb.Roles.AnyAsync(x => x.TenantId == tenantId && x.Name == roleName, cancellationToken);
-        bool hasUser = await identityDb.Users.AnyAsync(x => x.TenantId == tenantId && x.UserName == userName, cancellationToken);
-        bool hasForm = await appDb.Forms.AnyAsync(x => x.TenantId == tenantId && x.Name == formName, cancellationToken);
+        var hasRole = await identityDb.Roles.AnyAsync(x => x.TenantId == tenantId && x.Name == roleName, cancellationToken);
+        var hasUser = await identityDb.Users.AnyAsync(x => x.TenantId == tenantId && x.UserName == userName, cancellationToken);
+        var hasForm = await appDb.Forms.AnyAsync(x => x.TenantId == tenantId && x.Name == formName, cancellationToken);
 
         Assert.True(hasRole);
         Assert.True(hasUser);

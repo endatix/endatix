@@ -28,8 +28,16 @@ public sealed class DatabaseCheckpoint
             {
                 if (!_respawners.ContainsKey(provider))
                 {
-                    var respawner = await Respawner.CreateAsync(connection, BuildOptions(provider));
-                    _respawners[provider] = respawner;
+                    try
+                    {
+                        var respawner = await Respawner.CreateAsync(connection, BuildOptions(provider));
+                        _respawners[provider] = respawner;
+                    }
+                    catch (InvalidOperationException ex) when (ex.Message.Contains("No tables found", StringComparison.Ordinal))
+                    {
+                        // Fresh database before migrations; nothing to reset yet.
+                        return;
+                    }
                 }
             }
             finally
@@ -57,14 +65,14 @@ public sealed class DatabaseCheckpoint
                 return new RespawnerOptions
                 {
                     DbAdapter = DbAdapter.Postgres,
-                    SchemasToInclude = ["public", "identity", "agents"],
+                    SchemasToInclude = ["public", "identity", "agents", "reporting"],
                     TablesToIgnore = ["__EFMigrationsHistory"]
                 };
             case TestDatabaseProvider.SqlServer:
                 return new RespawnerOptions
                 {
                     DbAdapter = DbAdapter.SqlServer,
-                    SchemasToInclude = ["dbo", "identity", "agents"],
+                    SchemasToInclude = ["dbo", "identity", "agents", "reporting"],
                     TablesToIgnore = ["__EFMigrationsHistory"]
                 };
             default:

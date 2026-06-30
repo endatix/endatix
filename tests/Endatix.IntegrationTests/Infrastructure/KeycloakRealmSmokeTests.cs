@@ -19,8 +19,11 @@ public sealed class KeycloakRealmSmokeTests : IClassFixture<KeycloakTestContaine
     [Fact]
     public async Task Password_grant_returns_access_token()
     {
+        // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var baseUri = _fixture.GetBaseUri();
+
+        // Act
         var token = await KeycloakPasswordGrantTokenClient.GetAccessTokenAsync(
             baseUri,
             realm: "master",
@@ -28,6 +31,8 @@ public sealed class KeycloakRealmSmokeTests : IClassFixture<KeycloakTestContaine
             username: "admin",
             password: "admin",
             cancellationToken);
+
+        // Assert
         Assert.NotEmpty(token);
     }
 }

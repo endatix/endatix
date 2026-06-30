@@ -8,14 +8,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
-[Collection(nameof(OssIntegrationTestCollection))]
+[Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 public sealed class StandardSeedTests
 {
-    private readonly OssIntegrationWebHostFixture _fixture;
+    private readonly EndatixIntegrationWebHostFixture _fixture;
 
-    public StandardSeedTests(OssIntegrationWebHostFixture fixture)
+    public StandardSeedTests(EndatixIntegrationWebHostFixture fixture)
     {
         _fixture = fixture;
     }
@@ -23,18 +23,21 @@ public sealed class StandardSeedTests
     [Fact]
     public async Task Reset_database_without_standard_seed_keeps_database_empty()
     {
+        // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
 
+        // Act
         await _fixture.ResetDatabaseAsync(cancellationToken: cancellationToken);
 
+        // Assert
         using var scope = _fixture.Factory.Services.CreateScope();
-        AppDbContext appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        AppIdentityDbContext identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
 
-        int tenantCount = await appDb.Set<Tenant>().CountAsync(cancellationToken);
-        int formCount = await appDb.Forms.CountAsync(cancellationToken);
-        int roleCount = await identityDb.Roles.CountAsync(cancellationToken);
-        int userCount = await identityDb.Users.CountAsync(cancellationToken);
+        var tenantCount = await appDb.Set<Tenant>().CountAsync(cancellationToken);
+        var formCount = await appDb.Forms.CountAsync(cancellationToken);
+        var roleCount = await identityDb.Roles.CountAsync(cancellationToken);
+        var userCount = await identityDb.Users.CountAsync(cancellationToken);
 
         Assert.Equal(0, tenantCount);
         Assert.Equal(0, formCount);
@@ -45,15 +48,17 @@ public sealed class StandardSeedTests
     [Fact]
     public async Task Optional_standard_seed_populates_core_baseline_and_supports_post_seed_action()
     {
+        // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
 
+        // Act
         var seedResult = await _fixture.ResetDatabaseAsync(
             useStandardSeed: true,
             afterSeed: static async (services, _, token) =>
             {
                 using var scope = services.CreateScope();
-                AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                long firstTenantId = await db.Set<Tenant>()
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var firstTenantId = await db.Set<Tenant>()
                     .OrderBy(x => x.Id)
                     .Select(x => x.Id)
                     .FirstAsync(token);
@@ -64,14 +69,15 @@ public sealed class StandardSeedTests
             },
             cancellationToken: cancellationToken);
 
+        // Assert
         Assert.NotNull(seedResult);
         Assert.Equal(3, seedResult.TenantIds.Count);
 
         using var scope = _fixture.Factory.Services.CreateScope();
-        AppDbContext appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        AppIdentityDbContext identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
 
-        int tenantCount = await appDb.Set<Tenant>().CountAsync(cancellationToken);
+        var tenantCount = await appDb.Set<Tenant>().CountAsync(cancellationToken);
         Assert.Equal(3, tenantCount);
         var persistedSystemRoleNames = SystemRole.AllSystemRoles
             .Where(x => x.IsPersisted)
@@ -80,20 +86,20 @@ public sealed class StandardSeedTests
 
         foreach (var tenantId in seedResult.TenantIds)
         {
-            int roleCount = await identityDb.Roles.CountAsync(
+            var roleCount = await identityDb.Roles.CountAsync(
                 x => x.TenantId == tenantId && persistedSystemRoleNames.Contains(x.Name!),
                 cancellationToken);
-            Assert.Equal(3, roleCount);
+            Assert.Equal(persistedSystemRoleNames.Length, roleCount);
 
-            bool hasAdminUser = await identityDb.Users.AnyAsync(
+            var hasAdminUser = await identityDb.Users.AnyAsync(
                 x => x.TenantId == tenantId && x.UserName!.StartsWith("seed-admin-"),
                 cancellationToken);
             Assert.True(hasAdminUser);
 
-            bool hasPublicForm = await appDb.Forms.AnyAsync(
+            var hasPublicForm = await appDb.Forms.AnyAsync(
                 x => x.TenantId == tenantId && x.IsPublic,
                 cancellationToken);
-            bool hasPrivateForm = await appDb.Forms.AnyAsync(
+            var hasPrivateForm = await appDb.Forms.AnyAsync(
                 x => x.TenantId == tenantId && !x.IsPublic,
                 cancellationToken);
 
@@ -101,7 +107,7 @@ public sealed class StandardSeedTests
             Assert.True(hasPrivateForm);
         }
 
-        bool hasCustomForm = await appDb.Forms.AnyAsync(x => x.Name == "custom-post-seed-form", cancellationToken);
+        var hasCustomForm = await appDb.Forms.AnyAsync(x => x.Name == "custom-post-seed-form", cancellationToken);
         Assert.True(hasCustomForm);
     }
 }

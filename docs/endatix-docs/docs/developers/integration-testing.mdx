@@ -52,7 +52,7 @@ Filter strings are defined in `IntegrationTestFilters` (`Endatix.IntegrationTest
 
 ## Docker containers
 
-One `dotnet test` process uses **one shared database container** and **one Docker network** for all xUnit collections (`OssIntegrationTestCollection` and `DbIntegrationTestCollection`). Keycloak joins the same network when P2 tests run.
+One `dotnet test` process uses **one shared database container** and **one Docker network** for all xUnit collections (`EndatixIntegrationTestCollection` and `DbIntegrationTestCollection`). Keycloak joins the same network when P2 tests run.
 
 Containers are labeled (`endatix.test.suite=integration`, `endatix.test.component`, `endatix.test.run`). Inspect them with:
 
@@ -101,7 +101,7 @@ See `AuthLoginFlowTests` for a reference implementation.
 
 ## Extending the suite
 
-1. **Collection fixture** — Use `OssIntegrationTestCollection` and inject `OssIntegrationWebHostFixture` for shared DB + host.
+1. **Collection fixture** — Use `EndatixIntegrationTestCollection` and inject `EndatixIntegrationWebHostFixture` for shared DB + host.
 2. **World** — Prefer `PrepareWorldAsync` over manual reset + seed.
 3. **Reset** — `Checkpoint.ResetAsync` or `ResetDatabaseAsync` when you need an empty DB without the world helper.
 4. **Data** — `IntegrationSeedBuilder` for granular seeding; `StandardSeedOptions` for multi-tenant baselines.

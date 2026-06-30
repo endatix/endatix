@@ -4,14 +4,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
-[Collection(nameof(OssIntegrationTestCollection))]
+[Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P0")]
 public sealed class HealthCheckTests
 {
-    private readonly OssIntegrationWebHostFixture _fixture;
+    private readonly EndatixIntegrationWebHostFixture _fixture;
 
-    public HealthCheckTests(OssIntegrationWebHostFixture fixture)
+    public HealthCheckTests(EndatixIntegrationWebHostFixture fixture)
     {
         _fixture = fixture;
     }
@@ -19,9 +19,14 @@ public sealed class HealthCheckTests
     [Fact]
     public async Task Health_endpoint_returns_success()
     {
+        // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var client = _fixture.Factory.CreateClient();
+
+        // Act
         var response = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
+
+        // Assert
         response.EnsureSuccessStatusCode();
     }
 
@@ -30,7 +35,7 @@ public sealed class HealthCheckTests
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using OssWebApplicationFactory baseFactory = new(_fixture.Database.ConnectionString, _fixture.Database.Provider);
+        await using EndatixWebApplicationFactory baseFactory = new(_fixture.Database.ConnectionString, _fixture.Database.Provider);
         var client = baseFactory
             .WithWebHostBuilder(builder =>
             {

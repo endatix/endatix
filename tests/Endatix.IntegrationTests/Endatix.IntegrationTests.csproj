@@ -16,7 +16,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FastEndpoints.Testing" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
   </ItemGroup>
@@ -24,12 +23,13 @@
   <ItemGroup>
     <ProjectReference Include="..\Endatix.IntegrationTests.Shared\Endatix.IntegrationTests.Shared.csproj" />
     <ProjectReference Include="..\..\src\Endatix.WebHost\Endatix.WebHost.csproj">
-      <Aliases>OssWebHost</Aliases>
+      <Aliases>EndatixWebHost</Aliases>
     </ProjectReference>
     <ProjectReference Include="..\Endatix.WebHost.IntegrationHost\Endatix.WebHost.IntegrationHost.csproj">
-      <Aliases>OssIntegrationHost</Aliases>
+      <Aliases>EndatixIntegrationHost</Aliases>
     </ProjectReference>
     <ProjectReference Include="..\..\src\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Endatix.Modules.Reporting\Endatix.Modules.Reporting.csproj" />
   </ItemGroup>
 
 </Project>
