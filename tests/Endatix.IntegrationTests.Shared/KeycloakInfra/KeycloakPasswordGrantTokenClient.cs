@@ -7,6 +7,16 @@ namespace Endatix.IntegrationTests.Shared.KeycloakInfra;
 /// </summary>
 public static class KeycloakPasswordGrantTokenClient
 {
+    /// <summary>
+    /// Obtains an access token from Keycloak using the password (direct-access) grant.
+    /// </summary>
+    /// <param name="keycloakBaseUri">The base URI of the Keycloak server.</param>
+    /// <param name="realm">The Keycloak realm name.</param>
+    /// <param name="clientId">The OAuth2 client id.</param>
+    /// <param name="username">The user name.</param>
+    /// <param name="password">The password.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The access token string.</returns>
     public static async Task<string> GetAccessTokenAsync(
         Uri keycloakBaseUri,
         string realm,

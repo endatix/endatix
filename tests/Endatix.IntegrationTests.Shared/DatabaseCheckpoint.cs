@@ -13,6 +13,10 @@ public sealed class DatabaseCheckpoint
     private readonly SemaphoreSlim _init = new(1, 1);
     private readonly Dictionary<TestDatabaseProvider, Respawner> _respawners = [];
 
+    /// <summary>
+    /// Resets all tracked tables to an empty state using Respawn.
+    /// On first call per provider it lazily initialises the <see cref="Respawner"/>.
+    /// </summary>
     public async Task ResetAsync(
         string connectionString,
         TestDatabaseProvider provider,

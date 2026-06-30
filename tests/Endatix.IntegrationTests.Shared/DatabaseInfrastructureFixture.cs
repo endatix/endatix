@@ -1,80 +1,60 @@
-using DotNet.Testcontainers.Containers;
-using Testcontainers.MsSql;
-using Testcontainers.PostgreSql;
-using Xunit;
-
 namespace Endatix.IntegrationTests.Shared;
 
 /// <summary>
 /// Shared database infrastructure fixture with provider selection via environment.
+/// All fixtures in the same test process share one container via <see cref="EndatixTestcontainers" />.
 /// </summary>
-public sealed class DatabaseInfrastructureFixture : IAsyncLifetime
+/// <remarks>
+/// Initializes the database infrastructure fixture.
+/// </remarks>
+public sealed class DatabaseInfrastructureFixture(IntegrationDatabaseSettings settings) : IAsyncLifetime
 {
-    private const string SqlServerPassword = "yourStrong(!)Password";
+    private readonly IntegrationDatabaseSettings _settings = settings;
+    private EndatixTestcontainersSession? _session;
 
-    private IContainer _container = null!;
+    /// <summary>
+    /// The database provider.
+    /// </summary>
+    public TestDatabaseProvider Provider { get; private set; }
 
-    public TestDatabaseProvider Provider { get; }
-
+    /// <summary>
+    /// The database connection string.
+    /// </summary>
     public string ConnectionString { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// Checkpoint for resetting the database between tests.
+    /// </summary>
     public DatabaseCheckpoint Checkpoint { get; } = new();
 
+    /// <summary>Correlation id for Docker labels on this test run (see tests README for docker filter examples).</summary>
+    public string RunId { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Initializes the database infrastructure fixture.
+    /// </summary>
     public DatabaseInfrastructureFixture()
         : this(IntegrationDatabaseSettings.FromEnvironment())
     {
     }
 
-    public DatabaseInfrastructureFixture(IntegrationDatabaseSettings settings)
-    {
-        Provider = settings.Provider;
-
-        switch (settings.Provider)
-        {
-            case TestDatabaseProvider.PostgreSql:
-                var postgresBuilder = new PostgreSqlBuilder()
-                    .WithDatabase("endatix_test")
-                    .WithUsername("postgres")
-                    .WithPassword("postgres");
-
-                if (!string.IsNullOrWhiteSpace(settings.PostgreSqlImage))
-                {
-                    postgresBuilder = postgresBuilder.WithImage(settings.PostgreSqlImage);
-                }
-
-                var postgresContainer = postgresBuilder.Build();
-                _container = postgresContainer;
-                break;
-            case TestDatabaseProvider.SqlServer:
-                var sqlBuilder = new MsSqlBuilder()
-                    .WithPassword(SqlServerPassword);
-
-                if (!string.IsNullOrWhiteSpace(settings.SqlServerImage))
-                {
-                    sqlBuilder = sqlBuilder.WithImage(settings.SqlServerImage);
-                }
-
-                var sqlContainer = sqlBuilder.Build();
-                _container = sqlContainer;
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(settings.Provider), settings.Provider, "Unsupported test database provider.");
-        }
-    }
-
+    /// <summary>
+    /// Starts the database container (shared per process) and captures connection details.
+    /// </summary>
     public async ValueTask InitializeAsync()
     {
-        await _container.StartAsync();
-        ConnectionString = Provider switch
-        {
-            TestDatabaseProvider.PostgreSql => ((PostgreSqlContainer)_container).GetConnectionString(),
-            TestDatabaseProvider.SqlServer => ((MsSqlContainer)_container).GetConnectionString(),
-            _ => throw new ArgumentOutOfRangeException(nameof(Provider), Provider, "Unsupported test database provider.")
-        };
+        _session = await EndatixTestcontainers.AcquireDatabaseAsync(_settings);
+        ConnectionString = _session.ConnectionString;
+        Provider = _session.Provider;
+        RunId = _session.RunId;
     }
 
+    /// <summary>
+    /// Releases the session reference; the container stays alive until Ryuk cleans up.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
-        await _container.DisposeAsync();
+        await EndatixTestcontainers.ReleaseSessionAsync();
+        _session = null;
     }
 }

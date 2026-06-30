@@ -12,15 +12,17 @@ namespace Endatix.IntegrationTests.Shared;
 /// <summary>
 /// Lightweight per-test seed helper for common integration data setup.
 /// </summary>
-public sealed class IntegrationSeedBuilder
+/// <remarks>
+/// Initialises the seed builder with the host's service provider.
+/// </remarks>
+public sealed class IntegrationSeedBuilder(IServiceProvider services)
 {
-    private readonly IServiceProvider _services;
+    private readonly IServiceProvider _services = services;
 
-    public IntegrationSeedBuilder(IServiceProvider services)
-    {
-        _services = services;
-    }
-
+    /// <summary>
+    /// Seeds a tenant if one with the given name does not already exist.
+    /// </summary>
+    /// <returns>The tenant id (existing or newly created).</returns>
     public async Task<long> SeedTenantAsync(
         string tenantName,
         string? description = null,
@@ -42,11 +44,14 @@ public sealed class IntegrationSeedBuilder
         return tenant.Id;
     }
 
-    public Task SeedFormAsync(long tenantId, string name, CancellationToken cancellationToken = default)
-    {
-        return SeedFormAsync(tenantId, name, isPublic: true, isEnabled: false, cancellationToken);
-    }
+    /// <summary>
+    /// Seeds a public, disabled form for the given tenant.
+    /// </summary>
+    public Task SeedFormAsync(long tenantId, string name, CancellationToken cancellationToken = default) => SeedFormAsync(tenantId, name, isPublic: true, isEnabled: false, cancellationToken);
 
+    /// <summary>
+    /// Seeds a form with explicit visibility and enabled state for the given tenant.
+    /// </summary>
     public async Task SeedFormAsync(
         long tenantId,
         string name,
@@ -68,6 +73,9 @@ public sealed class IntegrationSeedBuilder
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Seeds a role for the given tenant if it does not already exist.
+    /// </summary>
     public async Task SeedRoleAsync(long tenantId, string roleName, CancellationToken cancellationToken = default)
     {
         using var scope = _services.CreateScope();
@@ -91,6 +99,11 @@ public sealed class IntegrationSeedBuilder
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Seeds a user for the given tenant if one with the same user name does not already exist.
+    /// When <paramref name="password"/> is provided the user is created via <see cref="UserManager{TUser}"/>
+    /// so the password is hashed; otherwise the user is added raw to the store.
+    /// </summary>
     public async Task SeedUserAsync(
         long tenantId,
         string userName,
@@ -135,6 +148,9 @@ public sealed class IntegrationSeedBuilder
         }
     }
 
+    /// <summary>
+    /// Assigns a role to a user for the given tenant. No-op if either the user, role, or assignment does not exist.
+    /// </summary>
     public async Task SeedUserRoleAssignmentAsync(
         long tenantId,
         string userName,
@@ -170,6 +186,9 @@ public sealed class IntegrationSeedBuilder
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Seeds the given permission names for a role, creating the permissions if they do not yet exist.
+    /// </summary>
     public async Task SeedRolePermissionsAsync(
         long tenantId,
         string roleName,
@@ -220,18 +239,21 @@ public sealed class IntegrationSeedBuilder
         }
     }
 
+    /// <summary>
+    /// Runs the full standard seed: tenants, system roles, users, role assignments, and sample forms.
+    /// Optionally invokes an <paramref name="afterSeed"/> callback for custom post-seed logic.
+    /// </summary>
     public async Task<StandardSeedResult> SeedStandardAsync(
         StandardSeedOptions? options = null,
         Func<IServiceProvider, StandardSeedResult, CancellationToken, Task>? afterSeed = null,
         CancellationToken cancellationToken = default)
     {
         var resolvedOptions = options ?? StandardSeedOptions.CreateDefault();
-        List<long> tenantIds = [];
+        List<SeededTenant> seededTenants = [];
 
         foreach (var tenant in resolvedOptions.Tenants)
         {
             var tenantId = await SeedTenantAsync(tenant.Name, cancellationToken: cancellationToken);
-            tenantIds.Add(tenantId);
 
             if (resolvedOptions.IncludePersistedSystemRoles)
             {
@@ -272,9 +294,14 @@ public sealed class IntegrationSeedBuilder
 
             await SeedFormAsync(tenantId, $"{tenant.Name}-public-form", isPublic: true, isEnabled: true, cancellationToken);
             await SeedFormAsync(tenantId, $"{tenant.Name}-private-form", isPublic: false, isEnabled: true, cancellationToken);
+
+            var admin = await ResolveSeededUserAsync(tenantId, tenant.AdminUserName, cancellationToken);
+            var creator = await ResolveSeededUserAsync(tenantId, tenant.CreatorUserName, cancellationToken);
+            var platformAdmin = await ResolveSeededUserAsync(tenantId, tenant.PlatformAdminUserName, cancellationToken);
+            seededTenants.Add(new SeededTenant(tenantId, tenant.Name, admin, creator, platformAdmin));
         }
 
-        StandardSeedResult result = new([.. tenantIds]);
+        StandardSeedResult result = new(seededTenants);
         if (afterSeed is not null)
         {
             await afterSeed(_services, result, cancellationToken);
@@ -282,14 +309,30 @@ public sealed class IntegrationSeedBuilder
 
         return result;
     }
+
+    private async Task<SeededUser> ResolveSeededUserAsync(long tenantId, string userName, CancellationToken cancellationToken)
+    {
+        using var scope = _services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var user = await db.Users
+            .FirstAsync(x => x.TenantId == tenantId && x.UserName == userName, cancellationToken);
+
+        return new SeededUser(user.Id, user.UserName!, user.Email!, tenantId);
+    }
 }
 
+/// <summary>
+/// Options for the standard integration test seed run.
+/// </summary>
 public sealed record StandardSeedOptions(
     IReadOnlyList<StandardSeedTenant> Tenants,
     bool IncludePersistedSystemRoles = true,
     bool IncludeRolePermissions = true,
     string? DefaultPassword = null)
 {
+    /// <summary>
+    /// Creates the default options with three seed tenants (a, b, c).
+    /// </summary>
     public static StandardSeedOptions CreateDefault()
     {
         return new StandardSeedOptions(
@@ -322,6 +365,9 @@ public sealed record StandardSeedOptions(
     }
 }
 
+/// <summary>
+/// Describes a tenant to seed during standard seed setup.
+/// </summary>
 public sealed record StandardSeedTenant(
     string Name,
     string AdminUserName,
@@ -331,4 +377,28 @@ public sealed record StandardSeedTenant(
     string PlatformAdminUserName,
     string PlatformAdminEmail);
 
-public sealed record StandardSeedResult(IReadOnlyList<long> TenantIds);
+/// <summary>
+/// A user that was seeded as part of a standard seed run.
+/// </summary>
+public sealed record SeededUser(long Id, string UserName, string Email, long TenantId);
+
+/// <summary>
+/// A tenant that was seeded, including references to its admin, creator, and platform admin users.
+/// </summary>
+public sealed record SeededTenant(
+    long Id,
+    string Name,
+    SeededUser Admin,
+    SeededUser Creator,
+    SeededUser PlatformAdmin);
+
+/// <summary>
+/// Result of a standard seed run, containing all seeded tenants.
+/// </summary>
+public sealed record StandardSeedResult(IReadOnlyList<SeededTenant> Tenants)
+{
+    /// <summary>
+    /// Gets the ids of all seeded tenants.
+    /// </summary>
+    public IReadOnlyList<long> TenantIds => Tenants.Select(tenant => tenant.Id).ToList();
+}

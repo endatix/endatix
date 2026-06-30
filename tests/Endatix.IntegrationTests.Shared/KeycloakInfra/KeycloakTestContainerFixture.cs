@@ -34,6 +34,9 @@ public sealed class KeycloakTestContainerFixture : IAsyncLifetime
         await Container.StartAsync();
     }
 
+    /// <summary>
+    /// Gets the base URI of the running Keycloak container.
+    /// </summary>
     public Uri GetBaseUri() => new(Container.GetBaseAddress());
 
     /// <summary>
