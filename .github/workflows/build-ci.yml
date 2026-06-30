@@ -90,8 +90,11 @@ jobs:
           global-json-file: global.json
 
       - name: Set integration test filter
+        env:
+          GITHUB_REF_SAFE: ${{ github.ref }}
+          GITHUB_EVENT_NAME_SAFE: ${{ github.event_name }}
         run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" != "pull_request" ]; then
+          if [ "$GITHUB_REF_SAFE" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME_SAFE" != "pull_request" ]; then
             echo "INTEGRATION_TEST_FILTER=Category!=Keycloak" >> "$GITHUB_ENV"
           else
             echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Priority!=P2" >> "$GITHUB_ENV"
