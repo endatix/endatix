@@ -1,5 +1,5 @@
+using DotNet.Testcontainers.Images;
 using Testcontainers.Keycloak;
-using Xunit;
 
 namespace Endatix.IntegrationTests.Shared.KeycloakInfra;
 
@@ -28,7 +28,7 @@ public sealed class KeycloakTestContainerFixture : IAsyncLifetime
             var network =
                 await EndatixTestcontainers.AcquireNetworkAsync(_settings);
 
-            var builder = new KeycloakBuilder("quay.io/keycloak/keycloak:26.0")
+            var builder = new KeycloakBuilder(new DockerImage("quay.io/keycloak/keycloak:26.6"))
                 .WithNetwork(network)
                 .WithNetworkAliases("keycloak");
 

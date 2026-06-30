@@ -23,14 +23,17 @@ public sealed class DatabaseMutationTests
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
+        await _fixture.Checkpoint.ResetAsync(
+            _fixture.Database.ConnectionString,
+            _fixture.Database.Provider,
+            cancellationToken);
+
         int before;
         using (var scope = _fixture.Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             before = await db.Forms.CountAsync(cancellationToken);
         }
-
-        Assert.True(before >= 0);
 
         try
         {
