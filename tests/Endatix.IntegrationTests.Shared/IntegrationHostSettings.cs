@@ -12,7 +12,7 @@ public sealed record IntegrationHostSettings(IntegrationHostMode HostMode)
     {
         var modeRaw = Environment.GetEnvironmentVariable("ENDATIX_TEST_HOST_MODE") ?? "ProductionProgram";
         var parsed = Enum.TryParse(modeRaw, ignoreCase: true, out IntegrationHostMode mode);
-        if (!parsed)
+        if (!parsed || !Enum.IsDefined(mode))
         {
             throw new InvalidOperationException(
                 $"Unsupported ENDATIX_TEST_HOST_MODE value '{modeRaw}'. Supported values: ProductionProgram, DedicatedIntegrationHost.");

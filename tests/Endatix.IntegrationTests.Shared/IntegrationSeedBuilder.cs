@@ -274,7 +274,10 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
                 tenant.AdminEmail,
                 password: resolvedOptions.DefaultPassword,
                 cancellationToken: cancellationToken);
-            await SeedUserRoleAssignmentAsync(tenantId, tenant.AdminUserName, SystemRole.Admin.Name, cancellationToken);
+            if (resolvedOptions.IncludePersistedSystemRoles)
+            {
+                await SeedUserRoleAssignmentAsync(tenantId, tenant.AdminUserName, SystemRole.Admin.Name, cancellationToken);
+            }
 
             await SeedUserAsync(
                 tenantId,
@@ -282,7 +285,10 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
                 tenant.CreatorEmail,
                 password: resolvedOptions.DefaultPassword,
                 cancellationToken: cancellationToken);
-            await SeedUserRoleAssignmentAsync(tenantId, tenant.CreatorUserName, SystemRole.Creator.Name, cancellationToken);
+            if (resolvedOptions.IncludePersistedSystemRoles)
+            {
+                await SeedUserRoleAssignmentAsync(tenantId, tenant.CreatorUserName, SystemRole.Creator.Name, cancellationToken);
+            }
 
             await SeedUserAsync(
                 tenantId,
@@ -290,7 +296,10 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
                 tenant.PlatformAdminEmail,
                 password: resolvedOptions.DefaultPassword,
                 cancellationToken: cancellationToken);
-            await SeedUserRoleAssignmentAsync(tenantId, tenant.PlatformAdminUserName, SystemRole.PlatformAdmin.Name, cancellationToken);
+            if (resolvedOptions.IncludePersistedSystemRoles)
+            {
+                await SeedUserRoleAssignmentAsync(tenantId, tenant.PlatformAdminUserName, SystemRole.PlatformAdmin.Name, cancellationToken);
+            }
 
             await SeedFormAsync(tenantId, $"{tenant.Name}-public-form", isPublic: true, isEnabled: true, cancellationToken);
             await SeedFormAsync(tenantId, $"{tenant.Name}-private-form", isPublic: false, isEnabled: true, cancellationToken);
