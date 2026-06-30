@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Infrastructure.Data;
@@ -202,6 +203,7 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
 
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var idGenerator = scope.ServiceProvider.GetRequiredService<IIdGenerator<long>>();
 
         var role = await db.Roles
             .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Name == roleName, cancellationToken);
@@ -210,31 +212,62 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
             return;
         }
 
-        foreach (var permissionName in permissionNames)
-        {
-            var permission = await db.Permissions
-                .FirstOrDefaultAsync(x => x.Name == permissionName, cancellationToken);
-            if (permission is null)
-            {
-                permission = Permission.CreateSystemPermission(
-                    permissionName,
-                    $"{permissionName} seeded permission",
-                    "System");
-                db.Permissions.Add(permission);
-                await db.SaveChangesAsync(cancellationToken);
-            }
+        var distinctPermissionNames = permissionNames
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
 
-            var exists = await db.RolePermissions
-                .AnyAsync(
-                    x => x.RoleId == role.Id && x.PermissionId == permission.Id,
-                    cancellationToken);
-            if (exists)
+        var permissionsByName = await db.Permissions
+            .Where(x => distinctPermissionNames.Contains(x.Name))
+            .ToDictionaryAsync(x => x.Name, cancellationToken);
+
+        var permissionsChanged = false;
+        foreach (var permissionName in distinctPermissionNames)
+        {
+            if (permissionsByName.ContainsKey(permissionName))
             {
                 continue;
             }
 
-            RolePermission rolePermission = new(role.Id, permission.Id);
+            var permission = Permission.CreateSystemPermission(
+                permissionName,
+                $"{permissionName} seeded permission",
+                "System");
+            permission.Id = idGenerator.CreateId();
+            db.Permissions.Add(permission);
+            permissionsByName[permissionName] = permission;
+            permissionsChanged = true;
+        }
+
+        if (permissionsChanged)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        var permissionIds = permissionsByName.Values.Select(x => x.Id).ToList();
+        var assignedPermissionIds = (await db.RolePermissions
+            .Where(x => x.RoleId == role.Id && permissionIds.Contains(x.PermissionId))
+            .Select(x => x.PermissionId)
+            .ToListAsync(cancellationToken))
+            .ToHashSet();
+
+        var rolePermissionsChanged = false;
+        foreach (var permission in permissionsByName.Values)
+        {
+            if (assignedPermissionIds.Contains(permission.Id))
+            {
+                continue;
+            }
+
+            RolePermission rolePermission = new(role.Id, permission.Id)
+            {
+                Id = idGenerator.CreateId()
+            };
             db.RolePermissions.Add(rolePermission);
+            rolePermissionsChanged = true;
+        }
+
+        if (rolePermissionsChanged)
+        {
             await db.SaveChangesAsync(cancellationToken);
         }
     }
@@ -342,9 +375,7 @@ public sealed record StandardSeedOptions(
     /// <summary>
     /// Creates the default options with three seed tenants (a, b, c).
     /// </summary>
-    public static StandardSeedOptions CreateDefault()
-    {
-        return new StandardSeedOptions(
+    public static StandardSeedOptions CreateDefault() => new StandardSeedOptions(
             [
                 new StandardSeedTenant(
                     "seed-tenant-a",
@@ -371,7 +402,6 @@ public sealed record StandardSeedOptions(
                     "seed-platform-admin-c",
                     "seed-platform-admin-c@test.local")
             ]);
-    }
 }
 
 /// <summary>
