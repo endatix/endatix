@@ -7,6 +7,9 @@
         <IsTestProject>true</IsTestProject>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <!-- Do not inherit oss RuntimeFrameworkVersion (10.0.6); use the SDK default so tests run on locally installed 10.0.x. -->
+        <RuntimeFrameworkVersion />
+        <RollForward>LatestMinor</RollForward>
     </PropertyGroup>
 
     <ItemGroup>

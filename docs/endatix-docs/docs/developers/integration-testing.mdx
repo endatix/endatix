@@ -8,12 +8,13 @@ sidebar_position: 2
 
 This guide describes how to run and extend **API integration tests** for the open-source `Endatix.WebHost` stack. Tests use **Testcontainers** for PostgreSQL or SQL Server, **Respawn** for fast database resets, and **`WebApplicationFactory`** for an in-process HTTP client against the real startup pipeline.
 
-The same topics are summarized in the monorepo **`tests/README.md`** at the repository root (next to `oss/`).
 
 ## Prerequisites
 
 - **Docker** running locally (containers are pulled and started on demand).
 - **.NET SDK** matching the solution (see repository global.json or CI).
+
+**Note:** DB-backed integration tests require Docker and Testcontainers.
 
 ## Quick start
 
@@ -23,11 +24,19 @@ From the repository root that contains `oss/`:
 dotnet test oss/tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
 ```
 
-Default runs typically exclude slow **Keycloak**-scoped tests. To match CI:
+Default runs typically exclude slow **Keycloak**-scoped tests. To match CI on **main**:
 
 ```bash
 dotnet test oss/tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak"
 ```
+
+Pull-request CI uses the faster gate (P0 + P1 only):
+
+```bash
+dotnet test oss/tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak&Priority!=P2"
+```
+
+Filter strings are defined in `IntegrationTestFilters` (`Endatix.IntegrationTests.Shared`).
 
 ## Configuration (environment variables)
 
@@ -38,6 +47,21 @@ dotnet test oss/tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -
 | `ENDATIX_TEST_DB_POSTGRES_IMAGE` | Optional image override for PostgreSQL. |
 | `ENDATIX_TEST_DB_SQLSERVER_IMAGE` | Optional image override for SQL Server. |
 | `ENDATIX_TEST_DEBUG` | Set to `true` for extra diagnostics from tests that support it (e.g. auth flow debug output). |
+| `ENDATIX_TEST_REUSE_CONTAINERS` | `true` to keep DB/network between local runs (local dev only; disables Ryuk cleanup for reused resources). |
+| `ENDATIX_TEST_RUN_ID` | Optional override for Docker label `endatix.test.run` when debugging containers. |
+
+## Docker containers
+
+One `dotnet test` process uses **one shared database container** and **one Docker network** for all xUnit collections (`OssIntegrationTestCollection` and `DbIntegrationTestCollection`). Keycloak joins the same network when P2 tests run.
+
+Containers are labeled (`endatix.test.suite=integration`, `endatix.test.component`, `endatix.test.run`). Inspect them with:
+
+```bash
+docker ps --filter "label=endatix.test.suite=integration"
+docker network ls --filter "name=endatix-tests"
+```
+
+Testcontainers [Resource Reaper](https://dotnet.testcontainers.org/api/resource_reaper/) (Ryuk) removes labeled resources when the test process exits, unless reuse is enabled.
 
 ## Suite organization
 
@@ -58,12 +82,30 @@ Example: run only critical-path tests:
 dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category=CriticalPath"
 ```
 
+## Test world and personas
+
+Prepare a known database state and authenticated clients via shared infrastructure in `Endatix.IntegrationTests.Shared`:
+
+```csharp
+IntegrationTestWorld world = await _fixture.PrepareWorldAsync(
+    IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" });
+
+HttpClient admin = await world.AsAsync(TestPersona.TenantAdmin);
+HttpClient anonymous = world.AnonymousClient();
+```
+
+- **Presets:** `Empty`, `SingleTenant`, `MultiTenant`
+- **Auth:** `IntegrationAuthMode.Login` (full pipeline) or `IntegrationAuthMode.SyntheticJwt` (fast token for non-auth tests)
+
+See `AuthLoginFlowTests` for a reference implementation.
+
 ## Extending the suite
 
-1. **Collection fixture** — Use `OssIntegrationTestCollection` and inject `OssIntegrationWebHostFixture` for shared DB + host (same pattern as existing tests).
-2. **Reset** — Call `Checkpoint.ResetAsync` (or `ResetDatabaseAsync` on the fixture) before assertions that need a clean database.
-3. **Data** — Use `IntegrationSeedBuilder` in shared test code for deterministic users, roles, and forms. For a full baseline (multi-tenant, roles, forms), use optional **standard seed** via `StandardSeedOptions` and `ResetDatabaseAsync(useStandardSeed: true, ...)` (see shared `IntegrationSeedBuilder`).
-4. **Naming** — Behavior-first test methods; flow-focused classes named like `AuthLoginFlowTests`.
+1. **Collection fixture** — Use `OssIntegrationTestCollection` and inject `OssIntegrationWebHostFixture` for shared DB + host.
+2. **World** — Prefer `PrepareWorldAsync` over manual reset + seed.
+3. **Reset** — `Checkpoint.ResetAsync` or `ResetDatabaseAsync` when you need an empty DB without the world helper.
+4. **Data** — `IntegrationSeedBuilder` for granular seeding; `StandardSeedOptions` for multi-tenant baselines.
+5. **Naming** — Behavior-first test methods; flow-focused classes like `AuthLoginFlowTests`.
 
 ## Assertions
 
@@ -71,7 +113,10 @@ Prefer **HTTP status + response contract + persistence effect** (or explicit lac
 
 ## CI
 
-The SaaS repo workflow can run the same Endatix API suite against a **matrix** of database providers. Use the same `--filter` patterns as locally when reproducing CI failures.
+Endatix API's `build-ci.yml` runs unit tests separately from an integration job (PostgreSQL, Testcontainers):
+
+- **Pull requests / feature branches:** `Category!=Keycloak&Priority!=P2` (P0 + P1)
+- **`main` push:** `Category!=Keycloak` (full default breadth)
 
 ## Related configuration
 
