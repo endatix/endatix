@@ -35,8 +35,9 @@ public sealed class HealthCheckTests
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using EndatixWebApplicationFactory baseFactory = new(_fixture.Database.ConnectionString, _fixture.Database.Provider);
-        var factory = baseFactory
+        await using var factory = new EndatixWebApplicationFactory(
+                _fixture.Database.ConnectionString,
+                _fixture.Database.Provider)
             .WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
