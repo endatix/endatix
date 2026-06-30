@@ -26,7 +26,7 @@ public sealed class OutboxSchemaConformanceTests : IDisposable
         var idGenerator = Substitute.For<IIdGenerator<long>>();
         var tenantContext = Substitute.For<ITenantContext>();
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite("DataSource=:memory:")
+            .UseNpgsql("Host=localhost;Database=fake;Username=x;Password=x")
             .Options;
 
         _context = new AppDbContext(
