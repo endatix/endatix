@@ -40,22 +40,19 @@ public static class IntegrationAuthClients
         }
 
         var user = await ResolveUserAsync(world, persona, tenantIndex, userName, cancellationToken);
-        var password = world.Options.DefaultPassword ?? world.Options.SeedOptions?.DefaultPassword;
-
-        if (mode == IntegrationAuthMode.Login && string.IsNullOrWhiteSpace(password))
-        {
-            throw new InvalidOperationException(
-                "Login auth mode requires IntegrationWorldOptions.DefaultPassword or SeedOptions.DefaultPassword.");
-        }
-
         var client = world.CreateClientFactory();
 
         var accessToken = mode switch
         {
             IntegrationAuthMode.SyntheticJwt => CreateAccessToken(user, world.Options.AuthSettings),
-            IntegrationAuthMode.Login => await LoginAsync(client, user.Email, password!, cancellationToken),
+            IntegrationAuthMode.Login => await LoginAsync(client, user.Email, ResolvePassword(world), cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unsupported integration auth mode.")
         };
+
+        static string ResolvePassword(IntegrationTestWorld world)
+            => world.Options.DefaultPassword ?? world.Options.SeedOptions?.DefaultPassword
+               ?? throw new InvalidOperationException(
+                   "Login auth mode requires IntegrationWorldOptions.DefaultPassword or SeedOptions.DefaultPassword.");
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return client;
