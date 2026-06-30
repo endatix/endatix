@@ -141,6 +141,7 @@ When adding tests, set traits so PR CI stays fast. Update `.github/workflows/bui
 | `ENDATIX_TEST_HOST_MODE` | `ProductionProgram` | `ProductionProgram` or `DedicatedIntegrationHost` |
 | `ENDATIX_TEST_REUSE_CONTAINERS` | off | Keep containers between local runs (dev only) |
 | `ENDATIX_TEST_RUN_ID` | auto | Docker label for debugging containers |
+| `ENDATIX_TEST_JWT_SIGNING_KEY` | built-in `TEST:` key | Integration-test JWT signing (host + synthetic JWT) |
 | `ENDATIX_TEST_DEBUG` | off | Extra diagnostics where supported |
 
 ## Reference tests

@@ -61,7 +61,7 @@ internal static class EndatixWebApplicationFactoryConfiguration
         builder.UseSetting("Endatix:Data:SeedSampleData", "false");
         builder.UseSetting("Endatix:Data:SeedSampleForms", "false");
 
-        var auth = IntegrationTestAuthSettings.Default;
+        var auth = IntegrationTestAuthSettings.FromEnvironment();
         builder.UseSetting("Endatix:Auth:Providers:Keycloak:Enabled", "false");
         builder.UseSetting("Endatix:Auth:Providers:EndatixJwt:Enabled", "true");
         builder.UseSetting("Endatix:Auth:Providers:EndatixJwt:SigningKey", auth.SigningKey);

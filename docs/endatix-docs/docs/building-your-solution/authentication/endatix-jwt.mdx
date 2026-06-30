@@ -34,7 +34,7 @@ The Endatix JWT provider is automatically included and provides:
       "Providers": {
         "EndatixJwt": {
           "Enabled": true,
-          "SigningKey": "L2yGC_Vpd3k#L[<9Zb,h?.HT:n'T/5CTDmBpDskU?NAaT$sLfRU",
+          "SigningKey": "{JWT_SIGNING_KEY}",
           "AccessExpiryInMinutes": 900,
           "RefreshExpiryInDays": 7,
           "Issuer": "https://localhost:5001"
@@ -44,6 +44,8 @@ The Endatix JWT provider is automatically included and provides:
   }
 }
 ```
+
+Use `{JWT_SIGNING_KEY}` or user secrets — never commit production signing keys. See [security configuration](/docs/configuration/security-configuration) for generating and storing a local key.
 
 </TabItem>
 <TabItem value="production" label="Production">

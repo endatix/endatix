@@ -49,6 +49,7 @@ Filter strings are defined in `IntegrationTestFilters` (`Endatix.IntegrationTest
 | `ENDATIX_TEST_DEBUG` | Set to `true` for extra diagnostics from tests that support it (e.g. auth flow debug output). |
 | `ENDATIX_TEST_REUSE_CONTAINERS` | `true` to keep DB/network between local runs (local dev only; disables Ryuk cleanup for reused resources). |
 | `ENDATIX_TEST_RUN_ID` | Optional override for Docker label `endatix.test.run` when debugging containers. |
+| `ENDATIX_TEST_JWT_SIGNING_KEY` | Optional override for integration-test JWT signing (host + synthetic JWT clients). Defaults to a `TEST:`-prefixed non-production key. |
 
 ## Docker containers
 
