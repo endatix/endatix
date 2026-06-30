@@ -32,29 +32,33 @@ public sealed class DatabaseMutationTests
 
         Assert.True(before >= 0);
 
-        using (var scope = _fixture.Factory.Services.CreateScope())
+        try
         {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            Tenant tenant = new("integration-mutation-tenant");
-            db.Set<Tenant>().Add(tenant);
-            await db.SaveChangesAsync(cancellationToken);
-            Form form = new(tenant.Id, "integration-test-form");
-            db.Forms.Add(form);
-            await db.SaveChangesAsync(cancellationToken);
-        }
+            using (var scope = _fixture.Factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                Tenant tenant = new("integration-mutation-tenant");
+                db.Set<Tenant>().Add(tenant);
+                await db.SaveChangesAsync(cancellationToken);
+                Form form = new(tenant.Id, "integration-test-form");
+                db.Forms.Add(form);
+                await db.SaveChangesAsync(cancellationToken);
+            }
 
-        using (var scope = _fixture.Factory.Services.CreateScope())
+            using (var scope = _fixture.Factory.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var afterInsert = await db.Forms.CountAsync(cancellationToken);
+                Assert.Equal(before + 1, afterInsert);
+            }
+        }
+        finally
         {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var afterInsert = await db.Forms.CountAsync(cancellationToken);
-            Assert.Equal(before + 1, afterInsert);
+            await _fixture.Checkpoint.ResetAsync(
+                _fixture.Database.ConnectionString,
+                _fixture.Database.Provider,
+                cancellationToken);
         }
-
-        // Act
-        await _fixture.Checkpoint.ResetAsync(
-            _fixture.Database.ConnectionString,
-            _fixture.Database.Provider,
-            cancellationToken);
 
         // Assert
         using (var scope = _fixture.Factory.Services.CreateScope())
