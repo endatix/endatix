@@ -31,7 +31,6 @@ public class PartialUpdateFormHandler(
             return Result.NotFound("Form not found.");
         }
 
-        var oldIsEnabled = form.IsEnabled;
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
 
         if (form.LimitOnePerUser && !requestedLimitOnePerUser)
@@ -57,12 +56,7 @@ public class PartialUpdateFormHandler(
             }
         }
 
-        form.Name = request.Name ?? form.Name;
-        form.Description = request.Description ?? form.Description;
-        form.IsEnabled = request.IsEnabled ?? form.IsEnabled;
-        form.IsPublic = request.IsPublic ?? form.IsPublic;
-        form.Metadata = request.Metadata ?? form.Metadata;
-        form.LimitOnePerUser = requestedLimitOnePerUser;
+        form.SetEnabled(request.IsEnabled ?? form.IsEnabled); // raises form.enabled_state_changed (outbox) on a change
 
         if (request.ThemeId.HasValue && form.ThemeId != request.ThemeId)
         {
@@ -113,14 +107,20 @@ public class PartialUpdateFormHandler(
             }
         }
 
+        // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
+        // before save so the capture is atomic. Omitted fields keep their current value.
+        form.UpdateDetails(
+            request.Name ?? form.Name,
+            request.Description ?? form.Description,
+            request.IsPublic ?? form.IsPublic,
+            requestedLimitOnePerUser,
+            request.Metadata ?? form.Metadata);
         await repository.UpdateAsync(form, cancellationToken);
 
+        // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows
+        // via the outbox. The enabled-state change is raised on the aggregate (SetEnabled → outbox) and has no
+        // in-process subscriber, so it is not published here.
         await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);
-
-        if (request.IsEnabled.HasValue && oldIsEnabled != request.IsEnabled.Value)
-        {
-            await mediator.Publish(new FormEnabledStateChangedEvent(form, request.IsEnabled.Value), cancellationToken);
-        }
 
         return Result.Success(form);
     }

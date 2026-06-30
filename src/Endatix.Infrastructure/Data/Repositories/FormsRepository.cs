@@ -30,6 +30,9 @@ namespace Endatix.Infrastructure.Repositories
                 // Add and save form definition
                 form.AddFormDefinition(formDefinition);
                 _dbContext.Set<FormDefinition>().Add(formDefinition);
+                // Raise form.created now — after the active definition is set, before this save — so the outbox
+                // captures it atomically in THIS transaction with a populated activeDefinitionId.
+                form.RaiseCreated();
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);

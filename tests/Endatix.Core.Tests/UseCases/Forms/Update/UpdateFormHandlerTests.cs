@@ -82,9 +82,10 @@ public class UpdateFormHandlerTests
     }
 
     [Fact]
-    public async Task Handle_EnabledStateChanged_PublishesFormEnabledStateChangedEvent()
+    public async Task Handle_EnabledStateChanged_RaisesFormEnabledStateChangedEventOnTheAggregate()
     {
-        // Arrange
+        // Arrange — the enabled-state change is now captured to the outbox via the aggregate (SetEnabled),
+        // not published in-process. The handler keeps the FormUpdated publish for cache invalidation.
         var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, false);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
@@ -94,7 +95,10 @@ public class UpdateFormHandlerTests
         await _handler.Handle(request, CancellationToken.None);
 
         // Assert
-        await _mediator.Received(1).Publish(Arg.Is<FormEnabledStateChangedEvent>(e => e.Form == form && e.IsEnabled == false), Arg.Any<CancellationToken>());
+        form.IsEnabled.Should().BeFalse();
+        form.DomainEvents.OfType<FormEnabledStateChangedEvent>().Should().ContainSingle()
+            .Which.IsEnabled.Should().BeFalse();
+        await _mediator.DidNotReceive().Publish(Arg.Any<FormEnabledStateChangedEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

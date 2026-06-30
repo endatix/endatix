@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -127,6 +128,45 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     public void IncrementRevision() => Revision++;
 
     /// <summary>
+    /// Raises the <c>form.created</c> integration event (captured to the outbox → webhook). Call once after the
+    /// form and its active definition are set up, before saving. Creation is revision 1, so this does not bump.
+    /// </summary>
+    public void RaiseCreated() => RegisterDomainEvent(new FormCreatedEvent(this));
+
+    /// <summary>
+    /// Applies the editable form details, bumps the revision and raises the <c>form.updated</c> integration
+    /// event (captured to the outbox → webhook) in a single step — so a caller can't mutate the form and forget
+    /// the revision bump/event. The enabled-state change has its own method and event (see <see cref="SetEnabled"/>).
+    /// </summary>
+    public void UpdateDetails(string name, string? description, bool isPublic, bool limitOnePerUser, string? metadata)
+    {
+        Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
+        Name = name;
+        Description = description;
+        IsPublic = isPublic;
+        LimitOnePerUser = limitOnePerUser;
+        Metadata = metadata;
+        IncrementRevision();
+        RegisterDomainEvent(new FormUpdatedEvent(this));
+    }
+
+    /// <summary>
+    /// Sets the enabled state. On an actual change it bumps the revision and raises
+    /// <c>form.enabled_state_changed</c>; when the value is unchanged it is a no-op (no event).
+    /// </summary>
+    public void SetEnabled(bool isEnabled)
+    {
+        if (IsEnabled == isEnabled)
+        {
+            return;
+        }
+
+        IsEnabled = isEnabled;
+        IncrementRevision();
+        RegisterDomainEvent(new FormEnabledStateChangedEvent(this, isEnabled));
+    }
+
+    /// <summary>
     /// Updates the webhook configuration settings for this form.
     /// </summary>
     public void UpdateWebHookSettings(WebHookConfiguration? settings)
@@ -160,6 +200,9 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
 
             // Delete the form itself
             base.Delete();
+
+            IncrementRevision();
+            RegisterDomainEvent(new FormDeletedEvent(this));
         }
     }
 }

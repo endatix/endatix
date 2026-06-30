@@ -130,6 +130,10 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
                 .SetValue(submission, completedAt);
         }
 
+        // Seed/demo data must not emit webhooks: drop the integration events the aggregate raised
+        // (e.g. submission.completed) so they are not captured to the outbox during seeding.
+        submission.ClearDomainEvents();
+
         return submission;
     }
 }
