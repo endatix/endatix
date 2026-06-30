@@ -7,7 +7,6 @@ using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Endatix.IntegrationTests;
 
@@ -143,16 +142,8 @@ public sealed class OutboxCaptureTests
     private TestAppDbContext CreateContext()
     {
         // PostgreSQL-only path — see [Trait("DbSpecific", "PostgreSql")]. Loads provider jsonb configs from the PG migrations assembly.
-        const string postgresMigrationsAssembly = "Endatix.Persistence.PostgreSql";
-        const string appMigrationsNamespace = "Endatix.Persistence.PostgreSql.Migrations.AppEntities";
-
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
-        optionsBuilder.UseNpgsql(_fixture.Database.ConnectionString, npgsql =>
-        {
-            npgsql.MigrationsAssembly(postgresMigrationsAssembly);
-            npgsql.MigrationsHistoryTable(HistoryRepository.DefaultTableName);
-        });
-        ModuleDbContextExtensions.ConfigureProviderScopedMigrations(optionsBuilder, appMigrationsNamespace);
+        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.Database.ConnectionString);
 
         return new TestAppDbContext(
             optionsBuilder.Options,
