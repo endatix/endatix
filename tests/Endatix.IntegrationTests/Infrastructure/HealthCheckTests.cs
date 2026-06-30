@@ -36,18 +36,20 @@ public sealed class HealthCheckTests
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await using EndatixWebApplicationFactory baseFactory = new(_fixture.Database.ConnectionString, _fixture.Database.Provider);
-        var client = baseFactory
+        var factory = baseFactory
             .WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton<IntegrationTestMarkerService>();
                 });
-            })
-            .CreateClient(new WebApplicationFactoryClientOptions
-            {
-                AllowAutoRedirect = false
             });
+        var markerService = factory.Services.GetRequiredService<IntegrationTestMarkerService>();
+        Assert.NotNull(markerService);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
 
         // Act
         var response = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);

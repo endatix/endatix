@@ -61,7 +61,7 @@ public sealed class DatabaseMutationTests
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var afterReset = await db.Forms.CountAsync(cancellationToken);
-            Assert.Equal(0, afterReset);
+            Assert.Equal(before, afterReset);
         }
     }
 }
