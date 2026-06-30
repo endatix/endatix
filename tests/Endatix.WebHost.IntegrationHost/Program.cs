@@ -1,13 +1,11 @@
 using Endatix.Hosting;
 
-WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.ConfigureEndatix();
 
-WebApplication app = builder.Build();
+var app = builder.Build();
 
 app.UseEndatix();
 
 app.Run();
-
-public partial class Program { }
