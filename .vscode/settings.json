@@ -17,6 +17,7 @@
   "csharp.preview.improvedLaunchExperience": true,
   "csharp.suppressDotnetRestoreNotification": true,
   "dotnet.automaticallySyncWithActiveItem": true,
+  "dotnet.defaultSolution": "Endatix.slnx",
   "[csharp]": {
     "editor.codeActionsOnSave": {
       "source.organizeImports": "always"
