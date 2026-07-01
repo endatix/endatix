@@ -6,56 +6,55 @@ using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Repositories;
-using FluentAssertions;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using NSubstitute;
 
-namespace Endatix.Infrastructure.Tests.Features.Outbox;
+namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Proves the full Phase 2 capture path through a real <see cref="DbContext.SaveChanges()"/> against a
-/// SQLite database: integration events raised on an aggregate become OutboxMessage rows committed in the
-/// SAME transaction as the aggregate (and roll back together when the write fails).
+/// Proves the full outbox capture path through a real SaveChanges against PostgreSQL: integration events
+/// raised on an aggregate become OutboxMessage rows committed in the same transaction as the aggregate
+/// (and roll back together when the write fails).
 /// </summary>
-public sealed class OutboxCaptureIntegrationTests : IDisposable
+[Collection(nameof(EndatixIntegrationTestCollection))]
+[Trait("Category", "Infrastructure")]
+[Trait("Priority", "P1")]
+[Trait("DbSpecific", "PostgreSql")]
+public sealed class OutboxCaptureTests
 {
     private const long AmbientTenantId = 42;
-    private readonly SqliteConnection _connection;
-    private readonly ITenantContext _tenantContext;
-    // One generator for the fixture: contexts share the DB connection, so Ids must be unique across them.
+    private const string ProbeSchema = "test_probes";
+    private const string ProbeTable = "OutboxCaptureProbes";
+    private readonly EndatixIntegrationWebHostFixture _fixture;
+    private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly IncrementingIdGenerator _idGenerator = new();
 
-    public OutboxCaptureIntegrationTests()
+    public OutboxCaptureTests(EndatixIntegrationWebHostFixture fixture)
     {
-        // A shared in-memory connection kept open for the test, so the schema survives across contexts.
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
-
-        _tenantContext = Substitute.For<ITenantContext>();
+        _fixture = fixture;
         _tenantContext.TenantId.Returns(AmbientTenantId);
     }
-
-    public void Dispose() => _connection.Dispose();
 
     [Fact]
     public async Task SaveChanges_WhenAggregateRaisesIntegrationEvent_CommitsOneOutboxRow()
     {
         // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _fixture.Database.Checkpoint.ResetAsync(_fixture.Database.ConnectionString, _fixture.Database.Provider, cancellationToken);
+
         using (var ctx = CreateContext())
         {
-            await ctx.Database.EnsureCreatedAsync();
-            var probe = new OutboxCaptureProbe { Name = "alpha" };
+            await EnsureProbeTableAsync(ctx, cancellationToken);
+            OutboxCaptureProbe probe = new() { Name = "alpha" };
             probe.RaiseCreated(formId: 555);
             ctx.Probes.Add(probe);
 
             // Act
-            await ctx.SaveChangesAsync();
+            await ctx.SaveChangesAsync(cancellationToken);
         }
 
         // Assert — a fresh context proves the row was committed, not merely tracked
         using var verify = CreateContext();
-        var outbox = await verify.OutboxMessages.ToListAsync();
+        var outbox = await verify.OutboxMessages.ToListAsync(cancellationToken);
 
         outbox.Should().ContainSingle();
         outbox[0].EventType.Should().Be("probe.created");
@@ -74,27 +73,29 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
     public async Task SaveChanges_WhenTheAggregateWriteFails_RollsBackTheOutboxRowToo()
     {
         // Arrange — seed a row so a duplicate Name violates the unique index on the next write
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _fixture.Database.Checkpoint.ResetAsync(_fixture.Database.ConnectionString, _fixture.Database.Provider, cancellationToken);
+
         using (var seed = CreateContext())
         {
-            await seed.Database.EnsureCreatedAsync();
+            await EnsureProbeTableAsync(seed, cancellationToken);
             seed.Probes.Add(new OutboxCaptureProbe { Name = "dup" });
-            await seed.SaveChangesAsync();
+            await seed.SaveChangesAsync(cancellationToken);
         }
 
         using var ctx = CreateContext();
-        var probe = new OutboxCaptureProbe { Name = "dup" }; // duplicate → the INSERT will fail
+        OutboxCaptureProbe probe = new() { Name = "dup" };
         probe.RaiseCreated(formId: 1);
         ctx.Probes.Add(probe);
 
         // Act — capture adds the outbox row, then base.SaveChanges throws on the unique violation
-        var act = async () => await ctx.SaveChangesAsync();
+        Func<Task> act = async () => await ctx.SaveChangesAsync(cancellationToken);
 
         // Assert — the failed transaction left NO outbox row: capture is atomic with the aggregate write
         await act.Should().ThrowAsync<DbUpdateException>();
-
         using var verify = CreateContext();
-        (await verify.OutboxMessages.CountAsync()).Should().Be(0, "the captured row must roll back with the failed aggregate");
-        (await verify.Probes.CountAsync()).Should().Be(1, "only the seeded row should remain");
+        (await verify.OutboxMessages.CountAsync(cancellationToken)).Should().Be(0, "the captured outbox row must roll back with the failed aggregate");
+        (await verify.Probes.CountAsync(cancellationToken)).Should().Be(1, "only the seeded row should remain");
     }
 
     [Fact]
@@ -103,50 +104,75 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
         // Exercises the real FormsRepository.CreateFormWithDefinitionAsync so the regression stays tied to
         // its two-save capture ordering (the active definition is added between saves, and form.created must
         // capture a populated activeDefinitionId).
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _fixture.Database.Checkpoint.ResetAsync(_fixture.Database.ConnectionString, _fixture.Database.Provider, cancellationToken);
+
         _tenantContext.TenantId.Returns(0L); // bypass tenant query filter so we can read the outbox row back
 
         long formDefinitionId;
         using (var ctx = CreateContext())
         {
-            await ctx.Database.EnsureCreatedAsync();
-
-            var tenant = new Tenant("acme");
+            Tenant tenant = new("acme");
             ctx.Set<Tenant>().Add(tenant);
-            await ctx.SaveChangesAsync();
+            await ctx.SaveChangesAsync(cancellationToken);
 
-            var repository = new FormsRepository(ctx, new AppUnitOfWork(ctx), new EndatixSpecificationEvaluator([]));
-            var form = new Form(tenant.Id, "webhook-form", "desc", isEnabled: true);
-            var formDefinition = new FormDefinition(tenant.Id);
+            FormsRepository repository = new(ctx, new AppUnitOfWork(ctx), new EndatixSpecificationEvaluator([]));
+            Form form = new(tenant.Id, "webhook-form", "desc", isEnabled: true);
+            FormDefinition formDefinition = new(tenant.Id);
 
-            await repository.CreateFormWithDefinitionAsync(form, formDefinition);
+            await repository.CreateFormWithDefinitionAsync(form, formDefinition, cancellationToken);
 
             formDefinitionId = formDefinition.Id;
             formDefinitionId.Should().BeGreaterThan(0);
         }
 
         using var verify = CreateContext();
-        var created = (await verify.OutboxMessages.ToListAsync())
+        OutboxMessage created = (await verify.OutboxMessages.ToListAsync(cancellationToken))
             .Single(m => m.EventType == "form.created");
 
         using var payload = JsonDocument.Parse(created.Payload);
-        var activeDefinitionId = payload.RootElement.GetProperty("activeDefinitionId");
+        JsonElement activeDefinitionId = payload.RootElement.GetProperty("activeDefinitionId");
         activeDefinitionId.GetString().Should().Be(
             formDefinitionId.ToString(),
             "the form.created webhook payload must carry the real active definition id, not a stale 0/null");
+
+        _tenantContext.TenantId.Returns(AmbientTenantId);
     }
 
     private TestAppDbContext CreateContext()
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(_connection)
-            .Options;
+        // PostgreSQL-only path — see [Trait("DbSpecific", "PostgreSql")]. Loads provider jsonb configs from the PG migrations assembly.
+        DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
+        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.Database.ConnectionString);
 
         return new TestAppDbContext(
-            options,
+            optionsBuilder.Options,
             _idGenerator,
             _tenantContext,
             new EfCoreValueGeneratorFactory(_idGenerator),
-            new OutboxIntegrationEventDispatcher());
+            new OutboxIntegrationEventDispatcher(),
+            ProbeSchema,
+            ProbeTable);
+    }
+
+    private async Task EnsureProbeTableAsync(TestAppDbContext context, CancellationToken cancellationToken)
+    {
+        // Isolated schema keeps probe DDL out of public/migration-owned tables (Respawn resets data, not this schema).
+        await context.Database.ExecuteSqlRawAsync(
+            $"""
+            CREATE SCHEMA IF NOT EXISTS {ProbeSchema};
+            CREATE TABLE IF NOT EXISTS {ProbeSchema}."{ProbeTable}" (
+                "Id" bigint NOT NULL PRIMARY KEY,
+                "Name" text NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "ModifiedAt" timestamp with time zone,
+                "DeletedAt" timestamp with time zone,
+                "IsDeleted" boolean NOT NULL DEFAULT FALSE,
+                CONSTRAINT "UX_{ProbeTable}_Name" UNIQUE ("Name")
+            );
+            TRUNCATE {ProbeSchema}."{ProbeTable}";
+            """,
+            cancellationToken);
     }
 
     private sealed class IncrementingIdGenerator : IIdGenerator<long>
@@ -156,17 +182,23 @@ public sealed class OutboxCaptureIntegrationTests : IDisposable
     }
 }
 
-/// <summary>Test context that maps a probe entity alongside the real Endatix model.</summary>
 internal sealed class TestAppDbContext : AppDbContext
 {
+    private readonly string _probeSchema;
+    private readonly string _probeTable;
+
     public TestAppDbContext(
         DbContextOptions<AppDbContext> options,
         IIdGenerator<long> idGenerator,
         ITenantContext tenantContext,
         EfCoreValueGeneratorFactory valueGeneratorFactory,
-        OutboxIntegrationEventDispatcher outboxDispatcher)
+        OutboxIntegrationEventDispatcher outboxDispatcher,
+        string probeSchema,
+        string probeTable)
         : base(options, idGenerator, tenantContext, valueGeneratorFactory, outboxDispatcher)
     {
+        _probeSchema = probeSchema;
+        _probeTable = probeTable;
     }
 
     public DbSet<OutboxCaptureProbe> Probes => Set<OutboxCaptureProbe>();
@@ -177,15 +209,18 @@ internal sealed class TestAppDbContext : AppDbContext
 
         builder.Entity<OutboxCaptureProbe>(entity =>
         {
-            entity.ToTable("OutboxCaptureProbes");
+            entity.ToTable(_probeTable, _probeSchema);
             entity.HasKey(probe => probe.Id);
             entity.Property(probe => probe.Name).IsRequired();
             entity.HasIndex(probe => probe.Name).IsUnique();
         });
+
+        builder.Entity<OutboxMessage>()
+            .Property(message => message.Payload)
+            .HasColumnType("jsonb");
     }
 }
 
-/// <summary>A minimal aggregate (not tenant-owned) that can raise an integration event for the test.</summary>
 internal sealed class OutboxCaptureProbe : BaseEntity
 {
     public string Name { get; set; } = null!;

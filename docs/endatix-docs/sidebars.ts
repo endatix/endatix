@@ -127,6 +127,7 @@ const sidebars: SidebarsConfig = {
         "developers/api/email-providers",
         "developers/api/health-checks",
         "developers/api/feature-flags",
+        "developers/integration-testing",
         {
           type: "link",
           label: "API Reference",

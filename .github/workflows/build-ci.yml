@@ -8,22 +8,30 @@ on:
       - "src/**"
       - "tests/**"
       - ".github/workflows/**"
+      - "global.json"
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+permissions:
+  contents: read
 
 jobs:
   dotnet-build:
     name: "Endatix API: Build & Test"
     env:
-      BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
+      BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
     runs-on: ubuntu-latest
 
     steps:
       - name: 🔍 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: 📦 Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: "10.x"
+          global-json-file: global.json
 
       - name: Restore dependencies
         run: dotnet restore
@@ -31,8 +39,13 @@ jobs:
       - name: Build
         run: dotnet build --no-restore
 
-      - name: 🧪 Run .NET tests
-        run: dotnet test --no-build --collect:"XPlat Code Coverage;Format=cobertura" --results-directory:.coverage --settings coverlet.runsettings
+      - name: 🧪 Run unit tests
+        run: |
+          dotnet test --no-build \
+            --filter "FullyQualifiedName!~Endatix.IntegrationTests" \
+            --collect:"XPlat Code Coverage;Format=cobertura" \
+            --results-directory:.coverage \
+            --settings coverlet.runsettings
 
       - name: Install DotNet Coverage
         run: dotnet tool update --global dotnet-coverage
@@ -47,7 +60,7 @@ jobs:
         run: reportgenerator -reports:".coverage/merged.cobertura.xml" -targetdir:".coverage/report" -reporttypes:"MarkdownSummaryGithub"
 
       - name: 📊 Upload to Coveralls
-        uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e  # v2.3.7
+        uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
         with:
           format: cobertura
           file: .coverage/merged.cobertura.xml
@@ -59,3 +72,39 @@ jobs:
           echo ">#### 🧪 Endatix API: Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
           echo ">[![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=$BRANCH_NAME)](https://coveralls.io/github/endatix/endatix?branch=$BRANCH_NAME)" >> $GITHUB_STEP_SUMMARY
           cat .coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+  integration-tests:
+    name: "Endatix API: Integration tests"
+    runs-on: ubuntu-24.04
+    env:
+      ENDATIX_TEST_DB_PROVIDER: PostgreSql
+      ENDATIX_TEST_HOST_MODE: ProductionProgram
+
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: 📦 Setup .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+
+      - name: Set integration test filter
+        env:
+          GITHUB_REF_SAFE: ${{ github.ref }}
+          GITHUB_EVENT_NAME_SAFE: ${{ github.event_name }}
+        run: |
+          if [ "$GITHUB_REF_SAFE" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME_SAFE" != "pull_request" ]; then
+            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak" >> "$GITHUB_ENV"
+          else
+            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Priority!=P2" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build integration tests
+        run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
+
+      - name: Run integration tests
+        run: |
+          dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
+            -c Release --no-build --verbosity minimal \
+            --filter "$INTEGRATION_TEST_FILTER"

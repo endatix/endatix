@@ -1,32 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Code coverage run settings - exclude migration assemblies from coverage. -->
-<!-- See: https://learn.microsoft.com/en-us/visualstudio/test/customizing-code-coverage-analysis -->
+<?xml version="1.0" encoding="utf-8" ?>
 <RunSettings>
   <DataCollectionRunSettings>
     <DataCollectors>
-      <DataCollector friendlyName="XPlat Code Coverage">
+      <DataCollector friendlyName="XPlat code coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <LogLevel>Verbose</LogLevel>
-          <IncludeTestAssembly>false</IncludeTestAssembly>
-          <ExcludeByFile>
-            **/Migrations/*.cs,
-            **/Program.cs,
-            **/AssembyReference.cs,
-            **/*.Designer.cs
-          </ExcludeByFile>
-
-          <ExcludeByAttribute>
-            Obsolete,
-            GeneratedCodeAttribute,
-            CompilerGeneratedAttribute,
-            ExcludeFromCodeCoverageAttribute
-          </ExcludeByAttribute>
-
-          <Exclude>
-            [*Tests]*,
-            [*]Endatix.Persistence.*
-          </Exclude>
+          <Exclude>[*.Tests]*,[*]*.Migrations.*,[Endatix.IntegrationTests]*,[Endatix.IntegrationTests.Shared]*,[Endatix.WebHost.IntegrationHost]*</Exclude>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+          <ExcludeByFile>**/tests/**/*.cs</ExcludeByFile>
         </Configuration>
       </DataCollector>
     </DataCollectors>

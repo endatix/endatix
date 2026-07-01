@@ -1,41 +1,23 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Features.Outbox;
-using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Outbox.Engine;
-using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
-using NSubstitute;
 
 namespace Endatix.Infrastructure.Tests.Features.Outbox;
 
 /// <summary>
 /// Guards engine↔host agreement: the EF mapping of <see cref="OutboxMessage"/> must conform to the engine's
 /// canonical <see cref="OutboxSchema"/> (table + column names) and <see cref="OutboxStatus"/> (int values),
-/// because the relay's raw SQL is built from those constants. A drift here would only surface at runtime
-/// against a real DB; this test catches it at build/test time.
+/// because the relay's raw SQL is built from those constants.
 /// </summary>
+/// <remarks>
+/// Unit/contract test — inspects <see cref="DbContext.Model" /> only via
+/// <see cref="AppDbContextModelInspectionFactory" />. No database connection is opened.
+/// </remarks>
 public sealed class OutboxSchemaConformanceTests : IDisposable
 {
-    private readonly AppDbContext _context;
-
-    public OutboxSchemaConformanceTests()
-    {
-        var idGenerator = Substitute.For<IIdGenerator<long>>();
-        var tenantContext = Substitute.For<ITenantContext>();
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite("DataSource=:memory:")
-            .Options;
-
-        _context = new AppDbContext(
-            options,
-            idGenerator,
-            tenantContext,
-            new EfCoreValueGeneratorFactory(idGenerator),
-            new OutboxIntegrationEventDispatcher());
-    }
+    private readonly AppDbContext _context = AppDbContextModelInspectionFactory.CreatePostgreSqlAppDbContext();
 
     public void Dispose() => _context.Dispose();
 

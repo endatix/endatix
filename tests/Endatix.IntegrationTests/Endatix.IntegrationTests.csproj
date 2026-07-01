@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- xUnit v3 MTTP entry point (self-hosted Exe) for IDE/local MTTP runs. -->
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <!-- Keep `dotnet test` on the VSTest adapter (xunit.runner.visualstudio), not the MTTP bridge.
+         CI and local `\-\-filter` use VSTest/xUnit trait syntax (see IntegrationTestFilters).
+         Do not set TestingPlatformDotnetTestSupport=true without migrating workflow filters to MTTP. -->
+    <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Endatix.IntegrationTests</RootNamespace>
+    <GenerateProgramFile>false</GenerateProgramFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Endatix.IntegrationTests.Shared\Endatix.IntegrationTests.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Endatix.WebHost\Endatix.WebHost.csproj">
+      <Aliases>EndatixWebHost</Aliases>
+    </ProjectReference>
+    <ProjectReference Include="..\Endatix.WebHost.IntegrationHost\Endatix.WebHost.IntegrationHost.csproj">
+      <Aliases>EndatixIntegrationHost</Aliases>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Endatix.Modules.Reporting\Endatix.Modules.Reporting.csproj" />
+  </ItemGroup>
+
+</Project>

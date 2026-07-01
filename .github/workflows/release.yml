@@ -17,8 +17,14 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+-beta'
       - 'v[0-9]+.[0-9]+.[0-9]+-rc'
 
+permissions:
+  contents: read
+
 jobs:
   release-version:
+    permissions:
+      contents: read
+      actions: write
     env:
       MAIN_PACKAGE_ID: "Endatix.Api.Host"
       RELEASE_VERSION: ""
@@ -38,12 +44,12 @@ jobs:
           echo "Using version ${{ env.RELEASE_VERSION }}"
 
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1  # v5
         with:
-          dotnet-version: "10.x"
+          global-json-file: global.json
 
       - name: Restore Dependencies
         run: dotnet restore
@@ -61,7 +67,7 @@ jobs:
         run: dotnet nuget push '.artifacts/*.nupkg' -k ${{secrets.NUGET_API_KEY}} -s https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: artifacts
           path: .artifacts/**/*
