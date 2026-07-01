@@ -1,5 +1,4 @@
 using Endatix.Core.Abstractions;
-using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
@@ -90,11 +89,8 @@ public sealed class ReportingQueryFilterTests
 
     private TestReportingDbContext CreateContext(IIdGenerator<long> idGenerator, ITenantContext tenantContext)
     {
-        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder = new();
-        optionsBuilder.UseNpgsql(_fixture.ConnectionString);
-        ModuleDbContextExtensions.ConfigureProviderScopedMigrations(
-            optionsBuilder,
-            ReportingPersistence.PostgreSqlMigrationsNamespace);
+        var optionsBuilder =
+            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
         return new TestReportingDbContext(optionsBuilder.Options, idGenerator, tenantContext);
     }

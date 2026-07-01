@@ -12,20 +12,25 @@ public static class DatabaseMigrationExtensions
     private class MigrationLogger { }
 
     /// <summary>
-    /// Applies database migrations for all registered <see cref="IDbContextMigrationContributor"/> instances.
+    /// Applies database migrations for core DbContexts, then all registered
+    /// <see cref="IDbContextMigrationContributor"/> instances (module opt-in).
     /// </summary>
     public static async Task ApplyDbMigrationsAsync(
         this IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default)
     {
         using var scope = serviceProvider.CreateScope();
-        var logger = serviceProvider.GetRequiredService<ILogger<MigrationLogger>>();
+        ILogger logger = serviceProvider.GetRequiredService<ILogger<MigrationLogger>>();
         logger.LogDebug("{Operation} operation started", nameof(ApplyDbMigrationsAsync));
 
         try
         {
             var scopedProvider = scope.ServiceProvider;
-            var contributors = scopedProvider.GetServices<IDbContextMigrationContributor>();
+
+            await CoreDbContextMigrationService.MigrateCoreDbContextsAsync(scopedProvider, logger, cancellationToken);
+
+            var contributors =
+                scopedProvider.GetServices<IDbContextMigrationContributor>();
 
             foreach (var contributor in contributors)
             {

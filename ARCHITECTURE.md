@@ -132,7 +132,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
 
 Host wiring: `EndatixBuilder.UseDefaults()` calls `UseModule(ReportingModule.Instance)`, which scans `Assembly` for MediatR handlers and FastEndpoints and invokes `ConfigureServices` at finalization. Modules with `IHasFeatureFlag` are skipped when the flag is disabled.
 
-**Startup migrations:** All DbContexts (core and module) register an [`IDbContextMigrationContributor`](src/Endatix.Framework/Modules/IDbContextMigrationContributor.cs). `DatabaseMigrationService` iterates contributors when `Endatix:Data:EnableAutoMigrations` is true. Modules implement `IHasDbMigrations` as a marker; the host warns if `AddDbContextWithMigrations` was not called.
+**Startup migrations (two phases):** When `Endatix:Data:EnableAutoMigrations` is true, `DatabaseMigrationService` first migrates core `AppDbContext` and `AppIdentityDbContext`, then iterates registered [`IDbContextMigrationContributor`](src/Endatix.Framework/Modules/IDbContextMigrationContributor.cs) instances for opt-in module/custom contexts. Modules implement `IHasDbMigrations` as a marker; the host warns if `AddDbContextWithMigrations` was not called.
 
 ---
 

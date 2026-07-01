@@ -28,7 +28,14 @@ Optional platform modules implement [`IEndatixModule`](Modules/IEndatixModule.cs
 | `IEndatixModule` | Required entry point — `Assembly` + `ConfigureServices` |
 | `IHasFeatureFlag` | Optional — module skipped when flag is disabled in `Endatix:FeatureFlags` |
 | `IHasDbMigrations` | Optional marker — module ships EF migrations; host warns if no contributor was registered |
-| `IDbContextMigrationContributor` | Startup migration contract — implemented by Infrastructure; registered per DbContext |
+| `IDbContextMigrationContributor` | Opt-in startup migration contract for module/custom DbContexts |
+
+### Startup migrations (two phases)
+
+When `Endatix:Data:EnableAutoMigrations` is true, `DatabaseMigrationService` runs:
+
+1. **Core (always)** — `AppDbContext` and `AppIdentityDbContext` are migrated automatically; no contributor registration required.
+2. **Modules (opt-in)** — each module with its own DbContext calls `AddDbContextWithMigrations<TContext>` in `ConfigureServices` (registers DbContext + migration contributor).
 
 ### Module persistence checklist
 
@@ -37,8 +44,6 @@ Optional platform modules implement [`IEndatixModule`](Modules/IEndatixModule.cs
 3. Use a dedicated schema and module-owned `Persistence/` folder for entities, configs, and migrations.
 4. Prefer **provider-split DbContext types** (one snapshot per provider) over namespace-filtered single contexts when supporting PostgreSQL and SQL Server.
 5. Do **not** add `Setup.cs` — all DI belongs on the module class.
-
-Core `AppDbContext` and `AppIdentityDbContext` migrations are registered the same way via the persistence builder; startup applies all `IDbContextMigrationContributor` instances when `Endatix:Data:EnableAutoMigrations` is true.
 
 ## More Information:
 For detailed installation instructions, please visit [Endatix Installation Guide](https://docs.endatix.com/docs/getting-started/installation).
