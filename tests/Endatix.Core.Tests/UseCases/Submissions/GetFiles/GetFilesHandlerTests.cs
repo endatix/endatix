@@ -72,11 +72,11 @@ public class GetFilesHandlerTests
 
         var files = new List<ISubmissionFileExtractor.ExtractedFile>
         {
-            new("file.txt", "text/plain", new System.IO.MemoryStream([1, 2, 3]))
+            new("file.txt", "text/plain", new System.IO.MemoryStream([1, 2, 3])),
         };
 
         _extractor
-            .ExtractFilesAsync(Arg.Any<System.Text.Json.JsonElement>(), submissionId, prefix, Arg.Any<CancellationToken>())
+            .ExtractFilesAsync(Arg.Any<System.Text.Json.JsonElement>(), formId, submissionId, prefix, Arg.Any<CancellationToken>())
             .Returns(files);
 
         // Act
@@ -108,7 +108,7 @@ public class GetFilesHandlerTests
             .Returns(Task.FromResult((Form?)form));
 
         _extractor
-            .ExtractFilesAsync(Arg.Any<System.Text.Json.JsonElement>(), submissionId, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ExtractFilesAsync(Arg.Any<System.Text.Json.JsonElement>(), formId, submissionId, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new List<ISubmissionFileExtractor.ExtractedFile>());
 
         // Act
