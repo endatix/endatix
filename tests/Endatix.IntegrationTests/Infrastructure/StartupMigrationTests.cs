@@ -1,8 +1,10 @@
+using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.IntegrationTests;
 
@@ -98,6 +100,32 @@ public sealed class StartupMigrationTests
     }
 
     [Fact]
+    public async Task ApplyDbMigrations_runs_contributors_after_core_phase()
+    {
+        // Arrange
+        List<string> callOrder = [];
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
+
+        var provider = IntegrationCoreMigrationTestHelper.BuildServiceProvider(
+            _fixture.ConnectionString,
+            _fixture.Provider,
+            services =>
+            {
+                services.AddSingleton<IDbContextMigrationContributor>(
+                    new TrackingContributor("first", callOrder, _fixture));
+                services.AddSingleton<IDbContextMigrationContributor>(
+                    new TrackingContributor("second", callOrder, _fixture));
+            });
+
+        // Act
+        await provider.ApplyDbMigrationsAsync(cancellationToken);
+
+        // Assert
+        Assert.Equal(["first", "second"], callOrder);
+    }
+
+    [Fact]
     public async Task ApplyDbMigrations_applies_latest_pending_migrations()
     {
         // Arrange
@@ -124,5 +152,27 @@ public sealed class StartupMigrationTests
 
         Assert.Contains(latestAppMigration, appliedAppMigrations);
         Assert.Contains(latestIdentityMigration, appliedIdentityMigrations);
+    }
+
+    private sealed class TrackingContributor(
+        string name,
+        List<string> callOrder,
+        DbIntegrationFixture fixture) : IDbContextMigrationContributor
+    {
+        public async Task MigrateAsync(
+            IServiceProvider scopedProvider,
+            ILogger logger,
+            CancellationToken cancellationToken = default)
+        {
+            var formsTableExists = await IntegrationDbAssert.TableExistsAsync(
+                fixture.ConnectionString,
+                fixture.Provider,
+                schema: fixture.Provider == TestDatabaseProvider.PostgreSql ? "public" : "dbo",
+                table: "Forms",
+                cancellationToken);
+            Assert.True(formsTableExists, "Core migrations must complete before module contributors run.");
+
+            callOrder.Add(name);
+        }
     }
 }

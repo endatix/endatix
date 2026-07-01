@@ -18,7 +18,8 @@ internal static class IntegrationCoreMigrationTestHelper
 {
     internal static IServiceProvider BuildServiceProvider(
         string connectionString,
-        TestDatabaseProvider provider)
+        TestDatabaseProvider provider,
+        Action<IServiceCollection>? configure = null)
     {
         ServiceCollection services = new();
         services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
@@ -46,6 +47,8 @@ internal static class IntegrationCoreMigrationTestHelper
             default:
                 throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.");
         }
+
+        configure?.Invoke(services);
 
         return services.BuildServiceProvider();
     }
