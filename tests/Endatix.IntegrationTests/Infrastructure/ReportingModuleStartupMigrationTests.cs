@@ -22,7 +22,7 @@ public sealed class ReportingModuleStartupMigrationTests
         var cancellationToken = TestContext.Current.CancellationToken;
         await _fixture.ResetDatabaseAsync(cancellationToken: cancellationToken);
 
-        var factory = new EndatixWebApplicationFactory(
+        await using var factory = new EndatixWebApplicationFactory(
                 _fixture.Database.ConnectionString,
                 _fixture.Database.Provider)
             .WithWebHostBuilder(builder =>
@@ -42,7 +42,5 @@ public sealed class ReportingModuleStartupMigrationTests
             table: "ExportFormats",
             cancellationToken);
         Assert.True(exportFormatsTableExists);
-
-        await factory.DisposeAsync();
     }
 }
