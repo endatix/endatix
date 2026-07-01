@@ -10,6 +10,8 @@
         <!-- Do not inherit oss RuntimeFrameworkVersion (10.0.6); use the SDK default so tests run on locally installed 10.0.x. -->
         <RuntimeFrameworkVersion />
         <RollForward>LatestMinor</RollForward>
+        <!-- Keep dotnet test on VSTest (coverlet.collector, trait filters). .NET 10 defaults to MTP otherwise. -->
+        <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
     </PropertyGroup>
 
     <ItemGroup>
