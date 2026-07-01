@@ -43,7 +43,7 @@ BEGIN
             ModifiedAt,
             SubmitterId,
             SubmitterDisplayId,
-            JsonData,
+            CONVERT(nvarchar(max), JsonData) AS JsonData,
             '{}' AS AnswersJson
         FROM dbo.Submissions
         WHERE FormId = @form_id
@@ -77,12 +77,12 @@ BEGIN
                     JSON_QUERY(elem.value, '$') AS element
                 FROM
                     dbo.FormDefinitions fd
-                        CROSS APPLY OPENJSON(JSON_QUERY(fd.JsonData, '$.pages')) AS page
+                        CROSS APPLY OPENJSON(JSON_QUERY(CONVERT(nvarchar(max), fd.JsonData), '$.pages')) AS page
                         CROSS APPLY OPENJSON(JSON_QUERY(page.value, '$.elements')) AS elem
                 WHERE 
                         fd.FormId = @form_id
-                    AND ISJSON(fd.JsonData) = 1
-                    AND JSON_QUERY(fd.JsonData, '$.pages') IS NOT NULL
+                    AND ISJSON(CONVERT(nvarchar(max), fd.JsonData)) = 1
+                    AND JSON_QUERY(CONVERT(nvarchar(max), fd.JsonData), '$.pages') IS NOT NULL
 
             UNION ALL
 
