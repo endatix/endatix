@@ -35,7 +35,7 @@ public sealed class ReportingModuleStartupMigrationTests
         _ = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
 
         // Assert
-        var exportFormatsTableExists = await IntegrationCoreMigrationTestHelper.TableExistsAsync(
+        var exportFormatsTableExists = await IntegrationDbAssert.TableExistsAsync(
             _fixture.Database.ConnectionString,
             _fixture.Database.Provider,
             schema: "reporting",

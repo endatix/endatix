@@ -41,11 +41,11 @@ public sealed class SqlServerMigrationArtifactTests
         Assert.Contains(identityDb.Database.GetMigrations().Last(), appliedIdentityMigrations);
         Assert.Contains("20260701124643_SeedRespondentRole", appliedIdentityMigrations);
 
-        Assert.True(await IntegrationCoreMigrationTestHelper.TableExistsAsync(
+        Assert.True(await IntegrationDbAssert.TableExistsAsync(
             _fixture.ConnectionString, _fixture.Provider, schema: "dbo", table: "Submitters", cancellationToken));
-        Assert.True(await IntegrationCoreMigrationTestHelper.TableExistsAsync(
+        Assert.True(await IntegrationDbAssert.TableExistsAsync(
             _fixture.ConnectionString, _fixture.Provider, schema: "dbo", table: "OutboxMessages", cancellationToken));
-        Assert.True(await IntegrationCoreMigrationTestHelper.RoutineExistsAsync(
+        Assert.True(await IntegrationDbAssert.RoutineExistsAsync(
             _fixture.ConnectionString, _fixture.Provider, schema: "dbo", routineName: "export_form_submissions", cancellationToken));
     }
 }

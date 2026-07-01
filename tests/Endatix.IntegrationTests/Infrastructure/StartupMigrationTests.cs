@@ -22,10 +22,10 @@ public sealed class StartupMigrationTests
     public async Task ApplyDbMigrations_on_empty_db_creates_core_schemas()
     {
         // Arrange
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        var cancellationToken = TestContext.Current.CancellationToken;
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
-        IServiceProvider provider = IntegrationCoreMigrationTestHelper.BuildServiceProvider(
+        var provider = IntegrationCoreMigrationTestHelper.BuildServiceProvider(
             _fixture.ConnectionString,
             _fixture.Provider);
 
@@ -33,7 +33,7 @@ public sealed class StartupMigrationTests
         await provider.ApplyDbMigrationsAsync(cancellationToken);
 
         // Assert
-        bool usersTableExists = await IntegrationCoreMigrationTestHelper.TableExistsAsync(
+        var usersTableExists = await IntegrationDbAssert.TableExistsAsync(
             _fixture.ConnectionString,
             _fixture.Provider,
             schema: "identity",
@@ -41,7 +41,7 @@ public sealed class StartupMigrationTests
             cancellationToken);
         Assert.True(usersTableExists);
 
-        bool formsTableExists = await IntegrationCoreMigrationTestHelper.TableExistsAsync(
+        var formsTableExists = await IntegrationDbAssert.TableExistsAsync(
             _fixture.ConnectionString,
             _fixture.Provider,
             schema: _fixture.Provider == TestDatabaseProvider.PostgreSql ? "public" : "dbo",
@@ -49,12 +49,12 @@ public sealed class StartupMigrationTests
             cancellationToken);
         Assert.True(formsTableExists);
 
-        using IServiceScope scope = provider.CreateScope();
-        AppDbContext appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        AppIdentityDbContext identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        using var scope = provider.CreateScope();
+        var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
 
-        List<string> appHistory = (await appDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
-        List<string> identityHistory = (await identityDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
+        var appHistory = (await appDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
+        var identityHistory = (await identityDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
 
         Assert.NotEmpty(appHistory);
         Assert.NotEmpty(identityHistory);
@@ -64,33 +64,33 @@ public sealed class StartupMigrationTests
     public async Task ApplyDbMigrations_is_idempotent()
     {
         // Arrange
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        var cancellationToken = TestContext.Current.CancellationToken;
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
-        IServiceProvider provider = IntegrationCoreMigrationTestHelper.BuildServiceProvider(
+        var provider = IntegrationCoreMigrationTestHelper.BuildServiceProvider(
             _fixture.ConnectionString,
             _fixture.Provider);
 
         await provider.ApplyDbMigrationsAsync(cancellationToken);
 
-        using (IServiceScope scope = provider.CreateScope())
+        using (var scope = provider.CreateScope())
         {
-            AppDbContext appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            AppIdentityDbContext identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+            var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
 
-            List<string> appHistoryAfterFirst = (await appDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
-            List<string> identityHistoryAfterFirst = (await identityDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
+            var appHistoryAfterFirst = (await appDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
+            var identityHistoryAfterFirst = (await identityDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
 
             // Act
             await provider.ApplyDbMigrationsAsync(cancellationToken);
 
             // Assert
-            using IServiceScope scopeAfter = provider.CreateScope();
-            AppDbContext appDbAfter = scopeAfter.ServiceProvider.GetRequiredService<AppDbContext>();
-            AppIdentityDbContext identityDbAfter = scopeAfter.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+            using var scopeAfter = provider.CreateScope();
+            var appDbAfter = scopeAfter.ServiceProvider.GetRequiredService<AppDbContext>();
+            var identityDbAfter = scopeAfter.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
 
-            List<string> appHistoryAfterSecond = (await appDbAfter.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
-            List<string> identityHistoryAfterSecond = (await identityDbAfter.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
+            var appHistoryAfterSecond = (await appDbAfter.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
+            var identityHistoryAfterSecond = (await identityDbAfter.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
 
             Assert.Equal(appHistoryAfterFirst, appHistoryAfterSecond);
             Assert.Equal(identityHistoryAfterFirst, identityHistoryAfterSecond);
@@ -101,10 +101,10 @@ public sealed class StartupMigrationTests
     public async Task ApplyDbMigrations_applies_latest_pending_migrations()
     {
         // Arrange
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        var cancellationToken = TestContext.Current.CancellationToken;
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
-        IServiceProvider provider = IntegrationCoreMigrationTestHelper.BuildServiceProvider(
+        var provider = IntegrationCoreMigrationTestHelper.BuildServiceProvider(
             _fixture.ConnectionString,
             _fixture.Provider);
 
@@ -112,15 +112,15 @@ public sealed class StartupMigrationTests
         await provider.ApplyDbMigrationsAsync(cancellationToken);
 
         // Assert
-        using IServiceScope scope = provider.CreateScope();
-        AppDbContext appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        AppIdentityDbContext identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        using var scope = provider.CreateScope();
+        var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
 
-        string latestAppMigration = appDb.Database.GetMigrations().Last();
-        string latestIdentityMigration = identityDb.Database.GetMigrations().Last();
+        var latestAppMigration = appDb.Database.GetMigrations().Last();
+        var latestIdentityMigration = identityDb.Database.GetMigrations().Last();
 
-        List<string> appliedAppMigrations = (await appDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
-        List<string> appliedIdentityMigrations = (await identityDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
+        var appliedAppMigrations = (await appDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
+        var appliedIdentityMigrations = (await identityDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
 
         Assert.Contains(latestAppMigration, appliedAppMigrations);
         Assert.Contains(latestIdentityMigration, appliedIdentityMigrations);

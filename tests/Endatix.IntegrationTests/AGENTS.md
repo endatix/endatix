@@ -49,4 +49,5 @@ EndatixTestcontainers → DatabaseInfrastructureFixture → DbIntegrationFixture
 - One DB container per process (`EndatixTestcontainers`).
 - Provider from `ENDATIX_TEST_DB_PROVIDER`.
 - Module helpers (e.g. `ReportingTestSchema`) live in **IntegrationTests**, not Shared.
+- DB schema assertions: `IntegrationDbAssert` in Shared.
 - After Shared changes, build `Endatix.IntegrationTests` and `Endatix.SaaS.IntegrationTests` in the monorepo.

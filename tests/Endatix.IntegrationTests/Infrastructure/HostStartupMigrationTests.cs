@@ -44,7 +44,7 @@ public sealed class HostStartupMigrationTests
         Assert.NotEmpty(appliedAppMigrations);
         Assert.NotEmpty(appliedIdentityMigrations);
 
-        var usersTableExists = await IntegrationCoreMigrationTestHelper.TableExistsAsync(
+        var usersTableExists = await IntegrationDbAssert.TableExistsAsync(
             _fixture.Database.ConnectionString,
             _fixture.Database.Provider,
             schema: "identity",
