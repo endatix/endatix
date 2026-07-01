@@ -1,0 +1,41 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/samples/">
+    <Project Path="samples/Endatix.Samples.CustomEventHandlers/Endatix.Samples.CustomEventHandlers.csproj" />
+    <Project Path="samples/Endatix.Samples.SelfHosted/Endatix.Samples.SelfHosted.csproj" />
+    <Project Path="samples/Endatix.Samples.WebApp/Endatix.Samples.WebApp.csproj" />
+  </Folder>
+  <Folder Name="/solution_items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="docker-compose.yml" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Endatix.Api.Host/Endatix.Api.Host.csproj" />
+    <Project Path="src/Endatix.Api/Endatix.Api.csproj" />
+    <Project Path="src/Endatix.Core/Endatix.Core.csproj" />
+    <Project Path="src/Endatix.Framework/Endatix.Framework.csproj" />
+    <Project Path="src/Endatix.Hosting/Endatix.Hosting.csproj" />
+    <Project Path="src/Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
+    <Project Path="src/Endatix.Modules.Reporting.Contracts/Endatix.Modules.Reporting.Contracts.csproj" />
+    <Project Path="src/Endatix.Modules.Reporting/Endatix.Modules.Reporting.csproj" />
+    <Project Path="src/Endatix.Persistence.PostgreSql/Endatix.Persistence.PostgreSql.csproj" />
+    <Project Path="src/Endatix.Persistence.SqlServer/Endatix.Persistence.SqlServer.csproj" />
+    <Project Path="src/Endatix.WebHost/Endatix.WebHost.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Endatix.Api.Tests/Endatix.Api.Tests.csproj" />
+    <Project Path="tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj" />
+    <Project Path="tests/Endatix.Hosting.Tests/Endatix.Hosting.Tests.csproj" />
+    <Project Path="tests/Endatix.Infrastructure.Tests/Endatix.Infrastructure.Tests.csproj" />
+    <Project Path="tests/Endatix.IntegrationTests.Shared/Endatix.IntegrationTests.Shared.csproj" />
+    <Project Path="tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj" />
+    <Project Path="tests/Endatix.Modules.Reporting.Tests/Endatix.Modules.Reporting.Tests.csproj" />
+    <Project Path="tests/Endatix.WebHost.IntegrationHost/Endatix.WebHost.IntegrationHost.csproj" />
+  </Folder>
+</Solution>
