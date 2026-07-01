@@ -95,7 +95,95 @@ internal static class IntegrationCoreMigrationTestHelper
         command.Parameters.Add(tableParam);
 
         var result = await command.ExecuteScalarAsync(cancellationToken);
-        return result is bool boolResult ? boolResult : (int?)result == 1;
+        return result is bool boolResult ? boolResult : Convert.ToInt32(result) == 1;
+    }
+
+    internal static async Task<bool> RoutineExistsAsync(
+        string connectionString,
+        TestDatabaseProvider provider,
+        string schema,
+        string routineName,
+        CancellationToken cancellationToken)
+    {
+        var sql = provider switch
+        {
+            TestDatabaseProvider.PostgreSql =>
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.routines
+                    WHERE routine_schema = @schema
+                      AND routine_name = @routine)
+                """,
+            TestDatabaseProvider.SqlServer =>
+                """
+                SELECT CASE WHEN EXISTS (
+                    SELECT 1
+                    FROM INFORMATION_SCHEMA.ROUTINES
+                    WHERE ROUTINE_SCHEMA = @schema
+                      AND ROUTINE_NAME = @routine)
+                THEN 1 ELSE 0 END
+                """,
+            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
+        };
+
+        return await ExecuteExistsQueryAsync(connectionString, provider, sql, schema, routineName, cancellationToken);
+    }
+
+    internal static async Task<bool> SqlRowExistsAsync(
+        string connectionString,
+        TestDatabaseProvider provider,
+        string sql,
+        CancellationToken cancellationToken)
+    {
+        await using System.Data.Common.DbConnection connection = provider switch
+        {
+            TestDatabaseProvider.PostgreSql => new Npgsql.NpgsqlConnection(connectionString),
+            TestDatabaseProvider.SqlServer => new Microsoft.Data.SqlClient.SqlConnection(connectionString),
+            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
+        };
+
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is bool boolResult ? boolResult : Convert.ToInt32(result) == 1;
+    }
+
+    private static async Task<bool> ExecuteExistsQueryAsync(
+        string connectionString,
+        TestDatabaseProvider provider,
+        string sql,
+        string schema,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        await using System.Data.Common.DbConnection connection = provider switch
+        {
+            TestDatabaseProvider.PostgreSql => new Npgsql.NpgsqlConnection(connectionString),
+            TestDatabaseProvider.SqlServer => new Microsoft.Data.SqlClient.SqlConnection(connectionString),
+            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
+        };
+
+        await connection.OpenAsync(cancellationToken);
+
+        await using System.Data.Common.DbCommand command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        var schemaParam = command.CreateParameter();
+        schemaParam.ParameterName = "@schema";
+        schemaParam.Value = schema;
+        command.Parameters.Add(schemaParam);
+
+        var nameParam = command.CreateParameter();
+        nameParam.ParameterName = "@routine";
+        nameParam.Value = name;
+        command.Parameters.Add(nameParam);
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is bool boolResult ? boolResult : Convert.ToInt32(result) == 1;
     }
 
     private sealed class NoOpIdGenerator : IIdGenerator<long>

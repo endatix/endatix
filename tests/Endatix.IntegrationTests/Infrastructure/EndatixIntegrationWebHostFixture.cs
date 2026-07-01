@@ -3,8 +3,8 @@ using Endatix.IntegrationTests.Shared;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Containerized database infrastructure + <see cref="EndatixWebApplicationFactory" /> for one xUnit collection.
-/// Database containers are shared with <see cref="DbIntegrationTestCollection" /> (single Postgres per test run).
+/// Containerized database + <see cref="EndatixWebApplicationFactory" /> for one xUnit collection.
+/// Database provider comes from <c>ENDATIX_TEST_DB_PROVIDER</c> (default PostgreSQL).
 /// </summary>
 public sealed class EndatixIntegrationWebHostFixture : IAsyncLifetime, IIntegrationTestHostFixture
 {

@@ -1,127 +1,57 @@
 ---
 title: Integration testing
-description: Run, extend, and filter API integration tests for the Endatix API WebHost (Testcontainers, WebApplicationFactory, Respawn).
+description: Run and extend API integration tests (Testcontainers, WebApplicationFactory, Respawn).
 sidebar_position: 2
 ---
 
 # Integration testing (Endatix API)
 
-This guide describes how to run and extend **API integration tests** in the public [Endatix](https://github.com/endatix/endatix) repository. All paths below are relative to that repository root. Tests exercise the `Endatix.WebHost` stack with **Testcontainers** (PostgreSQL or SQL Server), **Respawn** for fast database resets, and **`WebApplicationFactory`** for an in-process HTTP client against the real startup pipeline.
-
+Tests exercise `Endatix.WebHost` with **Testcontainers**, **Respawn**, and **`WebApplicationFactory`**. Paths are relative to the [Endatix](https://github.com/endatix/endatix) repository root.
 
 ## Prerequisites
 
-- **Docker** running locally (containers are pulled and started on demand).
-- **.NET SDK** matching the solution (see `global.json` at the repository root or CI).
-
-**Note:** DB-backed integration tests require Docker and Testcontainers.
+- Docker
+- .NET SDK from `global.json`
 
 ## Quick start
-
-From the Endatix repository root:
 
 ```bash
 dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
 ```
 
-Default runs typically exclude slow **Keycloak**-scoped tests. To match CI on **main**:
+This runs the **PostgreSQL** suite (project default filter). For SQL Server:
 
 ```bash
-dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak"
+ENDATIX_TEST_DB_PROVIDER=SqlServer \
+  dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release \
+  --filter "Category!=Keycloak&DbSpecific!=PostgreSql"
 ```
 
-Pull-request CI uses the faster gate (P0 + P1 only):
+Full details: [`tests/README.md`](https://github.com/endatix/endatix/blob/main/tests/README.md#integration-tests).
 
-```bash
-dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category!=Keycloak&Priority!=P2"
-```
-
-Filter strings are defined in `IntegrationTestFilters` (`Endatix.IntegrationTests.Shared`).
-
-## Configuration (environment variables)
+## Configuration
 
 | Variable | Purpose |
 | -------- | ------- |
-| `ENDATIX_TEST_DB_PROVIDER` | `PostgreSql` (default) or `SqlServer` — same suite, different container. |
-| `ENDATIX_TEST_HOST_MODE` | `ProductionProgram` (default) or `DedicatedIntegrationHost` — see `tests/Endatix.IntegrationTests/AGENTS.md`. |
-| `ENDATIX_TEST_DB_POSTGRES_IMAGE` | Optional image override for PostgreSQL. |
-| `ENDATIX_TEST_DB_SQLSERVER_IMAGE` | Optional image override for SQL Server. |
-| `ENDATIX_TEST_DEBUG` | Set to `true` for extra diagnostics from tests that support it (e.g. auth flow debug output). |
-| `ENDATIX_TEST_REUSE_CONTAINERS` | `true` to keep DB/network between local runs (local dev only; disables Ryuk cleanup for reused resources). |
-| `ENDATIX_TEST_RUN_ID` | Optional override for Docker label `endatix.test.run` when debugging containers. |
-| `ENDATIX_TEST_JWT_SIGNING_KEY` | Optional override for integration-test JWT signing (host + synthetic JWT clients). Defaults to a `TEST:`-prefixed non-production key. |
+| `ENDATIX_TEST_DB_PROVIDER` | `PostgreSql` (default) or `SqlServer` |
+| `ENDATIX_TEST_HOST_MODE` | `ProductionProgram` (default) or `DedicatedIntegrationHost` |
+| `ENDATIX_TEST_REUSE_CONTAINERS` | `true` to reuse containers locally (dev only) |
 
-## Docker containers
-
-One `dotnet test` process uses **one shared database container** and **one Docker network** for all xUnit collections (`EndatixIntegrationTestCollection` and `DbIntegrationTestCollection`). Keycloak joins the same network when P2 tests run.
-
-Containers are labeled (`endatix.test.suite=integration`, `endatix.test.component`, `endatix.test.run`). Inspect them with:
-
-```bash
-docker ps --filter "label=endatix.test.suite=integration"
-docker network ls --filter "name=endatix-tests"
-```
-
-Testcontainers [Resource Reaper](https://dotnet.testcontainers.org/api/resource_reaper/) (Ryuk) removes labeled resources when the test process exits, unless reuse is enabled.
-
-## Suite organization
-
-Tests are grouped by **intent** (folders under `tests/Endatix.IntegrationTests/`):
-
-- **CriticalPaths** — Must-not-break flows (e.g. login → `/api/auth/me`).
-- **FeatureFlows** — Broader domain journeys (forms, submissions, tenants); add here as coverage grows.
-- **Infrastructure** — Host wiring, DB reset, optional standard seed, health smoke, Keycloak smoke.
-
-**Traits** help CI and local filtering:
-
-- `Category`: `CriticalPath`, `FeatureFlow`, `Infrastructure`, or `Keycloak`.
-- `Priority`: `P0`, `P1`, `P2` (execution intent; P2 often nightly or manual).
-
-Example: run only critical-path tests:
-
-```bash
-dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category=CriticalPath"
-```
-
-## Test world and personas
-
-Prepare a known database state and authenticated clients via shared infrastructure in `Endatix.IntegrationTests.Shared`:
+## Test world
 
 ```csharp
 IntegrationTestWorld world = await _fixture.PrepareWorldAsync(
     IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" });
-
 HttpClient admin = await world.AsAsync(TestPersona.TenantAdmin);
-HttpClient anonymous = world.AnonymousClient();
 ```
 
-- **Presets:** `Empty`, `SingleTenant`, `MultiTenant`
-- **Auth:** `IntegrationAuthMode.Login` (full pipeline) or `IntegrationAuthMode.SyntheticJwt` (fast token for non-auth tests)
-
-See `AuthLoginFlowTests` for a reference implementation.
-
-## Extending the suite
-
-1. **Collection fixture** — Use `EndatixIntegrationTestCollection` and inject `EndatixIntegrationWebHostFixture` for shared DB + host.
-2. **World** — Prefer `PrepareWorldAsync` over manual reset + seed.
-3. **Reset** — `Checkpoint.ResetAsync` or `ResetDatabaseAsync` when you need an empty DB without the world helper.
-4. **Data** — `IntegrationSeedBuilder` for granular seeding; `StandardSeedOptions` for multi-tenant baselines.
-5. **Naming** — Behavior-first test methods; flow-focused classes like `AuthLoginFlowTests`.
-
-Contributor-oriented fixture and collection guidance lives in `tests/Endatix.IntegrationTests/AGENTS.md`.
-
-## Assertions
-
-Prefer **HTTP status + response contract + persistence effect** (or explicit lack of effect) for the scenario. Keep one primary behavior per test; extra asserts should support the same end-to-end outcome.
+See `AuthLoginFlowTests` and `tests/Endatix.IntegrationTests/AGENTS.md` for contributor guidance.
 
 ## CI
 
-`.github/workflows/build-ci.yml` runs unit tests separately from an integration job (PostgreSQL, Testcontainers):
+`.github/workflows/build-ci.yml` runs a **provider matrix**: PostgreSQL job (`IntegrationTestFilters.Default`) and SQL Server job (`IntegrationTestFilters.SqlServer`). PRs use the faster `PrFast` filter on PostgreSQL.
 
-- **Pull requests / feature branches:** `Category!=Keycloak&Priority!=P2` (P0 + P1)
-- **`main` push:** `Category!=Keycloak` (full default breadth)
+## Related
 
-## Related configuration
-
-- [Persistence settings](/docs/configuration/settings/persistence-settings) — connection strings and database providers for the running app.
-- [Health checks](/docs/developers/api/health-checks) — health endpoint behavior exercised by infrastructure smoke tests.
+- [Persistence settings](/docs/configuration/settings/persistence-settings)
+- [Health checks](/docs/developers/api/health-checks)

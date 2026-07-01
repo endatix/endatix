@@ -1,17 +1,20 @@
 namespace Endatix.IntegrationTests.Shared;
 
 /// <summary>
-/// xUnit filter expressions shared between local runs and CI. Keep workflows in sync with these constants.
+/// xUnit filter expressions for <c>dotnet test --filter</c>. Keep CI workflows in sync.
 /// </summary>
 /// <remarks>
-/// Used with <c>dotnet test --filter</c> via the VSTest adapter (integration test projects set
-/// <c>TestingPlatformDotnetTestSupport=false</c> so filters stay on this syntax, not MTTP).
+/// One test process = one Testcontainers database. CI uses a provider matrix (two jobs).
+/// Provider-agnostic tests have no <c>DbSpecific</c> trait and run in both jobs.
 /// </remarks>
 public static class IntegrationTestFilters
 {
-    /// <summary>Default integration breadth: all tiers except Keycloak (P2).</summary>
-    public const string Default = "Category!=Keycloak";
+    /// <summary>PostgreSQL CI leg and local default (excludes Keycloak and SQL Server–only tests).</summary>
+    public const string Default = "Category!=Keycloak&DbSpecific!=SqlServer";
 
-    /// <summary>PR / feature-branch fast gate: P0 + P1 only (excludes Keycloak and explicit P2).</summary>
-    public const string PrFast = "Category!=Keycloak&Priority!=P2";
+    /// <summary>PostgreSQL PR fast gate (P0 + P1).</summary>
+    public const string PrFast = "Category!=Keycloak&Priority!=P2&DbSpecific!=SqlServer";
+
+    /// <summary>SQL Server CI leg (excludes Keycloak and PostgreSQL–only tests).</summary>
+    public const string SqlServer = "Category!=Keycloak&DbSpecific!=PostgreSql";
 }

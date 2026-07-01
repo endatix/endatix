@@ -8,6 +8,8 @@
          CI and local `\-\-filter` use VSTest/xUnit trait syntax (see IntegrationTestFilters).
          Do not set TestingPlatformDotnetTestSupport=true without migrating workflow filters to MTTP. -->
     <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
+    <!-- Default: PostgreSQL leg. SQL Server: second process with IntegrationTestFilters.SqlServer -->
+    <VSTestTestCaseFilter>Category!=Keycloak&amp;DbSpecific!=SqlServer</VSTestTestCaseFilter>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

@@ -17,6 +17,9 @@ internal static class EndatixTestcontainers
 {
     private const string SqlServerPassword = "yourStrong(!)Password";
 
+    /// <summary>SQL Server 2025+ is required for native <c>json</c> columns used by AppDbContext migrations.</summary>
+    private const string DefaultSqlServerImage = "mcr.microsoft.com/mssql/server:2025-latest";
+
     private static readonly SemaphoreSlim _sync = new(1, 1);
 
     private static INetwork? _network;
@@ -178,14 +181,10 @@ internal static class EndatixTestcontainers
             {
                 var sqlBuilder = new MsSqlBuilder()
                     .WithPassword(SqlServerPassword)
+                    .WithImage(settings.SqlServerImage ?? DefaultSqlServerImage)
                     .WithNetwork(_network!)
                     .WithNetworkAliases("sqlserver")
                     .WithName(ContainerName(containerSettings, "sqlserver"));
-
-                if (!string.IsNullOrWhiteSpace(settings.SqlServerImage))
-                {
-                    sqlBuilder = sqlBuilder.WithImage(settings.SqlServerImage);
-                }
 
                 sqlBuilder = ApplyReuse(
                     ApplySession(sqlBuilder, containerSettings, EndatixTestcontainerLabels.ComponentSqlServer),
