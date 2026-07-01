@@ -41,7 +41,7 @@ public sealed class MyFlowTests(EndatixIntegrationWebHostFixture fixture)
 
 Consumed by SaaS integration tests. Keep module-agnostic.
 
-```
+```text
 EndatixTestcontainers → DatabaseInfrastructureFixture → DbIntegrationFixture
                                                       ↘ EndatixIntegrationWebHostFixture (IntegrationTests project)
 ```
