@@ -181,7 +181,7 @@ internal static class EndatixTestcontainers
             {
                 var sqlBuilder = new MsSqlBuilder()
                     .WithPassword(SqlServerPassword)
-                    .WithImage(settings.SqlServerImage ?? DefaultSqlServerImage)
+                    .WithImage(NormalizeImageOverride(settings.SqlServerImage) ?? DefaultSqlServerImage)
                     .WithNetwork(_network!)
                     .WithNetworkAliases("sqlserver")
                     .WithName(ContainerName(containerSettings, "sqlserver"));

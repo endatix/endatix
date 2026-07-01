@@ -27,18 +27,28 @@ internal static class DbContextMigrationRunner
         DbContext? dbContext = scopedProvider.GetService<TContext>();
         if (dbContext is null)
         {
-            return;
+            var contextName = typeof(TContext).Name;
+            var message =
+                $"{contextName} is not registered in the service provider. " +
+                "Startup migrations cannot run without the DbContext registration for the active provider.";
+            logger.LogError(
+                "{DbContextName} is not registered in the service provider. Startup migrations cannot run without the DbContext registration for the active provider.",
+                contextName);
+            throw new InvalidOperationException(message);
         }
 
         var migrations = dbContext.Database.GetMigrations();
         if (!migrations.Any())
         {
+            var contextName = typeof(TContext).Name;
             var message =
-                $"No EF Core migrations are registered for {typeof(TContext).Name}. " +
+                $"No EF Core migrations are registered for {contextName}. " +
                 "Auto-migration cannot create the database schema for the active provider. " +
                 "Generate provider-specific migrations before enabling startup migrations " +
                 "(see module README; Reporting SQL Server: https://github.com/endatix/endatix/issues/813).";
-            logger.LogError(message);
+            logger.LogError(
+                "No EF Core migrations are registered for {DbContextName}. Auto-migration cannot create the database schema for the active provider. Generate provider-specific migrations before enabling startup migrations (see module README; Reporting SQL Server: https://github.com/endatix/endatix/issues/813).",
+                contextName);
             throw new InvalidOperationException(message);
         }
 

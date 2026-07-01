@@ -13,16 +13,18 @@ public sealed class EndatixPersistenceBuilderStartupOrderTests
     public void UseDefaults_RegistersDatabaseMigrationBeforeOutboxRelay()
     {
         // Arrange
-        ServiceCollection services = new();
-        services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
+        IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = "Host=127.0.0.1;Database=endatix_test;Username=postgres;Password=postgres",
                 ["ConnectionStrings:DefaultConnection_DbProvider"] = "PostgreSql"
             })
-            .Build());
+            .Build();
 
-        EndatixBuilder builder = new(services, services.BuildServiceProvider().GetRequiredService<IConfiguration>());
+        ServiceCollection services = new();
+        services.AddSingleton(configuration);
+
+        EndatixBuilder builder = new(services, configuration);
 
         // Act
         builder.Persistence.UseDefaults(DatabaseProvider.PostgreSql);

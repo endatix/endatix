@@ -7,7 +7,7 @@ namespace Endatix.Infrastructure.Tests.Data;
 public sealed class CoreDbContextMigrationServiceTests
 {
     [Fact]
-    public async Task MigrateAsync_WhenCoreContextsNotRegistered_SkipsWithoutError()
+    public async Task MigrateAsync_WhenCoreContextsNotRegistered_ThrowsInvalidOperationException()
     {
         // Arrange
         ServiceCollection services = new();
@@ -21,6 +21,7 @@ public sealed class CoreDbContextMigrationServiceTests
             TestContext.Current.CancellationToken);
 
         // Assert
-        await action.Should().NotThrowAsync();
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*AppDbContext is not registered in the service provider*");
     }
 }
