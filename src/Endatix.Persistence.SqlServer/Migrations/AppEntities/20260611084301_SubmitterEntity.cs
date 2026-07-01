@@ -91,7 +91,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 principalColumn: "Id",
                 onDelete: ReferentialAction.SetNull);
 
-            var script = migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions.sql");
+            var script = migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v2.sql");
             migrationBuilder.Sql(script);
         }
 
