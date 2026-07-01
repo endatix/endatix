@@ -56,6 +56,12 @@ public class EndatixPersistenceBuilder
     /// <returns>The builder for chaining.</returns>
     public EndatixPersistenceBuilder UseDefaults(DatabaseProvider databaseProvider)
     {
+        // Register migration/seeding hosted services before persistence. Persistence registers
+        // BackgroundService relays (outbox) that return from StartAsync immediately; they must
+        // run after DatabaseMigrationService and DataSeedingService have completed StartAsync.
+        EnableAutoMigrations();
+        EnableSampleDataSeeding();
+
         switch (databaseProvider)
         {
             case DatabaseProvider.SqlServer:
@@ -71,10 +77,6 @@ public class EndatixPersistenceBuilder
             default:
                 throw new ArgumentOutOfRangeException(nameof(databaseProvider), databaseProvider, "Unsupported database provider");
         }
-
-        // Enable auto migrations and data seeding by default
-        EnableAutoMigrations();
-        EnableSampleDataSeeding();
 
         // Apply configurations immediately for the default flow
         EnsureConfigurationsApplied();
@@ -95,8 +97,6 @@ public class EndatixPersistenceBuilder
             _parentBuilder.Services,
             _parentBuilder.LoggerFactory);
 
-        _parentBuilder.Services.AddDbContextMigrationContributor<TContext>();
-
         LogSetupInfo($"PostgreSQL persistence for {typeof(TContext).Name} configured successfully");
         return this;
     }
@@ -116,8 +116,6 @@ public class EndatixPersistenceBuilder
             configAction,
             _parentBuilder.LoggerFactory);
 
-        _parentBuilder.Services.AddDbContextMigrationContributor<TContext>();
-
         LogSetupInfo($"PostgreSQL persistence for {typeof(TContext).Name} configured successfully");
         return this;
     }
@@ -134,8 +132,6 @@ public class EndatixPersistenceBuilder
         Endatix.Persistence.SqlServer.Setup.EndatixPersistenceExtensions.AddSqlServerPersistence<TContext>(
             _parentBuilder.Services,
             _parentBuilder.LoggerFactory);
-
-        _parentBuilder.Services.AddDbContextMigrationContributor<TContext>();
 
         LogSetupInfo($"SQL Server persistence for {typeof(TContext).Name} configured successfully");
         return this;
@@ -156,8 +152,6 @@ public class EndatixPersistenceBuilder
             configAction,
             _parentBuilder.LoggerFactory);
 
-        _parentBuilder.Services.AddDbContextMigrationContributor<TContext>();
-
         LogSetupInfo($"SQL Server persistence for {typeof(TContext).Name} configured successfully");
         return this;
     }
@@ -167,6 +161,10 @@ public class EndatixPersistenceBuilder
     /// </summary>
     /// <param name="applyOnStartup">Whether to apply migrations at startup. Default is true.</param>
     /// <returns>The builder for chaining.</returns>
+    /// <remarks>
+    /// Register this before persistence builders that add database-backed background relays
+    /// (for example the outbox relay), so database migrations complete before those loops begin.
+    /// </remarks>
     public EndatixPersistenceBuilder EnableAutoMigrations(bool applyOnStartup = true)
     {
         // Just track the setting - will be applied if not in configuration

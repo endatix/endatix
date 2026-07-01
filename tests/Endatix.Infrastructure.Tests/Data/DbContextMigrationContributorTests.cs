@@ -26,7 +26,7 @@ public class DbContextMigrationContributorTests
     }
 
     [Fact]
-    public async Task MigrateAsync_WhenDbContextNotRegistered_SkipsWithoutError()
+    public async Task MigrateAsync_WhenDbContextNotRegistered_ThrowsInvalidOperationException()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -36,10 +36,11 @@ public class DbContextMigrationContributorTests
 
         // Act
         var contributor = provider.GetRequiredService<IDbContextMigrationContributor>();
-        var action = () => contributor.MigrateAsync(provider, NullLogger.Instance);
+        Func<Task> action = () => contributor.MigrateAsync(provider, NullLogger.Instance);
 
         // Assert
-        await action.Should().NotThrowAsync();
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage($"*{nameof(TestDbContext)} is not registered in the service provider*");
     }
 
     [Fact]

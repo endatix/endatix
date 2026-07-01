@@ -8,7 +8,6 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class DatabaseMutationTests
 {
     private readonly EndatixIntegrationWebHostFixture _fixture;

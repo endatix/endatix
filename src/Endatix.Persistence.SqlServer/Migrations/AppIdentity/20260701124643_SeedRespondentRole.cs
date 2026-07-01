@@ -1,9 +1,8 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
+namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 {
     /// <inheritdoc />
     public partial class SeedRespondentRole : Migration
