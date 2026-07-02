@@ -1,5 +1,4 @@
 extern alias EndatixWebHost;
-extern alias EndatixIntegrationHost;
 
 using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Hosting;
@@ -21,23 +20,6 @@ public sealed class EndatixWebApplicationFactory : WebApplicationFactory<Endatix
     private readonly TestDatabaseProvider _provider;
 
     public EndatixWebApplicationFactory(string connectionString, TestDatabaseProvider provider)
-    {
-        _connectionString = connectionString;
-        _provider = provider;
-    }
-
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        EndatixWebApplicationFactoryConfiguration.ConfigureCommon(builder, _connectionString, _provider);
-    }
-}
-
-public sealed class EndatixDedicatedHostWebApplicationFactory : WebApplicationFactory<EndatixIntegrationHost::Program>, IEndatixWebApplicationFactory
-{
-    private readonly string _connectionString;
-    private readonly TestDatabaseProvider _provider;
-
-    public EndatixDedicatedHostWebApplicationFactory(string connectionString, TestDatabaseProvider provider)
     {
         _connectionString = connectionString;
         _provider = provider;
