@@ -16,19 +16,19 @@ internal static partial class MigrationLoggerExtensions
 
     [LoggerMessage(
         EventId = EndatixEventIds.Migrations.DbContextMigrated,
-        Level = LogLevel.Warning,
-        Message = "Database migrations applied for {DbContext}. Took: {DurationMs} ms.")]
-    public static partial void LogDbContextMigrated(this ILogger logger, string dbContext, double durationMs);
+        Level = LogLevel.Information,
+        Message = "Database migrations applied for {DbContextName}. Took: {ElapsedMs} ms.")]
+    public static partial void LogDbContextMigrated(this ILogger logger, string dbContextName, double elapsedMs);
 
     [LoggerMessage(
         EventId = EndatixEventIds.Migrations.DbContextNotRegistered,
         Level = LogLevel.Error,
-        Message = "{DbContext} is not registered in the service provider. Startup migrations cannot run without the DbContext registration for the active provider.")]
-    public static partial void LogDbContextNotRegistered(this ILogger logger, string dbContext);
+        Message = "{DbContextName} is not registered in the service provider. Startup migrations cannot run without the DbContext registration for the active provider.")]
+    public static partial void LogDbContextNotRegistered(this ILogger logger, string dbContextName);
 
     [LoggerMessage(
         EventId = EndatixEventIds.Migrations.NoMigrationsRegistered,
         Level = LogLevel.Error,
-        Message = "No EF Core migrations are registered for {DbContext}. Auto-migration cannot create the database schema for the active provider. Generate provider-specific migrations before enabling startup migrations (see module README; Reporting SQL Server: https://github.com/endatix/endatix/issues/813).")]
-    public static partial void LogNoMigrationsRegistered(this ILogger logger, string dbContext);
+        Message = "No EF Core migrations are registered for {DbContextName}. Auto-migration cannot create the database schema for the active provider. Generate provider-specific migrations before enabling startup migrations (see module README; Reporting SQL Server: https://github.com/endatix/endatix/issues/813).")]
+    public static partial void LogNoMigrationsRegistered(this ILogger logger, string dbContextName);
 }

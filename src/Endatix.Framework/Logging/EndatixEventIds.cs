@@ -19,6 +19,12 @@ public static class EndatixEventIds
         public const int SeedingStart = 1100;
         public const int SeedingEnd = 1199;
 
+        /// <summary>Last EventId for data seeding (<see cref="Seeding"/>).</summary>
+        public const int DataSeedingEnd = 1104;
+
+        /// <summary>First EventId for identity seeding (<see cref="IdentitySeed"/>).</summary>
+        public const int IdentitySeedStart = 1105;
+
         public const int HostingStart = 1200;
         public const int HostingEnd = 1299;
 
@@ -72,7 +78,11 @@ public static class EndatixEventIds
         ];
     }
 
-    /// <summary>Data seeding startup (Infrastructure <c>DataSeedingLoggerExtensions</c>).</summary>
+    /// <summary>
+    /// Data seeding startup (Infrastructure <c>DataSeedingLoggerExtensions</c>).
+    /// Partition: <see cref="Ranges.SeedingStart"/>–<see cref="Ranges.DataSeedingEnd"/>.
+    /// Identity seeding uses <see cref="Ranges.IdentitySeedStart"/>–<see cref="Ranges.SeedingEnd"/> (see <see cref="IdentitySeed"/>).
+    /// </summary>
     public static class Seeding
     {
         public const int Started = Ranges.SeedingStart;
@@ -82,7 +92,7 @@ public static class EndatixEventIds
         public const int SampleDataFailed = 1104;
 
         public const int RangeStart = Ranges.SeedingStart;
-        public const int RangeEnd = 1104;
+        public const int RangeEnd = Ranges.DataSeedingEnd;
 
         public static readonly int[] All =
         [
@@ -94,16 +104,20 @@ public static class EndatixEventIds
         ];
     }
 
-    /// <summary>Initial identity user seeding (Infrastructure <c>IdentitySeedLoggerExtensions</c>).</summary>
+    /// <summary>
+    /// Initial identity user seeding (Infrastructure <c>IdentitySeedLoggerExtensions</c>).
+    /// Partition: <see cref="Ranges.IdentitySeedStart"/>–<see cref="Ranges.SeedingEnd"/>.
+    /// Do not assign IDs below <see cref="Ranges.IdentitySeedStart"/>; data seeding owns the lower block.
+    /// </summary>
     public static class IdentitySeed
     {
-        public const int CredentialsInConfig = 1105;
+        public const int CredentialsInConfig = Ranges.IdentitySeedStart;
         public const int RegistrationFailed = 1106;
         public const int RoleAssignmentFailed = 1107;
         public const int UserCreated = 1108;
         public const int PasswordInConfig = 1109;
 
-        public const int RangeStart = CredentialsInConfig;
+        public const int RangeStart = Ranges.IdentitySeedStart;
         public const int RangeEnd = Ranges.SeedingEnd;
 
         public static readonly int[] All =

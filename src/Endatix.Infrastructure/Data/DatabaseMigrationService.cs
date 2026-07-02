@@ -1,4 +1,3 @@
-using Endatix.Framework.Logging;
 using Endatix.Infrastructure.Data.Logging;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -48,11 +47,11 @@ public class DatabaseMigrationService : IHostedService
         {
             await _serviceProvider.ApplyDbMigrationsAsync(_logger, cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger.LogOperationFailed(ex, MigrationOperations.ApplyDbMigrations);
-            // Don't rethrow - we don't want to prevent application startup
-            // Applications can check migration status in health checks
+            // Failure already logged by ApplyDbMigrationsAsync.
+            // Don't rethrow - we don't want to prevent application startup.
+            // Applications can check migration status in health checks.
         }
     }
 

@@ -29,12 +29,12 @@ internal static partial class DataSeedingLoggerExtensions
     [LoggerMessage(
         EventId = EndatixEventIds.Seeding.SampleDataSeeded,
         Level = LogLevel.Information,
-        Message = "🌱 Sample data seeded. Took: {DurationMs} ms.")]
-    public static partial void LogSampleDataSeeded(this ILogger logger, double durationMs);
+        Message = "🌱 Sample data seeded. Took: {ElapsedMs} ms.")]
+    public static partial void LogSampleDataSeeded(this ILogger logger, double elapsedMs);
 
     [LoggerMessage(
         EventId = EndatixEventIds.Seeding.SampleDataFailed,
         Level = LogLevel.Error,
-        Message = "An error occurred while seeding sample data. Data seeding aborted. Details: {Reason}")]
-    public static partial void LogSampleDataSeedingFailed(this ILogger logger, Exception exception, string reason);
+        Message = "An error occurred while seeding sample data. Data seeding aborted.")]
+    public static partial void LogSampleDataSeedingFailed(this ILogger logger, Exception exception);
 }

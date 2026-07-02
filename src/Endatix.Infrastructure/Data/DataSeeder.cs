@@ -55,7 +55,7 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
         }
         catch (Exception ex)
         {
-            logger.LogSampleDataSeedingFailed(ex, ex.Message);
+            logger.LogSampleDataSeedingFailed(ex);
             throw;
         }
     }
