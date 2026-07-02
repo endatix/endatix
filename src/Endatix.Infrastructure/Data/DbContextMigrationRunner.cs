@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Endatix.Framework.Logging;
+using Endatix.Infrastructure.Data.Logging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -31,9 +33,7 @@ internal static class DbContextMigrationRunner
             var message =
                 $"{contextName} is not registered in the service provider. " +
                 "Startup migrations cannot run without the DbContext registration for the active provider.";
-            logger.LogError(
-                "{DbContextName} is not registered in the service provider. Startup migrations cannot run without the DbContext registration for the active provider.",
-                contextName);
+            logger.LogDbContextNotRegistered(contextName);
             throw new InvalidOperationException(message);
         }
 
@@ -46,9 +46,7 @@ internal static class DbContextMigrationRunner
                 "Auto-migration cannot create the database schema for the active provider. " +
                 "Generate provider-specific migrations before enabling startup migrations " +
                 "(see module README; Reporting SQL Server: https://github.com/endatix/endatix/issues/813).";
-            logger.LogError(
-                "No EF Core migrations are registered for {DbContextName}. Auto-migration cannot create the database schema for the active provider. Generate provider-specific migrations before enabling startup migrations (see module README; Reporting SQL Server: https://github.com/endatix/endatix/issues/813).",
-                contextName);
+            logger.LogNoMigrationsRegistered(contextName);
             throw new InvalidOperationException(message);
         }
 
@@ -56,9 +54,6 @@ internal static class DbContextMigrationRunner
         await dbContext.Database.MigrateAsync(cancellationToken);
 
         var elapsedTime = Stopwatch.GetElapsedTime(startTime);
-        logger.LogWarning(
-            "Database migrations applied for {DbContextName}. Took: {ElapsedMs} ms.",
-            typeof(TContext).Name,
-            elapsedTime.TotalMilliseconds);
+        logger.LogDbContextMigrated(typeof(TContext).Name, elapsedTime.TotalMilliseconds);
     }
 }

@@ -1,4 +1,6 @@
 using Endatix.Core.Abstractions;
+using Endatix.Framework.Logging;
+using Endatix.Infrastructure.Data.Logging;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Seed;
 using Microsoft.AspNetCore.Identity;
@@ -43,11 +45,13 @@ public class DataSeedingService : IHostedService
     {
         if (!_options.SeedSampleData)
         {
-            _logger.LogDebug("{Operation} operation skipped because automatic data seeding is disabled", "SeedingSampleData");
+            _logger.LogOperationSkipped(
+                DataSeedingOperations.SeedSampleData,
+                "automatic data seeding is disabled");
             return;
         }
 
-        _logger.LogInformation("Seeding initial application data");
+        _logger.LogSeedingStarted();
         try
         {
             // Get required services
@@ -71,11 +75,11 @@ public class DataSeedingService : IHostedService
                 await dataSeeder.SeedSampleDataAsync(appDbContext, cancellationToken);
             }
 
-            _logger.LogInformation("Initial data seeded successfully");
+            _logger.LogSeedingCompleted();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred while seeding initial data");
+            _logger.LogOperationFailed(ex, DataSeedingOperations.SeedSampleData);
             // Don't rethrow - we don't want to prevent application startup
         }
     }

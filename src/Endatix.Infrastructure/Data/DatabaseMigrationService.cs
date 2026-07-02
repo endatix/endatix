@@ -1,3 +1,5 @@
+using Endatix.Framework.Logging;
+using Endatix.Infrastructure.Data.Logging;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -38,17 +40,17 @@ public class DatabaseMigrationService : IHostedService
     {
         if (!_options.EnableAutoMigrations)
         {
-            _logger.LogInformation("Automatic database migrations are disabled");
+            _logger.LogAutoMigrationsDisabled();
             return;
         }
 
         try
         {
-            await _serviceProvider.ApplyDbMigrationsAsync(cancellationToken);
+            await _serviceProvider.ApplyDbMigrationsAsync(_logger, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred while applying database migrations");
+            _logger.LogOperationFailed(ex, MigrationOperations.ApplyDbMigrations);
             // Don't rethrow - we don't want to prevent application startup
             // Applications can check migration status in health checks
         }
