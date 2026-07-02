@@ -2,7 +2,7 @@ namespace Endatix.Framework.Logging;
 
 /// <summary>
 /// Platform-wide stable <see cref="Microsoft.Extensions.Logging.EventId"/> registry.
-/// Grouped by area (like <see cref="Core.Abstractions.Authorization.Actions"/>).
+/// Grouped by area (like nested classes in <see cref="Lifecycle"/>).
 /// Claim a range in <see cref="Ranges"/> before adding domain <c>*LoggerExtensions</c>.
 /// </summary>
 public static class EndatixEventIds
