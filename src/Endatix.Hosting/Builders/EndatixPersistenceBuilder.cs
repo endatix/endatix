@@ -1,4 +1,5 @@
 using System.Reflection;
+using Endatix.Hosting.Builders.Logging;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Endatix.Persistence.PostgreSql.Options;
@@ -248,12 +249,16 @@ public class EndatixPersistenceBuilder
             if (!enableAutoMigrationsConfigValue.Exists())
             {
                 // Not in config - apply our tracked default
-                _logger?.LogDebug("Setting EnableAutoMigrations={Setting} from code default", _autoMigrationsSetting);
+                _logger?.LogDataOptionFromDefault(
+                    nameof(DataOptions.EnableAutoMigrations),
+                    _autoMigrationsSetting.ToString());
                 opts.EnableAutoMigrations = _autoMigrationsSetting;
             }
             else
             {
-                _logger?.LogDebug("Using EnableAutoMigrations={Setting} value from configuration", enableAutoMigrationsConfigValue.Value);
+                _logger?.LogDataOptionFromConfiguration(
+                    nameof(DataOptions.EnableAutoMigrations),
+                    enableAutoMigrationsConfigValue.Value!);
             }
 
             // Check if SeedSampleData is in configuration
@@ -261,12 +266,16 @@ public class EndatixPersistenceBuilder
             if (!seedSampleDataConfigValue.Exists())
             {
                 // Not in config - apply our tracked default
-                _logger?.LogDebug("Setting SeedSampleData={Setting} from code default", _sampleDataSeedingSetting);
+                _logger?.LogDataOptionFromDefault(
+                    nameof(DataOptions.SeedSampleData),
+                    _sampleDataSeedingSetting.ToString());
                 opts.SeedSampleData = _sampleDataSeedingSetting;
             }
             else
             {
-                _logger?.LogDebug("Using SeedSampleData={Setting} value from configuration", seedSampleDataConfigValue.Value);
+                _logger?.LogDataOptionFromConfiguration(
+                    nameof(DataOptions.SeedSampleData),
+                    seedSampleDataConfigValue.Value!);
             }
         });
 
@@ -275,7 +284,7 @@ public class EndatixPersistenceBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogDebug("[Persistence Setup] {Message}", message);
+        _logger?.LogPersistenceSetup(message);
     }
 }
 

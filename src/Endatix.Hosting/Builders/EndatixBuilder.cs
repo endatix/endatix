@@ -2,6 +2,7 @@ using System.Reflection;
 using Ardalis.GuardClauses;
 using Endatix.Framework.Hosting;
 using Endatix.Framework.Modules;
+using Endatix.Hosting.Builders.Logging;
 using Endatix.Infrastructure.Identity;
 using Endatix.Modules.Reporting;
 using Microsoft.EntityFrameworkCore;
@@ -98,7 +99,7 @@ public class EndatixBuilder : IBuilderRoot
         LoggerFactory = _loggingBuilder.GetComponents();
         _logger = LoggerFactory.CreateLogger<EndatixBuilder>();
 
-        _logger.LogDebug("Initializing EndatixBuilder");
+        _logger.LogBuilderInitializing();
 
         // Try to get IAppEnvironment from DI
         var serviceProvider = services.BuildServiceProvider();
@@ -110,7 +111,7 @@ public class EndatixBuilder : IBuilderRoot
         Persistence = new EndatixPersistenceBuilder(this);
         HealthChecks = new EndatixHealthChecksBuilder(this);
 
-        _logger.LogInformation("EndatixBuilder initialized successfully");
+        _logger.LogBuilderInitialized();
     }
 
     /// <summary>
@@ -122,25 +123,25 @@ public class EndatixBuilder : IBuilderRoot
         // Set up logging with defaults first
         Logging.UseDefaults();
 
-        _logger.LogInformation("Starting Endatix configuration with default settings");
+        _logger.LogConfigurationStarted();
 
         var databaseProvider = GetConfiguredDatabaseProvider();
         Persistence.UseDefaults(databaseProvider);
-        _logger.LogInformation("Persistence configuration completed using {DatabaseProvider}", databaseProvider);
+        _logger.LogPersistenceConfigurationCompleted(databaseProvider.ToString());
 
         Infrastructure.UseDefaults();
-        _logger.LogInformation("Infrastructure configuration completed");
+        _logger.LogInfrastructureConfigurationCompleted();
 
         Api.UseDefaults();
-        _logger.LogInformation("API configuration completed");
+        _logger.LogApiConfigurationCompleted();
 
         // Configure health checks with default settings
         HealthChecks.UseDefaults();
-        _logger.LogInformation("Health checks configuration completed");
+        _logger.LogHealthChecksConfigurationCompleted();
 
         UseModule(ReportingModule.Instance);
 
-        _logger.LogInformation("Endatix configuration completed successfully");
+        _logger.LogConfigurationCompleted();
         return this;
     }
 
@@ -169,7 +170,7 @@ public class EndatixBuilder : IBuilderRoot
         // Configure only essential services
         var databaseProvider = GetConfiguredDatabaseProvider();
         Persistence.UseDefaults(databaseProvider);
-        _logger.LogInformation("Minimal setup completed with {DatabaseProvider} persistence", databaseProvider);
+        _logger.LogMinimalSetupCompleted(databaseProvider.ToString());
 
         return this;
     }
@@ -272,18 +273,15 @@ public class EndatixBuilder : IBuilderRoot
         if (!EndatixModuleRegistration.ShouldRegister(Configuration, module))
         {
             var featureFlag = module is IHasFeatureFlag gatedModule ? gatedModule.FeatureFlag : null;
-            _logger.LogDebug(
-                "Skipped module {AssemblyName}: feature flag {FeatureFlag} is disabled",
-                module.Assembly.GetName().Name,
+            _logger.LogModuleSkippedFeatureFlag(
+                module.Assembly.GetName().Name!,
                 featureFlag);
             return this;
         }
 
         if (_modules.Any(existing => existing.Assembly == module.Assembly))
         {
-            _logger.LogDebug(
-                "Skipped module {AssemblyName}: already registered",
-                module.Assembly.GetName().Name);
+            _logger.LogModuleSkippedAlreadyRegistered(module.Assembly.GetName().Name!);
             return this;
         }
 
@@ -291,7 +289,7 @@ public class EndatixBuilder : IBuilderRoot
         Infrastructure.Messaging.AddAssembly(module.Assembly);
         Api.ScanAssemblies(module.Assembly);
 
-        _logger.LogDebug("Registered module from assembly {AssemblyName}", module.Assembly.GetName().Name);
+        _logger.LogModuleRegistered(module.Assembly.GetName().Name!);
         return this;
     }
 
@@ -312,7 +310,7 @@ public class EndatixBuilder : IBuilderRoot
     /// <returns>The service collection for chaining.</returns>
     public IServiceCollection FinalizeConfiguration()
     {
-        _logger.LogDebug("Finalizing all configurations");
+        _logger.LogFinalizingConfiguration();
 
         Infrastructure.Build();
 
@@ -323,14 +321,11 @@ public class EndatixBuilder : IBuilderRoot
 
             if (module is IHasDbMigrations && !moduleBuilder.MigrationContributorRegistered)
             {
-                _logger.LogWarning(
-                    "Module {AssemblyName} implements {Marker} but did not register a migration contributor via AddDbContextWithMigrations",
-                    module.Assembly.GetName().Name,
-                    nameof(IHasDbMigrations));
+                _logger.LogMigrationContributorMissing(module.Assembly.GetName().Name!);
             }
         }
 
-        _logger.LogInformation("All configurations have been finalized");
+        _logger.LogConfigurationFinalized();
         return Services;
     }
 
