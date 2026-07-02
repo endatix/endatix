@@ -31,9 +31,6 @@
     <ProjectReference Include="..\..\src\Endatix.WebHost\Endatix.WebHost.csproj">
       <Aliases>EndatixWebHost</Aliases>
     </ProjectReference>
-    <ProjectReference Include="..\Endatix.WebHost.IntegrationHost\Endatix.WebHost.IntegrationHost.csproj">
-      <Aliases>EndatixIntegrationHost</Aliases>
-    </ProjectReference>
     <ProjectReference Include="..\..\src\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Endatix.Persistence.PostgreSql\Endatix.Persistence.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\Endatix.Persistence.SqlServer\Endatix.Persistence.SqlServer.csproj" />

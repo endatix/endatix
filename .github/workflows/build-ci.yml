@@ -78,7 +78,6 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       ENDATIX_TEST_DB_PROVIDER: PostgreSql
-      ENDATIX_TEST_HOST_MODE: ProductionProgram
 
     steps:
       - name: 🔍 Checkout code
@@ -114,7 +113,6 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       ENDATIX_TEST_DB_PROVIDER: SqlServer
-      ENDATIX_TEST_HOST_MODE: ProductionProgram
 
     steps:
       - name: 🔍 Checkout code

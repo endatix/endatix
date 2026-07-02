@@ -36,6 +36,5 @@
     <Project Path="tests/Endatix.IntegrationTests.Shared/Endatix.IntegrationTests.Shared.csproj" />
     <Project Path="tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj" />
     <Project Path="tests/Endatix.Modules.Reporting.Tests/Endatix.Modules.Reporting.Tests.csproj" />
-    <Project Path="tests/Endatix.WebHost.IntegrationHost/Endatix.WebHost.IntegrationHost.csproj" />
   </Folder>
 </Solution>

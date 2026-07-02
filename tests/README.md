@@ -53,7 +53,6 @@ Write product tests once (no `DbSpecific` trait). Tag only dialect- or module-sp
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `ENDATIX_TEST_DB_PROVIDER` | `PostgreSql` | `SqlServer` for SQL Server leg |
-| `ENDATIX_TEST_HOST_MODE` | `ProductionProgram` | Or `DedicatedIntegrationHost` |
 | `ENDATIX_TEST_REUSE_CONTAINERS` | off | Local dev only |
 
 `xunit.runner.json` disables parallelism — collections share one DB per process; tests reset via Respawn.
