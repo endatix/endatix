@@ -3,6 +3,7 @@ using Endatix.Infrastructure.Identity;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.IntegrationTests;
 
@@ -28,7 +29,7 @@ public sealed class SqlServerMigrationArtifactTests
             _fixture.ConnectionString,
             _fixture.Provider);
 
-        await provider.ApplyDbMigrationsAsync(cancellationToken);
+        await provider.ApplyDbMigrationsAsync(NullLogger.Instance, cancellationToken);
 
         using var scope = provider.CreateScope();
         var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
