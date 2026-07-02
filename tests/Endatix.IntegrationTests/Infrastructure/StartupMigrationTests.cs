@@ -5,6 +5,7 @@ using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.IntegrationTests;
 
@@ -32,7 +33,7 @@ public sealed class StartupMigrationTests
             _fixture.Provider);
 
         // Act
-        await provider.ApplyDbMigrationsAsync(cancellationToken);
+        await provider.ApplyDbMigrationsAsync(NullLogger.Instance, cancellationToken);
 
         // Assert
         var usersTableExists = await IntegrationDbAssert.TableExistsAsync(
@@ -73,7 +74,7 @@ public sealed class StartupMigrationTests
             _fixture.ConnectionString,
             _fixture.Provider);
 
-        await provider.ApplyDbMigrationsAsync(cancellationToken);
+        await provider.ApplyDbMigrationsAsync(NullLogger.Instance, cancellationToken);
 
         using (var scope = provider.CreateScope())
         {
@@ -84,7 +85,7 @@ public sealed class StartupMigrationTests
             var identityHistoryAfterFirst = (await identityDb.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
 
             // Act
-            await provider.ApplyDbMigrationsAsync(cancellationToken);
+            await provider.ApplyDbMigrationsAsync(NullLogger.Instance, cancellationToken);
 
             // Assert
             using var scopeAfter = provider.CreateScope();
@@ -119,7 +120,7 @@ public sealed class StartupMigrationTests
             });
 
         // Act
-        await provider.ApplyDbMigrationsAsync(cancellationToken);
+        await provider.ApplyDbMigrationsAsync(NullLogger.Instance, cancellationToken);
 
         // Assert
         Assert.Equal(["first", "second"], callOrder);
@@ -137,7 +138,7 @@ public sealed class StartupMigrationTests
             _fixture.Provider);
 
         // Act
-        await provider.ApplyDbMigrationsAsync(cancellationToken);
+        await provider.ApplyDbMigrationsAsync(NullLogger.Instance, cancellationToken);
 
         // Assert
         using var scope = provider.CreateScope();

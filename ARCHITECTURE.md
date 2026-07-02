@@ -288,3 +288,5 @@ Infrastructure lists take Core paging + feature criteria; return **`Paged<T>` as
 | 2026-06 | **OSS module registration:** `{Name}Module` sealed class implements `IEndatixModule` (+ optional `IHasFeatureFlag`, `IHasDbMigrations`); host calls `UseModule({Name}Module.Instance)`. No `Setup.cs`. Startup migrations via `IDbContextMigrationContributor`. |
 | 2026-06 | **Reporting:** integration status on `FlattenedSubmission` only (source of truth in `reporting` schema); core `Submission` and list APIs stay free of reporting denormalization until a dedicated read endpoint is needed. |
 | 2026-06 | **Reporting:** isolated `ReportingDbContext`; avoid `TenantEntity` nav on module entities; EF Core 10 `[ComplexType]` on module side, scalar codes on core side. |
+| 2026-07 | **Startup observability:** generic `EndatixLoggerExtensions` in Framework; domain-specific `*LoggerExtensions` collocated in Infrastructure/Hosting; global `EndatixEventIds` registry. See [Endatix.Framework README — Observability (startup)](src/Endatix.Framework/README.md#observability-startup). |
+

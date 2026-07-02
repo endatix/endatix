@@ -17,8 +17,6 @@ namespace Endatix.Infrastructure.Identity.Seed
         private const string DEFAULT_ADMIN_EMAIL = "admin@endatix.com";
         private const string DEFAULT_ADMIN_PASSWORD = "P@ssw0rd";
 
-        private const string LOG_INDENT = "\t\t\t";
-
         /// <summary>
         /// Seeds an initial admin user into the system if no users exist.
         /// Uses custom credentials from dataOptions if provided, otherwise falls back to default values.
@@ -45,9 +43,7 @@ namespace Endatix.Infrastructure.Identity.Seed
             {
                 if (initialUserIsConfigured)
                 {
-                    logger.LogWarning("🔐 Initial user credentials are still present in the configuration and are not longer needed\r\n" +
-                        $"{LOG_INDENT}| Remove them from the configuration file to prevent their exposure to the outside world.\r\n" +
-                        $"{LOG_INDENT}| For more info check https://docs.endatix.com/docs/getting-started/installation");
+                    logger.LogInitialUserCredentialsInConfig();
                 }
 
                 return;
@@ -74,11 +70,10 @@ namespace Endatix.Infrastructure.Identity.Seed
 
             if (!registerUserResult.IsSuccess)
             {
-                logger.LogError(
-                                    "❌ Failed to register initial user {Email}. Errors: {Errors}. ValidationErrors: {ValidationErrors}",
-                                    SensitiveValue.Email(email),
-                                    string.Join(", ", registerUserResult.Errors!),
-                                    string.Join(", ", registerUserResult.ValidationErrors!));
+                logger.LogInitialUserRegistrationFailed(
+                    SensitiveValue.Email(email),
+                    string.Join(", ", registerUserResult.Errors!),
+                    string.Join(", ", registerUserResult.ValidationErrors!));
                 return;
             }
 
@@ -86,16 +81,15 @@ namespace Endatix.Infrastructure.Identity.Seed
 
             if (!assignRoleResult.IsSuccess)
             {
-                logger.LogError(
-                                    "❌ Failed to assign role to initial user {Email}. Errors: {Errors}. ValidationErrors: {ValidationErrors}",
-                                    SensitiveValue.Email(email),
-                                    string.Join(", ", assignRoleResult.Errors!),
-                                    string.Join(", ", assignRoleResult.ValidationErrors!));
+                logger.LogInitialUserRoleAssignmentFailed(
+                    SensitiveValue.Email(email),
+                    string.Join(", ", assignRoleResult.Errors!),
+                    string.Join(", ", assignRoleResult.ValidationErrors!));
                 return;
             }
 
-            logger.LogInformation("👤 Initial user {Email} created successfully! Please use it to authenticate.", SensitiveValue.Email(email));
-            logger.LogWarning("🔐 The default password can be found in the configuration file under Endatix:Data:InitialUser. Please change the password after logging in and delete the InitialUser section from the configuration file.");
+            logger.LogInitialUserCreated(SensitiveValue.Email(email));
+            logger.LogInitialUserPasswordInConfig();
         }
     }
 }

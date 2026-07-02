@@ -5,9 +5,11 @@
       <DataCollector friendlyName="XPlat code coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Exclude>[*.Tests]*,[*]*.Migrations.*,[Endatix.IntegrationTests]*,[Endatix.IntegrationTests.Shared]*</Exclude>
+          <!-- Assembly filters: test projects, EF migrations, integration hosts, provider adapters (integration-tested) -->
+          <Exclude>[*.Tests]*,[*]*.Migrations.*,[Endatix.IntegrationTests]*,[Endatix.IntegrationTests.Shared]*,[Endatix.WebHost.IntegrationHost]*,[Endatix.Persistence.SqlServer]*,[Endatix.Persistence.PostgreSql]*,[Endatix.Hosting]*,[Endatix.WebHost]*,[Endatix.Api.Host]*</Exclude>
           <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
-          <ExcludeByFile>**/tests/**/*.cs</ExcludeByFile>
+          <!-- File filters: tests, build output (source generators), EF migrations, embedded SQL script helpers -->
+          <ExcludeByFile>**/tests/**/*.cs,**/obj/**/*.cs,**/Migrations/**/*.cs,**/Scripts/**/*.cs</ExcludeByFile>
         </Configuration>
       </DataCollector>
     </DataCollectors>
