@@ -1,3 +1,4 @@
+using Endatix.Core.Infrastructure.Logging;
 using Endatix.Framework.Logging;
 using Microsoft.Extensions.Logging;
 
@@ -20,7 +21,7 @@ internal static partial class IdentitySeedLoggerExtensions
         Message = "❌ Failed to register initial user {Email}. Errors: {Errors}. ValidationErrors: {ValidationErrors}")]
     public static partial void LogInitialUserRegistrationFailed(
         this ILogger logger,
-        string email,
+        SensitiveValue email,
         string errors,
         string validationErrors);
 
@@ -30,7 +31,7 @@ internal static partial class IdentitySeedLoggerExtensions
         Message = "❌ Failed to assign role to initial user {Email}. Errors: {Errors}. ValidationErrors: {ValidationErrors}")]
     public static partial void LogInitialUserRoleAssignmentFailed(
         this ILogger logger,
-        string email,
+        SensitiveValue email,
         string errors,
         string validationErrors);
 
@@ -38,7 +39,7 @@ internal static partial class IdentitySeedLoggerExtensions
         EventId = EndatixEventIds.IdentitySeed.UserCreated,
         Level = LogLevel.Information,
         Message = "👤 Initial user {Email} created successfully! Please use it to authenticate.")]
-    public static partial void LogInitialUserCreated(this ILogger logger, string email);
+    public static partial void LogInitialUserCreated(this ILogger logger, SensitiveValue email);
 
     [LoggerMessage(
         EventId = EndatixEventIds.IdentitySeed.PasswordInConfig,
