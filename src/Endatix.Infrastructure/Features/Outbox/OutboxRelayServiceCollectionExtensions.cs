@@ -1,6 +1,7 @@
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OpenFeature;
 using OpenFeature.Hosting.Providers.Memory;
 using OpenFeature.Providers.Memory;
@@ -20,9 +21,19 @@ public static class OutboxRelayServiceCollectionExtensions
     /// Registers the in-process outbox relay: the engine loop + gate, <see cref="OutboxOptions"/> bound from
     /// the <c>Endatix:Outbox</c> config section, the <see cref="WebHookIntegrationEventPublisher"/>, and the
     /// OpenFeature provider seeding the <c>outbox-relay-in-process</c> flag.
+    /// Safe to call multiple times (e.g. once per DbContext persistence registration).
     /// </summary>
     public static IServiceCollection AddEndatixOutboxRelay(this IServiceCollection services)
     {
+        var relayAlreadyRegistered = services.Any(descriptor =>
+            descriptor.ServiceType == typeof(IHostedService)
+            && descriptor.ImplementationType == typeof(OutboxRelayBackgroundService));
+
+        if (relayAlreadyRegistered)
+        {
+            return services;
+        }
+
         services.AddOutboxRelay();
         services.AddOptions<OutboxOptions>().BindConfiguration("Endatix:Outbox");
         services.AddScoped<IIntegrationEventPublisher, WebHookIntegrationEventPublisher>();

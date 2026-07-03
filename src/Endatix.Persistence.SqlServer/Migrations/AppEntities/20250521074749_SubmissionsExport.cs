@@ -11,7 +11,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            var script = migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions.sql");
+            var script = migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v1.sql");
             migrationBuilder.Sql(script);
         }
 

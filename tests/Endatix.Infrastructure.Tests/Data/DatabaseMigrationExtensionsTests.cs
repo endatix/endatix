@@ -1,40 +1,24 @@
-using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Infrastructure.Tests.Data;
 
 public class DatabaseMigrationExtensionsTests
 {
     [Fact]
-    public async Task ApplyDbMigrationsAsync_IteratesAllRegisteredContributors()
+    public async Task ApplyDbMigrationsAsync_WhenCoreContextsNotRegistered_ThrowsInvalidOperationException()
     {
         // Arrange
-        var callOrder = new List<string>();
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddLogging();
-
-        services.AddSingleton<IDbContextMigrationContributor>(new TrackingContributor("first", callOrder));
-        services.AddSingleton<IDbContextMigrationContributor>(new TrackingContributor("second", callOrder));
-
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
 
         // Act
-        await provider.ApplyDbMigrationsAsync(TestContext.Current.CancellationToken);
+        Func<Task> action = () => provider.ApplyDbMigrationsAsync(NullLogger.Instance, TestContext.Current.CancellationToken);
 
         // Assert
-        callOrder.Should().Equal("first", "second");
-    }
-
-    private sealed class TrackingContributor(string name, List<string> callOrder) : IDbContextMigrationContributor
-    {
-        public Task MigrateAsync(
-            IServiceProvider scopedProvider,
-            Microsoft.Extensions.Logging.ILogger logger,
-            CancellationToken cancellationToken = default)
-        {
-            callOrder.Add(name);
-            return Task.CompletedTask;
-        }
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*AppDbContext is not registered in the service provider*");
     }
 }

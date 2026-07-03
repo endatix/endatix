@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
+using Endatix.Infrastructure.Data.Logging;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -40,7 +41,7 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
                 return;
             }
 
-            logger.LogInformation("🌱 Seeding sample data...");
+            logger.LogSampleDataSeedingStarted();
             var startTime = Stopwatch.GetTimestamp();
 
             foreach (var seedData in SeedDataReader.LoadAll())
@@ -50,11 +51,11 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
 
             var elapsedTime = Stopwatch.GetElapsedTime(startTime);
 
-            logger.LogInformation("🌱 Sample data seeded. Time taken: {time} ms", elapsedTime.TotalMilliseconds);
+            logger.LogSampleDataSeeded(elapsedTime.TotalMilliseconds);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "🌱 An error occurred while seeding sample data. Data seeding aborted. Details: {details}", ex.Message);
+            logger.LogSampleDataSeedingFailed(ex);
             throw;
         }
     }

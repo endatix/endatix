@@ -15,6 +15,8 @@ Webhooks in Endatix are built-in event handlers that automatically send HTTP req
 - Form events (`FormCreated`, `FormUpdated`, `FormEnabledStateChanged`, `FormDeleted`)
 - Submission events (`SubmissionCompleted`)
 
+Delivery is **durable and asynchronous**: when an event is raised, Endatix writes an outbox message in the same database transaction as your data, then a background relay delivers the webhook. See [Background Processing](/docs/configuration/background-processing) for how the outbox relay works and how to tune `Endatix:Outbox`.
+
 ## Configuration Levels
 
 Webhooks can be configured at two levels:
@@ -251,12 +253,27 @@ Each webhook message contains:
 - `Id`: Unique Snowflake-generated webhook message id
 - `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_deleted`, `submission_completed`)
 - `Action`: The action that triggered the event (e.g., `created`, `updated`, `deleted`)
-- `Payload`: The event data specific to the operation, containing the complete entity data. It includes explicit entity identifier fields, such as `formId` for form events and `submissionId` for submission events
+- `Payload`: The event data specific to the operation, containing the complete entity data. It includes explicit entity identifier fields, such as `formId` for form events and `submissionId` for submission events, and a `revision` field — a per-entity counter that increases with every change, which consumers can use to order events for the same form or submission and detect missed updates
+
+## Request Headers
+
+Every webhook request carries these headers:
+
+| Header | Value |
+|--------|-------|
+| `X-Endatix-Event` | The event name (e.g., `submission_completed`) |
+| `X-Endatix-Entity` | The entity type (e.g., `submission`, `form`) |
+| `X-Endatix-Action` | The action (e.g., `created`, `updated`, `deleted`) |
+| `X-Endatix-Hook-Id` | The unique message id — equals the `Id` field in the body |
+
+`X-Endatix-Hook-Id` identifies the **message**, not the delivery attempt: if the same event is redelivered (delivery is [at-least-once](/docs/configuration/background-processing)), the header repeats verbatim. Use it as the deduplication key for idempotent processing.
+
+Authentication headers (such as an API key) are added according to your webhook [authentication configuration](#webhook-authentication).
 
 ## Best Practices
 
 1. **Error Handling**: Design your webhook receiving endpoints to handle errors gracefully
-2. **Logging**: Log incoming webhook requests for debugging and auditing
-3. **Idempotency**: Design your webhook handlers to be idempotent to handle potential duplicate deliveries
+2. **Idempotency**: Use the `X-Endatix-Hook-Id` header to deduplicate at-least-once deliveries from the [outbox relay](/docs/configuration/background-processing)
+3. **Logging**: Log incoming webhook requests for debugging and auditing
 4. **Validation**: Validate the payload structure and required fields before processing
 5. **Use Form-Level Sparingly**: Only configure form-level webhooks when you need different behavior than the tenant default

@@ -114,6 +114,10 @@ Using `appsettings.json` files for configuration:
 
 Most applications will use a combination of both paradigms, with code-based configuration referencing values from appsettings.json files.
 
+## Background processing
+
+Side effects such as [webhook delivery](/docs/guides/webhooks) run through Endatix **background processing** and the **transactional outbox**. Configure the in-process relay under `Endatix:Outbox`—see [Background Processing](/docs/configuration/background-processing) for the pattern, defaults, and tuning options.
+
 ## What's Next?
 
 In future documentation updates, we'll provide detailed information on configuring specific aspects of your Endatix application, including security, data persistence, API behavior, and infrastructure components.

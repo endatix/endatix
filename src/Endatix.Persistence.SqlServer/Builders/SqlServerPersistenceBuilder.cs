@@ -137,9 +137,8 @@ public class SqlServerPersistenceBuilder
             sp => new SqlConnection(connectionStringResolver(sp)),
             OutboxSchema.DefaultTable);
 
-        // Register the in-process relay here (not in Infrastructure) so it is co-located with the claim store
-        // it hard-depends on — the relay exists iff a DB provider is configured. Inert until Phase 3b raises
-        // the slice events (the loop ticks but the outbox stays empty).
+        // Register the in-process relay once per service collection (AddSqlServerPersistence is
+        // invoked per DbContext; the relay is a singleton hosted loop).
         Services.AddEndatixOutboxRelay();
 
         return this;

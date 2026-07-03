@@ -1,30 +1,22 @@
-using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace Endatix.IntegrationTests.Shared;
 
 /// <summary>
-/// Ensures the test host is ready by running EF Core migrations.
+/// Ensures the test host is ready by triggering the first HTTP request so hosted services start.
 /// </summary>
 public static class IntegrationHostWarmup
 {
     /// <summary>
-    /// Runs EF Core migrations for <see cref="AppDbContext"/> and <see cref="AppIdentityDbContext"/>.
+    /// Starts the host pipeline (including <c>DatabaseMigrationService</c>) via an initial HTTP request.
     /// </summary>
-    public static async Task EnsureReadyAsync(
+    public static Task EnsureReadyAsync(
         IServiceProvider services,
         Func<HttpClient> createClient,
         CancellationToken cancellationToken = default)
     {
+        _ = services;
+        _ = cancellationToken;
+
         using var client = createClient();
-
-        await using var scope = services.CreateAsyncScope();
-        var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-
-        await appDb.Database.MigrateAsync(cancellationToken);
-        await identityDb.Database.MigrateAsync(cancellationToken);
+        return Task.CompletedTask;
     }
 }

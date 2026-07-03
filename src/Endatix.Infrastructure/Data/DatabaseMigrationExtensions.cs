@@ -1,4 +1,6 @@
+using Endatix.Framework.Logging;
 using Endatix.Framework.Modules;
+using Endatix.Infrastructure.Data.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -9,34 +11,37 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public static class DatabaseMigrationExtensions
 {
-    private class MigrationLogger { }
-
     /// <summary>
-    /// Applies database migrations for all registered <see cref="IDbContextMigrationContributor"/> instances.
+    /// Applies database migrations for core DbContexts, then all registered
+    /// <see cref="IDbContextMigrationContributor"/> instances (module opt-in).
     /// </summary>
     public static async Task ApplyDbMigrationsAsync(
         this IServiceProvider serviceProvider,
+        ILogger logger,
         CancellationToken cancellationToken = default)
     {
         using var scope = serviceProvider.CreateScope();
-        var logger = serviceProvider.GetRequiredService<ILogger<MigrationLogger>>();
-        logger.LogDebug("{Operation} operation started", nameof(ApplyDbMigrationsAsync));
+        logger.LogOperationStarted(MigrationOperations.ApplyDbMigrations);
 
         try
         {
             var scopedProvider = scope.ServiceProvider;
-            var contributors = scopedProvider.GetServices<IDbContextMigrationContributor>();
+
+            await CoreDbContextMigrationService.MigrateCoreDbContextsAsync(scopedProvider, logger, cancellationToken);
+
+            var contributors =
+                scopedProvider.GetServices<IDbContextMigrationContributor>();
 
             foreach (var contributor in contributors)
             {
                 await contributor.MigrateAsync(scopedProvider, logger, cancellationToken);
             }
 
-            logger.LogDebug("{Operation} operation executed successfully", nameof(ApplyDbMigrationsAsync));
+            logger.LogOperationCompleted(MigrationOperations.ApplyDbMigrations);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "An error occurred while applying database migrations");
+            logger.LogOperationFailed(ex, MigrationOperations.ApplyDbMigrations);
             throw;
         }
     }

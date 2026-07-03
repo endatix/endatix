@@ -4,7 +4,8 @@ namespace Endatix.Framework.Modules;
 
 /// <summary>
 /// Applies EF Core migrations for a registered DbContext at application startup.
-/// Register via <c>AddDbContextWithMigrations</c> (modules) or persistence setup (core contexts).
+/// Register module DbContexts via <c>AddDbContextWithMigrations</c> in <c>ConfigureServices</c>.
+/// Core <c>AppDbContext</c> and <c>AppIdentityDbContext</c> are migrated automatically without a contributor.
 /// </summary>
 public interface IDbContextMigrationContributor
 {

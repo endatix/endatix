@@ -12,7 +12,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("DROP PROCEDURE IF EXISTS dbo.export_form_submissions;");
-            var script = migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions.sql");
+            var script = migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v1.sql");
             migrationBuilder.Sql(script);
         }
 

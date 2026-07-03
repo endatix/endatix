@@ -132,7 +132,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
 
 Host wiring: `EndatixBuilder.UseDefaults()` calls `UseModule(ReportingModule.Instance)`, which scans `Assembly` for MediatR handlers and FastEndpoints and invokes `ConfigureServices` at finalization. Modules with `IHasFeatureFlag` are skipped when the flag is disabled.
 
-**Startup migrations:** All DbContexts (core and module) register an [`IDbContextMigrationContributor`](src/Endatix.Framework/Modules/IDbContextMigrationContributor.cs). `DatabaseMigrationService` iterates contributors when `Endatix:Data:EnableAutoMigrations` is true. Modules implement `IHasDbMigrations` as a marker; the host warns if `AddDbContextWithMigrations` was not called.
+**Startup migrations (two phases):** When `Endatix:Data:EnableAutoMigrations` is true, `DatabaseMigrationService` first migrates core `AppDbContext` and `AppIdentityDbContext`, then iterates registered [`IDbContextMigrationContributor`](src/Endatix.Framework/Modules/IDbContextMigrationContributor.cs) instances for opt-in module/custom contexts. Modules implement `IHasDbMigrations` as a marker; the host warns if `AddDbContextWithMigrations` was not called.
 
 ---
 
@@ -288,3 +288,5 @@ Infrastructure lists take Core paging + feature criteria; return **`Paged<T>` as
 | 2026-06 | **OSS module registration:** `{Name}Module` sealed class implements `IEndatixModule` (+ optional `IHasFeatureFlag`, `IHasDbMigrations`); host calls `UseModule({Name}Module.Instance)`. No `Setup.cs`. Startup migrations via `IDbContextMigrationContributor`. |
 | 2026-06 | **Reporting:** integration status on `FlattenedSubmission` only (source of truth in `reporting` schema); core `Submission` and list APIs stay free of reporting denormalization until a dedicated read endpoint is needed. |
 | 2026-06 | **Reporting:** isolated `ReportingDbContext`; avoid `TenantEntity` nav on module entities; EF Core 10 `[ComplexType]` on module side, scalar codes on core side. |
+| 2026-07 | **Startup observability:** generic `EndatixLoggerExtensions` in Framework; domain-specific `*LoggerExtensions` collocated in Infrastructure/Hosting; global `EndatixEventIds` registry. See [Endatix.Framework README — Observability (startup)](src/Endatix.Framework/README.md#observability-startup). |
+

@@ -78,7 +78,6 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       ENDATIX_TEST_DB_PROVIDER: PostgreSql
-      ENDATIX_TEST_HOST_MODE: ProductionProgram
 
     steps:
       - name: 🔍 Checkout code
@@ -95,9 +94,9 @@ jobs:
           GITHUB_EVENT_NAME_SAFE: ${{ github.event_name }}
         run: |
           if [ "$GITHUB_REF_SAFE" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME_SAFE" != "pull_request" ]; then
-            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak" >> "$GITHUB_ENV"
+            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
           else
-            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Priority!=P2" >> "$GITHUB_ENV"
+            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Priority!=P2&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
           fi
 
       - name: Build integration tests
@@ -108,3 +107,29 @@ jobs:
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
             -c Release --no-build --verbosity minimal \
             --filter "$INTEGRATION_TEST_FILTER"
+
+  integration-tests-sqlserver:
+    name: "Endatix API: SQL Server integration tests"
+    runs-on: ubuntu-24.04
+    env:
+      ENDATIX_TEST_DB_PROVIDER: SqlServer
+
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: 📦 Setup .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+
+      - name: Build integration tests
+        run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
+
+      - name: Run SQL Server integration tests
+        run: |
+          dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
+            -c Release --no-build --verbosity minimal \
+            --filter "Category!=Keycloak&DbSpecific!=PostgreSql"

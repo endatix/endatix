@@ -55,7 +55,7 @@ jobs:
         run: dotnet restore
 
       - name: Build Project
-        run: dotnet build -c Release -p:Version=${{ env.RELEASE_VERSION }}
+        run: dotnet build -c Release --no-restore -p:Version=${{ env.RELEASE_VERSION }}
 
       - name: Run tests
         run: dotnet test -c Release --no-build --verbosity normal tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj

@@ -8,6 +8,8 @@
          CI and local `\-\-filter` use VSTest/xUnit trait syntax (see IntegrationTestFilters).
          Do not set TestingPlatformDotnetTestSupport=true without migrating workflow filters to MTTP. -->
     <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
+    <!-- Default: PostgreSQL leg. SQL Server: second process with IntegrationTestFilters.SqlServer -->
+    <VSTestTestCaseFilter>Category!=Keycloak&amp;DbSpecific!=SqlServer</VSTestTestCaseFilter>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -29,10 +31,9 @@
     <ProjectReference Include="..\..\src\Endatix.WebHost\Endatix.WebHost.csproj">
       <Aliases>EndatixWebHost</Aliases>
     </ProjectReference>
-    <ProjectReference Include="..\Endatix.WebHost.IntegrationHost\Endatix.WebHost.IntegrationHost.csproj">
-      <Aliases>EndatixIntegrationHost</Aliases>
-    </ProjectReference>
     <ProjectReference Include="..\..\src\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Endatix.Persistence.PostgreSql\Endatix.Persistence.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\Endatix.Persistence.SqlServer\Endatix.Persistence.SqlServer.csproj" />
     <ProjectReference Include="..\..\src\Endatix.Modules.Reporting\Endatix.Modules.Reporting.csproj" />
   </ItemGroup>
 

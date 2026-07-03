@@ -1,5 +1,64 @@
 # Testing Guidelines
 
+## Integration tests
+
+`Endatix.IntegrationTests` — Testcontainers, `WebApplicationFactory`, Respawn against `Endatix.WebHost`.
+
+**Prerequisites:** Docker, .NET SDK from `global.json`.
+
+**Contributor patterns:** `Endatix.IntegrationTests/AGENTS.md`
+
+### Run
+
+```bash
+# PostgreSQL (default) — bare `dotnet test` is safe
+dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
+
+# SQL Server (second process; one DB container per `dotnet test`)
+ENDATIX_TEST_DB_PROVIDER=SqlServer \
+  dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release \
+  --filter "Category!=Keycloak&DbSpecific!=PostgreSql"
+```
+
+Filter constants: `Endatix.IntegrationTests.Shared/IntegrationTestFilters.cs`. CI runs both legs via `.github/workflows/build-ci.yml` (provider matrix).
+
+### Provider matrix
+
+| | PostgreSQL | SQL Server |
+| --- | --- | --- |
+| Env | `ENDATIX_TEST_DB_PROVIDER=PostgreSql` (default) | `ENDATIX_TEST_DB_PROVIDER=SqlServer` |
+| Filter | `IntegrationTestFilters.Default` | `IntegrationTestFilters.SqlServer` |
+| Runs | Provider-agnostic + `DbSpecific=PostgreSql` | Provider-agnostic + `DbSpecific=SqlServer` |
+
+Write product tests once (no `DbSpecific` trait). Tag only dialect- or module-specific tests.
+
+### Collections
+
+| Collection | Fixture | Use for |
+| --- | --- | --- |
+| `EndatixIntegrationTestCollection` | `EndatixIntegrationWebHostFixture` | HTTP / API tests |
+| `DbIntegrationTestCollection` | `DbIntegrationFixture` | Migrations, EF, query filters without full host |
+| (none) | `KeycloakTestContainerFixture` | Keycloak smoke — `Category=Keycloak`, `Priority=P2` |
+
+### Traits
+
+| Trait | Values | Purpose |
+| --- | --- | --- |
+| `Category` | `CriticalPath`, `FeatureFlow`, `Infrastructure`, `Keycloak` | Suite grouping / CI |
+| `Priority` | `P0`, `P1`, `P2` | PR gate excludes `P2` |
+| `DbSpecific` | `PostgreSql`, `SqlServer` | Only when the test cannot run on the other provider |
+
+### Environment
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `ENDATIX_TEST_DB_PROVIDER` | `PostgreSql` | `SqlServer` for SQL Server leg |
+| `ENDATIX_TEST_REUSE_CONTAINERS` | off | Local dev only |
+
+`xunit.runner.json` disables parallelism — collections share one DB per process; tests reset via Respawn.
+
+---
+
 ## Generating Unit Tests with Cursor
 
 This repository includes a standardized prompt for generating unit tests using Cursor AI. The prompt helps create consistent unit tests using XUnit, NSubstitute, and FluentAssertions.
