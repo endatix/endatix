@@ -93,6 +93,7 @@ const sidebars: SidebarsConfig = {
         "configuration/api-configuration",
         "configuration/asset-storage",
         "configuration/data-configuration",
+        "configuration/background-processing",
         "configuration/infrastructure-configuration",
         "configuration/security-configuration",
         {

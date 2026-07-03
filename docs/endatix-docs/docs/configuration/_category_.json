@@ -3,6 +3,6 @@
   "position": 4,
   "link": {
     "type": "generated-index",
-    "description": "Configure Endatix settings for authentication, storage, CORS, email, and health checks to tailor the platform to your infrastructure needs."
+    "description": "Configure Endatix settings for authentication, storage, background processing, CORS, email, and health checks to tailor the platform to your infrastructure needs."
   }
 }

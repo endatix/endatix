@@ -15,6 +15,8 @@ Webhooks in Endatix are built-in event handlers that automatically send HTTP req
 - Form events (`FormCreated`, `FormUpdated`, `FormEnabledStateChanged`, `FormDeleted`)
 - Submission events (`SubmissionCompleted`)
 
+Delivery is **durable and asynchronous**: when an event is raised, Endatix writes an outbox message in the same database transaction as your data, then a background relay delivers the webhook. See [Background Processing](/docs/configuration/background-processing) for how the outbox relay works and how to tune `Endatix:Outbox`.
+
 ## Configuration Levels
 
 Webhooks can be configured at two levels:
@@ -256,7 +258,7 @@ Each webhook message contains:
 ## Best Practices
 
 1. **Error Handling**: Design your webhook receiving endpoints to handle errors gracefully
-2. **Logging**: Log incoming webhook requests for debugging and auditing
-3. **Idempotency**: Design your webhook handlers to be idempotent to handle potential duplicate deliveries
+2. **Idempotency**: Use the `X-Endatix-Hook-Id` header to deduplicate at-least-once deliveries from the [outbox relay](/docs/configuration/background-processing)
+3. **Logging**: Log incoming webhook requests for debugging and auditing
 4. **Validation**: Validate the payload structure and required fields before processing
 5. **Use Form-Level Sparingly**: Only configure form-level webhooks when you need different behavior than the tenant default
