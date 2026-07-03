@@ -253,7 +253,22 @@ Each webhook message contains:
 - `Id`: Unique Snowflake-generated webhook message id
 - `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_deleted`, `submission_completed`)
 - `Action`: The action that triggered the event (e.g., `created`, `updated`, `deleted`)
-- `Payload`: The event data specific to the operation, containing the complete entity data. It includes explicit entity identifier fields, such as `formId` for form events and `submissionId` for submission events
+- `Payload`: The event data specific to the operation, containing the complete entity data. It includes explicit entity identifier fields, such as `formId` for form events and `submissionId` for submission events, and a `revision` field — a per-entity counter that increases with every change, which consumers can use to order events for the same form or submission and detect missed updates
+
+## Request Headers
+
+Every webhook request carries these headers:
+
+| Header | Value |
+|--------|-------|
+| `X-Endatix-Event` | The event name (e.g., `submission_completed`) |
+| `X-Endatix-Entity` | The entity type (e.g., `submission`, `form`) |
+| `X-Endatix-Action` | The action (e.g., `created`, `updated`, `deleted`) |
+| `X-Endatix-Hook-Id` | The unique message id — equals the `Id` field in the body |
+
+`X-Endatix-Hook-Id` identifies the **message**, not the delivery attempt: if the same event is redelivered (delivery is [at-least-once](/docs/configuration/background-processing)), the header repeats verbatim. Use it as the deduplication key for idempotent processing.
+
+Authentication headers (such as an API key) are added according to your webhook [authentication configuration](#webhook-authentication).
 
 ## Best Practices
 
