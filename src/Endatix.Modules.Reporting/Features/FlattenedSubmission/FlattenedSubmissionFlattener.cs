@@ -252,30 +252,10 @@ internal static class FlattenedSubmissionFlattener
         List<string> fileReferences = [];
         foreach (var item in answer.EnumerateArray())
         {
-            if (item.ValueKind == JsonValueKind.Object)
+            var reference = TryExtractFileReference(item);
+            if (reference is not null)
             {
-                if (TryGetProperty(item, "content") is JsonElement content &&
-                    content.ValueKind == JsonValueKind.String &&
-                    !string.IsNullOrWhiteSpace(content.GetString()))
-                {
-                    fileReferences.Add(content.GetString()!);
-                    continue;
-                }
-
-                if (TryGetProperty(item, "name") is JsonElement name &&
-                    name.ValueKind == JsonValueKind.String &&
-                    !string.IsNullOrWhiteSpace(name.GetString()))
-                {
-                    fileReferences.Add(name.GetString()!);
-                }
-
-                continue;
-            }
-
-            if (item.ValueKind == JsonValueKind.String &&
-                !string.IsNullOrWhiteSpace(item.GetString()))
-            {
-                fileReferences.Add(item.GetString()!);
+                fileReferences.Add(reference);
             }
         }
 
@@ -285,6 +265,36 @@ internal static class FlattenedSubmissionFlattener
         }
 
         return ToStringJson(string.Join("; ", fileReferences));
+    }
+
+    private static string? TryExtractFileReference(JsonElement item)
+    {
+        if (item.ValueKind == JsonValueKind.Object)
+        {
+            if (TryGetProperty(item, "content") is JsonElement content &&
+                content.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(content.GetString()))
+            {
+                return content.GetString();
+            }
+
+            if (TryGetProperty(item, "name") is JsonElement name &&
+                name.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(name.GetString()))
+            {
+                return name.GetString();
+            }
+
+            return null;
+        }
+
+        if (item.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(item.GetString()))
+        {
+            return item.GetString();
+        }
+
+        return null;
     }
 
     private static JsonElement ToStringJson(string value)
