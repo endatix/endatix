@@ -22,27 +22,31 @@ internal static class FlattenedSubmissionFlattener
         return result;
     }
 
-    public static string ToJson(Dictionary<string, JsonElement?> flattened)
+    public static string ToJson(MergedFormSchema formSchema, Dictionary<string, JsonElement?> flattened)
     {
-        using MemoryStream stream = new();
-        using Utf8JsonWriter writer = new(stream);
-        writer.WriteStartObject();
-
-        foreach ((var key, var value) in flattened)
+        System.Buffers.ArrayBufferWriter<byte> buffer = new();
+        using (Utf8JsonWriter writer = new(buffer))
         {
-            writer.WritePropertyName(key);
-            if (value is null)
+            writer.WriteStartObject();
+
+            foreach (var column in formSchema.Columns)
             {
-                writer.WriteNullValue();
+                flattened.TryGetValue(column.Key, out JsonElement? value);
+                writer.WritePropertyName(column.Key);
+                if (value is null)
+                {
+                    writer.WriteNullValue();
+                }
+                else
+                {
+                    value.Value.WriteTo(writer);
+                }
             }
-            else
-            {
-                value.Value.WriteTo(writer);
-            }
+
+            writer.WriteEndObject();
         }
 
-        writer.WriteEndObject();
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
     private static JsonElement? ExtractValue(JsonElement submission, FormSchemaColumn column) =>

@@ -63,4 +63,28 @@ public class FlattenedSubmissionFlattenerTests
 
     private static bool JsonElementsEqual(JsonElement left, JsonElement right) =>
         left.GetRawText() == right.GetRawText();
+
+    [Fact]
+    public void ToJson_WritesPropertiesInSchemaColumnOrder()
+    {
+        MergedFormSchema formSchema = new(
+        [
+            new FormSchemaColumn("zebra", FormSchemaColumnKind.Simple, "zebra", "string"),
+            new FormSchemaColumn("alpha", FormSchemaColumnKind.Simple, "alpha", "string"),
+            new FormSchemaColumn("middle", FormSchemaColumnKind.Simple, "middle", "string"),
+        ]);
+
+        Dictionary<string, JsonElement?> flattened = new(StringComparer.Ordinal)
+        {
+            ["middle"] = JsonDocument.Parse("\"m\"").RootElement.Clone(),
+            ["zebra"] = JsonDocument.Parse("\"z\"").RootElement.Clone(),
+            ["alpha"] = JsonDocument.Parse("\"a\"").RootElement.Clone(),
+        };
+
+        string json = FlattenedSubmissionFlattener.ToJson(formSchema, flattened);
+
+        using JsonDocument document = JsonDocument.Parse(json);
+        document.RootElement.EnumerateObject().Select(property => property.Name)
+            .Should().Equal(["zebra", "alpha", "middle"]);
+    }
 }
