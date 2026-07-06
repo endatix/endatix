@@ -120,28 +120,64 @@ internal static class FormDefinitionFlattener
             var name = GetElementName(element);
             elements.Add(new CollectedElement(element, depth, parentValueName, type, name));
 
-            if (SurveyJsElementType.Panel.Matches(type) &&
-                element.TryGetProperty("elements", out var panelChildren))
-            {
-                CollectElementList(panelChildren, depth, parentValueName, elements, limits);
-            }
-
-            if (SurveyJsElementType.Page.Matches(type) &&
-                element.TryGetProperty("elements", out var pageChildren))
-            {
-                CollectElementList(pageChildren, depth, parentValueName, elements, limits);
-            }
-
-            if (SurveyJsElementType.PanelDynamic.Matches(type) &&
-                element.TryGetProperty("templateElements", out var templateElements))
-            {
-                var panelValueName = element.TryGetProperty("valueName", out var valueNameProp)
-                    ? valueNameProp.GetString()
-                    : null;
-
-                CollectElementList(templateElements, depth + 1, panelValueName, elements, limits);
-            }
+            CollectFromPanel(element, type, depth, parentValueName, elements, limits);
+            CollectFromPage(element, type, depth, parentValueName, elements, limits);
+            CollectFromPanelDynamic(element, type, depth, elements, limits);
         }
+    }
+
+    private static void CollectFromPanel(
+        JsonElement element,
+        string? type,
+        int depth,
+        string? parentValueName,
+        List<CollectedElement> elements,
+        SchemaCompilationLimits limits)
+    {
+        if (!SurveyJsElementType.Panel.Matches(type) ||
+            !element.TryGetProperty("elements", out var panelChildren))
+        {
+            return;
+        }
+
+        CollectElementList(panelChildren, depth, parentValueName, elements, limits);
+    }
+
+    private static void CollectFromPage(
+        JsonElement element,
+        string? type,
+        int depth,
+        string? parentValueName,
+        List<CollectedElement> elements,
+        SchemaCompilationLimits limits)
+    {
+        if (!SurveyJsElementType.Page.Matches(type) ||
+            !element.TryGetProperty("elements", out var pageChildren))
+        {
+            return;
+        }
+
+        CollectElementList(pageChildren, depth, parentValueName, elements, limits);
+    }
+
+    private static void CollectFromPanelDynamic(
+        JsonElement element,
+        string? type,
+        int depth,
+        List<CollectedElement> elements,
+        SchemaCompilationLimits limits)
+    {
+        if (!SurveyJsElementType.PanelDynamic.Matches(type) ||
+            !element.TryGetProperty("templateElements", out var templateElements))
+        {
+            return;
+        }
+
+        var panelValueName = element.TryGetProperty("valueName", out var valueNameProp)
+            ? valueNameProp.GetString()
+            : null;
+
+        CollectElementList(templateElements, depth + 1, panelValueName, elements, limits);
     }
 
     private static List<DynamicPanelNode> BuildDynamicPanelNodes(
