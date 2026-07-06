@@ -87,4 +87,25 @@ public class FlattenedSubmissionFlattenerTests
         document.RootElement.EnumerateObject().Select(property => property.Name)
             .Should().Equal(["zebra", "alpha", "middle"]);
     }
+
+    [Fact]
+    public void Flatten_MalformedSubmissionRoot_DoesNotThrow()
+    {
+        MergedFormSchema formSchema = new(
+        [
+            new FormSchemaColumn("name", FormSchemaColumnKind.Simple, "name", "string"),
+            new FormSchemaColumn("colors__red", FormSchemaColumnKind.CheckboxChoice, "Red", "boolean",
+                SourceQuestion: "colors", ChoiceValue: "red"),
+            new FormSchemaColumn("rank__a", FormSchemaColumnKind.RankingChoice, "A", "number",
+                SourceQuestion: "rank", ChoiceValue: "a"),
+        ]);
+
+        using JsonDocument document = JsonDocument.Parse("\"not-an-object\"");
+        Dictionary<string, JsonElement?> flattened =
+            FlattenedSubmissionFlattener.Flatten(document.RootElement, formSchema);
+
+        flattened["name"].Should().BeNull();
+        flattened["colors__red"]!.Value.GetRawText().Should().Be("0");
+        flattened["rank__a"]!.Value.GetRawText().Should().Be("0");
+    }
 }

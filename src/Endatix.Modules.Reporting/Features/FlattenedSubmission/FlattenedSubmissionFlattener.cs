@@ -98,7 +98,7 @@ internal static class FlattenedSubmissionFlattener
 
     private static bool ContainsChoice(JsonElement submission, string questionName, string choiceValue)
     {
-        if (!submission.TryGetProperty(questionName, out var answer))
+        if (TryGetProperty(submission, questionName) is not JsonElement answer)
         {
             return false;
         }
@@ -126,7 +126,7 @@ internal static class FlattenedSubmissionFlattener
 
     private static int GetRankPosition(JsonElement submission, string questionName, string choiceValue)
     {
-        if (!submission.TryGetProperty(questionName, out var answer) ||
+        if (TryGetProperty(submission, questionName) is not JsonElement answer ||
             answer.ValueKind != JsonValueKind.Array)
         {
             return 0;
@@ -152,7 +152,7 @@ internal static class FlattenedSubmissionFlattener
 
     private static JsonElement? TryGetOtherText(JsonElement submission, string questionName)
     {
-        if (!submission.TryGetProperty(questionName, out var answer))
+        if (TryGetProperty(submission, questionName) is not JsonElement answer)
         {
             return null;
         }
@@ -172,14 +172,12 @@ internal static class FlattenedSubmissionFlattener
         string matrixName,
         string rowValue)
     {
-        if (!submission.TryGetProperty(matrixName, out var matrixAnswer) ||
-            matrixAnswer.ValueKind != JsonValueKind.Object ||
-            !matrixAnswer.TryGetProperty(rowValue, out var rowAnswer))
+        if (TryGetProperty(submission, matrixName) is not JsonElement matrixAnswer)
         {
             return null;
         }
 
-        return rowAnswer;
+        return TryGetProperty(matrixAnswer, rowValue);
     }
 
     private static JsonElement? TryGetMatrixCellValue(JsonElement submission, FormSchemaColumn column)
@@ -189,22 +187,19 @@ internal static class FlattenedSubmissionFlattener
             return null;
         }
 
-        if (!submission.TryGetProperty(column.SourceQuestion, out var matrixAnswer))
+        if (TryGetProperty(submission, column.SourceQuestion) is not JsonElement matrixAnswer)
         {
             return null;
         }
 
         if (column.MatrixRowValue is not null)
         {
-            if (matrixAnswer.ValueKind != JsonValueKind.Object ||
-                !matrixAnswer.TryGetProperty(column.MatrixRowValue, out var rowAnswer) ||
-                rowAnswer.ValueKind != JsonValueKind.Object ||
-                !rowAnswer.TryGetProperty(column.MatrixColumnValue, out var cellValue))
+            if (TryGetProperty(matrixAnswer, column.MatrixRowValue) is not JsonElement rowAnswer)
             {
                 return null;
             }
 
-            return cellValue;
+            return TryGetProperty(rowAnswer, column.MatrixColumnValue);
         }
 
         if (column.PanelIndex is null)
@@ -222,13 +217,12 @@ internal static class FlattenedSubmissionFlattener
         {
             if (index == column.PanelIndex.Value)
             {
-                if (row.ValueKind != JsonValueKind.Object ||
-                    !row.TryGetProperty(column.MatrixColumnValue, out var cellValue))
+                if (row.ValueKind != JsonValueKind.Object)
                 {
                     return null;
                 }
 
-                return cellValue;
+                return TryGetProperty(row, column.MatrixColumnValue);
             }
 
             index++;
@@ -239,7 +233,7 @@ internal static class FlattenedSubmissionFlattener
 
     private static JsonElement? TryGetFileValue(JsonElement submission, string questionName)
     {
-        if (!submission.TryGetProperty(questionName, out var answer))
+        if (TryGetProperty(submission, questionName) is not JsonElement answer)
         {
             return null;
         }
@@ -254,7 +248,7 @@ internal static class FlattenedSubmissionFlattener
         {
             if (item.ValueKind == JsonValueKind.Object)
             {
-                if (item.TryGetProperty("content", out var content) &&
+                if (TryGetProperty(item, "content") is JsonElement content &&
                     content.ValueKind == JsonValueKind.String &&
                     !string.IsNullOrWhiteSpace(content.GetString()))
                 {
@@ -262,7 +256,7 @@ internal static class FlattenedSubmissionFlattener
                     continue;
                 }
 
-                if (item.TryGetProperty("name", out var name) &&
+                if (TryGetProperty(item, "name") is JsonElement name &&
                     name.ValueKind == JsonValueKind.String &&
                     !string.IsNullOrWhiteSpace(name.GetString()))
                 {
@@ -298,7 +292,7 @@ internal static class FlattenedSubmissionFlattener
         }
 
         if (string.IsNullOrWhiteSpace(column.PanelName) ||
-            !submission.TryGetProperty(column.PanelName, out var panelArray) ||
+            TryGetProperty(submission, column.PanelName) is not JsonElement panelArray ||
             panelArray.ValueKind != JsonValueKind.Array)
         {
             return null;
@@ -329,7 +323,7 @@ internal static class FlattenedSubmissionFlattener
 
         foreach (var segment in column.LoopPath)
         {
-            if (!current.TryGetProperty(segment.PanelValueName, out var panelArray) ||
+            if (TryGetProperty(current, segment.PanelValueName) is not JsonElement panelArray ||
                 panelArray.ValueKind != JsonValueKind.Array)
             {
                 return null;
@@ -338,7 +332,7 @@ internal static class FlattenedSubmissionFlattener
             JsonElement? matchedItem = null;
             foreach (var item in panelArray.EnumerateArray())
             {
-                if (item.TryGetProperty(segment.PropertyName, out var propertyValue) &&
+                if (TryGetProperty(item, segment.PropertyName) is JsonElement propertyValue &&
                     propertyValue.ValueKind == JsonValueKind.String &&
                     string.Equals(propertyValue.GetString(), segment.ChoiceValue, StringComparison.Ordinal))
                 {
