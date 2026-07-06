@@ -1,0 +1,23 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "multipletext",
+          "name": "contact",
+          "title": "Contact",
+          "items": [
+            { "name": "firstName", "title": "First name" },
+            { "name": "lastName", "title": "Last name" }
+          ]
+        },
+        {
+          "type": "expression",
+          "name": "score",
+          "title": "Score",
+          "expression": "{contact.firstName}"
+        }
+      ]
+    }
+  ]
+}

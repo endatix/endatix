@@ -1,9 +1,9 @@
-namespace Endatix.Modules.Reporting.Domain.SurveyJs;
+namespace Endatix.Modules.Reporting.Shared.SurveyJs;
 
 internal static class ExportPathBuilder
 {
-    internal const char SegmentSeparator = '_';
-    internal const string SegmentDelimiter = "__";
+    internal const char SEGMENT_SEPARATOR = '_';
+    internal const string SEGMENT_DELIMITER = "__";
 
     internal static string Join(params ReadOnlySpan<string> segments)
     {
@@ -17,7 +17,7 @@ internal static class ExportPathBuilder
             return segments[0];
         }
 
-        return string.Join(SegmentDelimiter, segments.ToArray());
+        return string.Join(SEGMENT_DELIMITER, segments.ToArray());
     }
 
     internal static string ChoiceKey(string questionName, string choiceValue) =>
@@ -38,6 +38,26 @@ internal static class ExportPathBuilder
     internal static string NestedLoopKey(IReadOnlyList<string> choiceValues, string questionName) =>
         Join([.. choiceValues, questionName]);
 
+    internal static string NestedLoopKey(ReadOnlySpan<string> choiceValues, string questionName)
+    {
+        if (choiceValues.IsEmpty)
+        {
+            return questionName;
+        }
+
+        var segments = new string[choiceValues.Length + 1];
+        for (var i = 0; i < choiceValues.Length; i++)
+        {
+            segments[i] = choiceValues[i];
+        }
+
+        segments[^1] = questionName;
+        return Join(segments);
+    }
+
     internal static string MatrixRowKey(string matrixName, string rowValue) =>
         Join(matrixName, rowValue);
+
+    internal static string MultipleTextItemKey(string questionName, string itemName) =>
+        Join(questionName, itemName);
 }

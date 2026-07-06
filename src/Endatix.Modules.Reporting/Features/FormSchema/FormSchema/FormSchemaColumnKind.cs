@@ -1,6 +1,6 @@
-namespace Endatix.Modules.Reporting.Domain.SurveyJs;
+namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
-internal enum CodebookColumnKind
+internal enum FormSchemaColumnKind
 {
     Simple,
     Calculated,
@@ -10,4 +10,6 @@ internal enum CodebookColumnKind
     NestedLoop,
     MatrixRow,
     RankingChoice,
+    MultipleTextItem,
+    FileUpload,
 }

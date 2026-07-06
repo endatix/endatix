@@ -1,19 +1,20 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
-namespace Endatix.Modules.Reporting.Domain.SurveyJs;
+namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 
 /// <summary>
-/// Maps submission JSON to codebook keys using a compiled <see cref="MergedCodebook"/>.
+/// Maps submission JSON to form schema keys using a compiled <see cref="MergedFormSchema"/>.
 /// </summary>
-internal static class SurveyJsSubmissionFlattener
+internal static class FlattenedSubmissionFlattener
 {
     public static Dictionary<string, JsonElement?> Flatten(
         JsonElement submission,
-        MergedCodebook codebook)
+        MergedFormSchema formSchema)
     {
         Dictionary<string, JsonElement?> result = new(StringComparer.Ordinal);
 
-        foreach (CodebookColumnDefinition column in codebook.Columns)
+        foreach (var column in formSchema.Columns)
         {
             result[column.Key] = ExtractValue(submission, column);
         }
@@ -27,7 +28,7 @@ internal static class SurveyJsSubmissionFlattener
         using Utf8JsonWriter writer = new(stream);
         writer.WriteStartObject();
 
-        foreach ((string key, JsonElement? value) in flattened)
+        foreach ((var key, var value) in flattened)
         {
             writer.WritePropertyName(key);
             if (value is null)
@@ -44,28 +45,34 @@ internal static class SurveyJsSubmissionFlattener
         return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private static JsonElement? ExtractValue(JsonElement submission, CodebookColumnDefinition column) =>
+    private static JsonElement? ExtractValue(JsonElement submission, FormSchemaColumn column) =>
         column.Kind switch
         {
-            CodebookColumnKind.Simple or CodebookColumnKind.Calculated =>
+            FormSchemaColumnKind.Simple or FormSchemaColumnKind.Calculated =>
                 TryGetProperty(submission, column.Key),
 
-            CodebookColumnKind.CheckboxChoice =>
+            FormSchemaColumnKind.CheckboxChoice =>
                 ToBooleanJson(ContainsChoice(submission, column.SourceQuestion!, column.ChoiceValue!)),
 
-            CodebookColumnKind.RankingChoice =>
+            FormSchemaColumnKind.RankingChoice =>
                 ToRankJson(GetRankPosition(submission, column.SourceQuestion!, column.ChoiceValue!)),
 
-            CodebookColumnKind.CheckboxOtherText =>
+            FormSchemaColumnKind.CheckboxOtherText =>
                 TryGetOtherText(submission, column.SourceQuestion!),
 
-            CodebookColumnKind.MatrixRow =>
+            FormSchemaColumnKind.MatrixRow =>
                 TryGetMatrixRowValue(submission, column.SourceQuestion!, column.MatrixRowValue!),
 
-            CodebookColumnKind.PanelDynamicIndex =>
+            FormSchemaColumnKind.MultipleTextItem =>
+                TryGetMatrixRowValue(submission, column.SourceQuestion!, column.MatrixRowValue!),
+
+            FormSchemaColumnKind.FileUpload =>
+                TryGetFileValue(submission, column.SourceQuestion ?? column.Key),
+
+            FormSchemaColumnKind.PanelDynamicIndex =>
                 TryGetPanelIndexValue(submission, column),
 
-            CodebookColumnKind.NestedLoop =>
+            FormSchemaColumnKind.NestedLoop =>
                 TryGetNestedLoopValue(submission, column),
 
             _ => null,
@@ -74,7 +81,7 @@ internal static class SurveyJsSubmissionFlattener
     private static JsonElement? TryGetProperty(JsonElement root, string propertyName)
     {
         if (root.ValueKind != JsonValueKind.Object ||
-            !root.TryGetProperty(propertyName, out JsonElement value))
+            !root.TryGetProperty(propertyName, out var value))
         {
             return null;
         }
@@ -84,14 +91,14 @@ internal static class SurveyJsSubmissionFlattener
 
     private static bool ContainsChoice(JsonElement submission, string questionName, string choiceValue)
     {
-        if (!submission.TryGetProperty(questionName, out JsonElement answer))
+        if (!submission.TryGetProperty(questionName, out var answer))
         {
             return false;
         }
 
         if (answer.ValueKind == JsonValueKind.Array)
         {
-            foreach (JsonElement item in answer.EnumerateArray())
+            foreach (var item in answer.EnumerateArray())
             {
                 if (item.ValueKind == JsonValueKind.String &&
                     string.Equals(item.GetString(), choiceValue, StringComparison.Ordinal))
@@ -112,14 +119,14 @@ internal static class SurveyJsSubmissionFlattener
 
     private static int GetRankPosition(JsonElement submission, string questionName, string choiceValue)
     {
-        if (!submission.TryGetProperty(questionName, out JsonElement answer) ||
+        if (!submission.TryGetProperty(questionName, out var answer) ||
             answer.ValueKind != JsonValueKind.Array)
         {
             return 0;
         }
 
-        int rank = 1;
-        foreach (JsonElement item in answer.EnumerateArray())
+        var rank = 1;
+        foreach (var item in answer.EnumerateArray())
         {
             if (item.ValueKind == JsonValueKind.String &&
                 string.Equals(item.GetString(), choiceValue, StringComparison.Ordinal))
@@ -138,18 +145,18 @@ internal static class SurveyJsSubmissionFlattener
 
     private static JsonElement? TryGetOtherText(JsonElement submission, string questionName)
     {
-        if (!submission.TryGetProperty(questionName, out JsonElement answer))
+        if (!submission.TryGetProperty(questionName, out var answer))
         {
             return null;
         }
 
         if (answer.ValueKind == JsonValueKind.Object &&
-            answer.TryGetProperty("other", out JsonElement other))
+            answer.TryGetProperty("other", out var other))
         {
             return other;
         }
 
-        string otherCommentKey = $"{questionName}-Comment";
+        var otherCommentKey = $"{questionName}-Comment";
         return TryGetProperty(submission, otherCommentKey);
     }
 
@@ -158,9 +165,9 @@ internal static class SurveyJsSubmissionFlattener
         string matrixName,
         string rowValue)
     {
-        if (!submission.TryGetProperty(matrixName, out JsonElement matrixAnswer) ||
+        if (!submission.TryGetProperty(matrixName, out var matrixAnswer) ||
             matrixAnswer.ValueKind != JsonValueKind.Object ||
-            !matrixAnswer.TryGetProperty(rowValue, out JsonElement rowAnswer))
+            !matrixAnswer.TryGetProperty(rowValue, out var rowAnswer))
         {
             return null;
         }
@@ -168,7 +175,60 @@ internal static class SurveyJsSubmissionFlattener
         return rowAnswer;
     }
 
-    private static JsonElement? TryGetPanelIndexValue(JsonElement submission, CodebookColumnDefinition column)
+    private static JsonElement? TryGetFileValue(JsonElement submission, string questionName)
+    {
+        if (!submission.TryGetProperty(questionName, out var answer))
+        {
+            return null;
+        }
+
+        if (answer.ValueKind != JsonValueKind.Array)
+        {
+            return answer;
+        }
+
+        List<string> fileReferences = [];
+        foreach (var item in answer.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.Object)
+            {
+                if (item.TryGetProperty("content", out var content) &&
+                    content.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(content.GetString()))
+                {
+                    fileReferences.Add(content.GetString()!);
+                    continue;
+                }
+
+                if (item.TryGetProperty("name", out var name) &&
+                    name.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(name.GetString()))
+                {
+                    fileReferences.Add(name.GetString()!);
+                }
+
+                continue;
+            }
+
+            if (item.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(item.GetString()))
+            {
+                fileReferences.Add(item.GetString()!);
+            }
+        }
+
+        if (fileReferences.Count == 0)
+        {
+            return null;
+        }
+
+        return ToStringJson(string.Join("; ", fileReferences));
+    }
+
+    private static JsonElement ToStringJson(string value) =>
+        JsonDocument.Parse(JsonSerializer.Serialize(value)).RootElement.Clone();
+
+    private static JsonElement? TryGetPanelIndexValue(JsonElement submission, FormSchemaColumn column)
     {
         if (column.PanelIndex is null || column.SourceQuestion is null)
         {
@@ -176,14 +236,14 @@ internal static class SurveyJsSubmissionFlattener
         }
 
         if (string.IsNullOrWhiteSpace(column.PanelName) ||
-            !submission.TryGetProperty(column.PanelName, out JsonElement panelArray) ||
+            !submission.TryGetProperty(column.PanelName, out var panelArray) ||
             panelArray.ValueKind != JsonValueKind.Array)
         {
             return null;
         }
 
-        int index = 0;
-        foreach (JsonElement panelItem in panelArray.EnumerateArray())
+        var index = 0;
+        foreach (var panelItem in panelArray.EnumerateArray())
         {
             if (index == column.PanelIndex.Value)
             {
@@ -196,27 +256,27 @@ internal static class SurveyJsSubmissionFlattener
         return null;
     }
 
-    private static JsonElement? TryGetNestedLoopValue(JsonElement submission, CodebookColumnDefinition column)
+    private static JsonElement? TryGetNestedLoopValue(JsonElement submission, FormSchemaColumn column)
     {
         if (column.LoopPath is null || column.LoopPath.Count == 0 || column.SourceQuestion is null)
         {
             return null;
         }
 
-        JsonElement current = submission;
+        var current = submission;
 
-        foreach (LoopSegment segment in column.LoopPath)
+        foreach (var segment in column.LoopPath)
         {
-            if (!current.TryGetProperty(segment.PanelValueName, out JsonElement panelArray) ||
+            if (!current.TryGetProperty(segment.PanelValueName, out var panelArray) ||
                 panelArray.ValueKind != JsonValueKind.Array)
             {
                 return null;
             }
 
             JsonElement? matchedItem = null;
-            foreach (JsonElement item in panelArray.EnumerateArray())
+            foreach (var item in panelArray.EnumerateArray())
             {
-                if (item.TryGetProperty(segment.PropertyName, out JsonElement propertyValue) &&
+                if (item.TryGetProperty(segment.PropertyName, out var propertyValue) &&
                     propertyValue.ValueKind == JsonValueKind.String &&
                     string.Equals(propertyValue.GetString(), segment.ChoiceValue, StringComparison.Ordinal))
                 {

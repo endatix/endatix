@@ -1,11 +1,11 @@
-namespace Endatix.Modules.Reporting.Domain.SurveyJs;
+namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 /// <summary>
-/// One export column derived from a SurveyJS form definition.
+/// One column in a compiled form schema derived from a SurveyJS form definition.
 /// </summary>
-internal sealed record CodebookColumnDefinition(
+internal sealed record FormSchemaColumn(
     string Key,
-    CodebookColumnKind Kind,
+    FormSchemaColumnKind Kind,
     string Label,
     string DataType,
     string? SourceQuestion = null,

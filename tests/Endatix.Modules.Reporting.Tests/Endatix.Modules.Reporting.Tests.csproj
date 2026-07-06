@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Domain\SurveyJs\Fixtures\**\*">
+    <None Update="Features\FormSchema\FlattenedFormDefinition\Fixtures\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

@@ -110,6 +110,69 @@ Follows [Modulith](https://github.com/foxminchan/Modulith)-style modules: **doma
 - EF Core 10: `[ComplexType]` + `ComplexProperty` on `FlattenedSubmission` integration state.
 - Provider-specific JSON columns and migrations live under `Persistence/Migrations/{PostgreSql|SqlServer}/`.
 
+### Reporting module layout (feature-first)
+
+`Endatix.Modules.Reporting` follows the same **feature-first vertical slices** as monolith `Infrastructure/Features/`, with a dedicated `Shared/` folder for code reused across slices today.
+
+```
+Endatix.Modules.Reporting/
+  Domain/                          # persistence aggregates only (entity renames deferred)
+    FlattenedSubmission.cs
+    FormExportSchema.cs
+    SubmissionIntegrationState.cs
+    ExportFormat.cs
+    …
+
+  Features/
+    FormSchema/
+      FlattenedFormDefinition/
+        FormDefinitionFlattener.cs
+      FormSchema/
+        FormSchemaCompiler.cs
+        MergedFormSchema.cs
+        FormSchemaColumn.cs
+        SchemaCompilationLimits.cs
+
+    FlattenedSubmission/
+      FlattenedSubmissionFlattener.cs
+
+  Shared/                          # reused today — not speculative
+    SurveyJs/
+      SurveyJsElementTypes.cs
+      SurveyJsChoiceHelper.cs
+      ExportPathBuilder.cs
+
+  Persistence/
+  ReportingModule.cs
+```
+
+**Dependency flow inside the module:**
+
+```
+Features/FormSchema/FlattenedFormDefinition ──┐
+Features/FormSchema/FormSchema              ├──► Shared/SurveyJs
+Features/FlattenedSubmission              ──┘       (also uses FormSchema types)
+
+Domain/ (entities)         ──► no Features, no Shared, no Persistence
+Persistence                ──► Domain
+```
+
+**Classification rules (apply the shared-code checklist):**
+
+| Kind | Where | Example |
+|------|-------|---------|
+| Reporting entities / pipeline state | `Domain/` | `FlattenedSubmission`, `FormExportSchema` |
+| Compiled form schema model + limits | `Features/FormSchema/FormSchema/` | `MergedFormSchema`, `SchemaCompilationLimits` |
+| Definition → column flattening | `Features/FormSchema/FlattenedFormDefinition/` | `FormDefinitionFlattener` |
+| Submission → flat row pipeline | `Features/FlattenedSubmission/` | `FlattenedSubmissionFlattener` |
+| SurveyJS JSON traversal helpers | `Shared/SurveyJs/` | `SurveyJsChoiceHelper`, `ExportPathBuilder` |
+
+**Why not all JSON in Domain?** SurveyJS parsing is reporting-pipeline infrastructure colocated in feature slices; persisted aggregates stay in `Domain/`. Handlers in PR-E5+ call `FormSchemaCompiler` / `FlattenedSubmissionFlattener` — they do not reimplement tree walks.
+
+**Terminology:** "Codebook" is an **export format** in Infrastructure (`CodebookJsonExporter`). Reporting module vocabulary uses **FormSchema**.
+
+**Tests mirror features:** golden JSON fixtures under `tests/.../Features/FormSchema/FlattenedFormDefinition/Fixtures/`; compiler tests in `Features/FormSchema/FormSchema/`; submission mapping in `Features/FlattenedSubmission/`.
+
 ### Module registration (OSS)
 
 Optional OSS modules implement `IEndatixModule` in a single `{Name}Module` class — no separate `Setup.cs`, no nested registration type.
@@ -282,11 +345,3 @@ Infrastructure lists take Core paging + feature criteria; return **`Paged<T>` as
 | 2026-06 | Prefer Infrastructure feature queries over Core read handlers when logic is EF-heavy and persistence-specific. |
 | 2026-06 | Platform Admin lists: `*QueryService` → `List*` slice types; shared logic in `Common/`; register via `AddPlatformAdminFeatures()`. |
 | 2026-06 | Document Agents module as modular end-state; OSS monolith uses the same slice naming inside `Infrastructure/Features/`. |
-| 2026-06 | Shared list requests: composable Api capabilities (`IPageable`, `ISearchable`, `ISortable<T>`, `IFilterable`) map to Core `PageRequest` / `SearchablePageRequest` / `SortRequest<T>` via `ListRequestExtensions`. |
-| 2026-06 | Testing: unit-only for feature reads — decomposed collaborators + orchestrator mocks; evolve standalone reads toward Infrastructure `IQuery`/MediatR or internal `Common/` contracts; avoid permanent endpoint-facing `IList*` seams. |
-| 2026-06 | **Modules:** `*.Contracts` = public API (DTOs, commands, queries, events, wire codes); module `Domain/` owns entities and value objects. Core may reference `*.Contracts` only for denormalized mirrors / shared codes — not the module assembly. |
-| 2026-06 | **OSS module registration:** `{Name}Module` sealed class implements `IEndatixModule` (+ optional `IHasFeatureFlag`, `IHasDbMigrations`); host calls `UseModule({Name}Module.Instance)`. No `Setup.cs`. Startup migrations via `IDbContextMigrationContributor`. |
-| 2026-06 | **Reporting:** integration status on `FlattenedSubmission` only (source of truth in `reporting` schema); core `Submission` and list APIs stay free of reporting denormalization until a dedicated read endpoint is needed. |
-| 2026-06 | **Reporting:** isolated `ReportingDbContext`; avoid `TenantEntity` nav on module entities; EF Core 10 `[ComplexType]` on module side, scalar codes on core side. |
-| 2026-07 | **Startup observability:** generic `EndatixLoggerExtensions` in Framework; domain-specific `*LoggerExtensions` collocated in Infrastructure/Hosting; global `EndatixEventIds` registry. See [Endatix.Framework README — Observability (startup)](src/Endatix.Framework/README.md#observability-startup). |
-

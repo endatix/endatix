@@ -41,7 +41,7 @@ public sealed class FormExportSchema : BaseEntity, ITenantOwned, IAggregateRoot
     public long FormDefinitionRevision { get; private set; }
 
     /// <summary>
-    /// Append-only column specification as JSON (codebook entries).
+    /// Append-only form schema column specification as JSON.
     /// </summary>
     public string SchemaJson { get; private set; } = "[]";
 

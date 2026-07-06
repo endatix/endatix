@@ -1,19 +1,19 @@
 using System.Text.Json;
 
-namespace Endatix.Modules.Reporting.Domain.SurveyJs;
+namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 /// <summary>
-/// Append-only merged codebook produced from one or more form definition versions.
+/// Append-only merged form schema produced from one or more form definition versions.
 /// </summary>
-internal sealed class MergedCodebook
+internal sealed class MergedFormSchema
 {
-    private readonly Dictionary<string, CodebookColumnDefinition> _columnsByKey;
+    private readonly Dictionary<string, FormSchemaColumn> _columnsByKey;
 
-    public MergedCodebook(IEnumerable<CodebookColumnDefinition> columns)
+    public MergedFormSchema(IEnumerable<FormSchemaColumn> columns)
     {
-        List<CodebookColumnDefinition> columnList = columns.ToList();
-        _columnsByKey = new Dictionary<string, CodebookColumnDefinition>(columnList.Count, StringComparer.Ordinal);
-        foreach (CodebookColumnDefinition column in columnList)
+        var columnList = columns.ToList();
+        _columnsByKey = new Dictionary<string, FormSchemaColumn>(columnList.Count, StringComparer.Ordinal);
+        foreach (var column in columnList)
         {
             _columnsByKey.TryAdd(column.Key, column);
         }
@@ -21,14 +21,14 @@ internal sealed class MergedCodebook
         Columns = columnList;
     }
 
-    public IReadOnlyList<CodebookColumnDefinition> Columns { get; }
+    public IReadOnlyList<FormSchemaColumn> Columns { get; }
 
-    public MergedCodebook MergeAppendOnly(IEnumerable<CodebookColumnDefinition> newColumns, FlatteningLimits? limits = null)
+    public MergedFormSchema MergeAppendOnly(IEnumerable<FormSchemaColumn> newColumns, SchemaCompilationLimits? limits = null)
     {
-        FlatteningLimits effectiveLimits = limits ?? FlatteningLimits.Default;
-        List<CodebookColumnDefinition> merged = [.. Columns];
+        var effectiveLimits = limits ?? SchemaCompilationLimits.Default;
+        List<FormSchemaColumn> merged = [.. Columns];
 
-        foreach (CodebookColumnDefinition column in newColumns)
+        foreach (var column in newColumns)
         {
             if (_columnsByKey.ContainsKey(column.Key))
             {
@@ -37,15 +37,18 @@ internal sealed class MergedCodebook
 
             if (merged.Count >= effectiveLimits.MaxColumns)
             {
-                throw new FlatteningLimitExceededException(
-                    $"Codebook column limit of {effectiveLimits.MaxColumns} exceeded.");
+                throw new SchemaCompilationLimitExceededException(
+                    SchemaCompilationLimitKind.MaxColumns,
+                    effectiveLimits.MaxColumns,
+                    $"Form schema column limit of {effectiveLimits.MaxColumns} exceeded.",
+                    actual: merged.Count + 1);
             }
 
             merged.Add(column);
             _columnsByKey[column.Key] = column;
         }
 
-        return new MergedCodebook(merged);
+        return new MergedFormSchema(merged);
     }
 
     public string ToJson()
@@ -72,43 +75,43 @@ internal sealed class MergedCodebook
         return JsonSerializer.Serialize(payload);
     }
 
-    public static MergedCodebook FromJson(string json)
+    public static MergedFormSchema FromJson(string json)
     {
-        using JsonDocument document = JsonDocument.Parse(json);
-        List<CodebookColumnDefinition> columns = [];
+        using var document = JsonDocument.Parse(json);
+        List<FormSchemaColumn> columns = [];
 
-        foreach (JsonElement item in document.RootElement.EnumerateArray())
+        foreach (var item in document.RootElement.EnumerateArray())
         {
-            string key = item.GetProperty("key").GetString()!;
-            CodebookColumnKind kind = Enum.Parse<CodebookColumnKind>(item.GetProperty("kind").GetString()!);
-            string label = item.GetProperty("label").GetString() ?? key;
-            string dataType = item.TryGetProperty("dataType", out JsonElement dataTypeProp)
+            var key = item.GetProperty("key").GetString()!;
+            var kind = Enum.Parse<FormSchemaColumnKind>(item.GetProperty("kind").GetString()!);
+            var label = item.GetProperty("label").GetString() ?? key;
+            var dataType = item.TryGetProperty("dataType", out var dataTypeProp)
                 ? dataTypeProp.GetString() ?? "string"
                 : "string";
 
-            string? sourceQuestion = item.TryGetProperty("sourceQuestion", out JsonElement sourceQuestionProp)
+            var sourceQuestion = item.TryGetProperty("sourceQuestion", out var sourceQuestionProp)
                 ? sourceQuestionProp.GetString()
                 : null;
 
-            string? choiceValue = item.TryGetProperty("choiceValue", out JsonElement choiceValueProp)
+            var choiceValue = item.TryGetProperty("choiceValue", out var choiceValueProp)
                 ? choiceValueProp.GetString()
                 : null;
 
-            string? panelName = item.TryGetProperty("panelName", out JsonElement panelNameProp)
+            var panelName = item.TryGetProperty("panelName", out var panelNameProp)
                 ? panelNameProp.GetString()
                 : null;
 
-            int? panelIndex = item.TryGetProperty("panelIndex", out JsonElement panelIndexProp) &&
+            int? panelIndex = item.TryGetProperty("panelIndex", out var panelIndexProp) &&
                              panelIndexProp.ValueKind == JsonValueKind.Number
                 ? panelIndexProp.GetInt32()
                 : null;
 
-            string? matrixRowValue = item.TryGetProperty("matrixRowValue", out JsonElement matrixRowValueProp)
+            var matrixRowValue = item.TryGetProperty("matrixRowValue", out var matrixRowValueProp)
                 ? matrixRowValueProp.GetString()
                 : null;
 
             List<LoopSegment>? loopPath = null;
-            if (item.TryGetProperty("loopPath", out JsonElement loopPathProp) &&
+            if (item.TryGetProperty("loopPath", out var loopPathProp) &&
                 loopPathProp.ValueKind == JsonValueKind.Array)
             {
                 loopPath = loopPathProp.EnumerateArray()
@@ -119,7 +122,7 @@ internal sealed class MergedCodebook
                     .ToList();
             }
 
-            columns.Add(new CodebookColumnDefinition(
+            columns.Add(new FormSchemaColumn(
                 key,
                 kind,
                 label,
@@ -132,6 +135,6 @@ internal sealed class MergedCodebook
                 matrixRowValue));
         }
 
-        return new MergedCodebook(columns);
+        return new MergedFormSchema(columns);
     }
 }
