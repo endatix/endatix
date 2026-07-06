@@ -206,26 +206,10 @@ internal static class FormDefinitionFlattener
                 ? valueNameProp.GetString()
                 : null;
 
-            if (string.IsNullOrWhiteSpace(valueName) || !drivingCheckboxNames.Contains(valueName))
+            if (!TryResolveDynamicPanelDriver(valueName, elementsByName, drivingCheckboxNames, out var driver, out var valuePropertyName, out var choices))
             {
                 continue;
             }
-
-            if (!elementsByName.TryGetValue(valueName, out var driver) ||
-                !driver.Element.TryGetProperty("valuePropertyName", out var valuePropertyNameProp))
-            {
-                continue;
-            }
-
-            var valuePropertyName = valuePropertyNameProp.GetString();
-            if (string.IsNullOrWhiteSpace(valuePropertyName))
-            {
-                continue;
-            }
-
-            var choices = driver.Element.TryGetProperty("choices", out var choicesProp)
-                ? choicesProp
-                : default;
 
             var templateElements = collected.Element.TryGetProperty("templateElements", out var templateProp) &&
                                              templateProp.ValueKind == JsonValueKind.Array
@@ -233,8 +217,8 @@ internal static class FormDefinitionFlattener
                 : [];
 
             nodes.Add(new DynamicPanelNode(
-                collected.Name ?? valueName,
-                valueName,
+                collected.Name ?? valueName!,
+                valueName!,
                 valuePropertyName,
                 collected.ParentValueName,
                 choices,
@@ -242,6 +226,44 @@ internal static class FormDefinitionFlattener
         }
 
         return nodes;
+    }
+
+    private static bool TryResolveDynamicPanelDriver(
+        string? valueName,
+        Dictionary<string, CollectedElement> elementsByName,
+        HashSet<string> drivingCheckboxNames,
+        out CollectedElement driver,
+        out string valuePropertyName,
+        out JsonElement choices)
+    {
+        driver = default!;
+        valuePropertyName = string.Empty;
+        choices = default;
+
+        if (string.IsNullOrWhiteSpace(valueName) || !drivingCheckboxNames.Contains(valueName))
+        {
+            return false;
+        }
+
+        if (!elementsByName.TryGetValue(valueName!, out var resolvedDriver) ||
+            !resolvedDriver.Element.TryGetProperty("valuePropertyName", out var valuePropertyNameProp))
+        {
+            return false;
+        }
+
+        driver = resolvedDriver;
+
+        valuePropertyName = valuePropertyNameProp.GetString() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(valuePropertyName))
+        {
+            return false;
+        }
+
+        choices = driver.Element.TryGetProperty("choices", out var choicesProp)
+            ? choicesProp
+            : default;
+
+        return true;
     }
 
     private static List<PanelPath> BuildPanelPaths(
