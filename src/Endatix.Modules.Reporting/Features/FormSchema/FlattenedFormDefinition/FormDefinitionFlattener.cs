@@ -63,38 +63,29 @@ internal static class FormDefinitionFlattener
     private static List<CollectedElement> CollectElements(JsonElement definition, SchemaCompilationLimits limits)
     {
         List<CollectedElement> elements = [];
-        CollectFromContainer(definition, depth: 0, elements, limits);
+        CollectFromContainer(definition, elements, limits);
         return elements;
     }
 
     private static void CollectFromContainer(
         JsonElement container,
-        int depth,
         List<CollectedElement> elements,
         SchemaCompilationLimits limits)
     {
-        if (depth > limits.MaxNestingDepth)
-        {
-            ThrowLimitExceeded(
-                SchemaCompilationLimitKind.MaxNestingDepth,
-                limits.MaxNestingDepth,
-                actual: depth);
-        }
-
         if (container.TryGetProperty("pages", out var pages) && pages.ValueKind == JsonValueKind.Array)
         {
             foreach (var page in pages.EnumerateArray())
             {
                 if (page.TryGetProperty("elements", out var pageElements))
                 {
-                    CollectElementList(pageElements, depth, parentValueName: null, elements, limits);
+                    CollectElementList(pageElements, depth: 0, parentValueName: null, elements, limits);
                 }
             }
         }
 
         if (container.TryGetProperty("elements", out var rootElements))
         {
-            CollectElementList(rootElements, depth, parentValueName: null, elements, limits);
+            CollectElementList(rootElements, depth: 0, parentValueName: null, elements, limits);
         }
     }
 
