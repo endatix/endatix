@@ -18,6 +18,9 @@ public class SurveyJsElementTypeTests
     [InlineData("multipletext")]
     [InlineData("file")]
     [InlineData("imagepicker")]
+    [InlineData("slider")]
+    [InlineData("buttongroup")]
+    [InlineData("page")]
     public void TryResolve_KnownTypes_ReturnsRegisteredInstance(string typeName)
     {
         // Arrange
@@ -34,6 +37,19 @@ public class SurveyJsElementTypeTests
     public void TryResolve_UnknownType_ReturnsNull()
     {
         SurveyJsElementType.TryResolve("custom-widget").Should().BeNull();
+    }
+
+    [Fact]
+    public void TryResolve_NumberType_IsNotRegistered()
+    {
+        SurveyJsElementType.TryResolve("number").Should().BeNull();
+    }
+
+    [Fact]
+    public void Page_IsContainer()
+    {
+        SurveyJsElementType.Page.Category.Should().Be(SurveyJsElementCategory.Container);
+        SurveyJsElementType.IsContainer("page").Should().BeTrue();
     }
 
     [Fact]

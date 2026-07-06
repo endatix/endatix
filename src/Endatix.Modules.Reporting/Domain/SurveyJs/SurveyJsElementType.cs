@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 
@@ -30,7 +31,7 @@ internal sealed record SurveyJsElementType
         string.Equals(Name, typeName, StringComparison.OrdinalIgnoreCase);
 
     public static SurveyJsElementType? TryResolve(string? typeName) =>
-        typeName is not null && ByName.TryGetValue(typeName, out SurveyJsElementType? elementType)
+        typeName is not null && _byName.TryGetValue(typeName, out SurveyJsElementType? elementType)
             ? elementType
             : null;
 
@@ -68,17 +69,18 @@ internal sealed record SurveyJsElementType
     public static readonly SurveyJsElementType Empty = new("empty", SurveyJsElementCategory.NonData, SurveyJsFlattening.None);
 
     // Containers
+    public static readonly SurveyJsElementType Page = new("page", SurveyJsElementCategory.Container, SurveyJsFlattening.None);
     public static readonly SurveyJsElementType Panel = new("panel", SurveyJsElementCategory.Container, SurveyJsFlattening.None);
     public static readonly SurveyJsElementType PanelDynamic = new("paneldynamic", SurveyJsElementCategory.Container, SurveyJsFlattening.PanelDynamic);
 
-    // Scalar (#question, single discrete value)
+    // Scalar (#question, single discrete value; numeric inputs use type=text + inputType=number)
     public static readonly SurveyJsElementType Text = new("text", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType Comment = new("comment", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType Boolean = new("boolean", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
-    public static readonly SurveyJsElementType Number = new("number", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType Rating = new("rating", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType SignaturePad = new("signaturepad", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType Expression = new("expression", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
+    public static readonly SurveyJsElementType Slider = new("slider", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
 
     // File
     public static readonly SurveyJsElementType FileUpload = new("file", SurveyJsElementCategory.File, SurveyJsFlattening.File);
@@ -89,6 +91,7 @@ internal sealed record SurveyJsElementType
     public static readonly SurveyJsElementType Radiogroup = new("radiogroup", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType Dropdown = new("dropdown", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType ImagePicker = new("imagepicker", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
+    public static readonly SurveyJsElementType ButtonGroup = new("buttongroup", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
 
     // Ranking
     public static readonly SurveyJsElementType Ranking = new("ranking", SurveyJsElementCategory.Ranking, SurveyJsFlattening.Ranking);
@@ -101,26 +104,28 @@ internal sealed record SurveyJsElementType
     public static readonly SurveyJsElementType MatrixDropdown = new("matrixdropdown", SurveyJsElementCategory.Matrix, SurveyJsFlattening.Matrix);
     public static readonly SurveyJsElementType MatrixDynamic = new("matrixdynamic", SurveyJsElementCategory.Matrix, SurveyJsFlattening.Matrix);
 
-    public static readonly SurveyJsElementType[] AllTypes =
+    private static readonly SurveyJsElementType[] _allTypesArray =
     [
         Html,
         Image,
         Empty,
+        Page,
         Panel,
         PanelDynamic,
         Text,
         Comment,
         Boolean,
-        Number,
         Rating,
         SignaturePad,
         Expression,
+        Slider,
         FileUpload,
         Checkbox,
         Tagbox,
         Radiogroup,
         Dropdown,
         ImagePicker,
+        ButtonGroup,
         Ranking,
         MultipleText,
         Matrix,
@@ -128,54 +133,57 @@ internal sealed record SurveyJsElementType
         MatrixDynamic,
     ];
 
-    public static readonly SurveyJsElementType[] NonDataTypes = TypesInCategory(SurveyJsElementCategory.NonData);
+    public static IReadOnlyList<SurveyJsElementType> AllTypes { get; } = Array.AsReadOnly(_allTypesArray);
 
-    public static readonly SurveyJsElementType[] ContainerTypes = TypesInCategory(SurveyJsElementCategory.Container);
+    public static IReadOnlyList<SurveyJsElementType> NonDataTypes { get; } = FreezeCategory(SurveyJsElementCategory.NonData);
 
-    public static readonly SurveyJsElementType[] ScalarTypes = TypesInCategory(SurveyJsElementCategory.Scalar);
+    public static IReadOnlyList<SurveyJsElementType> ContainerTypes { get; } = FreezeCategory(SurveyJsElementCategory.Container);
 
-    public static readonly SurveyJsElementType[] PrimitiveTypes = ScalarTypes;
+    public static IReadOnlyList<SurveyJsElementType> ScalarTypes { get; } = FreezeCategory(SurveyJsElementCategory.Scalar);
 
-    public static readonly SurveyJsElementType[] FileTypes = TypesInCategory(SurveyJsElementCategory.File);
+    public static IReadOnlyList<SurveyJsElementType> PrimitiveTypes => ScalarTypes;
 
-    public static readonly SurveyJsElementType[] BaseSelectTypes = TypesInCategory(SurveyJsElementCategory.BaseSelect);
+    public static IReadOnlyList<SurveyJsElementType> FileTypes { get; } = FreezeCategory(SurveyJsElementCategory.File);
 
-    public static readonly SurveyJsElementType[] MultipleTextTypes = TypesInCategory(SurveyJsElementCategory.MultipleText);
+    public static IReadOnlyList<SurveyJsElementType> BaseSelectTypes { get; } = FreezeCategory(SurveyJsElementCategory.BaseSelect);
 
-    public static readonly SurveyJsElementType[] MatrixTypes = TypesInCategory(SurveyJsElementCategory.Matrix);
+    public static IReadOnlyList<SurveyJsElementType> MultipleTextTypes { get; } = FreezeCategory(SurveyJsElementCategory.MultipleText);
 
-    public static readonly SurveyJsElementType[] ComplexTypes =
-    [
-        Checkbox,
-        Tagbox,
-        Ranking,
-        MultipleText,
-        FileUpload,
-        Matrix,
-        MatrixDropdown,
-        MatrixDynamic,
-        PanelDynamic,
-    ];
+    public static IReadOnlyList<SurveyJsElementType> MatrixTypes { get; } = FreezeCategory(SurveyJsElementCategory.Matrix);
 
-    public static readonly SurveyJsElementType[] DrivingChoiceTypes =
-    [
-        Checkbox,
-        Radiogroup,
-    ];
+    public static IReadOnlyList<SurveyJsElementType> ComplexTypes { get; } =
+        Array.AsReadOnly(
+        [
+            Checkbox,
+            Tagbox,
+            Ranking,
+            MultipleText,
+            FileUpload,
+            Matrix,
+            MatrixDropdown,
+            MatrixDynamic,
+            PanelDynamic,
+        ]);
 
-    public static readonly string[] AllTypeNames = AllTypes.Select(type => type.Name).ToArray();
+    public static IReadOnlyList<SurveyJsElementType> DrivingChoiceTypes { get; } =
+        Array.AsReadOnly([Checkbox, Radiogroup]);
 
-    public static readonly HashSet<string> NonDataTypeNames = ToNameSet(NonDataTypes);
+    public static IReadOnlyList<string> AllTypeNames { get; } =
+        Array.AsReadOnly(_allTypesArray.Select(type => type.Name).ToArray());
 
-    public static readonly HashSet<string> ContainerTypeNames = ToNameSet(ContainerTypes);
+    public static FrozenSet<string> NonDataTypeNames { get; } = ToFrozenNameSet(NonDataTypes);
 
-    private static readonly Dictionary<string, SurveyJsElementType> ByName = AllTypes.ToDictionary(
-        type => type.Name,
-        StringComparer.OrdinalIgnoreCase);
+    public static FrozenSet<string> ContainerTypeNames { get; } = ToFrozenNameSet(ContainerTypes);
+
+    private static readonly FrozenDictionary<string, SurveyJsElementType> _byName = _allTypesArray
+        .ToFrozenDictionary(type => type.Name, StringComparer.OrdinalIgnoreCase);
 
     private static SurveyJsElementType[] TypesInCategory(SurveyJsElementCategory category) =>
-        AllTypes.Where(type => type.Category == category).ToArray();
+        _allTypesArray.Where(type => type.Category == category).ToArray();
 
-    private static HashSet<string> ToNameSet(IEnumerable<SurveyJsElementType> types) =>
-        new(types.Select(type => type.Name), StringComparer.OrdinalIgnoreCase);
+    private static IReadOnlyList<SurveyJsElementType> FreezeCategory(SurveyJsElementCategory category) =>
+        Array.AsReadOnly(TypesInCategory(category));
+
+    private static FrozenSet<string> ToFrozenNameSet(IEnumerable<SurveyJsElementType> types) =>
+        types.Select(type => type.Name).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 }

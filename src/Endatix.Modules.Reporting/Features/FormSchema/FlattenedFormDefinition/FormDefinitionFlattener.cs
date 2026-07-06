@@ -135,6 +135,12 @@ internal static class FormDefinitionFlattener
                 CollectElementList(panelChildren, depth, parentValueName, elements, limits);
             }
 
+            if (SurveyJsElementType.Page.Matches(type) &&
+                element.TryGetProperty("elements", out var pageChildren))
+            {
+                CollectElementList(pageChildren, depth, parentValueName, elements, limits);
+            }
+
             if (SurveyJsElementType.PanelDynamic.Matches(type) &&
                 element.TryGetProperty("templateElements", out var templateElements))
             {
@@ -396,7 +402,7 @@ internal static class FormDefinitionFlattener
             name,
             FormSchemaColumnKind.Simple,
             GetElementTitle(collected.Element, name),
-            MapDataType(type)));
+            MapDataType(collected.Element, type)));
     }
 
     private static void EmitCheckboxColumns(
@@ -598,7 +604,7 @@ internal static class FormDefinitionFlattener
                     key,
                     FormSchemaColumnKind.PanelDynamicIndex,
                     $"{GetElementTitle(template, childName)} ({name} #{index + 1})",
-                    MapDataType(childType),
+                    MapDataType(template, childType),
                     SourceQuestion: childName,
                     PanelName: name,
                     PanelIndex: index));
@@ -659,7 +665,7 @@ internal static class FormDefinitionFlattener
                         key,
                         FormSchemaColumnKind.NestedLoop,
                         $"{GetElementTitle(template, childName)} ({string.Join(" / ", choiceValues)})",
-                        MapDataType(childType),
+                        MapDataType(template, childType),
                         SourceQuestion: childName,
                         LoopPath: loopSegments));
                 }
@@ -770,14 +776,25 @@ internal static class FormDefinitionFlattener
             ? titleProp.GetString()!
             : fallback;
 
-    private static string MapDataType(string? type) => SurveyJsElementType.TryResolve(type)?.Category switch
+    private static string MapDataType(JsonElement element, string? type)
     {
-        SurveyJsElementCategory.File => "file",
-        _ => type?.ToLowerInvariant() switch
+        if (SurveyJsElementType.TryResolve(type)?.Category == SurveyJsElementCategory.File)
+        {
+            return "file";
+        }
+
+        if (SurveyJsElementType.Text.Matches(type) &&
+            element.TryGetProperty("inputType", out var inputType) &&
+            string.Equals(inputType.GetString(), "number", StringComparison.OrdinalIgnoreCase))
+        {
+            return "number";
+        }
+
+        return type?.ToLowerInvariant() switch
         {
             "boolean" => "boolean",
-            "number" or "rating" => "number",
+            "rating" or "slider" => "number",
             _ => "string",
-        },
-    };
+        };
+    }
 }
