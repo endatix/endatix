@@ -931,6 +931,11 @@ internal static class FormDefinitionFlattener
         }
 
         var combinationCount = ChoiceCartesianProduct.EstimateCombinationCount(levelSizes);
+        if (combinationCount == 0)
+        {
+            return [];
+        }
+
         if (combinationCount > limits.MaxLoopCombinations)
         {
             ThrowLimitExceeded(
