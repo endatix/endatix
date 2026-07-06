@@ -20,6 +20,11 @@ internal static class ChoiceCartesianProduct
                 return 0;
             }
 
+            if (count > long.MaxValue / size)
+            {
+                return long.MaxValue;
+            }
+
             count *= size;
         }
 
@@ -32,6 +37,14 @@ internal static class ChoiceCartesianProduct
         {
             yield return [];
             yield break;
+        }
+
+        for (var i = 0; i < levels.Count; i++)
+        {
+            if (levels[i].Count == 0)
+            {
+                yield break;
+            }
         }
 
         var levelCount = levels.Count;

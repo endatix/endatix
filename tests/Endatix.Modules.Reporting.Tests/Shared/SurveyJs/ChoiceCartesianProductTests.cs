@@ -35,6 +35,29 @@ public class ChoiceCartesianProductTests
     }
 
     [Fact]
+    public void EstimateCombinationCount_Overflow_ReturnsMaxValue()
+    {
+        long count = ChoiceCartesianProduct.EstimateCombinationCount(
+            [int.MaxValue, int.MaxValue, int.MaxValue]);
+
+        count.Should().Be(long.MaxValue);
+    }
+
+    [Fact]
+    public void Enumerate_EmptyLevel_ReturnsNoCombinations()
+    {
+        IReadOnlyList<IReadOnlyList<string>> levels =
+        [
+            ["a", "b"],
+            [],
+        ];
+
+        List<string[]> combinations = ChoiceCartesianProduct.Enumerate(levels).ToList();
+
+        combinations.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Enumerate_ProducesExpectedCombinations()
     {
         // Arrange
