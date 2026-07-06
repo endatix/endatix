@@ -38,6 +38,7 @@ internal static class FormDefinitionFlattener
     {
         var effectiveLimits = limits ?? SchemaCompilationLimits.Default;
         var allElements = CollectElements(definition, effectiveLimits);
+        EnforceMaxQuestions(allElements, definition, effectiveLimits);
         var drivingCheckboxNames = allElements
             .Where(item => IsDrivingCheckbox(item.Element, item.Type, item.Name))
             .Select(item => item.Name!)
@@ -65,6 +66,61 @@ internal static class FormDefinitionFlattener
         List<CollectedElement> elements = [];
         CollectFromContainer(definition, elements, limits);
         return elements;
+    }
+
+    private static void EnforceMaxQuestions(
+        IReadOnlyList<CollectedElement> allElements,
+        JsonElement definition,
+        SchemaCompilationLimits limits)
+    {
+        var questionCount = CountQuestions(allElements, definition);
+        if (questionCount > limits.MaxQuestions)
+        {
+            ThrowLimitExceeded(
+                SchemaCompilationLimitKind.MaxQuestions,
+                limits.MaxQuestions,
+                actual: questionCount);
+        }
+    }
+
+    private static int CountQuestions(IReadOnlyList<CollectedElement> allElements, JsonElement definition)
+    {
+        var count = allElements.Count(item =>
+            !SurveyJsElementType.IsNonData(item.Type) &&
+            !SurveyJsElementType.IsContainer(item.Type));
+
+        count += CountCalculatedValues(definition);
+        return count;
+    }
+
+    private static int CountCalculatedValues(JsonElement definition)
+    {
+        if (!definition.TryGetProperty("calculatedValues", out var calculatedValues) ||
+            calculatedValues.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        foreach (var calculatedValue in calculatedValues.EnumerateArray())
+        {
+            if (calculatedValue.TryGetProperty("includeIntoResult", out var includeProp) &&
+                includeProp.ValueKind == JsonValueKind.False)
+            {
+                continue;
+            }
+
+            var name = calculatedValue.TryGetProperty("name", out var nameProp)
+                ? nameProp.GetString()
+                : null;
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private static void CollectFromContainer(
@@ -928,6 +984,8 @@ internal static class FormDefinitionFlattener
         {
             SchemaCompilationLimitKind.MaxColumns =>
                 $"Form schema column limit of {limit} exceeded.",
+            SchemaCompilationLimitKind.MaxQuestions =>
+                $"Form schema question limit of {limit} exceeded.",
             SchemaCompilationLimitKind.MaxChoicesPerQuestion when context is not null =>
                 $"Choice limit of {limit} exceeded for question '{context}'.",
             SchemaCompilationLimitKind.MaxChoicesPerQuestion =>

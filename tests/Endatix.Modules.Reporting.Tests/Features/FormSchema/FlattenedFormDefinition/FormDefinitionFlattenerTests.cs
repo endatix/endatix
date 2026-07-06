@@ -186,6 +186,36 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
+  public void Flatten_ExceedsMaxQuestions_Throws()
+  {
+    const string json = """
+        {
+          "pages": [
+            {
+              "elements": [
+                { "type": "text", "name": "q1" },
+                { "type": "text", "name": "q2" }
+              ]
+            }
+          ],
+          "calculatedValues": [
+            { "name": "total", "expression": "1" }
+          ]
+        }
+        """;
+    using JsonDocument document = JsonDocument.Parse(json);
+    JsonElement definition = document.RootElement.Clone();
+    SchemaCompilationLimits limits = new() { MaxQuestions = 2 };
+
+    Action act = () => FormDefinitionFlattener.Flatten(definition, limits);
+
+    SchemaCompilationLimitExceededException exception = act
+        .Should().Throw<SchemaCompilationLimitExceededException>().Which;
+    exception.LimitKind.Should().Be(SchemaCompilationLimitKind.MaxQuestions);
+    exception.Actual.Should().Be(3);
+  }
+
+  [Fact]
   public void Flatten_Radiogroup_ColumnKindIsSimple()
   {
     // Arrange
