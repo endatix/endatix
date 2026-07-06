@@ -53,4 +53,31 @@ public class FormSchemaCompilerTests
     schema.Columns.Select(column => column.Key).Should().Equal("score", "name");
     schema.Columns.Single(column => column.Key == "score").Label.Should().Be("First");
   }
+
+  [Fact]
+  public void FromJson_RoundTrip_PreservesColumns()
+  {
+    MergedFormSchema original = new(
+    [
+      new FormSchemaColumn(
+        "ford__red",
+        FormSchemaColumnKind.CheckboxChoice,
+        "Ford — Red",
+        "boolean",
+        SourceQuestion: "ford",
+        ChoiceValue: "red"),
+      new FormSchemaColumn(
+        "contacts__0__email",
+        FormSchemaColumnKind.PanelDynamicIndex,
+        "Email (contacts #1)",
+        "string",
+        SourceQuestion: "email",
+        PanelName: "contacts",
+        PanelIndex: 0),
+    ]);
+
+    MergedFormSchema restored = MergedFormSchema.FromJson(original.ToJson());
+
+    restored.Columns.Should().BeEquivalentTo(original.Columns);
+  }
 }

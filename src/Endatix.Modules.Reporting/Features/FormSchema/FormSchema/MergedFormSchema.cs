@@ -89,64 +89,73 @@ internal sealed class MergedFormSchema
 
         foreach (var item in document.RootElement.EnumerateArray())
         {
-            var key = item.GetProperty("key").GetString()!;
-            var kind = Enum.Parse<FormSchemaColumnKind>(item.GetProperty("kind").GetString()!);
-            var label = item.GetProperty("label").GetString() ?? key;
-            var dataType = item.TryGetProperty("dataType", out var dataTypeProp)
-                ? dataTypeProp.GetString() ?? "string"
-                : "string";
-
-            var sourceQuestion = item.TryGetProperty("sourceQuestion", out var sourceQuestionProp)
-                ? sourceQuestionProp.GetString()
-                : null;
-
-            var choiceValue = item.TryGetProperty("choiceValue", out var choiceValueProp)
-                ? choiceValueProp.GetString()
-                : null;
-
-            var panelName = item.TryGetProperty("panelName", out var panelNameProp)
-                ? panelNameProp.GetString()
-                : null;
-
-            int? panelIndex = item.TryGetProperty("panelIndex", out var panelIndexProp) &&
-                             panelIndexProp.ValueKind == JsonValueKind.Number
-                ? panelIndexProp.GetInt32()
-                : null;
-
-            var matrixRowValue = item.TryGetProperty("matrixRowValue", out var matrixRowValueProp)
-                ? matrixRowValueProp.GetString()
-                : null;
-
-            var matrixColumnValue = item.TryGetProperty("matrixColumnValue", out var matrixColumnValueProp)
-                ? matrixColumnValueProp.GetString()
-                : null;
-
-            List<LoopSegment>? loopPath = null;
-            if (item.TryGetProperty("loopPath", out var loopPathProp) &&
-                loopPathProp.ValueKind == JsonValueKind.Array)
-            {
-                loopPath = loopPathProp.EnumerateArray()
-                    .Select(segment => new LoopSegment(
-                        segment.GetProperty("panelValueName").GetString()!,
-                        segment.GetProperty("propertyName").GetString()!,
-                        segment.GetProperty("choiceValue").GetString()!))
-                    .ToList();
-            }
-
-            columns.Add(new FormSchemaColumn(
-                key,
-                kind,
-                label,
-                dataType,
-                sourceQuestion,
-                choiceValue,
-                loopPath,
-                panelName,
-                panelIndex,
-                matrixRowValue,
-                matrixColumnValue));
+            columns.Add(ParseColumn(item));
         }
 
         return new MergedFormSchema(columns);
+    }
+
+    private static FormSchemaColumn ParseColumn(JsonElement item)
+    {
+        var key = item.GetProperty("key").GetString()!;
+        var kind = Enum.Parse<FormSchemaColumnKind>(item.GetProperty("kind").GetString()!);
+        var label = item.GetProperty("label").GetString() ?? key;
+        var dataType = item.TryGetProperty("dataType", out var dataTypeProp)
+            ? dataTypeProp.GetString() ?? "string"
+            : "string";
+
+        var sourceQuestion = item.TryGetProperty("sourceQuestion", out var sourceQuestionProp)
+            ? sourceQuestionProp.GetString()
+            : null;
+
+        var choiceValue = item.TryGetProperty("choiceValue", out var choiceValueProp)
+            ? choiceValueProp.GetString()
+            : null;
+
+        var panelName = item.TryGetProperty("panelName", out var panelNameProp)
+            ? panelNameProp.GetString()
+            : null;
+
+        int? panelIndex = item.TryGetProperty("panelIndex", out var panelIndexProp) &&
+                         panelIndexProp.ValueKind == JsonValueKind.Number
+            ? panelIndexProp.GetInt32()
+            : null;
+
+        var matrixRowValue = item.TryGetProperty("matrixRowValue", out var matrixRowValueProp)
+            ? matrixRowValueProp.GetString()
+            : null;
+
+        var matrixColumnValue = item.TryGetProperty("matrixColumnValue", out var matrixColumnValueProp)
+            ? matrixColumnValueProp.GetString()
+            : null;
+
+        return new FormSchemaColumn(
+            key,
+            kind,
+            label,
+            dataType,
+            sourceQuestion,
+            choiceValue,
+            ParseLoopPath(item),
+            panelName,
+            panelIndex,
+            matrixRowValue,
+            matrixColumnValue);
+    }
+
+    private static List<LoopSegment>? ParseLoopPath(JsonElement item)
+    {
+        if (!item.TryGetProperty("loopPath", out var loopPathProp) ||
+            loopPathProp.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        return loopPathProp.EnumerateArray()
+            .Select(segment => new LoopSegment(
+                segment.GetProperty("panelValueName").GetString()!,
+                segment.GetProperty("propertyName").GetString()!,
+                segment.GetProperty("choiceValue").GetString()!))
+            .ToList();
     }
 }
