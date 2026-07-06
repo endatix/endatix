@@ -1,0 +1,17 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "matrixdynamic",
+          "name": "participants",
+          "title": "List of participants",
+          "columns": [
+            { "name": "floId", "title": "FLO-ID" },
+            { "name": "name", "title": "Name" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "pages": [
+    {
+      "elements": [
+        { "type": "text", "name": "itemQty", "title": "Quantity", "inputType": "number" },
+        { "type": "text", "name": "itemPrice", "title": "Price", "inputType": "number" }
+      ]
+    }
+  ],
+  "calculatedValues": [
+    { "name": "totalAmount", "expression": "{itemQty} * {itemPrice}" }
+  ]
+}

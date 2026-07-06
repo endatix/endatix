@@ -490,6 +490,27 @@ internal static class FormDefinitionFlattener
         HashSet<string> seenKeys,
         SchemaCompilationLimits limits)
     {
+        if (SurveyJsElementType.MatrixDropdown.Matches(collected.Type))
+        {
+            EmitMatrixDropdownColumns(collected, columns, seenKeys, limits);
+            return;
+        }
+
+        if (SurveyJsElementType.MatrixDynamic.Matches(collected.Type))
+        {
+            EmitMatrixDynamicColumns(collected, columns, seenKeys, limits);
+            return;
+        }
+
+        EmitPlainMatrixColumns(collected, columns, seenKeys, limits);
+    }
+
+    private static void EmitPlainMatrixColumns(
+        CollectedElement collected,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
         var name = collected.Name!;
 
         var rowCount = 0;
@@ -513,6 +534,113 @@ internal static class FormDefinitionFlattener
                 SourceQuestion: name,
                 MatrixRowValue: value));
         }
+    }
+
+    private static void EmitMatrixDropdownColumns(
+        CollectedElement collected,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        var name = collected.Name!;
+        var cellCount = 0;
+
+        foreach ((var rowValue, var rowText) in SurveyJsChoiceHelper.EnumerateMatrixRows(collected.Element))
+        {
+            foreach ((var columnValue, var columnText, var columnElement) in SurveyJsChoiceHelper.EnumerateMatrixColumns(collected.Element))
+            {
+                if (++cellCount > limits.MaxChoicesPerQuestion)
+                {
+                    ThrowLimitExceeded(
+                        SchemaCompilationLimitKind.MaxChoicesPerQuestion,
+                        limits.MaxChoicesPerQuestion,
+                        actual: cellCount,
+                        context: name);
+                }
+
+                var key = ExportPathBuilder.MatrixCellKey(name, rowValue, columnValue);
+                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                    key,
+                    FormSchemaColumnKind.MatrixCell,
+                    $"{GetElementTitle(collected.Element, name)} — {rowText} — {columnText}",
+                    MapMatrixCellDataType(columnElement),
+                    SourceQuestion: name,
+                    MatrixRowValue: rowValue,
+                    MatrixColumnValue: columnValue));
+            }
+        }
+    }
+
+    private static void EmitMatrixDynamicColumns(
+        CollectedElement collected,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        var name = collected.Name!;
+        var rowCount = ResolveMatrixRowCount(collected.Element, limits);
+        var cellCount = 0;
+
+        for (var rowIndex = 0; rowIndex < rowCount; rowIndex++)
+        {
+            var rowSegment = rowIndex.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+            foreach ((var columnValue, var columnText, var columnElement) in SurveyJsChoiceHelper.EnumerateMatrixColumns(collected.Element))
+            {
+                if (++cellCount > limits.MaxChoicesPerQuestion)
+                {
+                    ThrowLimitExceeded(
+                        SchemaCompilationLimitKind.MaxChoicesPerQuestion,
+                        limits.MaxChoicesPerQuestion,
+                        actual: cellCount,
+                        context: name);
+                }
+
+                var key = ExportPathBuilder.MatrixCellKey(name, rowSegment, columnValue);
+                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                    key,
+                    FormSchemaColumnKind.MatrixCell,
+                    $"{GetElementTitle(collected.Element, name)} — #{rowIndex + 1} — {columnText}",
+                    MapMatrixCellDataType(columnElement),
+                    SourceQuestion: name,
+                    PanelIndex: rowIndex,
+                    MatrixColumnValue: columnValue));
+            }
+        }
+    }
+
+    private static int ResolveMatrixRowCount(JsonElement matrixElement, SchemaCompilationLimits limits)
+    {
+        var configuredCount = matrixElement.TryGetProperty("maxRowCount", out var maxRowCountProp) &&
+                              maxRowCountProp.ValueKind == JsonValueKind.Number
+            ? maxRowCountProp.GetInt32()
+            : matrixElement.TryGetProperty("rowCount", out var rowCountProp) &&
+              rowCountProp.ValueKind == JsonValueKind.Number
+                ? rowCountProp.GetInt32()
+                : limits.MaxMatrixRowCount;
+
+        if (configuredCount < 0)
+        {
+            configuredCount = 0;
+        }
+
+        return Math.Min(configuredCount, limits.MaxMatrixRowCount);
+    }
+
+    private static string MapMatrixCellDataType(JsonElement columnElement)
+    {
+        if (columnElement.ValueKind != JsonValueKind.Object)
+        {
+            return "string";
+        }
+
+        if (columnElement.TryGetProperty("inputType", out var inputType) &&
+            string.Equals(inputType.GetString(), "number", StringComparison.OrdinalIgnoreCase))
+        {
+            return "number";
+        }
+
+        return "string";
     }
 
     private static void EmitMultipleTextColumns(
@@ -772,7 +900,9 @@ internal static class FormDefinitionFlattener
         element.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
 
     private static string GetElementTitle(JsonElement element, string fallback) =>
-        element.TryGetProperty("title", out var titleProp) && !string.IsNullOrWhiteSpace(titleProp.GetString())
+        element.TryGetProperty("title", out var titleProp) &&
+        titleProp.ValueKind == JsonValueKind.String &&
+        !string.IsNullOrWhiteSpace(titleProp.GetString())
             ? titleProp.GetString()!
             : fallback;
 

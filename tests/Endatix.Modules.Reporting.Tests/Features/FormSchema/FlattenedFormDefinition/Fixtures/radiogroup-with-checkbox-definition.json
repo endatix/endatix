@@ -1,0 +1,27 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "drivingRg",
+          "title": "Driving radiogroup",
+          "valuePropertyName": "drivenValue",
+          "choices": [
+            { "value": "a", "text": "Option A" },
+            { "value": "b", "text": "Option B" }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "nonDrivingCb",
+          "title": "Non-driving checkbox",
+          "choices": [
+            { "value": "x", "text": "Choice X" },
+            { "value": "y", "text": "Choice Y" }
+          ]
+        }
+      ]
+    }
+  ]
+}

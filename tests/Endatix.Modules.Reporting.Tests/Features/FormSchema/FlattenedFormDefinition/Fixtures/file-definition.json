@@ -1,0 +1,13 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "file",
+          "name": "photo",
+          "title": "Take a photo"
+        }
+      ]
+    }
+  ]
+}

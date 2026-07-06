@@ -4,6 +4,64 @@ namespace Endatix.Modules.Reporting.Shared.SurveyJs;
 
 internal static class SurveyJsChoiceHelper
 {
+    private static string? GetChoiceValueString(JsonElement choice)
+    {
+        if (choice.ValueKind == JsonValueKind.String)
+        {
+            return choice.GetString();
+        }
+
+        if (choice.ValueKind == JsonValueKind.Number)
+        {
+            return choice.GetRawText();
+        }
+
+        if (choice.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (choice.TryGetProperty("value", out var valueProp))
+        {
+            return valueProp.ValueKind switch
+            {
+                JsonValueKind.String => valueProp.GetString(),
+                JsonValueKind.Number => valueProp.GetRawText(),
+                _ => null,
+            };
+        }
+
+        if (choice.TryGetProperty("text", out var textProp) &&
+            textProp.ValueKind == JsonValueKind.String)
+        {
+            return textProp.GetString();
+        }
+
+        return null;
+    }
+
+    private static string GetChoiceTextLabel(JsonElement choice, string value)
+    {
+        if (choice.ValueKind == JsonValueKind.String)
+        {
+            return value;
+        }
+
+        if (choice.ValueKind != JsonValueKind.Object)
+        {
+            return value;
+        }
+
+        if (choice.TryGetProperty("text", out var labelProp))
+        {
+            return labelProp.ValueKind == JsonValueKind.String
+                ? labelProp.GetString() ?? value
+                : value;
+        }
+
+        return value;
+    }
+
     internal static List<string> GetChoiceValues(JsonElement choicesElement)
     {
         List<string> values = [];
@@ -15,23 +73,7 @@ internal static class SurveyJsChoiceHelper
 
         foreach (var choice in choicesElement.EnumerateArray())
         {
-            if (choice.ValueKind == JsonValueKind.String)
-            {
-                values.Add(choice.GetString()!);
-                continue;
-            }
-
-            if (choice.ValueKind != JsonValueKind.Object)
-            {
-                continue;
-            }
-
-            var value = choice.TryGetProperty("value", out var valueProp)
-                ? valueProp.GetString()
-                : choice.TryGetProperty("text", out var textProp)
-                    ? textProp.GetString()
-                    : null;
-
+            var value = GetChoiceValueString(choice);
             if (value is not null)
             {
                 values.Add(value);
@@ -51,34 +93,13 @@ internal static class SurveyJsChoiceHelper
 
         foreach (var choice in choices.EnumerateArray())
         {
-            if (choice.ValueKind == JsonValueKind.String)
-            {
-                var text = choice.GetString()!;
-                yield return (text, text);
-                continue;
-            }
-
-            if (choice.ValueKind != JsonValueKind.Object)
-            {
-                continue;
-            }
-
-            var value = choice.TryGetProperty("value", out var valueProp)
-                ? valueProp.GetString()
-                : choice.TryGetProperty("text", out var textProp)
-                    ? textProp.GetString()
-                    : null;
-
+            var value = GetChoiceValueString(choice);
             if (value is null)
             {
                 continue;
             }
 
-            var textLabel = choice.TryGetProperty("text", out var labelProp)
-                ? labelProp.GetString() ?? value
-                : value;
-
-            yield return (value, textLabel);
+            yield return (value, GetChoiceTextLabel(choice, value));
         }
     }
 
@@ -92,34 +113,59 @@ internal static class SurveyJsChoiceHelper
 
         foreach (var row in rows.EnumerateArray())
         {
-            if (row.ValueKind == JsonValueKind.String)
-            {
-                var text = row.GetString()!;
-                yield return (text, text);
-                continue;
-            }
-
-            if (row.ValueKind != JsonValueKind.Object)
+            var value = GetChoiceValueString(row);
+            if (value is null)
             {
                 continue;
             }
 
-            var value = row.TryGetProperty("value", out var valueProp)
-                ? valueProp.GetString()
-                : row.TryGetProperty("text", out var textProp)
-                    ? textProp.GetString()
-                    : null;
+            yield return (value, GetChoiceTextLabel(row, value));
+        }
+    }
+
+    internal static IEnumerable<(string Value, string Text, JsonElement ColumnElement)> EnumerateMatrixColumns(
+        JsonElement element)
+    {
+        if (!element.TryGetProperty("columns", out var columns) ||
+            columns.ValueKind != JsonValueKind.Array)
+        {
+            yield break;
+        }
+
+        foreach (var column in columns.EnumerateArray())
+        {
+            if (column.ValueKind == JsonValueKind.String)
+            {
+                var text = column.GetString()!;
+                yield return (text, text, column);
+                continue;
+            }
+
+            if (column.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var value = column.TryGetProperty("name", out var nameProp)
+                ? nameProp.GetString()
+                : column.TryGetProperty("value", out var valueProp)
+                    ? valueProp.GetString()
+                    : column.TryGetProperty("text", out var textProp)
+                        ? textProp.GetString()
+                        : null;
 
             if (value is null)
             {
                 continue;
             }
 
-            var textLabel = row.TryGetProperty("text", out var labelProp)
-                ? labelProp.GetString() ?? value
-                : value;
+            var textLabel = column.TryGetProperty("title", out var titleProp)
+                ? titleProp.GetString() ?? value
+                : column.TryGetProperty("text", out var labelProp)
+                    ? labelProp.GetString() ?? value
+                    : value;
 
-            yield return (value, textLabel);
+            yield return (value, textLabel, column);
         }
     }
 

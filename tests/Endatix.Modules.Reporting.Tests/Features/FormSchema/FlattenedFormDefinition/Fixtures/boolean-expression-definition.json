@@ -1,0 +1,24 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "boolean",
+          "name": "isActive",
+          "title": "Is active"
+        },
+        {
+          "type": "expression",
+          "name": "score",
+          "title": "Score",
+          "expression": "{age}"
+        },
+        {
+          "type": "html",
+          "name": "info",
+          "html": "<p>skipped</p>"
+        }
+      ]
+    }
+  ]
+}

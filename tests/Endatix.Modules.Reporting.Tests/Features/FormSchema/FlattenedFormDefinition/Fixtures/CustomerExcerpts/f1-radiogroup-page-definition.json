@@ -1,0 +1,21 @@
+{
+  "pages": [
+    {
+      "name": "page17",
+      "visibleIf": "{paramG} empty",
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "pFormaPago",
+          "visibleIf": "{pClassAcceso} = 1",
+          "title": { "es": "¿Cómo efectuó el pago?" },
+          "isRequired": true,
+          "choices": [
+            { "value": 1, "text": { "es": "Efectivo" } },
+            { "value": 2, "text": { "es": "Tarjeta" } }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "pages": [
+    {
+      "name": "page6",
+      "elements": [
+        {
+          "type": "text",
+          "name": "pBarcode",
+          "title": { "es": "Código de barras" },
+          "inputType": "number",
+          "min": 0
+        },
+        {
+          "type": "checkbox",
+          "name": "pNoBarcode",
+          "title": { "es": "Sin código de barras" },
+          "choices": [{ "value": 1, "text": { "es": "No tiene código" } }]
+        }
+      ]
+    }
+  ]
+}

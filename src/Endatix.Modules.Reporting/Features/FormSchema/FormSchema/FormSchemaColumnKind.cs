@@ -9,6 +9,7 @@ internal enum FormSchemaColumnKind
     PanelDynamicIndex,
     NestedLoop,
     MatrixRow,
+    MatrixCell,
     RankingChoice,
     MultipleTextItem,
     FileUpload,

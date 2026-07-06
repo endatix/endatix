@@ -64,6 +64,7 @@ internal sealed class MergedFormSchema
             panelName = column.PanelName,
             panelIndex = column.PanelIndex,
             matrixRowValue = column.MatrixRowValue,
+            matrixColumnValue = column.MatrixColumnValue,
             loopPath = column.LoopPath?.Select(segment => new
             {
                 panelValueName = segment.PanelValueName,
@@ -110,6 +111,10 @@ internal sealed class MergedFormSchema
                 ? matrixRowValueProp.GetString()
                 : null;
 
+            var matrixColumnValue = item.TryGetProperty("matrixColumnValue", out var matrixColumnValueProp)
+                ? matrixColumnValueProp.GetString()
+                : null;
+
             List<LoopSegment>? loopPath = null;
             if (item.TryGetProperty("loopPath", out var loopPathProp) &&
                 loopPathProp.ValueKind == JsonValueKind.Array)
@@ -132,7 +137,8 @@ internal sealed class MergedFormSchema
                 loopPath,
                 panelName,
                 panelIndex,
-                matrixRowValue));
+                matrixRowValue,
+                matrixColumnValue));
         }
 
         return new MergedFormSchema(columns);

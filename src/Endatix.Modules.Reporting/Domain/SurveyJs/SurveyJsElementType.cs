@@ -84,6 +84,7 @@ internal sealed record SurveyJsElementType
 
     // File
     public static readonly SurveyJsElementType FileUpload = new("file", SurveyJsElementCategory.File, SurveyJsFlattening.File);
+    public static readonly SurveyJsElementType Video = new("video", SurveyJsElementCategory.File, SurveyJsFlattening.File);
 
     // Base select
     public static readonly SurveyJsElementType Checkbox = new("checkbox", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.CheckboxChoices);
@@ -120,6 +121,7 @@ internal sealed record SurveyJsElementType
         Expression,
         Slider,
         FileUpload,
+        Video,
         Checkbox,
         Tagbox,
         Radiogroup,
@@ -140,8 +142,6 @@ internal sealed record SurveyJsElementType
     public static IReadOnlyList<SurveyJsElementType> ContainerTypes { get; } = FreezeCategory(SurveyJsElementCategory.Container);
 
     public static IReadOnlyList<SurveyJsElementType> ScalarTypes { get; } = FreezeCategory(SurveyJsElementCategory.Scalar);
-
-    public static IReadOnlyList<SurveyJsElementType> PrimitiveTypes => ScalarTypes;
 
     public static IReadOnlyList<SurveyJsElementType> FileTypes { get; } = FreezeCategory(SurveyJsElementCategory.File);
 

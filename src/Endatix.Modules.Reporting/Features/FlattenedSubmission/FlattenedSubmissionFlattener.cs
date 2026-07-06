@@ -61,10 +61,13 @@ internal static class FlattenedSubmissionFlattener
                 TryGetOtherText(submission, column.SourceQuestion!),
 
             FormSchemaColumnKind.MatrixRow =>
-                TryGetMatrixRowValue(submission, column.SourceQuestion!, column.MatrixRowValue!),
+                TryGetPlainMatrixRowValue(submission, column.SourceQuestion!, column.MatrixRowValue!),
+
+            FormSchemaColumnKind.MatrixCell =>
+                TryGetMatrixCellValue(submission, column),
 
             FormSchemaColumnKind.MultipleTextItem =>
-                TryGetMatrixRowValue(submission, column.SourceQuestion!, column.MatrixRowValue!),
+                TryGetPlainMatrixRowValue(submission, column.SourceQuestion!, column.MatrixRowValue!),
 
             FormSchemaColumnKind.FileUpload =>
                 TryGetFileValue(submission, column.SourceQuestion ?? column.Key),
@@ -160,7 +163,7 @@ internal static class FlattenedSubmissionFlattener
         return TryGetProperty(submission, otherCommentKey);
     }
 
-    private static JsonElement? TryGetMatrixRowValue(
+    private static JsonElement? TryGetPlainMatrixRowValue(
         JsonElement submission,
         string matrixName,
         string rowValue)
@@ -173,6 +176,61 @@ internal static class FlattenedSubmissionFlattener
         }
 
         return rowAnswer;
+    }
+
+    private static JsonElement? TryGetMatrixCellValue(JsonElement submission, FormSchemaColumn column)
+    {
+        if (column.SourceQuestion is null || column.MatrixColumnValue is null)
+        {
+            return null;
+        }
+
+        if (!submission.TryGetProperty(column.SourceQuestion, out var matrixAnswer))
+        {
+            return null;
+        }
+
+        if (column.MatrixRowValue is not null)
+        {
+            if (matrixAnswer.ValueKind != JsonValueKind.Object ||
+                !matrixAnswer.TryGetProperty(column.MatrixRowValue, out var rowAnswer) ||
+                rowAnswer.ValueKind != JsonValueKind.Object ||
+                !rowAnswer.TryGetProperty(column.MatrixColumnValue, out var cellValue))
+            {
+                return null;
+            }
+
+            return cellValue;
+        }
+
+        if (column.PanelIndex is null)
+        {
+            return null;
+        }
+
+        if (matrixAnswer.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var index = 0;
+        foreach (var row in matrixAnswer.EnumerateArray())
+        {
+            if (index == column.PanelIndex.Value)
+            {
+                if (row.ValueKind != JsonValueKind.Object ||
+                    !row.TryGetProperty(column.MatrixColumnValue, out var cellValue))
+                {
+                    return null;
+                }
+
+                return cellValue;
+            }
+
+            index++;
+        }
+
+        return null;
     }
 
     private static JsonElement? TryGetFileValue(JsonElement submission, string questionName)

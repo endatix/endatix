@@ -30,6 +30,8 @@ public class FlattenedSubmissionFlattenerTests
     [InlineData("nested-loop-definition.json", "nested-loop-submission.json", "nested-loop-expected-flat.json")]
     [InlineData("ranking-definition.json", "ranking-submission.json", "ranking-expected-flat.json")]
     [InlineData("multipletext-definition.json", "multipletext-submission.json", "multipletext-expected-flat.json")]
+    [InlineData("matrixdropdown-definition.json", "matrixdropdown-submission.json", "matrixdropdown-expected-flat.json")]
+    [InlineData("matrixdynamic-definition.json", "matrixdynamic-submission.json", "matrixdynamic-expected-flat.json")]
     public void Flatten_MapsSubmissionToFormSchemaKeys(
         string definitionFixture,
         string submissionFixture,
@@ -38,7 +40,9 @@ public class FlattenedSubmissionFlattenerTests
         JsonElement definition = FormSchemaFixtureLoader.LoadDefinition(definitionFixture);
         SchemaCompilationLimits limits = definitionFixture.Contains("paneldynamic", StringComparison.Ordinal)
             ? new SchemaCompilationLimits { MaxPanelCount = 2 }
-            : SchemaCompilationLimits.Default;
+            : definitionFixture.Contains("matrixdynamic", StringComparison.Ordinal)
+                ? new SchemaCompilationLimits { MaxMatrixRowCount = 2 }
+                : SchemaCompilationLimits.Default;
 
         MergedFormSchema formSchema = new(FormDefinitionFlattener.Flatten(definition, limits));
         JsonElement submission = FormSchemaFixtureLoader.LoadJson(submissionFixture);

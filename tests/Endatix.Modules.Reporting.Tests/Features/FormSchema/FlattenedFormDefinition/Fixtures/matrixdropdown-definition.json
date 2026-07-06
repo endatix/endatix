@@ -1,0 +1,21 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "matrixdropdown",
+          "name": "orgCount",
+          "title": "Organisation counts",
+          "columns": [
+            { "name": "N_org", "title": "Count", "cellType": "text", "inputType": "number" },
+            { "name": "Notes", "title": "Notes", "cellType": "text" }
+          ],
+          "rows": [
+            { "value": "SPO_small", "text": "Small SPO" },
+            { "value": "SPO_large", "text": "Large SPO" }
+          ]
+        }
+      ]
+    }
+  ]
+}

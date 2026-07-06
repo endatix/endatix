@@ -13,4 +13,5 @@ internal sealed record FormSchemaColumn(
     IReadOnlyList<LoopSegment>? LoopPath = null,
     string? PanelName = null,
     int? PanelIndex = null,
-    string? MatrixRowValue = null);
+    string? MatrixRowValue = null,
+    string? MatrixColumnValue = null);

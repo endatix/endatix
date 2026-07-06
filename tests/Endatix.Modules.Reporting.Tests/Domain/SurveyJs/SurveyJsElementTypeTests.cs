@@ -17,6 +17,7 @@ public class SurveyJsElementTypeTests
     [InlineData("expression")]
     [InlineData("multipletext")]
     [InlineData("file")]
+    [InlineData("video")]
     [InlineData("imagepicker")]
     [InlineData("slider")]
     [InlineData("buttongroup")]
@@ -101,6 +102,13 @@ public class SurveyJsElementTypeTests
     }
 
     [Fact]
+    public void Video_IsFileCategory()
+    {
+        SurveyJsElementType.Video.Category.Should().Be(SurveyJsElementCategory.File);
+        SurveyJsElementType.Video.Flattening.Should().Be(SurveyJsFlattening.File);
+    }
+
+    [Fact]
     public void AggregateCollections_AreDerivedFromAllTypes()
     {
         SurveyJsElementType.AllTypes.Should().Contain(SurveyJsElementType.ScalarTypes);
@@ -108,6 +116,5 @@ public class SurveyJsElementTypeTests
         SurveyJsElementType.AllTypes.Should().Contain(SurveyJsElementType.MatrixTypes);
         SurveyJsElementType.AllTypes.Should().Contain(SurveyJsElementType.FileTypes);
         SurveyJsElementType.AllTypes.Should().Contain(SurveyJsElementType.MultipleTextTypes);
-        SurveyJsElementType.PrimitiveTypes.Should().BeEquivalentTo(SurveyJsElementType.ScalarTypes);
     }
 }

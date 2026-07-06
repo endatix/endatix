@@ -1,0 +1,18 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "multipletext",
+          "name": "contact",
+          "title": "Contact details",
+          "items": [
+            { "name": "firstName", "title": "First name" },
+            { "name": "lastName", "title": "Last name" },
+            { "name": "age", "title": "Age", "inputType": "number" }
+          ]
+        }
+      ]
+    }
+  ]
+}

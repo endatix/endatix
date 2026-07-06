@@ -6,6 +6,8 @@ internal sealed class SchemaCompilationLimits
 
     public int MaxPanelCount { get; init; } = 10;
 
+    public int MaxMatrixRowCount { get; init; } = 10;
+
     public int MaxQuestions { get; init; } = 1_500;
 
     public int MaxChoicesPerQuestion { get; init; } = 2_500;

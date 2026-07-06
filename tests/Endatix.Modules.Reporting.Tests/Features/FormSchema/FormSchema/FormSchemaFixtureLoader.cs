@@ -4,28 +4,25 @@ namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 
 internal static class FormSchemaFixtureLoader
 {
-    internal static JsonElement LoadDefinition(string fixtureName)
-    {
-        string path = Path.Combine(
+    private static string FixturesRoot =>
+        Path.Combine(
             AppContext.BaseDirectory,
             "Features",
             "FormSchema",
             "FlattenedFormDefinition",
-            "Fixtures",
-            fixtureName);
-        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(path));
-        return document.RootElement.Clone();
-    }
+            "Fixtures");
+
+    internal static JsonElement LoadDefinition(string fixtureName) => LoadJson(fixtureName);
+
+    internal static JsonElement LoadCustomerExcerptDefinition(string fixtureName) =>
+        LoadJson(Path.Combine("CustomerExcerpts", fixtureName));
+
+    internal static IReadOnlyList<string> LoadCustomerExcerptExpectedKeys(string fixtureName) =>
+        LoadExpectedKeys(Path.Combine("CustomerExcerpts", fixtureName));
 
     internal static JsonElement LoadJson(string fixtureName)
     {
-        string path = Path.Combine(
-            AppContext.BaseDirectory,
-            "Features",
-            "FormSchema",
-            "FlattenedFormDefinition",
-            "Fixtures",
-            fixtureName);
+        string path = Path.Combine(FixturesRoot, fixtureName);
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(path));
         return document.RootElement.Clone();
     }

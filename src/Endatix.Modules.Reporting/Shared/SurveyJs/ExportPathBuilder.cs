@@ -58,6 +58,9 @@ internal static class ExportPathBuilder
     internal static string MatrixRowKey(string matrixName, string rowValue) =>
         Join(matrixName, rowValue);
 
+    internal static string MatrixCellKey(string matrixName, string rowSegment, string columnName) =>
+        Join(matrixName, rowSegment, columnName);
+
     internal static string MultipleTextItemKey(string questionName, string itemName) =>
         Join(questionName, itemName);
 }
