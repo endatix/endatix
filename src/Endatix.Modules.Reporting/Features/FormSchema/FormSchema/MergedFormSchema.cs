@@ -11,14 +11,20 @@ internal sealed class MergedFormSchema
 
     public MergedFormSchema(IEnumerable<FormSchemaColumn> columns)
     {
-        var columnList = columns.ToList();
-        _columnsByKey = new Dictionary<string, FormSchemaColumn>(columnList.Count, StringComparer.Ordinal);
-        foreach (var column in columnList)
+        List<FormSchemaColumn> dedupedColumns = [];
+        _columnsByKey = new Dictionary<string, FormSchemaColumn>(StringComparer.Ordinal);
+
+        foreach (var column in columns)
         {
-            _columnsByKey.TryAdd(column.Key, column);
+            if (!_columnsByKey.TryAdd(column.Key, column))
+            {
+                continue;
+            }
+
+            dedupedColumns.Add(column);
         }
 
-        Columns = columnList;
+        Columns = dedupedColumns;
     }
 
     public IReadOnlyList<FormSchemaColumn> Columns { get; }

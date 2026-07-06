@@ -39,4 +39,18 @@ public class FormSchemaCompilerTests
 
     merged.Columns.Select(column => column.Key).Should().Equal("firstName", "lastName");
   }
+
+  [Fact]
+  public void Constructor_DeduplicatesColumnsByKey_KeepsFirstOccurrence()
+  {
+    MergedFormSchema schema = new(
+    [
+      new FormSchemaColumn("score", FormSchemaColumnKind.Simple, "First", "string"),
+      new FormSchemaColumn("score", FormSchemaColumnKind.Calculated, "Duplicate", "string"),
+      new FormSchemaColumn("name", FormSchemaColumnKind.Simple, "Name", "string"),
+    ]);
+
+    schema.Columns.Select(column => column.Key).Should().Equal("score", "name");
+    schema.Columns.Single(column => column.Key == "score").Label.Should().Be("First");
+  }
 }
