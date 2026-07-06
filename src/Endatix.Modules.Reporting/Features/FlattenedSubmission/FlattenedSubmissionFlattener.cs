@@ -121,8 +121,11 @@ internal static class FlattenedSubmissionFlattener
                string.Equals(answer.GetString(), choiceValue, StringComparison.Ordinal);
     }
 
-    private static JsonElement ToBooleanJson(bool value) =>
-        JsonDocument.Parse(value ? "1" : "0").RootElement.Clone();
+    private static JsonElement ToBooleanJson(bool value)
+    {
+        using var document = JsonDocument.Parse(value ? "1" : "0");
+        return document.RootElement.Clone();
+    }
 
     private static int GetRankPosition(JsonElement submission, string questionName, string choiceValue)
     {
@@ -147,8 +150,11 @@ internal static class FlattenedSubmissionFlattener
         return 0;
     }
 
-    private static JsonElement ToRankJson(int rank) =>
-        JsonDocument.Parse(rank.ToString(System.Globalization.CultureInfo.InvariantCulture)).RootElement.Clone();
+    private static JsonElement ToRankJson(int rank)
+    {
+        using var document = JsonDocument.Parse(rank.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return document.RootElement.Clone();
+    }
 
     private static JsonElement? TryGetOtherText(JsonElement submission, string questionName)
     {
@@ -281,8 +287,11 @@ internal static class FlattenedSubmissionFlattener
         return ToStringJson(string.Join("; ", fileReferences));
     }
 
-    private static JsonElement ToStringJson(string value) =>
-        JsonDocument.Parse(JsonSerializer.Serialize(value)).RootElement.Clone();
+    private static JsonElement ToStringJson(string value)
+    {
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(value));
+        return document.RootElement.Clone();
+    }
 
     private static JsonElement? TryGetPanelIndexValue(JsonElement submission, FormSchemaColumn column)
     {
