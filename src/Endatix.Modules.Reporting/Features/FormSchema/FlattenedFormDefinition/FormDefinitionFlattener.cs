@@ -716,13 +716,21 @@ internal static class FormDefinitionFlattener
 
     private static int ResolveMatrixRowCount(JsonElement matrixElement, SchemaCompilationLimits limits)
     {
-        var configuredCount = matrixElement.TryGetProperty("maxRowCount", out var maxRowCountProp) &&
-                              maxRowCountProp.ValueKind == JsonValueKind.Number
-            ? maxRowCountProp.GetInt32()
-            : matrixElement.TryGetProperty("rowCount", out var rowCountProp) &&
-              rowCountProp.ValueKind == JsonValueKind.Number
-                ? rowCountProp.GetInt32()
-                : limits.MaxMatrixRowCount;
+        int configuredCount;
+        if (matrixElement.TryGetProperty("maxRowCount", out var maxRowCountProp) &&
+            maxRowCountProp.ValueKind == JsonValueKind.Number)
+        {
+            configuredCount = maxRowCountProp.GetInt32();
+        }
+        else if (matrixElement.TryGetProperty("rowCount", out var rowCountProp) &&
+                 rowCountProp.ValueKind == JsonValueKind.Number)
+        {
+            configuredCount = rowCountProp.GetInt32();
+        }
+        else
+        {
+            configuredCount = limits.MaxMatrixRowCount;
+        }
 
         if (configuredCount < 0)
         {
