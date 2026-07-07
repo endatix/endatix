@@ -49,6 +49,18 @@ public class SurveyJsJsonElementExtensionsTests
     }
 
     [Fact]
+    public void TryGetInt32Property_OutOfRange_ReturnsFalse()
+    {
+        using JsonDocument document = JsonDocument.Parse("""{ "maxRowCount": 2147483648 }""");
+        JsonElement element = document.RootElement;
+
+        bool found = element.TryGetInt32Property("maxRowCount", out int value);
+
+        found.Should().BeFalse();
+        value.Should().Be(0);
+    }
+
+    [Fact]
     public void GetBooleanProperty_UsesDefaultWhenMissing()
     {
         using JsonDocument document = JsonDocument.Parse("""{ "showOtherItem": false }""");

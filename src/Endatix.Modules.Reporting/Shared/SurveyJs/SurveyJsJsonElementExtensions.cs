@@ -68,11 +68,9 @@ internal static class SurveyJsJsonElementExtensions
 
     public static bool TryGetInt32Property(this JsonElement element, string propertyName, out int value)
     {
-        if (element.TryGetProperty(propertyName, out var property) &&
-            property.ValueKind == JsonValueKind.Number)
+        if (element.TryGetProperty(propertyName, out var property))
         {
-            value = property.GetInt32();
-            return true;
+            return property.TryGetInt32(out value);
         }
 
         value = default;
