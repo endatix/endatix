@@ -42,21 +42,22 @@ internal static class SurveyJsChoiceHelper
 
     private static string GetChoiceTextLabel(JsonElement choice, string value)
     {
-        if (choice.ValueKind == JsonValueKind.String)
+        if (choice.ValueKind == JsonValueKind.String ||
+            choice.ValueKind != JsonValueKind.Object)
         {
             return value;
         }
 
-        if (choice.ValueKind != JsonValueKind.Object)
+        if (choice.TryGetProperty("title", out var titleProp) &&
+            titleProp.ValueKind == JsonValueKind.String)
         {
-            return value;
+            return titleProp.GetString() ?? value;
         }
 
-        if (choice.TryGetProperty("text", out var labelProp))
+        if (choice.TryGetProperty("text", out var labelProp) &&
+            labelProp.ValueKind == JsonValueKind.String)
         {
-            return labelProp.ValueKind == JsonValueKind.String
-                ? labelProp.GetString() ?? value
-                : value;
+            return labelProp.GetString() ?? value;
         }
 
         return value;
@@ -159,13 +160,7 @@ internal static class SurveyJsChoiceHelper
                 continue;
             }
 
-            var textLabel = column.TryGetProperty("title", out var titleProp)
-                ? titleProp.GetString() ?? value
-                : column.TryGetProperty("text", out var labelProp)
-                    ? labelProp.GetString() ?? value
-                    : value;
-
-            yield return (value, textLabel, column);
+            yield return (value, GetChoiceTextLabel(column, value), column);
         }
     }
 
@@ -204,13 +199,7 @@ internal static class SurveyJsChoiceHelper
                 continue;
             }
 
-            var textLabel = item.TryGetProperty("title", out var titleProp)
-                ? titleProp.GetString() ?? value
-                : item.TryGetProperty("text", out var labelProp)
-                    ? labelProp.GetString() ?? value
-                    : value;
-
-            yield return (value, textLabel);
+            yield return (value, GetChoiceTextLabel(item, value));
         }
     }
 }
