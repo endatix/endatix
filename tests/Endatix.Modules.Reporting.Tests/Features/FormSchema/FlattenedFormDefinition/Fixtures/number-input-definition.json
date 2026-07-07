@@ -1,0 +1,19 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "text",
+          "name": "age",
+          "title": "Age",
+          "inputType": "number"
+        },
+        {
+          "type": "text",
+          "name": "fullName",
+          "title": "Full name"
+        }
+      ]
+    }
+  ]
+}

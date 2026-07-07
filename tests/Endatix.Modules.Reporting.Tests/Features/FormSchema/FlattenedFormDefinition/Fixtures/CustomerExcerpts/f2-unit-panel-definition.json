@@ -1,0 +1,47 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "panel",
+          "name": "unitPanel",
+          "elements": [
+            {
+              "type": "panel",
+              "name": "unitPanel.inner",
+              "elements": [
+                {
+                  "type": "dropdown",
+                  "name": "serialPicker",
+                  "title": "Serial number",
+                  "choices": ["SN-001", "SN-002"]
+                },
+                {
+                  "type": "expression",
+                  "name": "lockCode",
+                  "title": "Lock code",
+                  "expression": "iif({serialPicker} = 'SN-001', '1234', '5678')"
+                },
+                {
+                  "type": "boolean",
+                  "name": "unitEmpty",
+                  "title": "Unit is empty"
+                },
+                {
+                  "type": "file",
+                  "name": "unitPhoto",
+                  "title": "Unit photo"
+                },
+                {
+                  "type": "video",
+                  "name": "verificationVideo",
+                  "title": "Verification video"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

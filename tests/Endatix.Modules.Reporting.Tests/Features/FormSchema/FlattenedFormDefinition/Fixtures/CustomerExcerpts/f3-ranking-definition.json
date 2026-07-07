@@ -1,0 +1,18 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "ranking",
+          "name": "priorities",
+          "title": "Rank from most to least practical",
+          "choices": [
+            { "value": "Item 1", "text": "Action A" },
+            { "value": "Item 2", "text": "Action B" },
+            { "value": "Item 3", "text": "Action C" }
+          ]
+        }
+      ]
+    }
+  ]
+}

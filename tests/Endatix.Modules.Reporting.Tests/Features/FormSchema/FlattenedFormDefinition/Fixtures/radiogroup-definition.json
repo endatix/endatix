@@ -1,0 +1,18 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "carColor",
+          "title": "Car color",
+          "choices": [
+            { "value": "red", "text": "Red" },
+            { "value": "blue", "text": "Blue" },
+            { "value": "green", "text": "Green" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "matrix",
+          "name": "feedback",
+          "title": "Feedback",
+          "rows": [
+            { "value": "price", "text": "Price" },
+            { "value": "quality", "text": "Quality" },
+            { "value": "service", "text": "Service" }
+          ],
+          "columns": [
+            { "value": "1", "text": "Poor" },
+            { "value": "2", "text": "Average" },
+            { "value": "3", "text": "Good" }
+          ]
+        }
+      ]
+    }
+  ]
+}

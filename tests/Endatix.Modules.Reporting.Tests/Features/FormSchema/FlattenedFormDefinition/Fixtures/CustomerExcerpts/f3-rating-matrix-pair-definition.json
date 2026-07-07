@@ -1,0 +1,43 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "rating",
+          "name": "easeRating",
+          "title": "How easy was it?",
+          "rateCount": 4,
+          "rateValues": [
+            { "value": 1, "text": "Easy" },
+            { "value": 2, "text": "Neutral" },
+            { "value": 3, "text": "Difficult" },
+            { "value": 4, "text": "I don't know" }
+          ]
+        },
+        {
+          "type": "matrixdropdown",
+          "name": "impactMatrix",
+          "title": "Impact by organisation type",
+          "columns": [
+            {
+              "name": "colSmall",
+              "title": "SPO <=100",
+              "cellType": "text",
+              "inputType": "number"
+            },
+            {
+              "name": "colLarge",
+              "title": "SPO >100",
+              "cellType": "text",
+              "inputType": "number"
+            }
+          ],
+          "rows": [
+            { "value": "principle1", "text": "Principle 1" },
+            { "value": "principle2", "text": "Principle 2" }
+          ]
+        }
+      ]
+    }
+  ]
+}

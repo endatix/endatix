@@ -1,0 +1,35 @@
+using System.Text.Json;
+
+namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
+
+internal static class FormSchemaFixtureLoader
+{
+    private static string FixturesRoot =>
+        Path.Combine(
+            AppContext.BaseDirectory,
+            "Features",
+            "FormSchema",
+            "FlattenedFormDefinition",
+            "Fixtures");
+
+    internal static JsonElement LoadDefinition(string fixtureName) => LoadJson(fixtureName);
+
+    internal static JsonElement LoadCustomerExcerptDefinition(string fixtureName) =>
+        LoadJson(Path.Combine("CustomerExcerpts", fixtureName));
+
+    internal static IReadOnlyList<string> LoadCustomerExcerptExpectedKeys(string fixtureName) =>
+        LoadExpectedKeys(Path.Combine("CustomerExcerpts", fixtureName));
+
+    internal static JsonElement LoadJson(string fixtureName)
+    {
+        string path = Path.Combine(FixturesRoot, fixtureName);
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(path));
+        return document.RootElement.Clone();
+    }
+
+    internal static IReadOnlyList<string> LoadExpectedKeys(string fixtureName)
+    {
+        JsonElement array = LoadJson(fixtureName);
+        return array.EnumerateArray().Select(item => item.GetString()!).ToList();
+    }
+}

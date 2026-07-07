@@ -1,0 +1,17 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "text",
+          "name": "fullName",
+          "title": {
+            "es": "Nombre completo",
+            "fr": "Nom complet",
+            "default": "Full name"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "panel",
+          "name": "outerPanel",
+          "elements": [
+            {
+              "type": "text",
+              "name": "outerText",
+              "title": "Outer text"
+            },
+            {
+              "type": "panel",
+              "name": "innerPanel",
+              "elements": [
+                {
+                  "type": "text",
+                  "name": "innerText",
+                  "title": "Inner text"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

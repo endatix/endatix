@@ -1,0 +1,6 @@
+{
+  "participants": [
+    { "floId": "FLO-001", "name": "Alice" },
+    { "floId": "FLO-002", "name": "Bob" }
+  ]
+}

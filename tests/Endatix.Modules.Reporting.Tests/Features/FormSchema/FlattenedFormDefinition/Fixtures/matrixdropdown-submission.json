@@ -1,0 +1,6 @@
+{
+  "orgCount": {
+    "SPO_small": { "N_org": 3, "Notes": "small notes" },
+    "SPO_large": { "N_org": 1, "Notes": "large notes" }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "paneldynamic",
+          "name": "contacts",
+          "maxPanelCount": 2,
+          "templateElements": [
+            {
+              "type": "text",
+              "name": "email",
+              "title": "Email"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

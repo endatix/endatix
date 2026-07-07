@@ -7,7 +7,6 @@ namespace Endatix.Modules.Reporting.Domain;
 
 /// <summary>
 /// BI-ready submission row aligned to <see cref="FormExportSchema"/>.
-/// Keyed by core <c>Submission.Id</c> — not a <see cref="BaseEntity"/> because the PK is external.
 /// </summary>
 public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
 {
