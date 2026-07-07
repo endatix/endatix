@@ -98,6 +98,15 @@ public class SurveyJsJsonElementExtensionsTests
     }
 
     [Fact]
+    public void GetScalarStringValue_ReturnsNumberAsRawText()
+    {
+        using JsonDocument document = JsonDocument.Parse("1");
+        JsonElement element = document.RootElement;
+
+        element.GetScalarStringValue().Should().Be("1");
+    }
+
+    [Fact]
     public void TryGetCalculatedValues_ReturnsArray()
     {
         using JsonDocument document = JsonDocument.Parse("""{ "calculatedValues": [ { "name": "total" } ] }""");

@@ -32,6 +32,17 @@ internal static class SurveyJsJsonElementExtensions
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
+    /// <summary>
+    /// Normalizes a scalar submission value to the same string form used for compiled choice keys.
+    /// </summary>
+    public static string? GetScalarStringValue(this JsonElement element) =>
+        element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetNonEmptyStringValue(),
+            JsonValueKind.Number => element.GetRawText(),
+            _ => null,
+        };
+
     public static JsonElement? TryGetPropertyValue(this JsonElement element, string propertyName)
     {
         if (element.ValueKind != JsonValueKind.Object ||

@@ -97,7 +97,7 @@ internal static class FlattenedSubmissionFlattener
         {
             foreach (var item in answer.EnumerateArray())
             {
-                if (string.Equals(item.GetNonEmptyStringValue(), choiceValue, StringComparison.Ordinal))
+                if (string.Equals(item.GetScalarStringValue(), choiceValue, StringComparison.Ordinal))
                 {
                     return true;
                 }
@@ -106,7 +106,7 @@ internal static class FlattenedSubmissionFlattener
             return false;
         }
 
-        return string.Equals(answer.GetNonEmptyStringValue(), choiceValue, StringComparison.Ordinal);
+        return string.Equals(answer.GetScalarStringValue(), choiceValue, StringComparison.Ordinal);
     }
 
     private static JsonElement ToBooleanJson(bool value)
@@ -126,7 +126,7 @@ internal static class FlattenedSubmissionFlattener
         var rank = 1;
         foreach (var item in answer.EnumerateArray())
         {
-            if (string.Equals(item.GetNonEmptyStringValue(), choiceValue, StringComparison.Ordinal))
+            if (string.Equals(item.GetScalarStringValue(), choiceValue, StringComparison.Ordinal))
             {
                 return rank;
             }
@@ -319,7 +319,7 @@ internal static class FlattenedSubmissionFlattener
             foreach (var item in panelArray.EnumerateArray())
             {
                 if (string.Equals(
-                        item.GetStringProperty(segment.PropertyName),
+                        item.TryGetPropertyValue(segment.PropertyName)?.GetScalarStringValue(),
                         segment.ChoiceValue,
                         StringComparison.Ordinal))
                 {

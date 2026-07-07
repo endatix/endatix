@@ -108,4 +108,53 @@ public class FlattenedSubmissionFlattenerTests
         flattened["colors__red"]!.Value.GetRawText().Should().Be("0");
         flattened["rank__a"]!.Value.GetRawText().Should().Be("0");
     }
+
+    [Fact]
+    public void Flatten_NumericCheckboxAndRankingChoices_MatchCompiledKeys()
+    {
+        const string definition = """
+            {
+              "pages": [{
+                "elements": [
+                  {
+                    "type": "checkbox",
+                    "name": "payment",
+                    "choices": [
+                      { "value": 1, "text": "Cash" },
+                      { "value": 2, "text": "Card" }
+                    ]
+                  },
+                  {
+                    "type": "ranking",
+                    "name": "priority",
+                    "choices": [
+                      { "value": 10, "text": "Price" },
+                      { "value": 20, "text": "Quality" }
+                    ]
+                  }
+                ]
+              }]
+            }
+            """;
+        const string submission = """
+            {
+              "payment": [1],
+              "priority": [20, 10]
+            }
+            """;
+
+        using JsonDocument definitionDocument = JsonDocument.Parse(definition);
+        using JsonDocument submissionDocument = JsonDocument.Parse(submission);
+
+        MergedFormSchema formSchema = new(
+            FormDefinitionFlattener.Flatten(definitionDocument.RootElement.Clone()));
+        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
+            submissionDocument.RootElement.Clone(),
+            formSchema);
+
+        flattened["payment__1"]!.Value.GetRawText().Should().Be("1");
+        flattened["payment__2"]!.Value.GetRawText().Should().Be("0");
+        flattened["priority__10"]!.Value.GetRawText().Should().Be("2");
+        flattened["priority__20"]!.Value.GetRawText().Should().Be("1");
+    }
 }
