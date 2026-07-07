@@ -77,6 +77,62 @@ If you have 50 questions that all start with the prefix `brands_sports_shoes_`, 
 #### Limitations with Dynamic Matrices
 If you use `anyAnsweredByPrefix` inside a **Dynamic Matrix** (`matrixdynamic`) or **Dynamic Panel** (`paneldynamic`), it will check the questions across the entire grid globally, rather than restricting its check to the specific row the user is currently interacting with. For row-specific logic, use the standard `anyAnswered({row.question_name})` syntax instead.
 
+### `regexMatch`
+
+The `regexMatch` function tests whether a question value matches a regular expression pattern. Use it in `visibleIf`, `enableIf`, and other conditional expressions when you need regex-based show/hide or enable/disable logic beyond native question validators.
+
+`regexMatch` is intended for **single-value text or numeric questions**. For checkbox, matrix, or other multi-value question types, match against individual answers (for example, a specific row or choice) rather than the whole question value.
+
+#### Syntax
+```javascript
+regexMatch({question_name}, '^pattern$')
+regexMatch({question_name}, '^pattern$', 'flags')
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `value` | The question value to test (passed as `{question_name}`) |
+| `pattern` | Regular expression pattern as a string |
+| `flags` | Optional regex flags (e.g. `'i'` for case-insensitive) |
+
+#### JSON Examples
+
+Show a follow-up question only when the phone number matches a Korean mobile format:
+```json
+{
+  "type": "text",
+  "name": "followUp",
+  "title": "Thank you for your valid number",
+  "visibleIf": "regexMatch({phone}, '^01[016789]-?\\d{3,4}-?\\d{4}$') == true"
+}
+```
+
+Enable a submit button only when the user enters a valid code:
+```json
+{
+  "type": "text",
+  "name": "refCode",
+  "title": "Reference Code",
+  "enableIf": "regexMatch({refCode}, '^[A-Z]{3}-\\d{4}$') == true"
+}
+```
+
+Case-insensitive yes/no check:
+```json
+{
+  "type": "text",
+  "name": "confirm",
+  "visibleIf": "regexMatch({answer}, '^(yes|no)$', 'i') == true"
+}
+```
+
+:::info Edge Cases and JSON Escaping
+- Returns `false` (never throws) when the value is empty, `null`, `undefined`, or an empty array (for example, a cleared checkbox).
+- Returns `false` when the pattern is missing, not a string, or invalid regex syntax.
+- Non-string scalar values (e.g. numbers) are coerced to strings before matching; `0` is treated as a valid answer.
+- In JSON, backslashes must be escaped once: write `\\d` for a digit class in the pattern string.
+:::
+
 ---
 
 ### `iif`
@@ -616,6 +672,6 @@ Endatix Hub supports custom expression functions, allowing you to programmatical
 
 ### Compatibility with SurveyJS
 
-Endatix Hub is powered by the SurveyJS form engine. While all standard SurveyJS expressions are supported, Endatix Hub includes exclusive functions - such as `anyAnswered` and `anyAnsweredByPrefix` - that may not be compatible with standalone SurveyJS implementations.
+Endatix Hub is powered by the SurveyJS form engine. While all standard SurveyJS expressions are supported, Endatix Hub includes exclusive functions - such as `anyAnswered`, `anyAnsweredByPrefix`, and `regexMatch` - that may not be compatible with standalone SurveyJS implementations.
 
 Form more information refer to the official [SurveyJS Conditional Logic documentation](https://surveyjs.io/form-library/documentation/design-survey/conditional-logic?utm_source=endatix&utm_medium=referral).
