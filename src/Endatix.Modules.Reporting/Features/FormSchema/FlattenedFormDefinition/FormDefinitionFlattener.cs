@@ -95,8 +95,7 @@ internal static class FormDefinitionFlattener
 
     private static int CountCalculatedValues(JsonElement definition)
     {
-        if (!definition.TryGetProperty("calculatedValues", out var calculatedValues) ||
-            calculatedValues.ValueKind != JsonValueKind.Array)
+        if (!definition.TryGetCalculatedValues(out var calculatedValues))
         {
             return 0;
         }
@@ -104,15 +103,12 @@ internal static class FormDefinitionFlattener
         var count = 0;
         foreach (var calculatedValue in calculatedValues.EnumerateArray())
         {
-            if (calculatedValue.TryGetProperty("includeIntoResult", out var includeProp) &&
-                includeProp.ValueKind == JsonValueKind.False)
+            if (!calculatedValue.GetBooleanProperty(SurveyJsPropertyNames.IncludeIntoResult, defaultValue: true))
             {
                 continue;
             }
 
-            var name = calculatedValue.TryGetProperty("name", out var nameProp)
-                ? nameProp.GetString()
-                : null;
+            var name = calculatedValue.GetStringProperty(SurveyJsPropertyNames.Name);
 
             if (!string.IsNullOrWhiteSpace(name))
             {
@@ -128,18 +124,18 @@ internal static class FormDefinitionFlattener
         List<CollectedElement> elements,
         SchemaCompilationLimits limits)
     {
-        if (container.TryGetProperty("pages", out var pages) && pages.ValueKind == JsonValueKind.Array)
+        if (container.TryGetPages(out var pages))
         {
             foreach (var page in pages.EnumerateArray())
             {
-                if (page.TryGetProperty("elements", out var pageElements))
+                if (page.TryGetElements(out var pageElements))
                 {
                     CollectElementList(pageElements, depth: 0, parentValueName: null, elements, limits);
                 }
             }
         }
 
-        if (container.TryGetProperty("elements", out var rootElements))
+        if (container.TryGetElements(out var rootElements))
         {
             CollectElementList(rootElements, depth: 0, parentValueName: null, elements, limits);
         }
@@ -167,13 +163,13 @@ internal static class FormDefinitionFlattener
 
         foreach (var element in elementList.EnumerateArray())
         {
-            var type = GetElementType(element);
+            var type = element.GetSurveyJsType();
             if (SurveyJsElementType.IsNonData(type))
             {
                 continue;
             }
 
-            var name = GetElementName(element);
+            var name = element.GetSurveyJsName();
             elements.Add(new CollectedElement(element, depth, parentValueName, type, name));
 
             CollectFromPanel(element, type, depth, parentValueName, elements, limits);
@@ -191,7 +187,7 @@ internal static class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         if (!SurveyJsElementType.Panel.Matches(type) ||
-            !element.TryGetProperty("elements", out var panelChildren))
+            !element.TryGetElements(out var panelChildren))
         {
             return;
         }
@@ -208,7 +204,7 @@ internal static class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         if (!SurveyJsElementType.Page.Matches(type) ||
-            !element.TryGetProperty("elements", out var pageChildren))
+            !element.TryGetElements(out var pageChildren))
         {
             return;
         }
@@ -224,14 +220,12 @@ internal static class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         if (!SurveyJsElementType.PanelDynamic.Matches(type) ||
-            !element.TryGetProperty("templateElements", out var templateElements))
+            !element.TryGetTemplateElements(out var templateElements))
         {
             return;
         }
 
-        var panelValueName = element.TryGetProperty("valueName", out var valueNameProp)
-            ? valueNameProp.GetString()
-            : null;
+        var panelValueName = element.GetSurveyJsValueName();
 
         CollectElementList(templateElements, depth + 1, panelValueName, elements, limits);
     }
@@ -258,17 +252,15 @@ internal static class FormDefinitionFlattener
                 continue;
             }
 
-            var valueName = collected.Element.TryGetProperty("valueName", out var valueNameProp)
-                ? valueNameProp.GetString()
-                : null;
+            var valueName = collected.Element.GetSurveyJsValueName();
 
-            if (!TryResolveDynamicPanelDriver(valueName, elementsByName, drivingCheckboxNames, out var driver, out var valuePropertyName, out var choices))
+
+            if (!TryResolveDynamicPanelDriver(valueName, elementsByName, drivingCheckboxNames, out _, out var valuePropertyName, out var choices))
             {
                 continue;
             }
 
-            var templateElements = collected.Element.TryGetProperty("templateElements", out var templateProp) &&
-                                             templateProp.ValueKind == JsonValueKind.Array
+            var templateElements = collected.Element.TryGetTemplateElements(out var templateProp)
                 ? templateProp.EnumerateArray().ToArray()
                 : [];
 
@@ -301,23 +293,23 @@ internal static class FormDefinitionFlattener
             return false;
         }
 
-        if (!elementsByName.TryGetValue(valueName!, out var resolvedDriver) ||
-            !resolvedDriver.Element.TryGetProperty("valuePropertyName", out var valuePropertyNameProp))
+        if (!elementsByName.TryGetValue(valueName!, out var resolvedDriver))
         {
             return false;
         }
 
         driver = resolvedDriver;
 
-        valuePropertyName = valuePropertyNameProp.GetString() ?? string.Empty;
+        valuePropertyName = resolvedDriver.Element.GetStringProperty(SurveyJsPropertyNames.ValuePropertyName) ?? string.Empty;
         if (string.IsNullOrWhiteSpace(valuePropertyName))
         {
             return false;
         }
 
-        choices = driver.Element.TryGetProperty("choices", out var choicesProp)
-            ? choicesProp
-            : default;
+        if (!driver.Element.TryGetChoices(out choices))
+        {
+            choices = default;
+        }
 
         return true;
     }
@@ -371,12 +363,10 @@ internal static class FormDefinitionFlattener
         List<JsonElement> nextChoicesPath = [.. choicesPath, panel.Choices];
 
         var childPanel = panel.TemplateElements
-            .Where(template => SurveyJsElementType.PanelDynamic.Matches(GetElementType(template)))
+            .Where(template => SurveyJsElementType.PanelDynamic.Matches(template.GetSurveyJsType()))
             .Select(template =>
             {
-                var childValueName = template.TryGetProperty("valueName", out var valueNameProp)
-                    ? valueNameProp.GetString()
-                    : null;
+                var childValueName = template.GetSurveyJsValueName();
 
                 if (childValueName is not null && panelsByValueName.TryGetValue(childValueName, out var child))
                 {
@@ -410,23 +400,19 @@ internal static class FormDefinitionFlattener
         HashSet<string> seenKeys,
         SchemaCompilationLimits limits)
     {
-        if (!definition.TryGetProperty("calculatedValues", out var calculatedValues) ||
-            calculatedValues.ValueKind != JsonValueKind.Array)
+        if (!definition.TryGetCalculatedValues(out var calculatedValues))
         {
             return;
         }
 
         foreach (var calculatedValue in calculatedValues.EnumerateArray())
         {
-            if (calculatedValue.TryGetProperty("includeIntoResult", out var includeProp) &&
-                includeProp.ValueKind == JsonValueKind.False)
+            if (!calculatedValue.GetBooleanProperty(SurveyJsPropertyNames.IncludeIntoResult, defaultValue: true))
             {
                 continue;
             }
 
-            var name = calculatedValue.TryGetProperty("name", out var nameProp)
-                ? nameProp.GetString()
-                : null;
+            var name = calculatedValue.GetStringProperty(SurveyJsPropertyNames.Name);
 
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -506,7 +492,7 @@ internal static class FormDefinitionFlattener
         AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
             name,
             FormSchemaColumnKind.Simple,
-            GetElementTitle(collected.Element, name),
+            collected.Element.GetSurveyJsTitle(name),
             MapDataType(collected.Element, type)));
     }
 
@@ -540,19 +526,18 @@ internal static class FormDefinitionFlattener
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                 key,
                 FormSchemaColumnKind.CheckboxChoice,
-                $"{GetElementTitle(collected.Element, name)} — {text}",
+                $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
                 "boolean",
                 SourceQuestion: name,
                 ChoiceValue: value));
         }
 
-        if (collected.Element.TryGetProperty("showOtherItem", out var showOtherProp) &&
-            showOtherProp.ValueKind == JsonValueKind.True)
+        if (collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
         {
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                 ExportPathBuilder.CheckboxOtherTextKey(name),
                 FormSchemaColumnKind.CheckboxOtherText,
-                $"{GetElementTitle(collected.Element, name)} — Other",
+                $"{collected.Element.GetSurveyJsTitle(name)} — Other",
                 "string",
                 SourceQuestion: name));
         }
@@ -582,7 +567,7 @@ internal static class FormDefinitionFlattener
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                 key,
                 FormSchemaColumnKind.RankingChoice,
-                $"{GetElementTitle(collected.Element, name)} — {text}",
+                $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
                 "number",
                 SourceQuestion: name,
                 ChoiceValue: value));
@@ -634,7 +619,7 @@ internal static class FormDefinitionFlattener
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                 key,
                 FormSchemaColumnKind.MatrixRow,
-                $"{GetElementTitle(collected.Element, name)} — {text}",
+                $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
                 "string",
                 SourceQuestion: name,
                 MatrixRowValue: value));
@@ -667,7 +652,7 @@ internal static class FormDefinitionFlattener
                 AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                     key,
                     FormSchemaColumnKind.MatrixCell,
-                    $"{GetElementTitle(collected.Element, name)} — {rowText} — {columnText}",
+                    $"{collected.Element.GetSurveyJsTitle(name)} — {rowText} — {columnText}",
                     MapMatrixCellDataType(columnElement),
                     SourceQuestion: name,
                     MatrixRowValue: rowValue,
@@ -705,7 +690,7 @@ internal static class FormDefinitionFlattener
                 AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                     key,
                     FormSchemaColumnKind.MatrixCell,
-                    $"{GetElementTitle(collected.Element, name)} — #{rowIndex + 1} — {columnText}",
+                    $"{collected.Element.GetSurveyJsTitle(name)} — #{rowIndex + 1} — {columnText}",
                     MapMatrixCellDataType(columnElement),
                     SourceQuestion: name,
                     PanelIndex: rowIndex,
@@ -717,15 +702,13 @@ internal static class FormDefinitionFlattener
     private static int ResolveMatrixRowCount(JsonElement matrixElement, SchemaCompilationLimits limits)
     {
         int configuredCount;
-        if (matrixElement.TryGetProperty("maxRowCount", out var maxRowCountProp) &&
-            maxRowCountProp.ValueKind == JsonValueKind.Number)
+        if (matrixElement.TryGetInt32Property(SurveyJsPropertyNames.MaxRowCount, out var maxRowCount))
         {
-            configuredCount = maxRowCountProp.GetInt32();
+            configuredCount = maxRowCount;
         }
-        else if (matrixElement.TryGetProperty("rowCount", out var rowCountProp) &&
-                 rowCountProp.ValueKind == JsonValueKind.Number)
+        else if (matrixElement.TryGetInt32Property(SurveyJsPropertyNames.RowCount, out var rowCount))
         {
-            configuredCount = rowCountProp.GetInt32();
+            configuredCount = rowCount;
         }
         else
         {
@@ -747,8 +730,10 @@ internal static class FormDefinitionFlattener
             return "string";
         }
 
-        if (columnElement.TryGetProperty("inputType", out var inputType) &&
-            string.Equals(inputType.GetString(), "number", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(
+                columnElement.GetStringProperty(SurveyJsPropertyNames.InputType),
+                "number",
+                StringComparison.OrdinalIgnoreCase))
         {
             return "number";
         }
@@ -780,7 +765,7 @@ internal static class FormDefinitionFlattener
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                 key,
                 FormSchemaColumnKind.MultipleTextItem,
-                $"{GetElementTitle(collected.Element, name)} — {text}",
+                $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
                 "string",
                 SourceQuestion: name,
                 MatrixRowValue: value));
@@ -798,7 +783,7 @@ internal static class FormDefinitionFlattener
         AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
             name,
             FormSchemaColumnKind.FileUpload,
-            GetElementTitle(collected.Element, name),
+            collected.Element.GetSurveyJsTitle(name),
             "file"));
     }
 
@@ -811,15 +796,14 @@ internal static class FormDefinitionFlattener
     {
         var name = collected.Name!;
 
-        if (collected.Element.TryGetProperty("valueName", out var valueNameProp) &&
-            !string.IsNullOrWhiteSpace(valueNameProp.GetString()) &&
-            drivingCheckboxNames.Contains(valueNameProp.GetString()!))
+        var valueName = collected.Element.GetSurveyJsValueName();
+        if (!string.IsNullOrWhiteSpace(valueName) &&
+            drivingCheckboxNames.Contains(valueName))
         {
             return;
         }
 
-        if (!collected.Element.TryGetProperty("templateElements", out var templateElements) ||
-            templateElements.ValueKind != JsonValueKind.Array)
+        if (!collected.Element.TryGetTemplateElements(out var templateElements))
         {
             return;
         }
@@ -830,8 +814,8 @@ internal static class FormDefinitionFlattener
         {
             foreach (var template in templateElements.EnumerateArray())
             {
-                var childType = GetElementType(template);
-                var childName = GetElementName(template);
+                var childType = template.GetSurveyJsType();
+                var childName = template.GetSurveyJsName();
 
                 if (string.IsNullOrWhiteSpace(childName) ||
                     SurveyJsElementType.IsNonData(childType) ||
@@ -844,7 +828,7 @@ internal static class FormDefinitionFlattener
                 AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                     key,
                     FormSchemaColumnKind.PanelDynamicIndex,
-                    $"{GetElementTitle(template, childName)} ({name} #{index + 1})",
+                    $"{template.GetSurveyJsTitle(childName)} ({name} #{index + 1})",
                     MapDataType(template, childType),
                     SourceQuestion: childName,
                     PanelName: name,
@@ -855,9 +839,8 @@ internal static class FormDefinitionFlattener
 
     private static int ResolvePanelCount(JsonElement panelElement, SchemaCompilationLimits limits)
     {
-        var configuredCount = panelElement.TryGetProperty("maxPanelCount", out var maxPanelCountProp) &&
-                              maxPanelCountProp.ValueKind == JsonValueKind.Number
-            ? maxPanelCountProp.GetInt32()
+        var configuredCount = panelElement.TryGetInt32Property(SurveyJsPropertyNames.MaxPanelCount, out var maxPanelCount)
+            ? maxPanelCount
             : limits.MaxPanelCount;
 
         if (configuredCount < 0)
@@ -879,8 +862,8 @@ internal static class FormDefinitionFlattener
         {
             foreach (var template in panelPath.TemplateElements)
             {
-                var childType = GetElementType(template);
-                var childName = GetElementName(template);
+                var childType = template.GetSurveyJsType();
+                var childName = template.GetSurveyJsName();
 
                 if (string.IsNullOrWhiteSpace(childName) ||
                     SurveyJsElementType.IsNonData(childType) ||
@@ -905,7 +888,7 @@ internal static class FormDefinitionFlattener
                     AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                         key,
                         FormSchemaColumnKind.NestedLoop,
-                        $"{GetElementTitle(template, childName)} ({string.Join(" / ", choiceValues)})",
+                        $"{template.GetSurveyJsTitle(childName)} ({string.Join(" / ", choiceValues)})",
                         MapDataType(template, childType),
                         SourceQuestion: childName,
                         LoopPath: loopSegments));
@@ -957,8 +940,7 @@ internal static class FormDefinitionFlattener
 
     private static bool IsDrivingCheckbox(JsonElement element, string? type, string? name) =>
         SurveyJsElementType.IsDrivingChoiceType(type) &&
-        element.TryGetProperty("valuePropertyName", out var valuePropertyNameProp) &&
-        !string.IsNullOrWhiteSpace(valuePropertyNameProp.GetString()) &&
+        !string.IsNullOrWhiteSpace(element.GetStringProperty(SurveyJsPropertyNames.ValuePropertyName)) &&
         !string.IsNullOrWhiteSpace(name);
 
     private static void AddColumn(
@@ -1013,19 +995,6 @@ internal static class FormDefinitionFlattener
         throw new SchemaCompilationLimitExceededException(limitKind, limit, message, actual, context);
     }
 
-    private static string? GetElementType(JsonElement element) =>
-        element.TryGetProperty("type", out var typeProp) ? typeProp.GetString() : null;
-
-    private static string? GetElementName(JsonElement element) =>
-        element.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
-
-    private static string GetElementTitle(JsonElement element, string fallback) =>
-        element.TryGetProperty("title", out var titleProp) &&
-        titleProp.ValueKind == JsonValueKind.String &&
-        !string.IsNullOrWhiteSpace(titleProp.GetString())
-            ? titleProp.GetString()!
-            : fallback;
-
     private static string MapDataType(JsonElement element, string? type)
     {
         if (SurveyJsElementType.TryResolve(type)?.Category == SurveyJsElementCategory.File)
@@ -1034,8 +1003,10 @@ internal static class FormDefinitionFlattener
         }
 
         if (SurveyJsElementType.Text.Matches(type) &&
-            element.TryGetProperty("inputType", out var inputType) &&
-            string.Equals(inputType.GetString(), "number", StringComparison.OrdinalIgnoreCase))
+            string.Equals(
+                element.GetStringProperty(SurveyJsPropertyNames.InputType),
+                "number",
+                StringComparison.OrdinalIgnoreCase))
         {
             return "number";
         }

@@ -21,7 +21,7 @@ internal static class SurveyJsChoiceHelper
             return null;
         }
 
-        if (choice.TryGetProperty("value", out var valueProp))
+        if (choice.TryGetProperty(SurveyJsPropertyNames.Value, out var valueProp))
         {
             return valueProp.ValueKind switch
             {
@@ -31,13 +31,7 @@ internal static class SurveyJsChoiceHelper
             };
         }
 
-        if (choice.TryGetProperty("text", out var textProp) &&
-            textProp.ValueKind == JsonValueKind.String)
-        {
-            return textProp.GetString();
-        }
-
-        return null;
+        return choice.GetStringProperty(SurveyJsPropertyNames.Text);
     }
 
     private static string GetChoiceTextLabel(JsonElement choice, string value)
@@ -48,48 +42,20 @@ internal static class SurveyJsChoiceHelper
             return value;
         }
 
-        if (choice.TryGetProperty("title", out var titleProp) &&
-            titleProp.ValueKind == JsonValueKind.String)
+        var title = choice.GetStringProperty(SurveyJsPropertyNames.Title);
+        if (title is not null)
         {
-            return titleProp.GetString() ?? value;
+            return title;
         }
 
-        if (choice.TryGetProperty("text", out var labelProp) &&
-            labelProp.ValueKind == JsonValueKind.String)
-        {
-            return labelProp.GetString() ?? value;
-        }
-
-        return value;
+        var text = choice.GetStringProperty(SurveyJsPropertyNames.Text);
+        return text ?? value;
     }
 
-    /// <summary>
-    /// Get the value of a named item following resolution name -> value -> text.
-    /// </summary>
-    /// <param name="element">The element to get the value from.</param>
-    /// <returns>The value of the named item.</returns>
-    private static string? GetNamedItemValueString(JsonElement element)
-    {
-        if (element.TryGetProperty("name", out var nameProp) &&
-            nameProp.ValueKind == JsonValueKind.String)
-        {
-            return nameProp.GetString();
-        }
-
-        if (element.TryGetProperty("value", out var valueProp) &&
-            valueProp.ValueKind == JsonValueKind.String)
-        {
-            return valueProp.GetString();
-        }
-
-        if (element.TryGetProperty("text", out var textProp) &&
-            textProp.ValueKind == JsonValueKind.String)
-        {
-            return textProp.GetString();
-        }
-
-        return null;
-    }
+    private static string? GetNamedItemValueString(JsonElement element) =>
+        element.GetStringProperty(SurveyJsPropertyNames.Name)
+        ?? element.GetStringProperty(SurveyJsPropertyNames.Value)
+        ?? element.GetStringProperty(SurveyJsPropertyNames.Text);
 
     internal static List<string> GetChoiceValues(JsonElement choicesElement)
     {
@@ -114,8 +80,7 @@ internal static class SurveyJsChoiceHelper
 
     internal static IEnumerable<(string Value, string Text)> EnumerateChoices(JsonElement element)
     {
-        if (!element.TryGetProperty("choices", out var choices) ||
-            choices.ValueKind != JsonValueKind.Array)
+        if (!element.TryGetChoices(out var choices))
         {
             yield break;
         }
@@ -134,8 +99,7 @@ internal static class SurveyJsChoiceHelper
 
     internal static IEnumerable<(string Value, string Text)> EnumerateMatrixRows(JsonElement element)
     {
-        if (!element.TryGetProperty("rows", out var rows) ||
-            rows.ValueKind != JsonValueKind.Array)
+        if (!element.TryGetRows(out var rows))
         {
             yield break;
         }
@@ -155,8 +119,7 @@ internal static class SurveyJsChoiceHelper
     internal static IEnumerable<(string Value, string Text, JsonElement ColumnElement)> EnumerateMatrixColumns(
         JsonElement element)
     {
-        if (!element.TryGetProperty("columns", out var columns) ||
-            columns.ValueKind != JsonValueKind.Array)
+        if (!element.TryGetColumns(out var columns))
         {
             yield break;
         }
@@ -188,8 +151,7 @@ internal static class SurveyJsChoiceHelper
 
     internal static IEnumerable<(string Value, string Text)> EnumerateMultipleTextItems(JsonElement element)
     {
-        if (!element.TryGetProperty("items", out var items) ||
-            items.ValueKind != JsonValueKind.Array)
+        if (!element.TryGetItems(out var items))
         {
             yield break;
         }
