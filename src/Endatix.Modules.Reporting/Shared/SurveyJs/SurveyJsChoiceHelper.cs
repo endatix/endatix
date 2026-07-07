@@ -63,6 +63,34 @@ internal static class SurveyJsChoiceHelper
         return value;
     }
 
+    /// <summary>
+    /// Get the value of a named item following resolution name -> value -> text.
+    /// </summary>
+    /// <param name="element">The element to get the value from.</param>
+    /// <returns>The value of the named item.</returns>
+    private static string? GetNamedItemValueString(JsonElement element)
+    {
+        if (element.TryGetProperty("name", out var nameProp) &&
+            nameProp.ValueKind == JsonValueKind.String)
+        {
+            return nameProp.GetString();
+        }
+
+        if (element.TryGetProperty("value", out var valueProp) &&
+            valueProp.ValueKind == JsonValueKind.String)
+        {
+            return valueProp.GetString();
+        }
+
+        if (element.TryGetProperty("text", out var textProp) &&
+            textProp.ValueKind == JsonValueKind.String)
+        {
+            return textProp.GetString();
+        }
+
+        return null;
+    }
+
     internal static List<string> GetChoiceValues(JsonElement choicesElement)
     {
         List<string> values = [];
@@ -147,13 +175,7 @@ internal static class SurveyJsChoiceHelper
                 continue;
             }
 
-            var value = column.TryGetProperty("name", out var nameProp)
-                ? nameProp.GetString()
-                : column.TryGetProperty("value", out var valueProp)
-                    ? valueProp.GetString()
-                    : column.TryGetProperty("text", out var textProp)
-                        ? textProp.GetString()
-                        : null;
+            var value = GetNamedItemValueString(column);
 
             if (value is null)
             {
@@ -186,13 +208,7 @@ internal static class SurveyJsChoiceHelper
                 continue;
             }
 
-            var value = item.TryGetProperty("name", out var nameProp)
-                ? nameProp.GetString()
-                : item.TryGetProperty("value", out var valueProp)
-                    ? valueProp.GetString()
-                    : item.TryGetProperty("text", out var textProp)
-                        ? textProp.GetString()
-                        : null;
+            var value = GetNamedItemValueString(item);
 
             if (value is null)
             {
