@@ -33,10 +33,11 @@ internal sealed class MergedFormSchema
     {
         var effectiveLimits = limits ?? SchemaCompilationLimits.Default;
         List<FormSchemaColumn> merged = [.. Columns];
+        HashSet<string> seenKeys = new(merged.Select(column => column.Key), StringComparer.Ordinal);
 
         foreach (var column in newColumns)
         {
-            if (_columnsByKey.ContainsKey(column.Key))
+            if (!seenKeys.Add(column.Key))
             {
                 continue;
             }
@@ -51,7 +52,6 @@ internal sealed class MergedFormSchema
             }
 
             merged.Add(column);
-            _columnsByKey[column.Key] = column;
         }
 
         return new MergedFormSchema(merged);

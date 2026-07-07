@@ -80,4 +80,23 @@ public class FormSchemaCompilerTests
 
     restored.Columns.Should().BeEquivalentTo(original.Columns);
   }
+
+  [Fact]
+  public void MergeAppendOnly_ChainedCalls_DoNotMutateReceiverOrDropKeys()
+  {
+    FormSchemaColumn firstName = new("firstName", FormSchemaColumnKind.Simple, "First name", "string");
+    FormSchemaColumn lastName = new("lastName", FormSchemaColumnKind.Simple, "Last name", "string");
+    FormSchemaColumn email = new("email", FormSchemaColumnKind.Simple, "Email", "string");
+
+    MergedFormSchema original = new([firstName]);
+    MergedFormSchema withLastName = original.MergeAppendOnly([lastName]);
+    MergedFormSchema withEmail = withLastName.MergeAppendOnly([email]);
+
+    withEmail.Columns.Select(column => column.Key).Should().Equal("firstName", "lastName", "email");
+    original.Columns.Select(column => column.Key).Should().Equal("firstName");
+    withLastName.Columns.Select(column => column.Key).Should().Equal("firstName", "lastName");
+
+    MergedFormSchema mergedAgainFromOriginal = original.MergeAppendOnly([lastName]);
+    mergedAgainFromOriginal.Columns.Select(column => column.Key).Should().Equal("firstName", "lastName");
+  }
 }
