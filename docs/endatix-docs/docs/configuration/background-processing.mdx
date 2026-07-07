@@ -69,10 +69,16 @@ At a high level:
 
 1. **Capture** — When a domain event occurs (for example, a submission is completed), Endatix appends an outbox message (event type, JSON payload, tenant) in the **same database transaction** that saves your data. This happens automatically — no extra configuration or code is involved.
 2. **Claim** — The relay (a background service named `OutboxRelayBackgroundService` — you will see it in the logs) polls the outbox table and claims rows with a time-bounded lease.
-3. **Publish** — The relay maps each message to the matching webhook operation and delivers it through your configured webhook endpoints.
+3. **Publish** — The relay fans each message out to every registered outbox subscriber (`IOutboxIntegrationEventHandler`): webhooks, reporting flattening, and future modules. All matched handlers must succeed before the row is marked **Sent**.
 4. **Complete** — Successful delivery marks the row **Sent**; failures reschedule until `MaxAttempts`.
 
-The relay engine itself lives in the [`Endatix.Outbox.Engine`](https://github.com/endatix/endatix-relay) package (published as [NuGet `Endatix.Outbox.Engine`](https://www.nuget.org/packages/Endatix.Outbox.Engine)). Endatix consumes that package and supplies Endatix-specific publishing (webhooks) and EF schema mapping.
+The relay engine itself lives in the [`Endatix.Outbox.Engine`](https://github.com/endatix/endatix-relay) package (published as [NuGet `Endatix.Outbox.Engine`](https://www.nuget.org/packages/Endatix.Outbox.Engine)). Endatix consumes that package and supplies Endatix-specific subscribers (webhooks, reporting) and EF schema mapping.
+
+### Outbox subscribers
+
+The relay resolves a single `IIntegrationEventPublisher` that delegates to all `IOutboxIntegrationEventHandler` registrations whose `EventTypes` include the message `EventType`. Multiple handlers can subscribe to the same event (for example, `submission.completed` triggers webhook delivery and BI flattening).
+
+Durable integration events (webhooks, reporting) are driven by the outbox relay. Slack notifications for `submission.completed` still use MediatR after `SaveChanges` (planned migration to outbox in a follow-up).
 
 ## In-Process Relay (Default)
 
@@ -94,17 +100,20 @@ The outbox table must exist before the relay can run. Enable [automatic migratio
 
 ### What Gets Delivered Today?
 
-These integration events flow through the outbox. The `EventType` column is what you will see in the `OutboxMessages` table; each maps to the corresponding webhook event from the [Webhooks guide](/docs/guides/webhooks):
+These integration events flow through the outbox. The `EventType` column is what you will see in the `OutboxMessages` table:
 
-| Outbox `EventType` | Webhook event | Raised when |
-|--------------------|---------------|-------------|
-| `form.created` | `FormCreated` | A form is created |
-| `form.updated` | `FormUpdated` | A form is updated |
-| `form.enabled_state_changed` | `FormEnabledStateChanged` | A form's enabled state changes |
-| `form.deleted` | `FormDeleted` | A form is deleted |
-| `submission.completed` | `SubmissionCompleted` | A submission is completed |
+| Outbox `EventType` | Webhook event | Raised when | Other subscribers |
+|--------------------|---------------|-------------|-------------------|
+| `form.created` | `FormCreated` | A form is created | — |
+| `form.updated` | `FormUpdated` | A form is updated | — |
+| `form.enabled_state_changed` | `FormEnabledStateChanged` | A form's enabled state changes | — |
+| `form.deleted` | `FormDeleted` | A form is deleted | — |
+| `form.definition.updated` | — | Active form definition schema changes or a new active definition is published | Reporting: compile export schema |
+| `submission.completed` | `SubmissionCompleted` | A submission is completed (first time) | Reporting: flatten |
+| `submission.updated` | — | A completed submission's answers, metadata, definition, or submitter identity change | Reporting: re-flatten when answers or definition change |
+| `submission.deleted` | — | A submission is deleted | Reporting: sync flattened row deletion |
 
-Delivery uses the same webhook configuration described in the [Webhooks guide](/docs/guides/webhooks): tenant- or form-level endpoints, API key auth, and Polly-based HTTP resilience.
+Webhook-mapped events use the same webhook configuration described in the [Webhooks guide](/docs/guides/webhooks): tenant- or form-level endpoints, API key auth, and Polly-based HTTP resilience.
 
 The outbox row `Id` is reused as the webhook `X-Endatix-Hook-Id` header so retries and duplicate deliveries are safe for idempotent receivers.
 
