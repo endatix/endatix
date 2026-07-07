@@ -119,6 +119,31 @@ public class SurveyJsJsonElementExtensionsTests
     }
 
     [Fact]
+    public void TryGetInt32Property_NullValue_ReturnsFalse()
+    {
+        using JsonDocument document = JsonDocument.Parse("""{ "panelIndex": null }""");
+        JsonElement element = document.RootElement;
+
+        bool found = element.TryGetInt32Property("panelIndex", out int value);
+
+        found.Should().BeFalse();
+        value.Should().Be(0);
+        element.GetNullableInt32Property("panelIndex").Should().BeNull();
+    }
+
+    [Fact]
+    public void TryGetNullableArrayProperty_TreatsNullAsAbsent()
+    {
+        using JsonDocument document = JsonDocument.Parse("""{ "loopPath": null }""");
+        JsonElement element = document.RootElement;
+
+        bool found = element.TryGetNullableArrayProperty("loopPath", out JsonElement? array);
+
+        found.Should().BeTrue();
+        array.Should().BeNull();
+    }
+
+    [Fact]
     public void TryGetCalculatedValues_ReturnsArray()
     {
         using JsonDocument document = JsonDocument.Parse("""{ "calculatedValues": [ { "name": "total" } ] }""");

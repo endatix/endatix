@@ -1,5 +1,9 @@
 namespace Endatix.Modules.Reporting.Shared.SurveyJs;
 
+/// <summary>
+/// JSON property names used in SurveyJS form definitions. Persisted form schema JSON uses
+/// <c>FormSchemaPropertyNames</c> instead.
+/// </summary>
 internal static class SurveyJsPropertyNames
 {
     public const string Type = "type";

@@ -4,6 +4,9 @@ namespace Endatix.Modules.Reporting.Shared.SurveyJs;
 
 internal static class SurveyJsJsonElementExtensions
 {
+    /// <summary>
+    /// Gets a string property, or <c>null</c> if the property is missing or not a string.
+    /// </summary>
     public static string? GetStringProperty(this JsonElement element, string propertyName)
     {
         if (element.TryGetProperty(propertyName, out var property) &&
@@ -15,12 +18,19 @@ internal static class SurveyJsJsonElementExtensions
         return null;
     }
 
+    /// <summary>
+    /// Gets a non-empty string property, or <c>null</c> if the property is missing or empty.
+    /// </summary>
     public static string? GetNonEmptyStringProperty(this JsonElement element, string propertyName)
     {
         var value = element.GetStringProperty(propertyName);
+
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
+    /// <summary>
+    /// Gets a non-empty string value, or <c>null</c> if the value is not a string or is empty.
+    /// </summary>
     public static string? GetNonEmptyStringValue(this JsonElement element)
     {
         if (element.ValueKind != JsonValueKind.String)
@@ -66,15 +76,68 @@ internal static class SurveyJsJsonElementExtensions
         return false;
     }
 
+    /// <summary>
+    /// Tries to get an int32 property, or <c>false</c> if the property is missing or not a number.
+    /// </summary>
     public static bool TryGetInt32Property(this JsonElement element, string propertyName, out int value)
     {
-        if (element.TryGetProperty(propertyName, out var property))
+        if (element.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.Number &&
+            property.TryGetInt32(out value))
         {
-            return property.TryGetInt32(out value);
+            return true;
         }
 
         value = default;
         return false;
+    }
+
+    /// <summary>
+    /// Gets an int32 property, or <c>null</c> if the property is missing or not a number.
+    /// </summary>
+    public static int? GetNullableInt32Property(this JsonElement element, string propertyName) =>
+        element.TryGetInt32Property(propertyName, out var value) ? value : null;
+
+    /// <summary>
+    /// Gets an enum property, or <c>null</c> if the property is missing or not a string.
+    /// </summary>
+    public static bool TryGetEnumProperty<TEnum>(this JsonElement element, string propertyName, out TEnum value)
+        where TEnum : struct, Enum
+    {
+        if (element.TryGetProperty(propertyName, out var property) &&
+            Enum.TryParse(property.GetString(), ignoreCase: true, out value))
+        {
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the property is missing or JSON null (out <paramref name="array"/> is null).
+    /// Returns <c>false</c> when the property exists but is not an array.
+    /// </summary>
+    public static bool TryGetNullableArrayProperty(
+        this JsonElement element,
+        string propertyName,
+        out JsonElement? array)
+    {
+        if (!element.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            array = null;
+            return true;
+        }
+
+        if (property.ValueKind != JsonValueKind.Array)
+        {
+            array = null;
+            return false;
+        }
+
+        array = property;
+        return true;
     }
 
     public static bool GetBooleanProperty(this JsonElement element, string propertyName, bool defaultValue = false)

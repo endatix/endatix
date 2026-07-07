@@ -99,4 +99,27 @@ public class FormSchemaCompilerTests
     MergedFormSchema mergedAgainFromOriginal = original.MergeAppendOnly([lastName]);
     mergedAgainFromOriginal.Columns.Select(column => column.Key).Should().Equal("firstName", "lastName");
   }
+
+  [Fact]
+  public void FromJson_SkipsInvalidColumnsAndPreservesValidOnes()
+  {
+    const string json = """
+        [
+          { "key": "valid", "kind": "Simple", "label": "Valid", "dataType": "string" },
+          { "kind": "Simple", "label": "Missing key" },
+          { "key": "legacy", "kind": "RetiredKind", "label": "Legacy", "dataType": "string" },
+          {
+            "key": "brokenLoop",
+            "kind": "NestedLoop",
+            "label": "Broken loop",
+            "dataType": "string",
+            "loopPath": [{ "panelValueName": "cars" }]
+          }
+        ]
+        """;
+
+    MergedFormSchema schema = MergedFormSchema.FromJson(json);
+
+    schema.Columns.Select(column => column.Key).Should().Equal("valid");
+  }
 }
