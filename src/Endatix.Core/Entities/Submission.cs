@@ -41,7 +41,8 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         int currentPage = 0,
         string? metadata = null,
         string? submittedBy = null,
-        bool isTestSubmission = false)
+        bool isTestSubmission = false,
+        bool enforceSingleSubmissionGate = false)
         : this(new SubmissionCreateArgs(
             TenantId: tenantId,
             FormId: formId,
@@ -50,7 +51,14 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
             IsComplete: isComplete,
             CurrentPage: currentPage,
             Metadata: metadata,
-            IsTestSubmission: isTestSubmission))
+            SubmitterId: submittedBy is not null && long.TryParse(submittedBy, out var legacySubmitterId)
+                ? legacySubmitterId
+                : null,
+            SubmitterDisplayId: submittedBy is not null && !long.TryParse(submittedBy, out _)
+                ? submittedBy
+                : null,
+            IsTestSubmission: isTestSubmission,
+            EnforceSingleSubmissionGate: enforceSingleSubmissionGate))
     {
     }
 
@@ -173,7 +181,8 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
             && (SubmitterId != submitterId || SubmitterProfileSnapshot != profileSnapshot);
 
         SubmitterId = submitterId;
-        SubmittedBy = submitterId?.ToString();
+        SubmittedBy = submitterId?.ToString()
+            ?? (string.IsNullOrWhiteSpace(displayId) ? null : displayId);
         SubmitterDisplayId = string.IsNullOrWhiteSpace(displayId) ? null : displayId;
         SubmitterProfileSnapshot = string.IsNullOrWhiteSpace(profileSnapshot) ? null : profileSnapshot;
 

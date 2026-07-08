@@ -155,4 +155,36 @@ public class SubmissionConstructorTests
         // Assert
         submission.RestrictionKey.Should().BeNull();
     }
+
+    [Fact]
+    public void Constructor_WhenSubmittedByIsNumeric_ForwardsSubmitterAndRestrictionGate()
+    {
+        var submission = new Submission(
+            SampleData.TENANT_ID,
+            SampleData.SUBMISSION_JSON_DATA_1,
+            formId: 123,
+            formDefinitionId: 456,
+            submittedBy: "789",
+            enforceSingleSubmissionGate: true);
+
+        submission.SubmitterId.Should().Be(789);
+        submission.SubmittedBy.Should().Be("789");
+        submission.RestrictionKey.Should().Be("SingleSubmission:Form:123:Submitter:789");
+    }
+
+    [Fact]
+    public void Constructor_WhenSubmittedByIsOpaqueString_PreservesSubmittedByMirror()
+    {
+        var submission = new Submission(
+            SampleData.TENANT_ID,
+            SampleData.SUBMISSION_JSON_DATA_1,
+            formId: 123,
+            formDefinitionId: 456,
+            submittedBy: "user123");
+
+        submission.SubmitterId.Should().BeNull();
+        submission.SubmitterDisplayId.Should().Be("user123");
+        submission.SubmittedBy.Should().Be("user123");
+        submission.RestrictionKey.Should().BeNull();
+    }
 }
