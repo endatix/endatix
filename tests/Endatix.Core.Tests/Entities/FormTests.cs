@@ -108,7 +108,7 @@ public class FormTests
     }
 
     [Fact]
-    public void UpdateActiveDefinitionSchema_WhenOnlyDraftStatusChanges_DoesNotRaiseReportingEvent()
+    public void UpdateActiveDefinitionSchema_WhenPublishingDraftWithoutJsonChange_RaisesReportingEvent()
     {
         var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, isDraft: true, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
@@ -121,6 +121,25 @@ public class FormTests
         form.UpdateActiveDefinitionSchema(jsonData: null, isDraft: false);
 
         form.ActiveDefinition!.IsDraft.Should().BeFalse();
+        form.DomainEvents.OfType<FormDefinitionUpdatedEvent>().Should().ContainSingle();
+        form.Revision.Should().Be(2);
+    }
+
+    [Fact]
+    public void UpdateActiveDefinitionSchema_WhenDraftSaveWithoutPublish_DoesNotRaiseReportingEvent()
+    {
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, isDraft: true, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
+        {
+            Id = 10
+        };
+        form.AddFormDefinition(formDefinition);
+        form.ClearDomainEvents();
+
+        form.UpdateActiveDefinitionSchema(SampleData.FORM_DEFINITION_JSON_DATA_2, isDraft: true);
+
+        form.ActiveDefinition!.IsDraft.Should().BeTrue();
+        form.ActiveDefinition.JsonData.Should().Be(SampleData.FORM_DEFINITION_JSON_DATA_2);
         form.DomainEvents.OfType<FormDefinitionUpdatedEvent>().Should().BeEmpty();
     }
 

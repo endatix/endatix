@@ -159,13 +159,16 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     {
         Guard.Against.Null(ActiveDefinition);
 
+        var wasDraft = ActiveDefinition.IsDraft;
         var schemaChanged = jsonData is not null
             && !string.Equals(ActiveDefinition.JsonData, jsonData, StringComparison.Ordinal);
 
         ActiveDefinition.UpdateSchema(jsonData);
         ActiveDefinition.UpdateDraftStatus(isDraft);
 
-        if (schemaChanged)
+        var publishedFromDraft = wasDraft && !ActiveDefinition.IsDraft;
+
+        if (!ActiveDefinition.IsDraft && (schemaChanged || publishedFromDraft))
         {
             RaiseActiveDefinitionUpdated(ActiveDefinition);
         }

@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -225,6 +226,35 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
         await _submissionsRepository.DidNotReceive().AnyAsync(
             Arg.Any<SubmissionsTotalCountByFormDefinitionIdSpec>(),
             Arg.Any<CancellationToken>());
+        await _formRepository.Received(1).UpdateAsync(form, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_PublishingDraftWithUnchangedJsonData_RaisesFormDefinitionUpdatedEvent()
+    {
+        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, isDraft: true, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
+        {
+            Id = 10
+        };
+        form.AddFormDefinition(formDefinition);
+        form.ClearDomainEvents();
+
+        var request = new PartialUpdateActiveFormDefinitionCommand(1, false, SampleData.FORM_DEFINITION_JSON_DATA_1);
+        _formRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>()
+        ).Returns(form);
+        _submissionsRepository.AnyAsync(
+            Arg.Any<SubmissionsTotalCountByFormDefinitionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        formDefinition.IsDraft.Should().BeFalse();
+        form.DomainEvents.OfType<FormDefinitionUpdatedEvent>().Should().ContainSingle();
         await _formRepository.Received(1).UpdateAsync(form, Arg.Any<CancellationToken>());
     }
 }
