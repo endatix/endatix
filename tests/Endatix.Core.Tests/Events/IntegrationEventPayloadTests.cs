@@ -11,7 +11,10 @@ namespace Endatix.Core.Tests.Events;
 /// </summary>
 public class IntegrationEventPayloadTests
 {
-    private static JsonElement Payload(object dto) => JsonSerializer.SerializeToElement(dto);
+    private static readonly JsonSerializerOptions WireOptions = new(JsonSerializerDefaults.Web);
+
+    private static JsonElement Payload(object dto) =>
+        JsonSerializer.SerializeToElement(dto, dto.GetType(), WireOptions);
 
     [Fact]
     public void FormCreatedEvent_has_dotted_type_and_form_payload_with_revision_and_folderId()
@@ -95,7 +98,7 @@ public class IntegrationEventPayloadTests
             JsonData: """{"a":1}""",
             IsComplete: true));
         submission.ClearDomainEvents();
-        submission.Update("""{"a":2}""", 200, formDefinitionFormId: 100, isComplete: true);
+        submission.Update("""{"a":2}""", 200, formDefinitionFormId: 100, isComplete: true, metadata: null);
 
         submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Single()
             .GetPayload().Should().BeOfType<SubmissionUpdatedEvent.Payload>();
@@ -147,7 +150,7 @@ public class IntegrationEventPayloadTests
             JsonData: """{"a":1}""",
             IsComplete: true));
         submission.ClearDomainEvents();
-        submission.Update("""{"a":2}""", 200, formDefinitionFormId: 100, isComplete: true);
+        submission.Update("""{"a":2}""", 200, formDefinitionFormId: 100, isComplete: true, metadata: null);
 
         var updated = submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Single();
         var json = Payload(updated.GetPayload());

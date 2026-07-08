@@ -128,7 +128,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
         if (changeKind != SubmissionChangeKind.None)
         {
-            RegisterRevisedDomainEvent(new SubmissionUpdatedEvent(this, changeKind));
+            RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, changeKind));
         }
     }
 
@@ -149,16 +149,16 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         var previousStatus = Status;
         Status = newStatus;
 
-        RegisterRevisedDomainEvent(new SubmissionStatusChangedEvent(this, previousStatus));
+        RegisterRevisedDomainEvent(() => new SubmissionStatusChangedEvent(this, previousStatus));
     }
 
     /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
     public void IncrementRevision() => Revision++;
 
-    private void RegisterRevisedDomainEvent(DomainEventBase domainEvent)
+    private void RegisterRevisedDomainEvent(Func<DomainEventBase> eventFactory)
     {
         IncrementRevision();
-        RegisterDomainEvent(domainEvent);
+        RegisterDomainEvent(eventFactory());
     }
 
     /// <summary>
@@ -179,7 +179,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
         if (isMaterialChange)
         {
-            RegisterRevisedDomainEvent(new SubmissionUpdatedEvent(this, SubmissionChangeKind.Submitter));
+            RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKind.Submitter));
         }
     }
 
@@ -190,7 +190,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
             IsComplete = true;
             CompletedAt = DateTime.UtcNow;
             // false→true transition (ctor or Update); captured to outbox → submission.completed webhook
-            RegisterRevisedDomainEvent(new SubmissionCompletedEvent(this));
+            RegisterRevisedDomainEvent(() => new SubmissionCompletedEvent(this));
         }
     }
 

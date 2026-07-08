@@ -184,7 +184,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         IsPublic = isPublic;
         LimitOnePerUser = limitOnePerUser;
         Metadata = metadata;
-        RegisterRevisedDomainEvent(new FormUpdatedEvent(this));
+        RegisterRevisedDomainEvent(() => new FormUpdatedEvent(this));
     }
 
     /// <summary>
@@ -199,17 +199,17 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         }
 
         IsEnabled = isEnabled;
-        RegisterRevisedDomainEvent(new FormEnabledStateChangedEvent(this, isEnabled));
+        RegisterRevisedDomainEvent(() => new FormEnabledStateChangedEvent(this, isEnabled));
     }
 
-    private void RegisterRevisedDomainEvent(DomainEventBase domainEvent)
+    private void RegisterRevisedDomainEvent(Func<DomainEventBase> eventFactory)
     {
         IncrementRevision();
-        RegisterDomainEvent(domainEvent);
+        RegisterDomainEvent(eventFactory());
     }
 
     private void RaiseActiveDefinitionUpdated(FormDefinition formDefinition) =>
-        RegisterRevisedDomainEvent(new FormDefinitionUpdatedEvent(this, formDefinition));
+        RegisterRevisedDomainEvent(() => new FormDefinitionUpdatedEvent(this, formDefinition));
 
     /// <summary>
     /// Updates the webhook configuration settings for this form.
@@ -246,7 +246,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
             // Delete the form itself
             base.Delete();
 
-            RegisterRevisedDomainEvent(new FormDeletedEvent(this));
+            RegisterRevisedDomainEvent(() => new FormDeletedEvent(this));
         }
     }
 }

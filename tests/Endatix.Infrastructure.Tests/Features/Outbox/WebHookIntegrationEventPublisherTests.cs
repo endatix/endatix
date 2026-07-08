@@ -17,6 +17,8 @@ namespace Endatix.Infrastructure.Tests.Features.Outbox;
 /// </summary>
 public class WebHookIntegrationEventPublisherTests
 {
+    private static readonly JsonSerializerOptions WireOptions = new(JsonSerializerDefaults.Web);
+
     private readonly IWebHookService _webHooks = Substitute.For<IWebHookService>();
 
     public WebHookIntegrationEventPublisherTests()
@@ -80,7 +82,8 @@ public class WebHookIntegrationEventPublisherTests
         var sut = CreateSut();
         foreach (var integrationEvent in events)
         {
-            var payload = JsonSerializer.Serialize(integrationEvent.GetPayload());
+            object eventPayload = integrationEvent.GetPayload();
+            string payload = JsonSerializer.Serialize(eventPayload, eventPayload.GetType(), WireOptions);
             var message = new FakeOutboxMessage(Id: 1, EventType: integrationEvent.EventType, Payload: payload, TenantId: 42);
 
             await sut.HandleAsync(message, CancellationToken.None);

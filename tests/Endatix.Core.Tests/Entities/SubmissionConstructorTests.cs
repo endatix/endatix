@@ -19,7 +19,7 @@ public class SubmissionConstructorTests
 
         // Assert
         action.Should().Throw<ArgumentNullException>()
-            .WithMessage(GetErrorMessage(nameof(Submission.JsonData), Null));
+            .WithMessage(GetErrorMessage("args.JsonData", Null));
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public class SubmissionConstructorTests
 
         // Assert
         action.Should().Throw<ArgumentException>()
-            .WithMessage(GetErrorMessage(nameof(Submission.JsonData), Empty));
+            .WithMessage(GetErrorMessage("args.JsonData", Empty));
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class SubmissionConstructorTests
 
         // Assert
         action.Should().Throw<ArgumentException>()
-            .WithMessage(GetErrorMessage(nameof(Submission.FormDefinitionId), ZeroOrNegative));
+            .WithMessage(GetErrorMessage("args.FormDefinitionId", ZeroOrNegative));
     }
 
     [Fact]
