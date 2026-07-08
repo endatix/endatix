@@ -102,21 +102,19 @@ public class CreateSubmissionHandler(
             submitterId is not null &&
             !canBypassSingleSubmissionLimit;
 
-        var submission = Submission.Create(
-            activeDefinition!.TenantId,
-            jsonData: request.JsonData ?? DEFAULT_JSON_DATA,
-            formId: request.FormId,
-            formDefinitionId: activeDefinition!.Id,
-            options: new SubmissionCreateOptions(
-                IsComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
-                CurrentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-                Metadata: request.Metadata ?? DEFAULT_METADATA,
-                SubmitterId: submitterId,
-                SubmitterDisplayId: submitterResolution.DisplayId,
-                SubmitterProfileSnapshot: submitterResolution.ProfileSnapshot,
-                IsTestSubmission: canBypassSingleSubmissionLimit,
-                EnforceSingleSubmissionGate: shouldEnforceSingleSubmissionGate)
-        );
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: activeDefinition!.TenantId,
+            FormId: request.FormId,
+            FormDefinitionId: activeDefinition.Id,
+            JsonData: request.JsonData ?? DEFAULT_JSON_DATA,
+            IsComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
+            CurrentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
+            Metadata: request.Metadata ?? DEFAULT_METADATA,
+            SubmitterId: submitterId,
+            SubmitterDisplayId: submitterResolution.DisplayId,
+            SubmitterProfileSnapshot: submitterResolution.ProfileSnapshot,
+            IsTestSubmission: canBypassSingleSubmissionLimit,
+            EnforceSingleSubmissionGate: shouldEnforceSingleSubmissionGate));
 
         try
         {

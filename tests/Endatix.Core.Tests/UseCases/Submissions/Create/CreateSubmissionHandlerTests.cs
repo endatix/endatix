@@ -148,6 +148,44 @@ public class CreateSubmissionHandlerTests
     }
 
     [Fact]
+    public async Task Handle_IncompleteSubmission_DoesNotPublishSubmissionCompletedEvent()
+    {
+        // Arrange
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ \"field\": \"value\" }",
+            IsComplete: false,
+            CurrentPage: 0,
+            Metadata: null,
+            ReCaptchaToken: "test-token",
+            RequiredPermission: "submissions.create"
+        );
+
+        _recaptchaService.ValidateReCaptchaAsync(
+            Arg.Any<SubmissionVerificationContext>(),
+            Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        _formsRepository.SingleOrDefaultAsync(
+            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Created);
+        await _mediator.DidNotReceive().Publish(
+            Arg.Any<SubmissionCompletedEvent>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_ValidRequestAndSubmissionIsCompleted_PublishesSubmissionCreatedEvent()
     {
         // Arrange
