@@ -58,4 +58,79 @@ public class SubmissionIntegrationEventTests
 
         submission.DomainEvents.OfType<SubmissionCompletedEvent>().Should().BeEmpty("it was already complete");
     }
+
+    [Fact]
+    public void Update_with_only_metadata_change_on_complete_submission_raises_updated_with_metadata_kind()
+    {
+        var submission = Create(isComplete: true);
+        submission.ClearDomainEvents();
+
+        submission.Update("{}", FormDefinitionId, formDefinitionFormId: FormId, isComplete: true, metadata: "{\"tag\":\"vip\"}");
+
+        var updated = submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Should().ContainSingle().Subject;
+        updated.ChangeKind.Should().Be(SubmissionChangeKind.Metadata);
+    }
+
+    [Fact]
+    public void Update_with_answer_change_on_complete_submission_raises_updated_with_answers_kind()
+    {
+        var submission = Create(isComplete: true);
+        submission.ClearDomainEvents();
+
+        submission.Update("{\"a\":1}", FormDefinitionId, formDefinitionFormId: FormId, isComplete: true);
+
+        var updated = submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Should().ContainSingle().Subject;
+        updated.ChangeKind.Should().Be(SubmissionChangeKind.Answers);
+    }
+
+    [Fact]
+    public void Update_with_only_current_page_change_on_complete_submission_does_not_raise_updated()
+    {
+        var submission = Create(isComplete: true);
+        submission.ClearDomainEvents();
+
+        submission.Update("{}", FormDefinitionId, formDefinitionFormId: FormId, isComplete: true, currentPage: 99);
+
+        submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void SetSubmitter_on_complete_submission_raises_updated_with_submitter_kind()
+    {
+        var submission = Create(isComplete: true);
+        submission.ClearDomainEvents();
+
+        submission.SetSubmitter(42, "display-42", "{\"name\":\"Ada\"}");
+
+        var updated = submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Should().ContainSingle().Subject;
+        updated.ChangeKind.Should().Be(SubmissionChangeKind.Submitter);
+    }
+
+    [Fact]
+    public void UpdateStatus_with_new_status_raises_status_changed_and_bumps_revision()
+    {
+        var submission = Create(isComplete: true);
+        submission.ClearDomainEvents();
+        var revisionBefore = submission.Revision;
+
+        submission.UpdateStatus(SubmissionStatus.Approved);
+
+        submission.Status.Should().Be(SubmissionStatus.Approved);
+        submission.Revision.Should().Be(revisionBefore + 1);
+        var statusChanged = submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Should().ContainSingle().Subject;
+        statusChanged.PreviousStatus.Should().Be(SubmissionStatus.New);
+    }
+
+    [Fact]
+    public void UpdateStatus_with_same_status_does_not_raise_or_bump_revision()
+    {
+        var submission = Create(isComplete: true);
+        submission.ClearDomainEvents();
+        var revisionBefore = submission.Revision;
+
+        submission.UpdateStatus(SubmissionStatus.New);
+
+        submission.Revision.Should().Be(revisionBefore);
+        submission.DomainEvents.Should().BeEmpty();
+    }
 }

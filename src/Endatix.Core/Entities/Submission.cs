@@ -106,12 +106,36 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
                 "The target form definition does not belong to this submission's form", nameof(formDefinitionFormId));
         }
 
+        var changeKind = SubmissionChangeKind.None;
+        if (IsComplete)
+        {
+            if (!string.Equals(JsonData, jsonData, StringComparison.Ordinal))
+            {
+                changeKind |= SubmissionChangeKind.Answers;
+            }
+
+            if (!string.Equals(Metadata, metadata, StringComparison.Ordinal))
+            {
+                changeKind |= SubmissionChangeKind.Metadata;
+            }
+
+            if (FormDefinitionId != formDefinitionId)
+            {
+                changeKind |= SubmissionChangeKind.Definition;
+            }
+        }
+
         FormDefinitionId = formDefinitionId;
         JsonData = jsonData;
         CurrentPage = currentPage;
         Metadata = metadata;
 
         SetCompletionStatus(isComplete);
+
+        if (changeKind != SubmissionChangeKind.None)
+        {
+            RegisterRevisedDomainEvent(new SubmissionUpdatedEvent(this, changeKind));
+        }
     }
 
     public void UpdateToken(Token token)
@@ -123,11 +147,25 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     {
         Guard.Against.Null(newStatus, nameof(newStatus));
 
+        if (Status == newStatus)
+        {
+            return;
+        }
+
+        var previousStatus = Status;
         Status = newStatus;
+
+        RegisterRevisedDomainEvent(new SubmissionStatusChangedEvent(this, previousStatus));
     }
 
     /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
     public void IncrementRevision() => Revision++;
+
+    private void RegisterRevisedDomainEvent(DomainEventBase domainEvent)
+    {
+        IncrementRevision();
+        RegisterDomainEvent(domainEvent);
+    }
 
     /// <summary>
     /// Sets the submitter for the submission.
@@ -137,10 +175,18 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     /// <param name="profileSnapshot">The profile snapshot of the submitter.</param>    
     public void SetSubmitter(long? submitterId, string? displayId, string? profileSnapshot)
     {
+        var isMaterialChange = IsComplete
+            && (SubmitterId != submitterId || SubmitterProfileSnapshot != profileSnapshot);
+
         SubmitterId = submitterId;
         SubmittedBy = submitterId?.ToString();
         SubmitterDisplayId = string.IsNullOrWhiteSpace(displayId) ? null : displayId;
         SubmitterProfileSnapshot = string.IsNullOrWhiteSpace(profileSnapshot) ? null : profileSnapshot;
+
+        if (isMaterialChange)
+        {
+            RegisterRevisedDomainEvent(new SubmissionUpdatedEvent(this, SubmissionChangeKind.Submitter));
+        }
     }
 
     private void SetCompletionStatus(bool newIsCompleteValue)
@@ -149,10 +195,8 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         {
             IsComplete = true;
             CompletedAt = DateTime.UtcNow;
-            IncrementRevision();
-            // Raised on the false→true transition (from the ctor or Update), so it fires once regardless of
-            // the Create/Update/PartialUpdate path. Captured to the outbox → submission.completed webhook.
-            RegisterDomainEvent(new SubmissionCompletedEvent(this));
+            // false→true transition (ctor or Update); captured to outbox → submission.completed webhook
+            RegisterRevisedDomainEvent(new SubmissionCompletedEvent(this));
         }
     }
 
@@ -161,6 +205,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     public override void Delete()
     {
         base.Delete();
+        RegisterDomainEvent(new SubmissionDeletedEvent(this));
     }
 
     private void ApplySingleSubmissionRestriction(long formId, bool shouldEnforce)
