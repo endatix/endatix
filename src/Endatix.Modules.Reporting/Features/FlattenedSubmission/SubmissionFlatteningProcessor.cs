@@ -30,8 +30,8 @@ internal sealed class SubmissionFlatteningProcessor(
         CancellationToken cancellationToken)
     {
         var row = await flattenedSubmissionRepository.GetOrCreateAsync(
-            submissionId,
             tenantId,
+            submissionId,
             formId,
             cancellationToken);
 

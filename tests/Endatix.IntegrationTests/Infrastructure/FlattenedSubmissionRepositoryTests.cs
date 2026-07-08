@@ -52,7 +52,7 @@ public sealed class FlattenedSubmissionRepositoryTests
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
-        await repository.GetOrCreateAsync(SubmissionId, TenantId, FormId, cancellationToken);
+        await repository.GetOrCreateAsync(TenantId, SubmissionId, FormId, cancellationToken);
 
         FlattenedSubmission? otherTenantResult = await repository.GetBySubmissionIdAsync(
             OtherTenantId,
@@ -78,13 +78,13 @@ public sealed class FlattenedSubmissionRepositoryTests
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
 
         FlattenedSubmission created = await repository.GetOrCreateAsync(
-            SubmissionId,
             TenantId,
+            SubmissionId,
             FormId,
             cancellationToken);
         FlattenedSubmission existing = await repository.GetOrCreateAsync(
-            SubmissionId,
             TenantId,
+            SubmissionId,
             FormId,
             cancellationToken);
 
@@ -101,8 +101,8 @@ public sealed class FlattenedSubmissionRepositoryTests
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
         FlattenedSubmission row = await repository.GetOrCreateAsync(
-            SubmissionId,
             TenantId,
+            SubmissionId,
             FormId,
             cancellationToken);
 
@@ -128,8 +128,8 @@ public sealed class FlattenedSubmissionRepositoryTests
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
         FlattenedSubmission row = await repository.GetOrCreateAsync(
-            SubmissionId,
             TenantId,
+            SubmissionId,
             FormId,
             cancellationToken);
 

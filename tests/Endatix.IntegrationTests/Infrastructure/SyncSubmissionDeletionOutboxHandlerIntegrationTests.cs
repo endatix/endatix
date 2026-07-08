@@ -40,7 +40,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
-        await repository.GetOrCreateAsync(SubmissionId, TenantId, FormId, cancellationToken);
+        await repository.GetOrCreateAsync(TenantId, SubmissionId, FormId, cancellationToken);
 
         Submission submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: TenantId,

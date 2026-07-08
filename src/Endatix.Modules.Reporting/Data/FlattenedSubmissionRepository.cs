@@ -24,8 +24,8 @@ internal sealed class FlattenedSubmissionRepository(
 
     /// <inheritdoc />
     public async Task<FlattenedSubmission> GetOrCreateAsync(
-        long submissionId,
         long tenantId,
+        long submissionId,
         long formId,
         CancellationToken cancellationToken)
     {

@@ -54,7 +54,7 @@ public class SubmissionFlatteningProcessorTests
 
         IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
         flattenedSubmissionRepository
-            .GetOrCreateAsync(SubmissionId, TenantId, FormId, Arg.Any<CancellationToken>())
+            .GetOrCreateAsync(TenantId, SubmissionId, FormId, Arg.Any<CancellationToken>())
             .Returns(trackingRow);
 
         SubmissionFlatteningProcessor processor = new(
@@ -93,7 +93,7 @@ public class SubmissionFlatteningProcessorTests
 
         IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
         flattenedSubmissionRepository
-            .GetOrCreateAsync(SubmissionId, TenantId, FormId, Arg.Any<CancellationToken>())
+            .GetOrCreateAsync(TenantId, SubmissionId, FormId, Arg.Any<CancellationToken>())
             .Returns(trackingRow);
 
         SubmissionFlatteningProcessor processor = new(
