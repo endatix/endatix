@@ -3,7 +3,6 @@ namespace Endatix.Infrastructure.Utils;
 public static class StringUtils
 {
     private const char SNAKE_CASE_SEPARATOR = '_';
-    private const char KEBAB_CASE_SEPARATOR = '-';
     private const char DOTTED_SEPARATOR = '.';
     /// <summary>
     /// Converts a string to kebab-case.
