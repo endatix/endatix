@@ -11,28 +11,27 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
     private Submission() { } // For EF Core
 
-    public Submission(long tenantId, string jsonData, long formId, long formDefinitionId, SubmissionCreateOptions options)
-        : base(tenantId)
+    private Submission(SubmissionCreateArgs args) : base(args.TenantId)
     {
-        Guard.Against.NullOrEmpty(jsonData);
-        Guard.Against.NegativeOrZero(formId);
-        Guard.Against.NegativeOrZero(formDefinitionId);
-        Guard.Against.Null(options);
+        Guard.Against.Null(args);
+        Guard.Against.NullOrEmpty(args.JsonData);
+        Guard.Against.NegativeOrZero(args.FormId);
+        Guard.Against.NegativeOrZero(args.FormDefinitionId);
 
-        FormId = formId;
-        FormDefinitionId = formDefinitionId;
-        JsonData = jsonData;
-        CurrentPage = options.CurrentPage;
-        Metadata = options.Metadata;
-        IsTestSubmission = options.IsTestSubmission;
+        FormId = args.FormId;
+        FormDefinitionId = args.FormDefinitionId;
+        JsonData = args.JsonData;
+        CurrentPage = args.CurrentPage;
+        Metadata = args.Metadata;
+        IsTestSubmission = args.IsTestSubmission;
         Status = SubmissionStatus.New;
 
-        SetSubmitter(options.SubmitterId, options.SubmitterDisplayId, options.SubmitterProfileSnapshot);
-        ApplySingleSubmissionRestriction(formId, options.EnforceSingleSubmissionGate && !options.IsTestSubmission);
-        SetCompletionStatus(options.IsComplete);
+        SetSubmitter(args.SubmitterId, args.SubmitterDisplayId, args.SubmitterProfileSnapshot);
+        ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
+        SetCompletionStatus(args.IsComplete);
     }
 
-    [Obsolete("Use the options-based Submission constructor or Submission.Create().")]
+    [Obsolete("Use Submission.Create(SubmissionCreateArgs).")]
     public Submission(
         long tenantId,
         string jsonData,
@@ -43,27 +42,22 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         string? metadata = null,
         string? submittedBy = null,
         bool isTestSubmission = false)
-        : this(
-            tenantId,
-            jsonData,
-            formId,
-            formDefinitionId,
-            new SubmissionCreateOptions(
-                IsComplete: isComplete,
-                CurrentPage: currentPage,
-                Metadata: metadata,
-                IsTestSubmission: isTestSubmission))
+        : this(new SubmissionCreateArgs(
+            TenantId: tenantId,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: jsonData,
+            IsComplete: isComplete,
+            CurrentPage: currentPage,
+            Metadata: metadata,
+            IsTestSubmission: isTestSubmission))
     {
     }
 
-    public static Submission Create(
-        long tenantId,
-        string jsonData,
-        long formId,
-        long formDefinitionId,
-        SubmissionCreateOptions? options = null)
+    public static Submission Create(SubmissionCreateArgs args)
     {
-        return new Submission(tenantId, jsonData, formId, formDefinitionId, options ?? new SubmissionCreateOptions());
+        Guard.Against.Null(args);
+        return new Submission(args);
     }
 
     public bool IsComplete { get; private set; }
@@ -215,13 +209,3 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
             : null;
     }
 }
-
-public sealed record SubmissionCreateOptions(
-    bool IsComplete = true,
-    int CurrentPage = 0,
-    string? Metadata = null,
-    long? SubmitterId = null,
-    string? SubmitterDisplayId = null,
-    string? SubmitterProfileSnapshot = null,
-    bool IsTestSubmission = false,
-    bool EnforceSingleSubmissionGate = false);

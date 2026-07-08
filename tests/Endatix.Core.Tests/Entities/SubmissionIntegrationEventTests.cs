@@ -15,7 +15,12 @@ public class SubmissionIntegrationEventTests
     private const long FormDefinitionId = 200;
 
     private static Submission Create(bool isComplete) =>
-        Submission.Create(TenantId, "{}", FormId, FormDefinitionId, new SubmissionCreateOptions(IsComplete: isComplete));
+        Submission.Create(new SubmissionCreateArgs(
+            TenantId: TenantId,
+            FormId: FormId,
+            FormDefinitionId: FormDefinitionId,
+            JsonData: "{}",
+            IsComplete: isComplete));
 
     [Fact]
     public void Completing_on_creation_raises_the_event_and_bumps_revision()

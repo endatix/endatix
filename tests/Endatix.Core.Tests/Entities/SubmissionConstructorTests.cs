@@ -43,8 +43,9 @@ public class SubmissionConstructorTests
     {
         // Arrange
         const long invalidFormDefinitionId = -1;
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1){
-            Id = 123 
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
+        {
+            Id = 123
         };
         const string jsonData = SampleData.SUBMISSION_JSON_DATA_1;
 
@@ -57,10 +58,18 @@ public class SubmissionConstructorTests
     }
 
     [Fact]
+    public void Create_null_args_throws()
+    {
+        var action = () => Submission.Create(null!);
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
     public void Constructor_ValidInput_SetsPropertiesCorrectly()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1){
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
+        {
             Id = 123
         };
         var jsonData = SampleData.SUBMISSION_JSON_DATA_1;
@@ -86,10 +95,12 @@ public class SubmissionConstructorTests
     public void Constructor_CompleteSubmission_SetsCompletedAt()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1){
-            Id = 123    
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
+        {
+            Id = 123
         };
-        var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1){
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
+        {
             Id = 456
         };
         form.AddFormDefinition(formDefinition);
@@ -108,14 +119,13 @@ public class SubmissionConstructorTests
     public void Create_WhenSingleSubmissionGateApplies_SetsRestrictionKey()
     {
         // Act
-        var submission = Submission.Create(
+        var submission = Submission.Create(new SubmissionCreateArgs(
             SampleData.TENANT_ID,
-            SampleData.SUBMISSION_JSON_DATA_1,
-            formId: 123,
-            formDefinitionId: 456,
-            new SubmissionCreateOptions(
-                SubmitterId: 789,
-                EnforceSingleSubmissionGate: true));
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: SampleData.SUBMISSION_JSON_DATA_1,
+            SubmitterId: 789,
+            EnforceSingleSubmissionGate: true));
 
         // Assert
         submission.RestrictionKey.Should().Be("SingleSubmission:Form:123:Submitter:789");
@@ -133,15 +143,14 @@ public class SubmissionConstructorTests
         long? submitterId)
     {
         // Act
-        var submission = Submission.Create(
+        var submission = Submission.Create(new SubmissionCreateArgs(
             SampleData.TENANT_ID,
-            SampleData.SUBMISSION_JSON_DATA_1,
-            formId: 123,
-            formDefinitionId: 456,
-            new SubmissionCreateOptions(
-                SubmitterId: submitterId,
-                IsTestSubmission: isTestSubmission,
-                EnforceSingleSubmissionGate: enforceSingleSubmissionGate));
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: SampleData.SUBMISSION_JSON_DATA_1,
+            SubmitterId: submitterId,
+            IsTestSubmission: isTestSubmission,
+            EnforceSingleSubmissionGate: enforceSingleSubmissionGate));
 
         // Assert
         submission.RestrictionKey.Should().BeNull();

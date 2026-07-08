@@ -73,10 +73,59 @@ public class IntegrationEventPayloadTests
     }
 
     [Fact]
+    public void SubmissionCompletedEvent_getPayload_returns_base_payload_type()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
+
+        new SubmissionCompletedEvent(submission).GetPayload().Should().BeOfType<SubmissionCompletedEvent.Payload>();
+    }
+
+    [Fact]
+    public void SubmissionUpdatedEvent_getPayload_returns_updated_payload_type()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: """{"a":1}""",
+            IsComplete: true));
+        submission.ClearDomainEvents();
+        submission.Update("""{"a":2}""", 200, formDefinitionFormId: 100, isComplete: true);
+
+        submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Single()
+            .GetPayload().Should().BeOfType<SubmissionUpdatedEvent.Payload>();
+    }
+
+    [Fact]
+    public void SubmissionStatusChangedEvent_getPayload_returns_status_changed_payload_type()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
+        submission.ClearDomainEvents();
+        submission.UpdateStatus(SubmissionStatus.Approved);
+
+        submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Single()
+            .GetPayload().Should().BeOfType<SubmissionStatusChangedEvent.Payload>();
+    }
+
+    [Fact]
     public void SubmissionCompletedEvent_has_dotted_type_and_submission_payload_with_revision()
     {
-        var submission = Submission.Create(1, "{}", formId: 100, formDefinitionId: 200,
-            new SubmissionCreateOptions(IsComplete: true));
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
         var evt = new SubmissionCompletedEvent(submission);
 
         evt.EventType.Should().Be("submission.completed");
@@ -86,5 +135,47 @@ public class IntegrationEventPayloadTests
         json.GetProperty("isComplete").GetBoolean().Should().BeTrue();
         json.TryGetProperty("revision", out _).Should().BeTrue();
         json.TryGetProperty("completedAt", out _).Should().BeTrue();
+    }
+
+    [Fact]
+    public void SubmissionUpdatedEvent_includes_changeKind_and_revision()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: """{"a":1}""",
+            IsComplete: true));
+        submission.ClearDomainEvents();
+        submission.Update("""{"a":2}""", 200, formDefinitionFormId: 100, isComplete: true);
+
+        var updated = submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Single();
+        var json = Payload(updated.GetPayload());
+
+        updated.EventType.Should().Be("submission.updated");
+        json.GetProperty("changeKind").GetString().Should().Be("answers");
+        json.GetProperty("revision").GetInt64().Should().BeGreaterThan(1);
+    }
+
+    [Fact]
+    public void SubmissionStatusChangedEvent_includes_previous_and_new_status_with_revision()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
+        submission.ClearDomainEvents();
+
+        submission.UpdateStatus(SubmissionStatus.Approved);
+
+        var statusChanged = submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Single();
+        var json = Payload(statusChanged.GetPayload());
+
+        statusChanged.EventType.Should().Be("submission.status_changed");
+        json.GetProperty("previousStatus").GetString().Should().Be("new");
+        json.GetProperty("status").GetString().Should().Be("approved");
+        json.GetProperty("revision").GetInt64().Should().BeGreaterThan(1);
     }
 }
