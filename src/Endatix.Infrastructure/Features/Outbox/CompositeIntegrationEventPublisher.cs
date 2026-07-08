@@ -43,13 +43,9 @@ internal sealed class CompositeIntegrationEventPublisher(
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Outbox handler {HandlerType} failed for message {MessageId} ({EventType}).",
-                    handler.GetType().Name,
-                    message.Id,
-                    message.EventType);
-                throw;
+                throw new InvalidOperationException(
+                    $"Outbox handler {handler.GetType().Name} failed for message {message.Id} ({message.EventType}).",
+                    ex);
             }
         }
     }

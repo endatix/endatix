@@ -100,22 +100,22 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
                 "The target form definition does not belong to this submission's form", nameof(formDefinitionFormId));
         }
 
-        var changeKind = SubmissionChangeKind.None;
+        var changeKind = SubmissionChangeKinds.None;
         if (IsComplete)
         {
             if (!string.Equals(JsonData, jsonData, StringComparison.Ordinal))
             {
-                changeKind |= SubmissionChangeKind.Answers;
+                changeKind |= SubmissionChangeKinds.Answers;
             }
 
             if (!string.Equals(Metadata, metadata, StringComparison.Ordinal))
             {
-                changeKind |= SubmissionChangeKind.Metadata;
+                changeKind |= SubmissionChangeKinds.Metadata;
             }
 
             if (FormDefinitionId != formDefinitionId)
             {
-                changeKind |= SubmissionChangeKind.Definition;
+                changeKind |= SubmissionChangeKinds.Definition;
             }
         }
 
@@ -126,7 +126,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
         SetCompletionStatus(isComplete);
 
-        if (changeKind != SubmissionChangeKind.None)
+        if (changeKind != SubmissionChangeKinds.None)
         {
             RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, changeKind));
         }
@@ -179,7 +179,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
         if (isMaterialChange)
         {
-            RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKind.Submitter));
+            RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Submitter));
         }
     }
 

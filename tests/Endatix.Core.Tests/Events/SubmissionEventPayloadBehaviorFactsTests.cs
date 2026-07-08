@@ -58,7 +58,7 @@ public class SubmissionEventPayloadBehaviorFactsTests
         SubmissionUpdatedEvent.Payload payload = new(
             submission,
             revision: 3,
-            SubmissionChangeKind.Answers | SubmissionChangeKind.Metadata);
+            SubmissionChangeKinds.Answers | SubmissionChangeKinds.Metadata);
 
         payload.Should().BeAssignableTo<SubmissionCompletedEvent.Payload>();
         payload.ChangeKind.Should().Be("answers,metadata");
@@ -160,7 +160,7 @@ public class SubmissionEventPayloadBehaviorFactsTests
     public void SubmissionUpdatedEvent_Payload_WireJson_RoundTripsSuccessfully()
     {
         Submission submission = CreateCompleteSubmission();
-        SubmissionUpdatedEvent.Payload original = new(submission, revision: 5, SubmissionChangeKind.Definition);
+        SubmissionUpdatedEvent.Payload original = new(submission, revision: 5, SubmissionChangeKinds.Definition);
         string wireJson = JsonSerializer.Serialize(original, original.GetType(), WireOptions);
 
         wireJson.Should().Contain("\"changeKind\":\"definition\"");

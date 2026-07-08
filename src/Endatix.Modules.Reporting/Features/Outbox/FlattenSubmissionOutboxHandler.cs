@@ -44,7 +44,7 @@ internal sealed class FlattenSubmissionOutboxHandler(
         }
 
         var changeKindWireValue = JsonElementReader.TryGetString(payload, "changeKind");
-        var changeKind = SubmissionChangeKindExtensions.ParseWireValue(changeKindWireValue);
+        var changeKind = SubmissionChangeKindsExtensions.ParseWireValue(changeKindWireValue);
 
         if (changeKind.AffectsSubmissionData())
         {

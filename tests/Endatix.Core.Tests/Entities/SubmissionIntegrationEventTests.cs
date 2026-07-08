@@ -73,7 +73,7 @@ public class SubmissionIntegrationEventTests
         submission.Update("{}", FormDefinitionId, formDefinitionFormId: FormId, isComplete: true, metadata: "{\"tag\":\"vip\"}");
 
         var updated = submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Should().ContainSingle().Subject;
-        updated.ChangeKind.Should().Be(SubmissionChangeKind.Metadata);
+        updated.ChangeKind.Should().Be(SubmissionChangeKinds.Metadata);
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public class SubmissionIntegrationEventTests
         submission.Update("{\"a\":1}", FormDefinitionId, formDefinitionFormId: FormId, isComplete: true);
 
         var updated = submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Should().ContainSingle().Subject;
-        updated.ChangeKind.Should().Be(SubmissionChangeKind.Answers);
+        updated.ChangeKind.Should().Be(SubmissionChangeKinds.Answers);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public class SubmissionIntegrationEventTests
         submission.SetSubmitter(42, "display-42", "{\"name\":\"Ada\"}");
 
         var updated = submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Should().ContainSingle().Subject;
-        updated.ChangeKind.Should().Be(SubmissionChangeKind.Submitter);
+        updated.ChangeKind.Should().Be(SubmissionChangeKinds.Submitter);
     }
 
     [Fact]

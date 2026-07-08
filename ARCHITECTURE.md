@@ -361,24 +361,24 @@ Apply these rules in **Core entities** (`Submission`, `Form`, …). Application 
 2. **No-op when unchanged** — if material state is identical, return without bumping revision or raising an event (`UpdateStatus`, `SetEnabled`, active-definition activation).
 3. **Pair revision + event** — use a private `RegisterRevisedDomainEvent(...)` helper that calls `IncrementRevision()` then `RegisterDomainEvent(...)`. Do **not** override `RegisterDomainEvent` globally — some events intentionally skip the bump (e.g. `form.created` at revision 1, `submission.deleted`).
 4. **Encapsulate reporting triggers on the aggregate** — e.g. `Form.UpdateActiveDefinitionSchema` and `Form.SetActiveFormDefinition` raise `FormDefinitionUpdatedEvent`; handlers call those methods instead of separate notify methods.
-5. **Use `[Flags]` enums for multi-field changes** — accumulate `SubmissionChangeKind` inline when several fields can change in one operation; subscribers filter with domain masks (`SubmissionChangeKindMasks.SubmissionData`, `AffectsSubmissionData()`).
+5. **Use `[Flags]` enums for multi-field changes** — accumulate `SubmissionChangeKinds` inline when several fields can change in one operation; subscribers filter with domain masks (`SubmissionChangeKindsMasks.SubmissionData`, `AffectsSubmissionData()`).
 6. **Capture payload values deliberately** — integration event constructors should capture **revision at raise time** (`private readonly long _revision = aggregate.Revision`) so multiple events in one transaction keep distinct revisions. Prefer reading **live aggregate state in `GetPayload()`** for IDs that are assigned during `SaveChanges` (see `FormDefinitionUpdatedEvent` reading `FormDefinition.Id` at capture time, after Id stamping).
 
 Example shape (submission update):
 
 ```csharp
-SubmissionChangeKind changeKind = SubmissionChangeKind.None;
+SubmissionChangeKinds changeKind = SubmissionChangeKinds.None;
 if (IsComplete)
 {
     if (!string.Equals(JsonData, jsonData, StringComparison.Ordinal))
-        changeKind |= SubmissionChangeKind.Answers;
+        changeKind |= SubmissionChangeKinds.Answers;
     // …
 }
 
 JsonData = jsonData;
 // …
 
-if (changeKind != SubmissionChangeKind.None)
+if (changeKind != SubmissionChangeKinds.None)
 {
     RegisterRevisedDomainEvent(new SubmissionUpdatedEvent(this, changeKind));
 }

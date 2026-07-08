@@ -7,14 +7,14 @@ namespace Endatix.Core.Events;
 /// Raised when a completed submission's material fields change. Captured to the outbox for durable
 /// reporting re-flatten and future stats subscribers (not a customer webhook in phase 1).
 /// </summary>
-public sealed class SubmissionUpdatedEvent(Submission submission, SubmissionChangeKind changeKind)
+public sealed class SubmissionUpdatedEvent(Submission submission, SubmissionChangeKinds changeKind)
     : DomainEventBase, IIntegrationEvent
 {
     public const string EventTypeName = "submission.updated";
 
     public Submission Submission { get; init; } = submission;
 
-    public SubmissionChangeKind ChangeKind { get; } = changeKind;
+    public SubmissionChangeKinds ChangeKind { get; } = changeKind;
 
     private readonly long _revision = submission.Revision;
 
@@ -27,7 +27,7 @@ public sealed class SubmissionUpdatedEvent(Submission submission, SubmissionChan
     {
         public string ChangeKind { get; init; } = null!;
 
-        public Payload(Submission submission, long revision, SubmissionChangeKind changeKind)
+        public Payload(Submission submission, long revision, SubmissionChangeKinds changeKind)
             : base(submission, revision)
         {
             ChangeKind = changeKind.ToWireValue();

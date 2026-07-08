@@ -74,12 +74,9 @@ internal sealed class FormSchemaProcessor(
         }
         catch (SchemaCompilationLimitExceededException ex)
         {
-            logger.LogError(
-                ex,
-                "Form schema compilation failed for form {FormId}: {LimitKind}",
-                formId,
-                ex.LimitKind);
-            throw;
+            throw new InvalidOperationException(
+                $"Form schema compilation failed for form {formId}: {ex.LimitKind}.",
+                ex);
         }
     }
 }

@@ -57,7 +57,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     {
         Submission submission = CreateSubmission();
         string payload = ReportingOutboxTestHelpers.SerializePayload(
-            new SubmissionUpdatedEvent(submission, SubmissionChangeKindExtensions.ParseWireValue(changeKind)).GetPayload());
+            new SubmissionUpdatedEvent(submission, SubmissionChangeKindsExtensions.ParseWireValue(changeKind)).GetPayload());
         ReportingOutboxTestHelpers.FakeOutboxMessage message = new(
             Id: 2,
             EventType: SubmissionUpdatedEvent.EventTypeName,
@@ -80,9 +80,9 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     public async Task HandleAsync_WithSubmissionUpdated_NonDataChangeKind_DoesNotCallProcessor(string changeKind)
     {
         Submission submission = CreateSubmission();
-        SubmissionChangeKind parsedChangeKind = string.IsNullOrEmpty(changeKind)
-            ? SubmissionChangeKind.None
-            : SubmissionChangeKindExtensions.ParseWireValue(changeKind);
+        SubmissionChangeKinds parsedChangeKind = string.IsNullOrEmpty(changeKind)
+            ? SubmissionChangeKinds.None
+            : SubmissionChangeKindsExtensions.ParseWireValue(changeKind);
         string payload = ReportingOutboxTestHelpers.SerializePayload(
             new SubmissionUpdatedEvent(submission, parsedChangeKind).GetPayload());
         ReportingOutboxTestHelpers.FakeOutboxMessage message = new(
