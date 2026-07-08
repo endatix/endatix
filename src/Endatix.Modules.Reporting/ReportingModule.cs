@@ -4,8 +4,12 @@ using Microsoft.Extensions.Options;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Reporting.Configuration;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 
 namespace Endatix.Modules.Reporting;
@@ -34,6 +38,14 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
             });
 
         builder.Services.AddScoped<IReportingUnitOfWork, ReportingUnitOfWork>();
+        builder.Services.AddScoped<IFormExportSchemaRepository, FormExportSchemaRepository>();
+        builder.Services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
+        builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
+        builder.Services.AddScoped<IFormSchemaProvider, FormSchemaProvider>();
+        builder.Services.AddScoped<ISubmissionFlatteningProcessor, SubmissionFlatteningProcessor>();
+        builder.Services.AddScoped<IOutboxIntegrationEventHandler, CompileFormExportSchemaOutboxHandler>();
+        builder.Services.AddScoped<IOutboxIntegrationEventHandler, FlattenSubmissionOutboxHandler>();
+        builder.Services.AddScoped<IOutboxIntegrationEventHandler, SyncSubmissionDeletionOutboxHandler>();
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
     }
 }

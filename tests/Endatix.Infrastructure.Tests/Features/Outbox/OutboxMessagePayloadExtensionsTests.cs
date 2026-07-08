@@ -49,10 +49,33 @@ public sealed class OutboxMessagePayloadExtensionsTests
             .WithMessage("Outbox message 3 (submission.completed) has an invalid formId.");
     }
 
-    private sealed record FakeOutboxMessage(long Id, string EventType) : IOutboxMessage
+    [Fact]
+    public void GetRequiredTenantId_WithMatchingTenant_ReturnsValue()
+    {
+        using JsonDocument document = JsonDocument.Parse("""{"tenantId":"42"}""");
+        IOutboxMessage message = new FakeOutboxMessage(Id: 1, EventType: "submission.completed", TenantId: 42);
+
+        long tenantId = message.GetRequiredTenantId(document.RootElement);
+
+        tenantId.Should().Be(42);
+    }
+
+    [Fact]
+    public void GetRequiredTenantId_WithMismatchedTenant_Throws()
+    {
+        using JsonDocument document = JsonDocument.Parse("""{"tenantId":"99"}""");
+        IOutboxMessage message = new FakeOutboxMessage(Id: 5, EventType: "submission.deleted", TenantId: 42);
+
+        Action act = () => message.GetRequiredTenantId(document.RootElement);
+
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("Outbox message 5 (submission.deleted) tenantId mismatch: message=42, payload=99.");
+    }
+
+    private sealed record FakeOutboxMessage(long Id, string EventType, long TenantId = 1) : IOutboxMessage
     {
         public string Payload => "{}";
-        public long TenantId => 1;
         public DateTimeOffset OccurredAt => DateTimeOffset.UnixEpoch;
         public int SchemaVersion => 1;
         public int Attempts => 0;

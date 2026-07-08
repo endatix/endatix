@@ -35,4 +35,20 @@ public static class OutboxMessagePayloadExtensions
 
         return value.Value;
     }
+
+    /// <summary>
+    /// Reads <c>tenantId</c> from the payload and verifies it matches the outbox row tenant.
+    /// </summary>
+    public static long GetRequiredTenantId(this IOutboxMessage message, JsonElement payload)
+    {
+        var tenantId = message.GetRequiredIdProp(payload, "tenantId");
+
+        if (tenantId != message.TenantId)
+        {
+            throw new InvalidOperationException(
+                $"Outbox message {message.Id} ({message.EventType}) tenantId mismatch: message={message.TenantId}, payload={tenantId}.");
+        }
+
+        return tenantId;
+    }
 }
