@@ -43,4 +43,18 @@ public sealed class StringUtilsTests
         var result = StringUtils.ToPascalCase(input);
         Assert.Equal(expected, result);
     }
+
+    [Theory]
+    [InlineData("form_created", "form.created")]
+    [InlineData("form_updated", "form.updated")]
+    [InlineData("form_enabled_state_changed", "form.enabled_state_changed")]
+    [InlineData("submission_completed", "submission.completed")]
+    [InlineData("form_deleted", "form.deleted")]
+    [InlineData("single", "single")]
+    [InlineData("", "")]
+    public void ToDottedEventType_WorksAsExpected(string input, string expected)
+    {
+        var result = StringUtils.ToDottedEventType(input);
+        Assert.Equal(expected, result);
+    }
 }

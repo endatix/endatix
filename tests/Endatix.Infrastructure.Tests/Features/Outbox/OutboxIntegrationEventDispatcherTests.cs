@@ -110,6 +110,35 @@ public class OutboxIntegrationEventDispatcherTests
         messages.Select(m => m.TenantId).Should().Equal(1, 1, 2);
     }
 
+    [Fact]
+    public void Capture_IncludesReportingLifecycleEvents_with_expected_event_types()
+    {
+        var form = new Form(tenantId: 7, name: "f") { Id = 10 };
+        var formDefinition = new FormDefinition(tenantId: 7, jsonData: """{"pages":[]}""") { Id = 99 };
+        form.AddFormDefinition(formDefinition);
+        form.ClearDomainEvents();
+        form.UpdateActiveDefinitionSchema("""{"pages":[{"name":"p1"}]}""");
+
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 7,
+            FormId: 10,
+            FormDefinitionId: 99,
+            JsonData: "{}",
+            IsComplete: true));
+        submission.ClearDomainEvents();
+        submission.Update("""{"x":1}""", 99, formDefinitionFormId: 10, isComplete: true);
+        submission.Delete();
+
+        var messages = _sut.Capture([form, submission]);
+
+        messages.Select(m => m.EventType).Should().BeEquivalentTo(
+        [
+            "form.definition.updated",
+            "submission.updated",
+            "submission.deleted",
+        ]);
+    }
+
     private sealed record TestPayload(long FormId, string Name);
 
     private sealed class TestIntegrationEvent(long formId, string name) : DomainEventBase, IIntegrationEvent
