@@ -77,7 +77,8 @@ public sealed class FormExportSchemaRepositoryTests
         persisted.Should().NotBeNull();
         persisted!.FormDefinitionRevision.Should().Be(FormDefinitionRevision + 1);
         persisted.SchemaJson.Should().Be(UpdatedSchemaJson);
-        dbContext.FormExportSchemas.Count().Should().Be(1);
+        var schemasCount = await dbContext.FormExportSchemas.CountAsync(cancellationToken);
+        schemasCount.Should().Be(1);
     }
 
     [Fact]

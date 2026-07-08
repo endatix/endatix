@@ -52,7 +52,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
         string payload = JsonSerializer.Serialize(
             new SubmissionDeletedEvent(submission).GetPayload(),
             WireOptions);
-        ReportingOutboxMessage message = new(
+        FakeOutboxMessage message = new(
             Id: 1,
             EventType: SubmissionDeletedEvent.EventTypeName,
             Payload: payload,
@@ -92,7 +92,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
         string payload = JsonSerializer.Serialize(
             new SubmissionDeletedEvent(submission).GetPayload(),
             WireOptions);
-        ReportingOutboxMessage message = new(
+        FakeOutboxMessage message = new(
             Id: 2,
             EventType: SubmissionDeletedEvent.EventTypeName,
             Payload: payload,
@@ -136,7 +136,9 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
         public long CreateId() => Interlocked.Increment(ref _current);
     }
 
-    private sealed record ReportingOutboxMessage(
+    // Mirrors ReportingOutboxTestHelpers.FakeOutboxMessage (Reporting.Tests) and Infrastructure.Tests
+    // outbox doubles. Not shared across test projects to avoid a cross-suite test utilities dependency.
+    private sealed record FakeOutboxMessage(
         long Id,
         string EventType,
         string Payload,
