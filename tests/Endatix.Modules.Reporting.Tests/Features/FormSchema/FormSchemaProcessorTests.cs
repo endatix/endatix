@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -28,6 +29,7 @@ public class FormSchemaProcessorTests
         FormSchemaProcessor processor = new(
             formsRepository,
             schemaRepository,
+            new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);
 
         await processor.ProcessAsync(TenantId, FormId, FormDefinitionId, TestContext.Current.CancellationToken);
@@ -56,6 +58,7 @@ public class FormSchemaProcessorTests
         FormSchemaProcessor processor = new(
             formsRepository,
             schemaRepository,
+            new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);
 
         await processor.ProcessAsync(TenantId, FormId, FormDefinitionId, TestContext.Current.CancellationToken);
@@ -76,6 +79,7 @@ public class FormSchemaProcessorTests
         FormSchemaProcessor processor = new(
             formsRepository,
             schemaRepository,
+            new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);
 
         await processor.ProcessAsync(TenantId, FormId, formDefinitionId: 999, TestContext.Current.CancellationToken);
@@ -98,6 +102,7 @@ public class FormSchemaProcessorTests
         FormSchemaProcessor processor = new(
             formsRepository,
             schemaRepository,
+            new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);
 
         Func<Task> act = () => processor.ProcessAsync(TenantId, FormId, FormDefinitionId, TestContext.Current.CancellationToken);

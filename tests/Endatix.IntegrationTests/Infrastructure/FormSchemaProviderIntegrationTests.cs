@@ -5,6 +5,7 @@ using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -45,6 +46,7 @@ public sealed class FormSchemaProviderIntegrationTests
         FormSchemaProcessor schemaProcessor = new(
             formsRepository,
             schemaRepository,
+            new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);
         FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
 
@@ -79,6 +81,7 @@ public sealed class FormSchemaProviderIntegrationTests
         FormSchemaProcessor schemaProcessor = new(
             formsRepository,
             schemaRepository,
+            new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);
         FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
 

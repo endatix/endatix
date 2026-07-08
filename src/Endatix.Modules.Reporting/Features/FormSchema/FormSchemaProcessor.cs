@@ -14,10 +14,9 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 internal sealed class FormSchemaProcessor(
     IFormsRepository formsRepository,
     IFormExportSchemaRepository schemaRepository,
+    FormSchemaCompiler compiler,
     ILogger<FormSchemaProcessor> logger) : IFormSchemaProcessor
 {
-    private readonly FormSchemaCompiler _compiler = new();
-
     /// <inheritdoc />
     public async Task ProcessAsync(
         long tenantId,
@@ -48,7 +47,7 @@ internal sealed class FormSchemaProcessor(
         try
         {
             var existingSchema = await schemaRepository.GetByFormIdAsync(tenantId, formId, cancellationToken);
-            var merged = _compiler.CompileFromPersistedSchema(
+            var merged = compiler.CompileFromPersistedSchema(
                 activeDefinition.JsonData,
                 existingSchema?.SchemaJson);
 

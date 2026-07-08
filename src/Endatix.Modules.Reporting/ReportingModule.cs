@@ -9,6 +9,7 @@ using Endatix.Modules.Reporting.Configuration;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 
@@ -40,6 +41,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IReportingUnitOfWork, ReportingUnitOfWork>();
         builder.Services.AddScoped<IFormExportSchemaRepository, FormExportSchemaRepository>();
         builder.Services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
+        builder.Services.AddSingleton<FormSchemaCompiler>();
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
         builder.Services.AddScoped<IFormSchemaProvider, FormSchemaProvider>();
         builder.Services.AddScoped<ISubmissionFlatteningProcessor, SubmissionFlatteningProcessor>();
