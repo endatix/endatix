@@ -122,11 +122,4 @@ public sealed class FormExportSchemaRepositoryTests
         ReportingUnitOfWork unitOfWork = new(dbContext);
         return new FormExportSchemaRepository(dbContext, unitOfWork);
     }
-
-    private sealed class IncrementingIdGenerator : IIdGenerator<long>
-    {
-        private long _current;
-
-        public long CreateId() => Interlocked.Increment(ref _current);
-    }
 }

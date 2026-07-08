@@ -95,12 +95,6 @@ public sealed class ReportingQueryFilterTests
         return new TestReportingDbContext(optionsBuilder.Options, idGenerator, tenantContext);
     }
 
-    private sealed class IncrementingIdGenerator : IIdGenerator<long>
-    {
-        private long _current;
-        public long CreateId() => Interlocked.Increment(ref _current);
-    }
-
     private sealed class TestReportingDbContext : ReportingDbContext
     {
         public TestReportingDbContext(

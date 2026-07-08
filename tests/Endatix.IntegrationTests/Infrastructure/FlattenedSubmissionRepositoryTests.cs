@@ -171,11 +171,4 @@ public sealed class FlattenedSubmissionRepositoryTests
         ReportingUnitOfWork unitOfWork = new(dbContext);
         return new FlattenedSubmissionRepository(dbContext, unitOfWork);
     }
-
-    private sealed class IncrementingIdGenerator : IIdGenerator<long>
-    {
-        private long _current;
-
-        public long CreateId() => Interlocked.Increment(ref _current);
-    }
 }

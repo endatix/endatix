@@ -129,13 +129,6 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
         return new FlattenedSubmissionRepository(dbContext, unitOfWork);
     }
 
-    private sealed class IncrementingIdGenerator : IIdGenerator<long>
-    {
-        private long _current;
-
-        public long CreateId() => Interlocked.Increment(ref _current);
-    }
-
     // Mirrors ReportingOutboxTestHelpers.FakeOutboxMessage (Reporting.Tests) and Infrastructure.Tests
     // outbox doubles. Not shared across test projects to avoid a cross-suite test utilities dependency.
     private sealed record FakeOutboxMessage(

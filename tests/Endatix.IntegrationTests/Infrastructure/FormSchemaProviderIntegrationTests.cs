@@ -122,11 +122,4 @@ public sealed class FormSchemaProviderIntegrationTests
         form.AddFormDefinition(definition);
         return form;
     }
-
-    private sealed class IncrementingIdGenerator : IIdGenerator<long>
-    {
-        private long _current;
-
-        public long CreateId() => Interlocked.Increment(ref _current);
-    }
 }
