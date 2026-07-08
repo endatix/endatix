@@ -386,7 +386,7 @@ if (changeKind != SubmissionChangeKinds.None)
 
 ### Outbox capture flow
 
-```
+```mermaid
 Handler → aggregate mutation (RegisterDomainEvent)
        → repository.SaveChangesAsync
        → AppDbContext.ProcessEntities
