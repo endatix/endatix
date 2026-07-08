@@ -121,6 +121,40 @@ public class IntegrationEventPayloadTests
     }
 
     [Fact]
+    public void SubmissionDeletedEvent_getPayload_returns_deleted_payload_type()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
+        submission.Id = 501;
+
+        new SubmissionDeletedEvent(submission).GetPayload().Should().BeOfType<SubmissionDeletedEvent.Payload>();
+    }
+
+    [Fact]
+    public void SubmissionDeletedEvent_has_dotted_type_and_minimal_submission_payload()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
+        submission.Id = 501;
+        var evt = new SubmissionDeletedEvent(submission);
+
+        evt.EventType.Should().Be("submission.deleted");
+        var json = Payload(evt.GetPayload());
+        json.GetProperty("submissionId").GetInt64().Should().Be(501);
+        json.GetProperty("formId").GetInt64().Should().Be(100);
+        json.GetProperty("tenantId").GetInt64().Should().Be(1);
+        json.TryGetProperty("revision", out _).Should().BeFalse("deletion payload is intentionally minimal");
+    }
+
+    [Fact]
     public void SubmissionCompletedEvent_has_dotted_type_and_submission_payload_with_revision()
     {
         var submission = Submission.Create(new SubmissionCreateArgs(

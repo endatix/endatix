@@ -14,10 +14,22 @@ public sealed class SubmissionDeletedEvent(Submission submission) : DomainEventB
 
     public string EventType => EventTypeName;
 
-    public object GetPayload() => new
+    public object GetPayload() => new Payload(Submission);
+
+    /// <summary>Outbox contract for <c>submission.deleted</c>.</summary>
+    public sealed record Payload
     {
-        submissionId = Submission.Id,
-        formId = Submission.FormId,
-        tenantId = Submission.TenantId,
-    };
+        public long SubmissionId { get; init; }
+
+        public long FormId { get; init; }
+
+        public long TenantId { get; init; }
+
+        public Payload(Submission submission)
+        {
+            SubmissionId = submission.Id;
+            FormId = submission.FormId;
+            TenantId = submission.TenantId;
+        }
+    }
 }

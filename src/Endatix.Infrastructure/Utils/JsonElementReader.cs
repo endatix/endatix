@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace Endatix.Infrastructure.Utils;
@@ -21,7 +22,7 @@ public static class JsonElementReader
 
         return property.ValueKind switch
         {
-            JsonValueKind.String when long.TryParse(property.GetString(), out var id) => id,
+            JsonValueKind.String when long.TryParse(property.GetString(), CultureInfo.InvariantCulture, out var id) => id,
             JsonValueKind.Number when property.TryGetInt64(out var id) => id,
             _ => null,
         };
