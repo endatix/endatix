@@ -68,6 +68,24 @@ public class FormTests
     }
 
     [Fact]
+    public void SetActiveFormDefinition_WhenAlreadyActiveReference_DoesNotRaiseReportingEvent()
+    {
+        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
+        {
+            Id = 10
+        };
+        form.AddFormDefinition(formDefinition);
+        form.ClearDomainEvents();
+
+        form.SetActiveFormDefinition(formDefinition);
+
+        form.ActiveDefinition.Should().Be(formDefinition);
+        form.DomainEvents.OfType<FormDefinitionUpdatedEvent>().Should().BeEmpty();
+        form.Revision.Should().Be(2);
+    }
+
+    [Fact]
     public void SetActiveFormDefinition_WhenActivatingDraftDefinition_DoesNotRaiseReportingEvent()
     {
         var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };

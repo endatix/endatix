@@ -78,6 +78,12 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     public IReadOnlyCollection<FormDefinition> FormDefinitions => _formDefinitions.AsReadOnly();
     public IReadOnlyCollection<FormDependency> Dependencies => _dependencies.AsReadOnly();
 
+    /// <summary>
+    /// Points the form at a different definition row. Use this to activate a published version;
+    /// do not use it to mutate JSON or draft status on the current active definition (see
+    /// <see cref="UpdateActiveDefinitionSchema"/>). When the new reference is non-draft, raises
+    /// <c>form.definition.updated</c> because the effective public schema changed.
+    /// </summary>
     public void SetActiveFormDefinition(FormDefinition formDefinition)
     {
         Guard.Against.Null(formDefinition, nameof(formDefinition));
@@ -87,16 +93,8 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
             throw new InvalidOperationException("Cannot set a FormDefinition as active that doesn't belong to this form.");
         }
 
-        if (ActiveDefinition is not null && ReferenceEquals(ActiveDefinition, formDefinition))
+        if (ReferenceEquals(ActiveDefinition, formDefinition))
         {
-            return;
-        }
-
-        if (ActiveDefinition is not null
-            && ActiveDefinition.Id == formDefinition.Id
-            && formDefinition.Id != default)
-        {
-            ActiveDefinition = formDefinition;
             return;
         }
 
@@ -152,7 +150,8 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     public void RaiseCreated() => RegisterDomainEvent(new FormCreatedEvent(this));
 
     /// <summary>
-    /// Updates the active definition schema. When the JSON schema changes, bumps the revision and raises
+    /// Mutates the current active definition's JSON and/or draft status in place. This is the only
+    /// path for schema edits on the active row. When the JSON changes or a draft is published, raises
     /// <c>form.definition.updated</c> for reporting schema compilation.
     /// </summary>
     public void UpdateActiveDefinitionSchema(string? jsonData, bool? isDraft = null)
