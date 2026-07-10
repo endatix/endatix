@@ -1,6 +1,5 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
-using Endatix.Core.Specifications;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -24,44 +23,46 @@ internal sealed class FormSchemaProcessor(
         long formDefinitionId,
         CancellationToken cancellationToken)
     {
-        ActiveFormDefinitionByFormIdSpec spec = new(formId);
-        var form = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
-        var activeDefinition = form?.ActiveDefinition;
+        DefinitionByFormAndDefinitionIdSpec spec = new(formId, formDefinitionId);
+        var formDefinition = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
 
-        if (form is null || activeDefinition is null || activeDefinition.Id != formDefinitionId)
+        if (formDefinition is null)
         {
             logger.LogDebug(
-                "Skipping form schema compile for form {FormId}: active definition {ActiveDefinitionId} does not match {RequestedDefinitionId}",
+                "Skipping form schema compile for form {FormId}: form definition {FormDefinitionId} was not found",
                 formId,
-                activeDefinition?.Id,
                 formDefinitionId);
             return;
         }
 
-        if (form.TenantId != tenantId)
+        if (formDefinition.TenantId != tenantId)
         {
             throw new InvalidOperationException(
-                $"Tenant mismatch while compiling form schema for form {formId}: expected {tenantId}, got {form.TenantId}.");
+                $"Tenant mismatch while compiling form schema for form {formId}: expected {tenantId}, got {formDefinition.TenantId}.");
         }
 
         try
         {
             var existingSchema = await schemaRepository.GetByFormIdAsync(tenantId, formId, cancellationToken);
             var merged = compiler.CompileFromPersistedSchema(
-                activeDefinition.JsonData,
+                formDefinition.JsonData,
                 existingSchema?.SchemaJson);
+
+            var revision = existingSchema is null
+                ? formDefinitionId
+                : Math.Max(existingSchema.FormDefinitionRevision, formDefinitionId);
 
             if (existingSchema is null)
             {
                 existingSchema = new FormExportSchema(
                     tenantId,
                     formId,
-                    activeDefinition.Id,
+                    revision,
                     merged.ToJson());
             }
             else
             {
-                existingSchema.UpdateSchema(activeDefinition.Id, merged.ToJson());
+                existingSchema.UpdateSchema(revision, merged.ToJson());
             }
 
             await schemaRepository.SaveAsync(existingSchema, cancellationToken);

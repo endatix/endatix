@@ -38,8 +38,8 @@ public sealed class FormSchemaProviderIntegrationTests
 
         IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
         formsRepository
-            .SingleOrDefaultAsync(Arg.Any<Ardalis.Specification.ISingleResultSpecification<Form>>(), cancellationToken)
-            .Returns(CreateFormWithActiveDefinition());
+            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
+            .Returns(CreateFormDefinition());
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FormExportSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
@@ -73,8 +73,8 @@ public sealed class FormSchemaProviderIntegrationTests
 
         IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
         formsRepository
-            .SingleOrDefaultAsync(Arg.Any<Ardalis.Specification.ISingleResultSpecification<Form>>(), cancellationToken)
-            .Returns(CreateFormWithActiveDefinition());
+            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
+            .Returns(CreateFormDefinition());
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FormExportSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
@@ -91,7 +91,7 @@ public sealed class FormSchemaProviderIntegrationTests
         second.Should().BeSameAs(first);
         (await dbContext.FormExportSchemas.CountAsync(cancellationToken)).Should().Be(1);
         await formsRepository.Received(1).SingleOrDefaultAsync(
-            Arg.Any<Ardalis.Specification.ISingleResultSpecification<Form>>(),
+            Arg.Any<DefinitionByFormAndDefinitionIdSpec>(),
             cancellationToken);
     }
 
@@ -118,11 +118,8 @@ public sealed class FormSchemaProviderIntegrationTests
         return new FormExportSchemaRepository(dbContext, unitOfWork);
     }
 
-    private static Form CreateFormWithActiveDefinition()
+    private static FormDefinition CreateFormDefinition()
     {
-        Form form = new(TenantId, "Integration form", isEnabled: true) { Id = FormId };
-        FormDefinition definition = new(TenantId, jsonData: DefinitionJson) { Id = FormDefinitionId };
-        form.AddFormDefinition(definition);
-        return form;
+        return new FormDefinition(TenantId, jsonData: DefinitionJson) { Id = FormDefinitionId };
     }
 }

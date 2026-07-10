@@ -26,7 +26,7 @@ internal sealed class FormSchemaProvider(
         await schemaProcessor.ProcessAsync(tenantId, formId, formDefinitionId, cancellationToken);
 
         schema = await schemaRepository.GetByFormIdAsync(tenantId, formId, cancellationToken);
-        if (schema is null || schema.FormDefinitionRevision != formDefinitionId)
+        if (schema is null || schema.FormDefinitionRevision < formDefinitionId)
         {
             return null;
         }
