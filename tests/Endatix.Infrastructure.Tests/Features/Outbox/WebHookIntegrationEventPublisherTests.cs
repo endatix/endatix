@@ -17,6 +17,8 @@ namespace Endatix.Infrastructure.Tests.Features.Outbox;
 /// </summary>
 public class WebHookIntegrationEventPublisherTests
 {
+    private static readonly JsonSerializerOptions WireOptions = new(JsonSerializerDefaults.Web);
+
     private readonly IWebHookService _webHooks = Substitute.For<IWebHookService>();
 
     public WebHookIntegrationEventPublisherTests()
@@ -27,8 +29,8 @@ public class WebHookIntegrationEventPublisherTests
             .Returns(true);
     }
 
-    private WebHookIntegrationEventPublisher CreateSut() =>
-        new(_webHooks, NullLogger<WebHookIntegrationEventPublisher>.Instance);
+    private WebHookOutboxIntegrationEventHandler CreateSut() =>
+        new(_webHooks, NullLogger<WebHookOutboxIntegrationEventHandler>.Instance);
 
     [Theory]
     [InlineData("form.created", "form_created")]
@@ -43,7 +45,7 @@ public class WebHookIntegrationEventPublisherTests
             Id: 777, EventType: eventType, Payload: """{"formId":"555","name":"x"}""", TenantId: 42);
 
         // Act
-        await CreateSut().PublishAsync(message, CancellationToken.None);
+        await CreateSut().HandleAsync(message, CancellationToken.None);
 
         // Assert
         await _webHooks.Received(1).DeliverWebHookAsync(
@@ -61,8 +63,12 @@ public class WebHookIntegrationEventPublisherTests
         // delivery. Drives the publisher with the EventType + payload the ACTUAL event classes produce.
         const long formId = 555L;
         var form = new Form(tenantId: 42, name: "f") { Id = formId };
-        var submission = Submission.Create(42, "{}", formId: formId, formDefinitionId: 1,
-            new SubmissionCreateOptions(IsComplete: true));
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 42,
+            FormId: formId,
+            FormDefinitionId: 1,
+            JsonData: "{}",
+            IsComplete: true));
 
         IIntegrationEvent[] events =
         [
@@ -76,10 +82,11 @@ public class WebHookIntegrationEventPublisherTests
         var sut = CreateSut();
         foreach (var integrationEvent in events)
         {
-            var payload = JsonSerializer.Serialize(integrationEvent.GetPayload());
+            object eventPayload = integrationEvent.GetPayload();
+            string payload = JsonSerializer.Serialize(eventPayload, eventPayload.GetType(), WireOptions);
             var message = new FakeOutboxMessage(Id: 1, EventType: integrationEvent.EventType, Payload: payload, TenantId: 42);
 
-            await sut.PublishAsync(message, CancellationToken.None);
+            await sut.HandleAsync(message, CancellationToken.None);
         }
 
         // Every event's EventType must have mapped → been delivered for the right form (none skipped).
@@ -94,7 +101,7 @@ public class WebHookIntegrationEventPublisherTests
         var message = new FakeOutboxMessage(Id: 1, EventType: "form.archived", Payload: "{}", TenantId: 1);
 
         // Act
-        await CreateSut().PublishAsync(message, CancellationToken.None);
+        await CreateSut().HandleAsync(message, CancellationToken.None);
 
         // Assert
         await _webHooks.DidNotReceive().DeliverWebHookAsync(
@@ -109,7 +116,7 @@ public class WebHookIntegrationEventPublisherTests
 
         // Act + Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => CreateSut().PublishAsync(message, CancellationToken.None));
+            () => CreateSut().HandleAsync(message, CancellationToken.None));
         await _webHooks.DidNotReceive().DeliverWebHookAsync(
             Arg.Any<long>(), Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), Arg.Any<long?>());
     }
@@ -125,7 +132,7 @@ public class WebHookIntegrationEventPublisherTests
 
         // Act + Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => CreateSut().PublishAsync(message, CancellationToken.None));
+            () => CreateSut().HandleAsync(message, CancellationToken.None));
     }
 
     private sealed record FakeOutboxMessage(long Id, string EventType, string Payload, long TenantId) : IOutboxMessage

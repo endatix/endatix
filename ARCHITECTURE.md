@@ -338,10 +338,79 @@ Infrastructure lists take Core paging + feature criteria; return **`Paged<T>` as
 
 ---
 
+## Domain and integration events
+
+Endatix uses **domain events** on aggregates (`BaseEntity` → `HasDomainEventsBase`) for in-process reactions and for **durable integration events** captured to the outbox on `SaveChanges`.
+
+### Classification
+
+| Kind | Interface | Dispatch | Example |
+|------|-----------|----------|---------|
+| In-process only | `DomainEventBase` | MediatR after save (when wired) | Internal notifications |
+| Durable / integration | `IIntegrationEvent` | Outbox capture in `AppDbContext.ProcessEntities` | `submission.completed`, `form.definition.updated` |
+| Customer webhook | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP | `form.updated`, `submission.completed` |
+| Module subscriber | `IIntegrationEvent` + `IOutboxIntegrationEventHandler` | Outbox relay → in-process handler | Reporting: `form.definition.updated`, `submission.updated` |
+
+Plain `DomainEventBase` events that are **not** `IIntegrationEvent` are ignored by the outbox dispatcher and stay in-process.
+
+### Aggregate orchestration (recommended)
+
+Apply these rules in **Core entities** (`Submission`, `Form`, …). Application handlers orchestrate persistence and authorization; they must **not** diff fields or call separate `Notify*` methods after mutation.
+
+1. **Evaluate before mutate** — compare incoming values to current state *before* assignment. Avoid capturing `previousX` variables, mutating, then passing them to a detector method (parameter creep).
+2. **No-op when unchanged** — if material state is identical, return without bumping revision or raising an event (`UpdateStatus`, `SetEnabled`, active-definition activation).
+3. **Pair revision + event** — use a private `RegisterRevisedDomainEvent(...)` helper that calls `IncrementRevision()` then `RegisterDomainEvent(...)`. Do **not** override `RegisterDomainEvent` globally — some events intentionally skip the bump (e.g. `form.created` at revision 1, `submission.deleted`).
+4. **Encapsulate reporting triggers on the aggregate** — e.g. `Form.UpdateActiveDefinitionSchema` and `Form.SetActiveFormDefinition` raise `FormDefinitionUpdatedEvent`; handlers call those methods instead of separate notify methods. Keep the split explicit: `SetActiveFormDefinition` changes which definition row is active (pointer swap); `UpdateActiveDefinitionSchema` mutates the current active row's JSON/draft status. Do not pass constructed clones to `SetActiveFormDefinition` to effect schema edits.
+5. **Use `[Flags]` enums for multi-field changes** — accumulate `SubmissionChangeKinds` inline when several fields can change in one operation; subscribers filter with domain masks (`SubmissionChangeKindsMasks.SubmissionData`, `AffectsSubmissionData()`).
+6. **Capture payload values deliberately** — integration event constructors should capture **revision at raise time** (`private readonly long _revision = aggregate.Revision`) so multiple events in one transaction keep distinct revisions. Prefer reading **live aggregate state in `GetPayload()`** for IDs that are assigned during `SaveChanges` (see `FormDefinitionUpdatedEvent` reading `FormDefinition.Id` at capture time, after Id stamping).
+
+Example shape (submission update):
+
+```csharp
+SubmissionChangeKinds changeKind = SubmissionChangeKinds.None;
+if (IsComplete)
+{
+    if (!string.Equals(JsonData, jsonData, StringComparison.Ordinal))
+        changeKind |= SubmissionChangeKinds.Answers;
+    // …
+}
+
+JsonData = jsonData;
+// …
+
+if (changeKind != SubmissionChangeKinds.None)
+{
+    RegisterRevisedDomainEvent(new SubmissionUpdatedEvent(this, changeKind));
+}
+```
+
+### Outbox capture flow
+
+```mermaid
+Handler → aggregate mutation (RegisterDomainEvent)
+       → repository.SaveChangesAsync
+       → AppDbContext.ProcessEntities
+            1. Stamp Id / CreatedAt / ModifiedAt on tracked entities
+            2. OutboxIntegrationEventDispatcher.Capture → GetPayload() + serialize
+            3. Add OutboxMessage rows in the same transaction
+```
+
+`OutboxIntegrationEventDispatcher` is intentionally generic — it never switches on concrete event types. Adding a new integration event requires **no dispatcher changes**; wire a subscriber or webhook mapping if needed.
+
+### Testing split
+
+| Layer | Project | What to test |
+|-------|---------|--------------|
+| Event rules & revision | `Endatix.Core.Tests` | Aggregate methods raise the right events / flags; payload shape unit tests |
+| Outbox capture | `Endatix.Infrastructure.Tests` | `OutboxIntegrationEventDispatcher` serializes integration events |
+| End-to-end persistence | `Endatix.IntegrationTests` | Real DB: outbox rows commit with aggregates; module handlers (Reporting) |
+
+Do **not** use EF InMemory in module unit tests for persistence — use `Endatix.IntegrationTests` with Testcontainers when the behavior depends on a real provider (JSON columns, query filters, repositories).
+
+---
+
 ## Decision log
 
 | Date | Decision |
 |------|----------|
-| 2026-06 | Prefer Infrastructure feature queries over Core read handlers when logic is EF-heavy and persistence-specific. |
-| 2026-06 | Platform Admin lists: `*QueryService` → `List*` slice types; shared logic in `Common/`; register via `AddPlatformAdminFeatures()`. |
-| 2026-06 | Document Agents module as modular end-state; OSS monolith uses the same slice naming inside `Infrastructure/Features/`. |
+| 2026-07 | Domain events: evaluate-before-mutate on aggregates; reporting triggers (`FormDefinitionUpdatedEvent`, `SubmissionUpdatedEvent`) live on entities, not handlers. Documented in [Domain and integration events](#domain-and-integration-events). |

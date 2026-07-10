@@ -11,7 +11,10 @@ namespace Endatix.Core.Tests.Events;
 /// </summary>
 public class IntegrationEventPayloadTests
 {
-    private static JsonElement Payload(object dto) => JsonSerializer.SerializeToElement(dto);
+    private static readonly JsonSerializerOptions WireOptions = new(JsonSerializerDefaults.Web);
+
+    private static JsonElement Payload(object dto) =>
+        JsonSerializer.SerializeToElement(dto, dto.GetType(), WireOptions);
 
     [Fact]
     public void FormCreatedEvent_has_dotted_type_and_form_payload_with_revision_and_folderId()
@@ -73,10 +76,93 @@ public class IntegrationEventPayloadTests
     }
 
     [Fact]
+    public void SubmissionCompletedEvent_getPayload_returns_base_payload_type()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
+
+        new SubmissionCompletedEvent(submission).GetPayload().Should().BeOfType<SubmissionCompletedEvent.Payload>();
+    }
+
+    [Fact]
+    public void SubmissionUpdatedEvent_getPayload_returns_updated_payload_type()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: """{"a":1}""",
+            IsComplete: true));
+        submission.ClearDomainEvents();
+        submission.Update("""{"a":2}""", 200, formDefinitionFormId: 100, isComplete: true, metadata: null);
+
+        submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Single()
+            .GetPayload().Should().BeOfType<SubmissionUpdatedEvent.Payload>();
+    }
+
+    [Fact]
+    public void SubmissionStatusChangedEvent_getPayload_returns_status_changed_payload_type()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
+        submission.ClearDomainEvents();
+        submission.UpdateStatus(SubmissionStatus.Approved);
+
+        submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Single()
+            .GetPayload().Should().BeOfType<SubmissionStatusChangedEvent.Payload>();
+    }
+
+    [Fact]
+    public void SubmissionDeletedEvent_getPayload_returns_deleted_payload_type()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
+        submission.Id = 501;
+
+        new SubmissionDeletedEvent(submission).GetPayload().Should().BeOfType<SubmissionDeletedEvent.Payload>();
+    }
+
+    [Fact]
+    public void SubmissionDeletedEvent_has_dotted_type_and_minimal_submission_payload()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
+        submission.Id = 501;
+        var evt = new SubmissionDeletedEvent(submission);
+
+        evt.EventType.Should().Be("submission.deleted");
+        var json = Payload(evt.GetPayload());
+        json.GetProperty("submissionId").GetInt64().Should().Be(501);
+        json.GetProperty("formId").GetInt64().Should().Be(100);
+        json.GetProperty("tenantId").GetInt64().Should().Be(1);
+        json.TryGetProperty("revision", out _).Should().BeFalse("deletion payload is intentionally minimal");
+    }
+
+    [Fact]
     public void SubmissionCompletedEvent_has_dotted_type_and_submission_payload_with_revision()
     {
-        var submission = Submission.Create(1, "{}", formId: 100, formDefinitionId: 200,
-            new SubmissionCreateOptions(IsComplete: true));
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
         var evt = new SubmissionCompletedEvent(submission);
 
         evt.EventType.Should().Be("submission.completed");
@@ -86,5 +172,47 @@ public class IntegrationEventPayloadTests
         json.GetProperty("isComplete").GetBoolean().Should().BeTrue();
         json.TryGetProperty("revision", out _).Should().BeTrue();
         json.TryGetProperty("completedAt", out _).Should().BeTrue();
+    }
+
+    [Fact]
+    public void SubmissionUpdatedEvent_includes_changeKind_and_revision()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: """{"a":1}""",
+            IsComplete: true));
+        submission.ClearDomainEvents();
+        submission.Update("""{"a":2}""", 200, formDefinitionFormId: 100, isComplete: true, metadata: null);
+
+        var updated = submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Single();
+        var json = Payload(updated.GetPayload());
+
+        updated.EventType.Should().Be("submission.updated");
+        json.GetProperty("changeKind").GetString().Should().Be("answers");
+        json.GetProperty("revision").GetInt64().Should().BeGreaterThan(1);
+    }
+
+    [Fact]
+    public void SubmissionStatusChangedEvent_includes_previous_and_new_status_with_revision()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: "{}",
+            IsComplete: true));
+        submission.ClearDomainEvents();
+
+        submission.UpdateStatus(SubmissionStatus.Approved);
+
+        var statusChanged = submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Single();
+        var json = Payload(statusChanged.GetPayload());
+
+        statusChanged.EventType.Should().Be("submission.status_changed");
+        json.GetProperty("previousStatus").GetString().Should().Be("new");
+        json.GetProperty("status").GetString().Should().Be("approved");
+        json.GetProperty("revision").GetInt64().Should().BeGreaterThan(1);
     }
 }

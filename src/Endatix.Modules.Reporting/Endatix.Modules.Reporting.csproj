@@ -28,10 +28,12 @@
     <ProjectReference Include="..\Endatix.Core\Endatix.Core.csproj" />
     <ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
     <ProjectReference Include="..\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
+    <ProjectReference Include="..\Endatix.Api\Endatix.Api.csproj" />
     <ProjectReference Include="..\Endatix.Modules.Reporting.Contracts\Endatix.Modules.Reporting.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="Endatix.Modules.Reporting.Tests" />
+    <InternalsVisibleTo Include="Endatix.IntegrationTests" />
   </ItemGroup>
 </Project>

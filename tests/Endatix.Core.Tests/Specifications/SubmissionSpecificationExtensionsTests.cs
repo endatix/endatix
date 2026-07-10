@@ -139,12 +139,12 @@ public class SubmissionSpecificationExtensionsTests
             .GetProperty(nameof(FormDefinition.FormId))!
             .SetValue(formDefinition, formId);
 
-        var submission = Submission.Create(
-            SampleData.TENANT_ID,
-            "{}",
-            formId,
-            formDefinitionId: 1,
-            options: new SubmissionCreateOptions(IsComplete: isComplete));
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: formId,
+            FormDefinitionId: 1,
+            JsonData: "{}",
+            IsComplete: isComplete));
 
         typeof(Submission)
             .GetProperty(nameof(Submission.FormDefinition))!

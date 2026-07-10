@@ -2,6 +2,8 @@ namespace Endatix.Infrastructure.Utils;
 
 public static class StringUtils
 {
+    private const char SNAKE_CASE_SEPARATOR = '_';
+    private const char DOTTED_SEPARATOR = '.';
     /// <summary>
     /// Converts a string to kebab-case.
     /// </summary>
@@ -80,5 +82,29 @@ public static class StringUtils
             char.ToUpperInvariant(part[0]) + part[1..].ToLowerInvariant()));
 
         return result;
+    }
+
+    /// <summary>
+    /// Converts a webhook snake_case event name to the dotted integration event type stored on the outbox.
+    /// Only the first underscore is replaced; remaining segments keep snake_case (e.g. enabled_state_changed).
+    /// </summary>
+    /// <example>
+    /// "form_created" -> "form.created"
+    /// "form_enabled_state_changed" -> "form.enabled_state_changed"
+    /// </example>
+    public static string ToDottedEventType(string snakeCaseEventName)
+    {
+        if (string.IsNullOrEmpty(snakeCaseEventName))
+        {
+            return snakeCaseEventName;
+        }
+
+        var separatorIndex = snakeCaseEventName.IndexOf(SNAKE_CASE_SEPARATOR);
+        return separatorIndex < 0
+            ? snakeCaseEventName
+            : string.Concat(
+                snakeCaseEventName.AsSpan(0, separatorIndex),
+                [DOTTED_SEPARATOR],
+                snakeCaseEventName.AsSpan(separatorIndex + 1));
     }
 }

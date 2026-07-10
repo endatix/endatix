@@ -1,4 +1,4 @@
-﻿using Ardalis.GuardClauses;
+using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
@@ -7,7 +7,9 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.FormDefinitions.Create;
 
-public class CreateFormDefinitionHandler(IFormsRepository formsRepository, ITenantContext tenantContext) : ICommandHandler<CreateFormDefinitionCommand, Result<FormDefinition>>
+public class CreateFormDefinitionHandler(
+    IFormsRepository formsRepository,
+    ITenantContext tenantContext) : ICommandHandler<CreateFormDefinitionCommand, Result<FormDefinition>>
 {
     public async Task<Result<FormDefinition>> Handle(CreateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
@@ -25,6 +27,7 @@ public class CreateFormDefinitionHandler(IFormsRepository formsRepository, ITena
         {
             form.SetActiveFormDefinition(newFormDefinition);
         }
+
         await formsRepository.UpdateAsync(form, cancellationToken);
 
         return Result<FormDefinition>.Created(newFormDefinition);

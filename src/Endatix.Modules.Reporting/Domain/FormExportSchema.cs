@@ -7,7 +7,7 @@ namespace Endatix.Modules.Reporting.Domain;
 
 /// <summary>
 /// Compiled column specification for a form, used by exports and submission flattening.
-/// One row per tenant + form (upserted on definition changes).
+/// One row per tenant + form (saved when the active definition changes).
 /// </summary>
 public sealed class FormExportSchema : BaseEntity, ITenantOwned, IAggregateRoot
 {
