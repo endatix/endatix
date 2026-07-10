@@ -170,26 +170,40 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     }
 
     /// <summary>
-    /// Sets the submitter for the submission.
+    /// Sets submitter identity on the submission. Raises <c>submission.updated</c> with
+    /// <see cref="SubmissionChangeKinds.Submitter"/> when the submission is complete and any
+    /// identity field changes.
     /// </summary>
-    /// <param name="submitterId">The ID of the submitter.</param>
-    /// <param name="displayId">The display ID of the submitter.</param>
-    /// <param name="profileSnapshot">The profile snapshot of the submitter.</param>    
     public void SetSubmitter(long? submitterId, string? displayId, string? profileSnapshot)
     {
-        var isMaterialChange = IsComplete
-            && (SubmitterId != submitterId || SubmitterProfileSnapshot != profileSnapshot);
+        var incoming = SubmitterIdentity.From(submitterId, displayId, profileSnapshot);
+        SubmitterIdentity current = new(SubmitterId, SubmitterDisplayId, SubmitterProfileSnapshot);
+        var submitterChangedOnCompleteSubmission = IsComplete && incoming != current;
 
-        SubmitterId = submitterId;
-        SubmittedBy = submitterId?.ToString()
-            ?? (string.IsNullOrWhiteSpace(displayId) ? null : displayId);
-        SubmitterDisplayId = string.IsNullOrWhiteSpace(displayId) ? null : displayId;
-        SubmitterProfileSnapshot = string.IsNullOrWhiteSpace(profileSnapshot) ? null : profileSnapshot;
+        SubmitterId = incoming.Id;
+        SubmittedBy = incoming.SubmittedBy;
+        SubmitterDisplayId = incoming.DisplayId;
+        SubmitterProfileSnapshot = incoming.ProfileSnapshot;
 
-        if (isMaterialChange)
+        if (submitterChangedOnCompleteSubmission)
         {
             RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Submitter));
         }
+    }
+
+    /// <summary>
+    /// Optional submitter identity carried on a submission. Whitespace-only display id and profile
+    /// snapshot are stored as null.
+    /// </summary>
+    private readonly record struct SubmitterIdentity(long? Id, string? DisplayId, string? ProfileSnapshot)
+    {
+        public static SubmitterIdentity From(long? id, string? displayId, string? profileSnapshot) =>
+            new(id, EmptyToNull(displayId), EmptyToNull(profileSnapshot));
+
+        public string? SubmittedBy => Id?.ToString() ?? DisplayId;
+
+        private static string? EmptyToNull(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
     private void SetCompletionStatus(bool newIsCompleteValue)
