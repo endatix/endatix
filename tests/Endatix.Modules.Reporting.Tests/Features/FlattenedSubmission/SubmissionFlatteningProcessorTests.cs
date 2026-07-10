@@ -24,7 +24,7 @@ public class SubmissionFlatteningProcessorTests
     private const long SubmissionId = 500;
 
     [Fact]
-    public async Task ProcessAsync_WithCompletedSubmission_FlattensIntoTrackingRow()
+    public async Task SubmissionFlatteningProcessor_ProcessAsync_WithCompletedSubmission_FlattensIntoTrackingRow()
     {
         string definitionJson = File.ReadAllText(GetFixturePath("simple-definition.json"));
         string submissionJson = File.ReadAllText(GetFixturePath("simple-submission.json"));
@@ -72,7 +72,83 @@ public class SubmissionFlatteningProcessorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_WithTenantMismatch_MarksRowFailed()
+    public async Task SubmissionFlatteningProcessor_ProcessAsync_WithMissingSubmission_Throws()
+    {
+        FlattenedSubmissionRow trackingRow = new(SubmissionId, TenantId, FormId);
+
+        IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
+        submissionRepository
+            .SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
+            .Returns((Submission?)null);
+
+        IFormSchemaProvider schemaProvider = Substitute.For<IFormSchemaProvider>();
+
+        IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
+        flattenedSubmissionRepository
+            .GetOrCreateAsync(TenantId, SubmissionId, FormId, Arg.Any<CancellationToken>())
+            .Returns(trackingRow);
+
+        SubmissionFlatteningProcessor processor = new(
+            submissionRepository,
+            flattenedSubmissionRepository,
+            schemaProvider,
+            NullLogger<SubmissionFlatteningProcessor>.Instance);
+
+        Func<Task> act = () => processor.ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage($"*Submission {SubmissionId}*not found*");
+        trackingRow.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processing);
+        await schemaProvider.DidNotReceive().GetOrCompileAsync(
+            Arg.Any<long>(),
+            Arg.Any<long>(),
+            Arg.Any<long>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SubmissionFlatteningProcessor_ProcessAsync_WithUnavailableSchema_Throws()
+    {
+        Submission submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId,
+            FormId,
+            FormDefinitionId,
+            JsonData: "{}",
+            IsComplete: true));
+        submission.Id = SubmissionId;
+
+        FlattenedSubmissionRow trackingRow = new(SubmissionId, TenantId, FormId);
+
+        IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
+        submissionRepository
+            .SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        IFormSchemaProvider schemaProvider = Substitute.For<IFormSchemaProvider>();
+        schemaProvider
+            .GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>())
+            .Returns((FormExportSchema?)null);
+
+        IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
+        flattenedSubmissionRepository
+            .GetOrCreateAsync(TenantId, SubmissionId, FormId, Arg.Any<CancellationToken>())
+            .Returns(trackingRow);
+
+        SubmissionFlatteningProcessor processor = new(
+            submissionRepository,
+            flattenedSubmissionRepository,
+            schemaProvider,
+            NullLogger<SubmissionFlatteningProcessor>.Instance);
+
+        Func<Task> act = () => processor.ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage($"*form {FormId}*definition {FormDefinitionId}*");
+        trackingRow.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processing);
+    }
+
+    [Fact]
+    public async Task SubmissionFlatteningProcessor_ProcessAsync_WithTenantMismatch_MarksRowFailed()
     {
         Submission submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: 2,
@@ -105,7 +181,7 @@ public class SubmissionFlatteningProcessorTests
         await processor.ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
         trackingRow.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Failed);
-        trackingRow.Integration.LastError.Should().Be("Submission not found.");
+        trackingRow.Integration.LastError.Should().Be("Submission tenant or form does not match the flatten request.");
         await schemaProvider.DidNotReceive().GetOrCompileAsync(
             Arg.Any<long>(),
             Arg.Any<long>(),

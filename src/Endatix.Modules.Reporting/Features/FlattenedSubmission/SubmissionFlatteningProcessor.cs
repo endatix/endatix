@@ -20,8 +20,7 @@ internal sealed class SubmissionFlatteningProcessor(
     IFormSchemaProvider schemaProvider,
     ILogger<SubmissionFlatteningProcessor> logger) : ISubmissionFlatteningProcessor
 {
-    private const string SubmissionNotFoundMessage = "Submission not found.";
-    private const string SchemaUnavailableMessage = "Form export schema is not available.";
+    private const string SubmissionMismatchMessage = "Submission tenant or form does not match the flatten request.";
 
     public async Task ProcessAsync(
         long tenantId,
@@ -40,9 +39,15 @@ internal sealed class SubmissionFlatteningProcessor(
 
         SubmissionWithDefinitionAndFormSpec submissionSpec = new(formId, submissionId);
         var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
-        if (submission is null || submission.TenantId != tenantId || submission.FormId != formId)
+        if (submission is null)
         {
-            await FailAsync(row, SubmissionNotFoundMessage, cancellationToken);
+            throw new InvalidOperationException(
+                $"Submission {submissionId} for form {formId} was not found while flattening.");
+        }
+
+        if (submission.TenantId != tenantId || submission.FormId != formId)
+        {
+            await FailAsync(row, SubmissionMismatchMessage, cancellationToken);
             return;
         }
 
@@ -60,8 +65,8 @@ internal sealed class SubmissionFlatteningProcessor(
             cancellationToken);
         if (schema is null)
         {
-            await FailAsync(row, SchemaUnavailableMessage, cancellationToken);
-            return;
+            throw new InvalidOperationException(
+                $"Form export schema is not available for form {formId}, definition {submission.FormDefinitionId}.");
         }
 
         var mergedSchema = MergedFormSchema.FromJson(schema.SchemaJson);
