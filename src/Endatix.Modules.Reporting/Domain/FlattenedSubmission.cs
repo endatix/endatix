@@ -35,7 +35,7 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     public long FormId { get; private set; }
 
     /// <summary>
-    /// Flat key-value answers aligned to <see cref="Domain.FormSchema.SchemaJson"/>.
+    /// Flat key-value answers aligned to <see cref="Domain.FormSchema.FlatteningMap"/>.
     /// Populated when <see cref="Integration"/> is processed.
     /// </summary>
     public string? DataJson { get; private set; }

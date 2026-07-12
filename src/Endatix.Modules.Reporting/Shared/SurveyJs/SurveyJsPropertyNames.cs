@@ -9,6 +9,7 @@ internal static class SurveyJsPropertyNames
     public const string Type = "type";
     public const string Name = "name";
     public const string Title = "title";
+    public const string Description = "description";
     public const string Text = "text";
     public const string Value = "value";
     public const string ValueName = "valueName";
@@ -26,6 +27,7 @@ internal static class SurveyJsPropertyNames
     public const string IncludeIntoResult = "includeIntoResult";
     public const string InputType = "inputType";
     public const string ShowOtherItem = "showOtherItem";
+    public const string OtherText = "otherText";
     public const string LabelTrue = "labelTrue";
     public const string LabelFalse = "labelFalse";
     public const string MaxRowCount = "maxRowCount";

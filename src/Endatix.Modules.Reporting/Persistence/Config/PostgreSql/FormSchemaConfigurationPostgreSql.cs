@@ -10,7 +10,9 @@ internal sealed class FormSchemaConfigurationPostgreSql : IEntityTypeConfigurati
 {
     public void Configure(EntityTypeBuilder<FormSchema> builder)
     {
-        builder.Property(x => x.SchemaJson)
+        builder.Property(x => x.FlatteningMap)
+            .HasColumnType("jsonb");
+        builder.Property(x => x.Codebook)
             .HasColumnType("jsonb");
     }
 }

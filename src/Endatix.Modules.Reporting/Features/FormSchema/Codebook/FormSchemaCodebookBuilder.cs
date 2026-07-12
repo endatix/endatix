@@ -1,0 +1,1009 @@
+using System.Text.Json;
+using Endatix.Modules.Reporting.Domain.SurveyJs;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Shared.SurveyJs;
+
+namespace Endatix.Modules.Reporting.Features.FormSchema.Codebook;
+
+/// <summary>
+/// Builds format-neutral SurveyJS-aligned codebook metadata for BI export projection.
+/// Shoji/Crunch-specific shapes are produced at export time, not stored here.
+/// </summary>
+internal static class FormSchemaCodebookBuilder
+{
+    private const int CurrentVersion = 1;
+
+    internal static string Build(
+        JsonElement definition,
+        MergedFormSchema merged,
+        string? existingCodebookJson = null)
+    {
+        var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition);
+        var questionElements = CollectQuestionElements(definition);
+        var questions = BuildQuestions(questionElements, locales);
+        var columns = BuildColumns(merged, questionElements, locales);
+        var choiceCatalogs = BuildChoiceCatalogs(questionElements, locales);
+
+        if (!string.IsNullOrWhiteSpace(existingCodebookJson))
+        {
+            MergeExisting(existingCodebookJson, questions, choiceCatalogs);
+        }
+
+        return Serialize(locales, questions, columns, choiceCatalogs);
+    }
+
+    private static Dictionary<string, JsonElement> CollectQuestionElements(JsonElement definition)
+    {
+        Dictionary<string, JsonElement> elements = new(StringComparer.Ordinal);
+
+        foreach (var page in EnumeratePages(definition))
+        {
+            if (!page.TryGetElements(out var pageElements))
+            {
+                continue;
+            }
+
+            CollectElements(pageElements, elements);
+        }
+
+        if (definition.TryGetElements(out var rootElements))
+        {
+            CollectElements(rootElements, elements);
+        }
+
+        return elements;
+    }
+
+    private static void CollectElements(JsonElement elementList, Dictionary<string, JsonElement> elements)
+    {
+        if (elementList.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var element in elementList.EnumerateArray())
+        {
+            var type = element.GetSurveyJsType();
+            if (SurveyJsElementType.IsNonData(type))
+            {
+                continue;
+            }
+
+            var name = element.GetSurveyJsName();
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                elements.TryAdd(name, element);
+            }
+
+            if (SurveyJsElementType.Panel.Matches(type) && element.TryGetElements(out var panelChildren))
+            {
+                CollectElements(panelChildren, elements);
+            }
+
+            if (SurveyJsElementType.PanelDynamic.Matches(type) &&
+                element.TryGetTemplateElements(out var templateElements))
+            {
+                CollectElements(templateElements, elements);
+            }
+        }
+    }
+
+    private static Dictionary<string, JsonElement> BuildQuestions(
+        IReadOnlyDictionary<string, JsonElement> questionElements,
+        IReadOnlyList<string> locales)
+    {
+        Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
+
+        foreach (var entry in questionElements)
+        {
+            var name = entry.Key;
+            var element = entry.Value;
+            var type = element.GetSurveyJsType();
+
+            if (string.IsNullOrWhiteSpace(type))
+            {
+                continue;
+            }
+
+            if (TryBuildQuestionEntry(element, name, type, locales, out var questionEntry))
+            {
+                questions[name] = questionEntry;
+            }
+        }
+
+        return questions;
+    }
+
+    private static Dictionary<string, JsonElement> BuildColumns(
+        MergedFormSchema merged,
+        IReadOnlyDictionary<string, JsonElement> questionElements,
+        IReadOnlyList<string> locales)
+    {
+        Dictionary<string, JsonElement> columns = new(StringComparer.Ordinal);
+
+        foreach (var column in merged.Columns)
+        {
+            var parentKey = column.SourceQuestion ?? column.Key;
+            var hasQuestion = questionElements.TryGetValue(parentKey, out var questionElement) &&
+                               questionElement.ValueKind == JsonValueKind.Object;
+
+            columns[column.Key] = WriteColumnEntry(writer =>
+            {
+                writer.WriteString("parentKey", parentKey);
+                writer.WriteString(
+                    "surveyJsType",
+                    hasQuestion ? questionElement.GetSurveyJsType() ?? "unknown" : "unknown");
+                writer.WriteString(
+                    "exportShape",
+                    hasQuestion
+                        ? ResolveColumnExportShape(column, questionElement)
+                        : ResolveColumnExportShapeWithoutQuestion(column));
+
+                if (hasQuestion)
+                {
+                    WriteTitle(writer, questionElement, locales);
+                    WriteDescription(writer, questionElement, locales);
+                }
+
+                if (!string.IsNullOrWhiteSpace(column.ChoiceValue))
+                {
+                    writer.WriteString("choiceValue", column.ChoiceValue);
+                    if (hasQuestion)
+                    {
+                        WriteChoiceLabel(writer, questionElement, column.ChoiceValue, locales);
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(column.MatrixRowValue))
+                {
+                    writer.WriteString("matrixRowValue", column.MatrixRowValue);
+                    if (hasQuestion)
+                    {
+                        WriteMatrixRowLabel(writer, questionElement, column.MatrixRowValue, locales);
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(column.MatrixColumnValue))
+                {
+                    writer.WriteString("matrixColumnValue", column.MatrixColumnValue);
+                    if (hasQuestion)
+                    {
+                        WriteMatrixColumnLabel(writer, questionElement, column.MatrixColumnValue, locales);
+                    }
+                }
+
+                if (column.LoopPath is { Count: > 0 })
+                {
+                    WriteLoopPath(writer, column.LoopPath);
+                }
+            });
+        }
+
+        return columns;
+    }
+
+    private static Dictionary<string, JsonElement> BuildChoiceCatalogs(
+        IReadOnlyDictionary<string, JsonElement> questionElements,
+        IReadOnlyList<string> locales)
+    {
+        Dictionary<string, JsonElement> catalogs = new(StringComparer.Ordinal);
+
+        foreach (var entry in questionElements)
+        {
+            if (!HasChoiceCatalog(entry.Value))
+            {
+                continue;
+            }
+
+            catalogs[entry.Key] = WriteQuestionEntry(writer =>
+            {
+                writer.WritePropertyName("choices");
+                writer.WriteStartArray();
+                WriteCatalogChoices(writer, entry.Value, locales);
+                writer.WriteEndArray();
+            });
+        }
+
+        return catalogs;
+    }
+
+    private static bool HasChoiceCatalog(JsonElement element)
+    {
+        var type = element.GetSurveyJsType();
+
+        if (SurveyJsElementType.Boolean.Matches(type) ||
+            SurveyJsElementType.ResolveFlattening(type, element) == SurveyJsFlattening.ChoiceIndicators)
+        {
+            return true;
+        }
+
+        if (SurveyJsElementType.Matrix.Matches(type) && !HasMatrixCheckboxCells(element))
+        {
+            return true;
+        }
+
+        return SurveyJsElementType.Ranking.Matches(type);
+    }
+
+    private static bool TryBuildQuestionEntry(
+        JsonElement element,
+        string name,
+        string? type,
+        IReadOnlyList<string> locales,
+        out JsonElement questionEntry)
+    {
+        questionEntry = default;
+
+        if (SurveyJsElementType.PanelDynamic.Matches(type))
+        {
+            questionEntry = WriteQuestionEntry(writer =>
+            {
+                writer.WriteString("surveyJsType", type!);
+                WriteTitle(writer, element, locales);
+                WriteDescription(writer, element, locales);
+
+                if (element.TryGetLoopSource(out _))
+                {
+                    WriteLoopSource(writer, element);
+                    writer.WriteString("exportShape", "loop_panel");
+                }
+                else
+                {
+                    writer.WriteString("exportShape", "panel_dynamic");
+                }
+            });
+            return true;
+        }
+
+        if (SurveyJsElementType.Matrix.Matches(type) && !HasMatrixCheckboxCells(element))
+        {
+            questionEntry = WriteQuestionEntry(writer =>
+            {
+                writer.WriteString("surveyJsType", type!);
+                WriteTitle(writer, element, locales);
+                WriteDescription(writer, element, locales);
+                writer.WriteString("exportShape", "categorical_array");
+                WriteMatrixColumns(writer, element, locales);
+                WriteMatrixRows(writer, element, locales);
+            });
+            return true;
+        }
+
+        if (SurveyJsElementType.ResolveFlattening(type, element) == SurveyJsFlattening.ChoiceIndicators)
+        {
+            questionEntry = WriteQuestionEntry(writer =>
+            {
+                writer.WriteString("surveyJsType", type!);
+                WriteTitle(writer, element, locales);
+                WriteDescription(writer, element, locales);
+                writer.WriteString("exportShape", "multiple_response");
+                WriteChoices(writer, element, locales);
+            });
+            return true;
+        }
+
+        if (SurveyJsElementType.Ranking.Matches(type))
+        {
+            questionEntry = WriteQuestionEntry(writer =>
+            {
+                writer.WriteString("surveyJsType", type!);
+                WriteTitle(writer, element, locales);
+                WriteDescription(writer, element, locales);
+                writer.WriteString("exportShape", "ranking");
+                WriteChoices(writer, element, locales);
+            });
+            return true;
+        }
+
+        if (SurveyJsElementType.MultipleText.Matches(type))
+        {
+            questionEntry = WriteQuestionEntry(writer =>
+            {
+                writer.WriteString("surveyJsType", type!);
+                WriteTitle(writer, element, locales);
+                WriteDescription(writer, element, locales);
+                writer.WriteString("exportShape", "multiple_text");
+                WriteMultipleTextItems(writer, element, locales);
+            });
+            return true;
+        }
+
+        if (SurveyJsElementType.MatrixDropdown.Matches(type) || SurveyJsElementType.MatrixDynamic.Matches(type))
+        {
+            questionEntry = WriteQuestionEntry(writer =>
+            {
+                writer.WriteString("surveyJsType", type!);
+                WriteTitle(writer, element, locales);
+                WriteDescription(writer, element, locales);
+                writer.WriteString("exportShape", "matrix_cell");
+                WriteMatrixDropdownColumns(writer, element, locales);
+                WriteMatrixRows(writer, element, locales);
+            });
+            return true;
+        }
+
+        if (SurveyJsElementType.FileUpload.Matches(type))
+        {
+            questionEntry = WriteScalarQuestionEntry(element, type!, locales, "file");
+            return true;
+        }
+
+        questionEntry = WriteScalarQuestionEntry(element, type!, locales, "scalar");
+        return true;
+    }
+
+    private static JsonElement WriteScalarQuestionEntry(
+        JsonElement element,
+        string type,
+        IReadOnlyList<string> locales,
+        string exportShape)
+    {
+        return WriteQuestionEntry(writer =>
+        {
+            writer.WriteString("surveyJsType", type);
+            WriteTitle(writer, element, locales);
+            WriteDescription(writer, element, locales);
+            writer.WriteString("exportShape", exportShape);
+            WriteInputType(writer, element);
+        });
+    }
+
+    private static void MergeExisting(
+        string existingCodebookJson,
+        Dictionary<string, JsonElement> questions,
+        Dictionary<string, JsonElement> choiceCatalogs)
+    {
+        using var document = JsonDocument.Parse(existingCodebookJson);
+        var root = document.RootElement;
+
+        if (root.TryGetProperty("questions", out var existingQuestions) &&
+            existingQuestions.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in existingQuestions.EnumerateObject())
+            {
+                questions.TryAdd(property.Name, property.Value.Clone());
+            }
+        }
+
+        if (root.TryGetProperty("choiceCatalogs", out var existingCatalogs) &&
+            existingCatalogs.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in existingCatalogs.EnumerateObject())
+            {
+                if (!choiceCatalogs.TryGetValue(property.Name, out var currentCatalog))
+                {
+                    choiceCatalogs[property.Name] = property.Value.Clone();
+                    continue;
+                }
+
+                choiceCatalogs[property.Name] = MergeChoiceCatalog(property.Value, currentCatalog);
+            }
+        }
+    }
+
+    private static JsonElement MergeChoiceCatalog(JsonElement existingCatalog, JsonElement currentCatalog)
+    {
+        Dictionary<string, (int Id, JsonElement Entry)> mergedByValue = new(StringComparer.Ordinal);
+
+        if (existingCatalog.TryGetProperty("choices", out var existingChoices) &&
+            existingChoices.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var choice in existingChoices.EnumerateArray())
+            {
+                var value = choice.GetStringProperty("value");
+                if (value is null || !choice.TryGetProperty("id", out var idElement) ||
+                    idElement.ValueKind != JsonValueKind.Number)
+                {
+                    continue;
+                }
+
+                mergedByValue[value] = (idElement.GetInt32(), choice.Clone());
+            }
+        }
+
+        var nextId = mergedByValue.Count == 0 ? 1 : mergedByValue.Values.Max(entry => entry.Id) + 1;
+
+        if (currentCatalog.TryGetProperty("choices", out var currentChoices) &&
+            currentChoices.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var choice in currentChoices.EnumerateArray())
+            {
+                var value = choice.GetStringProperty("value");
+                if (value is null || mergedByValue.ContainsKey(value))
+                {
+                    continue;
+                }
+
+                var id = choice.TryGetProperty("id", out var idElement) &&
+                         idElement.ValueKind == JsonValueKind.Number
+                    ? idElement.GetInt32()
+                    : nextId++;
+
+                mergedByValue[value] = (id, choice.Clone());
+            }
+        }
+
+        return WriteQuestionEntry(writer =>
+        {
+            writer.WritePropertyName("choices");
+            writer.WriteStartArray();
+            foreach ((_, var entry) in mergedByValue.Values.OrderBy(pair => pair.Id))
+            {
+                entry.WriteTo(writer);
+            }
+
+            writer.WriteEndArray();
+        });
+    }
+
+    private static string Serialize(
+        IReadOnlyList<string> locales,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        IReadOnlyDictionary<string, JsonElement> columns,
+        IReadOnlyDictionary<string, JsonElement> choiceCatalogs)
+    {
+        System.Buffers.ArrayBufferWriter<byte> buffer = new();
+        using (Utf8JsonWriter writer = new(buffer))
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("version", CurrentVersion);
+            writer.WritePropertyName("locales");
+            writer.WriteStartArray();
+            foreach (var locale in locales)
+            {
+                writer.WriteStringValue(locale);
+            }
+
+            writer.WriteEndArray();
+
+            WriteObjectDictionary(writer, "questions", questions);
+            WriteObjectDictionary(writer, "columns", columns);
+            WriteObjectDictionary(writer, "choiceCatalogs", choiceCatalogs);
+            writer.WriteEndObject();
+        }
+
+        return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
+    }
+
+    private static void WriteObjectDictionary(
+        Utf8JsonWriter writer,
+        string propertyName,
+        IReadOnlyDictionary<string, JsonElement> entries)
+    {
+        writer.WritePropertyName(propertyName);
+        writer.WriteStartObject();
+        foreach (var entry in entries.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            writer.WritePropertyName(entry.Key);
+            entry.Value.WriteTo(writer);
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private static string ResolveColumnExportShapeWithoutQuestion(FormSchemaColumn column) =>
+        column.Kind switch
+        {
+            FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText => "multiple_response",
+            FormSchemaColumnKind.MatrixRow => "categorical_array",
+            FormSchemaColumnKind.MatrixCell => "matrix_cell",
+            FormSchemaColumnKind.RankingChoice => "ranking",
+            FormSchemaColumnKind.MultipleTextItem => "multiple_text",
+            FormSchemaColumnKind.FileUpload => "file",
+            _ => "scalar",
+        };
+
+    private static string ResolveColumnExportShape(FormSchemaColumn column, JsonElement questionElement)
+    {
+        return column.Kind switch
+        {
+            FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText => "multiple_response",
+            FormSchemaColumnKind.MatrixRow => "categorical_array",
+            FormSchemaColumnKind.MatrixCell => "matrix_cell",
+            FormSchemaColumnKind.RankingChoice => "ranking",
+            FormSchemaColumnKind.MultipleTextItem => "multiple_text",
+            FormSchemaColumnKind.FileUpload => "file",
+            FormSchemaColumnKind.LoopSource or FormSchemaColumnKind.NestedLoop or FormSchemaColumnKind.PanelDynamicIndex =>
+                ResolveQuestionExportShape(questionElement),
+            _ => ResolveQuestionExportShape(questionElement),
+        };
+    }
+
+    private static string ResolveQuestionExportShape(JsonElement questionElement)
+    {
+        var type = questionElement.GetSurveyJsType();
+
+        if (SurveyJsElementType.PanelDynamic.Matches(type) && questionElement.TryGetLoopSource(out _))
+        {
+            return "loop_panel";
+        }
+
+        if (SurveyJsElementType.Matrix.Matches(type) && !HasMatrixCheckboxCells(questionElement))
+        {
+            return "categorical_array";
+        }
+
+        if (SurveyJsElementType.ResolveFlattening(type, questionElement) == SurveyJsFlattening.ChoiceIndicators)
+        {
+            return "multiple_response";
+        }
+
+        if (SurveyJsElementType.Ranking.Matches(type))
+        {
+            return "ranking";
+        }
+
+        if (SurveyJsElementType.MultipleText.Matches(type))
+        {
+            return "multiple_text";
+        }
+
+        if (SurveyJsElementType.MatrixDropdown.Matches(type) || SurveyJsElementType.MatrixDynamic.Matches(type))
+        {
+            return "matrix_cell";
+        }
+
+        if (SurveyJsElementType.FileUpload.Matches(type))
+        {
+            return "file";
+        }
+
+        return "scalar";
+    }
+
+    private static IEnumerable<JsonElement> EnumeratePages(JsonElement definition)
+    {
+        if (!definition.TryGetPages(out var pages))
+        {
+            yield break;
+        }
+
+        foreach (var page in pages.EnumerateArray())
+        {
+            yield return page;
+        }
+    }
+
+    private static void WriteTitle(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> locales)
+    {
+        writer.WritePropertyName("title");
+        SurveyJsLocalizationHelper.WriteLocalizedStrings(
+            writer,
+            SurveyJsLocalizationHelper.ReadLocalizedStrings(element, SurveyJsPropertyNames.Title));
+    }
+
+    private static void WriteDescription(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> locales)
+    {
+        var description =
+            SurveyJsLocalizationHelper.ReadLocalizedStrings(element, SurveyJsPropertyNames.Description);
+
+        if (description.Count == 0)
+        {
+            return;
+        }
+
+        writer.WritePropertyName("description");
+        SurveyJsLocalizationHelper.WriteLocalizedStrings(writer, description);
+    }
+
+    private static void WriteInputType(Utf8JsonWriter writer, JsonElement element)
+    {
+        var inputType = element.GetStringProperty(SurveyJsPropertyNames.InputType);
+        if (!string.IsNullOrWhiteSpace(inputType))
+        {
+            writer.WriteString("inputType", inputType);
+        }
+    }
+
+    private static void WriteLoopSource(Utf8JsonWriter writer, JsonElement element)
+    {
+        writer.WritePropertyName("loopSource");
+        writer.WriteStartArray();
+        if (element.TryGetLoopSource(out var loopSource))
+        {
+            foreach (var source in loopSource.EnumerateArray())
+            {
+                if (source.ValueKind == JsonValueKind.String)
+                {
+                    writer.WriteStringValue(source.GetString());
+                }
+            }
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteLoopPath(Utf8JsonWriter writer, IReadOnlyList<LoopSegment> loopPath)
+    {
+        writer.WritePropertyName("loopPath");
+        writer.WriteStartArray();
+        foreach (var segment in loopPath)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("panelValueName", segment.PanelValueName);
+            writer.WriteString("propertyName", segment.PropertyName);
+            writer.WriteString("choiceValue", segment.ChoiceValue);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteChoices(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> locales)
+    {
+        writer.WritePropertyName("choices");
+        writer.WriteStartArray();
+        WriteCatalogChoices(writer, element, locales);
+        writer.WriteEndArray();
+    }
+
+    private static void WriteCatalogChoices(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> locales)
+    {
+        if (SurveyJsElementType.Boolean.Matches(element.GetSurveyJsType()))
+        {
+            WriteChoice(
+                writer,
+                "true",
+                1,
+                SurveyJsLocalizationHelper.ReadLocalizedStrings(element, SurveyJsPropertyNames.LabelTrue),
+                locales,
+                fallback: "Yes");
+            WriteChoice(
+                writer,
+                "false",
+                2,
+                SurveyJsLocalizationHelper.ReadLocalizedStrings(element, SurveyJsPropertyNames.LabelFalse),
+                locales,
+                fallback: "No");
+            return;
+        }
+
+        var choiceId = 1;
+        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(element))
+        {
+            WriteChoice(
+                writer,
+                value,
+                choiceId++,
+                SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                    FindChoiceElement(element, value),
+                    SurveyJsPropertyNames.Text),
+                locales,
+                fallback: text);
+        }
+
+        if (element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        {
+            var otherText = SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                element,
+                SurveyJsPropertyNames.OtherText);
+            WriteChoice(writer, "other", choiceId, otherText, locales, fallback: "Other");
+        }
+    }
+
+    private static void WriteMultipleTextItems(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> locales)
+    {
+        writer.WritePropertyName("items");
+        writer.WriteStartArray();
+        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateMultipleTextItems(element))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("name", value);
+            writer.WritePropertyName("title");
+            var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindMultipleTextItemElement(element, value),
+                SurveyJsPropertyNames.Title);
+            if (localized.Count == 0)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("default", text);
+                writer.WriteEndObject();
+            }
+            else
+            {
+                SurveyJsLocalizationHelper.WriteLocalizedStrings(writer, localized);
+            }
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteMatrixColumns(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> locales)
+    {
+        writer.WritePropertyName("columns");
+        writer.WriteStartArray();
+        var columnId = 1;
+        foreach ((var value, var text, var columnElement) in SurveyJsChoiceHelper.EnumerateMatrixColumns(element))
+        {
+            WriteChoice(
+                writer,
+                value,
+                columnId++,
+                SurveyJsLocalizationHelper.ReadLocalizedStrings(columnElement, SurveyJsPropertyNames.Text),
+                locales,
+                fallback: text);
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteMatrixDropdownColumns(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> locales)
+    {
+        writer.WritePropertyName("columns");
+        writer.WriteStartArray();
+        foreach ((var value, var text, var columnElement) in SurveyJsChoiceHelper.EnumerateMatrixColumns(element))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("name", value);
+            writer.WritePropertyName("title");
+            var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                columnElement,
+                SurveyJsPropertyNames.Title);
+            if (localized.Count == 0)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("default", text);
+                writer.WriteEndObject();
+            }
+            else
+            {
+                SurveyJsLocalizationHelper.WriteLocalizedStrings(writer, localized);
+            }
+
+            var cellType = columnElement.GetStringProperty("cellType");
+            if (!string.IsNullOrWhiteSpace(cellType))
+            {
+                writer.WriteString("cellType", cellType);
+            }
+
+            var inputType = columnElement.GetStringProperty(SurveyJsPropertyNames.InputType);
+            if (!string.IsNullOrWhiteSpace(inputType))
+            {
+                writer.WriteString("inputType", inputType);
+            }
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteMatrixRows(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> locales)
+    {
+        writer.WritePropertyName("rows");
+        writer.WriteStartArray();
+        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateMatrixRows(element))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("value", value);
+            writer.WritePropertyName("text");
+            var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindMatrixRowElement(element, value),
+                SurveyJsPropertyNames.Text);
+            if (localized.Count == 0)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("default", text);
+                writer.WriteEndObject();
+            }
+            else
+            {
+                SurveyJsLocalizationHelper.WriteLocalizedStrings(writer, localized);
+            }
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteChoiceLabel(
+        Utf8JsonWriter writer,
+        JsonElement questionElement,
+        string choiceValue,
+        IReadOnlyList<string> locales)
+    {
+        if (SurveyJsElementType.Boolean.Matches(questionElement.GetSurveyJsType()))
+        {
+            var propertyName = choiceValue == "true"
+                ? SurveyJsPropertyNames.LabelTrue
+                : SurveyJsPropertyNames.LabelFalse;
+            writer.WritePropertyName("choiceLabel");
+            SurveyJsLocalizationHelper.WriteLocalizedStrings(
+                writer,
+                SurveyJsLocalizationHelper.ReadLocalizedStrings(questionElement, propertyName));
+            return;
+        }
+
+        if (choiceValue == "other")
+        {
+            writer.WritePropertyName("choiceLabel");
+            SurveyJsLocalizationHelper.WriteLocalizedStrings(
+                writer,
+                SurveyJsLocalizationHelper.ReadLocalizedStrings(questionElement, SurveyJsPropertyNames.OtherText));
+            return;
+        }
+
+        writer.WritePropertyName("choiceLabel");
+        SurveyJsLocalizationHelper.WriteLocalizedStrings(
+            writer,
+            SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindChoiceElement(questionElement, choiceValue),
+                SurveyJsPropertyNames.Text));
+    }
+
+    private static void WriteMatrixRowLabel(
+        Utf8JsonWriter writer,
+        JsonElement questionElement,
+        string rowValue,
+        IReadOnlyList<string> locales)
+    {
+        writer.WritePropertyName("rowLabel");
+        SurveyJsLocalizationHelper.WriteLocalizedStrings(
+            writer,
+            SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindMatrixRowElement(questionElement, rowValue),
+                SurveyJsPropertyNames.Text));
+    }
+
+    private static void WriteMatrixColumnLabel(
+        Utf8JsonWriter writer,
+        JsonElement questionElement,
+        string columnValue,
+        IReadOnlyList<string> locales)
+    {
+        writer.WritePropertyName("columnLabel");
+        SurveyJsLocalizationHelper.WriteLocalizedStrings(
+            writer,
+            SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindMatrixColumnElement(questionElement, columnValue),
+                SurveyJsPropertyNames.Title));
+    }
+
+    private static JsonElement FindChoiceElement(JsonElement element, string choiceValue)
+    {
+        if (!element.TryGetChoices(out var choices))
+        {
+            return default;
+        }
+
+        foreach (var choice in choices.EnumerateArray())
+        {
+            if (choice.ValueKind == JsonValueKind.String && choice.GetString() == choiceValue)
+            {
+                return choice;
+            }
+
+            if (choice.ValueKind == JsonValueKind.Object &&
+                string.Equals(
+                    choice.GetStringProperty(SurveyJsPropertyNames.Value) ?? choice.GetStringProperty(SurveyJsPropertyNames.Text),
+                    choiceValue,
+                    StringComparison.Ordinal))
+            {
+                return choice;
+            }
+        }
+
+        return default;
+    }
+
+    private static JsonElement FindMultipleTextItemElement(JsonElement element, string itemName)
+    {
+        if (!element.TryGetItems(out var items))
+        {
+            return default;
+        }
+
+        foreach (var item in items.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.Object &&
+                string.Equals(item.GetStringProperty(SurveyJsPropertyNames.Name), itemName, StringComparison.Ordinal))
+            {
+                return item;
+            }
+        }
+
+        return default;
+    }
+
+    private static JsonElement FindMatrixRowElement(JsonElement element, string rowValue)
+    {
+        if (!element.TryGetRows(out var rows))
+        {
+            return default;
+        }
+
+        foreach (var row in rows.EnumerateArray())
+        {
+            if (row.ValueKind == JsonValueKind.String && row.GetString() == rowValue)
+            {
+                return row;
+            }
+
+            if (row.ValueKind == JsonValueKind.Object &&
+                string.Equals(
+                    row.GetStringProperty(SurveyJsPropertyNames.Value) ?? row.GetStringProperty(SurveyJsPropertyNames.Text),
+                    rowValue,
+                    StringComparison.Ordinal))
+            {
+                return row;
+            }
+        }
+
+        return default;
+    }
+
+    private static JsonElement FindMatrixColumnElement(JsonElement element, string columnValue)
+    {
+        foreach ((var value, _, var columnElement) in SurveyJsChoiceHelper.EnumerateMatrixColumns(element))
+        {
+            if (string.Equals(value, columnValue, StringComparison.Ordinal))
+            {
+                return columnElement;
+            }
+        }
+
+        return default;
+    }
+
+    private static void WriteChoice(
+        Utf8JsonWriter writer,
+        string value,
+        int id,
+        IReadOnlyDictionary<string, string> localizedText,
+        IReadOnlyList<string> locales,
+        string fallback)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("value", value);
+        writer.WriteNumber("id", id);
+        writer.WritePropertyName("text");
+        if (localizedText.Count == 0)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("default", fallback);
+            writer.WriteEndObject();
+        }
+        else
+        {
+            SurveyJsLocalizationHelper.WriteLocalizedStrings(writer, localizedText);
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private static bool HasMatrixCheckboxCells(JsonElement element)
+    {
+        foreach ((_, _, var columnElement) in SurveyJsChoiceHelper.EnumerateMatrixColumns(element))
+        {
+            if (columnElement.ValueKind == JsonValueKind.Object &&
+                string.Equals(
+                    columnElement.GetStringProperty("cellType"),
+                    "checkbox",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static JsonElement WriteQuestionEntry(Action<Utf8JsonWriter> write)
+    {
+        System.Buffers.ArrayBufferWriter<byte> buffer = new();
+        using (Utf8JsonWriter writer = new(buffer))
+        {
+            writer.WriteStartObject();
+            write(writer);
+            writer.WriteEndObject();
+        }
+
+        using var document = JsonDocument.Parse(System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));
+        return document.RootElement.Clone();
+    }
+
+    private static JsonElement WriteColumnEntry(Action<Utf8JsonWriter> write) => WriteQuestionEntry(write);
+}

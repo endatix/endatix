@@ -44,6 +44,9 @@ internal static class FormSchemaFixtureLoader
     internal static JsonElement LoadAllQuestionsExpectedCodebook() =>
         LoadAllQuestions("all-questions-expected-codebook.json");
 
+    internal static JsonElement LoadAllQuestionsExpectedShojiCodebook() =>
+        LoadAllQuestions("all-questions-expected-shoji-codebook.json");
+
     internal static JsonElement LoadJson(string fixtureName)
     {
         string path = Path.Combine(FixturesRoot, fixtureName);

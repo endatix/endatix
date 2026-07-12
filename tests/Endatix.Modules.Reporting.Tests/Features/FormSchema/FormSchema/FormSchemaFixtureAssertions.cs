@@ -29,4 +29,49 @@ internal static class FormSchemaFixtureAssertions
             expected.EnumerateObject().Select(property => property.Name),
             because: because);
     }
+
+    internal static void AssertJsonMatchesExpected(
+        JsonElement actual,
+        JsonElement expected,
+        string because)
+    {
+        AssertJsonElementMatches(actual, expected, because);
+    }
+
+    private static void AssertJsonElementMatches(JsonElement actual, JsonElement expected, string because)
+    {
+        actual.ValueKind.Should().Be(expected.ValueKind, because);
+
+        switch (expected.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (JsonProperty expectedProperty in expected.EnumerateObject())
+                {
+                    actual.TryGetProperty(expectedProperty.Name, out JsonElement actualProperty)
+                        .Should().BeTrue($"{because}: missing property '{expectedProperty.Name}'");
+                    AssertJsonElementMatches(actualProperty, expectedProperty.Value, because);
+                }
+
+                break;
+
+            case JsonValueKind.Array:
+                List<JsonElement> actualItems = actual.EnumerateArray().ToList();
+                List<JsonElement> expectedItems = expected.EnumerateArray().ToList();
+                actualItems.Count.Should().Be(expectedItems.Count, because);
+
+                for (var index = 0; index < expectedItems.Count; index++)
+                {
+                    AssertJsonElementMatches(actualItems[index], expectedItems[index], because);
+                }
+
+                break;
+
+            case JsonValueKind.Null:
+                break;
+
+            default:
+                actual.GetRawText().Should().Be(expected.GetRawText(), because);
+                break;
+        }
+    }
 }

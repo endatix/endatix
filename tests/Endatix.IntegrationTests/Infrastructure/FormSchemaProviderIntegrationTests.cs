@@ -58,11 +58,11 @@ public sealed class FormSchemaProviderIntegrationTests
 
         result.Should().NotBeNull();
         result!.FormDefinitionRevision.Should().Be(FormDefinitionId);
-        result.SchemaJson.Should().Contain("q1");
+        result.FlatteningMap.Should().Contain("q1");
 
         FormSchema? persisted = await schemaRepository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
         persisted.Should().NotBeNull();
-        persisted!.SchemaJson.Should().Be(result.SchemaJson);
+        persisted!.FlatteningMap.Should().Be(result.FlatteningMap);
     }
 
     [Fact]

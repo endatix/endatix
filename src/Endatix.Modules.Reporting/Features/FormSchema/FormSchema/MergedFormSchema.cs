@@ -87,9 +87,14 @@ internal sealed class MergedFormSchema
     public static MergedFormSchema FromJson(string json)
     {
         using var document = JsonDocument.Parse(json);
+        return FromColumnsJson(document.RootElement);
+    }
+
+    internal static MergedFormSchema FromColumnsJson(JsonElement columnsElement)
+    {
         List<FormSchemaColumn> columns = [];
 
-        foreach (var item in document.RootElement.EnumerateArray())
+        foreach (var item in columnsElement.EnumerateArray())
         {
             if (TryParseColumn(item, out var column))
             {

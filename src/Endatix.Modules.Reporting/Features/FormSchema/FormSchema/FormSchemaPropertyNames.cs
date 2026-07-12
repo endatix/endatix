@@ -1,7 +1,7 @@
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 /// <summary>
-/// JSON property names for persisted <see cref="MergedFormSchema"/> and domain <see cref="Endatix.Modules.Reporting.Domain.FormSchema.SchemaJson"/>.
+/// JSON property names for persisted <see cref="MergedFormSchema"/> and domain <see cref="Endatix.Modules.Reporting.Domain.FormSchema.FlatteningMap"/>.
 /// </summary>
 /// <remarks>
 /// These are the property names used in the JSON schema for the form schema.

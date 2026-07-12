@@ -41,8 +41,8 @@ public sealed class ReportingQueryFilterTests
                 new ExportFormat(tenant2, "Tenant2 Export", ExportSerializationType.Json) { Id = 102 });
 
             seedContext.FormSchemas.AddRange(
-                new FormSchema(tenant1, formId: 1, formDefinitionRevision: 1, schemaJson: """[{"col":"a"}]""") { Id = 201 },
-                new FormSchema(tenant2, formId: 2, formDefinitionRevision: 1, schemaJson: """[{"col":"b"}]""") { Id = 202 });
+                new FormSchema(tenant1, formId: 1, formDefinitionRevision: 1, flatteningMap: """{"version":1,"columns":[{"key":"a"}]}""", codebook: FormSchema.EmptyCodebookJson) { Id = 201 },
+                new FormSchema(tenant2, formId: 2, formDefinitionRevision: 1, flatteningMap: """{"version":1,"columns":[{"key":"b"}]}""", codebook: FormSchema.EmptyCodebookJson) { Id = 202 });
 
             seedContext.FlattenedSubmissions.AddRange(
                 new FlattenedSubmission(submissionId: 301, tenantId: tenant1, formId: 1),

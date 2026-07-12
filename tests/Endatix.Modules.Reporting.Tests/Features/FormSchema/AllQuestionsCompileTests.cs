@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Endatix.Modules.Reporting.Features.FormSchema.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 
@@ -47,12 +48,43 @@ public sealed class AllQuestionsCompileTests
             because: "all-questions sample should flatten to the committed golden output");
     }
 
-    [Fact(Skip = "Codebook compile not implemented yet — E5c Phase 5 (FormSchemaCodebookBuilder)")]
+    [Fact]
     public void FormSchemaCompiler_Compile_WithAllQuestionsDefinition_ProducesExpectedCodebook()
     {
-        // Golden fixture: Fixtures/AllQuestions/all-questions-expected-codebook.json
-        // Wire to compiler.CompileCodebook() when FormSchemaCodebookBuilder lands.
-        Assert.Fail("Implement FormSchemaCodebookBuilder and remove Skip.");
+        // Arrange
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        JsonElement expectedCodebook = FormSchemaFixtureLoader.LoadAllQuestionsExpectedCodebook();
+        FormSchemaCompiler compiler = new();
+
+        // Act
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        using JsonDocument actualCodebook = JsonDocument.Parse(compiled.CodebookJson);
+
+        // Assert
+        FormSchemaFixtureAssertions.AssertJsonMatchesExpected(
+            actualCodebook.RootElement,
+            expectedCodebook,
+            because: "all-questions sample should compile to the committed generic codebook golden output");
+    }
+
+    [Fact(Skip = "E6: ShojiCodebookGenerator not implemented yet")]
+    public void ShojiCodebookGenerator_WithAllQuestionsSample_ProducesExpectedShojiCodebook()
+    {
+        // Arrange
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        JsonElement expectedShojiCodebook = FormSchemaFixtureLoader.LoadAllQuestionsExpectedShojiCodebook();
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+
+        // Act
+        string actualShojiCodebook = ShojiCodebookGenerator.Generate(compiled.FlatteningMap, compiled.CodebookJson);
+        using JsonDocument actualDocument = JsonDocument.Parse(actualShojiCodebook);
+
+        // Assert
+        FormSchemaFixtureAssertions.AssertJsonMatchesExpected(
+            actualDocument.RootElement,
+            expectedShojiCodebook,
+            because: "all-questions sample should generate the committed Shoji codebook golden output");
     }
 
     // Manual only: remove Skip, run `dotnet test --filter AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles`, then commit updated JSON under Fixtures/AllQuestions/.
@@ -65,18 +97,24 @@ public sealed class AllQuestionsCompileTests
         using JsonDocument submissionDocument = JsonDocument.Parse(
             File.ReadAllText(Path.Combine(fixturesRoot, "all-questions-submission.json")));
         FormSchemaCompiler compiler = new();
-        MergedFormSchema merged = compiler.Compile(definitionJson);
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
 
-        List<string> keys = merged.Columns.Select(column => column.Key).ToList();
+        List<string> keys = compiled.FlatteningMap.Columns.Select(column => column.Key).ToList();
         File.WriteAllText(
             Path.Combine(fixturesRoot, "all-questions-expected-keys.json"),
             JsonSerializer.Serialize(keys, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
 
         Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
             submissionDocument.RootElement,
-            merged);
+            compiled.FlatteningMap);
         File.WriteAllText(
             Path.Combine(fixturesRoot, "all-questions-expected-flat.json"),
-            FlattenedSubmissionFlattener.ToJson(merged, flattened));
+            FlattenedSubmissionFlattener.ToJson(compiled.FlatteningMap, flattened));
+
+        File.WriteAllText(
+            Path.Combine(fixturesRoot, "all-questions-expected-codebook.json"),
+            JsonSerializer.Serialize(
+                JsonDocument.Parse(compiled.CodebookJson).RootElement,
+                new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
     }
 }

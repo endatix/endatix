@@ -29,8 +29,13 @@ public class SubmissionFlatteningProcessorTests
         string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
         string submissionJson = FormSchemaFixtureLoader.LoadText("simple-submission.json");
         FormSchemaCompiler compiler = new();
-        MergedFormSchema mergedSchema = compiler.CompileFromPersistedSchema(definitionJson, existingSchemaJson: null);
-        FormSchemaEntity schema = new(TenantId, FormId, FormDefinitionId, mergedSchema.ToJson());
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(
+            TenantId,
+            FormId,
+            FormDefinitionId,
+            compiled.FlatteningMapJson,
+            compiled.CodebookJson);
 
         Submission submission = Submission.Create(new SubmissionCreateArgs(
             TenantId,

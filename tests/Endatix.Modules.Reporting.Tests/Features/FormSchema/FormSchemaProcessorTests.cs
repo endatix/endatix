@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using FluentAssertions;
@@ -43,7 +44,8 @@ public class FormSchemaProcessorTests
                 schema.TenantId == TenantId &&
                 schema.FormId == FormId &&
                 schema.FormDefinitionRevision == FormDefinitionId &&
-                schema.SchemaJson.Contains("q1")),
+                schema.FlatteningMap.Contains("q1") &&
+                schema.Codebook.Contains("version")),
             Arg.Any<CancellationToken>());
     }
 
@@ -55,7 +57,12 @@ public class FormSchemaProcessorTests
         FormDefinition definition = CreateFormDefinition(
             FormDefinitionId,
             """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q2"}]}]}""");
-        FormSchemaEntity existing = new(TenantId, FormId, FormDefinitionId, "[]");
+        FormSchemaEntity existing = new(
+            TenantId,
+            FormId,
+            FormDefinitionId,
+            FormSchemaEntity.EmptyFlatteningMapJson,
+            FormSchemaEntity.EmptyCodebookJson);
         formsRepository.SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(definition);
         schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
@@ -69,7 +76,8 @@ public class FormSchemaProcessorTests
 
         await processor.ProcessAsync(TenantId, FormId, FormDefinitionId, TestContext.Current.CancellationToken);
 
-        existing.SchemaJson.Should().Contain("q2");
+        existing.FlatteningMap.Should().Contain("q2");
+        existing.Codebook.Should().Contain("version");
         await schemaRepository.Received(1).SaveAsync(existing, Arg.Any<CancellationToken>());
     }
 
@@ -82,10 +90,14 @@ public class FormSchemaProcessorTests
             HistoricalFormDefinitionId,
             """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1"}]}]}""");
         FormSchemaCompiler compiler = new();
-        string existingSchemaJson = compiler.CompileFromPersistedSchema(
-            """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q2","title":"Question 2"}]}]}""",
-            existingSchemaJson: null).ToJson();
-        FormSchemaEntity existing = new(TenantId, FormId, FormDefinitionId, existingSchemaJson);
+        FormSchemaCompileResult existingCompiled = compiler.CompilePersisted(
+            """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q2","title":"Question 2"}]}]}""");
+        FormSchemaEntity existing = new(
+            TenantId,
+            FormId,
+            FormDefinitionId,
+            existingCompiled.FlatteningMapJson,
+            existingCompiled.CodebookJson);
         formsRepository.SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(historicalDefinition);
         schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
@@ -100,8 +112,8 @@ public class FormSchemaProcessorTests
         await processor.ProcessAsync(TenantId, FormId, HistoricalFormDefinitionId, TestContext.Current.CancellationToken);
 
         existing.FormDefinitionRevision.Should().Be(FormDefinitionId);
-        existing.SchemaJson.Should().Contain("q1");
-        existing.SchemaJson.Should().Contain("q2");
+        existing.FlatteningMap.Should().Contain("q1");
+        existing.FlatteningMap.Should().Contain("q2");
         await schemaRepository.Received(1).SaveAsync(existing, Arg.Any<CancellationToken>());
     }
 

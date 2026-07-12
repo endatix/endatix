@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "format": "shoji",
+  "locales": ["default", "es"],
+  "variables": {
+    "qRadioGroup": {
+      "type": "multiple_response",
+      "alias": "qRadioGroup",
+      "name": {
+        "default": "Select your preferred contact method",
+        "es": "Seleccione su método de contacto preferido"
+      },
+      "categories": [
+        { "name": "Selected", "id": 1, "numeric_value": 1, "missing": false },
+        { "name": "Not selected", "id": 0, "numeric_value": 0, "missing": false }
+      ],
+      "subvariables": [
+        {
+          "alias": "qRadioGroup__email",
+          "name": { "default": "Email", "es": "Correo electrónico" }
+        },
+        {
+          "alias": "qRadioGroup__phone",
+          "name": { "default": "Phone", "es": "Teléfono" }
+        },
+        {
+          "alias": "qRadioGroup__mail",
+          "name": { "default": "Mail", "es": "Correo postal" }
+        }
+      ]
+    },
+    "qDropdown": {
+      "type": "multiple_response",
+      "alias": "qDropdown",
+      "name": {
+        "default": "Pick your primary weapon",
+        "es": "Elige tu arma principal"
+      },
+      "categories": [
+        { "name": "Selected", "id": 1, "numeric_value": 1, "missing": false },
+        { "name": "Not selected", "id": 0, "numeric_value": 0, "missing": false }
+      ],
+      "subvariables": [
+        {
+          "alias": "qDropdown__axe",
+          "name": { "default": "Axe", "es": "Hacha" }
+        },
+        {
+          "alias": "qDropdown__sword",
+          "name": { "default": "Sword", "es": "Espada" }
+        },
+        {
+          "alias": "qDropdown__hammer",
+          "name": { "default": "Hammer", "es": "Martillo" }
+        }
+      ]
+    },
+    "questionSongs": {
+      "type": "multiple_response",
+      "alias": "questionSongs",
+      "name": {
+        "default": "Pick a song",
+        "es": "Elige una canción"
+      },
+      "categories": [
+        { "name": "Selected", "id": 1, "numeric_value": 1, "missing": false },
+        { "name": "Not selected", "id": 0, "numeric_value": 0, "missing": false }
+      ],
+      "subvariables": [
+        {
+          "alias": "questionSongs__1",
+          "name": { "default": "Song for me", "es": "Una canción para mí" }
+        },
+        {
+          "alias": "questionSongs__2",
+          "name": { "default": "Song for you", "es": "Canción para ti" }
+        },
+        {
+          "alias": "questionSongs__3",
+          "name": { "default": "We will rock you", "es": "Nosotros te rockearemos" }
+        },
+        {
+          "alias": "questionSongs__4",
+          "name": { "default": "No time for this", "es": "No hay tiempo para esto." }
+        },
+        {
+          "alias": "questionSongs__5",
+          "name": { "default": "I have waited", "es": "He esperado" }
+        },
+        {
+          "alias": "questionSongs__other",
+          "name": { "default": "Other (pick)", "es": "Other (pick)" }
+        }
+      ]
+    },
+    "qTagBox": {
+      "type": "multiple_response",
+      "alias": "qTagBox",
+      "name": {
+        "default": "Select Sport Brands",
+        "es": "Seleccione marcas deportivas"
+      },
+      "categories": [
+        { "name": "Selected", "id": 1, "numeric_value": 1, "missing": false },
+        { "name": "Not selected", "id": 0, "numeric_value": 0, "missing": false }
+      ],
+      "subvariables": [
+        {
+          "alias": "qTagBox__adidas",
+          "name": { "default": "Adidas", "es": "Adidas" }
+        },
+        {
+          "alias": "qTagBox__puma",
+          "name": { "default": "Puma", "es": "Puma" }
+        },
+        {
+          "alias": "qTagBox__nike",
+          "name": { "default": "Nike", "es": "Nike" }
+        },
+        {
+          "alias": "qTagBox__reebok",
+          "name": { "default": "Reebok", "es": "Reebok" }
+        }
+      ]
+    },
+    "qBoolean": {
+      "type": "multiple_response",
+      "alias": "qBoolean",
+      "name": {
+        "default": "Do you agree to the terms?",
+        "es": "¿Acepta los términos?"
+      },
+      "categories": [
+        { "name": "Selected", "id": 1, "numeric_value": 1, "missing": false },
+        { "name": "Not selected", "id": 0, "numeric_value": 0, "missing": false }
+      ],
+      "subvariables": [
+        {
+          "alias": "qBoolean__true",
+          "name": { "default": "Yes", "es": "Sí" }
+        },
+        {
+          "alias": "qBoolean__false",
+          "name": { "default": "No", "es": "No" }
+        }
+      ]
+    },
+    "qImagePicker": {
+      "type": "multiple_response",
+      "alias": "qImagePicker",
+      "name": {
+        "default": "Choose a mascot",
+        "es": "Elige una mascota"
+      },
+      "categories": [
+        { "name": "Selected", "id": 1, "numeric_value": 1, "missing": false },
+        { "name": "Not selected", "id": 0, "numeric_value": 0, "missing": false }
+      ],
+      "subvariables": [
+        {
+          "alias": "qImagePicker__lion",
+          "name": { "default": "lion" }
+        },
+        {
+          "alias": "qImagePicker__giraffe",
+          "name": { "default": "giraffe" }
+        }
+      ]
+    },
+    "qMatrix": {
+      "type": "categorical_array",
+      "alias": "qMatrix",
+      "name": {
+        "default": "Rate the following aspects of our service",
+        "es": "Califique los siguientes aspectos de nuestro servicio"
+      },
+      "categories": [
+        { "name": "Poor", "id": 1, "numeric_value": 1, "missing": false },
+        { "name": "Average", "id": 2, "numeric_value": 2, "missing": false },
+        { "name": "Excellent", "id": 3, "numeric_value": 3, "missing": false }
+      ],
+      "subvariables": [
+        {
+          "alias": "qMatrix__speed",
+          "name": { "default": "Speed", "es": "Velocidad" }
+        },
+        {
+          "alias": "qMatrix__quality",
+          "name": { "default": "Quality", "es": "Calidad" }
+        }
+      ]
+    },
+    "qText": {
+      "type": "text",
+      "alias": "qText",
+      "name": {
+        "default": "Full Name",
+        "es": "Nombre completo"
+      }
+    },
+    "qRating": {
+      "type": "numeric",
+      "alias": "qRating",
+      "name": {
+        "default": "Rate your overall experience",
+        "es": "Califique su experiencia general"
+      }
+    }
+  }
+}
