@@ -35,4 +35,5 @@ internal static class SurveyJsPropertyNames
     public const string MaxPanelCount = "maxPanelCount";
     public const string Content = "content";
     public const string Other = "other";
+    public const string CellType = "cellType";
 }
