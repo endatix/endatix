@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
-using Endatix.Modules.Reporting.Features.FormSchema.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 
@@ -65,26 +64,6 @@ public sealed class AllQuestionsCompileTests
             actualCodebook.RootElement,
             expectedCodebook,
             because: "all-questions sample should compile to the committed generic codebook golden output");
-    }
-
-    [Fact(Skip = "E6: ShojiCodebookGenerator not implemented yet")]
-    public void ShojiCodebookGenerator_WithAllQuestionsSample_ProducesExpectedShojiCodebook()
-    {
-        // Arrange
-        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
-        JsonElement expectedShojiCodebook = FormSchemaFixtureLoader.LoadAllQuestionsExpectedShojiCodebook();
-        FormSchemaCompiler compiler = new();
-        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
-
-        // Act
-        string actualShojiCodebook = ShojiCodebookGenerator.Generate(compiled.FlatteningMap, compiled.CodebookJson);
-        using JsonDocument actualDocument = JsonDocument.Parse(actualShojiCodebook);
-
-        // Assert
-        FormSchemaFixtureAssertions.AssertJsonMatchesExpected(
-            actualDocument.RootElement,
-            expectedShojiCodebook,
-            because: "all-questions sample should generate the committed Shoji codebook golden output");
     }
 
     // Manual only: remove Skip, run `dotnet test --filter AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles`, then commit updated JSON under Fixtures/AllQuestions/.
