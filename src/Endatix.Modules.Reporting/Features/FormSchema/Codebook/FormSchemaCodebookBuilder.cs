@@ -251,12 +251,74 @@ internal static class FormSchemaCodebookBuilder
             return true;
         }
 
+        if (SurveyJsElementType.MatrixDropdown.Matches(type) || SurveyJsElementType.MatrixDynamic.Matches(type))
+        {
+            return HasMatrixQuestionLevelChoiceCatalog(element);
+        }
+
         return SurveyJsElementType.Ranking.Matches(type);
     }
 
+    private static bool HasMatrixQuestionLevelChoiceCatalog(JsonElement element) =>
+        HasNonEmptyChoices(element) && HasChoiceBasedMatrixColumn(element);
+
+    private static bool HasNonEmptyChoices(JsonElement element) =>
+        element.TryGetChoices(out var choices) &&
+        choices.ValueKind == JsonValueKind.Array &&
+        choices.GetArrayLength() > 0;
+
+    private static bool HasChoiceBasedMatrixColumn(JsonElement matrixElement)
+    {
+        foreach ((_, _, var columnElement) in SurveyJsChoiceHelper.EnumerateMatrixColumns(matrixElement))
+        {
+            if (IsChoiceBasedMatrixColumn(columnElement, matrixElement))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsChoiceBasedMatrixColumn(JsonElement columnElement, JsonElement matrixElement) =>
+        IsChoiceBasedCellType(ResolveMatrixColumnCellType(columnElement, matrixElement));
+
+    private static bool IsChoiceBasedCellType(string cellType) =>
+        SurveyJsElementType.Dropdown.Matches(cellType) ||
+        SurveyJsElementType.Radiogroup.Matches(cellType) ||
+        SurveyJsElementType.Checkbox.Matches(cellType) ||
+        SurveyJsElementType.Tagbox.Matches(cellType) ||
+        SurveyJsElementType.Boolean.Matches(cellType) ||
+        SurveyJsElementType.Ranking.Matches(cellType);
+
+    private static string ResolveMatrixColumnCellType(JsonElement columnElement, JsonElement matrixElement)
+    {
+        var cellType = columnElement.GetStringProperty(SurveyJsPropertyNames.CellType);
+        if (!string.IsNullOrWhiteSpace(cellType))
+        {
+            return cellType;
+        }
+
+        var defaultCellType = matrixElement.GetStringProperty(SurveyJsPropertyNames.DefaultCellType);
+        if (!string.IsNullOrWhiteSpace(defaultCellType))
+        {
+            return defaultCellType;
+        }
+
+        if (SurveyJsElementType.MatrixDropdown.Matches(matrixElement.GetSurveyJsType()))
+        {
+            return SurveyJsElementType.Dropdown.Name;
+        }
+
+        return SurveyJsElementType.Text.Name;
+    }
+
+    private static JsonElement ResolveMatrixColumnChoicesSource(JsonElement matrixElement, JsonElement columnElement) =>
+        HasNonEmptyChoices(columnElement) ? columnElement : matrixElement;
+
     private static bool TryBuildQuestionEntry(
         JsonElement element,
-        string name,
+        string _,
         string? type,
         IReadOnlyList<string> locales,
         out JsonElement questionEntry)
@@ -626,9 +688,13 @@ internal static class FormSchemaCodebookBuilder
         writer.WriteEndArray();
     }
 
-    private static void WriteCatalogChoices(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> locales)
+    private static void WriteCatalogChoices(
+        Utf8JsonWriter writer,
+        JsonElement element,
+        IReadOnlyList<string> locales,
+        string? cellType = null)
     {
-        if (SurveyJsElementType.Boolean.Matches(element.GetSurveyJsType()))
+        if (SurveyJsElementType.Boolean.Matches(cellType ?? element.GetSurveyJsType()))
         {
             WriteChoice(
                 writer,
@@ -753,13 +819,43 @@ internal static class FormSchemaCodebookBuilder
                 writer.WriteString(SurveyJsPropertyNames.InputType, inputType);
             }
 
+            WriteMatrixColumnChoiceMetadata(writer, element, columnElement, locales);
+
             writer.WriteEndObject();
         }
 
         writer.WriteEndArray();
     }
 
-    private static void WriteMatrixRows(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> locales)
+    private static void WriteMatrixColumnChoiceMetadata(
+        Utf8JsonWriter writer,
+        JsonElement matrixElement,
+        JsonElement columnElement,
+        IReadOnlyList<string> locales)
+    {
+        if (!IsChoiceBasedMatrixColumn(columnElement, matrixElement))
+        {
+            return;
+        }
+
+        var cellType = ResolveMatrixColumnCellType(columnElement, matrixElement);
+        var choicesSource = ResolveMatrixColumnChoicesSource(matrixElement, columnElement);
+        if (!SurveyJsElementType.Boolean.Matches(cellType) && !HasNonEmptyChoices(choicesSource))
+        {
+            return;
+        }
+
+        writer.WritePropertyName(SurveyJsPropertyNames.Choices);
+        writer.WriteStartArray();
+        WriteCatalogChoices(
+            writer,
+            choicesSource,
+            locales,
+            SurveyJsElementType.Boolean.Matches(cellType) ? cellType : null);
+        writer.WriteEndArray();
+    }
+
+    private static void WriteMatrixRows(Utf8JsonWriter writer, JsonElement element, IReadOnlyList<string> _)
     {
         writer.WritePropertyName(SurveyJsPropertyNames.Rows);
         writer.WriteStartArray();

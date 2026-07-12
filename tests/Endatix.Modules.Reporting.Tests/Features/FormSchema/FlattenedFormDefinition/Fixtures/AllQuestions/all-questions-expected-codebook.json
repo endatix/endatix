@@ -299,14 +299,88 @@
           "title": {
             "default": "Punctuality",
             "es": "Puntualidad"
-          }
+          },
+          "choices": [
+            {
+              "value": "1",
+              "id": 1,
+              "text": {
+                "default": "1"
+              }
+            },
+            {
+              "value": "2",
+              "id": 2,
+              "text": {
+                "default": "2"
+              }
+            },
+            {
+              "value": "3",
+              "id": 3,
+              "text": {
+                "default": "3"
+              }
+            },
+            {
+              "value": "4",
+              "id": 4,
+              "text": {
+                "default": "4"
+              }
+            },
+            {
+              "value": "5",
+              "id": 5,
+              "text": {
+                "default": "5"
+              }
+            }
+          ]
         },
         {
           "name": "teamwork",
           "title": {
             "default": "Teamwork",
             "es": "Trabajo en equipo"
-          }
+          },
+          "choices": [
+            {
+              "value": "1",
+              "id": 1,
+              "text": {
+                "default": "1"
+              }
+            },
+            {
+              "value": "2",
+              "id": 2,
+              "text": {
+                "default": "2"
+              }
+            },
+            {
+              "value": "3",
+              "id": 3,
+              "text": {
+                "default": "3"
+              }
+            },
+            {
+              "value": "4",
+              "id": 4,
+              "text": {
+                "default": "4"
+              }
+            },
+            {
+              "value": "5",
+              "id": 5,
+              "text": {
+                "default": "5"
+              }
+            }
+          ]
         }
       ],
       "rows": [
@@ -4634,6 +4708,45 @@
     },
     "qMatrix": {
       "choices": []
+    },
+    "qMatrixDropdown": {
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "3"
+          }
+        },
+        {
+          "value": "4",
+          "id": 4,
+          "text": {
+            "default": "4"
+          }
+        },
+        {
+          "value": "5",
+          "id": 5,
+          "text": {
+            "default": "5"
+          }
+        }
+      ]
     },
     "qRadioGroup": {
       "choices": [

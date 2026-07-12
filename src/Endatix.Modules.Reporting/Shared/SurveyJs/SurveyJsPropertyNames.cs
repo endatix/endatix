@@ -36,4 +36,5 @@ internal static class SurveyJsPropertyNames
     public const string Content = "content";
     public const string Other = "other";
     public const string CellType = "cellType";
+    public const string DefaultCellType = "defaultCellType";
 }
