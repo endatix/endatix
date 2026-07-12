@@ -47,6 +47,14 @@ public sealed class AllQuestionsCompileTests
             because: "all-questions sample should flatten to the committed golden output");
     }
 
+    [Fact(Skip = "Codebook compile not implemented yet — E5c Phase 5 (FormSchemaCodebookBuilder)")]
+    public void FormSchemaCompiler_Compile_WithAllQuestionsDefinition_ProducesExpectedCodebook()
+    {
+        // Golden fixture: Fixtures/AllQuestions/all-questions-expected-codebook.json
+        // Wire to compiler.CompileCodebook() when FormSchemaCodebookBuilder lands.
+        Assert.Fail("Implement FormSchemaCodebookBuilder and remove Skip.");
+    }
+
     // Manual only: remove Skip, run `dotnet test --filter AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles`, then commit updated JSON under Fixtures/AllQuestions/.
     [Fact(Skip = "Manual fixture regeneration only")]
     public void AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles()

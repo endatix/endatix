@@ -4,60 +4,67 @@
       "itemText": "Adidas",
       "itemValue": "adidas",
       "loopIndex": 0,
-      "qLoopRating": 3,
+      "qLoopColor": "5",
+      "qLoopRating": 5,
       "qLoopBoolean": true
     },
     {
       "itemText": "Nike",
       "itemValue": "nike",
       "loopIndex": 1,
-      "qLoopRating": 4,
+      "qLoopColor": "2",
+      "qLoopRating": 2,
       "qLoopBoolean": true
     },
     {
       "itemText": "Sword",
       "itemValue": "sword",
       "loopIndex": 0,
-      "qLoopRating": 5,
-      "qLoopBoolean": true
+      "qLoopColor": "other",
+      "qLoopRating": 2,
+      "qLoopBoolean": false,
+      "qLoopColor-Comment": "Silver"
     },
     {
       "itemText": "Other (pick)",
       "itemValue": "other",
       "loopIndex": 1,
+      "qLoopColor": "4",
       "qLoopRating": 4,
-      "qLoopBoolean": true
+      "qLoopBoolean": false
     },
     {
-      "itemText": "We will rock you",
-      "itemValue": "3",
-      "loopIndex": 4,
+      "itemText": "Song for you",
+      "itemValue": "2",
+      "loopIndex": 2,
+      "qLoopColor": "3",
       "qLoopRating": 4,
       "qLoopBoolean": true
     }
   ],
-  "qText": "Sam Smith",
+  "qText": "John Smith",
   "qMatrix": { "speed": "excellent", "quality": "average" },
   "qRating": 4,
-  "qSlider": 60,
+  "qSlider": 50,
   "qTagBox": ["adidas", "nike"],
-  "qComment": "I loved the survey",
+  "qBoolean": true,
+  "qComment": "Lorem Ipsum",
   "qRanking": ["banana", "apple", "orange"],
   "qDropdown": "sword",
-  "qTextDate": "2019-06-10",
+  "qTextDate": "2001-09-09",
   "qPanelText": "Inside",
-  "qExpression": 23,
+  "qExpression": 32,
   "qRadioGroup": "email",
-  "qTextNumber": 23,
-  "qMultipleText": { "phone": "12312312", "emergency": "12312313" },
-  "questionSongs": ["other", "3"],
+  "qTextNumber": 32,
+  "qMultipleText": { "phone": "12312312", "emergency": "12312354" },
+  "questionSongs": ["other", "2"],
   "qMatrixDynamic": [
-    { "years": 8, "company": "Blizard" },
-    { "years": 7, "company": "Telerik" }
+    { "years": 6, "company": "Telerik" },
+    { "years": 10, "company": "Blizzard" }
   ],
   "qMatrixDropdown": {
-    "bob": { "teamwork": 5, "punctuality": 4 },
-    "alice": { "teamwork": 3, "punctuality": 1 }
+    "bob": { "teamwork": 1, "punctuality": 4 },
+    "alice": { "teamwork": 4, "punctuality": 2 }
   },
-  "questionSongs-Comment": "Your song"
+  "questionSongs-Comment": "Joker Song"
 }

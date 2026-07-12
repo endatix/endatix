@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "locales": [
+    "default",
+    "es"
+  ],
+  "questions": {
+    "qRadioGroup": {
+      "surveyJsType": "radiogroup",
+      "title": {
+        "default": "Select your preferred contact method",
+        "es": "Seleccione su m\u00e9todo de contacto preferido"
+      },
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "email",
+          "id": 1,
+          "text": {
+            "default": "Email",
+            "es": "Correo electr\u00f3nico"
+          }
+        },
+        {
+          "value": "phone",
+          "id": 2,
+          "text": {
+            "default": "Phone",
+            "es": "Tel\u00e9fono"
+          }
+        },
+        {
+          "value": "mail",
+          "id": 3,
+          "text": {
+            "default": "Mail",
+            "es": "Correo postal"
+          }
+        }
+      ]
+    },
+    "qTagBox": {
+      "surveyJsType": "tagbox",
+      "title": {
+        "default": "Select Sport Brands",
+        "es": "Seleccione marcas deportivas"
+      },
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "adidas",
+          "id": 1,
+          "text": {
+            "default": "Adidas",
+            "es": "Adidas"
+          }
+        },
+        {
+          "value": "puma",
+          "id": 2,
+          "text": {
+            "default": "Puma",
+            "es": "Puma"
+          }
+        },
+        {
+          "value": "nike",
+          "id": 3,
+          "text": {
+            "default": "Nike",
+            "es": "Nike"
+          }
+        },
+        {
+          "value": "reebok",
+          "id": 4,
+          "text": {
+            "default": "Reebok",
+            "es": "Reebok"
+          }
+        }
+      ]
+    },
+    "qMatrix": {
+      "surveyJsType": "matrix",
+      "title": {
+        "default": "Rate the following aspects of our service",
+        "es": "Califique los siguientes aspectos de nuestro servicio"
+      },
+      "exportShape": "categorical_array",
+      "columns": [
+        {
+          "value": "poor",
+          "id": 1,
+          "text": {
+            "default": "Poor",
+            "es": "Malo"
+          }
+        },
+        {
+          "value": "average",
+          "id": 2,
+          "text": {
+            "default": "Average",
+            "es": "Regular"
+          }
+        },
+        {
+          "value": "excellent",
+          "id": 3,
+          "text": {
+            "default": "Excellent",
+            "es": "Excelente"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "value": "speed",
+          "text": {
+            "default": "Speed",
+            "es": "Velocidad"
+          }
+        },
+        {
+          "value": "quality",
+          "text": {
+            "default": "Quality",
+            "es": "Calidad"
+          }
+        }
+      ]
+    },
+    "qLoop": {
+      "surveyJsType": "paneldynamic",
+      "title": {
+        "default": "Loop Question (Based on Brands)",
+        "es": "Pregunta de bucle (Basada en marcas)"
+      },
+      "loopSource": [
+        "qTagBox",
+        "qDropdown",
+        "questionSongs"
+      ],
+      "exportShape": "loop_panel"
+    }
+  },
+  "groupedVariables": {
+    "qRadioGroup": {
+      "shojiType": "multiple_response",
+      "subvariables": [
+        "qRadioGroup__email",
+        "qRadioGroup__phone",
+        "qRadioGroup__mail"
+      ]
+    },
+    "qTagBox": {
+      "shojiType": "multiple_response",
+      "subvariables": [
+        "qTagBox__adidas",
+        "qTagBox__puma",
+        "qTagBox__nike",
+        "qTagBox__reebok"
+      ]
+    },
+    "qMatrix": {
+      "shojiType": "categorical_array",
+      "subvariables": [
+        "qMatrix__speed",
+        "qMatrix__quality"
+      ]
+    }
+  }
+}
