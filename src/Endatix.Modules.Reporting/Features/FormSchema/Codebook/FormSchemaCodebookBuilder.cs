@@ -558,17 +558,19 @@ internal static class FormSchemaCodebookBuilder
             foreach (var choice in currentChoices.EnumerateArray())
             {
                 var value = choice.GetStringProperty(SurveyJsPropertyNames.Value);
-                if (value is null || mergedByValue.ContainsKey(value))
+                if (value is null)
                 {
                     continue;
                 }
 
-                var id = choice.TryGetProperty(FormSchemaCodebookPropertyNames.Id, out var idElement) &&
-                         idElement.ValueKind == JsonValueKind.Number
-                    ? idElement.GetInt32()
-                    : nextId++;
+                if (mergedByValue.TryGetValue(value, out var existing))
+                {
+                    mergedByValue[value] = (existing.Id, ApplyChoiceId(choice, existing.Id));
+                    continue;
+                }
 
-                mergedByValue[value] = (id, choice.Clone());
+                mergedByValue[value] = (nextId, ApplyChoiceId(choice, nextId));
+                nextId++;
             }
         }
 
@@ -584,6 +586,28 @@ internal static class FormSchemaCodebookBuilder
             writer.WriteEndArray();
         });
     }
+
+    private static JsonElement ApplyChoiceId(JsonElement choice, int id) =>
+        WriteQuestionEntry(writer =>
+        {
+            var wroteId = false;
+            foreach (var property in choice.EnumerateObject())
+            {
+                if (property.NameEquals(FormSchemaCodebookPropertyNames.Id))
+                {
+                    writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, id);
+                    wroteId = true;
+                    continue;
+                }
+
+                property.WriteTo(writer);
+            }
+
+            if (!wroteId)
+            {
+                writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, id);
+            }
+        });
 
     private static string Serialize(
         IReadOnlyList<string> locales,

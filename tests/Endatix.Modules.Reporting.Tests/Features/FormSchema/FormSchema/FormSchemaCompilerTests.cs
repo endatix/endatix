@@ -6,6 +6,138 @@ namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 public class FormSchemaCompilerTests
 {
   [Fact]
+  public void CompilePersisted_MergeChoiceCatalog_PreservesHistoricalIdsWithCurrentMetadata()
+  {
+    const string initialDefinition = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "dropdown",
+                  "name": "qDropdown",
+                  "title": "Weapon",
+                  "choices": [
+                    { "value": "axe", "text": "Axe" },
+                    { "value": "sword", "text": "Sword" },
+                    { "value": "hammer", "text": "Hammer" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+    const string updatedDefinition = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "dropdown",
+                  "name": "qDropdown",
+                  "title": "Weapon",
+                  "choices": [
+                    { "value": "axe", "text": "Battle Axe" },
+                    { "value": "sword", "text": "Sword" },
+                    { "value": "hammer", "text": "Hammer" },
+                    { "value": "spear", "text": "Spear" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+    FormSchemaCompiler compiler = new();
+    FormSchemaCompileResult initial = compiler.CompilePersisted(initialDefinition);
+    FormSchemaCompileResult merged = compiler.CompilePersisted(
+      updatedDefinition,
+      initial.FlatteningMapJson,
+      initial.CodebookJson);
+
+    using JsonDocument codebook = JsonDocument.Parse(merged.CodebookJson);
+    JsonElement choices = codebook.RootElement
+      .GetProperty("choiceCatalogs")
+      .GetProperty("qDropdown")
+      .GetProperty("choices");
+
+    List<JsonElement> choiceEntries = choices.EnumerateArray().ToList();
+    choiceEntries.Should().HaveCount(4);
+    choiceEntries.Select(choice => choice.GetProperty("id").GetInt32()).Should().Equal(1, 2, 3, 4);
+    choiceEntries[0].GetProperty("value").GetString().Should().Be("axe");
+    choiceEntries[0].GetProperty("text").GetProperty("default").GetString().Should().Be("Battle Axe");
+    choiceEntries[3].GetProperty("value").GetString().Should().Be("spear");
+    choiceEntries[3].GetProperty("id").GetInt32().Should().Be(4);
+  }
+
+  [Fact]
+  public void CompilePersisted_MergeChoiceCatalog_RetainsHistoricalOnlyChoices()
+  {
+    const string initialDefinition = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "dropdown",
+                  "name": "qDropdown",
+                  "choices": [
+                    { "value": "axe", "text": "Axe" },
+                    { "value": "sword", "text": "Sword" },
+                    { "value": "hammer", "text": "Hammer" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+    const string updatedDefinition = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "dropdown",
+                  "name": "qDropdown",
+                  "choices": [
+                    { "value": "axe", "text": "Battle Axe" },
+                    { "value": "sword", "text": "Sword" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+    FormSchemaCompiler compiler = new();
+    FormSchemaCompileResult initial = compiler.CompilePersisted(initialDefinition);
+    FormSchemaCompileResult merged = compiler.CompilePersisted(
+      updatedDefinition,
+      initial.FlatteningMapJson,
+      initial.CodebookJson);
+
+    using JsonDocument codebook = JsonDocument.Parse(merged.CodebookJson);
+    JsonElement choices = codebook.RootElement
+      .GetProperty("choiceCatalogs")
+      .GetProperty("qDropdown")
+      .GetProperty("choices");
+
+    List<JsonElement> choiceEntries = choices.EnumerateArray().ToList();
+    choiceEntries.Should().HaveCount(3);
+    choiceEntries.Select(choice => choice.GetProperty("id").GetInt32()).Should().Equal(1, 2, 3);
+    choiceEntries.Single(choice => choice.GetProperty("value").GetString() == "hammer")
+      .GetProperty("text").GetProperty("default").GetString().Should().Be("Hammer");
+    choiceEntries.Single(choice => choice.GetProperty("value").GetString() == "axe")
+      .GetProperty("text").GetProperty("default").GetString().Should().Be("Battle Axe");
+  }
+
+  [Fact]
   public void Compile_AppendOnlyMerge_PreservesHistoricalKeys()
   {
     const string versionOne = """
