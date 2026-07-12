@@ -61,7 +61,7 @@ public class FormSchemaCompilerTests
     [
       new FormSchemaColumn(
         "ford__red",
-        FormSchemaColumnKind.CheckboxChoice,
+        FormSchemaColumnKind.ChoiceIndicator,
         "Ford — Red",
         "boolean",
         SourceQuestion: "ford",

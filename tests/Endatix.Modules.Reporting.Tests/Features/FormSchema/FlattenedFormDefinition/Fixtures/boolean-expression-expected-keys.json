@@ -1,4 +1,5 @@
 [
-  "isActive",
+  "isActive__true",
+  "isActive__false",
   "score"
 ]

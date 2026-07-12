@@ -109,7 +109,7 @@ internal sealed class MergedFormSchema
             return false;
         }
 
-        if (!item.TryGetEnumProperty(FormSchemaPropertyNames.Kind, out FormSchemaColumnKind kind))
+        if (!TryParseColumnKind(item, out var kind))
         {
             return false;
         }
@@ -142,6 +142,20 @@ internal sealed class MergedFormSchema
             matrixColumnValue);
 
         return true;
+    }
+
+    private static bool TryParseColumnKind(JsonElement item, out FormSchemaColumnKind kind)
+    {
+        kind = default;
+
+        var kindName = item.GetStringProperty(FormSchemaPropertyNames.Kind);
+        if (string.Equals(kindName, "CheckboxChoice", StringComparison.Ordinal))
+        {
+            kind = FormSchemaColumnKind.ChoiceIndicator;
+            return true;
+        }
+
+        return item.TryGetEnumProperty(FormSchemaPropertyNames.Kind, out kind);
     }
 
     private static bool TryParseLoopPath(JsonElement item, out List<LoopSegment>? loopPath)

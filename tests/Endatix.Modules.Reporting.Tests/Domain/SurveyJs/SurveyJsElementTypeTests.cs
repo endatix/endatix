@@ -68,19 +68,19 @@ public class SurveyJsElementTypeTests
     }
 
     [Fact]
-    public void ResolveFlattening_ImagePickerMultiSelect_UsesCheckboxChoices()
+    public void ResolveFlattening_ImagePickerMultiSelect_UsesChoiceIndicators()
     {
         using JsonDocument document = JsonDocument.Parse("""{ "type": "imagepicker", "multiSelect": true }""");
         SurveyJsElementType.ResolveFlattening("imagepicker", document.RootElement)
-            .Should().Be(SurveyJsFlattening.CheckboxChoices);
+            .Should().Be(SurveyJsFlattening.ChoiceIndicators);
     }
 
     [Fact]
-    public void ResolveFlattening_ImagePickerSingleSelect_UsesSimple()
+    public void ResolveFlattening_ImagePickerSingleSelect_UsesChoiceIndicators()
     {
         using JsonDocument document = JsonDocument.Parse("""{ "type": "imagepicker", "multiSelect": false }""");
         SurveyJsElementType.ResolveFlattening("imagepicker", document.RootElement)
-            .Should().Be(SurveyJsFlattening.Simple);
+            .Should().Be(SurveyJsFlattening.ChoiceIndicators);
     }
 
     [Fact]

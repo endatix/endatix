@@ -56,7 +56,7 @@ internal static class FlattenedSubmissionFlattener
             FormSchemaColumnKind.Simple or FormSchemaColumnKind.Calculated =>
                 submission.TryGetPropertyValue(column.Key),
 
-            FormSchemaColumnKind.CheckboxChoice =>
+            FormSchemaColumnKind.ChoiceIndicator =>
                 ToBooleanJson(ContainsChoice(submission, column.SourceQuestion!, column.ChoiceValue!)),
 
             FormSchemaColumnKind.RankingChoice =>
@@ -91,6 +91,12 @@ internal static class FlattenedSubmissionFlattener
         if (submission.TryGetPropertyValue(questionName) is not JsonElement answer)
         {
             return false;
+        }
+
+        if (answer.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            var boolValue = answer.ValueKind == JsonValueKind.True ? "true" : "false";
+            return string.Equals(boolValue, choiceValue, StringComparison.OrdinalIgnoreCase);
         }
 
         if (answer.ValueKind == JsonValueKind.Array)

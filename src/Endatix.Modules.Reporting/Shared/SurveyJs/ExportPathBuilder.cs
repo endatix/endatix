@@ -23,14 +23,20 @@ internal static class ExportPathBuilder
     internal static string ChoiceKey(string questionName, string choiceValue) =>
         Join(questionName, choiceValue);
 
-    internal static string CheckboxChoiceKey(string questionName, string choiceValue) =>
+    internal static string ChoiceIndicatorKey(string questionName, string choiceValue) =>
         ChoiceKey(questionName, choiceValue);
+
+    internal static string CheckboxChoiceKey(string questionName, string choiceValue) =>
+        ChoiceIndicatorKey(questionName, choiceValue);
 
     internal static string RankingChoiceKey(string questionName, string choiceValue) =>
         ChoiceKey(questionName, choiceValue);
 
-    internal static string CheckboxOtherTextKey(string questionName) =>
+    internal static string ChoiceOtherTextKey(string questionName) =>
         Join(questionName, "other_text");
+
+    internal static string CheckboxOtherTextKey(string questionName) =>
+        ChoiceOtherTextKey(questionName);
 
     internal static string PanelIndexKey(string panelName, int index, string questionName) =>
         Join(panelName, index.ToString(System.Globalization.CultureInfo.InvariantCulture), questionName);

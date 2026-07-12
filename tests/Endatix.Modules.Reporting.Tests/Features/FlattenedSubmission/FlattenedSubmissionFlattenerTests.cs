@@ -94,7 +94,7 @@ public class FlattenedSubmissionFlattenerTests
         MergedFormSchema formSchema = new(
         [
             new FormSchemaColumn("name", FormSchemaColumnKind.Simple, "name", "string"),
-            new FormSchemaColumn("colors__red", FormSchemaColumnKind.CheckboxChoice, "Red", "boolean",
+            new FormSchemaColumn("colors__red", FormSchemaColumnKind.ChoiceIndicator, "Red", "number",
                 SourceQuestion: "colors", ChoiceValue: "red"),
             new FormSchemaColumn("rank__a", FormSchemaColumnKind.RankingChoice, "A", "number",
                 SourceQuestion: "rank", ChoiceValue: "a"),

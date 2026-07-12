@@ -11,8 +11,8 @@ internal enum SurveyJsFlattening
     /// <summary>One column per question name.</summary>
     Simple,
 
-    /// <summary>One boolean column per choice (checkbox / tagbox).</summary>
-    CheckboxChoices,
+    /// <summary>One indicator column per choice (checkbox, tagbox, radiogroup, dropdown, boolean, …).</summary>
+    ChoiceIndicators,
 
     /// <summary>One numeric rank column per choice.</summary>
     Ranking,

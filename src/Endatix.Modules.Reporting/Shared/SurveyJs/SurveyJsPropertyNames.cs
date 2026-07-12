@@ -24,6 +24,8 @@ internal static class SurveyJsPropertyNames
     public const string IncludeIntoResult = "includeIntoResult";
     public const string InputType = "inputType";
     public const string ShowOtherItem = "showOtherItem";
+    public const string LabelTrue = "labelTrue";
+    public const string LabelFalse = "labelFalse";
     public const string MaxRowCount = "maxRowCount";
     public const string RowCount = "rowCount";
     public const string MaxPanelCount = "maxPanelCount";

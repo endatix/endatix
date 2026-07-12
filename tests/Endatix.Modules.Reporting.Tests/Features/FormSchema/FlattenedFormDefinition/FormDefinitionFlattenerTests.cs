@@ -216,7 +216,7 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
-  public void Flatten_Radiogroup_ColumnKindIsSimple()
+  public void Flatten_Radiogroup_ColumnKindIsChoiceIndicator()
   {
     // Arrange
     JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("radiogroup-definition.json");
@@ -225,8 +225,8 @@ public class FormDefinitionFlattenerTests
     IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
-    FormSchemaColumn column = columns.Should().ContainSingle().Subject;
-    column.Kind.Should().Be(FormSchemaColumnKind.Simple);
+    columns.Should().OnlyContain(column => column.Kind == FormSchemaColumnKind.ChoiceIndicator);
+    columns.Should().HaveCount(3);
   }
 
   [Fact]
@@ -259,7 +259,7 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
-  public void Flatten_Boolean_HasBooleanDataType()
+  public void Flatten_Boolean_EmitsChoiceIndicatorColumns()
   {
     // Arrange
     JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("boolean-expression-definition.json");
@@ -268,12 +268,13 @@ public class FormDefinitionFlattenerTests
     IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
-    columns.Single(c => c.Key == "isActive").DataType.Should().Be("boolean");
+    columns.Single(c => c.Key == "isActive__true").Kind.Should().Be(FormSchemaColumnKind.ChoiceIndicator);
+    columns.Single(c => c.Key == "isActive__false").DataType.Should().Be("number");
     columns.Single(c => c.Key == "score").Kind.Should().Be(FormSchemaColumnKind.Simple);
   }
 
   [Fact]
-  public void Flatten_Tagbox_ColumnKindIsCheckboxChoice()
+  public void Flatten_Tagbox_ColumnKindIsChoiceIndicator()
   {
     // Arrange
     JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("tagbox-definition.json");
@@ -284,7 +285,7 @@ public class FormDefinitionFlattenerTests
     // Assert
     columns.Should().AllSatisfy(column =>
     {
-      column.Kind.Should().Be(FormSchemaColumnKind.CheckboxChoice);
+      column.Kind.Should().Be(FormSchemaColumnKind.ChoiceIndicator);
     });
   }
 

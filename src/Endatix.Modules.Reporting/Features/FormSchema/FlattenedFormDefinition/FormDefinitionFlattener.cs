@@ -448,8 +448,8 @@ internal static class FormDefinitionFlattener
             {
                 case SurveyJsFlattening.None:
                     break;
-                case SurveyJsFlattening.CheckboxChoices:
-                    EmitCheckboxColumns(collected, drivingCheckboxNames, columns, seenKeys, limits);
+                case SurveyJsFlattening.ChoiceIndicators:
+                    EmitChoiceIndicatorColumns(collected, drivingCheckboxNames, columns, seenKeys, limits);
                     break;
                 case SurveyJsFlattening.Ranking:
                     EmitRankingColumns(collected, columns, seenKeys, limits);
@@ -496,7 +496,7 @@ internal static class FormDefinitionFlattener
             MapDataType(collected.Element, type)));
     }
 
-    private static void EmitCheckboxColumns(
+    private static void EmitChoiceIndicatorColumns(
         CollectedElement collected,
         HashSet<string> drivingCheckboxNames,
         List<FormSchemaColumn> columns,
@@ -504,9 +504,16 @@ internal static class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         var name = collected.Name!;
+        var type = collected.Type;
 
         if (drivingCheckboxNames.Contains(name))
         {
+            return;
+        }
+
+        if (SurveyJsElementType.Boolean.Matches(type))
+        {
+            EmitBooleanChoiceIndicators(collected, columns, seenKeys, limits);
             return;
         }
 
@@ -522,25 +529,60 @@ internal static class FormDefinitionFlattener
                     context: name);
             }
 
-            var key = ExportPathBuilder.CheckboxChoiceKey(name, value);
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-                key,
-                FormSchemaColumnKind.CheckboxChoice,
-                $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
-                "boolean",
-                SourceQuestion: name,
-                ChoiceValue: value));
+            AddChoiceIndicatorColumn(collected, name, value, text, columns, seenKeys, limits);
         }
 
         if (collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
         {
+            AddChoiceIndicatorColumn(
+                collected,
+                name,
+                "other",
+                collected.Element.GetSurveyJsTitle(name) + " — Other",
+                columns,
+                seenKeys,
+                limits);
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-                ExportPathBuilder.CheckboxOtherTextKey(name),
+                ExportPathBuilder.ChoiceOtherTextKey(name),
                 FormSchemaColumnKind.CheckboxOtherText,
-                $"{collected.Element.GetSurveyJsTitle(name)} — Other",
+                $"{collected.Element.GetSurveyJsTitle(name)} — Other text",
                 "string",
                 SourceQuestion: name));
         }
+    }
+
+    private static void EmitBooleanChoiceIndicators(
+        CollectedElement collected,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        var name = collected.Name!;
+        var title = collected.Element.GetSurveyJsTitle(name);
+        var trueLabel = collected.Element.GetStringProperty(SurveyJsPropertyNames.LabelTrue) ?? "Yes";
+        var falseLabel = collected.Element.GetStringProperty(SurveyJsPropertyNames.LabelFalse) ?? "No";
+
+        AddChoiceIndicatorColumn(collected, name, "true", trueLabel, columns, seenKeys, limits);
+        AddChoiceIndicatorColumn(collected, name, "false", falseLabel, columns, seenKeys, limits);
+    }
+
+    private static void AddChoiceIndicatorColumn(
+        CollectedElement collected,
+        string name,
+        string choiceValue,
+        string choiceLabel,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        var key = ExportPathBuilder.ChoiceIndicatorKey(name, choiceValue);
+        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            key,
+            FormSchemaColumnKind.ChoiceIndicator,
+            $"{collected.Element.GetSurveyJsTitle(name)} — {choiceLabel}",
+            "number",
+            SourceQuestion: name,
+            ChoiceValue: choiceValue));
     }
 
     private static void EmitRankingColumns(
