@@ -7,9 +7,9 @@ using Endatix.Outbox.Engine;
 namespace Endatix.Modules.Reporting.Features.Outbox;
 
 /// <summary>
-/// Handles the form definition updated event by compiling the form export schema.
+/// Handles the form definition updated event by compiling the persisted form schema.
 /// </summary>
-internal sealed class CompileFormExportSchemaOutboxHandler(
+internal sealed class CompileFormSchemaOutboxHandler(
     IFormSchemaProcessor schemaProcessor) : IOutboxIntegrationEventHandler
 {
     public IReadOnlyCollection<string> EventTypes { get; } = [FormDefinitionUpdatedEvent.EventTypeName];

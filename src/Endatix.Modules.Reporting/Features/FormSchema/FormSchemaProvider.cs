@@ -4,14 +4,14 @@ using Endatix.Modules.Reporting.Domain;
 namespace Endatix.Modules.Reporting.Features.FormSchema;
 
 /// <summary>
-/// Resolves the export schema for a form, compiling when missing or out of date.
+/// Resolves the compiled form schema, compiling when missing or out of date.
 /// </summary>
 internal sealed class FormSchemaProvider(
-    IFormExportSchemaRepository schemaRepository,
+    IFormSchemaRepository schemaRepository,
     IFormSchemaProcessor schemaProcessor) : IFormSchemaProvider
 {
     /// <inheritdoc />
-    public async Task<FormExportSchema?> GetOrCompileAsync(
+    public async Task<Domain.FormSchema?> GetOrCompileAsync(
         long tenantId,
         long formId,
         long formDefinitionId,

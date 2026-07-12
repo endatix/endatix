@@ -6,9 +6,9 @@ using Endatix.Modules.Reporting.Domain;
 namespace Endatix.Modules.Reporting.Persistence.Config.SqlServer;
 
 [ApplyConfigurationFor<ReportingDbContext>]
-internal sealed class FormExportSchemaConfigurationSqlServer : IEntityTypeConfiguration<FormExportSchema>
+internal sealed class FormSchemaConfigurationSqlServer : IEntityTypeConfiguration<FormSchema>
 {
-    public void Configure(EntityTypeBuilder<FormExportSchema> builder)
+    public void Configure(EntityTypeBuilder<FormSchema> builder)
     {
         builder.Property(x => x.SchemaJson)
             .HasColumnType("json");

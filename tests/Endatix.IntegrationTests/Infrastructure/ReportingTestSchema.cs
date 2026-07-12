@@ -19,6 +19,9 @@ internal static class ReportingTestSchema
             new NoOpIdGenerator(),
             new BypassTenantContext());
 
+        // Reporting integration tests reset data via Respawn but keep schema objects.
+        // Drop the module schema so updated migrations (e.g. FormSchemas rename) apply cleanly.
+        await context.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS reporting CASCADE;");
         await context.Database.MigrateAsync(cancellationToken);
     }
 

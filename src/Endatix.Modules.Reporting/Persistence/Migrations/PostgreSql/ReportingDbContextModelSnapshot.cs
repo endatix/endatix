@@ -117,7 +117,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     b.ToTable("FlattenedSubmissions", "reporting");
                 });
 
-            modelBuilder.Entity("Endatix.Modules.Reporting.Domain.FormExportSchema", b =>
+            modelBuilder.Entity("Endatix.Modules.Reporting.Domain.FormSchema", b =>
                 {
                     b.Property<long>("Id")
                         .HasColumnType("bigint");
@@ -152,7 +152,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     b.HasIndex("TenantId", "FormId")
                         .IsUnique();
 
-                    b.ToTable("FormExportSchemas", "reporting");
+                    b.ToTable("FormSchemas", "reporting");
                 });
 
             modelBuilder.Entity("Endatix.Modules.Reporting.Domain.SurveyTypeExportMapping", b =>

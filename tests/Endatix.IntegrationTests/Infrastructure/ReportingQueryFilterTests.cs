@@ -40,9 +40,9 @@ public sealed class ReportingQueryFilterTests
                 new ExportFormat(tenant1, "Tenant1 Export", ExportSerializationType.Csv) { Id = 101 },
                 new ExportFormat(tenant2, "Tenant2 Export", ExportSerializationType.Json) { Id = 102 });
 
-            seedContext.FormExportSchemas.AddRange(
-                new FormExportSchema(tenant1, formId: 1, formDefinitionRevision: 1, schemaJson: """[{"col":"a"}]""") { Id = 201 },
-                new FormExportSchema(tenant2, formId: 2, formDefinitionRevision: 1, schemaJson: """[{"col":"b"}]""") { Id = 202 });
+            seedContext.FormSchemas.AddRange(
+                new FormSchema(tenant1, formId: 1, formDefinitionRevision: 1, schemaJson: """[{"col":"a"}]""") { Id = 201 },
+                new FormSchema(tenant2, formId: 2, formDefinitionRevision: 1, schemaJson: """[{"col":"b"}]""") { Id = 202 });
 
             seedContext.FlattenedSubmissions.AddRange(
                 new FlattenedSubmission(submissionId: 301, tenantId: tenant1, formId: 1),
@@ -61,7 +61,7 @@ public sealed class ReportingQueryFilterTests
         using (var ctx = CreateContext(idGenerator, tenant1Ctx))
         {
             (await ctx.ExportFormats.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant1);
-            (await ctx.FormExportSchemas.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant1);
+            (await ctx.FormSchemas.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant1);
             (await ctx.FlattenedSubmissions.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant1);
             (await ctx.SurveyTypeExportMappings.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant1);
         }
@@ -72,7 +72,7 @@ public sealed class ReportingQueryFilterTests
         using (var ctx = CreateContext(idGenerator, tenant2Ctx))
         {
             (await ctx.ExportFormats.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant2);
-            (await ctx.FormExportSchemas.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant2);
+            (await ctx.FormSchemas.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant2);
             (await ctx.FlattenedSubmissions.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant2);
             (await ctx.SurveyTypeExportMappings.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant2);
         }
@@ -81,7 +81,7 @@ public sealed class ReportingQueryFilterTests
         using (var ctx = CreateContext(idGenerator, bypassTenant))
         {
             (await ctx.ExportFormats.CountAsync(cancellationToken)).Should().Be(2);
-            (await ctx.FormExportSchemas.CountAsync(cancellationToken)).Should().Be(2);
+            (await ctx.FormSchemas.CountAsync(cancellationToken)).Should().Be(2);
             (await ctx.FlattenedSubmissions.CountAsync(cancellationToken)).Should().Be(2);
             (await ctx.SurveyTypeExportMappings.CountAsync(cancellationToken)).Should().Be(2);
         }

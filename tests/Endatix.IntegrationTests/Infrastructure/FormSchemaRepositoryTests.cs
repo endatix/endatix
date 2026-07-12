@@ -11,7 +11,7 @@ namespace Endatix.IntegrationTests;
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "PostgreSql")]
-public sealed class FormExportSchemaRepositoryTests
+public sealed class FormSchemaRepositoryTests
 {
     private const long TenantId = 1;
     private const long FormId = 100;
@@ -21,7 +21,7 @@ public sealed class FormExportSchemaRepositoryTests
 
     private readonly DbIntegrationFixture _fixture;
 
-    public FormExportSchemaRepositoryTests(DbIntegrationFixture fixture)
+    public FormSchemaRepositoryTests(DbIntegrationFixture fixture)
     {
         _fixture = fixture;
     }
@@ -33,9 +33,9 @@ public sealed class FormExportSchemaRepositoryTests
         await ResetReportingSchemaAsync(cancellationToken);
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
-        FormExportSchemaRepository repository = CreateRepository(dbContext);
+        FormSchemaRepository repository = CreateRepository(dbContext);
 
-        FormExportSchema? result = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
+        FormSchema? result = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
 
         result.Should().BeNull();
     }
@@ -47,12 +47,12 @@ public sealed class FormExportSchemaRepositoryTests
         await ResetReportingSchemaAsync(cancellationToken);
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
-        FormExportSchemaRepository repository = CreateRepository(dbContext);
-        FormExportSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialSchemaJson);
+        FormSchemaRepository repository = CreateRepository(dbContext);
+        FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialSchemaJson);
 
         await repository.SaveAsync(schema, cancellationToken);
 
-        FormExportSchema? persisted = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
+        FormSchema? persisted = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.FormDefinitionRevision.Should().Be(FormDefinitionRevision);
         persisted.SchemaJson.Should().Be(InitialSchemaJson);
@@ -66,18 +66,18 @@ public sealed class FormExportSchemaRepositoryTests
         await ResetReportingSchemaAsync(cancellationToken);
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
-        FormExportSchemaRepository repository = CreateRepository(dbContext);
-        FormExportSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialSchemaJson);
+        FormSchemaRepository repository = CreateRepository(dbContext);
+        FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialSchemaJson);
         await repository.SaveAsync(schema, cancellationToken);
 
         schema.UpdateSchema(FormDefinitionRevision + 1, UpdatedSchemaJson);
         await repository.SaveAsync(schema, cancellationToken);
 
-        FormExportSchema? persisted = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
+        FormSchema? persisted = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.FormDefinitionRevision.Should().Be(FormDefinitionRevision + 1);
         persisted.SchemaJson.Should().Be(UpdatedSchemaJson);
-        var schemasCount = await dbContext.FormExportSchemas.CountAsync(cancellationToken);
+        var schemasCount = await dbContext.FormSchemas.CountAsync(cancellationToken);
         schemasCount.Should().Be(1);
     }
 
@@ -88,11 +88,11 @@ public sealed class FormExportSchemaRepositoryTests
         await ResetReportingSchemaAsync(cancellationToken);
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
-        FormExportSchemaRepository repository = CreateRepository(dbContext);
-        FormExportSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialSchemaJson);
+        FormSchemaRepository repository = CreateRepository(dbContext);
+        FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialSchemaJson);
         await repository.SaveAsync(schema, cancellationToken);
 
-        FormExportSchema? otherTenantResult = await repository.GetByFormIdAsync(
+        FormSchema? otherTenantResult = await repository.GetByFormIdAsync(
             tenantId: 2,
             FormId,
             cancellationToken);
@@ -117,9 +117,9 @@ public sealed class FormExportSchemaRepositoryTests
         return new ReportingDbContext(optionsBuilder.Options, new IncrementingIdGenerator(), tenantContext);
     }
 
-    private static FormExportSchemaRepository CreateRepository(ReportingDbContext dbContext)
+    private static FormSchemaRepository CreateRepository(ReportingDbContext dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        return new FormExportSchemaRepository(dbContext, unitOfWork);
+        return new FormSchemaRepository(dbContext, unitOfWork);
     }
 }

@@ -5,29 +5,29 @@ using Microsoft.EntityFrameworkCore;
 namespace Endatix.Modules.Reporting.Data;
 
 /// <summary>
-/// Repository for form export schemas.
+/// Repository for compiled form schemas.
 /// </summary>
-internal sealed class FormExportSchemaRepository(
+internal sealed class FormSchemaRepository(
     ReportingDbContext dbContext,
-    IReportingUnitOfWork unitOfWork) : IFormExportSchemaRepository
+    IReportingUnitOfWork unitOfWork) : IFormSchemaRepository
 {
     /// <inheritdoc />
-    public async Task<FormExportSchema?> GetByFormIdAsync(
+    public async Task<FormSchema?> GetByFormIdAsync(
         long tenantId,
         long formId,
         CancellationToken cancellationToken)
     {
-        return await dbContext.FormExportSchemas
+        return await dbContext.FormSchemas
             .Where(schema => schema.TenantId == tenantId && schema.FormId == formId)
             .FirstOrDefaultAsync(cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task SaveAsync(FormExportSchema schema, CancellationToken cancellationToken)
+    public async Task SaveAsync(FormSchema schema, CancellationToken cancellationToken)
     {
         if (schema.Id == default)
         {
-            await dbContext.FormExportSchemas.AddAsync(schema, cancellationToken);
+            await dbContext.FormSchemas.AddAsync(schema, cancellationToken);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

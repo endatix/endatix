@@ -39,13 +39,13 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
             });
 
         builder.Services.AddScoped<IReportingUnitOfWork, ReportingUnitOfWork>();
-        builder.Services.AddScoped<IFormExportSchemaRepository, FormExportSchemaRepository>();
+        builder.Services.AddScoped<IFormSchemaRepository, FormSchemaRepository>();
         builder.Services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
         builder.Services.AddSingleton<FormSchemaCompiler>();
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
         builder.Services.AddScoped<IFormSchemaProvider, FormSchemaProvider>();
         builder.Services.AddScoped<ISubmissionFlatteningProcessor, SubmissionFlatteningProcessor>();
-        builder.Services.AddScoped<IOutboxIntegrationEventHandler, CompileFormExportSchemaOutboxHandler>();
+        builder.Services.AddScoped<IOutboxIntegrationEventHandler, CompileFormSchemaOutboxHandler>();
         builder.Services.AddScoped<IOutboxIntegrationEventHandler, FlattenSubmissionOutboxHandler>();
         builder.Services.AddScoped<IOutboxIntegrationEventHandler, SyncSubmissionDeletionOutboxHandler>();
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);

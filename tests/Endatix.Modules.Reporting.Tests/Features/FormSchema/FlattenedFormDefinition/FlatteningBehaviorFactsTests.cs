@@ -51,7 +51,7 @@ public class FlatteningBehaviorFactsTests
 
     [Theory]
     [MemberData(nameof(DefinitionFacts))]
-    public void DefinitionFact_ProducesExpectedKeys(string factId, string definitionFixture, string expectedKeysFixture)
+    public void FormDefinitionFlattener_Flatten_WithBehaviorDefinitionFixture_ProducesExpectedColumnKeys(string factId, string definitionFixture, string expectedKeysFixture)
     {
         JsonElement definition = LoadDefinitionFixture(definitionFixture);
         SchemaCompilationLimits limits = ResolveLimits(definitionFixture);
@@ -67,7 +67,7 @@ public class FlatteningBehaviorFactsTests
 
     [Theory]
     [MemberData(nameof(SubmissionFacts))]
-    public void SubmissionFact_MapsToExpectedFlat(
+    public void FlattenedSubmissionFlattener_Flatten_WithBehaviorSubmissionFixture_MatchesExpectedFlatOutput(
         string factId,
         string definitionFixture,
         string submissionFixture,
@@ -82,13 +82,10 @@ public class FlatteningBehaviorFactsTests
         Dictionary<string, JsonElement?> flattened =
             FlattenedSubmissionFlattener.Flatten(submission, formSchema);
 
-        foreach (JsonProperty property in expected.EnumerateObject())
-        {
-            flattened.Should().ContainKey(property.Name, because: $"behavior fact {factId}");
-            JsonElement? actual = flattened[property.Name];
-            actual.Should().NotBeNull();
-            actual!.Value.GetRawText().Should().Be(property.Value.GetRawText());
-        }
+        FormSchemaFixtureAssertions.AssertFlatMatchesExpected(
+            flattened,
+            expected,
+            because: $"behavior fact {factId}");
     }
 
     private static JsonElement LoadDefinitionFixture(string fixturePath) =>

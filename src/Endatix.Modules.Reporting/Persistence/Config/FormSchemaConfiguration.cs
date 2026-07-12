@@ -2,16 +2,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Infrastructure.Data.Config;
 using Endatix.Modules.Reporting.Domain;
-using Endatix.Modules.Reporting.Persistence;
 
 namespace Endatix.Modules.Reporting.Persistence.Config;
 
 [ApplyConfigurationFor<ReportingDbContext>]
-internal sealed class FormExportSchemaConfiguration : IEntityTypeConfiguration<FormExportSchema>
+internal sealed class FormSchemaConfiguration : IEntityTypeConfiguration<FormSchema>
 {
-    public void Configure(EntityTypeBuilder<FormExportSchema> builder)
+    public void Configure(EntityTypeBuilder<FormSchema> builder)
     {
-        builder.ToTable("FormExportSchemas");
+        builder.ToTable("FormSchemas");
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.TenantId).IsRequired();

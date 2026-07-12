@@ -4,7 +4,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Domain;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 using FlattenedSubmissionRow = Endatix.Modules.Reporting.Domain.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
@@ -26,11 +26,11 @@ public class SubmissionFlatteningProcessorTests
     [Fact]
     public async Task SubmissionFlatteningProcessor_ProcessAsync_WithCompletedSubmission_FlattensIntoTrackingRow()
     {
-        string definitionJson = File.ReadAllText(GetFixturePath("simple-definition.json"));
-        string submissionJson = File.ReadAllText(GetFixturePath("simple-submission.json"));
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        string submissionJson = FormSchemaFixtureLoader.LoadText("simple-submission.json");
         FormSchemaCompiler compiler = new();
         MergedFormSchema mergedSchema = compiler.CompileFromPersistedSchema(definitionJson, existingSchemaJson: null);
-        FormExportSchema schema = new(TenantId, FormId, FormDefinitionId, mergedSchema.ToJson());
+        FormSchemaEntity schema = new(TenantId, FormId, FormDefinitionId, mergedSchema.ToJson());
 
         Submission submission = Submission.Create(new SubmissionCreateArgs(
             TenantId,
@@ -127,7 +127,7 @@ public class SubmissionFlatteningProcessorTests
         IFormSchemaProvider schemaProvider = Substitute.For<IFormSchemaProvider>();
         schemaProvider
             .GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>())
-            .Returns((FormExportSchema?)null);
+            .Returns((FormSchemaEntity?)null);
 
         IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
         flattenedSubmissionRepository
@@ -189,12 +189,4 @@ public class SubmissionFlatteningProcessorTests
             Arg.Any<CancellationToken>());
     }
 
-    private static string GetFixturePath(string fixtureName) =>
-        Path.Combine(
-            AppContext.BaseDirectory,
-            "Features",
-            "FormSchema",
-            "FlattenedFormDefinition",
-            "Fixtures",
-            fixtureName);
 }

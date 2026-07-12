@@ -1,0 +1,63 @@
+{
+  "qLoop": [
+    {
+      "itemText": "Adidas",
+      "itemValue": "adidas",
+      "loopIndex": 0,
+      "qLoopRating": 3,
+      "qLoopBoolean": true
+    },
+    {
+      "itemText": "Nike",
+      "itemValue": "nike",
+      "loopIndex": 1,
+      "qLoopRating": 4,
+      "qLoopBoolean": true
+    },
+    {
+      "itemText": "Sword",
+      "itemValue": "sword",
+      "loopIndex": 0,
+      "qLoopRating": 5,
+      "qLoopBoolean": true
+    },
+    {
+      "itemText": "Other (pick)",
+      "itemValue": "other",
+      "loopIndex": 1,
+      "qLoopRating": 4,
+      "qLoopBoolean": true
+    },
+    {
+      "itemText": "We will rock you",
+      "itemValue": "3",
+      "loopIndex": 4,
+      "qLoopRating": 4,
+      "qLoopBoolean": true
+    }
+  ],
+  "qText": "Sam Smith",
+  "qMatrix": { "speed": "excellent", "quality": "average" },
+  "qRating": 4,
+  "qSlider": 60,
+  "qTagBox": ["adidas", "nike"],
+  "qComment": "I loved the survey",
+  "qRanking": ["banana", "apple", "orange"],
+  "qDropdown": "sword",
+  "qTextDate": "2019-06-10",
+  "qPanelText": "Inside",
+  "qExpression": 23,
+  "qRadioGroup": "email",
+  "qTextNumber": 23,
+  "qMultipleText": { "phone": "12312312", "emergency": "12312313" },
+  "questionSongs": ["other", "3"],
+  "qMatrixDynamic": [
+    { "years": 8, "company": "Blizard" },
+    { "years": 7, "company": "Telerik" }
+  ],
+  "qMatrixDropdown": {
+    "bob": { "teamwork": 5, "punctuality": 4 },
+    "alice": { "teamwork": 3, "punctuality": 1 }
+  },
+  "questionSongs-Comment": "Your song"
+}

@@ -1,10 +1,10 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using FluentAssertions;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -21,14 +21,14 @@ public class FormSchemaProcessorTests
     public async Task FormSchemaProcessor_ProcessAsync_WithNoExistingSchema_CreatesAndPersistsSchema()
     {
         IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
-        IFormExportSchemaRepository schemaRepository = Substitute.For<IFormExportSchemaRepository>();
+        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
         FormDefinition definition = CreateFormDefinition(
             FormDefinitionId,
             """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1"}]}]}""");
         formsRepository.SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(definition);
         schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
-            .Returns((FormExportSchema?)null);
+            .Returns((FormSchemaEntity?)null);
 
         FormSchemaProcessor processor = new(
             formsRepository,
@@ -39,7 +39,7 @@ public class FormSchemaProcessorTests
         await processor.ProcessAsync(TenantId, FormId, FormDefinitionId, TestContext.Current.CancellationToken);
 
         await schemaRepository.Received(1).SaveAsync(
-            Arg.Is<FormExportSchema>(schema =>
+            Arg.Is<FormSchemaEntity>(schema =>
                 schema.TenantId == TenantId &&
                 schema.FormId == FormId &&
                 schema.FormDefinitionRevision == FormDefinitionId &&
@@ -51,11 +51,11 @@ public class FormSchemaProcessorTests
     public async Task FormSchemaProcessor_ProcessAsync_WithExistingSchema_UpdatesPersistedSchema()
     {
         IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
-        IFormExportSchemaRepository schemaRepository = Substitute.For<IFormExportSchemaRepository>();
+        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
         FormDefinition definition = CreateFormDefinition(
             FormDefinitionId,
             """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q2"}]}]}""");
-        FormExportSchema existing = new(TenantId, FormId, FormDefinitionId, "[]");
+        FormSchemaEntity existing = new(TenantId, FormId, FormDefinitionId, "[]");
         formsRepository.SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(definition);
         schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
@@ -77,7 +77,7 @@ public class FormSchemaProcessorTests
     public async Task FormSchemaProcessor_ProcessAsync_WithHistoricalDefinition_MergesIntoExistingSchemaWithoutRollingBackRevision()
     {
         IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
-        IFormExportSchemaRepository schemaRepository = Substitute.For<IFormExportSchemaRepository>();
+        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
         FormDefinition historicalDefinition = CreateFormDefinition(
             HistoricalFormDefinitionId,
             """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1"}]}]}""");
@@ -85,7 +85,7 @@ public class FormSchemaProcessorTests
         string existingSchemaJson = compiler.CompileFromPersistedSchema(
             """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q2","title":"Question 2"}]}]}""",
             existingSchemaJson: null).ToJson();
-        FormExportSchema existing = new(TenantId, FormId, FormDefinitionId, existingSchemaJson);
+        FormSchemaEntity existing = new(TenantId, FormId, FormDefinitionId, existingSchemaJson);
         formsRepository.SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(historicalDefinition);
         schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
@@ -109,7 +109,7 @@ public class FormSchemaProcessorTests
     public async Task FormSchemaProcessor_ProcessAsync_WithMissingDefinition_DoesNotPersistSchema()
     {
         IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
-        IFormExportSchemaRepository schemaRepository = Substitute.For<IFormExportSchemaRepository>();
+        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
         formsRepository.SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns((FormDefinition?)null);
 
@@ -122,14 +122,14 @@ public class FormSchemaProcessorTests
         await processor.ProcessAsync(TenantId, FormId, formDefinitionId: 999, TestContext.Current.CancellationToken);
 
         await schemaRepository.DidNotReceive().GetByFormIdAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
-        await schemaRepository.DidNotReceive().SaveAsync(Arg.Any<FormExportSchema>(), Arg.Any<CancellationToken>());
+        await schemaRepository.DidNotReceive().SaveAsync(Arg.Any<FormSchemaEntity>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task FormSchemaProcessor_ProcessAsync_WithTenantMismatch_ThrowsInvalidOperationException()
     {
         IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
-        IFormExportSchemaRepository schemaRepository = Substitute.For<IFormExportSchemaRepository>();
+        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
         FormDefinition definition = CreateFormDefinition(
             FormDefinitionId,
             """{"pages":[]}""",
@@ -147,7 +147,7 @@ public class FormSchemaProcessorTests
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Tenant mismatch*");
-        await schemaRepository.DidNotReceive().SaveAsync(Arg.Any<FormExportSchema>(), Arg.Any<CancellationToken>());
+        await schemaRepository.DidNotReceive().SaveAsync(Arg.Any<FormSchemaEntity>(), Arg.Any<CancellationToken>());
     }
 
     private static FormDefinition CreateFormDefinition(long id, string jsonData, long tenantId = TenantId) =>

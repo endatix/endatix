@@ -57,7 +57,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                 });
 
             migrationBuilder.CreateTable(
-                name: "FormExportSchemas",
+                name: "FormSchemas",
                 schema: "reporting",
                 columns: table => new
                 {
@@ -73,7 +73,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_FormExportSchemas", x => x.Id);
+                    table.PrimaryKey("PK_FormSchemas", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -117,9 +117,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                 columns: new[] { "TenantId", "FormId", "SubmissionId" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_FormExportSchemas_TenantId_FormId",
+                name: "IX_FormSchemas_TenantId_FormId",
                 schema: "reporting",
-                table: "FormExportSchemas",
+                table: "FormSchemas",
                 columns: new[] { "TenantId", "FormId" },
                 unique: true);
 
@@ -154,7 +154,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                 schema: "reporting");
 
             migrationBuilder.DropTable(
-                name: "FormExportSchemas",
+                name: "FormSchemas",
                 schema: "reporting");
 
             migrationBuilder.DropTable(

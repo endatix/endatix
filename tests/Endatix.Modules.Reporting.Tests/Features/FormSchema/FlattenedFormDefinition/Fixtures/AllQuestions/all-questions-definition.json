@@ -1,0 +1,523 @@
+{
+  "title": {
+    "es": "Encuesta de prueba de exportación completa de Endatix",
+    "default": "Endatix Complete Export Test Survey"
+  },
+  "description": {
+    "es": "Un formulario de prueba que contiene todos los tipos de preguntas de SurveyJS para validar el motor de informes.",
+    "default": "A testing form containing all SurveyJS question types to validate the reporting and flatten engine."
+  },
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "html",
+          "name": "qHtml",
+          "html": {
+            "es": "<h3>¡Bienvenido a la prueba!</h3><p>Por favor, complete todos los campos.</p>",
+            "default": "<h3>Welcome to the Test!</h3><p>Please fill out all fields.</p>"
+          }
+        },
+        {
+          "type": "radiogroup",
+          "name": "qRadioGroup",
+          "title": {
+            "es": "Seleccione su método de contacto preferido",
+            "default": "Select your preferred contact method"
+          },
+          "choices": [
+            {
+              "value": "email",
+              "text": {
+                "es": "Correo electrónico",
+                "default": "Email"
+              }
+            },
+            {
+              "value": "phone",
+              "text": {
+                "es": "Teléfono",
+                "default": "Phone"
+              }
+            },
+            {
+              "value": "mail",
+              "text": {
+                "es": "Correo postal",
+                "default": "Mail"
+              }
+            }
+          ]
+        },
+        {
+          "type": "rating",
+          "name": "qRating",
+          "title": {
+            "es": "Califique su experiencia general",
+            "default": "Rate your overall experience"
+          },
+          "description": {
+            "es": "Escala del 1 al 5",
+            "default": "Scale from 1 to 5"
+          }
+        },
+        {
+          "type": "slider",
+          "name": "qSlider",
+          "title": {
+            "es": "¿Qué tan probable es que nos recomiende?",
+            "default": "How likely are you to recommend us?"
+          }
+        },
+        {
+          "type": "dropdown",
+          "name": "qDropdown",
+          "title": {
+            "es": "Elige tu arma principal",
+            "default": "Pick your primary weapon"
+          },
+          "description": {
+            "es": "Esta es una pregunta estándar desplegable",
+            "default": "This is a standard dropdown question"
+          },
+          "choices": [
+            {
+              "value": "axe",
+              "text": {
+                "es": "Hacha",
+                "default": "Axe"
+              }
+            },
+            {
+              "value": "sword",
+              "text": {
+                "es": "Espada",
+                "default": "Sword"
+              }
+            },
+            {
+              "value": "hammer",
+              "text": {
+                "es": "Martillo",
+                "default": "Hammer"
+              }
+            }
+          ]
+        },
+        {
+          "type": "tagbox",
+          "name": "questionSongs",
+          "title": {
+            "es": "Elige una canción",
+            "default": "Pick a song"
+          },
+          "description": {
+            "es": "Esta es una pregunta para elegir una canción.",
+            "default": "This is a question for picking a song"
+          },
+          "choices": [
+            {
+              "value": "1",
+              "text": {
+                "es": "Una canción para mí",
+                "default": "Song for me"
+              }
+            },
+            {
+              "value": "2",
+              "text": {
+                "es": "\nCanción para ti",
+                "default": "Song for you"
+              }
+            },
+            {
+              "value": "3",
+              "text": {
+                "es": "Nosotros te rockearemos",
+                "default": "We will rock you"
+              }
+            },
+            {
+              "value": "4",
+              "text": {
+                "es": "No hay tiempo para esto.",
+                "default": "No time for this"
+              }
+            },
+            {
+              "value": "5",
+              "text": {
+                "es": "He esperado",
+                "default": "I have waited"
+              }
+            }
+          ],
+          "showOtherItem": true,
+          "otherText": "Other (pick)"
+        },
+        {
+          "type": "tagbox",
+          "name": "qTagBox",
+          "title": {
+            "es": "Seleccione marcas deportivas",
+            "default": "Select Sport Brands"
+          },
+          "description": {
+            "es": "Puede seleccionar múltiples opciones",
+            "default": "You can select multiple options"
+          },
+          "choices": [
+            {
+              "value": "adidas",
+              "text": {
+                "es": "Adidas",
+                "default": "Adidas"
+              }
+            },
+            {
+              "value": "puma",
+              "text": {
+                "es": "Puma",
+                "default": "Puma"
+              }
+            },
+            {
+              "value": "nike",
+              "text": {
+                "es": "Nike",
+                "default": "Nike"
+              }
+            },
+            {
+              "value": "reebok",
+              "text": {
+                "es": "Reebok",
+                "default": "Reebok"
+              }
+            }
+          ]
+        },
+        {
+          "type": "boolean",
+          "name": "qBoolean",
+          "title": {
+            "es": "¿Acepta los términos?",
+            "default": "Do you agree to the terms?"
+          },
+          "labelTrue": {
+            "es": "Sí",
+            "default": "Yes"
+          },
+          "labelFalse": {
+            "es": "No",
+            "default": "No"
+          }
+        },
+        {
+          "type": "file",
+          "name": "qFile",
+          "title": {
+            "es": "Sube tu avatar",
+            "default": "Upload your avatar"
+          }
+        },
+        {
+          "type": "imagepicker",
+          "name": "qImagePicker",
+          "title": {
+            "es": "Elige una mascota",
+            "default": "Choose a mascot"
+          },
+          "choices": [
+            {
+              "value": "lion",
+              "imageLink": "https://surveyjs.io/Content/Images/examples/image-picker/lion.jpg"
+            },
+            {
+              "value": "giraffe",
+              "imageLink": "https://surveyjs.io/Content/Images/examples/image-picker/giraffe.jpg"
+            }
+          ],
+          "imageFit": "cover"
+        },
+        {
+          "type": "ranking",
+          "name": "qRanking",
+          "title": {
+            "es": "Clasifica estas frutas de mejor a peor",
+            "default": "Rank these fruits from best to worst"
+          },
+          "choices": [
+            {
+              "value": "apple",
+              "text": {
+                "es": "Manzana",
+                "default": "Apple"
+              }
+            },
+            {
+              "value": "banana",
+              "text": {
+                "es": "Plátano",
+                "default": "Banana"
+              }
+            },
+            {
+              "value": "orange",
+              "text": {
+                "es": "Naranja",
+                "default": "Orange"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "qText",
+          "title": {
+            "es": "Nombre completo",
+            "default": "Full Name"
+          }
+        },
+        {
+          "type": "text",
+          "name": "qTextNumber",
+          "title": {
+            "es": "Su edad",
+            "default": "Your Age"
+          },
+          "inputType": "number"
+        },
+        {
+          "type": "text",
+          "name": "qTextDate",
+          "title": {
+            "es": "Fecha de nacimiento",
+            "default": "Birth Date"
+          },
+          "inputType": "date"
+        },
+        {
+          "type": "comment",
+          "name": "qComment",
+          "title": {
+            "es": "Comentarios adicionales",
+            "default": "Additional Feedback"
+          }
+        },
+        {
+          "type": "multipletext",
+          "name": "qMultipleText",
+          "title": {
+            "es": "Información de contacto",
+            "default": "Contact Information"
+          },
+          "items": [
+            {
+              "name": "phone",
+              "title": {
+                "es": "Número de teléfono",
+                "default": "Phone Number"
+              }
+            },
+            {
+              "name": "emergency",
+              "title": {
+                "es": "Contacto de emergencia",
+                "default": "Emergency Contact"
+              }
+            }
+          ]
+        },
+        {
+          "type": "matrix",
+          "name": "qMatrix",
+          "title": {
+            "es": "Califique los siguientes aspectos de nuestro servicio",
+            "default": "Rate the following aspects of our service"
+          },
+          "columns": [
+            {
+              "value": "poor",
+              "text": {
+                "es": "Malo",
+                "default": "Poor"
+              }
+            },
+            {
+              "value": "average",
+              "text": {
+                "es": "Regular",
+                "default": "Average"
+              }
+            },
+            {
+              "value": "excellent",
+              "text": {
+                "es": "Excelente",
+                "default": "Excellent"
+              }
+            }
+          ],
+          "rows": [
+            {
+              "value": "speed",
+              "text": {
+                "es": "Velocidad",
+                "default": "Speed"
+              }
+            },
+            {
+              "value": "quality",
+              "text": {
+                "es": "Calidad",
+                "default": "Quality"
+              }
+            }
+          ]
+        },
+        {
+          "type": "matrixdropdown",
+          "name": "qMatrixDropdown",
+          "title": {
+            "es": "Evalúe a su equipo",
+            "default": "Evaluate your team"
+          },
+          "columns": [
+            {
+              "name": "punctuality",
+              "title": {
+                "es": "Puntualidad",
+                "default": "Punctuality"
+              }
+            },
+            {
+              "name": "teamwork",
+              "title": {
+                "es": "Trabajo en equipo",
+                "default": "Teamwork"
+              }
+            }
+          ],
+          "choices": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "rows": [
+            {
+              "value": "alice",
+              "text": "Alice"
+            },
+            {
+              "value": "bob",
+              "text": "Bob"
+            }
+          ]
+        },
+        {
+          "type": "matrixdynamic",
+          "name": "qMatrixDynamic",
+          "title": {
+            "es": "Enumere sus empleadores anteriores",
+            "default": "List your previous employers"
+          },
+          "columns": [
+            {
+              "name": "company",
+              "title": {
+                "es": "Nombre de la empresa",
+                "default": "Company Name"
+              },
+              "cellType": "text"
+            },
+            {
+              "name": "years",
+              "title": {
+                "es": "Años trabajados",
+                "default": "Years Worked"
+              },
+              "cellType": "text",
+              "inputType": "number"
+            }
+          ],
+          "rowCount": 1
+        },
+        {
+          "type": "signaturepad",
+          "name": "qSignaturePad",
+          "title": {
+            "es": "Por favor firme aquí",
+            "default": "Please sign here"
+          }
+        },
+        {
+          "type": "expression",
+          "name": "qExpression",
+          "title": {
+            "es": "Edad total calculada (Desde Q11)",
+            "default": "Calculated Total Age (From Q11)"
+          },
+          "expression": "{qTextNumber} * 1"
+        },
+        {
+          "type": "panel",
+          "name": "qPanel",
+          "title": {
+            "es": "Grupo de panel interno",
+            "default": "Internal Panel Group"
+          },
+          "elements": [
+            {
+              "type": "text",
+              "name": "qPanelText",
+              "title": {
+                "es": "Texto dentro del panel",
+                "default": "Text inside panel"
+              }
+            }
+          ]
+        },
+        {
+          "type": "paneldynamic",
+          "name": "qLoop",
+          "title": {
+            "es": "Pregunta de bucle (Basada en marcas)",
+            "default": "Loop Question (Based on Brands)"
+          },
+          "description": {
+            "es": "Este panel se repite sobre sus selecciones de qTagBox",
+            "default": "This panel loops over your selections from qTagBox"
+          },
+          "templateElements": [
+            {
+              "type": "boolean",
+              "name": "qLoopBoolean",
+              "title": {
+                "es": "¿Todavía te gusta {panel.itemText}?",
+                "default": "Do you still like {panel.itemText}?"
+              }
+            },
+            {
+              "type": "rating",
+              "name": "qLoopRating",
+              "title": {
+                "es": "¿Cuánto te gusta?",
+                "default": "How much do you like it?"
+              },
+              "rateType": "stars"
+            }
+          ],
+          "loopSource": [
+            "qTagBox",
+            "qDropdown",
+            "questionSongs"
+          ]
+        }
+      ]
+    }
+  ]
+}
