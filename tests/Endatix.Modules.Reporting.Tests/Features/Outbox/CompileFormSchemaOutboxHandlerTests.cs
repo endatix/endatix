@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Outbox;
 
-public sealed class CompileFormExportSchemaOutboxHandlerTests
+public sealed class CompileFormSchemaOutboxHandlerTests
 {
     private const long TenantId = 42;
     private const long FormId = 100;
@@ -15,7 +15,7 @@ public sealed class CompileFormExportSchemaOutboxHandlerTests
 
     private readonly IFormSchemaProcessor _schemaProcessor = Substitute.For<IFormSchemaProcessor>();
 
-    private CompileFormExportSchemaOutboxHandler CreateSut() =>
+    private CompileFormSchemaOutboxHandler CreateSut() =>
         new(_schemaProcessor);
 
     [Fact]

@@ -42,7 +42,7 @@ public sealed class FormSchemaProviderIntegrationTests
             .Returns(CreateFormDefinition());
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
-        FormExportSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
+        FormSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
         FormSchemaProcessor schemaProcessor = new(
             formsRepository,
             schemaRepository,
@@ -50,7 +50,7 @@ public sealed class FormSchemaProviderIntegrationTests
             NullLogger<FormSchemaProcessor>.Instance);
         FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
 
-        FormExportSchema? result = await provider.GetOrCompileAsync(
+        FormSchema? result = await provider.GetOrCompileAsync(
             TenantId,
             FormId,
             FormDefinitionId,
@@ -60,7 +60,7 @@ public sealed class FormSchemaProviderIntegrationTests
         result!.FormDefinitionRevision.Should().Be(FormDefinitionId);
         result.SchemaJson.Should().Contain("q1");
 
-        FormExportSchema? persisted = await schemaRepository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
+        FormSchema? persisted = await schemaRepository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.SchemaJson.Should().Be(result.SchemaJson);
     }
@@ -77,7 +77,7 @@ public sealed class FormSchemaProviderIntegrationTests
             .Returns(CreateFormDefinition());
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
-        FormExportSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
+        FormSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
         FormSchemaProcessor schemaProcessor = new(
             formsRepository,
             schemaRepository,
@@ -85,11 +85,11 @@ public sealed class FormSchemaProviderIntegrationTests
             NullLogger<FormSchemaProcessor>.Instance);
         FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
 
-        FormExportSchema? first = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
-        FormExportSchema? second = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
+        FormSchema? first = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
+        FormSchema? second = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
 
         second.Should().BeSameAs(first);
-        (await dbContext.FormExportSchemas.CountAsync(cancellationToken)).Should().Be(1);
+        (await dbContext.FormSchemas.CountAsync(cancellationToken)).Should().Be(1);
         await formsRepository.Received(1).SingleOrDefaultAsync(
             Arg.Any<DefinitionByFormAndDefinitionIdSpec>(),
             cancellationToken);
@@ -112,10 +112,10 @@ public sealed class FormSchemaProviderIntegrationTests
         return new ReportingDbContext(optionsBuilder.Options, new IncrementingIdGenerator(), tenantContext);
     }
 
-    private static FormExportSchemaRepository CreateSchemaRepository(ReportingDbContext dbContext)
+    private static FormSchemaRepository CreateSchemaRepository(ReportingDbContext dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        return new FormExportSchemaRepository(dbContext, unitOfWork);
+        return new FormSchemaRepository(dbContext, unitOfWork);
     }
 
     private static FormDefinition CreateFormDefinition()

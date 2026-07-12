@@ -6,7 +6,7 @@ using Endatix.Modules.Reporting.Contracts;
 namespace Endatix.Modules.Reporting.Domain;
 
 /// <summary>
-/// BI-ready submission row aligned to <see cref="FormExportSchema"/>.
+/// BI-ready submission row aligned to <see cref="Domain.FormSchema"/>.
 /// </summary>
 public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
 {
@@ -35,7 +35,7 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     public long FormId { get; private set; }
 
     /// <summary>
-    /// Flat key-value answers aligned to <see cref="FormExportSchema.SchemaJson"/>.
+    /// Flat key-value answers aligned to <see cref="Domain.FormSchema.SchemaJson"/>.
     /// Populated when <see cref="Integration"/> is processed.
     /// </summary>
     public string? DataJson { get; private set; }

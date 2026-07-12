@@ -1,7 +1,7 @@
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using FluentAssertions;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 using NSubstitute;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FormSchema;
@@ -16,15 +16,15 @@ public class FormSchemaProviderTests
     [Fact]
     public async Task FormSchemaProvider_GetOrCompileAsync_WithCurrentSchema_ReturnsWithoutInvokingProcessor()
     {
-        FormExportSchema schema = new(TenantId, FormId, FormDefinitionId, """{"columns":[]}""");
-        IFormExportSchemaRepository schemaRepository = Substitute.For<IFormExportSchemaRepository>();
+        FormSchemaEntity schema = new(TenantId, FormId, FormDefinitionId, """{"columns":[]}""");
+        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
         schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns(schema);
         IFormSchemaProcessor schemaProcessor = Substitute.For<IFormSchemaProcessor>();
 
         FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
 
-        FormExportSchema? result = await provider.GetOrCompileAsync(
+        FormSchemaEntity? result = await provider.GetOrCompileAsync(
             TenantId,
             FormId,
             FormDefinitionId,
@@ -41,17 +41,17 @@ public class FormSchemaProviderTests
     [Fact]
     public async Task FormSchemaProvider_GetOrCompileAsync_WithStaleSchema_InvokesProcessorAndReturnsRefreshedSchema()
     {
-        FormExportSchema refreshed = new(TenantId, FormId, FormDefinitionId, """{"columns":[{"key":"q1"}]}""");
-        IFormExportSchemaRepository schemaRepository = Substitute.For<IFormExportSchemaRepository>();
+        FormSchemaEntity refreshed = new(TenantId, FormId, FormDefinitionId, """{"columns":[{"key":"q1"}]}""");
+        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
         schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns(
-                new FormExportSchema(TenantId, FormId, formDefinitionRevision: 1, "[]"),
+                new FormSchemaEntity(TenantId, FormId, formDefinitionRevision: 1, "[]"),
                 refreshed);
         IFormSchemaProcessor schemaProcessor = Substitute.For<IFormSchemaProcessor>();
 
         FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
 
-        FormExportSchema? result = await provider.GetOrCompileAsync(
+        FormSchemaEntity? result = await provider.GetOrCompileAsync(
             TenantId,
             FormId,
             FormDefinitionId,
@@ -64,21 +64,21 @@ public class FormSchemaProviderTests
     [Fact]
     public async Task FormSchemaProvider_GetOrCompileAsync_WithHistoricalDefinition_ReturnsMergedSchema()
     {
-        FormExportSchema merged = new(
+        FormSchemaEntity merged = new(
             TenantId,
             FormId,
             FormDefinitionId,
             """[{"key":"q1"},{"key":"q2"}]""");
-        IFormExportSchemaRepository schemaRepository = Substitute.For<IFormExportSchemaRepository>();
+        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
         schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns(
-                new FormExportSchema(TenantId, FormId, FormDefinitionId, """[{"key":"q2"}]"""),
+                new FormSchemaEntity(TenantId, FormId, FormDefinitionId, """[{"key":"q2"}]"""),
                 merged);
         IFormSchemaProcessor schemaProcessor = Substitute.For<IFormSchemaProcessor>();
 
         FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
 
-        FormExportSchema? result = await provider.GetOrCompileAsync(
+        FormSchemaEntity? result = await provider.GetOrCompileAsync(
             TenantId,
             FormId,
             HistoricalFormDefinitionId,
@@ -95,16 +95,16 @@ public class FormSchemaProviderTests
     [Fact]
     public async Task FormSchemaProvider_GetOrCompileAsync_WhenProcessorDoesNotCoverRequestedDefinition_ReturnsNull()
     {
-        IFormExportSchemaRepository schemaRepository = Substitute.For<IFormExportSchemaRepository>();
+        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
         schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns(
-                (FormExportSchema?)null,
-                new FormExportSchema(TenantId, FormId, formDefinitionRevision: 1, "[]"));
+                (FormSchemaEntity?)null,
+                new FormSchemaEntity(TenantId, FormId, formDefinitionRevision: 1, "[]"));
         IFormSchemaProcessor schemaProcessor = Substitute.For<IFormSchemaProcessor>();
 
         FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
 
-        FormExportSchema? result = await provider.GetOrCompileAsync(
+        FormSchemaEntity? result = await provider.GetOrCompileAsync(
             TenantId,
             FormId,
             FormDefinitionId,

@@ -25,7 +25,7 @@ public class ReportingDbContext : DbContext, ITenantDbContext
         _tenantContext = tenantContext;
     }
 
-    public DbSet<FormExportSchema> FormExportSchemas => Set<FormExportSchema>();
+    public DbSet<FormSchema> FormSchemas => Set<FormSchema>();
 
     public DbSet<FlattenedSubmission> FlattenedSubmissions => Set<FlattenedSubmission>();
 

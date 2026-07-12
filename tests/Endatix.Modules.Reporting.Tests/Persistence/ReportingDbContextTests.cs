@@ -36,7 +36,7 @@ public class ReportingDbContextTests
         var entityTypes = context.Model.GetEntityTypes().Select(type => type.ClrType).ToList();
 
         // Assert
-        entityTypes.Should().Contain(typeof(FormExportSchema));
+        entityTypes.Should().Contain(typeof(FormSchema));
         entityTypes.Should().Contain(typeof(FlattenedSubmission));
         entityTypes.Should().Contain(typeof(ExportFormat));
         entityTypes.Should().Contain(typeof(SurveyTypeExportMapping));

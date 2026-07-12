@@ -116,9 +116,9 @@ Follows [Modulith](https://github.com/foxminchan/Modulith)-style modules: **doma
 
 ```
 Endatix.Modules.Reporting/
-  Domain/                          # persistence aggregates only (entity renames deferred)
+  Domain/                          # persistence aggregates
     FlattenedSubmission.cs
-    FormExportSchema.cs
+    FormSchema.cs
     SubmissionIntegrationState.cs
     ExportFormat.cs
     …
@@ -161,7 +161,7 @@ Persistence                ──► Domain
 
 | Kind | Where | Example |
 |------|-------|---------|
-| Reporting entities / pipeline state | `Domain/` | `FlattenedSubmission`, `FormExportSchema` |
+| Reporting entities / pipeline state | `Domain/` | `FlattenedSubmission`, `FormSchema` |
 | Compiled form schema model + limits | `Features/FormSchema/FormSchema/` | `MergedFormSchema`, `SchemaCompilationLimits` |
 | Definition → column flattening | `Features/FormSchema/FlattenedFormDefinition/` | `FormDefinitionFlattener` |
 | Submission → flat row pipeline | `Features/FlattenedSubmission/` | `FlattenedSubmissionFlattener` |

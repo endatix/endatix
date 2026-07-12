@@ -12,7 +12,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// </summary>
 internal sealed class FormSchemaProcessor(
     IFormsRepository formsRepository,
-    IFormExportSchemaRepository schemaRepository,
+    IFormSchemaRepository schemaRepository,
     FormSchemaCompiler compiler,
     ILogger<FormSchemaProcessor> logger) : IFormSchemaProcessor
 {
@@ -54,7 +54,7 @@ internal sealed class FormSchemaProcessor(
 
             if (existingSchema is null)
             {
-                existingSchema = new FormExportSchema(
+                existingSchema = new Domain.FormSchema(
                     tenantId,
                     formId,
                     revision,
@@ -68,7 +68,7 @@ internal sealed class FormSchemaProcessor(
             await schemaRepository.SaveAsync(existingSchema, cancellationToken);
 
             logger.LogInformation(
-                "Compiled form export schema for form {FormId} (definition {FormDefinitionId})",
+                "Compiled form schema for form {FormId} (definition {FormDefinitionId})",
                 formId,
                 formDefinitionId);
         }
