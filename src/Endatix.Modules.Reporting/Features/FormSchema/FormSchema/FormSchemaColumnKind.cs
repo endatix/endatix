@@ -8,6 +8,7 @@ internal enum FormSchemaColumnKind
     CheckboxOtherText,
     PanelDynamicIndex,
     NestedLoop,
+    LoopSource,
     MatrixRow,
     MatrixCell,
     RankingChoice,

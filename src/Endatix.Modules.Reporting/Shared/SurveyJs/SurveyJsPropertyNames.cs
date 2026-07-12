@@ -15,6 +15,8 @@ internal static class SurveyJsPropertyNames
     public const string ValuePropertyName = "valuePropertyName";
     public const string Elements = "elements";
     public const string TemplateElements = "templateElements";
+    public const string LoopSource = "loopSource";
+    public const string ItemValue = "itemValue";
     public const string Pages = "pages";
     public const string Choices = "choices";
     public const string Rows = "rows";

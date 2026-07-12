@@ -18,6 +18,7 @@ internal static class FormSchemaPropertyNames
     public const string PanelIndex = "panelIndex";
     public const string MatrixRowValue = "matrixRowValue";
     public const string MatrixColumnValue = "matrixColumnValue";
+    public const string MatrixColumnChoices = "matrixColumnChoices";
     public const string LoopPath = "loopPath";
     public const string PanelValueName = "panelValueName";
     public const string PropertyName = "propertyName";

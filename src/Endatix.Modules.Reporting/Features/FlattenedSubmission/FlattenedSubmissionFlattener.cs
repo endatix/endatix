@@ -33,15 +33,7 @@ internal static class FlattenedSubmissionFlattener
             foreach (var key in formSchema.Columns.Select(column => column.Key))
             {
                 flattened.TryGetValue(key, out var value);
-                writer.WritePropertyName(key);
-                if (value is null)
-                {
-                    writer.WriteNullValue();
-                }
-                else
-                {
-                    value.Value.WriteTo(writer);
-                }
+                WriteFlattenedValue(writer, key, value);
             }
 
             writer.WriteEndObject();
@@ -50,45 +42,135 @@ internal static class FlattenedSubmissionFlattener
         return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
-    private static JsonElement? ExtractValue(JsonElement submission, FormSchemaColumn column) =>
-        column.Kind switch
-        {
-            FormSchemaColumnKind.Simple or FormSchemaColumnKind.Calculated =>
-                submission.TryGetPropertyValue(column.Key),
-
-            FormSchemaColumnKind.ChoiceIndicator =>
-                ToBooleanJson(ContainsChoice(submission, column.SourceQuestion!, column.ChoiceValue!)),
-
-            FormSchemaColumnKind.RankingChoice =>
-                ToRankJson(GetRankPosition(submission, column.SourceQuestion!, column.ChoiceValue!)),
-
-            FormSchemaColumnKind.CheckboxOtherText =>
-                TryGetOtherText(submission, column.SourceQuestion!),
-
-            FormSchemaColumnKind.MatrixRow =>
-                TryGetPlainMatrixRowValue(submission, column.SourceQuestion!, column.MatrixRowValue!),
-
-            FormSchemaColumnKind.MatrixCell =>
-                TryGetMatrixCellValue(submission, column),
-
-            FormSchemaColumnKind.MultipleTextItem =>
-                TryGetPlainMatrixRowValue(submission, column.SourceQuestion!, column.MatrixRowValue!),
-
-            FormSchemaColumnKind.FileUpload =>
-                TryGetFileValue(submission, column.SourceQuestion ?? column.Key),
-
-            FormSchemaColumnKind.PanelDynamicIndex =>
-                TryGetPanelIndexValue(submission, column),
-
-            FormSchemaColumnKind.NestedLoop =>
-                TryGetNestedLoopValue(submission, column),
-
-            _ => null,
-        };
-
-    private static bool ContainsChoice(JsonElement submission, string questionName, string choiceValue)
+    private static void WriteFlattenedValue(Utf8JsonWriter writer, string key, JsonElement? value)
     {
-        if (submission.TryGetPropertyValue(questionName) is not JsonElement answer)
+        writer.WritePropertyName(key);
+
+        if (value is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        value.Value.WriteTo(writer);
+    }
+
+    private static JsonElement? ExtractValue(JsonElement submission, FormSchemaColumn column)
+    {
+        switch (column.Kind)
+        {
+            case FormSchemaColumnKind.Simple:
+            case FormSchemaColumnKind.Calculated:
+                return ExtractSimpleValue(submission, column);
+
+            case FormSchemaColumnKind.ChoiceIndicator:
+                return ExtractChoiceIndicatorValue(submission, column);
+
+            case FormSchemaColumnKind.RankingChoice:
+                return ExtractRankingChoiceValue(submission, column);
+
+            case FormSchemaColumnKind.CheckboxOtherText:
+                return ExtractCheckboxOtherTextValue(submission, column);
+
+            case FormSchemaColumnKind.MatrixRow:
+                return ExtractMatrixRowValue(submission, column);
+
+            case FormSchemaColumnKind.MatrixCell:
+                return ExtractMatrixCellValue(submission, column);
+
+            case FormSchemaColumnKind.MultipleTextItem:
+                return ExtractMultipleTextItemValue(submission, column);
+
+            case FormSchemaColumnKind.FileUpload:
+                return ExtractFileUploadValue(submission, column);
+
+            case FormSchemaColumnKind.PanelDynamicIndex:
+                return ExtractPanelDynamicIndexValue(submission, column);
+
+            case FormSchemaColumnKind.NestedLoop:
+            case FormSchemaColumnKind.LoopSource:
+                return ExtractLoopSourceValue(submission, column);
+
+            default:
+                return null;
+        }
+    }
+
+    private static JsonElement? ExtractSimpleValue(JsonElement submission, FormSchemaColumn column) =>
+        submission.TryGetPropertyValue(column.Key);
+
+    private static JsonElement? ExtractChoiceIndicatorValue(JsonElement submission, FormSchemaColumn column)
+    {
+        if (column.LoopPath is null)
+        {
+            return ToBooleanJson(ContainsChoice(submission, column.SourceQuestion!, column.ChoiceValue!));
+        }
+
+        if (TryResolveLoopContext(submission, column.LoopPath) is not JsonElement loopContext)
+        {
+            return ToBooleanJson(false);
+        }
+
+        return ToBooleanJson(ContainsChoice(loopContext, column.SourceQuestion!, column.ChoiceValue!));
+    }
+
+    private static JsonElement? ExtractRankingChoiceValue(JsonElement submission, FormSchemaColumn column) =>
+        ExtractFromLoopAwareContext(
+            submission,
+            column.LoopPath,
+            context => ToRankJson(GetRankPosition(context, column.SourceQuestion!, column.ChoiceValue!)));
+
+    private static JsonElement? ExtractCheckboxOtherTextValue(JsonElement submission, FormSchemaColumn column) =>
+        ExtractFromLoopAwareContext(
+            submission,
+            column.LoopPath,
+            context => TryGetOtherText(context, column.SourceQuestion!));
+
+    private static JsonElement? ExtractMatrixRowValue(JsonElement submission, FormSchemaColumn column) =>
+        ExtractFromLoopAwareContext(
+            submission,
+            column.LoopPath,
+            context => TryGetMatrixRadioRowValue(context, column));
+
+    private static JsonElement? ExtractMultipleTextItemValue(JsonElement submission, FormSchemaColumn column) =>
+        ExtractFromLoopAwareContext(
+            submission,
+            column.LoopPath,
+            context => TryGetPlainMatrixRowValue(context, column.SourceQuestion!, column.MatrixRowValue!));
+
+    private static JsonElement? ExtractFileUploadValue(JsonElement submission, FormSchemaColumn column) =>
+        TryGetFileValue(submission, column.SourceQuestion ?? column.Key);
+
+    private static JsonElement? ExtractPanelDynamicIndexValue(JsonElement submission, FormSchemaColumn column) =>
+        TryGetPanelIndexValue(submission, column);
+
+    private static JsonElement? ExtractLoopSourceValue(JsonElement submission, FormSchemaColumn column) =>
+        TryGetLoopContextValue(submission, column);
+
+    private static JsonElement? ExtractMatrixCellValue(JsonElement submission, FormSchemaColumn column) =>
+        TryGetMatrixCellValue(submission, column);
+
+    private static JsonElement? ExtractFromLoopAwareContext(
+        JsonElement submission,
+        IReadOnlyList<LoopSegment>? loopPath,
+        Func<JsonElement, JsonElement?> extract)
+    {
+        if (loopPath is null)
+        {
+            return extract(submission);
+        }
+
+        if (TryResolveLoopContext(submission, loopPath) is not JsonElement loopContext)
+        {
+            return null;
+        }
+
+        return extract(loopContext);
+    }
+
+    private static bool ContainsChoice(JsonElement context, string questionName, string choiceValue)
+    {
+        if (context.TryGetPropertyValue(questionName) is not JsonElement answer)
         {
             return false;
         }
@@ -121,9 +203,9 @@ internal static class FlattenedSubmissionFlattener
         return document.RootElement.Clone();
     }
 
-    private static int GetRankPosition(JsonElement submission, string questionName, string choiceValue)
+    private static int GetRankPosition(JsonElement context, string questionName, string choiceValue)
     {
-        if (submission.TryGetPropertyValue(questionName) is not JsonElement answer ||
+        if (context.TryGetPropertyValue(questionName) is not JsonElement answer ||
             answer.ValueKind != JsonValueKind.Array)
         {
             return 0;
@@ -149,28 +231,73 @@ internal static class FlattenedSubmissionFlattener
         return document.RootElement.Clone();
     }
 
-    private static JsonElement? TryGetOtherText(JsonElement submission, string questionName)
+    private static JsonElement? TryGetOtherText(JsonElement context, string questionName)
     {
-        if (submission.TryGetPropertyValue(questionName) is not JsonElement answer)
+        var otherCommentKey = $"{questionName}-Comment";
+        if (context.TryGetPropertyValue(otherCommentKey) is JsonElement comment)
         {
-            return null;
+            return comment;
         }
 
-        if (answer.TryGetPropertyValue(SurveyJsPropertyNames.Other) is JsonElement other)
+        if (context.TryGetPropertyValue(questionName) is JsonElement answer &&
+            answer.TryGetPropertyValue(SurveyJsPropertyNames.Other) is JsonElement other)
         {
             return other;
         }
 
-        var otherCommentKey = $"{questionName}-Comment";
-        return submission.TryGetPropertyValue(otherCommentKey);
+        return null;
+    }
+
+    private static JsonElement? TryGetMatrixRadioRowValue(JsonElement context, FormSchemaColumn column)
+    {
+        if (column.SourceQuestion is null || column.MatrixRowValue is null)
+        {
+            return null;
+        }
+
+        if (context.TryGetPropertyValue(column.SourceQuestion) is not JsonElement matrixAnswer)
+        {
+            return null;
+        }
+
+        if (matrixAnswer.TryGetPropertyValue(column.MatrixRowValue) is not JsonElement rowAnswer)
+        {
+            return null;
+        }
+
+        if (column.MatrixColumnChoices is null || column.MatrixColumnChoices.Count == 0)
+        {
+            return rowAnswer;
+        }
+
+        if (rowAnswer.ValueKind == JsonValueKind.Number)
+        {
+            return rowAnswer;
+        }
+
+        var selectedValue = rowAnswer.GetScalarStringValue();
+        if (selectedValue is null)
+        {
+            return null;
+        }
+
+        for (var index = 0; index < column.MatrixColumnChoices.Count; index++)
+        {
+            if (string.Equals(column.MatrixColumnChoices[index], selectedValue, StringComparison.Ordinal))
+            {
+                return ToRankJson(index + 1);
+            }
+        }
+
+        return null;
     }
 
     private static JsonElement? TryGetPlainMatrixRowValue(
-        JsonElement submission,
+        JsonElement context,
         string matrixName,
         string rowValue)
     {
-        if (submission.TryGetPropertyValue(matrixName) is not JsonElement matrixAnswer)
+        if (context.TryGetPropertyValue(matrixName) is not JsonElement matrixAnswer)
         {
             return null;
         }
@@ -185,27 +312,58 @@ internal static class FlattenedSubmissionFlattener
             return null;
         }
 
-        if (submission.TryGetPropertyValue(column.SourceQuestion) is not JsonElement matrixAnswer)
+        if (!TryResolveMatrixContext(submission, column, out var matrixContext))
+        {
+            return null;
+        }
+
+        if (matrixContext.TryGetPropertyValue(column.SourceQuestion) is not JsonElement matrixAnswer)
         {
             return null;
         }
 
         if (column.MatrixRowValue is not null)
         {
-            if (matrixAnswer.TryGetPropertyValue(column.MatrixRowValue) is not JsonElement rowAnswer)
-            {
-                return null;
-            }
-
-            return rowAnswer.TryGetPropertyValue(column.MatrixColumnValue);
+            return TryGetStaticMatrixCellValue(matrixAnswer, column);
         }
 
-        if (column.PanelIndex is null)
+        return TryGetDynamicMatrixCellValue(matrixAnswer, column);
+    }
+
+    private static bool TryResolveMatrixContext(
+        JsonElement submission,
+        FormSchemaColumn column,
+        out JsonElement matrixContext)
+    {
+        if (column.LoopPath is null)
+        {
+            matrixContext = submission;
+            return true;
+        }
+
+        if (TryResolveLoopContext(submission, column.LoopPath) is not JsonElement loopContext)
+        {
+            matrixContext = default;
+            return false;
+        }
+
+        matrixContext = loopContext;
+        return true;
+    }
+
+    private static JsonElement? TryGetStaticMatrixCellValue(JsonElement matrixAnswer, FormSchemaColumn column)
+    {
+        if (matrixAnswer.TryGetPropertyValue(column.MatrixRowValue!) is not JsonElement rowAnswer)
         {
             return null;
         }
 
-        if (matrixAnswer.ValueKind != JsonValueKind.Array)
+        return rowAnswer.TryGetPropertyValue(column.MatrixColumnValue!);
+    }
+
+    private static JsonElement? TryGetDynamicMatrixCellValue(JsonElement matrixAnswer, FormSchemaColumn column)
+    {
+        if (column.PanelIndex is null || matrixAnswer.ValueKind != JsonValueKind.Array)
         {
             return null;
         }
@@ -220,7 +378,7 @@ internal static class FlattenedSubmissionFlattener
                     return null;
                 }
 
-                return row.TryGetPropertyValue(column.MatrixColumnValue);
+                return row.TryGetPropertyValue(column.MatrixColumnValue!);
             }
 
             index++;
@@ -304,44 +462,65 @@ internal static class FlattenedSubmissionFlattener
         return null;
     }
 
-    private static JsonElement? TryGetNestedLoopValue(JsonElement submission, FormSchemaColumn column)
+    private static JsonElement? TryGetLoopContextValue(JsonElement submission, FormSchemaColumn column)
     {
         if (column.LoopPath is null || column.LoopPath.Count == 0 || column.SourceQuestion is null)
         {
             return null;
         }
 
-        var current = submission;
-
-        foreach (var segment in column.LoopPath)
+        if (TryResolveLoopContext(submission, column.LoopPath) is not JsonElement loopContext)
         {
-            if (current.TryGetPropertyValue(segment.PanelValueName) is not JsonElement panelArray ||
-                panelArray.ValueKind != JsonValueKind.Array)
-            {
-                return null;
-            }
-
-            JsonElement? matchedItem = null;
-            foreach (var item in panelArray.EnumerateArray())
-            {
-                if (string.Equals(
-                        item.TryGetPropertyValue(segment.PropertyName)?.GetScalarStringValue(),
-                        segment.ChoiceValue,
-                        StringComparison.Ordinal))
-                {
-                    matchedItem = item;
-                    break;
-                }
-            }
-
-            if (matchedItem is null)
-            {
-                return null;
-            }
-
-            current = matchedItem.Value;
+            return null;
         }
 
-        return current.TryGetPropertyValue(column.SourceQuestion);
+        return loopContext.TryGetPropertyValue(column.SourceQuestion);
+    }
+
+    private static JsonElement? TryResolveLoopContext(
+        JsonElement submission,
+        IReadOnlyList<LoopSegment> loopPath)
+    {
+        var current = submission;
+
+        foreach (var segment in loopPath)
+        {
+            if (!TryFindLoopPanelItem(current, segment, out var matchedItem))
+            {
+                return null;
+            }
+
+            current = matchedItem;
+        }
+
+        return current;
+    }
+
+    private static bool TryFindLoopPanelItem(
+        JsonElement current,
+        LoopSegment segment,
+        out JsonElement matchedItem)
+    {
+        matchedItem = default;
+
+        if (current.TryGetPropertyValue(segment.PanelValueName) is not JsonElement panelArray ||
+            panelArray.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var item in panelArray.EnumerateArray())
+        {
+            if (string.Equals(
+                    item.TryGetPropertyValue(segment.PropertyName)?.GetScalarStringValue(),
+                    segment.ChoiceValue,
+                    StringComparison.Ordinal))
+            {
+                matchedItem = item;
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -438,7 +438,7 @@
               "inputType": "number"
             }
           ],
-          "rowCount": 1
+          "rowCount": 2
         },
         {
           "type": "signaturepad",

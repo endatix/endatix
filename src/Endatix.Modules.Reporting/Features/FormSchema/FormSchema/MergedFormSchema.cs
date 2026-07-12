@@ -72,6 +72,7 @@ internal sealed class MergedFormSchema
             panelIndex = column.PanelIndex,
             matrixRowValue = column.MatrixRowValue,
             matrixColumnValue = column.MatrixColumnValue,
+            matrixColumnChoices = column.MatrixColumnChoices,
             loopPath = column.LoopPath?.Select(segment => new
             {
                 panelValueName = segment.PanelValueName,
@@ -122,6 +123,22 @@ internal sealed class MergedFormSchema
         var panelIndex = item.GetNullableInt32Property(FormSchemaPropertyNames.PanelIndex);
         var matrixRowValue = item.GetStringProperty(FormSchemaPropertyNames.MatrixRowValue);
         var matrixColumnValue = item.GetStringProperty(FormSchemaPropertyNames.MatrixColumnValue);
+        IReadOnlyList<string>? matrixColumnChoices = null;
+        if (item.TryGetNullableArrayProperty(FormSchemaPropertyNames.MatrixColumnChoices, out var matrixColumnChoicesProp) &&
+            matrixColumnChoicesProp is not null)
+        {
+            List<string> choices = [];
+            foreach (var choice in matrixColumnChoicesProp.Value.EnumerateArray())
+            {
+                var value = choice.GetScalarStringValue();
+                if (value is not null)
+                {
+                    choices.Add(value);
+                }
+            }
+
+            matrixColumnChoices = choices;
+        }
 
         if (!TryParseLoopPath(item, out var loopPath))
         {
@@ -139,7 +156,8 @@ internal sealed class MergedFormSchema
             panelName,
             panelIndex,
             matrixRowValue,
-            matrixColumnValue);
+            matrixColumnValue,
+            matrixColumnChoices);
 
         return true;
     }

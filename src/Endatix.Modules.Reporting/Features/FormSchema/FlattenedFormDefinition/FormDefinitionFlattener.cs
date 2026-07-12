@@ -32,6 +32,11 @@ internal static class FormDefinitionFlattener
         IReadOnlyList<JsonElement> ChoicesPath,
         JsonElement[] TemplateElements);
 
+    private sealed record LoopSourceLeafPath(
+        IReadOnlyList<string> LoopPath,
+        IReadOnlyList<IReadOnlyList<string>> DriverChoicesByLevel,
+        JsonElement[] TemplateElements);
+
     public static IReadOnlyList<FormSchemaColumn> Flatten(
         JsonElement definition,
         SchemaCompilationLimits? limits = null)
@@ -55,6 +60,7 @@ internal static class FormDefinitionFlattener
         HashSet<string> seenKeys = new(StringComparer.Ordinal);
 
         EmitRootElementColumns(rootElements, drivingCheckboxNames, columns, seenKeys, effectiveLimits);
+        AddLoopSourceColumns(allElements, columns, seenKeys, effectiveLimits);
         AddNestedLoopColumns(panelPaths, drivingCheckboxNames, columns, seenKeys, effectiveLimits);
         AddCalculatedValueColumns(definition, columns, seenKeys, effectiveLimits);
 
@@ -464,7 +470,11 @@ internal static class FormDefinitionFlattener
                     EmitFileColumn(collected, columns, seenKeys, limits);
                     break;
                 case SurveyJsFlattening.PanelDynamic:
-                    EmitStandalonePanelDynamicColumns(collected, drivingCheckboxNames, columns, seenKeys, limits);
+                    if (!HasLoopSource(collected.Element))
+                    {
+                        EmitStandalonePanelDynamicColumns(collected, drivingCheckboxNames, columns, seenKeys, limits);
+                    }
+
                     break;
                 case SurveyJsFlattening.Simple:
                     EmitSimpleColumn(collected, drivingCheckboxNames, columns, seenKeys, limits);
@@ -644,6 +654,7 @@ internal static class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         var name = collected.Name!;
+        IReadOnlyList<string> columnChoices = CollectMatrixColumnChoices(collected.Element);
 
         var rowCount = 0;
         foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateMatrixRows(collected.Element))
@@ -662,10 +673,22 @@ internal static class FormDefinitionFlattener
                 key,
                 FormSchemaColumnKind.MatrixRow,
                 $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
-                "string",
+                "number",
                 SourceQuestion: name,
-                MatrixRowValue: value));
+                MatrixRowValue: value,
+                MatrixColumnChoices: columnChoices));
         }
+    }
+
+    private static IReadOnlyList<string> CollectMatrixColumnChoices(JsonElement matrixElement)
+    {
+        List<string> columnChoices = [];
+        foreach ((var value, _, _) in SurveyJsChoiceHelper.EnumerateMatrixColumns(matrixElement))
+        {
+            columnChoices.Add(value);
+        }
+
+        return columnChoices;
     }
 
     private static void EmitMatrixDropdownColumns(
@@ -836,6 +859,11 @@ internal static class FormDefinitionFlattener
         HashSet<string> seenKeys,
         SchemaCompilationLimits limits)
     {
+        if (HasLoopSource(collected.Element))
+        {
+            return;
+        }
+
         var name = collected.Name!;
 
         var valueName = collected.Element.GetSurveyJsValueName();
@@ -891,6 +919,502 @@ internal static class FormDefinitionFlattener
         }
 
         return Math.Min(configuredCount, limits.MaxPanelCount);
+    }
+
+    private static bool HasLoopSource(JsonElement element) =>
+        element.TryGetLoopSource(out var loopSource) && loopSource.GetArrayLength() > 0;
+
+    private static void AddLoopSourceColumns(
+        IReadOnlyList<CollectedElement> allElements,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        Dictionary<string, CollectedElement> elementsByName = new(StringComparer.Ordinal);
+        foreach (var collected in allElements)
+        {
+            if (!string.IsNullOrWhiteSpace(collected.Name))
+            {
+                elementsByName.TryAdd(collected.Name, collected);
+            }
+        }
+
+        Dictionary<string, CollectedElement> loopPanelsByName = new(StringComparer.Ordinal);
+        foreach (var collected in allElements)
+        {
+            if (!SurveyJsElementType.PanelDynamic.Matches(collected.Type) ||
+                !HasLoopSource(collected.Element) ||
+                string.IsNullOrWhiteSpace(collected.Name))
+            {
+                continue;
+            }
+
+            loopPanelsByName.TryAdd(collected.Name, collected);
+        }
+
+        if (loopPanelsByName.Count == 0)
+        {
+            return;
+        }
+
+        HashSet<string> childLoopPanels = new(StringComparer.Ordinal);
+        foreach (var panel in loopPanelsByName.Values)
+        {
+            if (!panel.Element.TryGetTemplateElements(out var templateElements))
+            {
+                continue;
+            }
+
+            foreach (var template in templateElements.EnumerateArray())
+            {
+                var templateName = template.GetSurveyJsName();
+                if (templateName is not null && loopPanelsByName.ContainsKey(templateName))
+                {
+                    childLoopPanels.Add(templateName);
+                }
+            }
+        }
+
+        List<LoopSourceLeafPath> leafPaths = [];
+        foreach (var panel in loopPanelsByName.Values)
+        {
+            if (childLoopPanels.Contains(panel.Name!))
+            {
+                continue;
+            }
+
+            BuildLoopSourceLeafPaths(
+                panel,
+                loopPath: [],
+                driverChoicesByLevel: [],
+                loopPanelsByName,
+                elementsByName,
+                leafPaths,
+                limits);
+        }
+
+        foreach (var leafPath in leafPaths)
+        {
+            foreach (var driverChoices in EnumerateLoopSourceDriverCombinations(leafPath.DriverChoicesByLevel, limits))
+            {
+                EmitLoopSourceColumnsForPath(leafPath, driverChoices, columns, seenKeys, limits);
+            }
+        }
+    }
+
+    private static void BuildLoopSourceLeafPaths(
+        CollectedElement panel,
+        IReadOnlyList<string> loopPath,
+        IReadOnlyList<IReadOnlyList<string>> driverChoicesByLevel,
+        IReadOnlyDictionary<string, CollectedElement> loopPanelsByName,
+        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        List<LoopSourceLeafPath> leafPaths,
+        SchemaCompilationLimits limits)
+    {
+        var panelName = panel.Name!;
+        List<string> nextLoopPath = [.. loopPath, panelName];
+        List<IReadOnlyList<string>> nextDriverChoicesByLevel =
+            [.. driverChoicesByLevel, CollectLoopSourceDriverChoices(panel.Element, elementsByName, limits)];
+
+        if (!panel.Element.TryGetTemplateElements(out var templateElements))
+        {
+            return;
+        }
+
+        CollectedElement? childLoopPanel = null;
+        foreach (var template in templateElements.EnumerateArray())
+        {
+            var templateName = template.GetSurveyJsName();
+            if (templateName is not null &&
+                loopPanelsByName.TryGetValue(templateName, out var childPanel))
+            {
+                childLoopPanel = childPanel;
+                break;
+            }
+        }
+
+        if (childLoopPanel is not null)
+        {
+            BuildLoopSourceLeafPaths(
+                childLoopPanel,
+                nextLoopPath,
+                nextDriverChoicesByLevel,
+                loopPanelsByName,
+                elementsByName,
+                leafPaths,
+                limits);
+            return;
+        }
+
+        JsonElement[] templateArray = templateElements.EnumerateArray()
+            .Where(template =>
+                !SurveyJsElementType.IsNonData(template.GetSurveyJsType()) &&
+                !SurveyJsElementType.PanelDynamic.Matches(template.GetSurveyJsType()))
+            .ToArray();
+
+        leafPaths.Add(new LoopSourceLeafPath(nextLoopPath, nextDriverChoicesByLevel, templateArray));
+    }
+
+    private static IReadOnlyList<string> CollectLoopSourceDriverChoices(
+        JsonElement panelElement,
+        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        SchemaCompilationLimits limits)
+    {
+        if (!panelElement.TryGetLoopSource(out var loopSource))
+        {
+            return [];
+        }
+
+        HashSet<string> seenChoices = new(StringComparer.Ordinal);
+        List<string> driverChoices = [];
+
+        foreach (var sourceNameElement in loopSource.EnumerateArray())
+        {
+            if (sourceNameElement.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            var sourceName = sourceNameElement.GetString();
+            if (string.IsNullOrWhiteSpace(sourceName) ||
+                !elementsByName.TryGetValue(sourceName, out var sourceElement))
+            {
+                continue;
+            }
+
+            var choiceCount = 0;
+            foreach (var choiceValue in SurveyJsChoiceHelper.EnumerateLoopSourceDriverChoices(sourceElement.Element))
+            {
+                if (++choiceCount > limits.MaxChoicesPerQuestion)
+                {
+                    ThrowLimitExceeded(
+                        SchemaCompilationLimitKind.MaxChoicesPerQuestion,
+                        limits.MaxChoicesPerQuestion,
+                        actual: choiceCount,
+                        context: sourceName);
+                }
+
+                if (seenChoices.Add(choiceValue))
+                {
+                    driverChoices.Add(choiceValue);
+                }
+            }
+        }
+
+        return driverChoices;
+    }
+
+    private static IEnumerable<string[]> EnumerateLoopSourceDriverCombinations(
+        IReadOnlyList<IReadOnlyList<string>> driverChoicesByLevel,
+        SchemaCompilationLimits limits)
+    {
+        if (driverChoicesByLevel.Count == 0)
+        {
+            yield break;
+        }
+
+        List<IReadOnlyList<string>> levels = [.. driverChoicesByLevel];
+        List<int> levelSizes = levels.Select(level => level.Count).ToList();
+
+        var combinationCount = ChoiceCartesianProduct.EstimateCombinationCount(levelSizes);
+        if (combinationCount == 0)
+        {
+            yield break;
+        }
+
+        if (combinationCount > limits.MaxLoopCombinations)
+        {
+            ThrowLimitExceeded(
+                SchemaCompilationLimitKind.MaxLoopCombinations,
+                limits.MaxLoopCombinations,
+                actual: combinationCount > int.MaxValue ? int.MaxValue : (int)combinationCount);
+        }
+
+        foreach (var combination in ChoiceCartesianProduct.Enumerate(levels))
+        {
+            yield return combination;
+        }
+    }
+
+    private static void EmitLoopSourceColumnsForPath(
+        LoopSourceLeafPath leafPath,
+        IReadOnlyList<string> driverChoices,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        if (leafPath.LoopPath.Count == 0 || driverChoices.Count != leafPath.LoopPath.Count)
+        {
+            return;
+        }
+
+        var keyPanelName = leafPath.LoopPath[^1];
+        List<LoopSegment> loopSegments = new(leafPath.LoopPath.Count);
+        for (var i = 0; i < leafPath.LoopPath.Count; i++)
+        {
+            loopSegments.Add(new LoopSegment(
+                leafPath.LoopPath[i],
+                SurveyJsPropertyNames.ItemValue,
+                driverChoices[i]));
+        }
+
+        foreach (var template in leafPath.TemplateElements)
+        {
+            EmitLoopSourceTemplateColumns(
+                keyPanelName,
+                driverChoices,
+                loopSegments,
+                template,
+                columns,
+                seenKeys,
+                limits);
+        }
+    }
+
+    private static void EmitLoopSourceTemplateColumns(
+        string keyPanelName,
+        IReadOnlyList<string> driverChoices,
+        IReadOnlyList<LoopSegment> loopPath,
+        JsonElement template,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        var childName = template.GetSurveyJsName();
+        var childType = template.GetSurveyJsType();
+
+        if (string.IsNullOrWhiteSpace(childName) ||
+            SurveyJsElementType.IsNonData(childType) ||
+            SurveyJsElementType.PanelDynamic.Matches(childType))
+        {
+            return;
+        }
+
+        List<string> keyPrefix = [keyPanelName, .. driverChoices];
+        var flattening = SurveyJsElementType.ResolveFlattening(childType, template);
+
+        switch (flattening)
+        {
+            case SurveyJsFlattening.ChoiceIndicators:
+                EmitLoopSourceChoiceIndicatorColumns(
+                    template,
+                    childName,
+                    childType,
+                    keyPrefix,
+                    loopPath,
+                    columns,
+                    seenKeys,
+                    limits);
+                break;
+            case SurveyJsFlattening.Simple:
+                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                    ExportPathBuilder.Join([.. keyPrefix, childName]),
+                    FormSchemaColumnKind.LoopSource,
+                    template.GetSurveyJsTitle(childName),
+                    MapDataType(template, childType),
+                    SourceQuestion: childName,
+                    LoopPath: loopPath));
+                break;
+            case SurveyJsFlattening.Ranking:
+                EmitLoopSourceRankingColumns(template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
+                break;
+            case SurveyJsFlattening.Matrix:
+                EmitLoopSourceMatrixColumns(template, childName, childType, keyPrefix, loopPath, columns, seenKeys, limits);
+                break;
+            case SurveyJsFlattening.MultipleText:
+                EmitLoopSourceMultipleTextColumns(template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
+                break;
+            case SurveyJsFlattening.File:
+                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                    ExportPathBuilder.Join([.. keyPrefix, childName]),
+                    FormSchemaColumnKind.LoopSource,
+                    template.GetSurveyJsTitle(childName),
+                    "file",
+                    SourceQuestion: childName,
+                    LoopPath: loopPath));
+                break;
+        }
+    }
+
+    private static void EmitLoopSourceChoiceIndicatorColumns(
+        JsonElement template,
+        string childName,
+        string? childType,
+        IReadOnlyList<string> keyPrefix,
+        IReadOnlyList<LoopSegment> loopPath,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        if (SurveyJsElementType.Boolean.Matches(childType))
+        {
+            var title = template.GetSurveyJsTitle(childName);
+            var trueLabel = template.GetStringProperty(SurveyJsPropertyNames.LabelTrue) ?? "Yes";
+            var falseLabel = template.GetStringProperty(SurveyJsPropertyNames.LabelFalse) ?? "No";
+
+            AddLoopSourceChoiceIndicatorColumn(
+                template, childName, "true", trueLabel, keyPrefix, loopPath, columns, seenKeys, limits);
+            AddLoopSourceChoiceIndicatorColumn(
+                template, childName, "false", falseLabel, keyPrefix, loopPath, columns, seenKeys, limits);
+            return;
+        }
+
+        var choiceCount = 0;
+        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(template))
+        {
+            if (++choiceCount > limits.MaxChoicesPerQuestion)
+            {
+                ThrowLimitExceeded(
+                    SchemaCompilationLimitKind.MaxChoicesPerQuestion,
+                    limits.MaxChoicesPerQuestion,
+                    actual: choiceCount,
+                    context: childName);
+            }
+
+            AddLoopSourceChoiceIndicatorColumn(
+                template, childName, value, text, keyPrefix, loopPath, columns, seenKeys, limits);
+        }
+
+        if (template.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        {
+            AddLoopSourceChoiceIndicatorColumn(
+                template,
+                childName,
+                "other",
+                template.GetSurveyJsTitle(childName) + " — Other",
+                keyPrefix,
+                loopPath,
+                columns,
+                seenKeys,
+                limits);
+            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                ExportPathBuilder.Join([.. keyPrefix, childName, "other_text"]),
+                FormSchemaColumnKind.CheckboxOtherText,
+                $"{template.GetSurveyJsTitle(childName)} — Other text",
+                "string",
+                SourceQuestion: childName,
+                LoopPath: loopPath));
+        }
+    }
+
+    private static void AddLoopSourceChoiceIndicatorColumn(
+        JsonElement template,
+        string childName,
+        string choiceValue,
+        string choiceLabel,
+        IReadOnlyList<string> keyPrefix,
+        IReadOnlyList<LoopSegment> loopPath,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            ExportPathBuilder.Join([.. keyPrefix, childName, choiceValue]),
+            FormSchemaColumnKind.ChoiceIndicator,
+            $"{template.GetSurveyJsTitle(childName)} — {choiceLabel}",
+            "number",
+            SourceQuestion: childName,
+            ChoiceValue: choiceValue,
+            LoopPath: loopPath));
+    }
+
+    private static void EmitLoopSourceRankingColumns(
+        JsonElement template,
+        string childName,
+        IReadOnlyList<string> keyPrefix,
+        IReadOnlyList<LoopSegment> loopPath,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        var choiceCount = 0;
+        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(template))
+        {
+            if (++choiceCount > limits.MaxChoicesPerQuestion)
+            {
+                ThrowLimitExceeded(
+                    SchemaCompilationLimitKind.MaxChoicesPerQuestion,
+                    limits.MaxChoicesPerQuestion,
+                    actual: choiceCount,
+                    context: childName);
+            }
+
+            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                ExportPathBuilder.Join([.. keyPrefix, childName, value]),
+                FormSchemaColumnKind.RankingChoice,
+                $"{template.GetSurveyJsTitle(childName)} — {text}",
+                "number",
+                SourceQuestion: childName,
+                ChoiceValue: value,
+                LoopPath: loopPath));
+        }
+    }
+
+    private static void EmitLoopSourceMatrixColumns(
+        JsonElement template,
+        string childName,
+        string? childType,
+        IReadOnlyList<string> keyPrefix,
+        IReadOnlyList<LoopSegment> loopPath,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        if (SurveyJsElementType.MatrixDropdown.Matches(childType))
+        {
+            foreach ((var rowValue, var rowText) in SurveyJsChoiceHelper.EnumerateMatrixRows(template))
+            {
+                foreach ((var columnValue, var columnText, var columnElement) in SurveyJsChoiceHelper.EnumerateMatrixColumns(template))
+                {
+                    AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                        ExportPathBuilder.Join([.. keyPrefix, childName, rowValue, columnValue]),
+                        FormSchemaColumnKind.MatrixCell,
+                        $"{template.GetSurveyJsTitle(childName)} — {rowText} — {columnText}",
+                        MapMatrixCellDataType(columnElement),
+                        SourceQuestion: childName,
+                        MatrixRowValue: rowValue,
+                        MatrixColumnValue: columnValue,
+                        LoopPath: loopPath));
+                }
+            }
+
+            return;
+        }
+
+        foreach ((var rowValue, var rowText) in SurveyJsChoiceHelper.EnumerateMatrixRows(template))
+        {
+            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                ExportPathBuilder.Join([.. keyPrefix, childName, rowValue]),
+                FormSchemaColumnKind.MatrixRow,
+                $"{template.GetSurveyJsTitle(childName)} — {rowText}",
+                "number",
+                SourceQuestion: childName,
+                MatrixRowValue: rowValue,
+                MatrixColumnChoices: CollectMatrixColumnChoices(template),
+                LoopPath: loopPath));
+        }
+    }
+
+    private static void EmitLoopSourceMultipleTextColumns(
+        JsonElement template,
+        string childName,
+        IReadOnlyList<string> keyPrefix,
+        IReadOnlyList<LoopSegment> loopPath,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateMultipleTextItems(template))
+        {
+            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                ExportPathBuilder.Join([.. keyPrefix, childName, value]),
+                FormSchemaColumnKind.MultipleTextItem,
+                $"{template.GetSurveyJsTitle(childName)} — {text}",
+                "string",
+                SourceQuestion: childName,
+                MatrixRowValue: value,
+                LoopPath: loopPath));
+        }
     }
 
     private static void AddNestedLoopColumns(
