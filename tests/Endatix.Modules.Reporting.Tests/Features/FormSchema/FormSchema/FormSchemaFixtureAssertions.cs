@@ -24,5 +24,9 @@ internal static class FormSchemaFixtureAssertions
             actualValue.Should().NotBeNull(because);
             actualValue!.Value.GetRawText().Should().Be(property.Value.GetRawText(), because);
         }
+
+        actual.Keys.Should().BeEquivalentTo(
+            expected.EnumerateObject().Select(property => property.Name),
+            because: because);
     }
 }
