@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Data;
@@ -84,14 +85,57 @@ public class FormSchemaProcessorTests
     [Fact]
     public async Task FormSchemaProcessor_ProcessAsync_WithHistoricalDefinition_MergesIntoExistingSchemaWithoutRollingBackRevision()
     {
+        // Arrange
         IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
         IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
         FormDefinition historicalDefinition = CreateFormDefinition(
             HistoricalFormDefinitionId,
-            """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1"}]}]}""");
+            """
+            {
+              "pages": [
+                {
+                  "name": "p1",
+                  "elements": [
+                    { "type": "text", "name": "q1", "title": "Question 1" }
+                  ]
+                }
+              ]
+            }
+            """);
         FormSchemaCompiler compiler = new();
         FormSchemaCompileResult existingCompiled = compiler.CompilePersisted(
-            """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q2","title":"Question 2"}]}]}""");
+            """
+            {
+              "pages": [
+                {
+                  "name": "p1",
+                  "elements": [
+                    {
+                      "type": "checkbox",
+                      "name": "q2",
+                      "title": "Favorite colors",
+                      "choices": [
+                        { "value": "red", "text": "Red" },
+                        { "value": "blue", "text": "Blue" }
+                      ]
+                    },
+                    {
+                      "type": "matrixdropdown",
+                      "name": "q3",
+                      "title": "Team ratings",
+                      "columns": [
+                        { "name": "score", "title": "Score" }
+                      ],
+                      "choices": [1, 2, 3],
+                      "rows": [
+                        { "value": "alice", "text": "Alice" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
         FormSchemaEntity existing = new(
             TenantId,
             FormId,
@@ -109,12 +153,34 @@ public class FormSchemaProcessorTests
             compiler,
             NullLogger<FormSchemaProcessor>.Instance);
 
+        // Act
         await processor.ProcessAsync(TenantId, FormId, HistoricalFormDefinitionId, TestContext.Current.CancellationToken);
 
+        // Assert
         existing.FormDefinitionRevision.Should().Be(FormDefinitionId);
         existing.FlatteningMap.Should().Contain("q1");
-        existing.FlatteningMap.Should().Contain("q2");
+        existing.FlatteningMap.Should().Contain("q2__red");
+        existing.FlatteningMap.Should().Contain("q3__alice__score");
         await schemaRepository.Received(1).SaveAsync(existing, Arg.Any<CancellationToken>());
+
+        using JsonDocument codebook = JsonDocument.Parse(existing.Codebook);
+        JsonElement columns = codebook.RootElement.GetProperty("columns");
+
+        JsonElement redColumn = columns.GetProperty("q2__red");
+        redColumn.GetProperty("surveyJsType").GetString().Should().Be("checkbox");
+        redColumn.GetProperty("exportShape").GetString().Should().Be("multiple_response");
+        redColumn.GetProperty("choiceValue").GetString().Should().Be("red");
+        redColumn.GetProperty("choiceLabel").GetProperty("default").GetString().Should().Be("Red");
+        redColumn.GetProperty("title").GetProperty("default").GetString().Should().Be("Favorite colors");
+
+        JsonElement matrixCellColumn = columns.GetProperty("q3__alice__score");
+        matrixCellColumn.GetProperty("surveyJsType").GetString().Should().Be("matrixdropdown");
+        matrixCellColumn.GetProperty("exportShape").GetString().Should().Be("matrix_cell");
+        matrixCellColumn.GetProperty("matrixRowValue").GetString().Should().Be("alice");
+        matrixCellColumn.GetProperty("matrixColumnValue").GetString().Should().Be("score");
+        matrixCellColumn.GetProperty("rowLabel").GetProperty("default").GetString().Should().Be("Alice");
+        matrixCellColumn.GetProperty("columnLabel").GetProperty("default").GetString().Should().Be("Score");
+        matrixCellColumn.GetProperty("title").GetProperty("default").GetString().Should().Be("Team ratings");
     }
 
     [Fact]

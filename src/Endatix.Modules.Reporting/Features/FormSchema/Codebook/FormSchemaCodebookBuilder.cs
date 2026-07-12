@@ -21,12 +21,13 @@ internal static class FormSchemaCodebookBuilder
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition);
         var questionElements = CollectQuestionElements(definition);
         var questions = BuildQuestions(questionElements, locales);
-        var columns = BuildColumns(merged, questionElements, locales);
+        var existingColumns = TryParseExistingColumns(existingCodebookJson);
+        var columns = BuildColumns(merged, questionElements, locales, existingColumns);
         var choiceCatalogs = BuildChoiceCatalogs(questionElements, locales);
 
         if (!string.IsNullOrWhiteSpace(existingCodebookJson))
         {
-            MergeExisting(existingCodebookJson, questions, choiceCatalogs);
+            MergeExisting(existingCodebookJson, questions, columns, choiceCatalogs);
         }
 
         return Serialize(locales, questions, columns, choiceCatalogs);
@@ -117,7 +118,8 @@ internal static class FormSchemaCodebookBuilder
     private static Dictionary<string, JsonElement> BuildColumns(
         MergedFormSchema merged,
         IReadOnlyDictionary<string, JsonElement> questionElements,
-        IReadOnlyList<string> locales)
+        IReadOnlyList<string> locales,
+        IReadOnlyDictionary<string, JsonElement>? existingColumns = null)
     {
         Dictionary<string, JsonElement> columns = new(StringComparer.Ordinal);
 
@@ -126,6 +128,14 @@ internal static class FormSchemaCodebookBuilder
             var parentKey = column.SourceQuestion ?? column.Key;
             var hasQuestion = questionElements.TryGetValue(parentKey, out var questionElement) &&
                                questionElement.ValueKind == JsonValueKind.Object;
+
+            if (!hasQuestion &&
+                existingColumns is not null &&
+                existingColumns.TryGetValue(column.Key, out var existingColumn))
+            {
+                columns[column.Key] = existingColumn.Clone();
+                continue;
+            }
 
             columns[column.Key] = WriteColumnEntry(writer =>
             {
@@ -333,7 +343,7 @@ internal static class FormSchemaCodebookBuilder
                 WriteTitle(writer, element, locales);
                 WriteDescription(writer, element, locales);
 
-                if (element.TryGetLoopSource(out _))
+                if (element.TryGetLoopSource(out var _))
                 {
                     WriteLoopSource(writer, element);
                     writer.WriteString(
@@ -453,9 +463,34 @@ internal static class FormSchemaCodebookBuilder
         });
     }
 
+    private static Dictionary<string, JsonElement>? TryParseExistingColumns(string? existingCodebookJson)
+    {
+        if (string.IsNullOrWhiteSpace(existingCodebookJson))
+        {
+            return null;
+        }
+
+        using JsonDocument document = JsonDocument.Parse(existingCodebookJson);
+        JsonElement root = document.RootElement;
+        if (!root.TryGetProperty(FormSchemaCodebookPropertyNames.Columns, out JsonElement existingColumns) ||
+            existingColumns.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        Dictionary<string, JsonElement> columns = new(StringComparer.Ordinal);
+        foreach (JsonProperty property in existingColumns.EnumerateObject())
+        {
+            columns[property.Name] = property.Value.Clone();
+        }
+
+        return columns;
+    }
+
     private static void MergeExisting(
         string existingCodebookJson,
         Dictionary<string, JsonElement> questions,
+        Dictionary<string, JsonElement> columns,
         Dictionary<string, JsonElement> choiceCatalogs)
     {
         using var document = JsonDocument.Parse(existingCodebookJson);
@@ -467,6 +502,15 @@ internal static class FormSchemaCodebookBuilder
             foreach (var property in existingQuestions.EnumerateObject())
             {
                 questions.TryAdd(property.Name, property.Value.Clone());
+            }
+        }
+
+        if (root.TryGetProperty(FormSchemaCodebookPropertyNames.Columns, out var existingColumns) &&
+            existingColumns.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in existingColumns.EnumerateObject())
+            {
+                columns.TryAdd(property.Name, property.Value.Clone());
             }
         }
 

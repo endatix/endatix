@@ -46,7 +46,7 @@ internal sealed record FormSchemaCodebookExportShape
     {
         var type = questionElement.GetSurveyJsType();
 
-        if (SurveyJsElementType.PanelDynamic.Matches(type) && questionElement.TryGetLoopSource(out _))
+        if (SurveyJsElementType.PanelDynamic.Matches(type) && questionElement.TryGetLoopSource(out var _))
         {
             return LoopPanel;
         }
