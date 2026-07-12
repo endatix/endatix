@@ -26,8 +26,8 @@ public class SubmissionFlatteningProcessorTests
     [Fact]
     public async Task SubmissionFlatteningProcessor_ProcessAsync_WithCompletedSubmission_FlattensIntoTrackingRow()
     {
-        string definitionJson = File.ReadAllText(GetFixturePath("simple-definition.json"));
-        string submissionJson = File.ReadAllText(GetFixturePath("simple-submission.json"));
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        string submissionJson = FormSchemaFixtureLoader.LoadText("simple-submission.json");
         FormSchemaCompiler compiler = new();
         MergedFormSchema mergedSchema = compiler.CompileFromPersistedSchema(definitionJson, existingSchemaJson: null);
         FormSchemaEntity schema = new(TenantId, FormId, FormDefinitionId, mergedSchema.ToJson());
@@ -189,12 +189,4 @@ public class SubmissionFlatteningProcessorTests
             Arg.Any<CancellationToken>());
     }
 
-    private static string GetFixturePath(string fixtureName) =>
-        Path.Combine(
-            AppContext.BaseDirectory,
-            "Features",
-            "FormSchema",
-            "FlattenedFormDefinition",
-            "Fixtures",
-            fixtureName);
 }
