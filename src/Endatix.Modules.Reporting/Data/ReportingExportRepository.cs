@@ -33,22 +33,41 @@ internal sealed class ReportingExportRepository(
             return await flattenedRows.AnyAsync(cancellationToken);
         }
 
-        var flattenedIds = await flattenedRows
-            .Select(row => row.SubmissionId)
-            .ToListAsync(cancellationToken);
-        if (flattenedIds.Count == 0)
+        long? afterSubmissionId = null;
+        while (true)
         {
-            return false;
-        }
+            var batchIds = await flattenedRows
+                .Where(row => afterSubmissionId == null || row.SubmissionId > afterSubmissionId)
+                .OrderBy(row => row.SubmissionId)
+                .Take(DEFAULT_PAGE_SIZE)
+                .Select(row => row.SubmissionId)
+                .ToListAsync(cancellationToken);
 
-        return await appDbContext.Submissions
-            .AsNoTracking()
-            .AnyAsync(
-                submission => submission.TenantId == tenantId &&
-                              submission.FormId == formId &&
-                              !submission.IsTestSubmission &&
-                              flattenedIds.Contains(submission.Id),
-                cancellationToken);
+            if (batchIds.Count == 0)
+            {
+                return false;
+            }
+
+            var hasExportableRow = await appDbContext.Submissions
+                .AsNoTracking()
+                .AnyAsync(
+                    submission => submission.TenantId == tenantId &&
+                                  submission.FormId == formId &&
+                                  !submission.IsTestSubmission &&
+                                  batchIds.Contains(submission.Id),
+                    cancellationToken);
+            if (hasExportableRow)
+            {
+                return true;
+            }
+
+            if (batchIds.Count < DEFAULT_PAGE_SIZE)
+            {
+                return false;
+            }
+
+            afterSubmissionId = batchIds[^1];
+        }
     }
 
     public async IAsyncEnumerable<FlattenedExportRow> StreamFlattenedSubmissionsAsync(
