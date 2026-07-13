@@ -113,7 +113,9 @@ internal sealed class ReportingSubmissionExportProvider(
         new(plan.Columns.Select(column => new SubmissionExportColumnPlanEntry(
             column.CanonicalKey,
             column.ExportKey,
-            column.Source.ToString(),
+            column.Source == ExportColumnSource.System
+                ? SubmissionExportColumnSources.System
+                : SubmissionExportColumnSources.DataJson,
             column.HeaderLabel,
             column.DataType)).ToList());
 

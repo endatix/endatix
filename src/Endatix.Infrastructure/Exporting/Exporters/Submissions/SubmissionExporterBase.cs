@@ -135,7 +135,7 @@ public abstract class SubmissionExporterBase(
         List<ColumnDefinition<SubmissionExportRow>> columns = [];
         foreach (var entry in plan.Columns)
         {
-            var column = entry.Source == "System"
+            var column = entry.Source == SubmissionExportColumnSources.System
                 ? BuildStaticColumn(entry.ExportKey)
                 : BuildJsonColumn(entry.ExportKey, entry.CanonicalKey);
 
