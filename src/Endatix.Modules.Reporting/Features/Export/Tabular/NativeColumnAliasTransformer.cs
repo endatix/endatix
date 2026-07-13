@@ -15,14 +15,9 @@ internal sealed class NativeColumnAliasTransformer : IColumnAliasTransformer
 
     public ColumnAliasProfile Profile => ColumnAliasProfile.Native;
 
-    public IReadOnlyDictionary<string, string> BuildExportKeys(IReadOnlyList<ExportColumnAliasInput> columns)
-    {
-        Dictionary<string, string> exportKeys = new(StringComparer.Ordinal);
-        foreach (var column in columns)
-        {
-            exportKeys[column.CanonicalKey] = column.CanonicalKey;
-        }
-
-        return exportKeys;
-    }
+    public IReadOnlyDictionary<string, string> BuildExportKeys(IReadOnlyList<ExportColumnAliasInput> columns) =>
+        columns.ToDictionary(
+            column => column.CanonicalKey,
+            column => column.CanonicalKey,
+            StringComparer.Ordinal);
 }
