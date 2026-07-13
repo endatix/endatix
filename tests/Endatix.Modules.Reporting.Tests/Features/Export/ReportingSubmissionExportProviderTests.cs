@@ -196,7 +196,7 @@ public sealed class ShojiCodebookExportDataSourceTests
     private const long FormId = 100;
 
     [Fact]
-    public async Task StreamAsync_WithMissingSchema_ThrowsMissingSchemaMessage()
+    public async Task PrepareOptionsAsync_WithMissingSchema_ReturnsMissingSchemaMessage()
     {
         IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
         formSchemaRepository
@@ -205,19 +205,17 @@ public sealed class ShojiCodebookExportDataSourceTests
 
         ShojiCodebookExportDataSource dataSource = new(formSchemaRepository);
 
-        Func<Task> act = async () =>
-        {
-            await foreach (IExportItem _ in dataSource.StreamAsync(CreateContext(), TestContext.Current.CancellationToken))
-            {
-            }
-        };
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(
+            CreateContext(),
+            TestContext.Current.CancellationToken);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Save or publish the form definition*");
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().ContainSingle(error =>
+            error.Contains("Save or publish the form definition", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task StreamAsync_WithInvalidSchemaArtifacts_ThrowsInvalidArtifactsMessage()
+    public async Task PrepareOptionsAsync_WithInvalidSchemaArtifacts_ReturnsInvalidArtifactsMessage()
     {
         FormSchemaEntity schema = new(TenantId, FormId, 1, flatteningMap: " ", codebook: " ");
         IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
@@ -227,15 +225,37 @@ public sealed class ShojiCodebookExportDataSourceTests
 
         ShojiCodebookExportDataSource dataSource = new(formSchemaRepository);
 
-        Func<Task> act = async () =>
-        {
-            await foreach (IExportItem _ in dataSource.StreamAsync(CreateContext(), TestContext.Current.CancellationToken))
-            {
-            }
-        };
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(
+            CreateContext(),
+            TestContext.Current.CancellationToken);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*schema artifacts are incomplete or invalid*");
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().ContainSingle(error =>
+            error.Contains("schema artifacts are incomplete or invalid", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task PrepareOptionsAsync_WithValidSchema_ReturnsOptions()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        ShojiCodebookExportDataSource dataSource = new(formSchemaRepository);
+        ExportDataSourceContext context = CreateContext();
+
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(
+            context,
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeSameAs(context.Options);
     }
 
     [Fact]
@@ -253,9 +273,15 @@ public sealed class ShojiCodebookExportDataSourceTests
             .Returns(schema);
 
         ShojiCodebookExportDataSource dataSource = new(formSchemaRepository);
+        ExportDataSourceContext context = CreateContext();
+
+        Result<ExportOptions> prepareResult = await dataSource.PrepareOptionsAsync(
+            context,
+            TestContext.Current.CancellationToken);
+        prepareResult.IsSuccess.Should().BeTrue();
 
         List<IExportItem> items = [];
-        await foreach (IExportItem item in dataSource.StreamAsync(CreateContext(), TestContext.Current.CancellationToken))
+        await foreach (IExportItem item in dataSource.StreamAsync(context, TestContext.Current.CancellationToken))
         {
             items.Add(item);
         }

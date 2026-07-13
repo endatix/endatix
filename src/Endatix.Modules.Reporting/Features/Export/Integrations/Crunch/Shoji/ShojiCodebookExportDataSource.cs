@@ -17,14 +17,9 @@ internal sealed class ShojiCodebookExportDataSource(IFormSchemaRepository formSc
         request.ItemType == typeof(DynamicExportRow) &&
         request.Format.Equals("codebook", StringComparison.OrdinalIgnoreCase);
 
-    public Task<Result<ExportOptions>> PrepareOptionsAsync(
+    public async Task<Result<ExportOptions>> PrepareOptionsAsync(
         ExportDataSourceContext context,
-        CancellationToken cancellationToken) =>
-        Task.FromResult(Result.Success(context.Options));
-
-    public async IAsyncEnumerable<IExportItem> StreamAsync(
-        ExportDataSourceContext context,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         var schema = await formSchemaRepository.GetByFormIdAsync(
             context.TenantId,
@@ -32,13 +27,25 @@ internal sealed class ShojiCodebookExportDataSource(IFormSchemaRepository formSc
             cancellationToken);
         if (schema is null)
         {
-            throw new InvalidOperationException(ReportingExportSchemaHelper.MissingSchemaMessage);
+            return ReportingExportSchemaHelper.MissingSchemaResult<ExportOptions>();
         }
 
         if (!ReportingExportSchemaHelper.HasValidSchemaArtifacts(schema))
         {
-            throw new InvalidOperationException(ReportingExportSchemaHelper.InvalidSchemaArtifactsMessage);
+            return ReportingExportSchemaHelper.InvalidSchemaArtifactsResult<ExportOptions>();
         }
+
+        return Result.Success(context.Options);
+    }
+
+    public async IAsyncEnumerable<IExportItem> StreamAsync(
+        ExportDataSourceContext context,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var schema = (await formSchemaRepository.GetByFormIdAsync(
+            context.TenantId,
+            context.FormId,
+            cancellationToken))!;
 
         var codebookJson = ShojiCodebookGenerator.Generate(schema.FlatteningMap, schema.Codebook);
         yield return new DynamicExportRow { Data = codebookJson };
