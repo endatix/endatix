@@ -544,11 +544,12 @@ internal static class FormDefinitionFlattener
 
         if (collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
         {
+            var otherLabel = collected.Element.GetStringProperty(SurveyJsPropertyNames.OtherText) ?? "Other";
             AddChoiceIndicatorColumn(
                 collected,
                 name,
-                "other",
-                collected.Element.GetSurveyJsTitle(name) + " — Other",
+                SurveyJsPropertyNames.Other,
+                otherLabel,
                 columns,
                 seenKeys,
                 limits);
@@ -1277,11 +1278,12 @@ internal static class FormDefinitionFlattener
 
         if (template.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
         {
+            var otherLabel = template.GetStringProperty(SurveyJsPropertyNames.OtherText) ?? "Other";
             AddLoopSourceChoiceIndicatorColumn(
                 template,
                 childName,
-                "other",
-                template.GetSurveyJsTitle(childName) + " — Other",
+                SurveyJsPropertyNames.Other,
+                otherLabel,
                 keyPrefix,
                 loopPath,
                 columns,

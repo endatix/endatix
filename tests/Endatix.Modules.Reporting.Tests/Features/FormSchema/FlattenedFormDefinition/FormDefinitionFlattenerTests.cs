@@ -366,6 +366,16 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
+  public void Flatten_CheckboxOtherChoiceLabel_IncludesQuestionTitleOnce()
+  {
+    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("checkbox-definition.json");
+
+    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+
+    columns.Single(column => column.Key == "colors__other").Label.Should().Be("Favorite colors — Other");
+  }
+
+  [Fact]
   public void Flatten_MatrixDropdown_ColumnKindIsMatrixCell()
   {
     JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("matrixdropdown-definition.json");
