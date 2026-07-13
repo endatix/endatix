@@ -40,10 +40,16 @@ public sealed class ExportColumnPlanBuilderTests
             expectedKeys,
             options => options.WithStrictOrdering());
 
-        columns.Should().AllSatisfy(column =>
+        columns.Take(8).Should().AllSatisfy(column =>
         {
             column.ExportKey.Should().Be(column.CanonicalKey);
-            column.Source.Should().BeOneOf(ExportColumnSource.System, ExportColumnSource.DataJson);
+            column.Source.Should().Be(ExportColumnSource.System);
+        });
+
+        columns.Skip(8).Should().AllSatisfy(column =>
+        {
+            column.ExportKey.Should().Be(column.CanonicalKey);
+            column.Source.Should().Be(ExportColumnSource.DataJson);
         });
     }
 

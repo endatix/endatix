@@ -25,12 +25,13 @@ internal static class ShojiCodebookGenerator
 
         var locales = ReadLocales(codebook);
         var questions = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Questions);
+        var codebookColumns = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Columns);
         var groupedColumnKeys = BuildGroupedColumnKeys(flatteningMap);
 
         System.Buffers.ArrayBufferWriter<byte> buffer = new();
         using (Utf8JsonWriter writer = new(buffer))
         {
-            WriteShojiCodebook(writer, locales, flatteningMap, questions, groupedColumnKeys, codebook);
+            WriteShojiCodebook(writer, locales, flatteningMap, questions, groupedColumnKeys, codebookColumns);
         }
 
         return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
@@ -42,7 +43,7 @@ internal static class ShojiCodebookGenerator
         MergedFormSchema flatteningMap,
         IReadOnlyDictionary<string, JsonElement> questions,
         IReadOnlyDictionary<string, List<string>> groupedColumnKeys,
-        JsonElement codebook)
+        IReadOnlyDictionary<string, JsonElement> codebookColumns)
     {
         writer.WriteStartObject();
         writer.WriteNumber(FormSchemaCodebookPropertyNames.Version, ShojiCodebookPropertyNames.CurrentVersion);
@@ -51,7 +52,7 @@ internal static class ShojiCodebookGenerator
 
         writer.WritePropertyName(ShojiCodebookPropertyNames.Variables);
         writer.WriteStartObject();
-        WriteShojiVariables(writer, flatteningMap, questions, groupedColumnKeys, codebook);
+        WriteShojiVariables(writer, flatteningMap, questions, groupedColumnKeys, codebookColumns);
         writer.WriteEndObject();
         writer.WriteEndObject();
     }
@@ -61,10 +62,10 @@ internal static class ShojiCodebookGenerator
         MergedFormSchema flatteningMap,
         IReadOnlyDictionary<string, JsonElement> questions,
         IReadOnlyDictionary<string, List<string>> groupedColumnKeys,
-        JsonElement codebook)
+        IReadOnlyDictionary<string, JsonElement> codebookColumns)
     {
         HashSet<string> writtenVariables = new(StringComparer.Ordinal);
-        WriteGroupedVariables(writer, questions, groupedColumnKeys, codebook, writtenVariables);
+        WriteGroupedVariables(writer, questions, groupedColumnKeys, codebookColumns, writtenVariables);
         WriteScalarVariables(writer, flatteningMap, questions, writtenVariables);
     }
 
@@ -72,7 +73,7 @@ internal static class ShojiCodebookGenerator
         Utf8JsonWriter writer,
         IReadOnlyDictionary<string, JsonElement> questions,
         IReadOnlyDictionary<string, List<string>> groupedColumnKeys,
-        JsonElement codebook,
+        IReadOnlyDictionary<string, JsonElement> codebookColumns,
         HashSet<string> writtenVariables)
     {
         foreach (var questionEntry in OrderedQuestions(questions))
@@ -85,14 +86,14 @@ internal static class ShojiCodebookGenerator
 
             if (exportShape == FormSchemaCodebookExportShape.MultipleResponse.Name)
             {
-                WriteMultipleResponseVariable(writer, questionEntry.Key, questionEntry.Value, groupedColumnKeys, codebook);
+                WriteMultipleResponseVariable(writer, questionEntry.Key, questionEntry.Value, groupedColumnKeys, codebookColumns);
                 writtenVariables.Add(questionEntry.Key);
                 continue;
             }
 
             if (exportShape == FormSchemaCodebookExportShape.CategoricalArray.Name)
             {
-                WriteCategoricalArrayVariable(writer, questionEntry.Key, questionEntry.Value, groupedColumnKeys, codebook);
+                WriteCategoricalArrayVariable(writer, questionEntry.Key, questionEntry.Value, groupedColumnKeys, codebookColumns);
                 writtenVariables.Add(questionEntry.Key);
             }
         }
@@ -188,7 +189,7 @@ internal static class ShojiCodebookGenerator
         string questionName,
         JsonElement question,
         IReadOnlyDictionary<string, List<string>> groupedColumnKeys,
-        JsonElement codebook)
+        IReadOnlyDictionary<string, JsonElement> codebookColumns)
     {
         writer.WritePropertyName(questionName);
         writer.WriteStartObject();
@@ -196,7 +197,7 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Alias, questionName);
         WriteLocalizedProperty(writer, ShojiCodebookPropertyNames.Name, question, SurveyJsPropertyNames.Title);
         WriteMultipleResponseCategories(writer);
-        WriteSubvariables(writer, questionName, groupedColumnKeys, codebook, labelProperty: FormSchemaCodebookPropertyNames.ChoiceLabel);
+        WriteSubvariables(writer, questionName, groupedColumnKeys, codebookColumns, labelProperty: FormSchemaCodebookPropertyNames.ChoiceLabel);
         writer.WriteEndObject();
     }
 
@@ -205,7 +206,7 @@ internal static class ShojiCodebookGenerator
         string questionName,
         JsonElement question,
         IReadOnlyDictionary<string, List<string>> groupedColumnKeys,
-        JsonElement codebook)
+        IReadOnlyDictionary<string, JsonElement> codebookColumns)
     {
         writer.WritePropertyName(questionName);
         writer.WriteStartObject();
@@ -213,7 +214,7 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Alias, questionName);
         WriteLocalizedProperty(writer, ShojiCodebookPropertyNames.Name, question, SurveyJsPropertyNames.Title);
         WriteMatrixCategories(writer, question);
-        WriteSubvariables(writer, questionName, groupedColumnKeys, codebook, labelProperty: FormSchemaCodebookPropertyNames.RowLabel);
+        WriteSubvariables(writer, questionName, groupedColumnKeys, codebookColumns, labelProperty: FormSchemaCodebookPropertyNames.RowLabel);
         writer.WriteEndObject();
     }
 
@@ -252,7 +253,7 @@ internal static class ShojiCodebookGenerator
         Utf8JsonWriter writer,
         string questionName,
         IReadOnlyDictionary<string, List<string>> groupedColumnKeys,
-        JsonElement codebook,
+        IReadOnlyDictionary<string, JsonElement> codebookColumns,
         string labelProperty)
     {
         writer.WritePropertyName(ShojiCodebookPropertyNames.Subvariables);
@@ -264,7 +265,6 @@ internal static class ShojiCodebookGenerator
             return;
         }
 
-        var codebookColumns = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Columns);
         foreach (var columnKey in columnKeys)
         {
             writer.WriteStartObject();
