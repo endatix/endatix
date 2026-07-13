@@ -4,6 +4,7 @@ using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Reporting.Data;
 
@@ -12,7 +13,8 @@ namespace Endatix.Modules.Reporting.Data;
 /// </summary>
 internal sealed class ReportingExportRepository(
     ReportingDbContext reportingDbContext,
-    AppDbContext appDbContext) : IReportingExportRepository
+    AppDbContext appDbContext,
+    ILogger<ReportingExportRepository> logger) : IReportingExportRepository
 {
     private const int DEFAULT_PAGE_SIZE = 500;
     private const int MAX_PAGE_SIZE = 5_000;
@@ -73,6 +75,11 @@ internal sealed class ReportingExportRepository(
             {
                 if (!submissions.TryGetValue(flattened.SubmissionId, out var submission))
                 {
+                    logger.LogWarning(
+                        "Skipping flattened submission {SubmissionId} for tenant {TenantId} form {FormId}: core submission row not found.",
+                        flattened.SubmissionId,
+                        tenantId,
+                        formId);
                     continue;
                 }
 
