@@ -16,55 +16,30 @@ internal sealed class SqlSubmissionExportDataSource(ISubmissionExportRepository 
 
     public bool Matches(ExportDataSourceRequest request) =>
         !string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
-        SupportsItemType(request.ItemType);
+        SqlSubmissionExportStreamHelper.SupportsItemType(request.ItemType);
 
     public Task<Result<ExportOptions>> PrepareOptionsAsync(
         ExportDataSourceContext context,
         CancellationToken cancellationToken) =>
         Task.FromResult(Result.Success(context.Options));
 
-    public async IAsyncEnumerable<IExportItem> StreamAsync(
+    public IAsyncEnumerable<IExportItem> StreamAsync(
         ExportDataSourceContext context,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(context.Request.SqlFunctionName))
         {
             throw new InvalidOperationException("SQL export data source requires SqlFunctionName.");
         }
 
-        if (context.Request.ItemType == typeof(SubmissionExportRow))
-        {
-            await foreach (var row in exportRepository.GetExportRowsAsync<SubmissionExportRow>(
-                               context.FormId,
-                               context.Request.SqlFunctionName,
-                               context.ExportPageSize,
-                               cancellationToken))
-            {
-                yield return row;
-            }
-
-            yield break;
-        }
-
-        if (context.Request.ItemType == typeof(DynamicExportRow))
-        {
-            await foreach (var row in exportRepository.GetExportRowsAsync<DynamicExportRow>(
-                               context.FormId,
-                               context.Request.SqlFunctionName,
-                               context.ExportPageSize,
-                               cancellationToken))
-            {
-                yield return row;
-            }
-
-            yield break;
-        }
-
-        throw new InvalidOperationException($"Unsupported SQL export item type: {context.Request.ItemType.Name}");
+        return SqlSubmissionExportStreamHelper.StreamAsync(
+            exportRepository,
+            context.FormId,
+            context.Request.ItemType,
+            context.Request.SqlFunctionName,
+            context.ExportPageSize,
+            cancellationToken);
     }
-
-    private static bool SupportsItemType(Type itemType) =>
-        itemType == typeof(SubmissionExportRow) || itemType == typeof(DynamicExportRow);
 }
 
 /// <summary>
@@ -77,23 +52,47 @@ internal sealed class SqlDefaultSubmissionExportDataSource(ISubmissionExportRepo
 
     public bool Matches(ExportDataSourceRequest request) =>
         string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
-        SupportsItemType(request.ItemType);
+        SqlSubmissionExportStreamHelper.SupportsItemType(request.ItemType);
 
     public Task<Result<ExportOptions>> PrepareOptionsAsync(
         ExportDataSourceContext context,
         CancellationToken cancellationToken) =>
         Task.FromResult(Result.Success(context.Options));
 
-    public async IAsyncEnumerable<IExportItem> StreamAsync(
+    public IAsyncEnumerable<IExportItem> StreamAsync(
         ExportDataSourceContext context,
+        CancellationToken cancellationToken) =>
+        SqlSubmissionExportStreamHelper.StreamAsync(
+            exportRepository,
+            context.FormId,
+            context.Request.ItemType,
+            sqlFunctionName: null,
+            context.ExportPageSize,
+            cancellationToken);
+}
+
+/// <summary>
+/// Shared streaming logic for legacy SQL export data sources (removed in E13).
+/// </summary>
+internal static class SqlSubmissionExportStreamHelper
+{
+    internal static bool SupportsItemType(Type itemType) =>
+        itemType == typeof(SubmissionExportRow) || itemType == typeof(DynamicExportRow);
+
+    internal static async IAsyncEnumerable<IExportItem> StreamAsync(
+        ISubmissionExportRepository exportRepository,
+        long formId,
+        Type itemType,
+        string? sqlFunctionName,
+        int? exportPageSize,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (context.Request.ItemType == typeof(SubmissionExportRow))
+        if (itemType == typeof(SubmissionExportRow))
         {
-            await foreach (var row in exportRepository.GetExportRowsAsync<SubmissionExportRow>(
-                               context.FormId,
-                               sqlFunctionName: null,
-                               context.ExportPageSize,
+            await foreach (SubmissionExportRow row in exportRepository.GetExportRowsAsync<SubmissionExportRow>(
+                               formId,
+                               sqlFunctionName,
+                               exportPageSize,
                                cancellationToken))
             {
                 yield return row;
@@ -102,12 +101,12 @@ internal sealed class SqlDefaultSubmissionExportDataSource(ISubmissionExportRepo
             yield break;
         }
 
-        if (context.Request.ItemType == typeof(DynamicExportRow))
+        if (itemType == typeof(DynamicExportRow))
         {
-            await foreach (var row in exportRepository.GetExportRowsAsync<DynamicExportRow>(
-                               context.FormId,
-                               sqlFunctionName: null,
-                               context.ExportPageSize,
+            await foreach (DynamicExportRow row in exportRepository.GetExportRowsAsync<DynamicExportRow>(
+                               formId,
+                               sqlFunctionName,
+                               exportPageSize,
                                cancellationToken))
             {
                 yield return row;
@@ -116,9 +115,6 @@ internal sealed class SqlDefaultSubmissionExportDataSource(ISubmissionExportRepo
             yield break;
         }
 
-        throw new InvalidOperationException($"Unsupported SQL default export item type: {context.Request.ItemType.Name}");
+        throw new InvalidOperationException($"Unsupported SQL export item type: {itemType.Name}");
     }
-
-    private static bool SupportsItemType(Type itemType) =>
-        itemType == typeof(SubmissionExportRow) || itemType == typeof(DynamicExportRow);
 }
