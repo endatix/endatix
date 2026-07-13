@@ -4,7 +4,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
-using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 
@@ -41,20 +40,33 @@ internal sealed class TabularExportDataSource(
             return ReportingExportSchemaHelper.InvalidSchemaArtifactsResult<ExportOptions>();
         }
 
+        var settings = ResolveSettings(context.Options);
+        ExportQueryOptions queryOptions = new(IncludeTestSubmissions: settings.IncludeTestSubmissions);
+
         var hasRows = await reportingExportRepository.HasExportableRowsAsync(
             context.TenantId,
             context.FormId,
+            queryOptions,
             cancellationToken);
         if (!hasRows)
         {
             return Result<ExportOptions>.Error(MissingRowsMessage);
         }
 
-        var plan = ExportColumnPlanBuilder.Build(schema);
+        IReadOnlySet<string>? columnScope = settings.ColumnScope is null
+            ? null
+            : new HashSet<string>(settings.ColumnScope, StringComparer.Ordinal);
+        var plan = ExportColumnPlanBuilder.Build(
+            schema,
+            locale: settings.Locale,
+            aliasProfile: settings.AliasProfile,
+            columnScope: columnScope);
         var columnPlan = MapColumnPlan(plan);
 
         context.Options.Metadata ??= new Dictionary<string, object>();
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
+        context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
+            CreateExecutionSettings(context.Options, settings);
         return Result.Success(context.Options);
     }
 
@@ -62,7 +74,10 @@ internal sealed class TabularExportDataSource(
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        ExportQueryOptions options = new(PageSize: context.ExportPageSize ?? 500);
+        var settings = ResolveSettings(context.Options);
+        ExportQueryOptions options = new(
+            PageSize: context.ExportPageSize ?? 500,
+            IncludeTestSubmissions: settings.IncludeTestSubmissions);
 
         await foreach (var row in reportingExportRepository.StreamFlattenedSubmissionsAsync(
                            context.TenantId,
@@ -72,6 +87,41 @@ internal sealed class TabularExportDataSource(
         {
             yield return MapSubmissionRow(row);
         }
+    }
+
+    private static ExportFormatSettings ResolveSettings(ExportOptions options)
+    {
+        if (options.Metadata is not null &&
+            options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
+            settingsObject is SubmissionExportExecutionSettings executionSettings)
+        {
+            return ExportFormatSettingsParser.Resolve(
+                executionSettings.SettingsJson,
+                executionSettings.IncludeTestSubmissions,
+                executionSettings.ColumnScope);
+        }
+
+        return ExportFormatSettings.Default;
+    }
+
+    private static SubmissionExportExecutionSettings CreateExecutionSettings(
+        ExportOptions options,
+        ExportFormatSettings settings)
+    {
+        if (options.Metadata is not null &&
+            options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
+            settingsObject is SubmissionExportExecutionSettings executionSettings)
+        {
+            return executionSettings with
+            {
+                IncludeTestSubmissions = settings.IncludeTestSubmissions,
+                ColumnScope = settings.ColumnScope,
+            };
+        }
+
+        return new SubmissionExportExecutionSettings(
+            IncludeTestSubmissions: settings.IncludeTestSubmissions,
+            ColumnScope: settings.ColumnScope);
     }
 
     private static SubmissionExportColumnPlan MapColumnPlan(IExportColumnPlan plan) =>

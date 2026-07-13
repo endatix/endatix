@@ -7,4 +7,10 @@ public class ExportRequest
     public string? ExportFormat { get; set; }
 
     public long? ExportId { get; set; }
+
+    public long? ExportFormatId { get; set; }
+
+    public bool? IncludeTestSubmissions { get; set; }
+
+    public string[]? ColumnScope { get; set; }
 }

@@ -9,6 +9,7 @@ using Endatix.Core.Abstractions.Exporting;
 using Endatix.Modules.Reporting.Configuration;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
@@ -46,6 +47,8 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IFormSchemaRepository, FormSchemaRepository>();
         builder.Services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
         builder.Services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
+        builder.Services.AddScoped<IExportFormatRepository, ExportFormatRepository>();
+        builder.Services.AddScoped<IExportFormatDefinitionResolver, ExportFormatDefinitionResolver>();
         builder.Services.AddScoped<IExportDataSource, TabularExportDataSource>();
         builder.Services.AddScoped<IExportDataSource, ShojiCodebookExportDataSource>();
         builder.Services.AddSingleton<FormSchemaCompiler>();

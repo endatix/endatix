@@ -24,7 +24,8 @@ internal sealed record ValidatedExportOperation(
     string Format,
     Type ItemType,
     string? SqlFunctionName,
-    int? ExportPageSize = null
+    int? ExportPageSize = null,
+    SubmissionExportExecutionSettings? ExecutionSettings = null
 );
 
 /// <summary>
@@ -38,6 +39,7 @@ public partial class Export : Endpoint<ExportRequest>
     private readonly IExporterFactory _exporterFactory;
     private readonly IFormsRepository _formsRepository;
     private readonly IRepository<TenantSettingsEntity> _tenantSettingsRepository;
+    private readonly IExportFormatDefinitionResolver? _exportFormatDefinitionResolver;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<Export> _logger;
 
@@ -47,12 +49,14 @@ public partial class Export : Endpoint<ExportRequest>
         IFormsRepository formsRepository,
         IRepository<TenantSettingsEntity> tenantSettingsRepository,
         ITenantContext tenantContext,
-        ILogger<Export> logger)
+        ILogger<Export> logger,
+        IExportFormatDefinitionResolver? exportFormatDefinitionResolver = null)
     {
         _mediator = mediator;
         _exporterFactory = exporterFactory;
         _formsRepository = formsRepository;
         _tenantSettingsRepository = tenantSettingsRepository;
+        _exportFormatDefinitionResolver = exportFormatDefinitionResolver;
         _tenantContext = tenantContext;
         _logger = logger;
     }
@@ -106,6 +110,12 @@ public partial class Export : Endpoint<ExportRequest>
                 Formatters = null,
                 Metadata = new Dictionary<string, object> { ["FormId"] = request.FormId }
             };
+
+            if (validatedExportOperation.ExecutionSettings is not null)
+            {
+                options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
+                    validatedExportOperation.ExecutionSettings;
+            }
 
             var headersResult = await exporter.GetHeadersAsync(options, cancellationToken);
             if (!headersResult.IsSuccess)
@@ -173,6 +183,42 @@ public partial class Export : Endpoint<ExportRequest>
             return Result.Invalid(new ValidationError($"Form with ID {request.FormId} not found"));
         }
 
+        if (request.ExportFormatId.HasValue)
+        {
+            if (_exportFormatDefinitionResolver is null)
+            {
+                return Result.Invalid(new ValidationError("Reporting export formats are not available."));
+            }
+
+            var exportFormat = await _exportFormatDefinitionResolver.GetByIdAsync(
+                _tenantContext.TenantId,
+                request.ExportFormatId.Value,
+                cancellationToken);
+            if (exportFormat is null)
+            {
+                _logger.LogWarning(
+                    "Export format {ExportFormatId} not found for tenant {TenantId}",
+                    request.ExportFormatId.Value,
+                    _tenantContext.TenantId);
+                return Result.Invalid(new ValidationError($"Export format with ID {request.ExportFormatId.Value} not found"));
+            }
+
+            var itemType = ResolveExportItemTypeForFormat(exportFormat.Format);
+            SubmissionExportExecutionSettings executionSettings = new(
+                ExportFormatId: exportFormat.Id,
+                SettingsJson: exportFormat.SettingsJson,
+                IncludeTestSubmissions: request.IncludeTestSubmissions,
+                ColumnScope: request.ColumnScope);
+
+            ValidatedExportOperation exportFormatOperation = new(
+                exportFormat.Format,
+                itemType,
+                null,
+                null,
+                executionSettings);
+            return Result.Success(exportFormatOperation);
+        }
+
         if (request.ExportId.HasValue)
         {
             var spec = new TenantSettingsByTenantIdSpec(_tenantContext.TenantId);
@@ -220,9 +266,25 @@ public partial class Export : Endpoint<ExportRequest>
 
         var format = string.IsNullOrWhiteSpace(request.ExportFormat) ? DEFAULT_EXPORT_FORMAT : request.ExportFormat;
         var defaultItemType = typeof(SubmissionExportRow);
-        var formatBasedExportOperation = new ValidatedExportOperation(format, defaultItemType, null, null);
+        var defaultExecutionSettings =
+            request.IncludeTestSubmissions.HasValue || request.ColumnScope is { Length: > 0 }
+                ? new SubmissionExportExecutionSettings(
+                    IncludeTestSubmissions: request.IncludeTestSubmissions,
+                    ColumnScope: request.ColumnScope)
+                : null;
+        ValidatedExportOperation formatBasedExportOperation = new(
+            format,
+            defaultItemType,
+            null,
+            null,
+            defaultExecutionSettings);
         return Result.Success(formatBasedExportOperation);
     }
+
+    private static Type ResolveExportItemTypeForFormat(string format) =>
+        format.Equals("codebook", StringComparison.OrdinalIgnoreCase)
+            ? typeof(DynamicExportRow)
+            : typeof(SubmissionExportRow);
 
     /// <summary>
     /// Resolves the Type from a fully qualified type name string.

@@ -68,6 +68,27 @@ public sealed class ExportColumnPlanBuilderTests
     }
 
     [Fact]
+    public void Build_WithColumnScope_FiltersDataColumnsButKeepsSystemColumns()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        IReadOnlyList<string> expectedKeys = FormSchemaFixtureLoader.LoadAllQuestionsExpectedKeys();
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+        HashSet<string> columnScope = [expectedKeys[0], expectedKeys[1]];
+
+        IExportColumnPlan plan = ExportColumnPlanBuilder.Build(schema, columnScope: columnScope);
+
+        List<ExportColumnDefinition> columns = plan.Columns.ToList();
+        columns.Take(SubmissionExportRow.SystemColumns.Count).Select(column => column.CanonicalKey).Should().BeEquivalentTo(
+            SubmissionExportRow.SystemColumns.OrderedKeys,
+            options => options.WithStrictOrdering());
+        columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.CanonicalKey).Should().BeEquivalentTo(
+            columnScope,
+            options => options.WithStrictOrdering());
+    }
+
+    [Fact]
     public void Build_WithAllQuestionsSchema_ResolvesLocalizedHeaderForChoiceColumn()
     {
         // Arrange

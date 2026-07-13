@@ -21,6 +21,7 @@ public class ExportTests
     private readonly IExporterFactory _exporterFactory;
     private readonly IFormsRepository _formsRepository;
     private readonly IRepository<TenantSettingsEntity> _tenantSettingsRepository;
+    private readonly IExportFormatDefinitionResolver _exportFormatDefinitionResolver;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<Export> _logger;
     private readonly Export _endpoint;
@@ -31,6 +32,7 @@ public class ExportTests
         _exporterFactory = Substitute.For<IExporterFactory>();
         _formsRepository = Substitute.For<IFormsRepository>();
         _tenantSettingsRepository = Substitute.For<IRepository<TenantSettingsEntity>>();
+        _exportFormatDefinitionResolver = Substitute.For<IExportFormatDefinitionResolver>();
         _tenantContext = Substitute.For<ITenantContext>();
         _logger = Substitute.For<ILogger<Export>>();
         _endpoint = Factory.Create<Export>(
@@ -39,7 +41,8 @@ public class ExportTests
             _formsRepository,
             _tenantSettingsRepository,
             _tenantContext,
-            _logger);
+            _logger,
+            _exportFormatDefinitionResolver);
     }
 
     [Fact]
@@ -292,6 +295,73 @@ public class ExportTests
                 q.Exporter == exporter &&
                 q.SqlFunctionName == null),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithExportFormatId_Success()
+    {
+        var formId = 1L;
+        var exportFormatId = 200L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest
+        {
+            FormId = formId,
+            ExportFormatId = exportFormatId,
+            IncludeTestSubmissions = true,
+            ColumnScope = ["q1"],
+        };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
+        var fileExport = new FileExport("text/csv", "submissions-1.csv");
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+        _exportFormatDefinitionResolver.GetByIdAsync(tenantId, exportFormatId, Arg.Any<CancellationToken>())
+            .Returns(new ExportFormatDefinition(
+                exportFormatId,
+                "csv",
+                """{"aliasProfile":"crunch"}"""));
+        _exporterFactory.GetExporter("csv", typeof(SubmissionExportRow))
+            .Returns(exporter);
+        exporter.GetHeadersAsync(Arg.Any<ExportOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+        _mediator.Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        _endpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        await _mediator.Received(1).Send(
+            Arg.Is<SubmissionsExportQuery>(q =>
+                q.FormId == formId &&
+                q.Options.Metadata!.ContainsKey(SubmissionExportMetadataKeys.ExecutionSettings) &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).ExportFormatId == exportFormatId &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).IncludeTestSubmissions == true &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).ColumnScope!.SequenceEqual(new[] { "q1" })),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithExportFormatId_NotFound_ReturnsBadRequest()
+    {
+        var formId = 1L;
+        var exportFormatId = 200L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest { FormId = formId, ExportFormatId = exportFormatId };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+        _exportFormatDefinitionResolver.GetByIdAsync(tenantId, exportFormatId, Arg.Any<CancellationToken>())
+            .Returns((ExportFormatDefinition?)null);
+
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        _endpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

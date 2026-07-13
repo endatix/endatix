@@ -41,4 +41,6 @@ public sealed class ExportFormat : BaseEntity, ITenantOwned, IAggregateRoot
     public ExportSerializationType SerializationType { get; private set; }
 
     public string? Description { get; private set; }
+
+    public string? SettingsJson { get; private set; }
 }

@@ -34,7 +34,7 @@ public sealed class TabularExportDataSourceTests
         result.Errors.Should().ContainSingle(error =>
             error.Contains("Save or publish the form definition", StringComparison.Ordinal));
         await reportingExportRepository.DidNotReceive()
-            .HasExportableRowsAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
+            .HasExportableRowsAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class TabularExportDataSourceTests
 
         IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
         reportingExportRepository
-            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
@@ -98,7 +98,7 @@ public sealed class TabularExportDataSourceTests
 
         IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
         reportingExportRepository
-            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
@@ -111,6 +111,79 @@ public sealed class TabularExportDataSourceTests
         SubmissionExportColumnPlan columnPlan = (SubmissionExportColumnPlan)result.Value.Metadata![SubmissionExportMetadataKeys.ColumnPlan];
         columnPlan.Columns.Should().NotBeEmpty();
         columnPlan.Columns.Should().Contain(column => column.CanonicalKey == SubmissionExportRow.SystemColumns.FormId);
+    }
+
+    [Fact]
+    public async Task PrepareOptionsAsync_WithCrunchSettings_AppliesAliasProfile()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        IReadOnlyDictionary<string, string> expectedExportKeys = FormSchemaFixtureLoader.LoadAllQuestionsExpectedCrunchExportKeys();
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
+        reportingExportRepository
+            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
+        ExportOptions options = new()
+        {
+            Metadata = new Dictionary<string, object>
+            {
+                [SubmissionExportMetadataKeys.ExecutionSettings] = new SubmissionExportExecutionSettings(
+                    SettingsJson: """{"aliasProfile":"crunch"}"""),
+            },
+        };
+        ExportDataSourceContext context = new(
+            new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null),
+            TenantId,
+            FormId,
+            options,
+            null);
+
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        SubmissionExportColumnPlan columnPlan = (SubmissionExportColumnPlan)result.Value.Metadata![SubmissionExportMetadataKeys.ColumnPlan];
+        Dictionary<string, string> actualExportKeys = columnPlan.Columns.ToDictionary(
+            column => column.CanonicalKey,
+            column => column.ExportKey,
+            StringComparer.Ordinal);
+        actualExportKeys.Should().BeEquivalentTo(expectedExportKeys);
+    }
+
+    [Fact]
+    public async Task StreamAsync_ExcludesTestSubmissionsByDefault()
+    {
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
+        reportingExportRepository
+            .StreamFlattenedSubmissionsAsync(
+                TenantId,
+                FormId,
+                Arg.Is<ExportQueryOptions>(query => query.IncludeTestSubmissions == false),
+                Arg.Any<CancellationToken>())
+            .Returns(StreamRows());
+
+        TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
+        ExportDataSourceContext context = CreateContext();
+
+        await foreach (IExportItem _ in dataSource.StreamAsync(context, TestContext.Current.CancellationToken))
+        {
+        }
+
+        reportingExportRepository.Received(1).StreamFlattenedSubmissionsAsync(
+            TenantId,
+            FormId,
+            Arg.Is<ExportQueryOptions>(query => query.IncludeTestSubmissions == false),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -185,5 +258,7 @@ public sealed class TabularExportDataSourceTests
         {
             yield return row;
         }
+
+        await Task.CompletedTask;
     }
 }
