@@ -105,7 +105,7 @@ internal static class FormSchemaCodebookBuilder
                 continue;
             }
 
-            if (TryBuildQuestionEntry(element, name, type, out var questionEntry))
+            if (TryBuildQuestionEntry(element, type, out var questionEntry))
             {
                 questions[name] = questionEntry;
             }
@@ -323,7 +323,6 @@ internal static class FormSchemaCodebookBuilder
 
     private static bool TryBuildQuestionEntry(
         JsonElement element,
-        string _,
         string? type,
         out JsonElement questionEntry)
     {
@@ -525,49 +524,69 @@ internal static class FormSchemaCodebookBuilder
 
     private static JsonElement MergeChoiceCatalog(JsonElement existingCatalog, JsonElement currentCatalog)
     {
+        var mergedByValue = LoadExistingChoiceCatalogEntries(existingCatalog);
+        MergeCurrentChoiceCatalogEntries(mergedByValue, currentCatalog);
+        return WriteMergedChoiceCatalog(mergedByValue);
+    }
+
+    private static Dictionary<string, (int Id, JsonElement Entry)> LoadExistingChoiceCatalogEntries(
+        JsonElement existingCatalog)
+    {
         Dictionary<string, (int Id, JsonElement Entry)> mergedByValue = new(StringComparer.Ordinal);
 
-        if (existingCatalog.TryGetProperty(SurveyJsPropertyNames.Choices, out var existingChoices) &&
-            existingChoices.ValueKind == JsonValueKind.Array)
+        if (!TryGetCatalogChoicesArray(existingCatalog, out var existingChoices))
         {
-            foreach (var choice in existingChoices.EnumerateArray())
-            {
-                var value = choice.GetStringProperty(SurveyJsPropertyNames.Value);
-                if (value is null || !choice.TryGetProperty(FormSchemaCodebookPropertyNames.Id, out var idElement) ||
-                    idElement.ValueKind != JsonValueKind.Number)
-                {
-                    continue;
-                }
+            return mergedByValue;
+        }
 
-                mergedByValue[value] = (idElement.GetInt32(), choice.Clone());
+        foreach (var choice in existingChoices.EnumerateArray())
+        {
+            var value = choice.GetStringProperty(SurveyJsPropertyNames.Value);
+            if (value is null || !choice.TryGetProperty(FormSchemaCodebookPropertyNames.Id, out var idElement) ||
+                idElement.ValueKind != JsonValueKind.Number)
+            {
+                continue;
             }
+
+            mergedByValue[value] = (idElement.GetInt32(), choice.Clone());
+        }
+
+        return mergedByValue;
+    }
+
+    private static void MergeCurrentChoiceCatalogEntries(
+        Dictionary<string, (int Id, JsonElement Entry)> mergedByValue,
+        JsonElement currentCatalog)
+    {
+        if (!TryGetCatalogChoicesArray(currentCatalog, out var currentChoices))
+        {
+            return;
         }
 
         var nextId = mergedByValue.Count == 0 ? 1 : mergedByValue.Values.Max(entry => entry.Id) + 1;
 
-        if (currentCatalog.TryGetProperty(SurveyJsPropertyNames.Choices, out var currentChoices) &&
-            currentChoices.ValueKind == JsonValueKind.Array)
+        foreach (var choice in currentChoices.EnumerateArray())
         {
-            foreach (var choice in currentChoices.EnumerateArray())
+            var value = choice.GetStringProperty(SurveyJsPropertyNames.Value);
+            if (value is null)
             {
-                var value = choice.GetStringProperty(SurveyJsPropertyNames.Value);
-                if (value is null)
-                {
-                    continue;
-                }
-
-                if (mergedByValue.TryGetValue(value, out var existing))
-                {
-                    mergedByValue[value] = (existing.Id, ApplyChoiceId(choice, existing.Id));
-                    continue;
-                }
-
-                mergedByValue[value] = (nextId, ApplyChoiceId(choice, nextId));
-                nextId++;
+                continue;
             }
-        }
 
-        return WriteQuestionEntry(writer =>
+            if (mergedByValue.TryGetValue(value, out var existing))
+            {
+                mergedByValue[value] = (existing.Id, ApplyChoiceId(choice, existing.Id));
+                continue;
+            }
+
+            mergedByValue[value] = (nextId, ApplyChoiceId(choice, nextId));
+            nextId++;
+        }
+    }
+
+    private static JsonElement WriteMergedChoiceCatalog(
+        Dictionary<string, (int Id, JsonElement Entry)> mergedByValue) =>
+        WriteQuestionEntry(writer =>
         {
             writer.WritePropertyName(SurveyJsPropertyNames.Choices);
             writer.WriteStartArray();
@@ -578,7 +597,10 @@ internal static class FormSchemaCodebookBuilder
 
             writer.WriteEndArray();
         });
-    }
+
+    private static bool TryGetCatalogChoicesArray(JsonElement catalog, out JsonElement choices) =>
+        catalog.TryGetProperty(SurveyJsPropertyNames.Choices, out choices) &&
+        choices.ValueKind == JsonValueKind.Array;
 
     private static JsonElement ApplyChoiceId(JsonElement choice, int id) =>
         WriteQuestionEntry(writer =>

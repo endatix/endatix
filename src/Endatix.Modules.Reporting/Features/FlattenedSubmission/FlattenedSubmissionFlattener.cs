@@ -512,16 +512,14 @@ internal static class FlattenedSubmissionFlattener
             return false;
         }
 
-        foreach (var item in panelArray.EnumerateArray())
+        foreach (var item in panelArray.EnumerateArray().Where(item =>
+            string.Equals(
+                item.TryGetPropertyValue(segment.PropertyName)?.GetScalarStringValue(),
+                segment.ChoiceValue,
+                StringComparison.Ordinal)))
         {
-            if (string.Equals(
-                    item.TryGetPropertyValue(segment.PropertyName)?.GetScalarStringValue(),
-                    segment.ChoiceValue,
-                    StringComparison.Ordinal))
-            {
-                matchedItem = item;
-                return true;
-            }
+            matchedItem = item;
+            return true;
         }
 
         return false;
