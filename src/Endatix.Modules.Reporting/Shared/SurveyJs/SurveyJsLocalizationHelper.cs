@@ -124,12 +124,9 @@ internal static class SurveyJsLocalizationHelper
             return;
         }
 
-        foreach (var localeProperty in value.EnumerateObject())
+        foreach (var localeProperty in value.EnumerateObject().Where(localeProperty => IsLocaleKey(localeProperty.Name)))
         {
-            if (IsLocaleKey(localeProperty.Name))
-            {
-                locales.Add(localeProperty.Name);
-            }
+            locales.Add(localeProperty.Name);
         }
     }
 
