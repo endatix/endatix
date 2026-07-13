@@ -160,14 +160,17 @@ public sealed class TabularExportDataSourceTests
     }
 
     [Fact]
-    public void Matches_ReturnsTrueForSubmissionExportRowWithoutSqlFunction()
+    public void Matches_ReturnsTrueOnlyForTabularSubmissionExportWithoutSqlFunction()
     {
         TabularExportDataSource dataSource = new(
             Substitute.For<IFormSchemaRepository>(),
             Substitute.For<IReportingExportRepository>());
 
-        dataSource.Matches(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null)).Should().BeTrue();
-        dataSource.Matches(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), "custom_fn")).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest(TabularExportFormats.Csv, typeof(SubmissionExportRow), null)).Should().BeTrue();
+        dataSource.Matches(new ExportDataSourceRequest(TabularExportFormats.Json, typeof(SubmissionExportRow), null)).Should().BeTrue();
+        dataSource.Matches(new ExportDataSourceRequest("codebook", typeof(SubmissionExportRow), null)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("xml", typeof(SubmissionExportRow), null)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest(TabularExportFormats.Csv, typeof(SubmissionExportRow), "custom_fn")).Should().BeFalse();
     }
 
     private static ExportDataSourceContext CreateContext(int? exportPageSize = null) =>

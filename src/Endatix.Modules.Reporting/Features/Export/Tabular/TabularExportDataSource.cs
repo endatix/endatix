@@ -20,7 +20,8 @@ internal sealed class TabularExportDataSource(
 
     public bool Matches(ExportDataSourceRequest request) =>
         string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
-        request.ItemType == typeof(SubmissionExportRow);
+        request.ItemType == typeof(SubmissionExportRow) &&
+        TabularExportFormats.Supports(request.Format);
 
     public async Task<Result<ExportOptions>> PrepareOptionsAsync(
         ExportDataSourceContext context,

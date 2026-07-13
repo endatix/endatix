@@ -12,7 +12,10 @@ public sealed class ExportDataSourceResolverTests
     {
         IExportDataSource tabular = Substitute.For<IExportDataSource>();
         tabular.Matches(Arg.Is<ExportDataSourceRequest>(r =>
-                r.ItemType == typeof(SubmissionExportRow) && r.SqlFunctionName == null))
+                r.ItemType == typeof(SubmissionExportRow) &&
+                r.SqlFunctionName == null &&
+                (r.Format.Equals("csv", StringComparison.OrdinalIgnoreCase) ||
+                 r.Format.Equals("json", StringComparison.OrdinalIgnoreCase))))
             .Returns(true);
 
         IExportDataSource sqlDefault = new SqlDefaultSubmissionExportDataSource(Substitute.For<Core.Abstractions.Repositories.ISubmissionExportRepository>());
