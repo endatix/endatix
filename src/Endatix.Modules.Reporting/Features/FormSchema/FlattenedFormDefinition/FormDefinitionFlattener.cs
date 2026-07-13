@@ -570,7 +570,6 @@ internal static class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         var name = collected.Name!;
-        var title = collected.Element.GetSurveyJsTitle(name);
         var trueLabel = collected.Element.GetStringProperty(SurveyJsPropertyNames.LabelTrue) ?? "Yes";
         var falseLabel = collected.Element.GetStringProperty(SurveyJsPropertyNames.LabelFalse) ?? "No";
 
@@ -953,12 +952,9 @@ internal static class FormDefinitionFlattener
     {
         Dictionary<string, CollectedElement> elementsByName = new(StringComparer.Ordinal);
 
-        foreach (var collected in allElements)
+        foreach (var collected in allElements.Where(collected => !string.IsNullOrWhiteSpace(collected.Name)))
         {
-            if (!string.IsNullOrWhiteSpace(collected.Name))
-            {
-                elementsByName.TryAdd(collected.Name, collected);
-            }
+            elementsByName.TryAdd(collected.Name!, collected);
         }
 
         return elementsByName;
@@ -1302,7 +1298,6 @@ internal static class FormDefinitionFlattener
     {
         if (SurveyJsElementType.Boolean.Matches(childType))
         {
-            var title = template.GetSurveyJsTitle(childName);
             var trueLabel = template.GetStringProperty(SurveyJsPropertyNames.LabelTrue) ?? "Yes";
             var falseLabel = template.GetStringProperty(SurveyJsPropertyNames.LabelFalse) ?? "No";
 
