@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
@@ -24,6 +25,8 @@ public sealed class FormSchemaRepositoryTests
     private const string InitialFlatteningMapJson = FormSchema.EmptyFlatteningMapJson;
     private const string UpdatedFlatteningMapJson = """{"version":1,"columns":[{"key":"q1"}]}""";
     private const string CodebookJson = FormSchema.EmptyCodebookJson;
+    private const string UpdatedCodebookJson =
+        """{"version":1,"locales":["default","es"],"questions":{},"columns":{},"choiceCatalogs":{}}""";
 
     private readonly DbIntegrationFixture _fixture;
 
@@ -58,11 +61,16 @@ public sealed class FormSchemaRepositoryTests
 
         await repository.SaveAsync(schema, cancellationToken);
 
+        dbContext.ChangeTracker.Clear();
         FormSchema? persisted = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.FormDefinitionRevision.Should().Be(FormDefinitionRevision);
-        persisted.FlatteningMap.Should().Be(InitialFlatteningMapJson);
-        persisted.Codebook.Should().Be(CodebookJson);
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.FlatteningMap), JsonNode.Parse(InitialFlatteningMapJson))
+            .Should()
+            .BeTrue();
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.Codebook), JsonNode.Parse(CodebookJson))
+            .Should()
+            .BeTrue();
         persisted.Id.Should().BeGreaterThan(0);
     }
 
@@ -77,13 +85,19 @@ public sealed class FormSchemaRepositoryTests
         FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialFlatteningMapJson, CodebookJson);
         await repository.SaveAsync(schema, cancellationToken);
 
-        schema.UpdateSchema(FormDefinitionRevision + 1, UpdatedFlatteningMapJson, CodebookJson);
+        schema.UpdateSchema(FormDefinitionRevision + 1, UpdatedFlatteningMapJson, UpdatedCodebookJson);
         await repository.SaveAsync(schema, cancellationToken);
 
+        dbContext.ChangeTracker.Clear();
         FormSchema? persisted = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.FormDefinitionRevision.Should().Be(FormDefinitionRevision + 1);
-        persisted.FlatteningMap.Should().Be(UpdatedFlatteningMapJson);
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.FlatteningMap), JsonNode.Parse(UpdatedFlatteningMapJson))
+            .Should()
+            .BeTrue();
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.Codebook), JsonNode.Parse(UpdatedCodebookJson))
+            .Should()
+            .BeTrue();
         var schemasCount = await dbContext.FormSchemas.CountAsync(cancellationToken);
         schemasCount.Should().Be(1);
     }

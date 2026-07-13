@@ -157,7 +157,7 @@ internal static class FormSchemaCodebookBuilder
                     WriteDescription(writer, questionElement, locales);
                 }
 
-                WriteColumnChoiceMetadata(writer, column, hasQuestion, questionElement, locales);
+                WriteColumnChoiceMetadata(writer, column, hasQuestion, questionElement);
                 WriteColumnMatrixMetadata(writer, column, hasQuestion, questionElement, locales);
                 WriteColumnLoopPathMetadata(writer, column);
             });
@@ -170,8 +170,7 @@ internal static class FormSchemaCodebookBuilder
         Utf8JsonWriter writer,
         FormSchemaColumn column,
         bool hasQuestion,
-        JsonElement questionElement,
-        IReadOnlyList<string> locales)
+        JsonElement questionElement)
     {
         if (string.IsNullOrWhiteSpace(column.ChoiceValue))
         {
@@ -181,7 +180,7 @@ internal static class FormSchemaCodebookBuilder
         writer.WriteString(FormSchemaPropertyNames.ChoiceValue, column.ChoiceValue);
         if (hasQuestion)
         {
-            WriteChoiceLabel(writer, questionElement, column.ChoiceValue, locales);
+            WriteChoiceLabel(writer, questionElement, column.ChoiceValue);
         }
     }
 
@@ -955,36 +954,69 @@ internal static class FormSchemaCodebookBuilder
     private static void WriteChoiceLabel(
         Utf8JsonWriter writer,
         JsonElement questionElement,
+        string choiceValue)
+    {
+        ResolveChoiceLabelTexts(questionElement, choiceValue, out var localized, out var fallback);
+        writer.WritePropertyName(FormSchemaCodebookPropertyNames.ChoiceLabel);
+        WriteLocalizedStringsWithFallback(writer, localized, fallback);
+    }
+
+    private static void ResolveChoiceLabelTexts(
+        JsonElement questionElement,
         string choiceValue,
-        IReadOnlyList<string> locales)
+        out IReadOnlyDictionary<string, string> localized,
+        out string fallback)
     {
         if (SurveyJsElementType.Boolean.Matches(questionElement.GetSurveyJsType()))
         {
             var propertyName = choiceValue == FormSchemaCodebookChoiceValues.True
                 ? SurveyJsPropertyNames.LabelTrue
                 : SurveyJsPropertyNames.LabelFalse;
-            writer.WritePropertyName(FormSchemaCodebookPropertyNames.ChoiceLabel);
-            SurveyJsLocalizationHelper.WriteLocalizedStrings(
-                writer,
-                SurveyJsLocalizationHelper.ReadLocalizedStrings(questionElement, propertyName));
+            localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(questionElement, propertyName);
+            fallback = choiceValue == FormSchemaCodebookChoiceValues.True ? "Yes" : "No";
             return;
         }
 
         if (choiceValue == SurveyJsPropertyNames.Other)
         {
-            writer.WritePropertyName(FormSchemaCodebookPropertyNames.ChoiceLabel);
-            SurveyJsLocalizationHelper.WriteLocalizedStrings(
-                writer,
-                SurveyJsLocalizationHelper.ReadLocalizedStrings(questionElement, SurveyJsPropertyNames.OtherText));
+            localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(questionElement, SurveyJsPropertyNames.OtherText);
+            fallback = "Other";
             return;
         }
 
-        writer.WritePropertyName(FormSchemaCodebookPropertyNames.ChoiceLabel);
-        SurveyJsLocalizationHelper.WriteLocalizedStrings(
-            writer,
-            SurveyJsLocalizationHelper.ReadLocalizedStrings(
-                FindChoiceElement(questionElement, choiceValue),
-                SurveyJsPropertyNames.Text));
+        localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
+            FindChoiceElement(questionElement, choiceValue),
+            SurveyJsPropertyNames.Text);
+        fallback = ResolveChoiceFallbackText(questionElement, choiceValue);
+    }
+
+    private static string ResolveChoiceFallbackText(JsonElement questionElement, string choiceValue)
+    {
+        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(questionElement))
+        {
+            if (string.Equals(value, choiceValue, StringComparison.Ordinal))
+            {
+                return text;
+            }
+        }
+
+        return choiceValue;
+    }
+
+    private static void WriteLocalizedStringsWithFallback(
+        Utf8JsonWriter writer,
+        IReadOnlyDictionary<string, string> localizedText,
+        string fallback)
+    {
+        if (localizedText.Count == 0)
+        {
+            writer.WriteStartObject();
+            writer.WriteString(FormSchemaCodebookPropertyNames.Default, fallback);
+            writer.WriteEndObject();
+            return;
+        }
+
+        SurveyJsLocalizationHelper.WriteLocalizedStrings(writer, localizedText);
     }
 
     private static void WriteMatrixRowLabel(
@@ -1113,17 +1145,7 @@ internal static class FormSchemaCodebookBuilder
         writer.WriteString(SurveyJsPropertyNames.Value, value);
         writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, id);
         writer.WritePropertyName(SurveyJsPropertyNames.Text);
-        if (localizedText.Count == 0)
-        {
-            writer.WriteStartObject();
-            writer.WriteString(FormSchemaCodebookPropertyNames.Default, fallback);
-            writer.WriteEndObject();
-        }
-        else
-        {
-            SurveyJsLocalizationHelper.WriteLocalizedStrings(writer, localizedText);
-        }
-
+        WriteLocalizedStringsWithFallback(writer, localizedText, fallback);
         writer.WriteEndObject();
     }
 

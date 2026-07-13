@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Endatix.Modules.Reporting.Shared.SurveyJs;
 
@@ -7,6 +8,23 @@ namespace Endatix.Modules.Reporting.Shared.SurveyJs;
 /// </summary>
 internal static class SurveyJsLocalizationHelper
 {
+    private const string DefaultLocale = SurveyJsPropertyNames.DefaultLocale;
+
+    private static readonly HashSet<string> _localizedPropertyNames = new(StringComparer.Ordinal)
+    {
+        SurveyJsPropertyNames.Title,
+        SurveyJsPropertyNames.Description,
+        SurveyJsPropertyNames.Text,
+        SurveyJsPropertyNames.LabelTrue,
+        SurveyJsPropertyNames.LabelFalse,
+        SurveyJsPropertyNames.OtherText,
+    };
+
+    private static readonly Regex _localeKeyPattern = new(
+        @"^[a-z]{2,3}(?:-[a-zA-Z0-9]+)*$",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        TimeSpan.FromMilliseconds(100));
+
     /// <summary>
     /// Reads localized strings from a JSON element.
     /// </summary>
@@ -30,7 +48,7 @@ internal static class SurveyJsLocalizationHelper
             var value = property.GetString();
             return value is null
                 ? new Dictionary<string, string>(StringComparer.Ordinal)
-                : new Dictionary<string, string>(StringComparer.Ordinal) { ["default"] = value };
+                : new Dictionary<string, string>(StringComparer.Ordinal) { [DefaultLocale] = value };
         }
 
         if (property.ValueKind != JsonValueKind.Object)
@@ -61,10 +79,10 @@ internal static class SurveyJsLocalizationHelper
     /// <returns>A list of locales.</returns>
     internal static List<string> DiscoverLocales(JsonElement definition)
     {
-        HashSet<string> locales = new(StringComparer.Ordinal) { "default" };
+        HashSet<string> locales = new(StringComparer.Ordinal) { DefaultLocale };
         CollectLocales(definition, locales);
-        List<string> ordered = ["default"];
-        foreach (var locale in locales.Where(locale => locale != "default").OrderBy(locale => locale, StringComparer.Ordinal))
+        List<string> ordered = [DefaultLocale];
+        foreach (var locale in locales.Where(locale => locale != DefaultLocale).OrderBy(locale => locale, StringComparer.Ordinal))
         {
             ordered.Add(locale);
         }
@@ -78,18 +96,7 @@ internal static class SurveyJsLocalizationHelper
         {
             foreach (var property in element.EnumerateObject())
             {
-                if (property.Value.ValueKind == JsonValueKind.Object &&
-                    property.Value.EnumerateObject().Any(child => child.Value.ValueKind == JsonValueKind.String))
-                {
-                    foreach (var localeProperty in property.Value.EnumerateObject())
-                    {
-                        if (localeProperty.Value.ValueKind == JsonValueKind.String)
-                        {
-                            locales.Add(localeProperty.Name);
-                        }
-                    }
-                }
-
+                TryCollectLocalesFromProperty(property.Name, property.Value, locales);
                 CollectLocales(property.Value, locales);
             }
 
@@ -105,16 +112,80 @@ internal static class SurveyJsLocalizationHelper
         }
     }
 
+    private static void TryCollectLocalesFromProperty(string propertyName, JsonElement value, HashSet<string> locales)
+    {
+        if (!IsLocalizedStringMap(value))
+        {
+            return;
+        }
+
+        if (!IsLocalizedProperty(propertyName) && !HasOnlyLocaleKeys(value))
+        {
+            return;
+        }
+
+        foreach (var localeProperty in value.EnumerateObject())
+        {
+            if (IsLocaleKey(localeProperty.Name))
+            {
+                locales.Add(localeProperty.Name);
+            }
+        }
+    }
+
+    private static bool IsLocalizedProperty(string propertyName) =>
+        _localizedPropertyNames.Contains(propertyName);
+
+    private static bool IsLocalizedStringMap(JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        var hasStringChild = false;
+        foreach (var child in value.EnumerateObject())
+        {
+            if (child.Value.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            hasStringChild = true;
+        }
+
+        return hasStringChild;
+    }
+
+    private static bool HasOnlyLocaleKeys(JsonElement value)
+    {
+        var hasLocaleKey = false;
+        foreach (var property in value.EnumerateObject())
+        {
+            if (!IsLocaleKey(property.Name))
+            {
+                return false;
+            }
+
+            hasLocaleKey = true;
+        }
+
+        return hasLocaleKey;
+    }
+
+    private static bool IsLocaleKey(string key) =>
+        key == DefaultLocale || _localeKeyPattern.IsMatch(key);
+
     internal static void WriteLocalizedStrings(Utf8JsonWriter writer, IReadOnlyDictionary<string, string> values)
     {
         writer.WriteStartObject();
-        if (values.TryGetValue("default", out var defaultValue))
+        if (values.TryGetValue(DefaultLocale, out var defaultValue))
         {
-            writer.WriteString("default", defaultValue);
+            writer.WriteString(DefaultLocale, defaultValue);
         }
 
         foreach (var entry in values
-                     .Where(entry => entry.Key != "default")
+                     .Where(entry => entry.Key != DefaultLocale)
                      .OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             writer.WriteString(entry.Key, entry.Value);

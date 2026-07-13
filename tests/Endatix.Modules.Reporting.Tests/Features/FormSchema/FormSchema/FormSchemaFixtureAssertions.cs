@@ -45,7 +45,11 @@ internal static class FormSchemaFixtureAssertions
         switch (expected.ValueKind)
         {
             case JsonValueKind.Object:
-                foreach (JsonProperty expectedProperty in expected.EnumerateObject())
+                List<JsonProperty> expectedProperties = expected.EnumerateObject().ToList();
+                List<JsonProperty> actualProperties = actual.EnumerateObject().ToList();
+                actualProperties.Count.Should().Be(expectedProperties.Count, because);
+
+                foreach (JsonProperty expectedProperty in expectedProperties)
                 {
                     actual.TryGetProperty(expectedProperty.Name, out JsonElement actualProperty)
                         .Should().BeTrue($"{because}: missing property '{expectedProperty.Name}'");

@@ -29,9 +29,22 @@ internal static class FormSchemaFlatteningMap
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
 
-        if (root.ValueKind == JsonValueKind.Array)
+        if (root.ValueKind != JsonValueKind.Object)
         {
-            return MergedFormSchema.FromColumnsJson(root);
+            throw new JsonException($"FlatteningMap JSON must be a versioned object (version {CurrentVersion}).");
+        }
+
+        if (!root.TryGetProperty("version", out var versionElement) ||
+            versionElement.ValueKind != JsonValueKind.Number ||
+            !versionElement.TryGetInt32(out var version))
+        {
+            throw new JsonException("FlatteningMap JSON must contain integer property 'version'.");
+        }
+
+        if (version != CurrentVersion)
+        {
+            throw new JsonException(
+                $"Unsupported FlatteningMap version {version}. Expected version {CurrentVersion}.");
         }
 
         if (!root.TryGetProperty("columns", out var columns) ||

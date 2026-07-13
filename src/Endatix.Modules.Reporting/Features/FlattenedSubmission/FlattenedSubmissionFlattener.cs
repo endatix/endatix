@@ -139,7 +139,10 @@ internal static class FlattenedSubmissionFlattener
             context => TryGetPlainMatrixRowValue(context, column.SourceQuestion!, column.MatrixRowValue!));
 
     private static JsonElement? ExtractFileUploadValue(JsonElement submission, FormSchemaColumn column) =>
-        TryGetFileValue(submission, column.SourceQuestion ?? column.Key);
+        ExtractFromLoopAwareContext(
+            submission,
+            column.LoopPath,
+            context => TryGetFileValue(context, column.SourceQuestion ?? column.Key));
 
     private static JsonElement? ExtractPanelDynamicIndexValue(JsonElement submission, FormSchemaColumn column) =>
         TryGetPanelIndexValue(submission, column);
