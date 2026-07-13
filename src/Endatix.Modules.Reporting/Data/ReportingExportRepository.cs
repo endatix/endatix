@@ -33,6 +33,8 @@ internal sealed class ReportingExportRepository(
             return await flattenedRows.AnyAsync(cancellationToken);
         }
 
+        // Probe flattened rows in bounded batches and require a non-test core submission
+        // for at least one ID. Avoids materializing all IDs or cross-DbContext joins.
         long? afterSubmissionId = null;
         while (true)
         {
