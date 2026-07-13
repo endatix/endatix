@@ -378,7 +378,7 @@ public class SubmissionsExportHandlerTests
                 return Result.Success(context.Options);
             });
         tabularDataSource.StreamAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
-            .Returns(exportRows.Cast<IExportItem>().ToAsyncEnumerable());
+            .Returns(exportRows.Cast<IExportItem>().ToTestAsyncEnumerable());
 
         ExportOptions? capturedOptions = null;
         exporter.StreamExportAsync(
@@ -432,7 +432,7 @@ public class SubmissionsExportHandlerTests
         shojiDataSource.PrepareOptionsAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(options));
         shojiDataSource.StreamAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
-            .Returns(new[] { new DynamicExportRow { Data = codebookJson } }.ToAsyncEnumerable());
+            .Returns(new[] { new DynamicExportRow { Data = codebookJson } }.ToTestAsyncEnumerable());
 
         Func<Type, IAsyncEnumerable<IExportItem>>? capturedGetDataAsync = null;
         exporter.StreamExportAsync(
@@ -449,7 +449,7 @@ public class SubmissionsExportHandlerTests
         result.IsSuccess.Should().BeTrue();
         capturedGetDataAsync.Should().NotBeNull();
 
-        List<IExportItem> items = await capturedGetDataAsync!(typeof(DynamicExportRow)).ToListAsync();
+        List<IExportItem> items = await capturedGetDataAsync!(typeof(DynamicExportRow)).ToTestListAsync();
         items.Should().ContainSingle().Which.Should().BeOfType<DynamicExportRow>()
             .Which.Data.Should().Be(codebookJson);
 
@@ -497,7 +497,7 @@ public class SubmissionsExportHandlerTests
         result.IsSuccess.Should().BeTrue();
         capturedGetDataAsync.Should().NotBeNull();
 
-        List<IExportItem> items = await capturedGetDataAsync!(typeof(SubmissionExportRow)).ToListAsync();
+        List<IExportItem> items = await capturedGetDataAsync!(typeof(SubmissionExportRow)).ToTestListAsync();
         items.Should().HaveCount(2);
         items.Should().AllBeOfType<SubmissionExportRow>();
     }
@@ -508,7 +508,7 @@ public class SubmissionsExportHandlerTests
         dataSource.PrepareOptionsAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => Result.Success(callInfo.Arg<ExportDataSourceContext>().Options));
         dataSource.StreamAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
-            .Returns(rows.ToAsyncEnumerable());
+            .Returns(rows.ToTestAsyncEnumerable());
         _dataSourceResolver.Resolve(Arg.Any<ExportDataSourceRequest>()).Returns(dataSource);
     }
 
@@ -607,10 +607,10 @@ public class SubmissionsExportHandlerTests
 
 internal static class TestExtensions
 {
-    public static IAsyncEnumerable<T> ToAsyncEnumerable<T>(this IEnumerable<T> source) =>
+    public static IAsyncEnumerable<T> ToTestAsyncEnumerable<T>(this IEnumerable<T> source) =>
         new AsyncEnumerableWrapper<T>(source);
 
-    public static async Task<List<T>> ToListAsync<T>(this IAsyncEnumerable<T> source)
+    public static async Task<List<T>> ToTestListAsync<T>(this IAsyncEnumerable<T> source)
     {
         List<T> list = [];
         await foreach (T item in source)

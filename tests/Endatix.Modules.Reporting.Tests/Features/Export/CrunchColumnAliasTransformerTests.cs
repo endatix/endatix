@@ -13,11 +13,12 @@ public sealed class CrunchColumnAliasTransformerTests
     [InlineData("qRadioGroup__email", "ChoiceIndicator", "qRadioGroup", null, "qRadioGroup")]
     [InlineData("qMatrix__speed", "MatrixRow", "qMatrix", null, "qMatrix")]
     [InlineData("qMatrixDropdown__alice__punctuality", "MatrixCell", "qMatrixDropdown", "alice", "qMatrixDropdown__alice")]
+    [InlineData("qMatrixDropdown__alice__punctuality", "MatrixCell", null, "alice", "qMatrixDropdown__alice__punctuality")]
     [InlineData("qLoop__adidas__qLoopBoolean__true", "ChoiceIndicator", "qLoopBoolean", "true", "qLoop__adidas__qLoopBoolean")]
     public void ResolveAliasGroupKey_UsesExpectedGroup(
         string canonicalKey,
         string kind,
-        string sourceQuestion,
+        string? sourceQuestion,
         string? matrixRowValue,
         string expectedGroupKey)
     {

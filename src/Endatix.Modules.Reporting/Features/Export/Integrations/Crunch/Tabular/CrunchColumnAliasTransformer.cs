@@ -78,7 +78,9 @@ internal sealed class CrunchColumnAliasTransformer : IColumnAliasTransformer
             FormSchemaColumnKind.MatrixRow
                 => column.SourceQuestion ?? column.CanonicalKey,
             FormSchemaColumnKind.MatrixCell
-                => $"{column.SourceQuestion}__{column.MatrixRowValue}",
+                => column.SourceQuestion is null
+                    ? column.CanonicalKey
+                    : $"{column.SourceQuestion}__{column.MatrixRowValue}",
             FormSchemaColumnKind.MultipleTextItem
                 => column.SourceQuestion ?? column.CanonicalKey,
             FormSchemaColumnKind.PanelDynamicIndex or FormSchemaColumnKind.NestedLoop or FormSchemaColumnKind.LoopSource
