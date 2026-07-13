@@ -21,6 +21,7 @@ internal sealed class ExportFormatConfiguration : IEntityTypeConfiguration<Expor
             .HasConversion<string>()
             .HasMaxLength(ExportFormat.SerializationTypeMaxLength);
         builder.Property(x => x.Description).HasMaxLength(ExportFormat.DescriptionMaxLength);
+        builder.Property(x => x.SettingsJson);
         builder.Property(x => x.CreatedAt).IsRequired();
 
         builder.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();

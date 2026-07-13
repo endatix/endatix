@@ -16,16 +16,20 @@ internal static class ExportColumnPlanBuilder
     internal static IExportColumnPlan Build(
         FormSchemaEntity schema,
         string locale = "default",
-        ColumnAliasProfile aliasProfile = ColumnAliasProfile.Native)
+        ColumnAliasProfile aliasProfile = ColumnAliasProfile.Native,
+        IReadOnlySet<string>? columnScope = null)
     {
         var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         var codebookColumns = ReadCodebookColumns(schema.Codebook);
         var aliasTransformer = ResolveAliasTransformer(aliasProfile);
+        var scopedKeys = columnScope is null
+            ? null
+            : new HashSet<string>(columnScope, StringComparer.Ordinal);
 
         List<ExportColumnDefinition> columns = [];
         List<ExportColumnAliasInput> aliasInputs = [];
 
-        foreach (string systemKey in SubmissionExportRow.SystemColumns.OrderedKeys)
+        foreach (var systemKey in SubmissionExportRow.SystemColumns.OrderedKeys)
         {
             aliasInputs.Add(new ExportColumnAliasInput(systemKey, null, null, null, "System"));
             columns.Add(new ExportColumnDefinition(
@@ -37,6 +41,11 @@ internal static class ExportColumnPlanBuilder
 
         foreach (var column in flatteningMap.Columns)
         {
+            if (scopedKeys is not null && !scopedKeys.Contains(column.Key))
+            {
+                continue;
+            }
+
             var headerLabel = ResolveHeaderLabel(codebookColumns, column.Key, locale);
             aliasInputs.Add(new ExportColumnAliasInput(
                 column.Key,
@@ -57,7 +66,7 @@ internal static class ExportColumnPlanBuilder
         var aliasedColumns = columns
             .Select(column => column with
             {
-                ExportKey = exportKeys.TryGetValue(column.CanonicalKey, out string? alias)
+                ExportKey = exportKeys.TryGetValue(column.CanonicalKey, out var alias)
                     ? alias
                     : column.CanonicalKey,
             })

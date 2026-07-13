@@ -6,7 +6,20 @@ namespace Endatix.Core.Abstractions.Exporting;
 public static class SubmissionExportMetadataKeys
 {
     public const string ColumnPlan = "SubmissionExportColumnPlan";
+
+    public const string ExecutionSettings = "SubmissionExportExecutionSettings";
+
+    public const string ResolvedFormatSettings = "SubmissionExportResolvedFormatSettings";
 }
+
+/// <summary>
+/// Per-request export execution settings resolved from format definition and request overrides.
+/// </summary>
+public sealed record SubmissionExportExecutionSettings(
+    long? ExportFormatId = null,
+    string? SettingsJson = null,
+    bool? IncludeTestSubmissions = null,
+    IReadOnlyList<string>? ColumnScope = null);
 
 /// <summary>
 /// Serialized <see cref="SubmissionExportColumnPlanEntry.Source"/> values.

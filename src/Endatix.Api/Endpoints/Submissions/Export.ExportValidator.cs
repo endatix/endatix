@@ -18,6 +18,10 @@ public class ExportValidator : Validator<ExportRequest>
                .GreaterThan(0)
                .When(x => x.ExportId.HasValue);
 
+          RuleFor(x => x.ExportFormatId)
+               .GreaterThan(0)
+               .When(x => x.ExportFormatId.HasValue);
+
           RuleFor(x => x.ExportFormat)
                .Must(format => supportedFormats.Contains(format, StringComparer.OrdinalIgnoreCase))
                .WithMessage($"Export format not supported. Supported formats: {string.Join(", ", supportedFormats)}")

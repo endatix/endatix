@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 {
     [DbContext(typeof(ReportingDbContext))]
-    [Migration("20260712145345_InitialReporting")]
+    [Migration("20260713183149_InitialReporting")]
     partial class InitialReporting
     {
         /// <inheritdoc />
@@ -57,6 +57,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<string>("SettingsJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");

@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Contracts.Export;
+using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -22,17 +23,53 @@ internal sealed class ReportingExportRepository(
     public async Task<bool> HasExportableRowsAsync(
         long tenantId,
         long formId,
+        ExportQueryOptions options,
         CancellationToken cancellationToken)
     {
-        return await reportingDbContext.FlattenedSubmissions
-            .AsNoTracking()
-            .AnyAsync(
-                row => row.TenantId == tenantId &&
-                       row.FormId == formId &&
-                       !row.IsDeleted &&
-                       row.Integration.Code == SubmissionIntegrationStatusCodes.Processed &&
-                       row.DataJson != null,
-                cancellationToken);
+        var flattenedRows = BuildExportableRowsQuery(tenantId, formId);
+
+        if (options.IncludeTestSubmissions)
+        {
+            return await flattenedRows.AnyAsync(cancellationToken);
+        }
+
+        // Probe flattened rows in bounded batches and require a non-test core submission
+        // for at least one ID. Avoids materializing all IDs or cross-DbContext joins.
+        long? afterSubmissionId = null;
+        while (true)
+        {
+            var batchIds = await flattenedRows
+                .Where(row => afterSubmissionId == null || row.SubmissionId > afterSubmissionId)
+                .OrderBy(row => row.SubmissionId)
+                .Take(DEFAULT_PAGE_SIZE)
+                .Select(row => row.SubmissionId)
+                .ToListAsync(cancellationToken);
+
+            if (batchIds.Count == 0)
+            {
+                return false;
+            }
+
+            var hasExportableRow = await appDbContext.Submissions
+                .AsNoTracking()
+                .AnyAsync(
+                    submission => submission.TenantId == tenantId &&
+                                  submission.FormId == formId &&
+                                  !submission.IsTestSubmission &&
+                                  batchIds.Contains(submission.Id),
+                    cancellationToken);
+            if (hasExportableRow)
+            {
+                return true;
+            }
+
+            if (batchIds.Count < DEFAULT_PAGE_SIZE)
+            {
+                return false;
+            }
+
+            afterSubmissionId = batchIds[^1];
+        }
     }
 
     public async IAsyncEnumerable<FlattenedExportRow> StreamFlattenedSubmissionsAsync(
@@ -46,14 +83,8 @@ internal sealed class ReportingExportRepository(
 
         while (true)
         {
-            var batch = await reportingDbContext.FlattenedSubmissions
-                .AsNoTracking()
-                .Where(row => row.TenantId == tenantId &&
-                              row.FormId == formId &&
-                              !row.IsDeleted &&
-                              row.Integration.Code == SubmissionIntegrationStatusCodes.Processed &&
-                              row.DataJson != null &&
-                              (afterSubmissionId == null || row.SubmissionId > afterSubmissionId))
+            var batch = await BuildExportableRowsQuery(tenantId, formId)
+                .Where(row => afterSubmissionId == null || row.SubmissionId > afterSubmissionId)
                 .OrderBy(row => row.SubmissionId)
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
@@ -68,6 +99,7 @@ internal sealed class ReportingExportRepository(
                 .AsNoTracking()
                 .Where(submission => submission.TenantId == tenantId &&
                                      submission.FormId == formId &&
+                                     (options.IncludeTestSubmissions || !submission.IsTestSubmission) &&
                                      submissionIds.Contains(submission.Id))
                 .ToDictionaryAsync(submission => submission.Id, cancellationToken);
 
@@ -102,6 +134,17 @@ internal sealed class ReportingExportRepository(
 
             afterSubmissionId = batch[^1].SubmissionId;
         }
+    }
+
+    private IQueryable<FlattenedSubmission> BuildExportableRowsQuery(long tenantId, long formId)
+    {
+        return reportingDbContext.FlattenedSubmissions
+            .AsNoTracking()
+            .Where(row => row.TenantId == tenantId &&
+                          row.FormId == formId &&
+                          !row.IsDeleted &&
+                          row.Integration.Code == SubmissionIntegrationStatusCodes.Processed &&
+                          row.DataJson != null);
     }
 
     private static int NormalizePageSize(int pageSize) =>
