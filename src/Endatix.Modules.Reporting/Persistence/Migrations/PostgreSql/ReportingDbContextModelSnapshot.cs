@@ -55,6 +55,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<string>("SettingsJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 

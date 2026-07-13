@@ -24,6 +24,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     SerializationType = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    SettingsJson = table.Column<string>(type: "jsonb", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
