@@ -230,6 +230,108 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
+  public void Flatten_LoopSourceFile_ColumnKindIsFileUpload()
+  {
+    const string definitionJson = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "checkbox",
+                  "name": "brands",
+                  "choices": [
+                    { "value": "nike", "text": "Nike" }
+                  ]
+                },
+                {
+                  "type": "paneldynamic",
+                  "name": "brandLoop",
+                  "loopSource": ["brands"],
+                  "templateElements": [
+                    {
+                      "type": "file",
+                      "name": "brandPhoto",
+                      "title": "Brand photo"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+    using JsonDocument definition = JsonDocument.Parse(definitionJson);
+    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+
+    FormSchemaColumn column = columns.Single(c => c.Key == "brandLoop__nike__brandPhoto");
+    column.Kind.Should().Be(FormSchemaColumnKind.FileUpload);
+    column.SourceQuestion.Should().Be("brandPhoto");
+    column.LoopPath.Should().NotBeNull();
+    column.DataType.Should().Be("file");
+  }
+
+  [Fact]
+  public void Flatten_LoopSourceMatrixDynamic_GeneratesIndexedMatrixCells()
+  {
+    const string definitionJson = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "checkbox",
+                  "name": "brands",
+                  "choices": [
+                    { "value": "nike", "text": "Nike" }
+                  ]
+                },
+                {
+                  "type": "paneldynamic",
+                  "name": "brandLoop",
+                  "loopSource": ["brands"],
+                  "templateElements": [
+                    {
+                      "type": "matrixdynamic",
+                      "name": "employers",
+                      "title": "Employers",
+                      "rowCount": 2,
+                      "columns": [
+                        { "name": "company", "title": "Company" },
+                        { "name": "years", "title": "Years", "cellType": "text", "inputType": "number" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+    using JsonDocument definition = JsonDocument.Parse(definitionJson);
+    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+
+    FormSchemaColumn companyRow0 = columns.Single(c => c.Key == "brandLoop__nike__employers__0__company");
+    companyRow0.Kind.Should().Be(FormSchemaColumnKind.MatrixCell);
+    companyRow0.PanelIndex.Should().Be(0);
+    companyRow0.MatrixColumnValue.Should().Be("company");
+    companyRow0.LoopPath.Should().NotBeNull();
+    companyRow0.DataType.Should().Be("string");
+
+    FormSchemaColumn yearsRow1 = columns.Single(c => c.Key == "brandLoop__nike__employers__1__years");
+    yearsRow1.Kind.Should().Be(FormSchemaColumnKind.MatrixCell);
+    yearsRow1.PanelIndex.Should().Be(1);
+    yearsRow1.MatrixColumnValue.Should().Be("years");
+    yearsRow1.DataType.Should().Be("number");
+
+    columns.Where(c => c.Key.StartsWith("brandLoop__nike__employers__", StringComparison.Ordinal))
+      .Should()
+      .HaveCount(4);
+  }
+
+  [Fact]
   public void Flatten_FileUpload_ColumnKindIsFileUpload()
   {
     // Arrange
@@ -373,6 +475,115 @@ public class FormDefinitionFlattenerTests
     IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
 
     columns.Single(column => column.Key == "colors__other").Label.Should().Be("Favorite colors — Other");
+  }
+
+  [Fact]
+  public void Flatten_LoopSourcePanel_RetainsParentFieldsAndSiblingChildPanels()
+  {
+    const string definitionJson = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "checkbox",
+                  "name": "brands",
+                  "choices": [
+                    { "value": "nike", "text": "Nike" },
+                    { "value": "adidas", "text": "Adidas" }
+                  ]
+                },
+                {
+                  "type": "paneldynamic",
+                  "name": "outerLoop",
+                  "loopSource": ["brands"],
+                  "templateElements": [
+                    {
+                      "type": "text",
+                      "name": "parentNote",
+                      "title": "Parent note"
+                    },
+                    {
+                      "type": "paneldynamic",
+                      "name": "innerLoopA",
+                      "loopSource": ["brands"],
+                      "templateElements": [
+                        {
+                          "type": "text",
+                          "name": "innerAField",
+                          "title": "Inner A"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paneldynamic",
+                      "name": "innerLoopB",
+                      "loopSource": ["brands"],
+                      "templateElements": [
+                        {
+                          "type": "text",
+                          "name": "innerBField",
+                          "title": "Inner B"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+    using JsonDocument definition = JsonDocument.Parse(definitionJson);
+    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+    IReadOnlyCollection<string> keys = columns.Select(column => column.Key).ToArray();
+
+    keys.Should().Contain("outerLoop__nike__parentNote");
+    keys.Should().Contain("innerLoopA__nike__nike__innerAField");
+    keys.Should().Contain("innerLoopB__adidas__adidas__innerBField");
+  }
+
+  [Fact]
+  public void Flatten_LoopSourcePanel_UsesValueNameForLoopPathAndNameForOutputKeys()
+  {
+    const string definitionJson = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "checkbox",
+                  "name": "brands",
+                  "choices": [
+                    { "value": "nike", "text": "Nike" }
+                  ]
+                },
+                {
+                  "type": "paneldynamic",
+                  "name": "brandLoop",
+                  "valueName": "brandsLoop",
+                  "loopSource": ["brands"],
+                  "templateElements": [
+                    {
+                      "type": "text",
+                      "name": "brandNote",
+                      "title": "Brand note"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+    using JsonDocument definition = JsonDocument.Parse(definitionJson);
+    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+
+    FormSchemaColumn column = columns.Single(c => c.Key == "brandLoop__nike__brandNote");
+    column.LoopPath.Should().NotBeNull();
+    column.LoopPath![0].PanelValueName.Should().Be("brandsLoop");
   }
 
   [Fact]
