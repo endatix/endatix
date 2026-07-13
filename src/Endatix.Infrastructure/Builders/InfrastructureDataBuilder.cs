@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Infrastructure.Exporting.DataSources;
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
@@ -65,6 +66,9 @@ public class InfrastructureDataBuilder
 
         // Add exporters
         Services.AddScoped<IExporterFactory, ExporterFactory>();
+        Services.AddScoped<IExportDataSourceResolver, ExportDataSourceResolver>();
+        Services.AddScoped<IExportDataSource, SqlSubmissionExportDataSource>();
+        Services.AddScoped<IExportDataSource, SqlDefaultSubmissionExportDataSource>();
         Services.AddScoped<ISubmissionFileExtractor, SubmissionFileExtractor>();
         Services.AddExporter<SubmissionExportRow, SubmissionCsvExporter>();
         Services.AddExporter<SubmissionExportRow, SubmissionJsonExporter>();

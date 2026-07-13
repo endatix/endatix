@@ -1,6 +1,3 @@
-using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Result;
-
 namespace Endatix.Core.Abstractions.Exporting;
 
 /// <summary>
@@ -36,25 +33,3 @@ public sealed record SubmissionExportColumnPlanEntry(
 /// </summary>
 public sealed record SubmissionExportColumnPlan(
     IReadOnlyList<SubmissionExportColumnPlanEntry> Columns);
-
-/// <summary>
-/// Optional reporting-module export provider. Registered when the reporting module is enabled.
-/// </summary>
-public interface ISubmissionExportReadModelProvider
-{
-    Task<Result<SubmissionExportColumnPlan>> PrepareSubmissionExportAsync(
-        long tenantId,
-        long formId,
-        CancellationToken cancellationToken);
-
-    IAsyncEnumerable<SubmissionExportRow> StreamSubmissionExportRowsAsync(
-        long tenantId,
-        long formId,
-        int? exportPageSize,
-        CancellationToken cancellationToken);
-
-    Task<Result<string>> GenerateReportingCodebookJsonAsync(
-        long tenantId,
-        long formId,
-        CancellationToken cancellationToken);
-}

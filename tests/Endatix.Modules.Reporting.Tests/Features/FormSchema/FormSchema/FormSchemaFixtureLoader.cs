@@ -47,6 +47,18 @@ internal static class FormSchemaFixtureLoader
     internal static JsonElement LoadAllQuestionsExpectedShojiCodebook() =>
         LoadAllQuestions("all-questions-expected-shoji-codebook.json");
 
+    internal static IReadOnlyDictionary<string, string> LoadAllQuestionsExpectedCrunchExportKeys()
+    {
+        JsonElement map = LoadAllQuestions("all-questions-expected-crunch-export-keys.json");
+        Dictionary<string, string> exportKeys = new(StringComparer.Ordinal);
+        foreach (JsonProperty property in map.EnumerateObject())
+        {
+            exportKeys[property.Name] = property.Value.GetString()!;
+        }
+
+        return exportKeys;
+    }
+
     internal static JsonElement LoadJson(string fixtureName)
     {
         string path = Path.Combine(FixturesRoot, fixtureName);

@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 
 /// <summary>
-/// Exporter for Codebook Shoji JSON format, which outputs raw JSON data from the database.
+/// Exporter for opaque JSON artifact exports (e.g. codebook files streamed from <see cref="DynamicExportRow"/>).
 /// </summary>
 public sealed class CodebookJsonExporter(ILogger<CodebookJsonExporter> logger) : IExporter<DynamicExportRow>
 {

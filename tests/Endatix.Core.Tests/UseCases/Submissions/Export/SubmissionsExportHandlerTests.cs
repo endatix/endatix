@@ -1,5 +1,4 @@
 using Endatix.Core.Abstractions.Exporting;
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Submissions.Export;
@@ -10,44 +9,42 @@ namespace Endatix.Core.Tests.UseCases.Submissions.Export;
 
 public class SubmissionsExportHandlerTests
 {
-    private readonly ISubmissionExportRepository _exportRepository;
+    private readonly IExportDataSourceResolver _dataSourceResolver;
     private readonly ILogger<SubmissionsExportHandler> _logger;
     private readonly SubmissionsExportHandler _handler;
 
     public SubmissionsExportHandlerTests()
     {
-        _exportRepository = Substitute.For<ISubmissionExportRepository>();
+        _dataSourceResolver = Substitute.For<IExportDataSourceResolver>();
         _logger = Substitute.For<ILogger<SubmissionsExportHandler>>();
-        _handler = new SubmissionsExportHandler(_exportRepository, _logger);
+        _handler = new SubmissionsExportHandler(_dataSourceResolver, _logger);
     }
 
     [Fact]
     public async Task Handle_WithSubmissionExportRow_Success()
     {
         // Arrange
-        var formId = 1L;
-        var exporter = CreateMockExporter(typeof(SubmissionExportRow));
-        var options = new ExportOptions();
-        var pipeWriter = new Pipe().Writer;
-        var fileExport = new FileExport("text/csv", "submissions-1.csv");
+        long formId = 1L;
+        IExporter exporter = CreateMockExporter(typeof(SubmissionExportRow));
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
+        FileExport fileExport = new("text/csv", "submissions-1.csv");
 
-        var exportRows = new List<SubmissionExportRow>
-        {
+        List<SubmissionExportRow> exportRows =
+        [
             new() { FormId = formId, Id = 1, AnswersModel = "{}" },
-            new() { FormId = formId, Id = 2, AnswersModel = "{}" }
-        };
+            new() { FormId = formId, Id = 2, AnswersModel = "{}" },
+        ];
 
-        var request = new SubmissionsExportQuery(
+        SubmissionsExportQuery request = new(
             FormId: formId,
             TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
-            SqlFunctionName: null
-        );
+            SqlFunctionName: null);
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<int?>(), Arg.Any<CancellationToken>())
-            .Returns(exportRows.ToAsyncEnumerable());
+        ConfigureDataSourceReturningRows(exportRows.Cast<IExportItem>());
 
         exporter.StreamExportAsync(
             Arg.Any<Func<Type, IAsyncEnumerable<IExportItem>>>(),
@@ -56,95 +53,80 @@ public class SubmissionsExportHandlerTests
             pipeWriter)
             .Returns(async x =>
             {
-                // Actually invoke the getDataAsync function to trigger repository call
-                var getDataAsync = x.Arg<Func<Type, IAsyncEnumerable<IExportItem>>>();
-                var data = getDataAsync(typeof(SubmissionExportRow));
-                // Enumerate to trigger the repository call
-                await foreach (var _ in data) { }
+                Func<Type, IAsyncEnumerable<IExportItem>> getDataAsync = x.Arg<Func<Type, IAsyncEnumerable<IExportItem>>>();
+                await foreach (IExportItem _ in getDataAsync(typeof(SubmissionExportRow))) { }
+
                 return Result.Success(fileExport);
             });
 
         // Act
-        var result = await _handler.Handle(request, TestContext.Current.CancellationToken);
+        Result<FileExport> result = await _handler.Handle(request, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(fileExport);
 
-        _exportRepository.Received(1).GetExportRowsAsync<SubmissionExportRow>(
-            formId,
-            null,
-            Arg.Any<int?>(),
-            Arg.Any<CancellationToken>());
+        _dataSourceResolver.Received(1).Resolve(Arg.Any<ExportDataSourceRequest>());
     }
 
     [Fact]
     public async Task Handle_WithDynamicExportRow_Success()
     {
         // Arrange
-        var formId = 1L;
-        var sqlFunctionName = "custom_export";
-        var exporter = CreateMockExporter(typeof(DynamicExportRow));
-        var options = new ExportOptions();
-        var pipeWriter = new Pipe().Writer;
-        var fileExport = new FileExport("application/json", "codebook-1.json");
+        long formId = 1L;
+        string sqlFunctionName = "custom_export";
+        IExporter exporter = CreateMockExporter(typeof(DynamicExportRow));
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
+        FileExport fileExport = new("application/json", "codebook-1.json");
 
-        var exportRows = new List<DynamicExportRow>
-        {
+        List<DynamicExportRow> exportRows =
+        [
             new() { Data = "{\"key\":\"value1\"}" },
-            new() { Data = "{\"key\":\"value2\"}" }
-        };
+            new() { Data = "{\"key\":\"value2\"}" },
+        ];
 
-        var request = new SubmissionsExportQuery(
+        SubmissionsExportQuery request = new(
             FormId: formId,
             TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
-            SqlFunctionName: sqlFunctionName
-        );
+            SqlFunctionName: sqlFunctionName);
 
-        _exportRepository.GetExportRowsAsync<DynamicExportRow>(formId, sqlFunctionName, Arg.Any<int?>(), Arg.Any<CancellationToken>())
-            .Returns(exportRows.ToAsyncEnumerable());
+        ConfigureDataSourceReturningRows(exportRows.Cast<IExportItem>());
 
         SetupExporterToEnumerateData(exporter, typeof(DynamicExportRow), fileExport, options, pipeWriter);
 
         // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        Result<FileExport> result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(fileExport);
-
-        _exportRepository.Received(1).GetExportRowsAsync<DynamicExportRow>(
-            formId,
-            sqlFunctionName,
-            Arg.Any<int?>(),
-            Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_InvalidItemType_ReturnsInvalidResult()
     {
         // Arrange
-        var formId = 1L;
-        var exporter = CreateMockExporter(typeof(Form)); // Form doesn't implement IExportItem
-        var options = new ExportOptions();
-        var pipeWriter = new Pipe().Writer;
+        long formId = 1L;
+        IExporter exporter = CreateMockExporter(typeof(Form));
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
 
-        var request = new SubmissionsExportQuery(
+        SubmissionsExportQuery request = new(
             FormId: formId,
             TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
-            SqlFunctionName: null
-        );
+            SqlFunctionName: null);
 
         // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        Result<FileExport> result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -153,43 +135,37 @@ public class SubmissionsExportHandlerTests
         result.ValidationErrors.Should().HaveCount(1);
         result.ValidationErrors.First().ErrorMessage.Should().Contain("Invalid item type");
 
-        _exportRepository.DidNotReceive().GetExportRowsAsync<SubmissionExportRow>(
-            Arg.Any<long>(),
-            Arg.Any<string?>(),
-            Arg.Any<int?>(),
-            Arg.Any<CancellationToken>());
+        _dataSourceResolver.DidNotReceive().Resolve(Arg.Any<ExportDataSourceRequest>());
     }
 
     [Fact]
     public async Task Handle_StreamExportAsyncFails_ReturnsErrorResult()
     {
         // Arrange
-        var formId = 1L;
-        var exporter = CreateMockExporter(typeof(SubmissionExportRow));
-        var options = new ExportOptions();
-        var pipeWriter = new Pipe().Writer;
+        long formId = 1L;
+        IExporter exporter = CreateMockExporter(typeof(SubmissionExportRow));
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
 
-        var exportRows = new List<SubmissionExportRow>
-        {
-            new() { FormId = formId, Id = 1, AnswersModel = "{}" }
-        };
+        List<SubmissionExportRow> exportRows =
+        [
+            new() { FormId = formId, Id = 1, AnswersModel = "{}" },
+        ];
 
-        var request = new SubmissionsExportQuery(
+        SubmissionsExportQuery request = new(
             FormId: formId,
             TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
-            SqlFunctionName: null
-        );
+            SqlFunctionName: null);
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<int?>(), Arg.Any<CancellationToken>())
-            .Returns(exportRows.ToAsyncEnumerable());
+        ConfigureDataSourceReturningRows(exportRows.Cast<IExportItem>());
 
         SetupExporterToReturnError(exporter, "Export streaming failed", options, pipeWriter);
 
         // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        Result<FileExport> result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -202,27 +178,25 @@ public class SubmissionsExportHandlerTests
     public async Task Handle_RepositoryThrowsException_ReturnsErrorResult()
     {
         // Arrange
-        var formId = 1L;
-        var exporter = CreateMockExporter(typeof(SubmissionExportRow));
-        var options = new ExportOptions();
-        var pipeWriter = new Pipe().Writer;
+        long formId = 1L;
+        IExporter exporter = CreateMockExporter(typeof(SubmissionExportRow));
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
 
-        var request = new SubmissionsExportQuery(
+        SubmissionsExportQuery request = new(
             FormId: formId,
             TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
-            SqlFunctionName: null
-        );
+            SqlFunctionName: null);
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<int?>(), Arg.Any<CancellationToken>())
-            .Returns(x => throw new Exception("Database connection failed"));
+        ConfigureDataSourceThrowing(new Exception("Database connection failed"));
 
         SetupExporterToHandleException(exporter, typeof(SubmissionExportRow), options, pipeWriter);
 
         // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        Result<FileExport> result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -235,26 +209,31 @@ public class SubmissionsExportHandlerTests
     public async Task Handle_UnsupportedItemType_ThrowsException()
     {
         // Arrange
-        var formId = 1L;
-        // Create a mock exporter with an unsupported type (not SubmissionExportRow or DynamicExportRow)
-        var unsupportedType = typeof(CustomExportItem);
-        var exporter = CreateMockExporter(unsupportedType);
-        var options = new ExportOptions();
-        var pipeWriter = new Pipe().Writer;
+        long formId = 1L;
+        Type unsupportedType = typeof(CustomExportItem);
+        IExporter exporter = CreateMockExporter(unsupportedType);
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
 
-        var request = new SubmissionsExportQuery(
+        SubmissionsExportQuery request = new(
             FormId: formId,
             TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
-            SqlFunctionName: null
-        );
+            SqlFunctionName: null);
+
+        IExportDataSource unsupportedDataSource = Substitute.For<IExportDataSource>();
+        unsupportedDataSource.PrepareOptionsAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(options));
+        unsupportedDataSource.StreamAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(x => throw new InvalidOperationException($"Unsupported export item type: {unsupportedType.Name}"));
+        _dataSourceResolver.Resolve(Arg.Any<ExportDataSourceRequest>()).Returns(unsupportedDataSource);
 
         SetupExporterToHandleException(exporter, unsupportedType, options, pipeWriter);
 
         // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        Result<FileExport> result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -267,34 +246,31 @@ public class SubmissionsExportHandlerTests
     public async Task Handle_PassesCorrectOptionsToExporter()
     {
         // Arrange
-        var formId = 1L;
-        var exporter = CreateMockExporter(typeof(SubmissionExportRow));
-        var options = new ExportOptions
+        long formId = 1L;
+        IExporter exporter = CreateMockExporter(typeof(SubmissionExportRow));
+        ExportOptions options = new()
         {
-            Columns = new List<string> { "Id", "FormId" },
-            Metadata = new Dictionary<string, object> { ["Key"] = "Value" }
+            Columns = ["Id", "FormId"],
+            Metadata = new Dictionary<string, object> { ["Key"] = "Value" },
         };
-        var pipeWriter = new Pipe().Writer;
-        var fileExport = new FileExport("text/csv", "submissions-1.csv");
+        PipeWriter pipeWriter = new Pipe().Writer;
+        FileExport fileExport = new("text/csv", "submissions-1.csv");
 
-        var exportRows = new List<SubmissionExportRow>
-        {
-            new() { FormId = formId, Id = 1, AnswersModel = "{}" }
-        };
+        List<SubmissionExportRow> exportRows =
+        [
+            new() { FormId = formId, Id = 1, AnswersModel = "{}" },
+        ];
 
-        var request = new SubmissionsExportQuery(
+        SubmissionsExportQuery request = new(
             FormId: formId,
             TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
-            SqlFunctionName: null
-        );
+            SqlFunctionName: null);
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<int?>(), Arg.Any<CancellationToken>())
-            .Returns(exportRows.ToAsyncEnumerable());
+        ConfigureDataSourceReturningRows(exportRows.Cast<IExportItem>());
 
-        // Use custom setup to verify options are passed correctly
         exporter.StreamExportAsync(
             Arg.Any<Func<Type, IAsyncEnumerable<IExportItem>>>(),
             Arg.Is<ExportOptions>(o =>
@@ -306,16 +282,14 @@ public class SubmissionsExportHandlerTests
             pipeWriter)
             .Returns(async x =>
             {
-                // Actually invoke the getDataAsync function to trigger repository call
-                var getDataAsync = x.Arg<Func<Type, IAsyncEnumerable<IExportItem>>>();
-                var data = getDataAsync(typeof(SubmissionExportRow));
-                // Enumerate to trigger the repository call
-                await foreach (var _ in data) { }
+                Func<Type, IAsyncEnumerable<IExportItem>> getDataAsync = x.Arg<Func<Type, IAsyncEnumerable<IExportItem>>>();
+                await foreach (IExportItem _ in getDataAsync(typeof(SubmissionExportRow))) { }
+
                 return Result.Success(fileExport);
             });
 
         // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        Result<FileExport> result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -334,51 +308,44 @@ public class SubmissionsExportHandlerTests
     public async Task Handle_WithCustomSqlFunctionName_PassesToRepository()
     {
         // Arrange
-        var formId = 1L;
-        var sqlFunctionName = "custom_export_function";
-        var exporter = CreateMockExporter(typeof(SubmissionExportRow));
-        var options = new ExportOptions();
-        var pipeWriter = new Pipe().Writer;
-        var fileExport = new FileExport("text/csv", "submissions-1.csv");
+        long formId = 1L;
+        string sqlFunctionName = "custom_export_function";
+        IExporter exporter = CreateMockExporter(typeof(SubmissionExportRow));
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
+        FileExport fileExport = new("text/csv", "submissions-1.csv");
 
-        var exportRows = new List<SubmissionExportRow>
-        {
-            new() { FormId = formId, Id = 1, AnswersModel = "{}" }
-        };
+        List<SubmissionExportRow> exportRows =
+        [
+            new() { FormId = formId, Id = 1, AnswersModel = "{}" },
+        ];
 
-        var request = new SubmissionsExportQuery(
+        SubmissionsExportQuery request = new(
             FormId: formId,
             TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
-            SqlFunctionName: sqlFunctionName
-        );
+            SqlFunctionName: sqlFunctionName);
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, sqlFunctionName, Arg.Any<int?>(), Arg.Any<CancellationToken>())
-            .Returns(exportRows.ToAsyncEnumerable());
+        ConfigureDataSourceReturningRows(exportRows.Cast<IExportItem>());
 
         SetupExporterToEnumerateData(exporter, typeof(SubmissionExportRow), fileExport, options, pipeWriter);
 
         // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        Result<FileExport> result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        _exportRepository.Received(1).GetExportRowsAsync<SubmissionExportRow>(
-            formId,
-            sqlFunctionName,
-            Arg.Any<int?>(),
-            Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_WithReportingReadModelProvider_StreamsRowsAndInjectsColumnPlan()
+    public async Task Handle_WithTabularExportDataSource_StreamsRowsAndInjectsColumnPlan()
     {
         // Arrange
         long formId = 1L;
         long tenantId = 42L;
-        ISubmissionExportReadModelProvider readModelProvider = Substitute.For<ISubmissionExportReadModelProvider>();
+        IExportDataSource tabularDataSource = Substitute.For<IExportDataSource>();
         IExporter exporter = CreateMockExporter(typeof(SubmissionExportRow));
         ExportOptions options = new();
         PipeWriter pipeWriter = new Pipe().Writer;
@@ -401,12 +368,17 @@ public class SubmissionsExportHandlerTests
             OutputWriter: pipeWriter,
             SqlFunctionName: null);
 
-        readModelProvider.PrepareSubmissionExportAsync(tenantId, formId, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(columnPlan));
-        readModelProvider.StreamSubmissionExportRowsAsync(tenantId, formId, Arg.Any<int?>(), Arg.Any<CancellationToken>())
-            .Returns(exportRows.ToAsyncEnumerable());
-
-        SubmissionsExportHandler handler = new(_exportRepository, _logger, readModelProvider);
+        _dataSourceResolver.Resolve(Arg.Any<ExportDataSourceRequest>()).Returns(tabularDataSource);
+        tabularDataSource.PrepareOptionsAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                ExportDataSourceContext context = callInfo.Arg<ExportDataSourceContext>();
+                context.Options.Metadata ??= new Dictionary<string, object>();
+                context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
+                return Result.Success(context.Options);
+            });
+        tabularDataSource.StreamAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(exportRows.Cast<IExportItem>().ToTestAsyncEnumerable());
 
         ExportOptions? capturedOptions = null;
         exporter.StreamExportAsync(
@@ -423,7 +395,7 @@ public class SubmissionsExportHandlerTests
             });
 
         // Act
-        Result<FileExport> result = await handler.Handle(request, CancellationToken.None);
+        Result<FileExport> result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -431,23 +403,18 @@ public class SubmissionsExportHandlerTests
         capturedOptions!.Metadata.Should().ContainKey(SubmissionExportMetadataKeys.ColumnPlan);
         capturedOptions.Metadata![SubmissionExportMetadataKeys.ColumnPlan].Should().Be(columnPlan);
 
-        await readModelProvider.Received(1).PrepareSubmissionExportAsync(tenantId, formId, Arg.Any<CancellationToken>());
-        readModelProvider.Received(1).StreamSubmissionExportRowsAsync(tenantId, formId, Arg.Any<int?>(), Arg.Any<CancellationToken>());
-        _exportRepository.DidNotReceive().GetExportRowsAsync<SubmissionExportRow>(
-            Arg.Any<long>(),
-            Arg.Any<string?>(),
-            Arg.Any<int?>(),
-            Arg.Any<CancellationToken>());
+        await tabularDataSource.Received(1).PrepareOptionsAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>());
+        tabularDataSource.Received(1).StreamAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_WithReportingReadModelProvider_GeneratesCodebookFromReadModel()
+    public async Task Handle_WithShojiCodebookDataSource_StreamsGeneratedCodebook()
     {
         // Arrange
         long formId = 1L;
         long tenantId = 42L;
-        ISubmissionExportReadModelProvider readModelProvider = Substitute.For<ISubmissionExportReadModelProvider>();
-        IExporter exporter = CreateMockExporter(typeof(DynamicExportRow));
+        IExportDataSource shojiDataSource = Substitute.For<IExportDataSource>();
+        IExporter exporter = CreateMockExporter("codebook", typeof(DynamicExportRow));
         ExportOptions options = new();
         PipeWriter pipeWriter = new Pipe().Writer;
         FileExport fileExport = new("application/json", "codebook-1.json");
@@ -461,10 +428,11 @@ public class SubmissionsExportHandlerTests
             OutputWriter: pipeWriter,
             SqlFunctionName: null);
 
-        readModelProvider.GenerateReportingCodebookJsonAsync(tenantId, formId, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(codebookJson));
-
-        SubmissionsExportHandler handler = new(_exportRepository, _logger, readModelProvider);
+        _dataSourceResolver.Resolve(Arg.Any<ExportDataSourceRequest>()).Returns(shojiDataSource);
+        shojiDataSource.PrepareOptionsAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(options));
+        shojiDataSource.StreamAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(new[] { new DynamicExportRow { Data = codebookJson } }.ToTestAsyncEnumerable());
 
         Func<Type, IAsyncEnumerable<IExportItem>>? capturedGetDataAsync = null;
         exporter.StreamExportAsync(
@@ -475,51 +443,44 @@ public class SubmissionsExportHandlerTests
             .Returns(Result.Success(fileExport));
 
         // Act
-        Result<FileExport> result = await handler.Handle(request, CancellationToken.None);
+        Result<FileExport> result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         capturedGetDataAsync.Should().NotBeNull();
 
-        List<IExportItem> items = await capturedGetDataAsync!(typeof(DynamicExportRow)).ToListAsync();
+        List<IExportItem> items = await capturedGetDataAsync!(typeof(DynamicExportRow)).ToTestListAsync();
         items.Should().ContainSingle().Which.Should().BeOfType<DynamicExportRow>()
             .Which.Data.Should().Be(codebookJson);
 
-        await readModelProvider.Received(1).GenerateReportingCodebookJsonAsync(tenantId, formId, Arg.Any<CancellationToken>());
-        _exportRepository.DidNotReceive().GetExportRowsAsync<DynamicExportRow>(
-            Arg.Any<long>(),
-            Arg.Any<string?>(),
-            Arg.Any<int?>(),
-            Arg.Any<CancellationToken>());
+        shojiDataSource.Received(1).StreamAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_GetDataAsyncFunction_ReturnsCorrectItems()
     {
         // Arrange
-        var formId = 1L;
-        var exporter = CreateMockExporter(typeof(SubmissionExportRow));
-        var options = new ExportOptions();
-        var pipeWriter = new Pipe().Writer;
-        var fileExport = new FileExport("text/csv", "submissions-1.csv");
+        long formId = 1L;
+        IExporter exporter = CreateMockExporter(typeof(SubmissionExportRow));
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
+        FileExport fileExport = new("text/csv", "submissions-1.csv");
 
-        var exportRows = new List<SubmissionExportRow>
-        {
+        List<SubmissionExportRow> exportRows =
+        [
             new() { FormId = formId, Id = 1, AnswersModel = "{}" },
-            new() { FormId = formId, Id = 2, AnswersModel = "{}" }
-        };
+            new() { FormId = formId, Id = 2, AnswersModel = "{}" },
+        ];
 
-        var request = new SubmissionsExportQuery(
+        SubmissionsExportQuery request = new(
             FormId: formId,
             TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
-            SqlFunctionName: null
-        );
+            SqlFunctionName: null);
 
-        _exportRepository.GetExportRowsAsync<SubmissionExportRow>(formId, null, Arg.Any<int?>(), Arg.Any<CancellationToken>())
-            .Returns(exportRows.ToAsyncEnumerable());
+        ConfigureDataSourceReturningRows(exportRows.Cast<IExportItem>());
 
         Func<Type, IAsyncEnumerable<IExportItem>>? capturedGetDataAsync = null;
         exporter.StreamExportAsync(
@@ -530,30 +491,53 @@ public class SubmissionsExportHandlerTests
             .Returns(Result.Success(fileExport));
 
         // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
+        Result<FileExport> result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         capturedGetDataAsync.Should().NotBeNull();
 
-        // Verify the function returns the correct items
-        var items = await capturedGetDataAsync!(typeof(SubmissionExportRow)).ToListAsync();
+        List<IExportItem> items = await capturedGetDataAsync!(typeof(SubmissionExportRow)).ToTestListAsync();
         items.Should().HaveCount(2);
         items.Should().AllBeOfType<SubmissionExportRow>();
     }
 
+    private void ConfigureDataSourceReturningRows(IEnumerable<IExportItem> rows)
+    {
+        IExportDataSource dataSource = Substitute.For<IExportDataSource>();
+        dataSource.PrepareOptionsAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => Result.Success(callInfo.Arg<ExportDataSourceContext>().Options));
+        dataSource.StreamAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(rows.ToTestAsyncEnumerable());
+        _dataSourceResolver.Resolve(Arg.Any<ExportDataSourceRequest>()).Returns(dataSource);
+    }
+
+    private void ConfigureDataSourceThrowing(Exception exception)
+    {
+        IExportDataSource dataSource = Substitute.For<IExportDataSource>();
+        dataSource.PrepareOptionsAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => Result.Success(callInfo.Arg<ExportDataSourceContext>().Options));
+        dataSource.StreamAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(_ => throw exception);
+        _dataSourceResolver.Resolve(Arg.Any<ExportDataSourceRequest>()).Returns(dataSource);
+    }
+
     private static IExporter CreateMockExporter(Type itemType)
     {
-        var exporter = Substitute.For<IExporter>();
+        IExporter exporter = Substitute.For<IExporter>();
         exporter.ItemType.Returns(itemType);
         exporter.Format.Returns("test-format");
         return exporter;
     }
 
-    /// <summary>
-    /// Sets up the exporter mock to automatically enumerate the data provider function when StreamExportAsync is called.
-    /// This ensures repository calls are triggered during testing.
-    /// </summary>
+    private static IExporter CreateMockExporter(string format, Type itemType)
+    {
+        IExporter exporter = Substitute.For<IExporter>();
+        exporter.ItemType.Returns(itemType);
+        exporter.Format.Returns(format);
+        return exporter;
+    }
+
     private static void SetupExporterToEnumerateData(
         IExporter exporter,
         Type expectedItemType,
@@ -568,17 +552,13 @@ public class SubmissionsExportHandlerTests
             pipeWriter ?? Arg.Any<PipeWriter>())
             .Returns(async x =>
             {
-                // Automatically invoke and enumerate the getDataAsync function to trigger repository calls
-                var getDataAsync = x.Arg<Func<Type, IAsyncEnumerable<IExportItem>>>();
-                var data = getDataAsync(expectedItemType);
-                await foreach (var _ in data) { }
+                Func<Type, IAsyncEnumerable<IExportItem>> getDataAsync = x.Arg<Func<Type, IAsyncEnumerable<IExportItem>>>();
+                await foreach (IExportItem _ in getDataAsync(expectedItemType)) { }
+
                 return Result.Success(fileExport);
             });
     }
 
-    /// <summary>
-    /// Sets up the exporter mock to return an error result.
-    /// </summary>
     private static void SetupExporterToReturnError(
         IExporter exporter,
         string errorMessage,
@@ -593,9 +573,6 @@ public class SubmissionsExportHandlerTests
             .Returns(Result<FileExport>.Error(errorMessage));
     }
 
-    /// <summary>
-    /// Sets up the exporter mock to handle exceptions during data enumeration.
-    /// </summary>
     private static void SetupExporterToHandleException(
         IExporter exporter,
         Type expectedItemType,
@@ -609,17 +586,16 @@ public class SubmissionsExportHandlerTests
             pipeWriter ?? Arg.Any<PipeWriter>())
             .Returns(async x =>
             {
-                var getDataAsync = x.Arg<Func<Type, IAsyncEnumerable<IExportItem>>>();
+                Func<Type, IAsyncEnumerable<IExportItem>> getDataAsync = x.Arg<Func<Type, IAsyncEnumerable<IExportItem>>>();
                 try
                 {
-                    var data = getDataAsync(expectedItemType);
-                    // Enumerate to trigger any exceptions
-                    await foreach (var _ in data) { }
+                    await foreach (IExportItem _ in getDataAsync(expectedItemType)) { }
                 }
                 catch (Exception ex)
                 {
                     return Result<FileExport>.Error($"Export failed: {ex.Message}");
                 }
+
                 return Result<FileExport>.Error("Export failed: Unexpected error");
             });
     }
@@ -629,58 +605,37 @@ public class SubmissionsExportHandlerTests
     }
 }
 
-// Extension methods for test helpers
 internal static class TestExtensions
 {
-    public static IAsyncEnumerable<T> ToAsyncEnumerable<T>(this IEnumerable<T> source)
-    {
-        return new AsyncEnumerableWrapper<T>(source);
-    }
+    public static IAsyncEnumerable<T> ToTestAsyncEnumerable<T>(this IEnumerable<T> source) =>
+        new AsyncEnumerableWrapper<T>(source);
 
-    public static async Task<List<T>> ToListAsync<T>(this IAsyncEnumerable<T> source)
+    public static async Task<List<T>> ToTestListAsync<T>(this IAsyncEnumerable<T> source)
     {
-        var list = new List<T>();
-        await foreach (var item in source)
+        List<T> list = [];
+        await foreach (T item in source)
         {
             list.Add(item);
         }
+
         return list;
     }
 
-    private sealed class AsyncEnumerableWrapper<T> : IAsyncEnumerable<T>
+    private sealed class AsyncEnumerableWrapper<T>(IEnumerable<T> source) : IAsyncEnumerable<T>
     {
-        private readonly IEnumerable<T> _source;
-
-        public AsyncEnumerableWrapper(IEnumerable<T> source)
-        {
-            _source = source;
-        }
-
-        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
-        {
-            return new AsyncEnumeratorWrapper<T>(_source.GetEnumerator());
-        }
+        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) =>
+            new AsyncEnumeratorWrapper<T>(source.GetEnumerator());
     }
 
-    private sealed class AsyncEnumeratorWrapper<T> : IAsyncEnumerator<T>
+    private sealed class AsyncEnumeratorWrapper<T>(IEnumerator<T> enumerator) : IAsyncEnumerator<T>
     {
-        private readonly IEnumerator<T> _enumerator;
+        public T Current => enumerator.Current;
 
-        public AsyncEnumeratorWrapper(IEnumerator<T> enumerator)
-        {
-            _enumerator = enumerator;
-        }
-
-        public T Current => _enumerator.Current;
-
-        public ValueTask<bool> MoveNextAsync()
-        {
-            return new ValueTask<bool>(_enumerator.MoveNext());
-        }
+        public ValueTask<bool> MoveNextAsync() => new(enumerator.MoveNext());
 
         public ValueTask DisposeAsync()
         {
-            _enumerator.Dispose();
+            enumerator.Dispose();
             return ValueTask.CompletedTask;
         }
     }

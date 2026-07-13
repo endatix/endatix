@@ -24,14 +24,14 @@ public abstract class SubmissionExporterBase(
 
     private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
     {
-        [nameof(SubmissionExportRow.FormId)] = row => row.FormId,
-        [nameof(SubmissionExportRow.Id)] = row => row.Id,
-        [nameof(SubmissionExportRow.IsComplete)] = row => row.IsComplete,
-        [nameof(SubmissionExportRow.CreatedAt)] = row => row.CreatedAt,
-        [nameof(SubmissionExportRow.ModifiedAt)] = row => row.ModifiedAt,
-        [nameof(SubmissionExportRow.CompletedAt)] = row => row.CompletedAt is null ? NOT_AVAILABLE_VALUE : row.CompletedAt,
-        [nameof(SubmissionExportRow.SubmitterId)] = row => row.SubmitterId is null ? NOT_AVAILABLE_VALUE : row.SubmitterId,
-        [nameof(SubmissionExportRow.SubmitterDisplayId)] = row => row.SubmitterDisplayId ?? NOT_AVAILABLE_VALUE
+        [SubmissionExportRow.SystemColumns.FormId] = row => row.FormId,
+        [SubmissionExportRow.SystemColumns.Id] = row => row.Id,
+        [SubmissionExportRow.SystemColumns.IsComplete] = row => row.IsComplete,
+        [SubmissionExportRow.SystemColumns.CreatedAt] = row => row.CreatedAt,
+        [SubmissionExportRow.SystemColumns.ModifiedAt] = row => row.ModifiedAt,
+        [SubmissionExportRow.SystemColumns.CompletedAt] = row => row.CompletedAt is null ? NOT_AVAILABLE_VALUE : row.CompletedAt,
+        [SubmissionExportRow.SystemColumns.SubmitterId] = row => row.SubmitterId is null ? NOT_AVAILABLE_VALUE : row.SubmitterId,
+        [SubmissionExportRow.SystemColumns.SubmitterDisplayId] = row => row.SubmitterDisplayId ?? NOT_AVAILABLE_VALUE
     };
 
     /// <inheritdoc/>
