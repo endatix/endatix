@@ -215,4 +215,61 @@ public class FlattenedSubmissionFlattenerTests
 
         flattened["brandLoop__nike__brandPhoto"]!.Value.GetRawText().Should().Be("\"nike-photo.jpg\"");
     }
+
+    [Fact]
+    public void Flatten_LoopSourcePanel_WithDistinctValueName_ResolvesSubmissionFromValueName()
+    {
+        const string definitionJson = """
+            {
+              "pages": [
+                {
+                  "elements": [
+                    {
+                      "type": "checkbox",
+                      "name": "brands",
+                      "choices": [
+                        { "value": "nike", "text": "Nike" }
+                      ]
+                    },
+                    {
+                      "type": "paneldynamic",
+                      "name": "brandLoop",
+                      "valueName": "brandsLoop",
+                      "loopSource": ["brands"],
+                      "templateElements": [
+                        {
+                          "type": "text",
+                          "name": "brandNote",
+                          "title": "Brand note"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """;
+
+        const string submissionJson = """
+            {
+              "brands": ["nike"],
+              "brandsLoop": [
+                {
+                  "itemValue": "nike",
+                  "brandNote": "Nike note"
+                }
+              ]
+            }
+            """;
+
+        using JsonDocument definitionDocument = JsonDocument.Parse(definitionJson);
+        using JsonDocument submissionDocument = JsonDocument.Parse(submissionJson);
+        MergedFormSchema formSchema = new(
+            FormDefinitionFlattener.Flatten(definitionDocument.RootElement.Clone()));
+        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
+            submissionDocument.RootElement.Clone(),
+            formSchema);
+
+        flattened["brandLoop__nike__brandNote"]!.Value.GetRawText().Should().Be("\"Nike note\"");
+    }
 }
