@@ -17,6 +17,6 @@ public sealed record ExportFormatSettings(
         this with
         {
             IncludeTestSubmissions = includeTestSubmissions ?? IncludeTestSubmissions,
-            ColumnScope = columnScope ?? ColumnScope,
+            ColumnScope = columnScope is { Count: > 0 } ? columnScope : ColumnScope,
         };
 }

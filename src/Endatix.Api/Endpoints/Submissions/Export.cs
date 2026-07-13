@@ -223,7 +223,7 @@ public partial class Export : Endpoint<ExportRequest>
             ExportFormatId: exportFormat.Id,
             SettingsJson: exportFormat.SettingsJson,
             IncludeTestSubmissions: request.IncludeTestSubmissions,
-            ColumnScope: request.ColumnScope);
+            ColumnScope: NormalizeColumnScope(request.ColumnScope));
 
         return Result.Success(new ValidatedExportOperation(
             exportFormat.Format,
@@ -284,15 +284,19 @@ public partial class Export : Endpoint<ExportRequest>
     private static ValidatedExportOperation CreateFormatBasedExportOperation(ExportRequest request)
     {
         var format = string.IsNullOrWhiteSpace(request.ExportFormat) ? DEFAULT_EXPORT_FORMAT : request.ExportFormat;
+        var columnScope = NormalizeColumnScope(request.ColumnScope);
         var executionSettings =
-            request.IncludeTestSubmissions.HasValue || request.ColumnScope is { Length: > 0 }
+            request.IncludeTestSubmissions.HasValue || columnScope is not null
                 ? new SubmissionExportExecutionSettings(
                     IncludeTestSubmissions: request.IncludeTestSubmissions,
-                    ColumnScope: request.ColumnScope)
+                    ColumnScope: columnScope)
                 : null;
 
         return new ValidatedExportOperation(format, typeof(SubmissionExportRow), null, null, executionSettings);
     }
+
+    private static string[]? NormalizeColumnScope(string[]? columnScope) =>
+        columnScope is { Length: > 0 } ? columnScope : null;
 
     private static Type ResolveExportItemTypeForFormat(string format) =>
         format.Equals("codebook", StringComparison.OrdinalIgnoreCase)

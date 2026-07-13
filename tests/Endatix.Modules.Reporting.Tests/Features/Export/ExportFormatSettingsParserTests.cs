@@ -60,4 +60,27 @@ public sealed class ExportFormatSettingsParserTests
         settings.IncludeTestSubmissions.Should().BeTrue();
         settings.ColumnScope.Should().BeEquivalentTo(["q2"]);
     }
+
+    [Fact]
+    public void MergeRequestOverrides_WithEmptyColumnScope_PreservesExistingColumnScope()
+    {
+        ExportFormatSettings settings = ExportFormatSettings.Default with { ColumnScope = ["q1"] };
+
+        ExportFormatSettings merged = settings.MergeRequestOverrides(includeTestSubmissions: null, columnScope: []);
+
+        merged.ColumnScope.Should().BeEquivalentTo(["q1"]);
+    }
+
+    [Fact]
+    public void Resolve_WithEmptyColumnScopeOverride_PreservesStoredColumnScope()
+    {
+        const string settingsJson = """{ "columnScope": ["q1"] }""";
+
+        ExportFormatSettings settings = ExportFormatSettingsParser.Resolve(
+            settingsJson,
+            includeTestSubmissions: null,
+            columnScope: []);
+
+        settings.ColumnScope.Should().BeEquivalentTo(["q1"]);
+    }
 }
