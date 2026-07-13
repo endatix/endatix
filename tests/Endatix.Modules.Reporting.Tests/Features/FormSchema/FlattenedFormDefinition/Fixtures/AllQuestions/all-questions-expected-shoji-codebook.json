@@ -73,7 +73,7 @@
         },
         {
           "alias": "questionSongs__2",
-          "name": { "default": "Song for you", "es": "Canción para ti" }
+          "name": { "default": "Song for you", "es": "\nCanción para ti" }
         },
         {
           "alias": "questionSongs__3",
@@ -89,7 +89,7 @@
         },
         {
           "alias": "questionSongs__other",
-          "name": { "default": "Other (pick)", "es": "Other (pick)" }
+          "name": { "default": "Other (pick)" }
         }
       ]
     },

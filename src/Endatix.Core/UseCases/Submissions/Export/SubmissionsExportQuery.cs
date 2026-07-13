@@ -7,6 +7,7 @@ namespace Endatix.Core.UseCases.Submissions.Export;
 
 public sealed record SubmissionsExportQuery(
     long FormId,
+    long TenantId,
     IExporter Exporter,
     ExportOptions Options,
     PipeWriter OutputWriter,
