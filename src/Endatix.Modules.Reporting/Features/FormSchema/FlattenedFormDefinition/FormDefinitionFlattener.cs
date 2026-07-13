@@ -931,7 +931,27 @@ internal static class FormDefinitionFlattener
         HashSet<string> seenKeys,
         SchemaCompilationLimits limits)
     {
+        Dictionary<string, CollectedElement> elementsByName = IndexCollectedElementsByName(allElements);
+        LoopPanelDiscovery loopPanels = DiscoverLoopPanels(allElements);
+
+        if (loopPanels.LoopPanelsByName.Count == 0)
+        {
+            return;
+        }
+
+        EmitLoopSourceColumnsFromLoopPanels(
+            loopPanels,
+            elementsByName,
+            columns,
+            seenKeys,
+            limits);
+    }
+
+    private static Dictionary<string, CollectedElement> IndexCollectedElementsByName(
+        IReadOnlyList<CollectedElement> allElements)
+    {
         Dictionary<string, CollectedElement> elementsByName = new(StringComparer.Ordinal);
+
         foreach (var collected in allElements)
         {
             if (!string.IsNullOrWhiteSpace(collected.Name))
@@ -940,7 +960,17 @@ internal static class FormDefinitionFlattener
             }
         }
 
+        return elementsByName;
+    }
+
+    private sealed record LoopPanelDiscovery(
+        Dictionary<string, CollectedElement> LoopPanelsByName,
+        HashSet<string> ChildLoopPanelNames);
+
+    private static LoopPanelDiscovery DiscoverLoopPanels(IReadOnlyList<CollectedElement> allElements)
+    {
         Dictionary<string, CollectedElement> loopPanelsByName = new(StringComparer.Ordinal);
+
         foreach (var collected in allElements)
         {
             if (!SurveyJsElementType.PanelDynamic.Matches(collected.Type) ||
@@ -951,11 +981,6 @@ internal static class FormDefinitionFlattener
             }
 
             loopPanelsByName.TryAdd(collected.Name, collected);
-        }
-
-        if (loopPanelsByName.Count == 0)
-        {
-            return;
         }
 
         HashSet<string> childLoopPanels = new(StringComparer.Ordinal);
@@ -976,10 +1001,20 @@ internal static class FormDefinitionFlattener
             }
         }
 
+        return new LoopPanelDiscovery(loopPanelsByName, childLoopPanels);
+    }
+
+    private static void EmitLoopSourceColumnsFromLoopPanels(
+        LoopPanelDiscovery loopPanels,
+        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
         List<LoopSourceLeafPath> leafPaths = [];
-        foreach (var panel in loopPanelsByName.Values)
+        foreach (var panel in loopPanels.LoopPanelsByName.Values)
         {
-            if (childLoopPanels.Contains(panel.Name!))
+            if (loopPanels.ChildLoopPanelNames.Contains(panel.Name!))
             {
                 continue;
             }
@@ -988,7 +1023,7 @@ internal static class FormDefinitionFlattener
                 panel,
                 loopPath: [],
                 driverChoicesByLevel: [],
-                loopPanelsByName,
+                loopPanels.LoopPanelsByName,
                 elementsByName,
                 leafPaths,
                 limits);
