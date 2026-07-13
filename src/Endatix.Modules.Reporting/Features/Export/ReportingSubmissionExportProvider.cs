@@ -20,6 +20,9 @@ internal sealed class ReportingSubmissionExportProvider(
     private const string MissingRowsMessage =
         "No processed flattened submissions found for this form. Run admin backfill to populate the reporting read model before exporting.";
 
+    private const string InvalidSchemaArtifactsMessage =
+        "Form schema artifacts are incomplete or invalid. Save or publish the form definition to recompile the schema.";
+
     /// <summary>
     /// Prepares a submission export plan for a given form.
     /// </summary>
@@ -36,6 +39,11 @@ internal sealed class ReportingSubmissionExportProvider(
         if (schema is null)
         {
             return Result<SubmissionExportColumnPlan>.Error(MissingSchemaMessage);
+        }
+
+        if (!HasValidSchemaArtifacts(schema))
+        {
+            return Result<SubmissionExportColumnPlan>.Error(InvalidSchemaArtifactsMessage);
         }
 
         var hasRows = await reportingExportRepository.HasExportableRowsAsync(tenantId, formId, cancellationToken);
@@ -92,6 +100,11 @@ internal sealed class ReportingSubmissionExportProvider(
             return Result<string>.Error(MissingSchemaMessage);
         }
 
+        if (!HasValidSchemaArtifacts(schema))
+        {
+            return Result<string>.Error(InvalidSchemaArtifactsMessage);
+        }
+
         var codebookJson = ShojiCodebookGenerator.Generate(schema.FlatteningMap, schema.Codebook);
         return Result.Success(codebookJson);
     }
@@ -117,4 +130,7 @@ internal sealed class ReportingSubmissionExportProvider(
             SubmitterDisplayId = row.SubmitterDisplayId,
             AnswersModel = row.DataJson,
         };
+
+    private static bool HasValidSchemaArtifacts(Domain.FormSchema schema) =>
+        !string.IsNullOrWhiteSpace(schema.FlatteningMap) && !string.IsNullOrWhiteSpace(schema.Codebook);
 }

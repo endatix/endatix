@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -12,14 +13,14 @@ internal static class ExportColumnPlanBuilder
 {
     private static readonly string[] _systemColumnKeys =
     [
-        "FormId",
-        "Id",
-        "IsComplete",
-        "CreatedAt",
-        "ModifiedAt",
-        "CompletedAt",
-        "SubmitterId",
-        "SubmitterDisplayId",
+        nameof(SubmissionExportRow.FormId),
+        nameof(SubmissionExportRow.Id),
+        nameof(SubmissionExportRow.IsComplete),
+        nameof(SubmissionExportRow.CreatedAt),
+        nameof(SubmissionExportRow.ModifiedAt),
+        nameof(SubmissionExportRow.CompletedAt),
+        nameof(SubmissionExportRow.SubmitterId),
+        nameof(SubmissionExportRow.SubmitterDisplayId),
     ];
 
     internal static IExportColumnPlan Build(FormSchemaEntity schema, string locale = "default")

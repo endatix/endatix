@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export;
@@ -8,8 +9,6 @@ namespace Endatix.Modules.Reporting.Features.Export;
 /// </summary>
 internal static class ShojiCodebookGenerator
 {
-    private static readonly string[] _representativeScalarQuestions = ["qText", "qRating"];
-
     private static readonly (string Name, int Id, int NumericValue)[] _multipleResponseCategories =
     [
         ("Selected", 1, 1),
@@ -37,6 +36,8 @@ internal static class ShojiCodebookGenerator
             writer.WritePropertyName("variables");
             writer.WriteStartObject();
 
+            HashSet<string> writtenVariables = new(StringComparer.Ordinal);
+
             foreach (var questionEntry in questions.OrderBy(entry => entry.Key, StringComparer.Ordinal))
             {
                 if (!IsTopLevelGroupedQuestion(questionEntry.Key, groupedColumnKeys))
@@ -51,26 +52,44 @@ internal static class ShojiCodebookGenerator
                 }
 
                 var exportShape = exportShapeElement.GetString()!;
-                if (exportShape == "multiple_response")
+                if (exportShape == FormSchemaCodebookExportShape.MultipleResponse.Name)
                 {
                     WriteMultipleResponseVariable(writer, questionEntry.Key, questionEntry.Value, groupedColumnKeys, codebook);
+                    writtenVariables.Add(questionEntry.Key);
                     continue;
                 }
 
-                if (exportShape == "categorical_array")
+                if (exportShape == FormSchemaCodebookExportShape.CategoricalArray.Name)
                 {
                     WriteCategoricalArrayVariable(writer, questionEntry.Key, questionEntry.Value, groupedColumnKeys, codebook);
+                    writtenVariables.Add(questionEntry.Key);
                 }
             }
 
-            foreach (var scalarQuestion in _representativeScalarQuestions)
+            foreach (var questionEntry in questions.OrderBy(entry => entry.Key, StringComparer.Ordinal))
             {
-                if (!questions.TryGetValue(scalarQuestion, out var scalarQuestionElement))
+                if (writtenVariables.Contains(questionEntry.Key))
                 {
                     continue;
                 }
 
-                WriteScalarVariable(writer, scalarQuestion, scalarQuestionElement);
+                if (!questionEntry.Value.TryGetProperty("exportShape", out var exportShapeElement) ||
+                    exportShapeElement.ValueKind != JsonValueKind.String ||
+                    !string.Equals(
+                        exportShapeElement.GetString(),
+                        FormSchemaCodebookExportShape.Scalar.Name,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (!HasScalarFlatteningColumn(flatteningMap, questionEntry.Key))
+                {
+                    continue;
+                }
+
+                WriteScalarVariable(writer, questionEntry.Key, questionEntry.Value);
+                writtenVariables.Add(questionEntry.Key);
             }
 
             writer.WriteEndObject();
@@ -120,6 +139,11 @@ internal static class ShojiCodebookGenerator
 
         return grouped;
     }
+
+    private static bool HasScalarFlatteningColumn(MergedFormSchema flatteningMap, string questionName) =>
+        flatteningMap.Columns.Any(column =>
+            string.Equals(column.Key, questionName, StringComparison.Ordinal) &&
+            column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.Calculated);
 
     private static void WriteMultipleResponseVariable(
         Utf8JsonWriter writer,
