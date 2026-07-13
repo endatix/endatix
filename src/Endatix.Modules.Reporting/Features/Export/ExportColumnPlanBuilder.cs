@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
+using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Tabular;
+using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
@@ -11,27 +13,21 @@ namespace Endatix.Modules.Reporting.Features.Export;
 /// </summary>
 internal static class ExportColumnPlanBuilder
 {
-    private static readonly string[] _systemColumnKeys =
-    [
-        nameof(SubmissionExportRow.FormId),
-        nameof(SubmissionExportRow.Id),
-        nameof(SubmissionExportRow.IsComplete),
-        nameof(SubmissionExportRow.CreatedAt),
-        nameof(SubmissionExportRow.ModifiedAt),
-        nameof(SubmissionExportRow.CompletedAt),
-        nameof(SubmissionExportRow.SubmitterId),
-        nameof(SubmissionExportRow.SubmitterDisplayId),
-    ];
-
-    internal static IExportColumnPlan Build(FormSchemaEntity schema, string locale = "default")
+    internal static IExportColumnPlan Build(
+        FormSchemaEntity schema,
+        string locale = "default",
+        ColumnAliasProfile aliasProfile = ColumnAliasProfile.Native)
     {
         var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         var codebookColumns = ReadCodebookColumns(schema.Codebook);
+        var aliasTransformer = ResolveAliasTransformer(aliasProfile);
 
         List<ExportColumnDefinition> columns = [];
+        List<ExportColumnAliasInput> aliasInputs = [];
 
-        foreach (var systemKey in _systemColumnKeys)
+        foreach (string systemKey in SubmissionExportRow.SystemColumns.OrderedKeys)
         {
+            aliasInputs.Add(new ExportColumnAliasInput(systemKey, null, null, null, "System"));
             columns.Add(new ExportColumnDefinition(
                 CanonicalKey: systemKey,
                 ExportKey: systemKey,
@@ -42,6 +38,13 @@ internal static class ExportColumnPlanBuilder
         foreach (var column in flatteningMap.Columns)
         {
             var headerLabel = ResolveHeaderLabel(codebookColumns, column.Key, locale);
+            aliasInputs.Add(new ExportColumnAliasInput(
+                column.Key,
+                column.SourceQuestion,
+                column.ChoiceValue,
+                column.MatrixRowValue,
+                column.Kind.ToString()));
+
             columns.Add(new ExportColumnDefinition(
                 CanonicalKey: column.Key,
                 ExportKey: column.Key,
@@ -50,8 +53,20 @@ internal static class ExportColumnPlanBuilder
                 DataType: column.DataType));
         }
 
-        return new ExportColumnPlan(columns);
+        var exportKeys = aliasTransformer.BuildExportKeys(aliasInputs);
+        var aliasedColumns = columns
+            .Select(column => column with { ExportKey = exportKeys[column.CanonicalKey] })
+            .ToList();
+
+        return new ExportColumnPlan(aliasedColumns);
     }
+
+    private static IColumnAliasTransformer ResolveAliasTransformer(ColumnAliasProfile aliasProfile) =>
+        aliasProfile switch
+        {
+            ColumnAliasProfile.Crunch => CrunchColumnAliasTransformer._instance,
+            _ => NativeColumnAliasTransformer._instance,
+        };
 
     private static Dictionary<string, JsonElement> ReadCodebookColumns(string codebookJson)
     {

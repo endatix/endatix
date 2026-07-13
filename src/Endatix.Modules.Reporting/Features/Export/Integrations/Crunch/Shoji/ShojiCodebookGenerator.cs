@@ -4,7 +4,7 @@ using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
-namespace Endatix.Modules.Reporting.Features.Export;
+namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 
 /// <summary>
 /// Generates Shoji/Crunch codebook JSON from format-neutral persisted schema artifacts.

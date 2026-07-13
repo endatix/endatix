@@ -16,4 +16,38 @@ public class SubmissionExportRow : IExportItem
     public long? SubmitterId { get; init; }
     public string? SubmitterDisplayId { get; init; }
     public string AnswersModel { get; init; } = string.Empty;
-} 
+
+    /// <summary>
+    /// Ordered metadata columns exported from row properties.
+    /// Excludes <see cref="AnswersModel"/>, which is flattened into schema-driven columns.
+    /// </summary>
+    public static class SystemColumns
+    {
+        public const string FormId = nameof(SubmissionExportRow.FormId);
+        public const string Id = nameof(SubmissionExportRow.Id);
+        public const string IsComplete = nameof(SubmissionExportRow.IsComplete);
+        public const string CreatedAt = nameof(SubmissionExportRow.CreatedAt);
+        public const string ModifiedAt = nameof(SubmissionExportRow.ModifiedAt);
+        public const string CompletedAt = nameof(SubmissionExportRow.CompletedAt);
+        public const string SubmitterId = nameof(SubmissionExportRow.SubmitterId);
+        public const string SubmitterDisplayId = nameof(SubmissionExportRow.SubmitterDisplayId);
+
+        public static IReadOnlyList<string> OrderedKeys { get; } =
+        [
+            FormId,
+            Id,
+            IsComplete,
+            CreatedAt,
+            ModifiedAt,
+            CompletedAt,
+            SubmitterId,
+            SubmitterDisplayId,
+        ];
+
+        private static readonly HashSet<string> _keySet = new(OrderedKeys, StringComparer.Ordinal);
+
+        public static bool Contains(string canonicalKey) => _keySet.Contains(canonicalKey);
+
+        public static int Count => OrderedKeys.Count;
+    }
+}
