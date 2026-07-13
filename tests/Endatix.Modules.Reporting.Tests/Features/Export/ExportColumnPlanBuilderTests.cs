@@ -75,7 +75,8 @@ public sealed class ExportColumnPlanBuilderTests
         FormSchemaCompiler compiler = new();
         FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
         FormSchemaEntity schema = new(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
-        HashSet<string> columnScope = [expectedKeys[0], expectedKeys[1]];
+        string[] expectedScopedKeys = [expectedKeys[0], expectedKeys[1]];
+        IReadOnlySet<string> columnScope = new HashSet<string>(expectedScopedKeys, StringComparer.Ordinal);
 
         IExportColumnPlan plan = ExportColumnPlanBuilder.Build(schema, columnScope: columnScope);
 
@@ -84,7 +85,7 @@ public sealed class ExportColumnPlanBuilderTests
             SubmissionExportRow.SystemColumns.OrderedKeys,
             options => options.WithStrictOrdering());
         columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.CanonicalKey).Should().BeEquivalentTo(
-            columnScope,
+            expectedScopedKeys,
             options => options.WithStrictOrdering());
     }
 

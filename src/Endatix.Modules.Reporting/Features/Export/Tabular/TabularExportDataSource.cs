@@ -12,7 +12,8 @@ namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 /// </summary>
 internal sealed class TabularExportDataSource(
     IFormSchemaRepository formSchemaRepository,
-    IReportingExportRepository reportingExportRepository) : IExportDataSource
+    IReportingExportRepository reportingExportRepository,
+    ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
 {
     private const string MissingRowsMessage =
         "No processed flattened submissions found for this form. Run admin backfill to populate the reporting read model before exporting.";
@@ -91,7 +92,7 @@ internal sealed class TabularExportDataSource(
         }
     }
 
-    private static ExportFormatSettings ResolveSettings(ExportOptions options)
+    private ExportFormatSettings ResolveSettings(ExportOptions options)
     {
         if (options.Metadata is not null &&
             options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ResolvedFormatSettings, out var resolvedSettingsObject) &&
@@ -104,7 +105,7 @@ internal sealed class TabularExportDataSource(
             options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
             settingsObject is SubmissionExportExecutionSettings executionSettings)
         {
-            return ExportFormatSettingsParser.Resolve(
+            return exportFormatSettingsParser.Resolve(
                 executionSettings.SettingsJson,
                 executionSettings.IncludeTestSubmissions,
                 executionSettings.ColumnScope);

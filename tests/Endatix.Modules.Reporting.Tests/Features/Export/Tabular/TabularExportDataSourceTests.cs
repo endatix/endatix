@@ -3,10 +3,12 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export.Tabular;
@@ -15,6 +17,9 @@ public sealed class TabularExportDataSourceTests
 {
     private const long TenantId = 1;
     private const long FormId = 100;
+
+    private static readonly ExportFormatSettingsParser ExportFormatSettingsParser =
+        new(NullLogger<ExportFormatSettingsParser>.Instance);
 
     [Fact]
     public async Task PrepareOptionsAsync_WithMissingSchema_ReturnsMissingSchemaMessage()
@@ -25,7 +30,7 @@ public sealed class TabularExportDataSourceTests
             .Returns((FormSchemaEntity?)null);
 
         IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
-        TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
         ExportDataSourceContext context = CreateContext();
 
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
@@ -47,7 +52,7 @@ public sealed class TabularExportDataSourceTests
             .Returns(schema);
 
         IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
-        TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
 
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(CreateContext(), TestContext.Current.CancellationToken);
 
@@ -74,7 +79,7 @@ public sealed class TabularExportDataSourceTests
             .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
-        TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
 
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(CreateContext(), TestContext.Current.CancellationToken);
 
@@ -101,7 +106,7 @@ public sealed class TabularExportDataSourceTests
             .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
-        TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
         ExportDataSourceContext context = CreateContext();
 
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
@@ -132,7 +137,7 @@ public sealed class TabularExportDataSourceTests
             .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
-        TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
         ExportOptions options = new()
         {
             Metadata = new Dictionary<string, object>
@@ -172,7 +177,7 @@ public sealed class TabularExportDataSourceTests
                 Arg.Any<CancellationToken>())
             .Returns(StreamRows());
 
-        TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
         ExportDataSourceContext context = CreateContext();
 
         await foreach (IExportItem _ in dataSource.StreamAsync(context, TestContext.Current.CancellationToken))
@@ -214,7 +219,7 @@ public sealed class TabularExportDataSourceTests
                 Arg.Any<CancellationToken>())
             .Returns(StreamRows(sourceRow));
 
-        TabularExportDataSource dataSource = new(formSchemaRepository, reportingExportRepository);
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
         ExportDataSourceContext context = CreateContext(exportPageSize: exportPageSize);
 
         List<SubmissionExportRow> rows = [];
@@ -233,7 +238,7 @@ public sealed class TabularExportDataSourceTests
     [Fact]
     public void Matches_ReturnsTrueOnlyForTabularSubmissionExportWithoutSqlFunction()
     {
-        TabularExportDataSource dataSource = new(
+        TabularExportDataSource dataSource = CreateDataSource(
             Substitute.For<IFormSchemaRepository>(),
             Substitute.For<IReportingExportRepository>());
 
@@ -243,6 +248,11 @@ public sealed class TabularExportDataSourceTests
         dataSource.Matches(new ExportDataSourceRequest("xml", typeof(SubmissionExportRow), null)).Should().BeFalse();
         dataSource.Matches(new ExportDataSourceRequest(TabularExportFormats.Csv, typeof(SubmissionExportRow), "custom_fn")).Should().BeFalse();
     }
+
+    private static TabularExportDataSource CreateDataSource(
+        IFormSchemaRepository formSchemaRepository,
+        IReportingExportRepository reportingExportRepository) =>
+        new(formSchemaRepository, reportingExportRepository, ExportFormatSettingsParser);
 
     private static ExportDataSourceContext CreateContext(int? exportPageSize = null) =>
         new(

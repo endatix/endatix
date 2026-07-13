@@ -49,6 +49,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
         builder.Services.AddScoped<IExportFormatRepository, ExportFormatRepository>();
         builder.Services.AddScoped<IExportFormatDefinitionResolver, ExportFormatDefinitionResolver>();
+        builder.Services.AddSingleton<ExportFormatSettingsParser>();
         builder.Services.AddScoped<IExportDataSource, TabularExportDataSource>();
         builder.Services.AddScoped<IExportDataSource, ShojiCodebookExportDataSource>();
         builder.Services.AddSingleton<FormSchemaCompiler>();
