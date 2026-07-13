@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Contracts.Export;
@@ -27,8 +26,29 @@ internal sealed class ReportingExportRepository(
         ExportQueryOptions options,
         CancellationToken cancellationToken)
     {
-        return await BuildExportableRowsQuery(tenantId, formId, options)
-            .AnyAsync(cancellationToken);
+        var flattenedRows = BuildExportableRowsQuery(tenantId, formId);
+
+        if (options.IncludeTestSubmissions)
+        {
+            return await flattenedRows.AnyAsync(cancellationToken);
+        }
+
+        var flattenedIds = await flattenedRows
+            .Select(row => row.SubmissionId)
+            .ToListAsync(cancellationToken);
+        if (flattenedIds.Count == 0)
+        {
+            return false;
+        }
+
+        return await appDbContext.Submissions
+            .AsNoTracking()
+            .AnyAsync(
+                submission => submission.TenantId == tenantId &&
+                              submission.FormId == formId &&
+                              !submission.IsTestSubmission &&
+                              flattenedIds.Contains(submission.Id),
+                cancellationToken);
     }
 
     public async IAsyncEnumerable<FlattenedExportRow> StreamFlattenedSubmissionsAsync(
@@ -42,7 +62,7 @@ internal sealed class ReportingExportRepository(
 
         while (true)
         {
-            var batch = await BuildExportableRowsQuery(tenantId, formId, options)
+            var batch = await BuildExportableRowsQuery(tenantId, formId)
                 .Where(row => afterSubmissionId == null || row.SubmissionId > afterSubmissionId)
                 .OrderBy(row => row.SubmissionId)
                 .Take(pageSize)
@@ -58,6 +78,7 @@ internal sealed class ReportingExportRepository(
                 .AsNoTracking()
                 .Where(submission => submission.TenantId == tenantId &&
                                      submission.FormId == formId &&
+                                     (options.IncludeTestSubmissions || !submission.IsTestSubmission) &&
                                      submissionIds.Contains(submission.Id))
                 .ToDictionaryAsync(submission => submission.Id, cancellationToken);
 
@@ -94,33 +115,15 @@ internal sealed class ReportingExportRepository(
         }
     }
 
-    private IQueryable<FlattenedSubmission> BuildExportableRowsQuery(
-        long tenantId,
-        long formId,
-        ExportQueryOptions options)
+    private IQueryable<FlattenedSubmission> BuildExportableRowsQuery(long tenantId, long formId)
     {
-        var flattenedRows = reportingDbContext.FlattenedSubmissions
+        return reportingDbContext.FlattenedSubmissions
             .AsNoTracking()
             .Where(row => row.TenantId == tenantId &&
                           row.FormId == formId &&
                           !row.IsDeleted &&
                           row.Integration.Code == SubmissionIntegrationStatusCodes.Processed &&
                           row.DataJson != null);
-
-        if (options.IncludeTestSubmissions)
-        {
-            return flattenedRows;
-        }
-
-        var nonTestSubmissions = appDbContext.Submissions
-            .AsNoTracking()
-            .Where(submission => submission.TenantId == tenantId &&
-                                 submission.FormId == formId &&
-                                 !submission.IsTestSubmission);
-
-        return from flattened in flattenedRows
-               join submission in nonTestSubmissions on flattened.SubmissionId equals submission.Id
-               select flattened;
     }
 
     private static int NormalizePageSize(int pageSize) =>

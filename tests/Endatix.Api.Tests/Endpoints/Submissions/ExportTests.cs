@@ -298,6 +298,48 @@ public class ExportTests
     }
 
     [Fact]
+    public async Task HandleAsync_WithExportFormat_ForwardsIncludeTestSubmissionsAndColumnScope()
+    {
+        // Arrange
+        var formId = 1L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest
+        {
+            FormId = formId,
+            ExportFormat = "csv",
+            IncludeTestSubmissions = true,
+            ColumnScope = ["q1"],
+        };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
+        var fileExport = new FileExport("text/csv", "submissions-1.csv");
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _exporterFactory.GetExporter("csv", typeof(SubmissionExportRow))
+            .Returns(exporter);
+        exporter.GetHeadersAsync(Arg.Any<ExportOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+        _mediator.Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+
+        // Act
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        // Assert
+        _endpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        await _mediator.Received(1).Send(
+            Arg.Is<SubmissionsExportQuery>(q =>
+                q.FormId == formId &&
+                q.Options.Metadata!.ContainsKey(SubmissionExportMetadataKeys.ExecutionSettings) &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).ExportFormatId == null &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).IncludeTestSubmissions == true &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).ColumnScope!.SequenceEqual(new[] { "q1" })),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task HandleAsync_WithExportFormatId_Success()
     {
         var formId = 1L;
@@ -396,6 +438,47 @@ public class ExportTests
                 q.FormId == formId &&
                 q.Exporter == exporter &&
                 q.SqlFunctionName == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithDefaultFormat_ForwardsIncludeTestSubmissionsAndColumnScope()
+    {
+        // Arrange
+        var formId = 1L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest
+        {
+            FormId = formId,
+            IncludeTestSubmissions = false,
+            ColumnScope = ["q1"],
+        };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
+        var fileExport = new FileExport("text/csv", "submissions-1.csv");
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _exporterFactory.GetExporter("csv", typeof(SubmissionExportRow))
+            .Returns(exporter);
+        exporter.GetHeadersAsync(Arg.Any<ExportOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+        _mediator.Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+
+        // Act
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        // Assert
+        _endpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        await _mediator.Received(1).Send(
+            Arg.Is<SubmissionsExportQuery>(q =>
+                q.FormId == formId &&
+                q.Options.Metadata!.ContainsKey(SubmissionExportMetadataKeys.ExecutionSettings) &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).ExportFormatId == null &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).IncludeTestSubmissions == false &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).ColumnScope!.SequenceEqual(new[] { "q1" })),
             Arg.Any<CancellationToken>());
     }
 

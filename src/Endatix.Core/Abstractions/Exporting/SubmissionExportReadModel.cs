@@ -8,6 +8,8 @@ public static class SubmissionExportMetadataKeys
     public const string ColumnPlan = "SubmissionExportColumnPlan";
 
     public const string ExecutionSettings = "SubmissionExportExecutionSettings";
+
+    public const string ResolvedFormatSettings = "SubmissionExportResolvedFormatSettings";
 }
 
 /// <summary>

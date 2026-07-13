@@ -41,6 +41,9 @@ internal sealed class TabularExportDataSource(
         }
 
         var settings = ResolveSettings(context.Options);
+        context.Options.Metadata ??= new Dictionary<string, object>();
+        context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] = settings;
+
         ExportQueryOptions queryOptions = new(IncludeTestSubmissions: settings.IncludeTestSubmissions);
 
         var hasRows = await reportingExportRepository.HasExportableRowsAsync(
@@ -63,7 +66,6 @@ internal sealed class TabularExportDataSource(
             columnScope: columnScope);
         var columnPlan = MapColumnPlan(plan);
 
-        context.Options.Metadata ??= new Dictionary<string, object>();
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
         context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
             CreateExecutionSettings(context.Options, settings);
@@ -91,6 +93,13 @@ internal sealed class TabularExportDataSource(
 
     private static ExportFormatSettings ResolveSettings(ExportOptions options)
     {
+        if (options.Metadata is not null &&
+            options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ResolvedFormatSettings, out var resolvedSettingsObject) &&
+            resolvedSettingsObject is ExportFormatSettings resolvedSettings)
+        {
+            return resolvedSettings;
+        }
+
         if (options.Metadata is not null &&
             options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
             settingsObject is SubmissionExportExecutionSettings executionSettings)
