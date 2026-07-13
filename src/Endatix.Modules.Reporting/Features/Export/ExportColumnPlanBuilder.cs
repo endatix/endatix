@@ -55,7 +55,12 @@ internal static class ExportColumnPlanBuilder
 
         var exportKeys = aliasTransformer.BuildExportKeys(aliasInputs);
         var aliasedColumns = columns
-            .Select(column => column with { ExportKey = exportKeys[column.CanonicalKey] })
+            .Select(column => column with
+            {
+                ExportKey = exportKeys.TryGetValue(column.CanonicalKey, out string? alias)
+                    ? alias
+                    : column.CanonicalKey,
+            })
             .ToList();
 
         return new ExportColumnPlan(aliasedColumns);
