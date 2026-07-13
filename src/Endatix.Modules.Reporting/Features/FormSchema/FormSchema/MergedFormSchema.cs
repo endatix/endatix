@@ -72,6 +72,7 @@ internal sealed class MergedFormSchema
             panelIndex = column.PanelIndex,
             matrixRowValue = column.MatrixRowValue,
             matrixColumnValue = column.MatrixColumnValue,
+            matrixColumnChoices = column.MatrixColumnChoices,
             loopPath = column.LoopPath?.Select(segment => new
             {
                 panelValueName = segment.PanelValueName,
@@ -86,9 +87,14 @@ internal sealed class MergedFormSchema
     public static MergedFormSchema FromJson(string json)
     {
         using var document = JsonDocument.Parse(json);
+        return FromColumnsJson(document.RootElement);
+    }
+
+    internal static MergedFormSchema FromColumnsJson(JsonElement columnsElement)
+    {
         List<FormSchemaColumn> columns = [];
 
-        foreach (var item in document.RootElement.EnumerateArray())
+        foreach (var item in columnsElement.EnumerateArray())
         {
             if (TryParseColumn(item, out var column))
             {
@@ -109,7 +115,7 @@ internal sealed class MergedFormSchema
             return false;
         }
 
-        if (!item.TryGetEnumProperty(FormSchemaPropertyNames.Kind, out FormSchemaColumnKind kind))
+        if (!TryParseColumnKind(item, out var kind))
         {
             return false;
         }
@@ -122,6 +128,22 @@ internal sealed class MergedFormSchema
         var panelIndex = item.GetNullableInt32Property(FormSchemaPropertyNames.PanelIndex);
         var matrixRowValue = item.GetStringProperty(FormSchemaPropertyNames.MatrixRowValue);
         var matrixColumnValue = item.GetStringProperty(FormSchemaPropertyNames.MatrixColumnValue);
+        IReadOnlyList<string>? matrixColumnChoices = null;
+        if (item.TryGetNullableArrayProperty(FormSchemaPropertyNames.MatrixColumnChoices, out var matrixColumnChoicesProp) &&
+            matrixColumnChoicesProp is not null)
+        {
+            List<string> choices = [];
+            foreach (var choice in matrixColumnChoicesProp.Value.EnumerateArray())
+            {
+                var value = choice.GetScalarStringValue();
+                if (value is not null)
+                {
+                    choices.Add(value);
+                }
+            }
+
+            matrixColumnChoices = choices;
+        }
 
         if (!TryParseLoopPath(item, out var loopPath))
         {
@@ -139,9 +161,24 @@ internal sealed class MergedFormSchema
             panelName,
             panelIndex,
             matrixRowValue,
-            matrixColumnValue);
+            matrixColumnValue,
+            matrixColumnChoices);
 
         return true;
+    }
+
+    private static bool TryParseColumnKind(JsonElement item, out FormSchemaColumnKind kind)
+    {
+        kind = default;
+
+        var kindName = item.GetStringProperty(FormSchemaPropertyNames.Kind);
+        if (string.Equals(kindName, "CheckboxChoice", StringComparison.Ordinal))
+        {
+            kind = FormSchemaColumnKind.ChoiceIndicator;
+            return true;
+        }
+
+        return item.TryGetEnumProperty(FormSchemaPropertyNames.Kind, out kind);
     }
 
     private static bool TryParseLoopPath(JsonElement item, out List<LoopSegment>? loopPath)

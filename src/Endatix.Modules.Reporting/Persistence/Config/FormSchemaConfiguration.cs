@@ -16,7 +16,9 @@ internal sealed class FormSchemaConfiguration : IEntityTypeConfiguration<FormSch
         builder.Property(x => x.TenantId).IsRequired();
         builder.Property(x => x.FormId).IsRequired();
         builder.Property(x => x.FormDefinitionRevision).IsRequired();
-        builder.Property(x => x.SchemaJson)
+        builder.Property(x => x.FlatteningMap)
+            .IsRequired();
+        builder.Property(x => x.Codebook)
             .IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
 

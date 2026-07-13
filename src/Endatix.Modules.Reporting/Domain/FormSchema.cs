@@ -11,23 +11,29 @@ namespace Endatix.Modules.Reporting.Domain;
 /// </summary>
 public sealed class FormSchema : BaseEntity, ITenantOwned, IAggregateRoot
 {
+    public const string EmptyFlatteningMapJson = """{"version":1,"columns":[]}""";
+    public const string EmptyCodebookJson = """{"version":1,"locales":["default"],"questions":{},"columns":{},"choiceCatalogs":{}}""";
+
     private FormSchema() { }
 
     public FormSchema(
         long tenantId,
         long formId,
         long formDefinitionRevision,
-        string schemaJson)
+        string flatteningMap,
+        string codebook)
     {
         Guard.Against.NegativeOrZero(tenantId);
         Guard.Against.NegativeOrZero(formId);
         Guard.Against.NegativeOrZero(formDefinitionRevision);
-        Guard.Against.NullOrEmpty(schemaJson);
+        Guard.Against.NullOrEmpty(flatteningMap);
+        Guard.Against.NullOrEmpty(codebook);
 
         TenantId = tenantId;
         FormId = formId;
         FormDefinitionRevision = formDefinitionRevision;
-        SchemaJson = schemaJson;
+        FlatteningMap = flatteningMap;
+        Codebook = codebook;
     }
 
     public long TenantId { get; private set; }
@@ -41,14 +47,20 @@ public sealed class FormSchema : BaseEntity, ITenantOwned, IAggregateRoot
     public long FormDefinitionRevision { get; private set; }
 
     /// <summary>
-    /// Append-only form schema column specification as JSON.
+    /// Append-only flattening map: ordered export columns and extraction rules.
     /// </summary>
-    public string SchemaJson { get; private set; } = "[]";
+    public string FlatteningMap { get; private set; } = EmptyFlatteningMapJson;
 
-    public void UpdateSchema(long formDefinitionRevision, string schemaJson)
+    /// <summary>
+    /// SurveyJS-aligned metadata for BI export and Shoji projection.
+    /// </summary>
+    public string Codebook { get; private set; } = EmptyCodebookJson;
+
+    public void UpdateSchema(long formDefinitionRevision, string flatteningMap, string codebook)
     {
         Guard.Against.NegativeOrZero(formDefinitionRevision);
-        Guard.Against.NullOrEmpty(schemaJson);
+        Guard.Against.NullOrEmpty(flatteningMap);
+        Guard.Against.NullOrEmpty(codebook);
 
         if (formDefinitionRevision < FormDefinitionRevision)
         {
@@ -57,6 +69,7 @@ public sealed class FormSchema : BaseEntity, ITenantOwned, IAggregateRoot
         }
 
         FormDefinitionRevision = formDefinitionRevision;
-        SchemaJson = schemaJson;
+        FlatteningMap = flatteningMap;
+        Codebook = codebook;
     }
 }

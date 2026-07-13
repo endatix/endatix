@@ -1,10 +1,11 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 /// <summary>
-/// Compiles SurveyJS form definitions into append-only merged form schemas.
+/// Compiles SurveyJS form definitions into append-only merged form schemas and codebooks.
 /// </summary>
 internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
 {
@@ -24,13 +25,33 @@ internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
         return Compile(definition.RootElement, existing);
     }
 
-    public MergedFormSchema CompileFromPersistedSchema(string definitionJson, string? existingSchemaJson = null)
+    public FormSchemaCompileResult CompilePersisted(
+        string definitionJson,
+        string? existingFlatteningMapJson = null,
+        string? existingCodebookJson = null)
     {
         using var definition = JsonDocument.Parse(definitionJson);
-        var existing = string.IsNullOrWhiteSpace(existingSchemaJson)
+        var existingFlatteningMap = string.IsNullOrWhiteSpace(existingFlatteningMapJson)
             ? null
-            : MergedFormSchema.FromJson(existingSchemaJson);
+            : FormSchemaFlatteningMap.FromJson(existingFlatteningMapJson);
 
-        return Compile(definition.RootElement, existing);
+        var merged = Compile(definition.RootElement, existingFlatteningMap);
+        var flatteningMapJson = FormSchemaFlatteningMap.ToJson(merged);
+        var codebookJson = FormSchemaCodebookBuilder.Build(
+            definition.RootElement,
+            merged,
+            existingCodebookJson);
+
+        return new FormSchemaCompileResult(flatteningMapJson, codebookJson, merged);
+    }
+
+    public MergedFormSchema CompileFromPersistedSchema(string definitionJson, string? existingFlatteningMapJson = null)
+    {
+        return CompilePersisted(definitionJson, existingFlatteningMapJson).FlatteningMap;
     }
 }
+
+internal sealed record FormSchemaCompileResult(
+    string FlatteningMapJson,
+    string CodebookJson,
+    MergedFormSchema FlatteningMap);

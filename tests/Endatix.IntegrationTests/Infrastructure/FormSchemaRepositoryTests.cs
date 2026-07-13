@@ -1,9 +1,15 @@
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Entities;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
+using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.IntegrationTests;
 
@@ -16,8 +22,11 @@ public sealed class FormSchemaRepositoryTests
     private const long TenantId = 1;
     private const long FormId = 100;
     private const long FormDefinitionRevision = 200;
-    private const string InitialSchemaJson = """{"columns":[]}""";
-    private const string UpdatedSchemaJson = """{"columns":[{"key":"q1"}]}""";
+    private const string InitialFlatteningMapJson = FormSchema.EmptyFlatteningMapJson;
+    private const string UpdatedFlatteningMapJson = """{"version":1,"columns":[{"key":"q1"}]}""";
+    private const string CodebookJson = FormSchema.EmptyCodebookJson;
+    private const string UpdatedCodebookJson =
+        """{"version":1,"locales":["default","es"],"questions":{},"columns":{},"choiceCatalogs":{}}""";
 
     private readonly DbIntegrationFixture _fixture;
 
@@ -48,14 +57,20 @@ public sealed class FormSchemaRepositoryTests
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FormSchemaRepository repository = CreateRepository(dbContext);
-        FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialSchemaJson);
+        FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialFlatteningMapJson, CodebookJson);
 
         await repository.SaveAsync(schema, cancellationToken);
 
+        dbContext.ChangeTracker.Clear();
         FormSchema? persisted = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.FormDefinitionRevision.Should().Be(FormDefinitionRevision);
-        persisted.SchemaJson.Should().Be(InitialSchemaJson);
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.FlatteningMap), JsonNode.Parse(InitialFlatteningMapJson))
+            .Should()
+            .BeTrue();
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.Codebook), JsonNode.Parse(CodebookJson))
+            .Should()
+            .BeTrue();
         persisted.Id.Should().BeGreaterThan(0);
     }
 
@@ -67,16 +82,22 @@ public sealed class FormSchemaRepositoryTests
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FormSchemaRepository repository = CreateRepository(dbContext);
-        FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialSchemaJson);
+        FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialFlatteningMapJson, CodebookJson);
         await repository.SaveAsync(schema, cancellationToken);
 
-        schema.UpdateSchema(FormDefinitionRevision + 1, UpdatedSchemaJson);
+        schema.UpdateSchema(FormDefinitionRevision + 1, UpdatedFlatteningMapJson, UpdatedCodebookJson);
         await repository.SaveAsync(schema, cancellationToken);
 
+        dbContext.ChangeTracker.Clear();
         FormSchema? persisted = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.FormDefinitionRevision.Should().Be(FormDefinitionRevision + 1);
-        persisted.SchemaJson.Should().Be(UpdatedSchemaJson);
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.FlatteningMap), JsonNode.Parse(UpdatedFlatteningMapJson))
+            .Should()
+            .BeTrue();
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.Codebook), JsonNode.Parse(UpdatedCodebookJson))
+            .Should()
+            .BeTrue();
         var schemasCount = await dbContext.FormSchemas.CountAsync(cancellationToken);
         schemasCount.Should().Be(1);
     }
@@ -89,7 +110,7 @@ public sealed class FormSchemaRepositoryTests
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FormSchemaRepository repository = CreateRepository(dbContext);
-        FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialSchemaJson);
+        FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialFlatteningMapJson, CodebookJson);
         await repository.SaveAsync(schema, cancellationToken);
 
         FormSchema? otherTenantResult = await repository.GetByFormIdAsync(

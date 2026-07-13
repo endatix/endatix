@@ -149,6 +149,19 @@ internal static class SurveyJsChoiceHelper
         }
     }
 
+    internal static IEnumerable<string> EnumerateLoopSourceDriverChoices(JsonElement sourceElement)
+    {
+        foreach (var (value, _) in EnumerateChoices(sourceElement))
+        {
+            yield return value;
+        }
+
+        if (sourceElement.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        {
+            yield return "other";
+        }
+    }
+
     internal static IEnumerable<(string Value, string Text)> EnumerateMultipleTextItems(JsonElement element)
     {
         if (!element.TryGetItems(out var items))

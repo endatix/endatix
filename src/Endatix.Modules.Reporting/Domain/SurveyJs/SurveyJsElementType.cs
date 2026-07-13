@@ -40,12 +40,9 @@ internal sealed record SurveyJsElementType
     /// </summary>
     public static SurveyJsFlattening ResolveFlattening(string? typeName, JsonElement element)
     {
-        if (ImagePicker.Matches(typeName))
+        if (ImagePicker.Matches(typeName) || Boolean.Matches(typeName))
         {
-            return element.TryGetProperty("multiSelect", out JsonElement multiSelect) &&
-                   multiSelect.ValueKind == JsonValueKind.True
-                ? SurveyJsFlattening.CheckboxChoices
-                : SurveyJsFlattening.Simple;
+            return SurveyJsFlattening.ChoiceIndicators;
         }
 
         return TryResolve(typeName)?.Flattening ?? SurveyJsFlattening.Simple;
@@ -76,7 +73,7 @@ internal sealed record SurveyJsElementType
     // Scalar (#question, single discrete value; numeric inputs use type=text + inputType=number)
     public static readonly SurveyJsElementType Text = new("text", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType Comment = new("comment", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
-    public static readonly SurveyJsElementType Boolean = new("boolean", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
+    public static readonly SurveyJsElementType Boolean = new("boolean", SurveyJsElementCategory.Scalar, SurveyJsFlattening.ChoiceIndicators);
     public static readonly SurveyJsElementType Rating = new("rating", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType SignaturePad = new("signaturepad", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType Expression = new("expression", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
@@ -87,12 +84,12 @@ internal sealed record SurveyJsElementType
     public static readonly SurveyJsElementType Video = new("video", SurveyJsElementCategory.File, SurveyJsFlattening.File);
 
     // Base select
-    public static readonly SurveyJsElementType Checkbox = new("checkbox", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.CheckboxChoices);
-    public static readonly SurveyJsElementType Tagbox = new("tagbox", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.CheckboxChoices);
-    public static readonly SurveyJsElementType Radiogroup = new("radiogroup", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
-    public static readonly SurveyJsElementType Dropdown = new("dropdown", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
-    public static readonly SurveyJsElementType ImagePicker = new("imagepicker", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
-    public static readonly SurveyJsElementType ButtonGroup = new("buttongroup", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
+    public static readonly SurveyJsElementType Checkbox = new("checkbox", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
+    public static readonly SurveyJsElementType Tagbox = new("tagbox", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
+    public static readonly SurveyJsElementType Radiogroup = new("radiogroup", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
+    public static readonly SurveyJsElementType Dropdown = new("dropdown", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
+    public static readonly SurveyJsElementType ImagePicker = new("imagepicker", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
+    public static readonly SurveyJsElementType ButtonGroup = new("buttongroup", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
 
     // Ranking
     public static readonly SurveyJsElementType Ranking = new("ranking", SurveyJsElementCategory.Ranking, SurveyJsFlattening.Ranking);

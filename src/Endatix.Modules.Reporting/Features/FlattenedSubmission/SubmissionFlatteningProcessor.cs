@@ -69,7 +69,7 @@ internal sealed class SubmissionFlatteningProcessor(
                 $"Form export schema is not available for form {formId}, definition {submission.FormDefinitionId}.");
         }
 
-        var mergedSchema = MergedFormSchema.FromJson(schema.SchemaJson);
+        var mergedSchema = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
         var flattened = FlattenedSubmissionFlattener.Flatten(
             submissionDocument.RootElement,

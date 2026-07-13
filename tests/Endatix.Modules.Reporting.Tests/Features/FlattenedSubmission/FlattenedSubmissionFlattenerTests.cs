@@ -94,7 +94,7 @@ public class FlattenedSubmissionFlattenerTests
         MergedFormSchema formSchema = new(
         [
             new FormSchemaColumn("name", FormSchemaColumnKind.Simple, "name", "string"),
-            new FormSchemaColumn("colors__red", FormSchemaColumnKind.CheckboxChoice, "Red", "boolean",
+            new FormSchemaColumn("colors__red", FormSchemaColumnKind.ChoiceIndicator, "Red", "number",
                 SourceQuestion: "colors", ChoiceValue: "red"),
             new FormSchemaColumn("rank__a", FormSchemaColumnKind.RankingChoice, "A", "number",
                 SourceQuestion: "rank", ChoiceValue: "a"),
@@ -156,5 +156,120 @@ public class FlattenedSubmissionFlattenerTests
         flattened["payment__2"]!.Value.GetRawText().Should().Be("0");
         flattened["priority__10"]!.Value.GetRawText().Should().Be("2");
         flattened["priority__20"]!.Value.GetRawText().Should().Be("1");
+    }
+
+    [Fact]
+    public void Flatten_LoopSourceFileUpload_ResolvesNestedFileValue()
+    {
+        const string definitionJson = """
+            {
+              "pages": [
+                {
+                  "elements": [
+                    {
+                      "type": "checkbox",
+                      "name": "brands",
+                      "choices": [
+                        { "value": "nike", "text": "Nike" }
+                      ]
+                    },
+                    {
+                      "type": "paneldynamic",
+                      "name": "brandLoop",
+                      "loopSource": ["brands"],
+                      "templateElements": [
+                        {
+                          "type": "file",
+                          "name": "brandPhoto",
+                          "title": "Brand photo"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """;
+
+        const string submissionJson = """
+            {
+              "brands": ["nike"],
+              "brandLoop": [
+                {
+                  "itemValue": "nike",
+                  "brandPhoto": [
+                    { "content": "nike-photo.jpg" }
+                  ]
+                }
+              ]
+            }
+            """;
+
+        using JsonDocument definitionDocument = JsonDocument.Parse(definitionJson);
+        using JsonDocument submissionDocument = JsonDocument.Parse(submissionJson);
+        MergedFormSchema formSchema = new(
+            FormDefinitionFlattener.Flatten(definitionDocument.RootElement.Clone()));
+        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
+            submissionDocument.RootElement.Clone(),
+            formSchema);
+
+        flattened["brandLoop__nike__brandPhoto"]!.Value.GetRawText().Should().Be("\"nike-photo.jpg\"");
+    }
+
+    [Fact]
+    public void Flatten_LoopSourcePanel_WithDistinctValueName_ResolvesSubmissionFromValueName()
+    {
+        const string definitionJson = """
+            {
+              "pages": [
+                {
+                  "elements": [
+                    {
+                      "type": "checkbox",
+                      "name": "brands",
+                      "choices": [
+                        { "value": "nike", "text": "Nike" }
+                      ]
+                    },
+                    {
+                      "type": "paneldynamic",
+                      "name": "brandLoop",
+                      "valueName": "brandsLoop",
+                      "loopSource": ["brands"],
+                      "templateElements": [
+                        {
+                          "type": "text",
+                          "name": "brandNote",
+                          "title": "Brand note"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """;
+
+        const string submissionJson = """
+            {
+              "brands": ["nike"],
+              "brandsLoop": [
+                {
+                  "itemValue": "nike",
+                  "brandNote": "Nike note"
+                }
+              ]
+            }
+            """;
+
+        using JsonDocument definitionDocument = JsonDocument.Parse(definitionJson);
+        using JsonDocument submissionDocument = JsonDocument.Parse(submissionJson);
+        MergedFormSchema formSchema = new(
+            FormDefinitionFlattener.Flatten(definitionDocument.RootElement.Clone()));
+        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
+            submissionDocument.RootElement.Clone(),
+            formSchema);
+
+        flattened["brandLoop__nike__brandNote"]!.Value.GetRawText().Should().Be("\"Nike note\"");
     }
 }

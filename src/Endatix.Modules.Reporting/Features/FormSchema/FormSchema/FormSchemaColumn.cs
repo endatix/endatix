@@ -14,4 +14,5 @@ internal sealed record FormSchemaColumn(
     string? PanelName = null,
     int? PanelIndex = null,
     string? MatrixRowValue = null,
-    string? MatrixColumnValue = null);
+    string? MatrixColumnValue = null,
+    IReadOnlyList<string>? MatrixColumnChoices = null);

@@ -229,4 +229,10 @@ internal static class SurveyJsJsonElementExtensions
     /// </summary>
     public static bool TryGetCalculatedValues(this JsonElement element, out JsonElement calculatedValues) =>
         element.TryGetArrayProperty(SurveyJsPropertyNames.CalculatedValues, out calculatedValues);
+
+    /// <summary>
+    /// Attempts to retrieve the <c>loopSource</c> array property. Returns <c>true</c> with the array element on success.
+    /// </summary>
+    public static bool TryGetLoopSource(this JsonElement element, out JsonElement loopSource) =>
+        element.TryGetArrayProperty(SurveyJsPropertyNames.LoopSource, out loopSource);
 }

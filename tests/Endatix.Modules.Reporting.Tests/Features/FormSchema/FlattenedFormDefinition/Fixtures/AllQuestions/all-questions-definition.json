@@ -400,13 +400,7 @@
               }
             }
           ],
-          "choices": [
-            1,
-            2,
-            3,
-            4,
-            5
-          ],
+          "choices": [1, 2, 3, 4, 5],
           "rows": [
             {
               "value": "alice",
@@ -444,7 +438,7 @@
               "inputType": "number"
             }
           ],
-          "rowCount": 1
+          "rowCount": 2
         },
         {
           "type": "signaturepad",
@@ -509,13 +503,70 @@
                 "default": "How much do you like it?"
               },
               "rateType": "stars"
+            },
+            {
+              "type": "dropdown",
+              "name": "qLoopColor",
+              "title": {
+                "es": "¿De qué color era {panel.itemText}?",
+                "default": "What color was the {panel.itemText}?"
+              },
+              "description": {
+                "es": "Seleccione de qué color era {panel.itemText}",
+                "default": "Select which color was the {panel.itemText}"
+              },
+              "choices": [
+                {
+                  "value": "1",
+                  "text": {
+                    "es": "Rojo",
+                    "default": "Red"
+                  }
+                },
+                {
+                  "value": "2",
+                  "text": {
+                    "es": "Azul",
+                    "default": "Blue"
+                  }
+                },
+                {
+                  "value": "3",
+                  "text": {
+                    "es": "Verde",
+                    "default": "Green"
+                  }
+                },
+                {
+                  "value": "4",
+                  "text": {
+                    "es": "Amarillo",
+                    "default": "Yellow"
+                  }
+                },
+                {
+                  "value": "5",
+                  "text": {
+                    "es": "Blanco",
+                    "default": "White"
+                  }
+                },
+                {
+                  "value": "6",
+                  "text": {
+                    "es": "Negro",
+                    "default": "Black"
+                  }
+                }
+              ],
+              "showOtherItem": true,
+              "otherText": {
+                "es": "Otro",
+                "default": "Other"
+              }
             }
           ],
-          "loopSource": [
-            "qTagBox",
-            "qDropdown",
-            "questionSongs"
-          ]
+          "loopSource": ["qTagBox", "qDropdown", "questionSongs"]
         }
       ]
     }

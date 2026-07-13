@@ -122,11 +122,19 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     b.Property<long>("Id")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("Codebook")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FlatteningMap")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
 
                     b.Property<long>("FormDefinitionRevision")
                         .HasColumnType("bigint");
@@ -139,10 +147,6 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SchemaJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");

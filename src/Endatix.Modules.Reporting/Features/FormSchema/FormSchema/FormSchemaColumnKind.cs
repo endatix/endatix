@@ -4,10 +4,11 @@ internal enum FormSchemaColumnKind
 {
     Simple,
     Calculated,
-    CheckboxChoice,
+    ChoiceIndicator,
     CheckboxOtherText,
     PanelDynamicIndex,
     NestedLoop,
+    LoopSource,
     MatrixRow,
     MatrixCell,
     RankingChoice,

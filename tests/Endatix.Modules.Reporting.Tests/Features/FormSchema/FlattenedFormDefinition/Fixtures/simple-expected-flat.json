@@ -1,5 +1,6 @@
 {
   "firstName": "Ada",
-  "country": "UK",
+  "country__US": 0,
+  "country__UK": 1,
   "totalScore": 42
 }

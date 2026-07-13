@@ -44,9 +44,10 @@ internal sealed class FormSchemaProcessor(
         try
         {
             var existingSchema = await schemaRepository.GetByFormIdAsync(tenantId, formId, cancellationToken);
-            var merged = compiler.CompileFromPersistedSchema(
+            var compiled = compiler.CompilePersisted(
                 formDefinition.JsonData,
-                existingSchema?.SchemaJson);
+                existingSchema?.FlatteningMap,
+                existingSchema?.Codebook);
 
             var revision = existingSchema is null
                 ? formDefinitionId
@@ -58,11 +59,12 @@ internal sealed class FormSchemaProcessor(
                     tenantId,
                     formId,
                     revision,
-                    merged.ToJson());
+                    compiled.FlatteningMapJson,
+                    compiled.CodebookJson);
             }
             else
             {
-                existingSchema.UpdateSchema(revision, merged.ToJson());
+                existingSchema.UpdateSchema(revision, compiled.FlatteningMapJson, compiled.CodebookJson);
             }
 
             await schemaRepository.SaveAsync(existingSchema, cancellationToken);

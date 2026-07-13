@@ -1,7 +1,9 @@
 [
-  "serialPicker",
+  "serialPicker__SN-001",
+  "serialPicker__SN-002",
   "lockCode",
-  "unitEmpty",
+  "unitEmpty__true",
+  "unitEmpty__false",
   "unitPhoto",
   "verificationVideo"
 ]

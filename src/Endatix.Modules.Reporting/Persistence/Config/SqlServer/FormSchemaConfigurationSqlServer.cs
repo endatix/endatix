@@ -10,7 +10,9 @@ internal sealed class FormSchemaConfigurationSqlServer : IEntityTypeConfiguratio
 {
     public void Configure(EntityTypeBuilder<FormSchema> builder)
     {
-        builder.Property(x => x.SchemaJson)
+        builder.Property(x => x.FlatteningMap)
+            .HasColumnType("json");
+        builder.Property(x => x.Codebook)
             .HasColumnType("json");
     }
 }

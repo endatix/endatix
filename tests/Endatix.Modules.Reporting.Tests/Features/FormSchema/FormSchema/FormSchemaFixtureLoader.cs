@@ -41,6 +41,12 @@ internal static class FormSchemaFixtureLoader
     internal static IReadOnlyList<string> LoadAllQuestionsExpectedKeys() =>
         LoadExpectedKeys(Path.Combine("AllQuestions", "all-questions-expected-keys.json"));
 
+    internal static JsonElement LoadAllQuestionsExpectedCodebook() =>
+        LoadAllQuestions("all-questions-expected-codebook.json");
+
+    internal static JsonElement LoadAllQuestionsExpectedShojiCodebook() =>
+        LoadAllQuestions("all-questions-expected-shoji-codebook.json");
+
     internal static JsonElement LoadJson(string fixtureName)
     {
         string path = Path.Combine(FixturesRoot, fixtureName);
