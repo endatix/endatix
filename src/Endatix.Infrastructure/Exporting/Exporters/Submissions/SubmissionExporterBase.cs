@@ -90,19 +90,18 @@ public abstract class SubmissionExporterBase(
             ExportOptions? options,
             [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        List<ColumnDefinition<SubmissionExportRow>>? columns = null;
+        var columns = TryBuildColumnsFromPlan(options);
 
         await foreach (var row in records.WithCancellation(cancellationToken))
         {
-            var isFirstRow = columns is null;
             var doc = TryParseAnswersJson(row.AnswersModel, row.Id, _logger);
 
-            if (isFirstRow)
+            if (columns is null)
             {
                 columns = BuildColumns(doc, options);
             }
 
-            yield return (row, doc, columns!);
+            yield return (row, doc, columns);
         }
     }
 
@@ -122,6 +121,55 @@ public abstract class SubmissionExporterBase(
             logger.LogWarning(ex, "Failed to parse answers JSON for row {Id}", rowId);
             return null;
         }
+    }
+
+    private List<ColumnDefinition<SubmissionExportRow>>? TryBuildColumnsFromPlan(ExportOptions? options)
+    {
+        if (options?.Metadata is null ||
+            !options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ColumnPlan, out var planObject) ||
+            planObject is not SubmissionExportColumnPlan plan)
+        {
+            return null;
+        }
+
+        List<ColumnDefinition<SubmissionExportRow>> columns = [];
+        foreach (var entry in plan.Columns)
+        {
+            var column = entry.Source == SubmissionExportColumnSources.System
+                ? BuildStaticColumn(entry.ExportKey)
+                : BuildJsonColumn(entry.ExportKey, entry.CanonicalKey);
+
+            if (options.Formatters is not null && options.Formatters.TryGetValue(column.Name, out var formatter))
+            {
+                column.SetFormatter(new DelegateFormatter(formatter));
+            }
+
+            column.JsonPropertyName = JsonNamingPolicy.CamelCase.ConvertName(entry.ExportKey);
+            columns.Add(column);
+        }
+
+        return columns;
+    }
+
+    private static StaticColumnDefinition<SubmissionExportRow> BuildStaticColumn(string exportKey)
+    {
+        if (!_staticColumnAccessors.TryGetValue(exportKey, out var accessor))
+        {
+            throw new InvalidOperationException($"Unsupported system export column '{exportKey}'.");
+        }
+
+        return new StaticColumnDefinition<SubmissionExportRow>(exportKey, accessor);
+    }
+
+    private ColumnDefinition<SubmissionExportRow> BuildJsonColumn(string exportKey, string canonicalKey)
+    {
+        JsonColumnDefinition<SubmissionExportRow> jsonColumn = new(exportKey, canonicalKey);
+        foreach (var transformer in _globalTransformers)
+        {
+            jsonColumn.AddTransformer(transformer);
+        }
+
+        return jsonColumn;
     }
 
     private List<ColumnDefinition<SubmissionExportRow>> BuildColumns(JsonDocument? doc, ExportOptions? options)

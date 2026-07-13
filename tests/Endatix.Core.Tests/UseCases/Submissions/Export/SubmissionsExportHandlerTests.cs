@@ -39,6 +39,7 @@ public class SubmissionsExportHandlerTests
 
         var request = new SubmissionsExportQuery(
             FormId: formId,
+            TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
@@ -97,6 +98,7 @@ public class SubmissionsExportHandlerTests
 
         var request = new SubmissionsExportQuery(
             FormId: formId,
+            TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
@@ -134,6 +136,7 @@ public class SubmissionsExportHandlerTests
 
         var request = new SubmissionsExportQuery(
             FormId: formId,
+            TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
@@ -173,6 +176,7 @@ public class SubmissionsExportHandlerTests
 
         var request = new SubmissionsExportQuery(
             FormId: formId,
+            TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
@@ -205,6 +209,7 @@ public class SubmissionsExportHandlerTests
 
         var request = new SubmissionsExportQuery(
             FormId: formId,
+            TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
@@ -239,6 +244,7 @@ public class SubmissionsExportHandlerTests
 
         var request = new SubmissionsExportQuery(
             FormId: formId,
+            TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
@@ -278,6 +284,7 @@ public class SubmissionsExportHandlerTests
 
         var request = new SubmissionsExportQuery(
             FormId: formId,
+            TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
@@ -341,6 +348,7 @@ public class SubmissionsExportHandlerTests
 
         var request = new SubmissionsExportQuery(
             FormId: formId,
+            TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,
@@ -365,6 +373,127 @@ public class SubmissionsExportHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WithReportingReadModelProvider_StreamsRowsAndInjectsColumnPlan()
+    {
+        // Arrange
+        long formId = 1L;
+        long tenantId = 42L;
+        ISubmissionExportReadModelProvider readModelProvider = Substitute.For<ISubmissionExportReadModelProvider>();
+        IExporter exporter = CreateMockExporter(typeof(SubmissionExportRow));
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
+        FileExport fileExport = new("text/csv", "submissions-1.csv");
+        SubmissionExportColumnPlan columnPlan = new(
+        [
+            new SubmissionExportColumnPlanEntry("qText", "qText", "Simple", "Full Name", "text"),
+        ]);
+
+        List<SubmissionExportRow> exportRows =
+        [
+            new() { FormId = formId, Id = 1, AnswersModel = "{\"qText\":\"John\"}" },
+        ];
+
+        SubmissionsExportQuery request = new(
+            FormId: formId,
+            TenantId: tenantId,
+            Exporter: exporter,
+            Options: options,
+            OutputWriter: pipeWriter,
+            SqlFunctionName: null);
+
+        readModelProvider.PrepareSubmissionExportAsync(tenantId, formId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(columnPlan));
+        readModelProvider.StreamSubmissionExportRowsAsync(tenantId, formId, Arg.Any<int?>(), Arg.Any<CancellationToken>())
+            .Returns(exportRows.ToAsyncEnumerable());
+
+        SubmissionsExportHandler handler = new(_exportRepository, _logger, readModelProvider);
+
+        ExportOptions? capturedOptions = null;
+        exporter.StreamExportAsync(
+            Arg.Any<Func<Type, IAsyncEnumerable<IExportItem>>>(),
+            Arg.Do<ExportOptions>(o => capturedOptions = o),
+            Arg.Any<CancellationToken>(),
+            pipeWriter)
+            .Returns(async x =>
+            {
+                Func<Type, IAsyncEnumerable<IExportItem>> getDataAsync = x.Arg<Func<Type, IAsyncEnumerable<IExportItem>>>();
+                await foreach (IExportItem _ in getDataAsync(typeof(SubmissionExportRow))) { }
+
+                return Result.Success(fileExport);
+            });
+
+        // Act
+        Result<FileExport> result = await handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        capturedOptions.Should().NotBeNull();
+        capturedOptions!.Metadata.Should().ContainKey(SubmissionExportMetadataKeys.ColumnPlan);
+        capturedOptions.Metadata![SubmissionExportMetadataKeys.ColumnPlan].Should().Be(columnPlan);
+
+        await readModelProvider.Received(1).PrepareSubmissionExportAsync(tenantId, formId, Arg.Any<CancellationToken>());
+        readModelProvider.Received(1).StreamSubmissionExportRowsAsync(tenantId, formId, Arg.Any<int?>(), Arg.Any<CancellationToken>());
+        _exportRepository.DidNotReceive().GetExportRowsAsync<SubmissionExportRow>(
+            Arg.Any<long>(),
+            Arg.Any<string?>(),
+            Arg.Any<int?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithReportingReadModelProvider_GeneratesCodebookFromReadModel()
+    {
+        // Arrange
+        long formId = 1L;
+        long tenantId = 42L;
+        ISubmissionExportReadModelProvider readModelProvider = Substitute.For<ISubmissionExportReadModelProvider>();
+        IExporter exporter = CreateMockExporter(typeof(DynamicExportRow));
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
+        FileExport fileExport = new("application/json", "codebook-1.json");
+        const string codebookJson = "{\"format\":\"shoji\"}";
+
+        SubmissionsExportQuery request = new(
+            FormId: formId,
+            TenantId: tenantId,
+            Exporter: exporter,
+            Options: options,
+            OutputWriter: pipeWriter,
+            SqlFunctionName: null);
+
+        readModelProvider.GenerateReportingCodebookJsonAsync(tenantId, formId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(codebookJson));
+
+        SubmissionsExportHandler handler = new(_exportRepository, _logger, readModelProvider);
+
+        Func<Type, IAsyncEnumerable<IExportItem>>? capturedGetDataAsync = null;
+        exporter.StreamExportAsync(
+            Arg.Do<Func<Type, IAsyncEnumerable<IExportItem>>>(f => capturedGetDataAsync = f),
+            Arg.Any<ExportOptions>(),
+            Arg.Any<CancellationToken>(),
+            pipeWriter)
+            .Returns(Result.Success(fileExport));
+
+        // Act
+        Result<FileExport> result = await handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        capturedGetDataAsync.Should().NotBeNull();
+
+        List<IExportItem> items = await capturedGetDataAsync!(typeof(DynamicExportRow)).ToListAsync();
+        items.Should().ContainSingle().Which.Should().BeOfType<DynamicExportRow>()
+            .Which.Data.Should().Be(codebookJson);
+
+        await readModelProvider.Received(1).GenerateReportingCodebookJsonAsync(tenantId, formId, Arg.Any<CancellationToken>());
+        _exportRepository.DidNotReceive().GetExportRowsAsync<DynamicExportRow>(
+            Arg.Any<long>(),
+            Arg.Any<string?>(),
+            Arg.Any<int?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_GetDataAsyncFunction_ReturnsCorrectItems()
     {
         // Arrange
@@ -382,6 +511,7 @@ public class SubmissionsExportHandlerTests
 
         var request = new SubmissionsExportQuery(
             FormId: formId,
+            TenantId: 1L,
             Exporter: exporter,
             Options: options,
             OutputWriter: pipeWriter,

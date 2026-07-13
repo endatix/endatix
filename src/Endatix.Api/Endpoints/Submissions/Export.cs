@@ -127,6 +127,7 @@ public partial class Export : Endpoint<ExportRequest>
             pipeWriter = HttpContext.Response.BodyWriter;
             var exportQuery = new SubmissionsExportQuery(
                 FormId: request.FormId,
+                TenantId: _tenantContext.TenantId,
                 Exporter: exporter,
                 Options: options,
                 OutputWriter: pipeWriter,

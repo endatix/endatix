@@ -73,6 +73,10 @@ internal static class FormSchemaFixtureAssertions
             case JsonValueKind.Null:
                 break;
 
+            case JsonValueKind.String:
+                actual.GetString().Should().Be(expected.GetString(), because);
+                break;
+
             default:
                 actual.GetRawText().Should().Be(expected.GetRawText(), because);
                 break;
