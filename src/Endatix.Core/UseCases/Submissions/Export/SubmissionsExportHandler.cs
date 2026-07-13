@@ -93,8 +93,14 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
     }
 
     private bool ShouldUseReportingReadModel(SubmissionsExportQuery request, Type itemType) =>
-        _readModelProvider is not null &&
-        string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
+        SupportsReportingReadModel(_readModelProvider, request.SqlFunctionName, itemType);
+
+    private static bool SupportsReportingReadModel(
+        ISubmissionExportReadModelProvider? readModelProvider,
+        string? sqlFunctionName,
+        Type itemType) =>
+        readModelProvider is not null &&
+        string.IsNullOrWhiteSpace(sqlFunctionName) &&
         (itemType == typeof(SubmissionExportRow) || itemType == typeof(DynamicExportRow));
 
     private async Task<Result<ExportOptions>> PrepareReportingExportOptionsAsync(
@@ -129,38 +135,72 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
         int? exportPageSize,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (_readModelProvider is not null && string.IsNullOrWhiteSpace(sqlFunctionName))
+        if (SupportsReportingReadModel(_readModelProvider, sqlFunctionName, itemType))
         {
-            if (itemType == typeof(SubmissionExportRow))
+            await foreach (var item in StreamReportingReadModelRows(
+                               tenantId,
+                               formId,
+                               exportPageSize,
+                               itemType,
+                               cancellationToken))
             {
-                await foreach (var item in _readModelProvider.StreamSubmissionExportRowsAsync(
-                                   tenantId,
-                                   formId,
-                                   exportPageSize,
-                                   cancellationToken))
-                {
-                    yield return item;
-                }
-
-                yield break;
+                yield return item;
             }
 
-            if (itemType == typeof(DynamicExportRow))
-            {
-                var codebookResult = await _readModelProvider.GenerateReportingCodebookJsonAsync(
-                    tenantId,
-                    formId,
-                    cancellationToken);
-                if (!codebookResult.IsSuccess)
-                {
-                    throw new InvalidOperationException(string.Join(", ", codebookResult.Errors));
-                }
-
-                yield return new DynamicExportRow { Data = codebookResult.Value };
-                yield break;
-            }
+            yield break;
         }
 
+        await foreach (var item in StreamSqlExportRows(
+                           itemType,
+                           formId,
+                           sqlFunctionName,
+                           exportPageSize,
+                           cancellationToken))
+        {
+            yield return item;
+        }
+    }
+
+    private async IAsyncEnumerable<IExportItem> StreamReportingReadModelRows(
+        long tenantId,
+        long formId,
+        int? exportPageSize,
+        Type itemType,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (itemType == typeof(SubmissionExportRow))
+        {
+            await foreach (var item in _readModelProvider!.StreamSubmissionExportRowsAsync(
+                               tenantId,
+                               formId,
+                               exportPageSize,
+                               cancellationToken))
+            {
+                yield return item;
+            }
+
+            yield break;
+        }
+
+        var codebookResult = await _readModelProvider!.GenerateReportingCodebookJsonAsync(
+            tenantId,
+            formId,
+            cancellationToken);
+        if (!codebookResult.IsSuccess)
+        {
+            throw new InvalidOperationException(string.Join(", ", codebookResult.Errors));
+        }
+
+        yield return new DynamicExportRow { Data = codebookResult.Value };
+    }
+
+    private async IAsyncEnumerable<IExportItem> StreamSqlExportRows(
+        Type itemType,
+        long formId,
+        string? sqlFunctionName,
+        int? exportPageSize,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
         if (itemType == typeof(SubmissionExportRow))
         {
             await foreach (var item in _exportRepository.GetExportRowsAsync<SubmissionExportRow>(
@@ -171,8 +211,11 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
             {
                 yield return item;
             }
+
+            yield break;
         }
-        else if (itemType == typeof(DynamicExportRow))
+
+        if (itemType == typeof(DynamicExportRow))
         {
             await foreach (var item in _exportRepository.GetExportRowsAsync<DynamicExportRow>(
                                formId,
@@ -182,10 +225,10 @@ public sealed class SubmissionsExportHandler : IRequestHandler<SubmissionsExport
             {
                 yield return item;
             }
+
+            yield break;
         }
-        else
-        {
-            throw new InvalidOperationException($"Unsupported export item type: {itemType.Name}");
-        }
+
+        throw new InvalidOperationException($"Unsupported export item type: {itemType.Name}");
     }
 }
