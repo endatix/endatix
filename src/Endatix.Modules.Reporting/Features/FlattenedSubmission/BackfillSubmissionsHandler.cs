@@ -10,7 +10,7 @@ namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 /// Handler for the backfill submissions command.
 /// </summary>
 public sealed class BackfillSubmissionsHandler(
-    IRepository<FormDefinition> formDefinitionsRepository,
+    IRepository<Form> formsRepository,
     ISubmissionBackfillProcessor backfillProcessor) : ICommandHandler<BackfillSubmissionsCommand, Result<SubmissionBackfillResult>>
 {
     /// <inheritdoc/>
@@ -18,9 +18,9 @@ public sealed class BackfillSubmissionsHandler(
         BackfillSubmissionsCommand request,
         CancellationToken cancellationToken)
     {
-        FormDefinitionsByFormIdSpec formExistsSpec = new(request.FormId);
-        var formExists = await formDefinitionsRepository.AnyAsync(formExistsSpec, cancellationToken);
-        if (!formExists)
+        ActiveFormDefinitionByFormIdSpec formSpec = new(request.FormId);
+        var form = await formsRepository.SingleOrDefaultAsync(formSpec, cancellationToken);
+        if (form is null || form.TenantId != request.TenantId)
         {
             return Result.NotFound("Form not found.");
         }

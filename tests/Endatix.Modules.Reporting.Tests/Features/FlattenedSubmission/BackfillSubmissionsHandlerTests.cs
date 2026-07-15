@@ -9,18 +9,41 @@ namespace Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission;
 public sealed class BackfillSubmissionsHandlerTests
 {
     private const long TenantId = 1;
+    private const long OtherTenantId = 2;
     private const long FormId = 100;
 
     [Fact]
     public async Task Handle_WhenFormMissing_ReturnsNotFound()
     {
-        IRepository<FormDefinition> formDefinitionsRepository = Substitute.For<IRepository<FormDefinition>>();
-        formDefinitionsRepository
-            .AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
-            .Returns(false);
+        IRepository<Form> formsRepository = Substitute.For<IRepository<Form>>();
+        formsRepository
+            .SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns((Form?)null);
 
         ISubmissionBackfillProcessor backfillProcessor = Substitute.For<ISubmissionBackfillProcessor>();
-        BackfillSubmissionsHandler handler = new(formDefinitionsRepository, backfillProcessor);
+        BackfillSubmissionsHandler handler = new(formsRepository, backfillProcessor);
+
+        Result<SubmissionBackfillResult> result = await handler.Handle(
+            new BackfillSubmissionsCommand(FormId, TenantId),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.NotFound);
+        await backfillProcessor.DidNotReceive()
+            .BackfillFormAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<SubmissionBackfillOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenFormBelongsToOtherTenant_ReturnsNotFound()
+    {
+        Form form = new(OtherTenantId, "Other tenant form") { Id = FormId };
+
+        IRepository<Form> formsRepository = Substitute.For<IRepository<Form>>();
+        formsRepository
+            .SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        ISubmissionBackfillProcessor backfillProcessor = Substitute.For<ISubmissionBackfillProcessor>();
+        BackfillSubmissionsHandler handler = new(formsRepository, backfillProcessor);
 
         Result<SubmissionBackfillResult> result = await handler.Handle(
             new BackfillSubmissionsCommand(FormId, TenantId),
@@ -34,6 +57,7 @@ public sealed class BackfillSubmissionsHandlerTests
     [Fact]
     public async Task Handle_WhenFormExists_DelegatesToBackfillProcessor()
     {
+        Form form = new(TenantId, "Test form") { Id = FormId };
         SubmissionBackfillResult backfillResult = new(
             FormId,
             Scanned: 2,
@@ -44,10 +68,10 @@ public sealed class BackfillSubmissionsHandlerTests
             NextAfterSubmissionId: null,
             FailedSubmissionIds: []);
 
-        IRepository<FormDefinition> formDefinitionsRepository = Substitute.For<IRepository<FormDefinition>>();
-        formDefinitionsRepository
-            .AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
-            .Returns(true);
+        IRepository<Form> formsRepository = Substitute.For<IRepository<Form>>();
+        formsRepository
+            .SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(form);
 
         ISubmissionBackfillProcessor backfillProcessor = Substitute.For<ISubmissionBackfillProcessor>();
         backfillProcessor
@@ -58,7 +82,7 @@ public sealed class BackfillSubmissionsHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(backfillResult);
 
-        BackfillSubmissionsHandler handler = new(formDefinitionsRepository, backfillProcessor);
+        BackfillSubmissionsHandler handler = new(formsRepository, backfillProcessor);
 
         Result<SubmissionBackfillResult> result = await handler.Handle(
             new BackfillSubmissionsCommand(FormId, TenantId, BatchSize: 50, Force: true),
