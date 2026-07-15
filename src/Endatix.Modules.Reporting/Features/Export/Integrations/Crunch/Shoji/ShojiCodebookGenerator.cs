@@ -202,6 +202,27 @@ internal static class ShojiCodebookGenerator
         HashSet<string> writtenVariables,
         string keySeparator)
     {
+        var loopColumns = ClassifyLoopExpandedColumns(flatteningMap);
+
+        WriteLoopExpandedScalarVariables(
+            writer,
+            loopColumns.ScalarColumns,
+            questions,
+            codebookColumns,
+            writtenVariables,
+            keySeparator);
+
+        WriteLoopExpandedChoiceVariables(
+            writer,
+            loopColumns.ChoiceGroups,
+            questions,
+            codebookColumns,
+            writtenVariables,
+            keySeparator);
+    }
+
+    private static LoopExpandedColumnGroups ClassifyLoopExpandedColumns(MergedFormSchema flatteningMap)
+    {
         Dictionary<string, List<FormSchemaColumn>> loopChoiceGroups = new(StringComparer.Ordinal);
         List<FormSchemaColumn> loopScalarColumns = [];
 
@@ -231,6 +252,17 @@ internal static class ShojiCodebookGenerator
             }
         }
 
+        return new LoopExpandedColumnGroups(loopChoiceGroups, loopScalarColumns);
+    }
+
+    private static void WriteLoopExpandedScalarVariables(
+        Utf8JsonWriter writer,
+        IReadOnlyList<FormSchemaColumn> loopScalarColumns,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        IReadOnlyDictionary<string, JsonElement> codebookColumns,
+        HashSet<string> writtenVariables,
+        string keySeparator)
+    {
         foreach (var column in loopScalarColumns.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             var exportKey = ExportKeyTransformer.Transform(column.Key, keySeparator);
@@ -252,7 +284,16 @@ internal static class ShojiCodebookGenerator
             var shojiType = ResolveLoopScalarShojiType(column, question);
             WriteLoopScalarVariable(writer, exportKey, shojiType, columnMetadata);
         }
+    }
 
+    private static void WriteLoopExpandedChoiceVariables(
+        Utf8JsonWriter writer,
+        IReadOnlyDictionary<string, List<FormSchemaColumn>> loopChoiceGroups,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        IReadOnlyDictionary<string, JsonElement> codebookColumns,
+        HashSet<string> writtenVariables,
+        string keySeparator)
+    {
         foreach (var groupEntry in loopChoiceGroups.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             var exportKey = ExportKeyTransformer.Transform(groupEntry.Key, keySeparator);
@@ -278,6 +319,10 @@ internal static class ShojiCodebookGenerator
                 keySeparator);
         }
     }
+
+    private sealed record LoopExpandedColumnGroups(
+        Dictionary<string, List<FormSchemaColumn>> ChoiceGroups,
+        List<FormSchemaColumn> ScalarColumns);
 
     private static IEnumerable<KeyValuePair<string, JsonElement>> OrderedQuestions(
         IReadOnlyDictionary<string, JsonElement> questions) =>
