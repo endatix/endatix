@@ -73,6 +73,7 @@ public class InfrastructureDataBuilder
         Services.AddExporter<SubmissionExportRow, SubmissionCsvExporter>();
         Services.AddExporter<SubmissionExportRow, SubmissionJsonExporter>();
         Services.AddExporter<DynamicExportRow, CodebookJsonExporter>();
+        Services.AddExporter<DynamicExportRow, ShojiCodebookJsonExporter>();
 
         LogSetupInfo("Data infrastructure configured successfully");
         return this;

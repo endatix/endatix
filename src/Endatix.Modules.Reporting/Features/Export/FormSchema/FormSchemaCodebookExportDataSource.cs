@@ -4,17 +4,17 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Data;
 
-namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
+namespace Endatix.Modules.Reporting.Features.Export.FormSchema;
 
 /// <summary>
-/// Crunch.io Shoji codebook export — projects neutral FormSchema artifacts to Shoji JSON.
+/// Streams the persisted format-neutral form-schema codebook JSON.
 /// </summary>
-internal sealed class ShojiCodebookExportDataSource(IFormSchemaRepository formSchemaRepository) : IExportDataSource
+internal sealed class FormSchemaCodebookExportDataSource(IFormSchemaRepository formSchemaRepository) : IExportDataSource
 {
     public bool Matches(ExportDataSourceRequest request) =>
         string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
         request.ItemType == typeof(DynamicExportRow) &&
-        request.Format.Equals("codebook-shoji", StringComparison.OrdinalIgnoreCase);
+        request.Format.Equals("codebook", StringComparison.OrdinalIgnoreCase);
 
     public async Task<Result<ExportOptions>> PrepareOptionsAsync(
         ExportDataSourceContext context,
@@ -24,6 +24,7 @@ internal sealed class ShojiCodebookExportDataSource(IFormSchemaRepository formSc
             context.TenantId,
             context.FormId,
             cancellationToken);
+            
         if (schema is null)
         {
             return ReportingExportSchemaHelper.MissingSchemaResult<ExportOptions>();
@@ -41,12 +42,15 @@ internal sealed class ShojiCodebookExportDataSource(IFormSchemaRepository formSc
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var schema = (await formSchemaRepository.GetByFormIdAsync(
+        var schema = await formSchemaRepository.GetByFormIdAsync(
             context.TenantId,
             context.FormId,
-            cancellationToken))!;
+            cancellationToken);
+        if (schema is null)
+        {
+            yield break;
+        }
 
-        var codebookJson = ShojiCodebookGenerator.Generate(schema.FlatteningMap, schema.Codebook);
-        yield return new DynamicExportRow { Data = codebookJson };
+        yield return new DynamicExportRow { Data = schema.Codebook };
     }
 }

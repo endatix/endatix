@@ -9,7 +9,7 @@ public class ExportValidator : Validator<ExportRequest>
 {
      public ExportValidator(IExporterFactory exporterFactory)
      {
-          var supportedFormats = exporterFactory.GetSupportedFormats<SubmissionExportRow>();
+          var supportedFormats = GetSupportedExportFormats(exporterFactory);
 
           RuleFor(x => x.FormId)
                .GreaterThan(0);
@@ -26,5 +26,17 @@ public class ExportValidator : Validator<ExportRequest>
                .Must(format => supportedFormats.Contains(format, StringComparer.OrdinalIgnoreCase))
                .WithMessage($"Export format not supported. Supported formats: {string.Join(", ", supportedFormats)}")
                .When(x => x.ExportFormat is not null);
+     }
+
+     private static IReadOnlyList<string> GetSupportedExportFormats(IExporterFactory exporterFactory)
+     {
+          var submissionFormats = exporterFactory.GetSupportedFormats<SubmissionExportRow>();
+          var dynamicFormats = exporterFactory.GetSupportedFormats<DynamicExportRow>();
+
+          return submissionFormats
+               .Concat(dynamicFormats)
+               .Distinct(StringComparer.OrdinalIgnoreCase)
+               .ToList()
+               .AsReadOnly();
      }
 }

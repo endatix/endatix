@@ -414,10 +414,10 @@ public class SubmissionsExportHandlerTests
         long formId = 1L;
         long tenantId = 42L;
         IExportDataSource shojiDataSource = Substitute.For<IExportDataSource>();
-        IExporter exporter = CreateMockExporter("codebook", typeof(DynamicExportRow));
+        IExporter exporter = CreateMockExporter("codebook-shoji", typeof(DynamicExportRow));
         ExportOptions options = new();
         PipeWriter pipeWriter = new Pipe().Writer;
-        FileExport fileExport = new("application/json", "codebook-1.json");
+        FileExport fileExport = new("application/json", "codebook-shoji-1.json");
         const string codebookJson = "{\"format\":\"shoji\"}";
 
         SubmissionsExportQuery request = new(

@@ -8,7 +8,10 @@ namespace Endatix.Modules.Reporting.Tests.Features.FormSchema;
 
 /// <summary>
 /// Regression tests for the full all-questions SurveyJS sample (compile + flatten pipeline).
+/// Shoji codebook golden output is asserted in <see cref="Export.ShojiCodebookGeneratorTests"/>.
 /// </summary>
+[Trait("Category", "Golden")]
+[Trait("Priority", "P0")]
 public sealed class AllQuestionsCompileTests
 {
     [Fact]
@@ -68,6 +71,7 @@ public sealed class AllQuestionsCompileTests
     }
 
     // Manual only: remove Skip, run `dotnet test --filter AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles`, then commit updated JSON under Fixtures/AllQuestions/.
+    // Uses SourceAllQuestionsFixturesRoot (repo tree) so regenerated files land in source control; runtime tests read copied fixtures from AppContext.BaseDirectory.
     [Fact(Skip = "Manual fixture regeneration only")]
     public void AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles()
     {

@@ -9,10 +9,15 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 /// <summary>
 /// Exporter for opaque JSON artifact exports (e.g. codebook files streamed from <see cref="DynamicExportRow"/>).
 /// </summary>
-public sealed class CodebookJsonExporter(ILogger<CodebookJsonExporter> logger) : IExporter<DynamicExportRow>
+public class CodebookJsonExporter(ILogger<CodebookJsonExporter> logger) : IExporter<DynamicExportRow>
 {
     /// <inheritdoc/>
-    public string Format => "codebook";
+    public virtual string Format => "codebook";
+
+    /// <summary>
+    /// File-name prefix for downloaded codebook artifacts (e.g. <c>codebook-42.json</c>).
+    /// </summary>
+    protected virtual string FileNamePrefix => "codebook";
 
     /// <inheritdoc/>
     public string ContentType => "application/json";
@@ -86,15 +91,15 @@ public sealed class CodebookJsonExporter(ILogger<CodebookJsonExporter> logger) :
     /// }
     /// </code>
     /// </remarks>
-    private static string GetFileName(ExportOptions? options)
+    private string GetFileName(ExportOptions? options)
     {
         if (options?.Metadata != null && options.Metadata.TryGetValue("FormId", out var value))
         {
-            return $"codebook-{value}.json";
+            return $"{FileNamePrefix}-{value}.json";
         }
 
         // FormId is optional - use "unknown" as fallback
         // To make FormId required, replace this return with validation above
-        return "codebook-unknown.json";
+        return $"{FileNamePrefix}-unknown.json";
     }
 }
