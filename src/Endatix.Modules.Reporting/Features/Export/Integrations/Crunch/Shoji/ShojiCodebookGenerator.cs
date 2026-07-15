@@ -152,7 +152,11 @@ internal static class ShojiCodebookGenerator
 
             if (IsBooleanQuestion(questionEntry.Value))
             {
-                WriteBooleanCategoricalVariable(writer, questionEntry.Key, questionEntry.Value, keySeparator);
+                WriteBooleanCategoricalVariable(
+                    writer,
+                    questionEntry.Key,
+                    ExportKeyTransformer.Transform(questionEntry.Key, keySeparator),
+                    questionEntry.Value);
             }
             else
             {
@@ -186,8 +190,7 @@ internal static class ShojiCodebookGenerator
                 writer,
                 exportKey,
                 ShojiCodebookPropertyNames.VariableTypeText,
-                columnMetadata,
-                keySeparator);
+                columnMetadata);
         }
     }
 
@@ -242,12 +245,12 @@ internal static class ShojiCodebookGenerator
             if (string.Equals(column.DataType, "boolean", StringComparison.OrdinalIgnoreCase) ||
                 IsBooleanQuestion(question))
             {
-                WriteBooleanCategoricalVariable(writer, exportKey, question, keySeparator, columnMetadata);
+                WriteBooleanCategoricalVariable(writer, exportKey, exportKey, question, columnMetadata);
                 continue;
             }
 
             var shojiType = ResolveLoopScalarShojiType(column, question);
-            WriteLoopScalarVariable(writer, exportKey, shojiType, columnMetadata, keySeparator);
+            WriteLoopScalarVariable(writer, exportKey, shojiType, columnMetadata);
         }
 
         foreach (var groupEntry in loopChoiceGroups.OrderBy(entry => entry.Key, StringComparer.Ordinal))
@@ -267,6 +270,7 @@ internal static class ShojiCodebookGenerator
 
             WriteMultipleResponseVariableForKeys(
                 writer,
+                exportKey,
                 exportKey,
                 question,
                 columnKeys,
@@ -356,6 +360,7 @@ internal static class ShojiCodebookGenerator
         WriteMultipleResponseVariableForKeys(
             writer,
             questionName,
+            ExportKeyTransformer.Transform(questionName, keySeparator),
             question,
             columnKeys ?? [],
             codebookColumns,
@@ -365,6 +370,7 @@ internal static class ShojiCodebookGenerator
     private static void WriteMultipleResponseVariableForKeys(
         Utf8JsonWriter writer,
         string variableName,
+        string alias,
         JsonElement question,
         IReadOnlyList<string> columnKeys,
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
@@ -373,7 +379,7 @@ internal static class ShojiCodebookGenerator
         writer.WritePropertyName(variableName);
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeMultipleResponse);
-        writer.WriteString(ShojiCodebookPropertyNames.Alias, ExportKeyTransformer.Transform(variableName, keySeparator));
+        writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteLocalizedProperty(writer, ShojiCodebookPropertyNames.Name, question, SurveyJsPropertyNames.Title);
         WriteMultipleResponseCategories(writer);
         WriteSubvariablesForKeys(writer, columnKeys, codebookColumns, FormSchemaCodebookPropertyNames.ChoiceLabel, keySeparator);
@@ -424,13 +430,12 @@ internal static class ShojiCodebookGenerator
         Utf8JsonWriter writer,
         string exportKey,
         string shojiType,
-        JsonElement columnMetadata,
-        string keySeparator)
+        JsonElement columnMetadata)
     {
         writer.WritePropertyName(exportKey);
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Type, shojiType);
-        writer.WriteString(ShojiCodebookPropertyNames.Alias, ExportKeyTransformer.Transform(exportKey, keySeparator));
+        writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
         WriteColumnTitle(writer, columnMetadata);
         writer.WriteEndObject();
     }
@@ -438,14 +443,14 @@ internal static class ShojiCodebookGenerator
     private static void WriteBooleanCategoricalVariable(
         Utf8JsonWriter writer,
         string variableName,
+        string alias,
         JsonElement question,
-        string keySeparator,
         JsonElement columnMetadata = default)
     {
         writer.WritePropertyName(variableName);
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeCategorical);
-        writer.WriteString(ShojiCodebookPropertyNames.Alias, ExportKeyTransformer.Transform(variableName, keySeparator));
+        writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
 
         if (columnMetadata.ValueKind != JsonValueKind.Undefined &&
             columnMetadata.TryGetProperty(SurveyJsPropertyNames.Title, out var columnTitle))

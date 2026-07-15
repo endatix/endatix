@@ -67,14 +67,7 @@ public class SurveyJsElementTypeTests
     }
 
     [Fact]
-    public void ResolveFlattening_ImagePickerMultiSelect_UsesChoiceIndicators()
-    {
-        SurveyJsElementType.ResolveFlattening("imagepicker")
-            .Should().Be(SurveyJsFlattening.ChoiceIndicators);
-    }
-
-    [Fact]
-    public void ResolveFlattening_ImagePickerSingleSelect_UsesChoiceIndicators()
+    public void ResolveFlattening_ImagePicker_UsesChoiceIndicators()
     {
         SurveyJsElementType.ResolveFlattening("imagepicker")
             .Should().Be(SurveyJsFlattening.ChoiceIndicators);
