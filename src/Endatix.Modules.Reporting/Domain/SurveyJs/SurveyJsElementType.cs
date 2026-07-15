@@ -1,5 +1,4 @@
 using System.Collections.Frozen;
-using System.Text.Json;
 using Ardalis.GuardClauses;
 
 namespace Endatix.Modules.Reporting.Domain.SurveyJs;
@@ -36,17 +35,10 @@ internal sealed record SurveyJsElementType
             : null;
 
     /// <summary>
-    /// Resolves flattening for an element, accounting for type-specific JSON properties.
+    /// Resolves flattening for an element type.
     /// </summary>
-    public static SurveyJsFlattening ResolveFlattening(string? typeName, JsonElement element)
-    {
-        if (ImagePicker.Matches(typeName) || Boolean.Matches(typeName))
-        {
-            return SurveyJsFlattening.ChoiceIndicators;
-        }
-
-        return TryResolve(typeName)?.Flattening ?? SurveyJsFlattening.Simple;
-    }
+    public static SurveyJsFlattening ResolveFlattening(string? typeName) =>
+        TryResolve(typeName)?.Flattening ?? SurveyJsFlattening.Simple;
 
     public static bool IsNonData(string? typeName) =>
         TryResolve(typeName) is { Category: SurveyJsElementCategory.NonData };
@@ -73,7 +65,7 @@ internal sealed record SurveyJsElementType
     // Scalar (#question, single discrete value; numeric inputs use type=text + inputType=number)
     public static readonly SurveyJsElementType Text = new("text", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType Comment = new("comment", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
-    public static readonly SurveyJsElementType Boolean = new("boolean", SurveyJsElementCategory.Scalar, SurveyJsFlattening.ChoiceIndicators);
+    public static readonly SurveyJsElementType Boolean = new("boolean", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType Rating = new("rating", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType SignaturePad = new("signaturepad", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);
     public static readonly SurveyJsElementType Expression = new("expression", SurveyJsElementCategory.Scalar, SurveyJsFlattening.Simple);

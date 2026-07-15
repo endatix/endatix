@@ -41,7 +41,7 @@ internal sealed class TabularExportDataSource(
             return ReportingExportSchemaHelper.InvalidSchemaArtifactsResult<ExportOptions>();
         }
 
-        var settings = ResolveSettings(context.Options);
+        var settings = ResolveSettings(context.Request.Format, context.Options);
         context.Options.Metadata ??= new Dictionary<string, object>();
         context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] = settings;
 
@@ -64,7 +64,8 @@ internal sealed class TabularExportDataSource(
             schema,
             locale: settings.Locale,
             aliasProfile: settings.AliasProfile,
-            columnScope: columnScope);
+            columnScope: columnScope,
+            keySeparator: settings.KeySeparator);
         var columnPlan = MapColumnPlan(plan);
 
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
@@ -77,7 +78,7 @@ internal sealed class TabularExportDataSource(
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var settings = ResolveSettings(context.Options);
+        var settings = ResolveSettings(context.Request.Format, context.Options);
         ExportQueryOptions options = new(
             PageSize: context.ExportPageSize ?? 500,
             IncludeTestSubmissions: settings.IncludeTestSubmissions);
@@ -92,26 +93,30 @@ internal sealed class TabularExportDataSource(
         }
     }
 
-    private ExportFormatSettings ResolveSettings(ExportOptions options)
+    private ExportFormatSettings ResolveSettings(string format, ExportOptions options)
     {
+        ExportFormatSettings settings;
         if (options.Metadata is not null &&
             options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ResolvedFormatSettings, out var resolvedSettingsObject) &&
             resolvedSettingsObject is ExportFormatSettings resolvedSettings)
         {
-            return resolvedSettings;
+            settings = resolvedSettings;
         }
-
-        if (options.Metadata is not null &&
+        else if (options.Metadata is not null &&
             options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
             settingsObject is SubmissionExportExecutionSettings executionSettings)
         {
-            return exportFormatSettingsParser.Resolve(
+            settings = exportFormatSettingsParser.Resolve(
                 executionSettings.SettingsJson,
                 executionSettings.IncludeTestSubmissions,
                 executionSettings.ColumnScope);
         }
+        else
+        {
+            settings = ExportFormatSettings.Default;
+        }
 
-        return ExportFormatSettings.Default;
+        return ExportFormatSettings.ForExportFormat(format, settings);
     }
 
     private static SubmissionExportExecutionSettings CreateExecutionSettings(

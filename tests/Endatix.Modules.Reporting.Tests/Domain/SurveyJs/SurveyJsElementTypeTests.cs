@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Endatix.Modules.Reporting.Domain.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Tests.Domain.SurveyJs;
@@ -68,18 +67,9 @@ public class SurveyJsElementTypeTests
     }
 
     [Fact]
-    public void ResolveFlattening_ImagePickerMultiSelect_UsesChoiceIndicators()
+    public void ResolveFlattening_ImagePicker_UsesChoiceIndicators()
     {
-        using JsonDocument document = JsonDocument.Parse("""{ "type": "imagepicker", "multiSelect": true }""");
-        SurveyJsElementType.ResolveFlattening("imagepicker", document.RootElement)
-            .Should().Be(SurveyJsFlattening.ChoiceIndicators);
-    }
-
-    [Fact]
-    public void ResolveFlattening_ImagePickerSingleSelect_UsesChoiceIndicators()
-    {
-        using JsonDocument document = JsonDocument.Parse("""{ "type": "imagepicker", "multiSelect": false }""");
-        SurveyJsElementType.ResolveFlattening("imagepicker", document.RootElement)
+        SurveyJsElementType.ResolveFlattening("imagepicker")
             .Should().Be(SurveyJsFlattening.ChoiceIndicators);
     }
 

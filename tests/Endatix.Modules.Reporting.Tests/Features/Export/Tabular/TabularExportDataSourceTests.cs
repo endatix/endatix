@@ -119,6 +119,64 @@ public sealed class TabularExportDataSourceTests
     }
 
     [Fact]
+    public async Task PrepareOptionsAsync_WithCsv_AppliesInterimCrunchKeySeparatorToColumnPlan()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
+        reportingExportRepository
+            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
+        ExportDataSourceContext context = CreateContext(format: "csv");
+
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        SubmissionExportColumnPlan columnPlan = (SubmissionExportColumnPlan)result.Value.Metadata![SubmissionExportMetadataKeys.ColumnPlan];
+        columnPlan.Columns.First(column => column.CanonicalKey == "qDropdown__axe").ExportKey
+            .Should().Be("qDropdown--axe");
+    }
+
+    [Fact]
+    public async Task PrepareOptionsAsync_WithJson_KeepsDefaultKeySeparator()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
+        reportingExportRepository
+            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
+        ExportDataSourceContext context = CreateContext(format: "json");
+
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        SubmissionExportColumnPlan columnPlan = (SubmissionExportColumnPlan)result.Value.Metadata![SubmissionExportMetadataKeys.ColumnPlan];
+        columnPlan.Columns.First(column => column.CanonicalKey == "qDropdown__axe").ExportKey
+            .Should().Be("qDropdown__axe");
+    }
+
+    [Fact]
     public async Task PrepareOptionsAsync_WithCrunchSettings_AppliesAliasProfile()
     {
         string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
@@ -254,9 +312,9 @@ public sealed class TabularExportDataSourceTests
         IReportingExportRepository reportingExportRepository) =>
         new(formSchemaRepository, reportingExportRepository, ExportFormatSettingsParser);
 
-    private static ExportDataSourceContext CreateContext(int? exportPageSize = null) =>
+    private static ExportDataSourceContext CreateContext(string format = "csv", int? exportPageSize = null) =>
         new(
-            new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null),
+            new ExportDataSourceRequest(format, typeof(SubmissionExportRow), null),
             TenantId,
             FormId,
             new ExportOptions(),

@@ -1,8 +1,11 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Contracts.Export;
+using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FormSchema;
 
@@ -101,11 +104,22 @@ public sealed class AllQuestionsCompileTests
                 JsonDocument.Parse(compiled.CodebookJson).RootElement,
                 new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
 
-        string shojiCodebook = ShojiCodebookGenerator.Generate(compiled.FlatteningMapJson, compiled.CodebookJson);
+        string shojiCodebook = ShojiCodebookGenerator.Generate(
+            compiled.FlatteningMapJson,
+            compiled.CodebookJson,
+            ExportFormatSettings.InterimCrunchKeySeparator);
         File.WriteAllText(
             Path.Combine(fixturesRoot, "all-questions-expected-shoji-codebook.json"),
             JsonSerializer.Serialize(
                 JsonDocument.Parse(shojiCodebook).RootElement,
                 new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
+
+        FormSchemaEntity schema = new(1, 1, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+        IExportColumnPlan crunchPlan = ExportColumnPlanBuilder.Build(schema, aliasProfile: ColumnAliasProfile.Crunch);
+        Dictionary<string, string> crunchExportKeys = crunchPlan.Columns
+            .ToDictionary(column => column.CanonicalKey, column => column.ExportKey, StringComparer.Ordinal);
+        File.WriteAllText(
+            Path.Combine(fixturesRoot, "all-questions-expected-crunch-export-keys.json"),
+            JsonSerializer.Serialize(crunchExportKeys, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
     }
 }

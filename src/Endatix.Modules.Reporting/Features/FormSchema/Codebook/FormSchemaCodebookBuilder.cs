@@ -246,7 +246,7 @@ internal static class FormSchemaCodebookBuilder
         var type = element.GetSurveyJsType();
 
         if (SurveyJsElementType.Boolean.Matches(type) ||
-            SurveyJsElementType.ResolveFlattening(type, element) == SurveyJsFlattening.ChoiceIndicators)
+            SurveyJsElementType.ResolveFlattening(type) == SurveyJsFlattening.ChoiceIndicators)
         {
             return true;
         }
@@ -369,7 +369,7 @@ internal static class FormSchemaCodebookBuilder
             return true;
         }
 
-        if (SurveyJsElementType.ResolveFlattening(type, element) == SurveyJsFlattening.ChoiceIndicators)
+        if (SurveyJsElementType.ResolveFlattening(type) == SurveyJsFlattening.ChoiceIndicators)
         {
             questionEntry = WriteQuestionEntry(writer =>
             {

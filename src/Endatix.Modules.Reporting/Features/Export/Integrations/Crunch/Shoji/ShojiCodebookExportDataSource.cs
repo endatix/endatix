@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 
 namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
@@ -9,7 +10,9 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// <summary>
 /// Crunch.io Shoji codebook export — projects neutral FormSchema artifacts to Shoji JSON.
 /// </summary>
-internal sealed class ShojiCodebookExportDataSource(IFormSchemaRepository formSchemaRepository) : IExportDataSource
+internal sealed class ShojiCodebookExportDataSource(
+    IFormSchemaRepository formSchemaRepository,
+    ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
 {
     public bool Matches(ExportDataSourceRequest request) =>
         string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
@@ -34,6 +37,10 @@ internal sealed class ShojiCodebookExportDataSource(IFormSchemaRepository formSc
             return ReportingExportSchemaHelper.InvalidSchemaArtifactsResult<ExportOptions>();
         }
 
+        var settings = ResolveSettings(context.Options);
+        context.Options.Metadata ??= new Dictionary<string, object>();
+        context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] = settings;
+
         return Result.Success(context.Options);
     }
 
@@ -46,7 +53,37 @@ internal sealed class ShojiCodebookExportDataSource(IFormSchemaRepository formSc
             context.FormId,
             cancellationToken))!;
 
-        var codebookJson = ShojiCodebookGenerator.Generate(schema.FlatteningMap, schema.Codebook);
+        var settings = ResolveSettings(context.Options);
+        var codebookJson = ShojiCodebookGenerator.Generate(
+            schema.FlatteningMap,
+            schema.Codebook,
+            settings.KeySeparator);
         yield return new DynamicExportRow { Data = codebookJson };
+    }
+
+    private ExportFormatSettings ResolveSettings(ExportOptions options)
+    {
+        ExportFormatSettings settings;
+        if (options.Metadata is not null &&
+            options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ResolvedFormatSettings, out var resolvedSettingsObject) &&
+            resolvedSettingsObject is ExportFormatSettings resolvedSettings)
+        {
+            settings = resolvedSettings;
+        }
+        else if (options.Metadata is not null &&
+            options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
+            settingsObject is SubmissionExportExecutionSettings executionSettings)
+        {
+            settings = exportFormatSettingsParser.Resolve(
+                executionSettings.SettingsJson,
+                executionSettings.IncludeTestSubmissions,
+                executionSettings.ColumnScope);
+        }
+        else
+        {
+            settings = ExportFormatSettings.Default;
+        }
+
+        return ExportFormatSettings.ForExportFormat("codebook-shoji", settings);
     }
 }

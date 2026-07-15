@@ -46,6 +46,20 @@ public sealed class ExportColumnPlanBuilderTests
     }
 
     [Fact]
+    public void Build_WithCustomKeySeparator_TransformsNativeExportKeys()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        IExportColumnPlan plan = ExportColumnPlanBuilder.Build(schema, keySeparator: "--");
+
+        plan.Columns.First(column => column.CanonicalKey == "qDropdown__axe").ExportKey
+            .Should().Be("qDropdown--axe");
+    }
+
+    [Fact]
     public void Build_WithAllQuestionsSchema_CrunchProfile_ProducesExpectedExportKeys()
     {
         // Arrange
@@ -106,5 +120,44 @@ public sealed class ExportColumnPlanBuilderTests
         axeColumn.Should().NotBeNull();
         axeColumn!.HeaderLabel.Should().Be("Pick your primary weapon (Axe)");
         axeColumn.Source.Should().Be(ExportColumnSource.DataJson);
+    }
+
+    [Fact]
+    public void Build_WithEmptyKeySeparator_ThrowsArgumentException()
+    {
+        FormSchemaEntity schema = CreateSchemaWithCollidingCanonicalKeys();
+
+        Action act = () => ExportColumnPlanBuilder.Build(schema, keySeparator: "");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*key separator cannot be empty*");
+    }
+
+    [Fact]
+    public void Build_WithCollidingExportKeys_ThrowsInvalidOperationException()
+    {
+        FormSchemaEntity schema = CreateSchemaWithCollidingCanonicalKeys();
+
+        Action act = () => ExportColumnPlanBuilder.Build(schema, keySeparator: "_");
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Duplicate export column keys*")
+            .WithMessage("*q1__other*")
+            .WithMessage("*q1_other*");
+    }
+
+    private static FormSchemaEntity CreateSchemaWithCollidingCanonicalKeys()
+    {
+        const string flatteningMapJson = """
+            {
+              "version": 1,
+              "columns": [
+                { "key": "q1__other", "kind": "Simple", "label": "One", "dataType": "string" },
+                { "key": "q1_other", "kind": "Simple", "label": "Two", "dataType": "string" }
+              ]
+            }
+            """;
+
+        return new FormSchemaEntity(1, 100, 1, flatteningMapJson, """{"columns":{}}""");
     }
 }

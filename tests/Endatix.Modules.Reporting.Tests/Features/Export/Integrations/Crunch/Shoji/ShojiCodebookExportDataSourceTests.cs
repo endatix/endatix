@@ -2,11 +2,14 @@ using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch.Shoji;
@@ -16,6 +19,12 @@ public sealed class ShojiCodebookExportDataSourceTests
     private const long TenantId = 1;
     private const long FormId = 100;
 
+    private static readonly ExportFormatSettingsParser ExportFormatSettingsParser =
+        new(NullLogger<ExportFormatSettingsParser>.Instance);
+
+    private static ShojiCodebookExportDataSource CreateDataSource(IFormSchemaRepository formSchemaRepository) =>
+        new(formSchemaRepository, ExportFormatSettingsParser);
+
     [Fact]
     public async Task PrepareOptionsAsync_WithMissingSchema_ReturnsMissingSchemaMessage()
     {
@@ -24,7 +33,7 @@ public sealed class ShojiCodebookExportDataSourceTests
             .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns((FormSchemaEntity?)null);
 
-        ShojiCodebookExportDataSource dataSource = new(formSchemaRepository);
+        ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository);
 
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(
             CreateContext(),
@@ -44,7 +53,7 @@ public sealed class ShojiCodebookExportDataSourceTests
             .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns(schema);
 
-        ShojiCodebookExportDataSource dataSource = new(formSchemaRepository);
+        ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository);
 
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(
             CreateContext(),
@@ -68,7 +77,7 @@ public sealed class ShojiCodebookExportDataSourceTests
             .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns(schema);
 
-        ShojiCodebookExportDataSource dataSource = new(formSchemaRepository);
+        ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository);
         ExportDataSourceContext context = CreateContext();
 
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(
@@ -86,14 +95,17 @@ public sealed class ShojiCodebookExportDataSourceTests
         FormSchemaCompiler compiler = new();
         FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
         FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
-        string expectedCodebookJson = ShojiCodebookGenerator.Generate(schema.FlatteningMap, schema.Codebook);
+        string expectedCodebookJson = ShojiCodebookGenerator.Generate(
+            schema.FlatteningMap,
+            schema.Codebook,
+            ExportFormatSettings.InterimCrunchKeySeparator);
 
         IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
         formSchemaRepository
             .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns(schema);
 
-        ShojiCodebookExportDataSource dataSource = new(formSchemaRepository);
+        ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository);
         ExportDataSourceContext context = CreateContext();
 
         Result<ExportOptions> prepareResult = await dataSource.PrepareOptionsAsync(
@@ -120,7 +132,7 @@ public sealed class ShojiCodebookExportDataSourceTests
     [Fact]
     public void Matches_ReturnsTrueOnlyForCodebookShojiDynamicExportRow()
     {
-        ShojiCodebookExportDataSource dataSource = new(Substitute.For<IFormSchemaRepository>());
+        ShojiCodebookExportDataSource dataSource = CreateDataSource(Substitute.For<IFormSchemaRepository>());
 
         dataSource.Matches(new ExportDataSourceRequest("codebook-shoji", typeof(DynamicExportRow), null)).Should().BeTrue();
         dataSource.Matches(new ExportDataSourceRequest("json", typeof(DynamicExportRow), null)).Should().BeFalse();

@@ -11,25 +11,7 @@
         "default": "Do you agree to the terms?",
         "es": "\u00BFAcepta los t\u00E9rminos?"
       },
-      "exportShape": "multiple_response",
-      "choices": [
-        {
-          "value": "true",
-          "id": 1,
-          "text": {
-            "default": "Yes",
-            "es": "S\u00ED"
-          }
-        },
-        {
-          "value": "false",
-          "id": 2,
-          "text": {
-            "default": "No",
-            "es": "No"
-          }
-        }
-      ]
+      "exportShape": "scalar"
     },
     "qComment": {
       "surveyJsType": "comment",
@@ -140,23 +122,7 @@
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
       },
-      "exportShape": "multiple_response",
-      "choices": [
-        {
-          "value": "true",
-          "id": 1,
-          "text": {
-            "default": "Yes"
-          }
-        },
-        {
-          "value": "false",
-          "id": 2,
-          "text": {
-            "default": "No"
-          }
-        }
-      ]
+      "exportShape": "scalar"
     },
     "qLoopColor": {
       "surveyJsType": "dropdown",
@@ -697,32 +663,13 @@
     }
   },
   "columns": {
-    "qBoolean__false": {
+    "qBoolean": {
       "parentKey": "qBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you agree to the terms?",
         "es": "\u00BFAcepta los t\u00E9rminos?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No",
-        "es": "No"
-      }
-    },
-    "qBoolean__true": {
-      "parentKey": "qBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you agree to the terms?",
-        "es": "\u00BFAcepta los t\u00E9rminos?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes",
-        "es": "S\u00ED"
       }
     },
     "qComment": {
@@ -832,37 +779,13 @@
         "default": "lion"
       }
     },
-    "qLoop__1__qLoopBoolean__false": {
+    "qLoop__1__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "1"
-        }
-      ]
-    },
-    "qLoop__1__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -1083,37 +1006,13 @@
         }
       ]
     },
-    "qLoop__2__qLoopBoolean__false": {
+    "qLoop__2__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "2"
-        }
-      ]
-    },
-    "qLoop__2__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -1334,37 +1233,13 @@
         }
       ]
     },
-    "qLoop__3__qLoopBoolean__false": {
+    "qLoop__3__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "3"
-        }
-      ]
-    },
-    "qLoop__3__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -1585,37 +1460,13 @@
         }
       ]
     },
-    "qLoop__4__qLoopBoolean__false": {
+    "qLoop__4__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "4"
-        }
-      ]
-    },
-    "qLoop__4__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -1836,37 +1687,13 @@
         }
       ]
     },
-    "qLoop__5__qLoopBoolean__false": {
+    "qLoop__5__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "5"
-        }
-      ]
-    },
-    "qLoop__5__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -2087,37 +1914,13 @@
         }
       ]
     },
-    "qLoop__adidas__qLoopBoolean__false": {
+    "qLoop__adidas__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "adidas"
-        }
-      ]
-    },
-    "qLoop__adidas__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -2338,37 +2141,13 @@
         }
       ]
     },
-    "qLoop__axe__qLoopBoolean__false": {
+    "qLoop__axe__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "axe"
-        }
-      ]
-    },
-    "qLoop__axe__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -2589,37 +2368,13 @@
         }
       ]
     },
-    "qLoop__hammer__qLoopBoolean__false": {
+    "qLoop__hammer__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "hammer"
-        }
-      ]
-    },
-    "qLoop__hammer__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -2840,37 +2595,13 @@
         }
       ]
     },
-    "qLoop__nike__qLoopBoolean__false": {
+    "qLoop__nike__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "nike"
-        }
-      ]
-    },
-    "qLoop__nike__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -3091,37 +2822,13 @@
         }
       ]
     },
-    "qLoop__other__qLoopBoolean__false": {
+    "qLoop__other__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "other"
-        }
-      ]
-    },
-    "qLoop__other__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -3342,37 +3049,13 @@
         }
       ]
     },
-    "qLoop__puma__qLoopBoolean__false": {
+    "qLoop__puma__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "puma"
-        }
-      ]
-    },
-    "qLoop__puma__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -3593,37 +3276,13 @@
         }
       ]
     },
-    "qLoop__reebok__qLoopBoolean__false": {
+    "qLoop__reebok__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "reebok"
-        }
-      ]
-    },
-    "qLoop__reebok__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
@@ -3844,37 +3503,13 @@
         }
       ]
     },
-    "qLoop__sword__qLoopBoolean__false": {
+    "qLoop__sword__qLoopBoolean": {
       "parentKey": "qLoopBoolean",
       "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
+      "exportShape": "scalar",
       "title": {
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "false",
-      "choiceLabel": {
-        "default": "No"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "sword"
-        }
-      ]
-    },
-    "qLoop__sword__qLoopBoolean__true": {
-      "parentKey": "qLoopBoolean",
-      "surveyJsType": "boolean",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "choiceValue": "true",
-      "choiceLabel": {
-        "default": "Yes"
       },
       "loopPath": [
         {
