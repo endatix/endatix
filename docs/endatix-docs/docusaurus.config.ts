@@ -5,7 +5,7 @@ import type * as Redocusaurus from "redocusaurus";
 
 const config: Config = {
   title: "Endatix Documentation",
-  tagline: "Self-Hosted Alternative to SaaS Form or Survey Platforms",
+  tagline: "Self-Hosted Form Management Platform",
   favicon: "img/favicon.ico",
   headTags: [
     {

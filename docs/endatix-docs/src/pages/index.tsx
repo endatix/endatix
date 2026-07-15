@@ -15,7 +15,7 @@ function HomepageHeader() {
       <div className="container">
         <div className={styles.heroContent}>
           <Heading as="h1" className={styles.heroTitle}>
-            Endatix Documentation
+            Endatix Documentation Portal
           </Heading>
           <p className={styles.heroSubtitle}>{siteConfig.tagline}</p>
         </div>
@@ -79,7 +79,7 @@ function ProductDeepDive({
         {title}
       </Heading>
       <p className={styles.productDeepDiveDescription}>{description}</p>
-      <Link className="button button--secondary" to={link}>
+      <Link className="button button--primary button--lg" to={link}>
         Learn More
       </Link>
     </div>
@@ -158,7 +158,7 @@ export default function Home(): React.ReactNode {
   const { siteConfig } = useDocusaurusContext();
   return (
     <Layout
-      title="Self-hosted alternative to SaaS form and survey platforms"
+      title="Endatix Documentation Portal"
       description="Endatix makes it easy to launch your own form management platform, packed with features that rival popular SaaS tools such as Qualtrics, Typeform, Formstack, and others."
     >
       <HomepageHeader />

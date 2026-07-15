@@ -13,7 +13,7 @@ JWT (JSON Web Token) settings control the authentication and authorization mecha
 
 :::
 
-# Setting Thing Up
+## Setting Thing Up
 
 To configure JWT settings, add the following snippet to your appSettings.json file. Ensure the SigningKey and other sensitive values are securely stored:
 
@@ -60,7 +60,7 @@ You need to migrate to the new Endatix:Auth:Providers:EndatixJwt section as belo
 }
 ```
 
-# Explanation
+## Explanation
 
 The settings are defined under the `"Endatix" > "Auth" > "Providers" > "EndatixJwt"` section:
 
