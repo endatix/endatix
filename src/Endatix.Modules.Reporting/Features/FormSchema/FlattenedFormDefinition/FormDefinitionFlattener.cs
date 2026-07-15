@@ -515,7 +515,6 @@ internal static class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         var name = collected.Name!;
-        var type = collected.Type;
 
         if (drivingCheckboxNames.Contains(name))
         {
@@ -1229,7 +1228,6 @@ internal static class FormDefinitionFlattener
                 EmitLoopSourceChoiceIndicatorColumns(
                     template,
                     childName,
-                    childType,
                     keyPrefix,
                     loopPath,
                     columns,
@@ -1269,7 +1267,6 @@ internal static class FormDefinitionFlattener
     private static void EmitLoopSourceChoiceIndicatorColumns(
         JsonElement template,
         string childName,
-        string? childType,
         IReadOnlyList<string> keyPrefix,
         IReadOnlyList<LoopSegment> loopPath,
         List<FormSchemaColumn> columns,

@@ -170,17 +170,18 @@ internal static class ShojiCodebookGenerator
         HashSet<string> writtenVariables,
         string keySeparator)
     {
-        foreach (var column in flatteningMap.Columns
+        foreach (var columnKey in flatteningMap.Columns
                      .Where(entry => entry.Kind is FormSchemaColumnKind.CheckboxOtherText)
-                     .OrderBy(entry => entry.Key, StringComparer.Ordinal))
+                     .OrderBy(entry => entry.Key, StringComparer.Ordinal)
+                     .Select(column => column.Key))
         {
-            var exportKey = ExportKeyTransformer.Transform(column.Key, keySeparator);
+            var exportKey = ExportKeyTransformer.Transform(columnKey, keySeparator);
             if (!writtenVariables.Add(exportKey))
             {
                 continue;
             }
 
-            codebookColumns.TryGetValue(column.Key, out JsonElement columnMetadata);
+            codebookColumns.TryGetValue(columnKey, out var columnMetadata);
             WriteLoopScalarVariable(
                 writer,
                 exportKey,
