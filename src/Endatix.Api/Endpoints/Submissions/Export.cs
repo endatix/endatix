@@ -283,6 +283,7 @@ public partial class Export : Endpoint<ExportRequest>
 
     private static ValidatedExportOperation CreateFormatBasedExportOperation(ExportRequest request)
     {
+        // TODO(E10): Prefer exportFormatId + tenant ExportFormats once PR-E10 ships; remove hardcoded format strings from Hub.
         var format = string.IsNullOrWhiteSpace(request.ExportFormat) ? DEFAULT_EXPORT_FORMAT : request.ExportFormat;
         var columnScope = NormalizeColumnScope(request.ColumnScope);
         var executionSettings =
@@ -292,16 +293,25 @@ public partial class Export : Endpoint<ExportRequest>
                     ColumnScope: columnScope)
                 : null;
 
-        return new ValidatedExportOperation(format, typeof(SubmissionExportRow), null, null, executionSettings);
+        return new ValidatedExportOperation(
+            format,
+            ResolveExportItemTypeForFormat(format),
+            null,
+            null,
+            executionSettings);
     }
 
     private static string[]? NormalizeColumnScope(string[]? columnScope) =>
         columnScope is { Length: > 0 } ? columnScope : null;
 
     private static Type ResolveExportItemTypeForFormat(string format) =>
-        format.Equals("codebook", StringComparison.OrdinalIgnoreCase)
+        IsCodebookExportFormat(format)
             ? typeof(DynamicExportRow)
             : typeof(SubmissionExportRow);
+
+    private static bool IsCodebookExportFormat(string format) =>
+        format.Equals("codebook", StringComparison.OrdinalIgnoreCase) ||
+        format.Equals("codebook-shoji", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Resolves the Type from a fully qualified type name string.

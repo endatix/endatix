@@ -10,6 +10,8 @@ namespace Endatix.Modules.Reporting.Data;
 /// </summary>
 internal sealed class ExportFormatRepository(ReportingDbContext dbContext) : IExportFormatRepository
 {
+
+    /// <inheritdoc />
     public async Task<ExportFormatRecord?> GetByIdAsync(
         long tenantId,
         long exportFormatId,
