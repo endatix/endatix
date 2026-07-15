@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
@@ -17,7 +18,10 @@ public sealed class ShojiCodebookGeneratorTests
         FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
 
         // Act
-        string actualShojiCodebook = ShojiCodebookGenerator.Generate(compiled.FlatteningMapJson, compiled.CodebookJson);
+        string actualShojiCodebook = ShojiCodebookGenerator.Generate(
+            compiled.FlatteningMapJson,
+            compiled.CodebookJson,
+            ExportFormatSettings.InterimCrunchKeySeparator);
         using JsonDocument actualDocument = JsonDocument.Parse(actualShojiCodebook);
 
         // Assert

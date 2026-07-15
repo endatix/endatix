@@ -361,7 +361,7 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
-  public void Flatten_Boolean_EmitsChoiceIndicatorColumns()
+  public void Flatten_Boolean_EmitsSimpleScalarColumn()
   {
     // Arrange
     JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("boolean-expression-definition.json");

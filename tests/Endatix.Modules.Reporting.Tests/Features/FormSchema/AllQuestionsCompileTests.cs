@@ -104,7 +104,10 @@ public sealed class AllQuestionsCompileTests
                 JsonDocument.Parse(compiled.CodebookJson).RootElement,
                 new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
 
-        string shojiCodebook = ShojiCodebookGenerator.Generate(compiled.FlatteningMapJson, compiled.CodebookJson);
+        string shojiCodebook = ShojiCodebookGenerator.Generate(
+            compiled.FlatteningMapJson,
+            compiled.CodebookJson,
+            ExportFormatSettings.InterimCrunchKeySeparator);
         File.WriteAllText(
             Path.Combine(fixturesRoot, "all-questions-expected-shoji-codebook.json"),
             JsonSerializer.Serialize(

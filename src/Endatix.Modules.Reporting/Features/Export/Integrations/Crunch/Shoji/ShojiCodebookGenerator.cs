@@ -86,6 +86,7 @@ internal static class ShojiCodebookGenerator
         HashSet<string> writtenVariables = new(StringComparer.Ordinal);
         WriteGroupedVariables(writer, questions, groupedColumnKeys, codebookColumns, writtenVariables, keySeparator);
         WriteScalarVariables(writer, flatteningMap, questions, writtenVariables, keySeparator);
+        WriteCheckboxOtherTextVariables(writer, flatteningMap, codebookColumns, writtenVariables, keySeparator);
         WriteLoopExpandedVariables(writer, flatteningMap, questions, codebookColumns, writtenVariables, keySeparator);
     }
 
@@ -159,6 +160,33 @@ internal static class ShojiCodebookGenerator
             }
 
             writtenVariables.Add(questionEntry.Key);
+        }
+    }
+
+    private static void WriteCheckboxOtherTextVariables(
+        Utf8JsonWriter writer,
+        MergedFormSchema flatteningMap,
+        IReadOnlyDictionary<string, JsonElement> codebookColumns,
+        HashSet<string> writtenVariables,
+        string keySeparator)
+    {
+        foreach (var column in flatteningMap.Columns
+                     .Where(entry => entry.Kind is FormSchemaColumnKind.CheckboxOtherText)
+                     .OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        {
+            var exportKey = ExportKeyTransformer.Transform(column.Key, keySeparator);
+            if (!writtenVariables.Add(exportKey))
+            {
+                continue;
+            }
+
+            codebookColumns.TryGetValue(column.Key, out JsonElement columnMetadata);
+            WriteLoopScalarVariable(
+                writer,
+                exportKey,
+                ShojiCodebookPropertyNames.VariableTypeText,
+                columnMetadata,
+                keySeparator);
         }
     }
 
@@ -437,10 +465,10 @@ internal static class ShojiCodebookGenerator
     {
         var trueLabel = question.TryGetProperty(SurveyJsPropertyNames.LabelTrue, out var labelTrue)
             ? ReadDefaultLocalizedText(labelTrue)
-            : "True";
+            : "Yes";
         var falseLabel = question.TryGetProperty(SurveyJsPropertyNames.LabelFalse, out var labelFalse)
             ? ReadDefaultLocalizedText(labelFalse)
-            : "False";
+            : "No";
 
         writer.WritePropertyName(ShojiCodebookPropertyNames.Categories);
         writer.WriteStartArray();
