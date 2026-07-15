@@ -44,7 +44,7 @@ public sealed class Backfill(
     /// <inheritdoc/>
     public override async Task<Results<Ok<BackfillSubmissionsResponse>, ProblemHttpResult>> ExecuteAsync(
         BackfillSubmissionsRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         BackfillSubmissionsCommand command = new(
             FormId: request.FormId,
@@ -53,7 +53,7 @@ public sealed class Backfill(
             AfterSubmissionId: request.AfterSubmissionId,
             Force: request.Force);
 
-        var result = await mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
             .MapResult(result, MapResponse)

@@ -125,6 +125,45 @@ public sealed class SubmissionBackfillProcessorTests
     }
 
     [Fact]
+    public async Task BackfillFormAsync_WhenCancellationRequestedDuringFlattening_RethrowsWithoutRecordingFailure()
+    {
+        using CancellationTokenSource cancellationTokenSource = new();
+        CancellationToken cancellationToken = cancellationTokenSource.Token;
+
+        IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
+        submissionRepository
+            .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), Arg.Any<CancellationToken>())
+            .Returns([10L]);
+
+        IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
+        flattenedSubmissionRepository
+            .GetBySubmissionIdAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns((FlattenedSubmissionRow?)null);
+
+        ISubmissionFlatteningProcessor flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        flatteningProcessor
+            .ProcessAsync(TenantId, FormId, 10, Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                cancellationTokenSource.Cancel();
+                throw new TaskCanceledException();
+            });
+
+        SubmissionBackfillProcessor processor = CreateProcessor(
+            submissionRepository,
+            flattenedSubmissionRepository,
+            flatteningProcessor);
+
+        Func<Task> act = () => processor.BackfillFormAsync(
+            TenantId,
+            FormId,
+            new SubmissionBackfillOptions(),
+            cancellationToken);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
     public async Task BackfillFormAsync_WhenMoreRowsExist_ReturnsHasMoreAndCursor()
     {
         IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();

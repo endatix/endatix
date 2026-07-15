@@ -58,6 +58,10 @@ internal sealed class SubmissionBackfillProcessor(
                 await flatteningProcessor.ProcessAsync(tenantId, formId, submissionId, cancellationToken);
                 processed++;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 failed++;

@@ -42,10 +42,14 @@ internal sealed class FormSchemaCodebookExportDataSource(IFormSchemaRepository f
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var schema = (await formSchemaRepository.GetByFormIdAsync(
+        var schema = await formSchemaRepository.GetByFormIdAsync(
             context.TenantId,
             context.FormId,
-            cancellationToken))!;
+            cancellationToken);
+        if (schema is null)
+        {
+            yield break;
+        }
 
         yield return new DynamicExportRow { Data = schema.Codebook };
     }

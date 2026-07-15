@@ -49,6 +49,27 @@ public sealed class FormSchemaCodebookExportDataSourceTests
     }
 
     [Fact]
+    public async Task StreamAsync_WithMissingSchema_YieldsNoRows()
+    {
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns((FormSchemaEntity?)null);
+
+        FormSchemaCodebookExportDataSource dataSource = new(formSchemaRepository);
+
+        List<IExportItem> items = [];
+        await foreach (IExportItem item in dataSource.StreamAsync(
+            CreateContext(),
+            TestContext.Current.CancellationToken))
+        {
+            items.Add(item);
+        }
+
+        items.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Matches_ReturnsTrueOnlyForCodebookNativeDynamicExportRow()
     {
         FormSchemaCodebookExportDataSource dataSource = new(Substitute.For<IFormSchemaRepository>());
