@@ -14,7 +14,7 @@ public sealed class CrunchColumnAliasTransformerTests
     [InlineData("qMatrix__speed", "MatrixRow", "qMatrix", null, "qMatrix")]
     [InlineData("qMatrixDropdown__alice__punctuality", "MatrixCell", "qMatrixDropdown", "alice", "qMatrixDropdown__alice")]
     [InlineData("qMatrixDropdown__alice__punctuality", "MatrixCell", null, "alice", "qMatrixDropdown__alice__punctuality")]
-    [InlineData("qLoop__adidas__qLoopBoolean__true", "ChoiceIndicator", "qLoopBoolean", "true", "qLoop__adidas__qLoopBoolean")]
+    [InlineData("qLoop__adidas__qLoopBoolean", "LoopSource", "qLoopBoolean", null, "qLoop__adidas")]
     public void ResolveAliasGroupKey_UsesExpectedGroup(
         string canonicalKey,
         string kind,

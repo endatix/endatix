@@ -1,6 +1,7 @@
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Tabular;
 
@@ -89,9 +90,6 @@ internal sealed class CrunchColumnAliasTransformer : IColumnAliasTransformer
         };
     }
 
-    private static string RemoveLastSegment(string key)
-    {
-        var separatorIndex = key.LastIndexOf("__", StringComparison.Ordinal);
-        return separatorIndex < 0 ? key : key[..separatorIndex];
-    }
+    private static string RemoveLastSegment(string key) =>
+        ExportKeyTransformer.RemoveLastSegment(key);
 }

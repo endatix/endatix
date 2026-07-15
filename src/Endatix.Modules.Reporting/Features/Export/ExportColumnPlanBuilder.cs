@@ -4,6 +4,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Tabular;
 using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Shared.SurveyJs;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export;
@@ -17,7 +18,8 @@ internal static class ExportColumnPlanBuilder
         FormSchemaEntity schema,
         string locale = "default",
         ColumnAliasProfile aliasProfile = ColumnAliasProfile.Native,
-        IReadOnlySet<string>? columnScope = null)
+        IReadOnlySet<string>? columnScope = null,
+        string keySeparator = ExportFormatSettings.DefaultKeySeparator)
     {
         var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         var codebookColumns = ReadCodebookColumns(schema.Codebook);
@@ -63,12 +65,17 @@ internal static class ExportColumnPlanBuilder
         }
 
         var exportKeys = aliasTransformer.BuildExportKeys(aliasInputs);
+        var applyKeySeparator = aliasProfile is ColumnAliasProfile.Native;
         var aliasedColumns = columns
             .Select(column => column with
             {
                 ExportKey = exportKeys.TryGetValue(column.CanonicalKey, out var alias)
-                    ? alias
-                    : column.CanonicalKey,
+                    ? applyKeySeparator
+                        ? ExportKeyTransformer.Transform(alias, keySeparator)
+                        : alias
+                    : applyKeySeparator
+                        ? ExportKeyTransformer.Transform(column.CanonicalKey, keySeparator)
+                        : column.CanonicalKey,
             })
             .ToList();
 

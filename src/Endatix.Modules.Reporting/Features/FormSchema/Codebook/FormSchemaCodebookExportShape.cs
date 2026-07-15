@@ -51,12 +51,17 @@ internal sealed record FormSchemaCodebookExportShape
             return LoopPanel;
         }
 
+        if (SurveyJsElementType.Boolean.Matches(type))
+        {
+            return Scalar;
+        }
+
         if (SurveyJsElementType.Matrix.Matches(type) && !HasMatrixCheckboxCells(questionElement))
         {
             return CategoricalArray;
         }
 
-        if (SurveyJsElementType.ResolveFlattening(type, questionElement) == SurveyJsFlattening.ChoiceIndicators)
+        if (SurveyJsElementType.ResolveFlattening(type) == SurveyJsFlattening.ChoiceIndicators)
         {
             return MultipleResponse;
         }

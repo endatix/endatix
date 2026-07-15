@@ -10,6 +10,33 @@ public sealed class ExportFormatSettingsParserTests
         new(NullLogger<ExportFormatSettingsParser>.Instance);
 
     [Fact]
+    public void Parse_WithKeySeparator_ReturnsConfiguredSeparator()
+    {
+        const string settingsJson = """
+            {
+              "keySeparator": "--"
+            }
+            """;
+
+        ExportFormatSettings settings = Parser.Parse(settingsJson);
+
+        settings.KeySeparator.Should().Be("--");
+    }
+
+    [Fact]
+    public void ForExportFormat_WithCsvOrShoji_AppliesInterimCrunchKeySeparator()
+    {
+        ExportFormatSettings settings = ExportFormatSettings.ForExportFormat("csv", ExportFormatSettings.Default);
+        settings.KeySeparator.Should().Be(ExportFormatSettings.InterimCrunchKeySeparator);
+
+        settings = ExportFormatSettings.ForExportFormat("codebook-shoji", ExportFormatSettings.Default);
+        settings.KeySeparator.Should().Be(ExportFormatSettings.InterimCrunchKeySeparator);
+
+        settings = ExportFormatSettings.ForExportFormat("json", ExportFormatSettings.Default);
+        settings.KeySeparator.Should().Be(ExportFormatSettings.DefaultKeySeparator);
+    }
+
+    [Fact]
     public void Parse_WithNullOrEmpty_ReturnsDefaults()
     {
         Parser.Parse(null).Should().Be(ExportFormatSettings.Default);

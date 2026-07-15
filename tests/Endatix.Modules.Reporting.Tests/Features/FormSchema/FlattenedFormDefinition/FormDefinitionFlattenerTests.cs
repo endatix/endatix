@@ -370,9 +370,9 @@ public class FormDefinitionFlattenerTests
     IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
-    columns.Single(c => c.Key == "isActive__true").Kind.Should().Be(FormSchemaColumnKind.ChoiceIndicator);
-    columns.Single(c => c.Key == "isActive__false").DataType.Should().Be("number");
-    columns.Single(c => c.Key == "score").Kind.Should().Be(FormSchemaColumnKind.Simple);
+        columns.Single(column => column.Key == "isActive").Kind.Should().Be(FormSchemaColumnKind.Simple);
+        columns.Single(column => column.Key == "isActive").DataType.Should().Be("boolean");
+        columns.Single(column => column.Key == "score").Kind.Should().Be(FormSchemaColumnKind.Simple);
   }
 
   [Fact]

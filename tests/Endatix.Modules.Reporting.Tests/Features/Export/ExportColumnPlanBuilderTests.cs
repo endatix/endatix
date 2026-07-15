@@ -46,6 +46,20 @@ public sealed class ExportColumnPlanBuilderTests
     }
 
     [Fact]
+    public void Build_WithCustomKeySeparator_TransformsNativeExportKeys()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        IExportColumnPlan plan = ExportColumnPlanBuilder.Build(schema, keySeparator: "--");
+
+        plan.Columns.First(column => column.CanonicalKey == "qDropdown__axe").ExportKey
+            .Should().Be("qDropdown--axe");
+    }
+
+    [Fact]
     public void Build_WithAllQuestionsSchema_CrunchProfile_ProducesExpectedExportKeys()
     {
         // Arrange

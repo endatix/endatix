@@ -449,7 +449,7 @@ internal static class FormDefinitionFlattener
                 continue;
             }
 
-            var flattening = SurveyJsElementType.ResolveFlattening(collected.Type, collected.Element);
+            var flattening = SurveyJsElementType.ResolveFlattening(collected.Type);
 
             switch (flattening)
             {
@@ -522,12 +522,6 @@ internal static class FormDefinitionFlattener
             return;
         }
 
-        if (SurveyJsElementType.Boolean.Matches(type))
-        {
-            EmitBooleanChoiceIndicators(collected, columns, seenKeys, limits);
-            return;
-        }
-
         var choiceCount = 0;
         foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(collected.Element))
         {
@@ -561,20 +555,6 @@ internal static class FormDefinitionFlattener
                 "string",
                 SourceQuestion: name));
         }
-    }
-
-    private static void EmitBooleanChoiceIndicators(
-        CollectedElement collected,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
-    {
-        var name = collected.Name!;
-        var trueLabel = collected.Element.GetStringProperty(SurveyJsPropertyNames.LabelTrue) ?? "Yes";
-        var falseLabel = collected.Element.GetStringProperty(SurveyJsPropertyNames.LabelFalse) ?? "No";
-
-        AddChoiceIndicatorColumn(collected, name, "true", trueLabel, columns, seenKeys, limits);
-        AddChoiceIndicatorColumn(collected, name, "false", falseLabel, columns, seenKeys, limits);
     }
 
     private static void AddChoiceIndicatorColumn(
@@ -1241,7 +1221,7 @@ internal static class FormDefinitionFlattener
         }
 
         List<string> keyPrefix = [keyPanelName, .. driverChoices];
-        var flattening = SurveyJsElementType.ResolveFlattening(childType, template);
+        var flattening = SurveyJsElementType.ResolveFlattening(childType);
 
         switch (flattening)
         {
@@ -1296,18 +1276,6 @@ internal static class FormDefinitionFlattener
         HashSet<string> seenKeys,
         SchemaCompilationLimits limits)
     {
-        if (SurveyJsElementType.Boolean.Matches(childType))
-        {
-            var trueLabel = template.GetStringProperty(SurveyJsPropertyNames.LabelTrue) ?? "Yes";
-            var falseLabel = template.GetStringProperty(SurveyJsPropertyNames.LabelFalse) ?? "No";
-
-            AddLoopSourceChoiceIndicatorColumn(
-                template, childName, "true", trueLabel, keyPrefix, loopPath, columns, seenKeys, limits);
-            AddLoopSourceChoiceIndicatorColumn(
-                template, childName, "false", falseLabel, keyPrefix, loopPath, columns, seenKeys, limits);
-            return;
-        }
-
         var choiceCount = 0;
         foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(template))
         {
