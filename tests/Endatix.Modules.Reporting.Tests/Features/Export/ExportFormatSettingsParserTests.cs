@@ -23,6 +23,17 @@ public sealed class ExportFormatSettingsParserTests
         settings.KeySeparator.Should().Be("--");
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void RequireKeySeparator_WithEmptyValue_ThrowsArgumentException(string keySeparator)
+    {
+        Action act = () => ExportFormatSettings.RequireKeySeparator(keySeparator);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*key separator cannot be empty*");
+    }
+
     [Fact]
     public void ForExportFormat_WithCsvOrShoji_AppliesInterimCrunchKeySeparator()
     {

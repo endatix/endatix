@@ -21,6 +21,8 @@ internal static class ExportColumnPlanBuilder
         IReadOnlySet<string>? columnScope = null,
         string keySeparator = ExportFormatSettings.DefaultKeySeparator)
     {
+        ExportFormatSettings.RequireKeySeparator(keySeparator);
+
         var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         var codebookColumns = ReadCodebookColumns(schema.Codebook);
         var aliasTransformer = ResolveAliasTransformer(aliasProfile);
@@ -77,7 +79,36 @@ internal static class ExportColumnPlanBuilder
             })
             .ToList();
 
+        EnsureUniqueExportKeys(aliasedColumns);
+
         return new ExportColumnPlan(aliasedColumns);
+    }
+
+    private static void EnsureUniqueExportKeys(IReadOnlyList<ExportColumnDefinition> columns)
+    {
+        Dictionary<string, string> firstCanonicalByExportKey = new(StringComparer.Ordinal);
+        List<string> duplicateMessages = [];
+
+        foreach (var column in columns)
+        {
+            if (firstCanonicalByExportKey.TryAdd(column.ExportKey, column.CanonicalKey))
+            {
+                continue;
+            }
+
+            duplicateMessages.Add(
+                $"'{column.ExportKey}' (canonical keys: {firstCanonicalByExportKey[column.ExportKey]}, {column.CanonicalKey})");
+        }
+
+        if (duplicateMessages.Count == 0)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "Duplicate export column keys detected after alias and key-separator transformation: " +
+            string.Join("; ", duplicateMessages) +
+            ". Adjust keySeparator or alias profile.");
     }
 
     private static string ResolveExportKey(

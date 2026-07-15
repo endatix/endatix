@@ -19,6 +19,18 @@ public sealed record ExportFormatSettings(
 
     public static ExportFormatSettings Default { get; } = new();
 
+    public static string RequireKeySeparator(string keySeparator)
+    {
+        if (string.IsNullOrWhiteSpace(keySeparator))
+        {
+            throw new ArgumentException(
+                "Export key separator cannot be empty. Configure a non-empty keySeparator in export format settings.",
+                nameof(keySeparator));
+        }
+
+        return keySeparator;
+    }
+
     /// <summary>
     /// Applies interim hard-coded export defaults for formats not yet configurable from Hub.
     /// </summary>
