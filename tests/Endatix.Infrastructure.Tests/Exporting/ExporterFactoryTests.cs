@@ -17,6 +17,7 @@ public sealed class ExporterFactoryTests
     private readonly SubmissionCsvExporter _csvExporter;
     private readonly SubmissionJsonExporter _jsonExporter;
     private readonly CodebookJsonExporter _codebookExporter;
+    private readonly ShojiCodebookJsonExporter _shojiCodebookExporter;
 
     public ExporterFactoryTests()
     {
@@ -31,6 +32,7 @@ public sealed class ExporterFactoryTests
         _csvExporter = new SubmissionCsvExporter(_csvLogger, _globalTransformers);
         _jsonExporter = new SubmissionJsonExporter(_jsonLogger, _globalTransformers);
         _codebookExporter = new CodebookJsonExporter(_codebookLogger);
+        _shojiCodebookExporter = new ShojiCodebookJsonExporter(_codebookLogger);
     }
 
     [Fact]
@@ -271,6 +273,22 @@ public sealed class ExporterFactoryTests
         // Assert
         Assert.IsType<CodebookJsonExporter>(exporter);
         Assert.Equal("codebook", exporter.Format);
+        Assert.Equal(typeof(DynamicExportRow), exporter.ItemType);
+    }
+
+    [Fact]
+    public void GetExporter_WithFormatAndType_ShouldReturnShojiCodebookExporter_WhenFormatIsCodebookShoji()
+    {
+        // Arrange
+        IExporter[] exporters = [_csvExporter, _jsonExporter, _codebookExporter, _shojiCodebookExporter];
+        ExporterFactory factory = new(exporters);
+
+        // Act
+        IExporter exporter = factory.GetExporter("codebook-shoji", typeof(DynamicExportRow));
+
+        // Assert
+        Assert.IsType<ShojiCodebookJsonExporter>(exporter);
+        Assert.Equal("codebook-shoji", exporter.Format);
         Assert.Equal(typeof(DynamicExportRow), exporter.ItemType);
     }
 
