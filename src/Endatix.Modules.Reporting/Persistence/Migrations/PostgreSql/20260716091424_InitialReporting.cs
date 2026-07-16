@@ -22,7 +22,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    SerializationType = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    ExportTarget = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    DeliveryFormat = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
+                    Profile = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
                     Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     SettingsJson = table.Column<string>(type: "jsonb", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -146,6 +148,77 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                 columns: new[] { "TenantId", "SurveyTypeId" },
                 unique: true,
                 filter: "\"IsDefault\" = true AND \"SurveyTypeId\" IS NOT NULL");
+
+            migrationBuilder.Sql("""
+                INSERT INTO reporting."ExportFormats"
+                    ("Id", "TenantId", "Name", "ExportTarget", "DeliveryFormat", "Profile",
+                     "Description", "SettingsJson", "CreatedAt", "IsDeleted")
+                SELECT
+                    t."Id" * 100 + 1,
+                    t."Id",
+                    'CSV',
+                    'Submissions',
+                    'Csv',
+                    'Native',
+                    'Default CSV export for form submissions',
+                    '{"aliasProfile":"native","locale":"default","keySeparator":"__","includeTestSubmissions":false}',
+                    NOW(),
+                    FALSE
+                FROM "Tenants" t
+                WHERE t."IsDeleted" = FALSE
+                ON CONFLICT DO NOTHING;
+
+                INSERT INTO reporting."ExportFormats"
+                    ("Id", "TenantId", "Name", "ExportTarget", "DeliveryFormat", "Profile",
+                     "Description", "SettingsJson", "CreatedAt", "IsDeleted")
+                SELECT
+                    t."Id" * 100 + 2,
+                    t."Id",
+                    'JSON',
+                    'Submissions',
+                    'Json',
+                    'Native',
+                    'Default JSON export for form submissions',
+                    '{"aliasProfile":"native","locale":"default","keySeparator":"__","includeTestSubmissions":false}',
+                    NOW(),
+                    FALSE
+                FROM "Tenants" t
+                WHERE t."IsDeleted" = FALSE
+                ON CONFLICT DO NOTHING;
+
+                INSERT INTO reporting."ExportFormats"
+                    ("Id", "TenantId", "Name", "ExportTarget", "DeliveryFormat", "Profile",
+                     "Description", "SettingsJson", "CreatedAt", "IsDeleted")
+                SELECT
+                    t."Id" * 100 + 3,
+                    t."Id",
+                    'Codebook',
+                    'Codebook',
+                    'Json',
+                    'Native',
+                    'Default form definition codebook export',
+                    '{"locale":"default"}',
+                    NOW(),
+                    FALSE
+                FROM "Tenants" t
+                WHERE t."IsDeleted" = FALSE
+                ON CONFLICT DO NOTHING;
+
+                INSERT INTO reporting."SurveyTypeExportMappings"
+                    ("Id", "TenantId", "SurveyTypeId", "ExportFormatId", "IsDefault",
+                     "CreatedAt", "IsDeleted")
+                SELECT
+                    t."Id" * 100 + 10,
+                    t."Id",
+                    NULL,
+                    t."Id" * 100 + 1,
+                    TRUE,
+                    NOW(),
+                    FALSE
+                FROM "Tenants" t
+                WHERE t."IsDeleted" = FALSE
+                ON CONFLICT DO NOTHING;
+                """);
         }
 
         /// <inheritdoc />
