@@ -1,8 +1,11 @@
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
+using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.IntegrationTests;
 
@@ -10,8 +13,11 @@ internal static class ReportingTestSchema
 {
     public static async Task EnsureMigratedAsync(
         string connectionString,
+        TestDatabaseProvider provider,
         CancellationToken cancellationToken = default)
     {
+        await EnsureCoreMigratedAsync(connectionString, provider, cancellationToken);
+
         var optionsBuilder = ConfigureOptionsBuilder(connectionString);
 
         await using ReportingDbContext context = new(
@@ -31,6 +37,18 @@ internal static class ReportingTestSchema
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder = new();
         optionsBuilder.ConfigureModuleDbContext(configuration, ReportingPersistence.ConfigureDbContextOptions);
         return optionsBuilder;
+    }
+
+    private static async Task EnsureCoreMigratedAsync(
+        string connectionString,
+        TestDatabaseProvider provider,
+        CancellationToken cancellationToken)
+    {
+        IServiceProvider serviceProvider = IntegrationCoreMigrationTestHelper.BuildServiceProvider(
+            connectionString,
+            provider);
+
+        await serviceProvider.ApplyDbMigrationsAsync(NullLogger.Instance, cancellationToken);
     }
 
     private static IConfiguration BuildTestConfiguration(string connectionString) =>

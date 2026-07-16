@@ -26,7 +26,7 @@ public sealed class ReportingQueryFilterTests
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
-        await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, cancellationToken);
+        await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
         IncrementingIdGenerator idGenerator = new();
         var bypassTenant = Substitute.For<ITenantContext>();
