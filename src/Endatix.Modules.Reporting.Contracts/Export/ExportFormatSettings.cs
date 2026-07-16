@@ -31,29 +31,14 @@ public sealed record ExportFormatSettings(
         return keySeparator;
     }
 
-    /// <summary>
-    /// Applies interim hard-coded export defaults for formats not yet configurable from Hub.
-    /// </summary>
-    public static ExportFormatSettings ForExportFormat(string format, ExportFormatSettings settings)
-    {
-        if (UsesInterimCrunchKeySeparator(format))
-        {
-            return settings with { KeySeparator = InterimCrunchKeySeparator };
-        }
-
-        return settings;
-    }
-
-    public static bool UsesInterimCrunchKeySeparator(string format) =>
-        format.Equals("csv", StringComparison.OrdinalIgnoreCase) ||
-        format.Equals("codebook-shoji", StringComparison.OrdinalIgnoreCase);
-
     public ExportFormatSettings MergeRequestOverrides(
         bool? includeTestSubmissions,
-        IReadOnlyList<string>? columnScope) =>
+        IReadOnlyList<string>? columnScope,
+        string? locale = null) =>
         this with
         {
             IncludeTestSubmissions = includeTestSubmissions ?? IncludeTestSubmissions,
             ColumnScope = columnScope is { Count: > 0 } ? columnScope : ColumnScope,
+            Locale = string.IsNullOrWhiteSpace(locale) ? Locale : locale.Trim(),
         };
 }
