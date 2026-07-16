@@ -212,6 +212,12 @@ public class ApiConfigurationBuilder
     {
         LogSetupInfo($"Scanning {assemblies.Length} assemblies for endpoints");
 
+        var apiAssembly = typeof(ApiConfigurationBuilder).Assembly;
+        if (!_endpointAssemblies.Contains(apiAssembly))
+        {
+            _endpointAssemblies.Add(apiAssembly);
+        }
+
         foreach (var assembly in assemblies)
         {
             if (!_endpointAssemblies.Contains(assembly))

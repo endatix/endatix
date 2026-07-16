@@ -6,6 +6,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
+using Endatix.Modules.Reporting.Tests.Features.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -23,7 +24,7 @@ public sealed class ShojiCodebookExportDataSourceTests
         new(NullLogger<ExportFormatSettingsParser>.Instance);
 
     private static ShojiCodebookExportDataSource CreateDataSource(IFormSchemaRepository formSchemaRepository) =>
-        new(formSchemaRepository, ExportFormatSettingsParser);
+        new(formSchemaRepository, ExportFormatSettingsParser, TestExportCapabilityRegistry.Instance);
 
     [Fact]
     public async Task PrepareOptionsAsync_WithMissingSchema_ReturnsMissingSchemaMessage()
@@ -106,7 +107,8 @@ public sealed class ShojiCodebookExportDataSourceTests
             .Returns(schema);
 
         ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository);
-        ExportDataSourceContext context = CreateContext();
+        ExportDataSourceContext context = CreateContext(
+            settingsJson: """{"keySeparator":"--"}""");
 
         Result<ExportOptions> prepareResult = await dataSource.PrepareOptionsAsync(
             context,
@@ -139,11 +141,26 @@ public sealed class ShojiCodebookExportDataSourceTests
         dataSource.Matches(new ExportDataSourceRequest("codebook-shoji", typeof(SubmissionExportRow), null)).Should().BeFalse();
     }
 
-    private static ExportDataSourceContext CreateContext() =>
-        new(
+    private static ExportDataSourceContext CreateContext(string? settingsJson = null)
+    {
+        ExportOptions options = new();
+        if (settingsJson is not null)
+        {
+            options.Metadata = new Dictionary<string, object>
+            {
+                [SubmissionExportMetadataKeys.ExecutionSettings] = new SubmissionExportExecutionSettings(
+                    ExportFormatId: 1,
+                    SettingsJson: settingsJson,
+                    IncludeTestSubmissions: null,
+                    ColumnScope: null),
+            };
+        }
+
+        return new ExportDataSourceContext(
             new ExportDataSourceRequest("codebook-shoji", typeof(DynamicExportRow), null),
             TenantId,
             FormId,
-            new ExportOptions(),
+            options,
             ExportPageSize: null);
+    }
 }

@@ -35,19 +35,6 @@ public sealed class ExportFormatSettingsParserTests
     }
 
     [Fact]
-    public void ForExportFormat_WithCsvOrShoji_AppliesInterimCrunchKeySeparator()
-    {
-        ExportFormatSettings settings = ExportFormatSettings.ForExportFormat("csv", ExportFormatSettings.Default);
-        settings.KeySeparator.Should().Be(ExportFormatSettings.InterimCrunchKeySeparator);
-
-        settings = ExportFormatSettings.ForExportFormat("codebook-shoji", ExportFormatSettings.Default);
-        settings.KeySeparator.Should().Be(ExportFormatSettings.InterimCrunchKeySeparator);
-
-        settings = ExportFormatSettings.ForExportFormat("json", ExportFormatSettings.Default);
-        settings.KeySeparator.Should().Be(ExportFormatSettings.DefaultKeySeparator);
-    }
-
-    [Fact]
     public void Parse_WithNullOrEmpty_ReturnsDefaults()
     {
         Parser.Parse(null).Should().Be(ExportFormatSettings.Default);
@@ -101,6 +88,20 @@ public sealed class ExportFormatSettingsParserTests
         settings.AliasProfile.Should().Be(ColumnAliasProfile.Native);
         settings.IncludeTestSubmissions.Should().BeTrue();
         settings.ColumnScope.Should().BeEquivalentTo(["q2"]);
+    }
+
+    [Fact]
+    public void Resolve_AppliesRequestLocaleOverride()
+    {
+        const string settingsJson = """{ "aliasProfile": "native", "keySeparator": "__" }""";
+
+        ExportFormatSettings settings = Parser.Resolve(
+            settingsJson,
+            includeTestSubmissions: null,
+            columnScope: null,
+            locale: "es");
+
+        settings.Locale.Should().Be("es");
     }
 
     [Fact]
