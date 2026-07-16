@@ -59,7 +59,7 @@ public sealed class ColumnAliasProfileJsonConverterTests
     }
 
     [Fact]
-    public void Deserialize_PatchRequest_AcceptsCamelCaseAliasProfile()
+    public void Deserialize_PartialUpdateRequest_AcceptsCamelCaseAliasProfile()
     {
         const string json = """
             {
@@ -74,7 +74,7 @@ public sealed class ColumnAliasProfileJsonConverterTests
             }
             """;
 
-        PatchExportFormatRequest? request = JsonSerializer.Deserialize<PatchExportFormatRequest>(
+        PartialUpdateExportFormatRequest? request = JsonSerializer.Deserialize<PartialUpdateExportFormatRequest>(
             json,
             FastEndpointsLikeOptions);
 

@@ -11,25 +11,25 @@ using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Modules.Reporting.Tests.Endpoints.Settings.ExportFormats;
 
-public sealed class PatchExportFormatEndpointTests
+public sealed class PartialUpdateExportFormatEndpointTests
 {
     private readonly IMediator _mediator;
     private readonly ITenantContext _tenantContext;
-    private readonly Patch _endpoint;
+    private readonly PartialUpdate _endpoint;
 
-    public PatchExportFormatEndpointTests()
+    public PartialUpdateExportFormatEndpointTests()
     {
         _mediator = Substitute.For<IMediator>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
-        _endpoint = Factory.Create<Patch>(_mediator, _tenantContext);
+        _endpoint = Factory.Create<PartialUpdate>(_mediator, _tenantContext);
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenSuccessful_ReturnsUpdatedFormat()
     {
         const long exportFormatId = 1;
-        PatchExportFormatRequest request = new()
+        PartialUpdateExportFormatRequest request = new()
         {
             ExportFormatId = exportFormatId,
             Name = "Updated CSV Export",
@@ -63,7 +63,7 @@ public sealed class PatchExportFormatEndpointTests
     public async Task ExecuteAsync_WhenNotFound_ReturnsProblem()
     {
         const long exportFormatId = 999;
-        PatchExportFormatRequest request = new() { ExportFormatId = exportFormatId };
+        PartialUpdateExportFormatRequest request = new() { ExportFormatId = exportFormatId };
 
         _mediator.Send(Arg.Any<UpdateExportFormatCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.NotFound("Export format not found."));
