@@ -6,9 +6,9 @@ description: Learn about Endatix - a self-hosted, open-source backend for Survey
 
 # What is Endatix?
 
-Endatix is a form management system - a modern self-hosted alternative to SaaS form and survey platforms. It enables you to launch your own form management system, packed with features that rival popular SaaS tools such as Typeform, Formstack, Alchemer, Qualtrics, and more.
+Endatix is a form management system - a modern self-hosted alternative to SaaS form and survey platforms. It enables you to launch your own platform, packed with form management features that rival popular SaaS tools such as Typeform, Formstack, Alchemer, Qualtrics, and more.
 
-Endatix is built on top of the industry leading [SurveyJS](https://surveyjs.io/?utm_source=endatix&utm_medium=referral) form library.
+Endatix is built on top of the industry leading [SurveyJS](https://surveyjs.io/?utm_source=endatix&utm_medium=referral) form builder library.
 
 :::tip
 
