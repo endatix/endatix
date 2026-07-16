@@ -320,7 +320,13 @@ public class EndatixApiBuilder
     {
         LogSetupInfo("Configuring FastEndpoints");
 
-        _apiOptions.ConfigureFastEndpoints = configure;
+        // Compose with any previously registered configurators (e.g. module hooks).
+        Action<FastEndpoints.Config>? existing = _apiOptions.ConfigureFastEndpoints;
+        _apiOptions.ConfigureFastEndpoints = config =>
+        {
+            existing?.Invoke(config);
+            configure(config);
+        };
 
         LogSetupInfo("FastEndpoints configuration added");
         return this;

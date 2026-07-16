@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export.FormSchema;
+using Endatix.Modules.Reporting.Tests.Features.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -29,7 +30,7 @@ public sealed class FormSchemaCodebookExportDataSourceTests
             .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns(schema);
 
-        FormSchemaCodebookExportDataSource dataSource = new(formSchemaRepository);
+        FormSchemaCodebookExportDataSource dataSource = new(formSchemaRepository, TestExportCapabilityRegistry.Instance);
         ExportDataSourceContext context = CreateContext();
 
         List<IExportItem> items = [];
@@ -56,7 +57,7 @@ public sealed class FormSchemaCodebookExportDataSourceTests
             .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns((FormSchemaEntity?)null);
 
-        FormSchemaCodebookExportDataSource dataSource = new(formSchemaRepository);
+        FormSchemaCodebookExportDataSource dataSource = new(formSchemaRepository, TestExportCapabilityRegistry.Instance);
 
         List<IExportItem> items = [];
         await foreach (IExportItem item in dataSource.StreamAsync(
@@ -72,7 +73,9 @@ public sealed class FormSchemaCodebookExportDataSourceTests
     [Fact]
     public void Matches_ReturnsTrueOnlyForCodebookNativeDynamicExportRow()
     {
-        FormSchemaCodebookExportDataSource dataSource = new(Substitute.For<IFormSchemaRepository>());
+        FormSchemaCodebookExportDataSource dataSource = new(
+            Substitute.For<IFormSchemaRepository>(),
+            TestExportCapabilityRegistry.Instance);
 
         dataSource.Matches(new ExportDataSourceRequest("codebook", typeof(DynamicExportRow), null)).Should().BeTrue();
         dataSource.Matches(new ExportDataSourceRequest("codebook-shoji", typeof(DynamicExportRow), null)).Should().BeFalse();

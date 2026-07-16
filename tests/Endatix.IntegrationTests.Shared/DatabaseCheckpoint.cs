@@ -58,14 +58,21 @@ public sealed class DatabaseCheckpoint
                 return existing;
             }
 
-            if (!await HasAnyTablesAsync(connection, provider, cancellationToken))
+            if (!await HasResettableTablesAsync(connection, provider, cancellationToken))
             {
                 return null;
             }
 
-            var respawner = await Respawner.CreateAsync(connection, BuildOptions(provider));
-            _respawners[provider] = respawner;
-            return respawner;
+            try
+            {
+                var respawner = await Respawner.CreateAsync(connection, BuildOptions(provider));
+                _respawners[provider] = respawner;
+                return respawner;
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("No tables found", StringComparison.Ordinal))
+            {
+                return null;
+            }
         }
         finally
         {
@@ -73,7 +80,10 @@ public sealed class DatabaseCheckpoint
         }
     }
 
-    private static async Task<bool> HasAnyTablesAsync(DbConnection connection, TestDatabaseProvider provider, CancellationToken cancellationToken)
+    private static async Task<bool> HasResettableTablesAsync(
+        DbConnection connection,
+        TestDatabaseProvider provider,
+        CancellationToken cancellationToken)
     {
         var schemas = provider switch
         {
@@ -84,8 +94,22 @@ public sealed class DatabaseCheckpoint
 
         var quotedSchemas = string.Join(", ", schemas.Select(s => $"'{s}'"));
         var sql = provider == TestDatabaseProvider.PostgreSql
-            ? $"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema IN ({quotedSchemas}))"
-            : $"SELECT CASE WHEN EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN ({quotedSchemas})) THEN 1 ELSE 0 END";
+            ? $"""
+               SELECT EXISTS (
+                 SELECT 1
+                 FROM information_schema.tables
+                 WHERE table_schema IN ({quotedSchemas})
+                   AND table_name <> '__EFMigrationsHistory'
+               )
+               """
+            : $"""
+               SELECT CASE WHEN EXISTS (
+                 SELECT 1
+                 FROM INFORMATION_SCHEMA.TABLES
+                 WHERE TABLE_SCHEMA IN ({quotedSchemas})
+                   AND TABLE_NAME <> '__EFMigrationsHistory'
+               ) THEN 1 ELSE 0 END
+               """;
 
         await using var command = connection.CreateCommand();
         command.CommandText = sql;

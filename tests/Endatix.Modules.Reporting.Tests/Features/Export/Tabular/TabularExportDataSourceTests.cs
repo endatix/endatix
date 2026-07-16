@@ -5,6 +5,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Tabular;
+using Endatix.Modules.Reporting.Tests.Features.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -36,6 +37,7 @@ public sealed class TabularExportDataSourceTests
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(error =>
             error.Contains("Save or publish the form definition", StringComparison.Ordinal));
         await reportingExportRepository.DidNotReceive()
@@ -57,6 +59,7 @@ public sealed class TabularExportDataSourceTests
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(CreateContext(), TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(error =>
             error.Contains("schema artifacts are incomplete or invalid", StringComparison.OrdinalIgnoreCase));
     }
@@ -84,6 +87,7 @@ public sealed class TabularExportDataSourceTests
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(CreateContext(), TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(error =>
             error.Contains("Run admin backfill", StringComparison.Ordinal));
     }
@@ -119,7 +123,7 @@ public sealed class TabularExportDataSourceTests
     }
 
     [Fact]
-    public async Task PrepareOptionsAsync_WithCsv_AppliesInterimCrunchKeySeparatorToColumnPlan()
+    public async Task PrepareOptionsAsync_WithCsv_AppliesTenantKeySeparatorToColumnPlan()
     {
         string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
         FormSchemaCompiler compiler = new();
@@ -137,7 +141,9 @@ public sealed class TabularExportDataSourceTests
             .Returns(true);
 
         TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
-        ExportDataSourceContext context = CreateContext(format: "csv");
+        ExportDataSourceContext context = CreateContext(
+            format: "csv",
+            settingsJson: """{"keySeparator":"--"}""");
 
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
 
@@ -300,25 +306,43 @@ public sealed class TabularExportDataSourceTests
             Substitute.For<IFormSchemaRepository>(),
             Substitute.For<IReportingExportRepository>());
 
-        dataSource.Matches(new ExportDataSourceRequest(TabularExportFormats.Csv, typeof(SubmissionExportRow), null)).Should().BeTrue();
-        dataSource.Matches(new ExportDataSourceRequest(TabularExportFormats.Json, typeof(SubmissionExportRow), null)).Should().BeTrue();
+        dataSource.Matches(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null)).Should().BeTrue();
+        dataSource.Matches(new ExportDataSourceRequest("json", typeof(SubmissionExportRow), null)).Should().BeTrue();
         dataSource.Matches(new ExportDataSourceRequest("codebook", typeof(SubmissionExportRow), null)).Should().BeFalse();
         dataSource.Matches(new ExportDataSourceRequest("xml", typeof(SubmissionExportRow), null)).Should().BeFalse();
-        dataSource.Matches(new ExportDataSourceRequest(TabularExportFormats.Csv, typeof(SubmissionExportRow), "custom_fn")).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), "custom_fn")).Should().BeFalse();
     }
 
     private static TabularExportDataSource CreateDataSource(
         IFormSchemaRepository formSchemaRepository,
         IReportingExportRepository reportingExportRepository) =>
-        new(formSchemaRepository, reportingExportRepository, ExportFormatSettingsParser);
+        new(formSchemaRepository, reportingExportRepository, ExportFormatSettingsParser, TestExportCapabilityRegistry.Instance, ColumnAliasTransformerRegistry.Default);
 
-    private static ExportDataSourceContext CreateContext(string format = "csv", int? exportPageSize = null) =>
-        new(
+    private static ExportDataSourceContext CreateContext(
+        string format = "csv",
+        int? exportPageSize = null,
+        string? settingsJson = null)
+    {
+        ExportOptions options = new();
+        if (settingsJson is not null)
+        {
+            options.Metadata = new Dictionary<string, object>
+            {
+                [SubmissionExportMetadataKeys.ExecutionSettings] = new SubmissionExportExecutionSettings(
+                    ExportFormatId: 1,
+                    SettingsJson: settingsJson,
+                    IncludeTestSubmissions: null,
+                    ColumnScope: null),
+            };
+        }
+
+        return new ExportDataSourceContext(
             new ExportDataSourceRequest(format, typeof(SubmissionExportRow), null),
             TenantId,
             FormId,
-            new ExportOptions(),
+            options,
             exportPageSize);
+    }
 
     private static async IAsyncEnumerable<FlattenedExportRow> StreamRows(params FlattenedExportRow[] rows)
     {

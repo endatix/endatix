@@ -206,6 +206,41 @@ public class SubmissionsExportHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenPrepareOptionsReturnsConflict_PreservesConflictStatus()
+    {
+        long formId = 1L;
+        IExporter exporter = CreateMockExporter(typeof(SubmissionExportRow));
+        ExportOptions options = new();
+        PipeWriter pipeWriter = new Pipe().Writer;
+        const string conflictMessage =
+            "Form schema has not been compiled for this form. Save or publish the form definition to trigger compilation.";
+
+        SubmissionsExportQuery request = new(
+            FormId: formId,
+            TenantId: 1L,
+            Exporter: exporter,
+            Options: options,
+            OutputWriter: pipeWriter,
+            SqlFunctionName: null);
+
+        IExportDataSource dataSource = Substitute.For<IExportDataSource>();
+        dataSource.PrepareOptionsAsync(Arg.Any<ExportDataSourceContext>(), Arg.Any<CancellationToken>())
+            .Returns(Result<ExportOptions>.Conflict(conflictMessage));
+        _dataSourceResolver.Resolve(Arg.Any<ExportDataSourceRequest>()).Returns(dataSource);
+
+        Result<FileExport> result = await _handler.Handle(request, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().ContainSingle(error => error == conflictMessage);
+        await exporter.DidNotReceive().StreamExportAsync(
+            Arg.Any<Func<Type, IAsyncEnumerable<IExportItem>>>(),
+            Arg.Any<ExportOptions>(),
+            Arg.Any<CancellationToken>(),
+            Arg.Any<PipeWriter>());
+    }
+
+    [Fact]
     public async Task Handle_UnsupportedItemType_ThrowsException()
     {
         // Arrange

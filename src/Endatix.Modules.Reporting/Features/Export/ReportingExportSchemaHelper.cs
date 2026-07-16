@@ -14,7 +14,7 @@ internal static class ReportingExportSchemaHelper
     internal static bool HasValidSchemaArtifacts(FormSchemaEntity schema) =>
         !string.IsNullOrWhiteSpace(schema.FlatteningMap) && !string.IsNullOrWhiteSpace(schema.Codebook);
 
-    internal static Result<T> MissingSchemaResult<T>() => Result<T>.Error(MissingSchemaMessage);
+    internal static Result<T> MissingSchemaResult<T>() => Result<T>.Conflict(MissingSchemaMessage);
 
-    internal static Result<T> InvalidSchemaArtifactsResult<T>() => Result<T>.Error(InvalidSchemaArtifactsMessage);
+    internal static Result<T> InvalidSchemaArtifactsResult<T>() => Result<T>.Conflict(InvalidSchemaArtifactsMessage);
 }

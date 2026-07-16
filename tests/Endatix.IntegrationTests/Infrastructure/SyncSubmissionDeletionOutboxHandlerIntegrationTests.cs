@@ -109,7 +109,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
     {
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
-        await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, cancellationToken);
+        await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
     }
 
     private ReportingDbContext CreateContext(long tenantId)

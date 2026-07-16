@@ -10,14 +10,18 @@ using Endatix.Modules.Reporting.Configuration;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export;
+using Endatix.Modules.Reporting.Features.Export.Capabilities;
 using Endatix.Modules.Reporting.Features.Export.FormSchema;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.Export.Tabular;
+using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
+using Endatix.Modules.Reporting.Infrastructure;
+using FastEndpoints;
 
 namespace Endatix.Modules.Reporting;
 
@@ -34,6 +38,12 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
 
     public string FeatureFlag => FeatureFlags.ReportingModule;
 
+    /// <summary>
+    /// Applies reporting-specific FastEndpoints configuration (serializers, OpenAPI tags).
+    /// </summary>
+    public static void ConfigureFastEndpoints(Config config) =>
+        ReportingModuleEndpointConfiguration.Configure(config);
+
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
         builder.AddDbContextWithMigrations<ReportingDbContext>(
@@ -49,8 +59,14 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
         builder.Services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
         builder.Services.AddScoped<IExportFormatRepository, ExportFormatRepository>();
-        builder.Services.AddScoped<IExportFormatDefinitionResolver, ExportFormatDefinitionResolver>();
+        builder.Services.AddScoped<IExportMappingRepository, ExportMappingRepository>();
+        builder.Services.AddScoped<IDefaultExportFormatsSeeder, DefaultExportFormatsSeeder>();
+        builder.Services.AddSingleton<IExportCapabilityRegistry, ExportCapabilityRegistry>();
+        builder.Services.AddSingleton<IColumnAliasTransformer>(_ => NativeColumnAliasTransformer._instance);
+        builder.Services.AddSingleton<IColumnAliasTransformer>(_ => QuestionIndexAliasTransformer._instance);
+        builder.Services.AddSingleton<IColumnAliasTransformerRegistry, ColumnAliasTransformerRegistry>();
         builder.Services.AddSingleton<ExportFormatSettingsParser>();
+        builder.Services.AddSingleton<ExportFormatSettingsWriter>();
         builder.Services.AddScoped<IExportDataSource, TabularExportDataSource>();
         builder.Services.AddScoped<IExportDataSource, ShojiCodebookExportDataSource>();
         builder.Services.AddScoped<IExportDataSource, FormSchemaCodebookExportDataSource>();

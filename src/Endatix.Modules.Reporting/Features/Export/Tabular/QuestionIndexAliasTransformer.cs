@@ -3,20 +3,29 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
-namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Tabular;
+namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 
 /// <summary>
-/// Crunch-safe alias transform — sequential Q-number groups with per-member suffixes.
+/// Sequential question-index alias transform — Q1, Q1_1, Q2-style headers grouped by source question.
 /// </summary>
-internal sealed class CrunchColumnAliasTransformer : IColumnAliasTransformer
+internal sealed class QuestionIndexAliasTransformer : IColumnAliasTransformer
 {
-    internal static readonly CrunchColumnAliasTransformer _instance = new();
+    internal static readonly QuestionIndexAliasTransformer _instance = new();
 
-    private CrunchColumnAliasTransformer()
+    private QuestionIndexAliasTransformer()
     {
     }
 
     public ColumnAliasProfile Profile => ColumnAliasProfile.Crunch;
+
+    public string WireKey => ColumnAliasProfileWire.ToWireValue(Profile);
+
+    public string Label => "Question index";
+
+    public string Description =>
+        "Sequential Q1, Q1_1, Q2-style headers grouped by source question.";
+
+    public string? Example => "Q1, Q1_1, Q2";
 
     public IReadOnlyDictionary<string, string> BuildExportKeys(IReadOnlyList<ExportColumnAliasInput> columns)
     {

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Microsoft.Extensions.Logging;
 
@@ -10,10 +9,10 @@ namespace Endatix.Modules.Reporting.Features.Export;
 /// </summary>
 internal sealed partial class ExportFormatSettingsParser(ILogger<ExportFormatSettingsParser> logger)
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
+    private static readonly JsonSerializerOptions _serializerOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+        Converters = { new ColumnAliasProfileJsonConverter() },
     };
 
     internal ExportFormatSettings Parse(string? settingsJson)
@@ -25,7 +24,7 @@ internal sealed partial class ExportFormatSettingsParser(ILogger<ExportFormatSet
 
         try
         {
-            ExportFormatSettings? settings = JsonSerializer.Deserialize<ExportFormatSettings>(settingsJson, SerializerOptions);
+            var settings = JsonSerializer.Deserialize<ExportFormatSettings>(settingsJson, _serializerOptions);
             return settings ?? ExportFormatSettings.Default;
         }
         catch (JsonException ex)
@@ -38,8 +37,9 @@ internal sealed partial class ExportFormatSettingsParser(ILogger<ExportFormatSet
     internal ExportFormatSettings Resolve(
         string? settingsJson,
         bool? includeTestSubmissions,
-        IReadOnlyList<string>? columnScope) =>
-        Parse(settingsJson).MergeRequestOverrides(includeTestSubmissions, columnScope);
+        IReadOnlyList<string>? columnScope,
+        string? locale = null) =>
+        Parse(settingsJson).MergeRequestOverrides(includeTestSubmissions, columnScope, locale);
 
     [LoggerMessage(
         Level = LogLevel.Debug,

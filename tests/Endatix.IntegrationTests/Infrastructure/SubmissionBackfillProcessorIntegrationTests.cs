@@ -242,7 +242,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
 
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
     {
-        await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, cancellationToken);
+        await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
     }
 
     private ReportingDbContext CreateContext(long tenantId)

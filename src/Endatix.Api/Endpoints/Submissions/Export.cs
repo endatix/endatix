@@ -9,11 +9,11 @@ using Endatix.Core.Infrastructure.Domain;
 using Microsoft.Extensions.Logging;
 using MediatR;
 using Endatix.Core.Infrastructure.Result;
-using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 using Endatix.Core.Entities;
 using System.IO.Pipelines;
+using Endatix.Modules.Reporting.Contracts.Export;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -33,13 +33,13 @@ internal sealed record ValidatedExportOperation(
 /// </summary>
 public partial class Export : Endpoint<ExportRequest>
 {
-    private const string DEFAULT_EXPORT_FORMAT = "csv";
-    private const string ERROR_MESSAGE_COULD_NOT_DETERMINE_EXPORT_FORMAT = "Could not determine export format. Either provide ExportFormat or a valid ExportId.";
+    private const string ERROR_MESSAGE_COULD_NOT_DETERMINE_EXPORT_FORMAT = "Could not determine export format. Either provide ExportFormatId or a valid ExportId.";
     private readonly IMediator _mediator;
     private readonly IExporterFactory _exporterFactory;
     private readonly IFormsRepository _formsRepository;
     private readonly IRepository<TenantSettingsEntity> _tenantSettingsRepository;
-    private readonly IExportFormatDefinitionResolver? _exportFormatDefinitionResolver;
+    private readonly IExportFormatRepository? _exportFormatRepository;
+    private readonly IExportCapabilityRegistry? _exportCapabilityRegistry;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<Export> _logger;
 
@@ -50,13 +50,15 @@ public partial class Export : Endpoint<ExportRequest>
         IRepository<TenantSettingsEntity> tenantSettingsRepository,
         ITenantContext tenantContext,
         ILogger<Export> logger,
-        IExportFormatDefinitionResolver? exportFormatDefinitionResolver = null)
+        IExportFormatRepository? exportFormatRepository = null,
+        IExportCapabilityRegistry? exportCapabilityRegistry = null)
     {
         _mediator = mediator;
         _exporterFactory = exporterFactory;
         _formsRepository = formsRepository;
         _tenantSettingsRepository = tenantSettingsRepository;
-        _exportFormatDefinitionResolver = exportFormatDefinitionResolver;
+        _exportFormatRepository = exportFormatRepository;
+        _exportCapabilityRegistry = exportCapabilityRegistry;
         _tenantContext = tenantContext;
         _logger = logger;
     }
@@ -70,8 +72,10 @@ public partial class Export : Endpoint<ExportRequest>
            s.Summary = "Export submissions";
            s.Description = "Export submissions for a given form";
            s.Responses[200] = "The submissions were successfully exported";
+           s.Responses[400] = "Invalid export request or unsupported format";
            s.Responses[404] = "Form not found. Cannot export submissions";
-           s.Responses[500] = "An error occurred during export";
+           s.Responses[409] = "Export preconditions not met (e.g. form schema not compiled, reporting read model empty)";
+           s.Responses[500] = "An unexpected error occurred during export";
        });
     }
 
@@ -127,10 +131,6 @@ public partial class Export : Endpoint<ExportRequest>
 
             var fileExport = headersResult.Value;
 
-            // Set response headers before streaming. Once we write to the body, the status code (200) is committed and cannot be changed on error.
-            // Note: We intentionally don't set Content-Length here as this is a streaming response.
-            // The response will automatically use chunked transfer encoding which is well-supported
-            // by modern HTTP clients and allows for true streaming without buffering the entire output.
             HttpContext.Response.ContentType = fileExport.ContentType;
             HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={fileExport.FileName}";
 
@@ -152,7 +152,11 @@ public partial class Export : Endpoint<ExportRequest>
                 var errors = string.Join(", ", result.Errors);
                 LogExportFailedError(request.FormId, errors);
 
-                await SetErrorResponse(errors, StatusCodes.Status500InternalServerError, new InvalidOperationException(errors), pipeWriter);
+                await SetErrorResponse(
+                    errors,
+                    MapExportFailureStatusCode(result.Status),
+                    new InvalidOperationException(errors),
+                    pipeWriter);
                 return;
             }
 
@@ -167,12 +171,6 @@ public partial class Export : Endpoint<ExportRequest>
         }
     }
 
-    /// <summary>
-    /// Resolves and validates the export configuration for the given request.
-    /// </summary>
-    /// <param name="request">The export request.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The validated export operation.</returns>
     private async Task<Result<ValidatedExportOperation>> ResolveExportConfigurationAsync(
         ExportRequest request,
         CancellationToken cancellationToken)
@@ -188,25 +186,41 @@ public partial class Export : Endpoint<ExportRequest>
             return await ResolveExportFormatIdConfigurationAsync(request, cancellationToken);
         }
 
+        if (_exportFormatRepository is not null)
+        {
+            var defaultFormatResult =
+                await ResolveTenantDefaultExportFormatAsync(request, cancellationToken);
+            if (defaultFormatResult is not null)
+            {
+                return defaultFormatResult;
+            }
+        }
+
         if (request.ExportId.HasValue)
         {
             return await ResolveExportIdConfigurationAsync(request, cancellationToken);
         }
 
-        return Result.Success(CreateFormatBasedExportOperation(request));
+        if (_exportCapabilityRegistry is not null)
+        {
+            return Result.Invalid(new ValidationError(
+                "ExportFormatId is required when reporting export formats are enabled."));
+        }
+
+        return Result.Invalid(new ValidationError(ERROR_MESSAGE_COULD_NOT_DETERMINE_EXPORT_FORMAT));
     }
 
     private async Task<Result<ValidatedExportOperation>> ResolveExportFormatIdConfigurationAsync(
         ExportRequest request,
         CancellationToken cancellationToken)
     {
-        if (_exportFormatDefinitionResolver is null)
+        if (_exportFormatRepository is null || _exportCapabilityRegistry is null)
         {
             return Result.Invalid(new ValidationError("Reporting export formats are not available."));
         }
 
         var exportFormatId = request.ExportFormatId!.Value;
-        var exportFormat = await _exportFormatDefinitionResolver.GetByIdAsync(
+        var exportFormat = await _exportFormatRepository.GetByIdAsync(
             _tenantContext.TenantId,
             exportFormatId,
             cancellationToken);
@@ -219,15 +233,50 @@ public partial class Export : Endpoint<ExportRequest>
             return Result.Invalid(new ValidationError($"Export format with ID {exportFormatId} not found"));
         }
 
+        return BuildValidatedExportOperation(request, exportFormat);
+    }
+
+    private async Task<Result<ValidatedExportOperation>?> ResolveTenantDefaultExportFormatAsync(
+        ExportRequest request,
+        CancellationToken cancellationToken)
+    {
+        var exportFormat = await _exportFormatRepository!.GetTenantDefaultAsync(
+            _tenantContext.TenantId,
+            cancellationToken);
+
+        return exportFormat is null
+            ? null
+            : BuildValidatedExportOperation(request, exportFormat);
+    }
+
+    private Result<ValidatedExportOperation> BuildValidatedExportOperation(
+        ExportRequest request,
+        ExportFormatRecord exportFormat)
+    {
+        if (_exportCapabilityRegistry is null ||
+            !_exportCapabilityRegistry.TryGetByWireKey(exportFormat.WireKey, out var capability))
+        {
+            return Result.Invalid(new ValidationError(
+                $"Export format with ID {exportFormat.Id} uses an unsupported capability."));
+        }
+
+        var itemType = ResolveExportItemType(capability.ItemTypeName);
+        if (itemType is null)
+        {
+            return Result.Invalid(new ValidationError(
+                $"Export format with ID {exportFormat.Id} has an invalid item type."));
+        }
+
         SubmissionExportExecutionSettings executionSettings = new(
             ExportFormatId: exportFormat.Id,
             SettingsJson: exportFormat.SettingsJson,
             IncludeTestSubmissions: request.IncludeTestSubmissions,
-            ColumnScope: NormalizeColumnScope(request.ColumnScope));
+            ColumnScope: NormalizeColumnScope(request.ColumnScope),
+            Locale: NormalizeLocale(request.Locale));
 
         return Result.Success(new ValidatedExportOperation(
-            exportFormat.Format,
-            ResolveExportItemTypeForFormat(exportFormat.Format),
+            exportFormat.WireKey,
+            itemType,
             null,
             null,
             executionSettings));
@@ -281,43 +330,12 @@ public partial class Export : Endpoint<ExportRequest>
             exportConfig.ExportPageSize));
     }
 
-    private static ValidatedExportOperation CreateFormatBasedExportOperation(ExportRequest request)
-    {
-        // TODO(E10): Prefer exportFormatId + tenant ExportFormats once PR-E10 ships; remove hardcoded format strings from Hub.
-        var format = string.IsNullOrWhiteSpace(request.ExportFormat) ? DEFAULT_EXPORT_FORMAT : request.ExportFormat;
-        var columnScope = NormalizeColumnScope(request.ColumnScope);
-        var executionSettings =
-            request.IncludeTestSubmissions.HasValue || columnScope is not null
-                ? new SubmissionExportExecutionSettings(
-                    IncludeTestSubmissions: request.IncludeTestSubmissions,
-                    ColumnScope: columnScope)
-                : null;
-
-        return new ValidatedExportOperation(
-            format,
-            ResolveExportItemTypeForFormat(format),
-            null,
-            null,
-            executionSettings);
-    }
-
     private static string[]? NormalizeColumnScope(string[]? columnScope) =>
         columnScope is { Length: > 0 } ? columnScope : null;
 
-    private static Type ResolveExportItemTypeForFormat(string format) =>
-        IsCodebookExportFormat(format)
-            ? typeof(DynamicExportRow)
-            : typeof(SubmissionExportRow);
+    private static string? NormalizeLocale(string? locale) =>
+        string.IsNullOrWhiteSpace(locale) ? null : locale.Trim();
 
-    private static bool IsCodebookExportFormat(string format) =>
-        format.Equals("codebook", StringComparison.OrdinalIgnoreCase) ||
-        format.Equals("codebook-shoji", StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Resolves the Type from a fully qualified type name string.
-    /// Optimized to search only in relevant assemblies (Endatix.Core) first,
-    /// then falls back to all assemblies if not found.
-    /// </summary>
     private static Type? ResolveExportItemType(string? typeName)
     {
         if (string.IsNullOrWhiteSpace(typeName))
@@ -325,7 +343,6 @@ public partial class Export : Endpoint<ExportRequest>
             return typeof(SubmissionExportRow);
         }
 
-        // Try to resolve from all loaded assemblies (Type.GetType searches mscorlib and calling assembly)
         var type = Type.GetType(typeName, false);
         if (type is not null && typeof(IExportItem).IsAssignableFrom(type))
         {
@@ -342,16 +359,17 @@ public partial class Export : Endpoint<ExportRequest>
         return null;
     }
 
-    /// <summary>
-    /// Sets the error response for the current HTTP context.
-    /// When the response has already started or cannot be cleared, completes the pipe with the given exception if a pipe writer is provided.
-    /// Note: Once the response has started (e.g. during streaming), the HTTP status code cannot be changed; the client may still see 200 with a truncated/failed body.
-    /// </summary>
-    /// <param name="message">The error message for the response body or log.</param>
-    /// <param name="statusCode">The status code to set when writing a JSON response.</param>
-    /// <param name="exception">Optional exception; when response cannot be set, used to complete the pipe so the client sees the failure.</param>
-    /// <param name="pipeWriter">Optional pipe writer; when response has started or clear fails, completed with <paramref name="exception"/> (or a new one from <paramref name="message"/>).</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    private static int MapExportFailureStatusCode(ResultStatus status) =>
+        status switch
+        {
+            ResultStatus.Invalid => StatusCodes.Status400BadRequest,
+            ResultStatus.NotFound => StatusCodes.Status404NotFound,
+            ResultStatus.Conflict => StatusCodes.Status409Conflict,
+            ResultStatus.Forbidden => StatusCodes.Status403Forbidden,
+            ResultStatus.Unauthorized => StatusCodes.Status401Unauthorized,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+
     private async Task SetErrorResponse(string message, int? statusCode = null, Exception? exception = null, PipeWriter? pipeWriter = null)
     {
         if (HttpContext.Response.HasStarted)
@@ -370,16 +388,26 @@ public partial class Export : Endpoint<ExportRequest>
             return;
         }
 
-        HttpContext.Response.StatusCode = statusCode ?? StatusCodes.Status500InternalServerError;
-        HttpContext.Response.ContentType = "application/json";
+        int resolvedStatus = statusCode ?? StatusCodes.Status500InternalServerError;
+        HttpContext.Response.StatusCode = resolvedStatus;
+        HttpContext.Response.ContentType = "application/problem+json";
 
-        var problem = new FastEndpoints.ProblemDetails
+        // Emit RFC7807 camelCase so Hub (and other clients) can surface Detail in the UI.
+        var problem = new Microsoft.AspNetCore.Mvc.ProblemDetails
         {
+            Title = "Export failed",
             Detail = message,
-            Status = statusCode ?? StatusCodes.Status500InternalServerError,
+            Status = resolvedStatus,
+            Type = resolvedStatus switch
+            {
+                StatusCodes.Status400BadRequest => "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+                StatusCodes.Status404NotFound => "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+                StatusCodes.Status409Conflict => "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+                _ => "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+            },
         };
 
-        await HttpContext.Response.WriteAsync(JsonSerializer.Serialize(problem));
+        await HttpContext.Response.WriteAsJsonAsync(problem);
     }
 
     private async Task CompletePipeIfNeeded(PipeWriter? pipeWriter, Exception? exception, string fallbackMessage)

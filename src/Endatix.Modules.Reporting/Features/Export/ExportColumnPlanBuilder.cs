@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
-using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Tabular;
 using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
@@ -14,18 +13,24 @@ namespace Endatix.Modules.Reporting.Features.Export;
 /// </summary>
 internal static class ExportColumnPlanBuilder
 {
+    /// <summary>
+    /// Builds an export column plan. When <paramref name="aliasRegistry"/> is omitted,
+    /// the built-in Native + Crunch registry is used.
+    /// </summary>
     internal static IExportColumnPlan Build(
         FormSchemaEntity schema,
         string locale = "default",
         ColumnAliasProfile aliasProfile = ColumnAliasProfile.Native,
         IReadOnlySet<string>? columnScope = null,
-        string keySeparator = ExportFormatSettings.DefaultKeySeparator)
+        string keySeparator = ExportFormatSettings.DefaultKeySeparator,
+        IColumnAliasTransformerRegistry? aliasRegistry = null)
     {
         ExportFormatSettings.RequireKeySeparator(keySeparator);
 
         var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         var codebookColumns = ReadCodebookColumns(schema.Codebook);
-        var aliasTransformer = ResolveAliasTransformer(aliasProfile);
+        var registry = aliasRegistry ?? ColumnAliasTransformerRegistry.Default;
+        var aliasTransformer = registry.GetRequired(aliasProfile);
         var scopedKeys = columnScope is null
             ? null
             : new HashSet<string>(columnScope, StringComparer.Ordinal);
@@ -125,13 +130,6 @@ internal static class ExportColumnPlanBuilder
             ? ExportKeyTransformer.Transform(sourceKey, keySeparator)
             : sourceKey;
     }
-
-    private static IColumnAliasTransformer ResolveAliasTransformer(ColumnAliasProfile aliasProfile) =>
-        aliasProfile switch
-        {
-            ColumnAliasProfile.Crunch => CrunchColumnAliasTransformer._instance,
-            _ => NativeColumnAliasTransformer._instance,
-        };
 
     private static Dictionary<string, JsonElement> ReadCodebookColumns(string codebookJson)
     {

@@ -1,13 +1,12 @@
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
-using Endatix.Modules.Reporting.Features.Export;
-using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Tabular;
+using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export;
 
-public sealed class CrunchColumnAliasTransformerTests
+public sealed class QuestionIndexAliasTransformerTests
 {
     [Theory]
     [InlineData("qRadioGroup__email", "ChoiceIndicator", "qRadioGroup", null, "qRadioGroup")]
@@ -29,13 +28,13 @@ public sealed class CrunchColumnAliasTransformerTests
             matrixRowValue,
             kind);
 
-        string actualGroupKey = CrunchColumnAliasTransformer.ResolveAliasGroupKey(input);
+        string actualGroupKey = QuestionIndexAliasTransformer.ResolveAliasGroupKey(input);
 
         actualGroupKey.Should().Be(expectedGroupKey);
     }
 
     [Fact]
-    public void BuildExportKeys_WithRepresentativeColumns_AssignsSequentialCrunchAliases()
+    public void BuildExportKeys_WithRepresentativeColumns_AssignsSequentialQuestionIndexAliases()
     {
         IReadOnlyList<ExportColumnAliasInput> columns =
         [
@@ -47,7 +46,8 @@ public sealed class CrunchColumnAliasTransformerTests
             new("qText", "qText", null, null, "Simple"),
         ];
 
-        IReadOnlyDictionary<string, string> exportKeys = CrunchColumnAliasTransformer._instance.BuildExportKeys(columns);
+        IReadOnlyDictionary<string, string> exportKeys =
+            QuestionIndexAliasTransformer._instance.BuildExportKeys(columns);
 
         exportKeys.Should().ContainKey(SubmissionExportRow.SystemColumns.Id).WhoseValue.Should().Be(SubmissionExportRow.SystemColumns.Id);
         exportKeys["qRadioGroup__email"].Should().Be("Q1_1");

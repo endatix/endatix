@@ -1,8 +1,11 @@
 namespace Endatix.Modules.Reporting.Contracts.Export;
 
+using System.Text.Json.Serialization;
+
 /// <summary>
-/// Export-time column alias profile for CSV/JSON headers and property names.
+/// Export-time column naming strategy for submissions CSV/JSON headers.
 /// </summary>
+[JsonConverter(typeof(ColumnAliasProfileJsonConverter))]
 public enum ColumnAliasProfile
 {
     /// <summary>
@@ -11,7 +14,7 @@ public enum ColumnAliasProfile
     Native = 0,
 
     /// <summary>
-    /// Crunch-safe sequential aliases (Q1, Q1_1, Q2_3, …).
+    /// Sequential question-index aliases (Q1, Q1_1, Q2_3, …).
     /// </summary>
     Crunch = 1,
 }
