@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Endatix.Framework.Serialization;
 using Endatix.Modules.Reporting.Contracts.Export;
-using Endatix.Modules.Reporting.Endpoints.Tenant.ExportFormats;
+using Endatix.Modules.Reporting.Endpoints.Settings.ExportFormats;
 using Endatix.Modules.Reporting.Infrastructure.Serialization;
 using FluentAssertions;
 

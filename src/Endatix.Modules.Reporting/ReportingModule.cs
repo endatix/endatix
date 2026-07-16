@@ -20,6 +20,8 @@ using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
+using Endatix.Modules.Reporting.Infrastructure;
+using FastEndpoints;
 
 namespace Endatix.Modules.Reporting;
 
@@ -35,6 +37,12 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
     public Assembly Assembly => typeof(ReportingModule).Assembly;
 
     public string FeatureFlag => FeatureFlags.ReportingModule;
+
+    /// <summary>
+    /// Applies reporting-specific FastEndpoints configuration (serializers, OpenAPI tags).
+    /// </summary>
+    public static void ConfigureFastEndpoints(Config config) =>
+        ReportingModuleEndpointConfiguration.Configure(config);
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {

@@ -5,7 +5,6 @@ using Endatix.Framework.Modules;
 using Endatix.Hosting.Builders.Logging;
 using Endatix.Infrastructure.Identity;
 using Endatix.Modules.Reporting;
-using Endatix.Modules.Reporting.Infrastructure.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -143,8 +142,8 @@ public class EndatixBuilder : IBuilderRoot
         UseModule(ReportingModule.Instance);
         if (EndatixModuleRegistration.ShouldRegister(Configuration, ReportingModule.Instance))
         {
-            // Only wire Reporting serializers when the module (and its endpoints) are active.
-            Api.ConfigureFastEndpoints(ReportingJsonSerializerConfiguration.Configure);
+            // Only wire Reporting serializers and endpoint metadata when the module is active.
+            Api.ConfigureFastEndpoints(ReportingModule.ConfigureFastEndpoints);
         }
 
         _logger.LogConfigurationCompleted();
