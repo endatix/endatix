@@ -9,7 +9,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Microsoft.Extensions.Logging;
 using MediatR;
 using Endatix.Core.Infrastructure.Result;
-using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 using Endatix.Core.Entities;
@@ -73,8 +72,10 @@ public partial class Export : Endpoint<ExportRequest>
            s.Summary = "Export submissions";
            s.Description = "Export submissions for a given form";
            s.Responses[200] = "The submissions were successfully exported";
+           s.Responses[400] = "Invalid export request or unsupported format";
            s.Responses[404] = "Form not found. Cannot export submissions";
-           s.Responses[500] = "An error occurred during export";
+           s.Responses[409] = "Export preconditions not met (e.g. form schema not compiled, reporting read model empty)";
+           s.Responses[500] = "An unexpected error occurred during export";
        });
     }
 
@@ -151,7 +152,11 @@ public partial class Export : Endpoint<ExportRequest>
                 var errors = string.Join(", ", result.Errors);
                 LogExportFailedError(request.FormId, errors);
 
-                await SetErrorResponse(errors, StatusCodes.Status500InternalServerError, new InvalidOperationException(errors), pipeWriter);
+                await SetErrorResponse(
+                    errors,
+                    MapExportFailureStatusCode(result.Status),
+                    new InvalidOperationException(errors),
+                    pipeWriter);
                 return;
             }
 
@@ -354,6 +359,17 @@ public partial class Export : Endpoint<ExportRequest>
         return null;
     }
 
+    private static int MapExportFailureStatusCode(ResultStatus status) =>
+        status switch
+        {
+            ResultStatus.Invalid => StatusCodes.Status400BadRequest,
+            ResultStatus.NotFound => StatusCodes.Status404NotFound,
+            ResultStatus.Conflict => StatusCodes.Status409Conflict,
+            ResultStatus.Forbidden => StatusCodes.Status403Forbidden,
+            ResultStatus.Unauthorized => StatusCodes.Status401Unauthorized,
+            _ => StatusCodes.Status500InternalServerError,
+        };
+
     private async Task SetErrorResponse(string message, int? statusCode = null, Exception? exception = null, PipeWriter? pipeWriter = null)
     {
         if (HttpContext.Response.HasStarted)
@@ -372,16 +388,26 @@ public partial class Export : Endpoint<ExportRequest>
             return;
         }
 
-        HttpContext.Response.StatusCode = statusCode ?? StatusCodes.Status500InternalServerError;
-        HttpContext.Response.ContentType = "application/json";
+        int resolvedStatus = statusCode ?? StatusCodes.Status500InternalServerError;
+        HttpContext.Response.StatusCode = resolvedStatus;
+        HttpContext.Response.ContentType = "application/problem+json";
 
-        var problem = new FastEndpoints.ProblemDetails
+        // Emit RFC7807 camelCase so Hub (and other clients) can surface Detail in the UI.
+        var problem = new Microsoft.AspNetCore.Mvc.ProblemDetails
         {
+            Title = "Export failed",
             Detail = message,
-            Status = statusCode ?? StatusCodes.Status500InternalServerError,
+            Status = resolvedStatus,
+            Type = resolvedStatus switch
+            {
+                StatusCodes.Status400BadRequest => "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+                StatusCodes.Status404NotFound => "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+                StatusCodes.Status409Conflict => "https://tools.ietf.org/html/rfc7231#section-6.5.8",
+                _ => "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+            },
         };
 
-        await HttpContext.Response.WriteAsync(JsonSerializer.Serialize(problem));
+        await HttpContext.Response.WriteAsJsonAsync(problem);
     }
 
     private async Task CompletePipeIfNeeded(PipeWriter? pipeWriter, Exception? exception, string fallbackMessage)

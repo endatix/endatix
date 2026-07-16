@@ -1,8 +1,11 @@
 namespace Endatix.Modules.Reporting.Contracts.Export;
 
+using System.Text.Json.Serialization;
+
 /// <summary>
 /// Export-time column naming strategy for submissions CSV/JSON headers.
 /// </summary>
+[JsonConverter(typeof(ColumnAliasProfileJsonConverter))]
 public enum ColumnAliasProfile
 {
     /// <summary>

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Endatix.Modules.Reporting.Contracts.Export;
-using Endatix.Modules.Reporting.Infrastructure.Serialization;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Reporting.Features.Export;

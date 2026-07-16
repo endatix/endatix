@@ -47,22 +47,3 @@ public sealed record ExportFormatSettingsInput(
     public ExportFormatSettings ToSettings() =>
         new(AliasProfile, Locale, ColumnScope, IncludeTestSubmissions, KeySeparator);
 }
-
-/// <summary>
-/// Create export format request body.
-/// </summary>
-public sealed record CreateExportFormatRequest(
-    string Name,
-    ExportTarget ExportTarget,
-    ExportDeliveryFormat DeliveryFormat,
-    ExportProfile Profile = ExportProfile.Native,
-    string? Description = null,
-    ExportFormatSettingsInput? Settings = null);
-
-/// <summary>
-/// Patch export format request body.
-/// </summary>
-public sealed record UpdateExportFormatRequest(
-    string? Name,
-    string? Description,
-    ExportFormatSettingsInput? Settings);

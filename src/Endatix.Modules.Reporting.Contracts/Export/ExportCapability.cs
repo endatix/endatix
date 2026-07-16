@@ -9,7 +9,8 @@ public sealed record ExportCapability(
     ExportProfile Profile,
     string WireKey,
     string Label,
-    string ItemTypeName);
+    string ItemTypeName,
+    string Description);
 
 /// <summary>
 /// Export capability exposed to admin APIs and Hub.
@@ -20,4 +21,5 @@ public sealed record ExportCapabilityDto(
     ExportProfile Profile,
     string WireKey,
     string Label,
-    string ItemTypeName);
+    string ItemTypeName,
+    string Description);

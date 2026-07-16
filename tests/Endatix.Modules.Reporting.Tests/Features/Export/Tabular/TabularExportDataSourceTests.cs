@@ -37,6 +37,7 @@ public sealed class TabularExportDataSourceTests
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(error =>
             error.Contains("Save or publish the form definition", StringComparison.Ordinal));
         await reportingExportRepository.DidNotReceive()
@@ -58,6 +59,7 @@ public sealed class TabularExportDataSourceTests
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(CreateContext(), TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(error =>
             error.Contains("schema artifacts are incomplete or invalid", StringComparison.OrdinalIgnoreCase));
     }
@@ -85,6 +87,7 @@ public sealed class TabularExportDataSourceTests
         Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(CreateContext(), TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(error =>
             error.Contains("Run admin backfill", StringComparison.Ordinal));
     }

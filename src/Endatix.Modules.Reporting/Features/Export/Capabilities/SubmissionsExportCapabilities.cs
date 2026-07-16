@@ -14,7 +14,8 @@ internal static class SubmissionsExportCapabilities
         ExportProfile.Native,
         WireKey: "csv",
         Label: "CSV",
-        ItemTypeName: typeof(SubmissionExportRow).FullName!);
+        ItemTypeName: typeof(SubmissionExportRow).FullName!,
+        Description: "Tabular CSV export with one row per submission.");
 
     internal static readonly ExportCapability _json = new(
         ExportTarget.Submissions,
@@ -22,7 +23,8 @@ internal static class SubmissionsExportCapabilities
         ExportProfile.Native,
         WireKey: "json",
         Label: "JSON",
-        ItemTypeName: typeof(SubmissionExportRow).FullName!);
+        ItemTypeName: typeof(SubmissionExportRow).FullName!,
+        Description: "Tabular JSON export with one object per submission.");
 
     internal static IEnumerable<ExportCapability> All => [_csv, _json];
 }

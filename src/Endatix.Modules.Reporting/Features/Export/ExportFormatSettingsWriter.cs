@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
-using Endatix.Modules.Reporting.Infrastructure.Serialization;
 
 namespace Endatix.Modules.Reporting.Features.Export;
 

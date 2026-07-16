@@ -57,7 +57,7 @@ internal sealed class TabularExportDataSource(
             cancellationToken);
         if (!hasRows)
         {
-            return Result<ExportOptions>.Error(MissingRowsMessage);
+            return Result<ExportOptions>.Conflict(MissingRowsMessage);
         }
 
         IReadOnlySet<string>? columnScope = settings.ColumnScope is null

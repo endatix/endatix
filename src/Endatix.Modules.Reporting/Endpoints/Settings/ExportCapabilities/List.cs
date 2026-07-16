@@ -28,7 +28,8 @@ public sealed class List(IExportCapabilityRegistry capabilityRegistry)
                 capability.Profile,
                 capability.WireKey,
                 capability.Label,
-                capability.ItemTypeName))
+                capability.ItemTypeName,
+                capability.Description))
             .ToList();
 
         return Send.OkAsync(capabilities, ct);

@@ -1,3 +1,4 @@
+using Endatix.Modules.Reporting.Contracts.Export;
 using FastEndpoints;
 
 namespace Endatix.Modules.Reporting.Infrastructure.Serialization;

@@ -41,6 +41,7 @@ public sealed class ShojiCodebookExportDataSourceTests
             TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(error =>
             error.Contains("Save or publish the form definition", StringComparison.Ordinal));
     }
@@ -61,6 +62,7 @@ public sealed class ShojiCodebookExportDataSourceTests
             TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(error =>
             error.Contains("schema artifacts are incomplete or invalid", StringComparison.OrdinalIgnoreCase));
     }

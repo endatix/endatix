@@ -1,8 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Endatix.Modules.Reporting.Contracts.Export;
 
-namespace Endatix.Modules.Reporting.Infrastructure.Serialization;
+namespace Endatix.Modules.Reporting.Contracts.Export;
 
 /// <summary>
 /// Serializes <see cref="ColumnAliasProfile"/> as wire strings (<see cref="ColumnAliasProfileWire"/>).
@@ -26,7 +25,7 @@ public sealed class ColumnAliasProfileJsonConverter : JsonConverter<ColumnAliasP
 
     private static ColumnAliasProfile ReadString(string? value)
     {
-        if (ColumnAliasProfileWire.TryParse(value, out var profile))
+        if (ColumnAliasProfileWire.TryParse(value, out ColumnAliasProfile profile))
         {
             return profile;
         }

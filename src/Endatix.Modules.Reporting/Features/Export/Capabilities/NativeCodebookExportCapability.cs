@@ -14,5 +14,6 @@ internal static class NativeCodebookExportCapability
         ExportProfile.Native,
         WireKey: "codebook",
         Label: "Codebook",
-        ItemTypeName: typeof(DynamicExportRow).FullName!);
+        ItemTypeName: typeof(DynamicExportRow).FullName!,
+        Description: "Standard Endatix codebook JSON for question metadata.");
 }

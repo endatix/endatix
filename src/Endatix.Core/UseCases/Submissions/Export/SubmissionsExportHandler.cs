@@ -44,7 +44,8 @@ public sealed class SubmissionsExportHandler(
                 cancellationToken);
             if (!prepareResult.IsSuccess)
             {
-                return Result<FileExport>.Error(string.Join(", ", prepareResult.Errors));
+                // Preserve Conflict/NotFound/Invalid so API can return actionable non-500 statuses.
+                return prepareResult.ToErrorResult<FileExport>();
             }
 
             var options = prepareResult.Value;
