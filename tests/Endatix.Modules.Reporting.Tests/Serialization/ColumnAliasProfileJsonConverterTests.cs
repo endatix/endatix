@@ -2,7 +2,6 @@ using System.Text.Json;
 using Endatix.Framework.Serialization;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Endpoints.Settings.ExportFormats;
-using Endatix.Modules.Reporting.Infrastructure.Serialization;
 using FluentAssertions;
 
 namespace Endatix.Modules.Reporting.Tests.Serialization;
@@ -56,6 +55,60 @@ public sealed class ColumnAliasProfileJsonConverterTests
         Action act = () => JsonSerializer.Deserialize<ColumnAliasProfile>(json, FastEndpointsLikeOptions);
 
         act.Should().Throw<JsonException>();
+    }
+
+    [Fact]
+    public void Deserialize_SettingsInput_UsesEnumJsonConverterAttribute()
+    {
+        const string json = """
+            {
+              "aliasProfile": "native",
+              "keySeparator": "--"
+            }
+            """;
+
+        JsonSerializerOptions options = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
+        };
+
+        ExportFormatSettingsInput? settings = JsonSerializer.Deserialize<ExportFormatSettingsInput>(
+            json,
+            options);
+
+        settings.Should().NotBeNull();
+        settings!.AliasProfile.Should().Be(ColumnAliasProfile.Native);
+        settings.KeySeparator.Should().Be("--");
+    }
+
+    [Fact]
+    public void Deserialize_CreateExportFormatRequest_AcceptsCamelCaseAliasProfile()
+    {
+        const string json = """
+            {
+              "name": "Shoji (Crunch.io)",
+              "exportTarget": "Codebook",
+              "deliveryFormat": "Json",
+              "profile": "Shoji",
+              "description": "",
+              "settings": {
+                "aliasProfile": "native",
+                "keySeparator": "--",
+                "includeTestSubmissions": false
+              }
+            }
+            """;
+
+        Endatix.Modules.Reporting.Endpoints.Settings.ExportFormats.CreateExportFormatRequest? request =
+            JsonSerializer.Deserialize<Endatix.Modules.Reporting.Endpoints.Settings.ExportFormats.CreateExportFormatRequest>(
+            json,
+            FastEndpointsLikeOptions);
+
+        request.Should().NotBeNull();
+        request!.Settings.Should().NotBeNull();
+        request.Settings!.AliasProfile.Should().Be(ColumnAliasProfile.Native);
+        request.Settings.KeySeparator.Should().Be("--");
     }
 
     [Fact]

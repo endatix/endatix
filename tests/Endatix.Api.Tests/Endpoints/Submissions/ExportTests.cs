@@ -69,14 +69,16 @@ public class ExportTests
             ExportProfile.Native,
             "csv",
             "CSV",
-            typeof(SubmissionExportRow).FullName!);
+            typeof(SubmissionExportRow).FullName!,
+            "Tabular CSV export with one row per submission.");
         ExportCapability json = new(
             ExportTarget.Submissions,
             ExportDeliveryFormat.Json,
             ExportProfile.Native,
             "json",
             "JSON",
-            typeof(SubmissionExportRow).FullName!);
+            typeof(SubmissionExportRow).FullName!,
+            "Tabular JSON export with one object per submission.");
 
         registry.TryGetByWireKey("csv", out Arg.Any<ExportCapability>())
             .Returns(callInfo =>
