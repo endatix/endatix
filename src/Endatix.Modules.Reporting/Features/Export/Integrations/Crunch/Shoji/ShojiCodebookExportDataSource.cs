@@ -12,12 +12,15 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// </summary>
 internal sealed class ShojiCodebookExportDataSource(
     IFormSchemaRepository formSchemaRepository,
-    ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
+    ExportFormatSettingsParser exportFormatSettingsParser,
+    IExportCapabilityRegistry capabilityRegistry) : IExportDataSource
 {
     public bool Matches(ExportDataSourceRequest request) =>
         string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
-        request.ItemType == typeof(DynamicExportRow) &&
-        request.Format.Equals("codebook-shoji", StringComparison.OrdinalIgnoreCase);
+        capabilityRegistry.Matches(request.Format, request.ItemType) &&
+        capabilityRegistry.TryGetByWireKey(request.Format, out var capability) &&
+        capability.Target == ExportTarget.Codebook &&
+        capability.Profile == ExportProfile.Shoji;
 
     public async Task<Result<ExportOptions>> PrepareOptionsAsync(
         ExportDataSourceContext context,
@@ -77,13 +80,14 @@ internal sealed class ShojiCodebookExportDataSource(
             settings = exportFormatSettingsParser.Resolve(
                 executionSettings.SettingsJson,
                 executionSettings.IncludeTestSubmissions,
-                executionSettings.ColumnScope);
+                executionSettings.ColumnScope,
+                executionSettings.Locale);
         }
         else
         {
             settings = ExportFormatSettings.Default;
         }
 
-        return ExportFormatSettings.ForExportFormat("codebook-shoji", settings);
+        return settings;
     }
 }

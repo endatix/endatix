@@ -13,15 +13,18 @@ namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 internal sealed class TabularExportDataSource(
     IFormSchemaRepository formSchemaRepository,
     IReportingExportRepository reportingExportRepository,
-    ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
+    ExportFormatSettingsParser exportFormatSettingsParser,
+    IExportCapabilityRegistry capabilityRegistry,
+    IColumnAliasTransformerRegistry aliasTransformerRegistry) : IExportDataSource
 {
     private const string MissingRowsMessage =
         "No processed flattened submissions found for this form. Run admin backfill to populate the reporting read model before exporting.";
 
     public bool Matches(ExportDataSourceRequest request) =>
         string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
-        request.ItemType == typeof(SubmissionExportRow) &&
-        TabularExportFormats.Supports(request.Format);
+        capabilityRegistry.Matches(request.Format, request.ItemType) &&
+        capabilityRegistry.TryGetByWireKey(request.Format, out var capability) &&
+        capability.Target == ExportTarget.Submissions;
 
     public async Task<Result<ExportOptions>> PrepareOptionsAsync(
         ExportDataSourceContext context,
@@ -65,7 +68,8 @@ internal sealed class TabularExportDataSource(
             locale: settings.Locale,
             aliasProfile: settings.AliasProfile,
             columnScope: columnScope,
-            keySeparator: settings.KeySeparator);
+            keySeparator: settings.KeySeparator,
+            aliasRegistry: aliasTransformerRegistry);
         var columnPlan = MapColumnPlan(plan);
 
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
@@ -109,14 +113,15 @@ internal sealed class TabularExportDataSource(
             settings = exportFormatSettingsParser.Resolve(
                 executionSettings.SettingsJson,
                 executionSettings.IncludeTestSubmissions,
-                executionSettings.ColumnScope);
+                executionSettings.ColumnScope,
+                executionSettings.Locale);
         }
         else
         {
             settings = ExportFormatSettings.Default;
         }
 
-        return ExportFormatSettings.ForExportFormat(format, settings);
+        return settings;
     }
 
     private static SubmissionExportExecutionSettings CreateExecutionSettings(

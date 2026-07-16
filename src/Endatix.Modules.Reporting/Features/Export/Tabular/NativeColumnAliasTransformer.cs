@@ -15,6 +15,15 @@ internal sealed class NativeColumnAliasTransformer : IColumnAliasTransformer
 
     public ColumnAliasProfile Profile => ColumnAliasProfile.Native;
 
+    public string WireKey => ColumnAliasProfileWire.ToWireValue(Profile);
+
+    public string Label => "Survey keys";
+
+    public string Description =>
+        "Use canonical column keys from the compiled form schema.";
+
+    public string? Example => "question__choice";
+
     public IReadOnlyDictionary<string, string> BuildExportKeys(IReadOnlyList<ExportColumnAliasInput> columns) =>
         columns.ToDictionary(
             column => column.CanonicalKey,

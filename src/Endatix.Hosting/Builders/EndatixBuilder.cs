@@ -141,7 +141,11 @@ public class EndatixBuilder : IBuilderRoot
         _logger.LogHealthChecksConfigurationCompleted();
 
         UseModule(ReportingModule.Instance);
-        Api.ConfigureFastEndpoints(ReportingJsonSerializerConfiguration.Configure);
+        if (EndatixModuleRegistration.ShouldRegister(Configuration, ReportingModule.Instance))
+        {
+            // Only wire Reporting serializers when the module (and its endpoints) are active.
+            Api.ConfigureFastEndpoints(ReportingJsonSerializerConfiguration.Configure);
+        }
 
         _logger.LogConfigurationCompleted();
         return this;
