@@ -26,6 +26,7 @@ public class ApiConfigurationBuilder
     private readonly ILogger? _logger;
     private readonly IConfiguration? _configuration;
     private readonly IAppEnvironment? _environment;
+    private readonly List<Assembly> _endpointAssemblies = [];
 
     private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
 
@@ -80,8 +81,10 @@ public class ApiConfigurationBuilder
         // Add default JSON options
         AddDefaultJsonOptions();
 
-        // Register FastEndpoints
-        Services.AddFastEndpoints();
+        // Register FastEndpoints for the core API assembly only.
+        // Module assemblies are added via ScanAssemblies so feature-flagged modules
+        // do not get endpoint discovery without their DI registrations.
+        ScanAssemblies(typeof(ApiConfigurationBuilder).Assembly);
 
         // Add Swagger documentation
         AddSwagger();
@@ -156,7 +159,8 @@ public class ApiConfigurationBuilder
                 settings.Description = "The Endatix Platform is an open-source .NET library for data collection and management. This product is actively developed, and some API design characteristics may evolve. For more information, visit <a href=\"https://docs.endatix.com\">Endatix Documentation</a>.";
                 settings.SchemaSettings.SchemaType = SchemaType.OpenApi3;
             };
-            options.EndpointFilter = ep => {
+            options.EndpointFilter = ep =>
+            {
                 var hasHiddenTag = ep.EndpointTags?.Contains("hidden") ?? false;
                 return hasHiddenTag ? false : true;
             };
@@ -208,12 +212,22 @@ public class ApiConfigurationBuilder
     {
         LogSetupInfo($"Scanning {assemblies.Length} assemblies for endpoints");
 
+        foreach (var assembly in assemblies)
+        {
+            if (!_endpointAssemblies.Contains(assembly))
+            {
+                _endpointAssemblies.Add(assembly);
+            }
+        }
+
+        Assembly[] endpointAssemblies = [.. _endpointAssemblies];
         Services.AddFastEndpoints(options =>
         {
-            options.Assemblies = assemblies;
+            options.DisableAutoDiscovery = true;
+            options.Assemblies = endpointAssemblies;
         });
 
-        LogSetupInfo("Assembly scanning for endpoints completed");
+        LogSetupInfo($"Endpoint discovery limited to {endpointAssemblies.Length} assembly(ies)");
         return this;
     }
 

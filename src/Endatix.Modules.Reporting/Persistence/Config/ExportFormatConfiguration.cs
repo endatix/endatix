@@ -15,12 +15,20 @@ internal sealed class ExportFormatConfiguration : IEntityTypeConfiguration<Expor
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.TenantId).IsRequired();
-        builder.Property(x => x.Name).IsRequired().HasMaxLength(ExportFormat.NameMaxLength);
-        builder.Property(x => x.SerializationType)
+        builder.Property(x => x.Name).IsRequired().HasMaxLength(ExportFormat.NAME_MAX_LENGTH);
+        builder.Property(x => x.ExportTarget)
             .IsRequired()
             .HasConversion<string>()
-            .HasMaxLength(ExportFormat.SerializationTypeMaxLength);
-        builder.Property(x => x.Description).HasMaxLength(ExportFormat.DescriptionMaxLength);
+            .HasMaxLength(ExportFormat.EXPORT_TARGET_MAX_LENGTH);
+        builder.Property(x => x.DeliveryFormat)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(ExportFormat.DELIVERY_FORMAT_MAX_LENGTH);
+        builder.Property(x => x.Profile)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(ExportFormat.PROFILE_MAX_LENGTH);
+        builder.Property(x => x.Description).HasMaxLength(ExportFormat.DESCRIPTION_MAX_LENGTH);
         builder.Property(x => x.SettingsJson);
         builder.Property(x => x.CreatedAt).IsRequired();
 

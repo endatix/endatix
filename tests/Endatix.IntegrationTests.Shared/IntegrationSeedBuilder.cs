@@ -36,13 +36,48 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
             .FirstOrDefaultAsync(x => x.Name == tenantName, cancellationToken);
         if (existing is not null)
         {
+            await SeedDefaultExportFormatsIfAvailableAsync(scope.ServiceProvider, existing.Id, cancellationToken);
             return existing.Id;
         }
 
         Tenant tenant = new(tenantName, description);
         db.Set<Tenant>().Add(tenant);
         await db.SaveChangesAsync(cancellationToken);
+
+        await SeedDefaultExportFormatsIfAvailableAsync(scope.ServiceProvider, tenant.Id, cancellationToken);
+
         return tenant.Id;
+    }
+
+    private static async Task SeedDefaultExportFormatsIfAvailableAsync(
+        IServiceProvider scopedServices,
+        long tenantId,
+        CancellationToken cancellationToken)
+    {
+        var seederType = Type.GetType(
+            "Endatix.Modules.Reporting.Features.ExportFormats.IDefaultExportFormatsSeeder, Endatix.Modules.Reporting");
+        if (seederType is null)
+        {
+            return;
+        }
+
+        var seeder = scopedServices.GetService(seederType);
+        if (seeder is null)
+        {
+            return;
+        }
+
+        var seedMethod = seederType.GetMethod("SeedAsync");
+        if (seedMethod is null)
+        {
+            return;
+        }
+
+        var task = seedMethod.Invoke(seeder, [tenantId, cancellationToken]) as Task;
+        if (task is not null)
+        {
+            await task;
+        }
     }
 
     /// <summary>
