@@ -1,6 +1,12 @@
 import { TitleFormatterProvider } from "@docusaurus/theme-common/internal";
-import type { TitleFormatterFnWithDefault } from "@docusaurus/theme-common/internal";
 import type { ReactNode } from "react";
+
+// Derived from the provider's own prop type instead of importing
+// TitleFormatterFnWithDefault directly — that type isn't consistently
+// re-exported from theme-common/internal across patch versions.
+type TitleFormatterFnWithDefault = Parameters<
+  typeof TitleFormatterProvider
+>[0]["formatter"];
 
 // Pages rendered by the content-pages plugin (i.e. src/pages, including the
 // homepage) keep their raw <title>, skipping the "| Site Title" suffix that

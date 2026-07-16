@@ -164,6 +164,12 @@ h1, h2, h3, h4, h5, h6 {
 /* ============================================================
    SIDEBAR
    ============================================================ */
+/* Desktop sidebar nav (DocSidebar/Desktop/Content) only — the mobile
+   drawer panel doesn't carry "thin-scrollbar", so this can't leak there. */
+.menu.thin-scrollbar {
+  padding-top: 1.5rem;
+}
+
 .menu__link {
   border-radius: var(--ifm-global-radius);
   font-size: 0.9375rem;
