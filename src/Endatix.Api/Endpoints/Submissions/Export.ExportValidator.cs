@@ -26,6 +26,10 @@ public class ExportValidator : Validator<ExportRequest>
                .Must(format => supportedFormats.Contains(format, StringComparer.OrdinalIgnoreCase))
                .WithMessage($"Export format not supported. Supported formats: {string.Join(", ", supportedFormats)}")
                .When(x => x.ExportFormat is not null);
+
+          RuleFor(x => x.Locale)
+               .MaximumLength(32)
+               .When(x => x.Locale is not null);
      }
 
      private static IReadOnlyList<string> GetSupportedExportFormats(IExporterFactory exporterFactory)

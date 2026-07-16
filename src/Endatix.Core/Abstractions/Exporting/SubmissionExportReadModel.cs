@@ -19,7 +19,8 @@ public sealed record SubmissionExportExecutionSettings(
     long? ExportFormatId = null,
     string? SettingsJson = null,
     bool? IncludeTestSubmissions = null,
-    IReadOnlyList<string>? ColumnScope = null);
+    IReadOnlyList<string>? ColumnScope = null,
+    string? Locale = null);
 
 /// <summary>
 /// Serialized <see cref="SubmissionExportColumnPlanEntry.Source"/> values.

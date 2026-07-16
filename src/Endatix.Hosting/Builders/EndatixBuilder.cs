@@ -5,6 +5,7 @@ using Endatix.Framework.Modules;
 using Endatix.Hosting.Builders.Logging;
 using Endatix.Infrastructure.Identity;
 using Endatix.Modules.Reporting;
+using Endatix.Modules.Reporting.Infrastructure.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -140,6 +141,7 @@ public class EndatixBuilder : IBuilderRoot
         _logger.LogHealthChecksConfigurationCompleted();
 
         UseModule(ReportingModule.Instance);
+        Api.ConfigureFastEndpoints(ReportingJsonSerializerConfiguration.Configure);
 
         _logger.LogConfigurationCompleted();
         return this;

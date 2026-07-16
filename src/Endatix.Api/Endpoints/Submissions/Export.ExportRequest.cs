@@ -13,4 +13,9 @@ public class ExportRequest
     public bool? IncludeTestSubmissions { get; set; }
 
     public string[]? ColumnScope { get; set; }
+
+    /// <summary>
+    /// Optional codebook label locale for this export run. Overrides format settings.
+    /// </summary>
+    public string? Locale { get; set; }
 }

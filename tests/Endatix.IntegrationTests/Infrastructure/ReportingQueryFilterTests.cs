@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -37,8 +38,8 @@ public sealed class ReportingQueryFilterTests
         using (var seedContext = CreateContext(idGenerator, bypassTenant))
         {
             seedContext.ExportFormats.AddRange(
-                new ExportFormat(tenant1, "Tenant1 Export", ExportSerializationType.Csv) { Id = 101 },
-                new ExportFormat(tenant2, "Tenant2 Export", ExportSerializationType.Json) { Id = 102 });
+                new ExportFormat(tenant1, "Tenant1 Export", ExportTarget.Submissions, ExportDeliveryFormat.Csv) { Id = 101 },
+                new ExportFormat(tenant2, "Tenant2 Export", ExportTarget.Submissions, ExportDeliveryFormat.Json) { Id = 102 });
 
             seedContext.FormSchemas.AddRange(
                 new FormSchema(tenant1, formId: 1, formDefinitionRevision: 1, flatteningMap: """{"version":1,"columns":[{"key":"a"}]}""", codebook: FormSchema.EmptyCodebookJson) { Id = 201 },
