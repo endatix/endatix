@@ -33,10 +33,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+# Elevated permissions live on the pipeline job only — test jobs run read-only.
 permissions:
-  contents: read # release writes use the App token inside the shared workflow
-  packages: write # GitHub Packages push
-  id-token: write # OIDC for Infisical inside the shared workflow
+  contents: read
 
 jobs:
   unit-tests:
@@ -137,10 +136,15 @@ jobs:
 
   # Build validation on PRs; canary release on main — publishes only after ALL
   # tests above pass. No docker-image: this repo ships NuGet packages only.
+  # No secrets are passed: the shared workflow uses the implicit GITHUB_TOKEN
+  # and fetches everything else via Infisical (OIDC, hence id-token).
   pipeline:
     name: Pipeline
     needs: [unit-tests, integration-tests, integration-tests-sqlserver]
-    uses: endatix/release-workflows/.github/workflows/canary.yml@v1
+    permissions:
+      contents: read # release writes use the App token inside the shared workflow
+      packages: write # GitHub Packages push
+      id-token: write # OIDC for Infisical inside the shared workflow
+    uses: endatix/release-workflows/.github/workflows/canary.yml@7c17ac843352ae0249d9ea7d799c6b6406ac2809 # v1
     with:
       dotnet-version: "10.x" # global.json rolls forward within 10.0.x
-    secrets: inherit

@@ -1,0 +1,11 @@
+# Keeps GitHub Actions references (including the SHA-pinned
+# endatix/release-workflows reusable workflows) up to date via PRs.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]

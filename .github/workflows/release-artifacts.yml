@@ -22,7 +22,7 @@ permissions:
 jobs:
   promote:
     if: ${{ !github.event.release.prerelease }}
-    uses: endatix/release-workflows/.github/workflows/release-artifacts.yml@v1
+    uses: endatix/release-workflows/.github/workflows/release-artifacts.yml@7c17ac843352ae0249d9ea7d799c6b6406ac2809 # v1
     with:
       promotion: rebuild
       fetch-secrets: true # ENDATIX_NUGET_ORG_USERNAME via Infisical (prod)

@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   draft:
-    uses: endatix/release-workflows/.github/workflows/release-start.yml@v1
+    uses: endatix/release-workflows/.github/workflows/release-start.yml@7c17ac843352ae0249d9ea7d799c6b6406ac2809 # v1
     with:
       canary-tag: ${{ inputs.canary_tag }}
       bump: ${{ inputs.bump }}
