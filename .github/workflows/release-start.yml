@@ -1,0 +1,30 @@
+name: Start Stable Release
+
+# Thin consumer of endatix/release-workflows: creates a DRAFT release with
+# aggregated notes pinned to a canary's commit. Review/edit the notes in the
+# GitHub UI, then click "Publish release" — that creates the tag and triggers
+# release-artifacts.yml to publish the stable packages (GitHub Packages +
+# nuget.org).
+
+on:
+  workflow_dispatch:
+    inputs:
+      canary_tag:
+        description: "Canary tag to promote (leave empty for the newest canary)"
+        required: false
+        default: ""
+      bump:
+        description: "Version bump relative to the last stable release"
+        type: choice
+        options: [minor, patch, major]
+        default: minor
+
+permissions:
+  contents: write # create the draft release (no tag exists until a human publishes it)
+
+jobs:
+  draft:
+    uses: endatix/release-workflows/.github/workflows/release-start.yml@v1
+    with:
+      canary-tag: ${{ inputs.canary_tag }}
+      bump: ${{ inputs.bump }}
