@@ -36,6 +36,23 @@ public sealed class ExporterFactoryTests
     }
 
     [Fact]
+    public void GetExporter_ShouldReturnShojiCsvExporter_WhenFormatIsCsvShoji()
+    {
+        // Arrange
+        var shojiCsvExporter = new SubmissionShojiCsvExporter(_csvLogger, _globalTransformers);
+        var exporters = new IExporter[] { _csvExporter, shojiCsvExporter, _jsonExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act
+        var exporter = factory.GetExporter<SubmissionExportRow>("csv-shoji");
+
+        // Assert
+        Assert.IsType<SubmissionShojiCsvExporter>(exporter);
+        Assert.Equal("csv-shoji", exporter.Format);
+        Assert.Equal("csv", exporter.FileExtension);
+    }
+
+    [Fact]
     public void GetExporter_ShouldReturnCsvExporter_WhenFormatIsCsv()
     {
         // Arrange

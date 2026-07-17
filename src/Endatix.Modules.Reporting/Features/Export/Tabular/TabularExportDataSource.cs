@@ -74,7 +74,10 @@ internal sealed class TabularExportDataSource(
 
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
         context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
-            CreateExecutionSettings(context.Options, settings);
+            CreateExecutionSettings(
+                context.Options,
+                settings,
+                encodeBooleansAsCategoryIds: ShouldEncodeBooleansAsCategoryIds(context.Request.Format, settings));
         return Result.Success(context.Options);
     }
 
@@ -121,12 +124,46 @@ internal sealed class TabularExportDataSource(
             settings = ExportFormatSettings.Default;
         }
 
-        return settings;
+        return ApplyShojiCsvDefaults(format, settings);
+    }
+
+    private ExportFormatSettings ApplyShojiCsvDefaults(string format, ExportFormatSettings settings)
+    {
+        if (!capabilityRegistry.TryGetByWireKey(format, out var capability) ||
+            capability.Profile != ExportProfile.Shoji)
+        {
+            return settings;
+        }
+
+        if (!string.Equals(
+                settings.KeySeparator,
+                ExportFormatSettings.DefaultKeySeparator,
+                StringComparison.Ordinal))
+        {
+            return settings;
+        }
+
+        return settings with { KeySeparator = ExportFormatSettings.InterimCrunchKeySeparator };
+    }
+
+    private bool ShouldEncodeBooleansAsCategoryIds(string format, ExportFormatSettings settings)
+    {
+        if (capabilityRegistry.TryGetByWireKey(format, out var capability) &&
+            capability.Profile == ExportProfile.Shoji)
+        {
+            return true;
+        }
+
+        return string.Equals(
+            settings.KeySeparator,
+            ExportFormatSettings.InterimCrunchKeySeparator,
+            StringComparison.Ordinal);
     }
 
     private static SubmissionExportExecutionSettings CreateExecutionSettings(
         ExportOptions options,
-        ExportFormatSettings settings)
+        ExportFormatSettings settings,
+        bool encodeBooleansAsCategoryIds)
     {
         if (options.Metadata is not null &&
             options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
@@ -136,12 +173,14 @@ internal sealed class TabularExportDataSource(
             {
                 IncludeTestSubmissions = settings.IncludeTestSubmissions,
                 ColumnScope = settings.ColumnScope,
+                EncodeBooleansAsCategoryIds = encodeBooleansAsCategoryIds,
             };
         }
 
         return new SubmissionExportExecutionSettings(
             IncludeTestSubmissions: settings.IncludeTestSubmissions,
-            ColumnScope: settings.ColumnScope);
+            ColumnScope: settings.ColumnScope,
+            EncodeBooleansAsCategoryIds: encodeBooleansAsCategoryIds);
     }
 
     private static SubmissionExportColumnPlan MapColumnPlan(IExportColumnPlan plan) =>

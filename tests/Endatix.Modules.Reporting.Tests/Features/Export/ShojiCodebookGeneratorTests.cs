@@ -3,6 +3,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
+using FluentAssertions;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export;
 
@@ -29,5 +30,41 @@ public sealed class ShojiCodebookGeneratorTests
             actualDocument.RootElement,
             expectedShojiCodebook,
             because: "all-questions sample should generate the committed Shoji codebook golden output");
+    }
+
+    [Fact]
+    public void Generate_EmitsNativeCrunchEnvelopeWithFlatMetadataAndUniqueStringNames()
+    {
+        // Arrange
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+
+        // Act
+        using JsonDocument document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+        JsonElement root = document.RootElement;
+
+        // Assert
+        root.GetProperty("element").GetString().Should().Be("shoji:entity");
+        JsonElement table = root.GetProperty("body").GetProperty("table");
+        table.GetProperty("element").GetString().Should().Be("crunch:table");
+        JsonElement metadata = table.GetProperty("metadata");
+
+        metadata.TryGetProperty("version", out _).Should().BeFalse();
+        metadata.TryGetProperty("variables", out _).Should().BeFalse();
+        metadata.TryGetProperty("FormId", out _).Should().BeTrue();
+        metadata.GetProperty("CreatedAt").GetProperty("resolution").GetString().Should().Be("s");
+        metadata.GetProperty("qDropdown").GetProperty("name").ValueKind.Should().Be(JsonValueKind.String);
+
+        HashSet<string> names = new(StringComparer.Ordinal);
+        foreach (JsonProperty variable in metadata.EnumerateObject())
+        {
+            string name = variable.Value.GetProperty("name").GetString()!;
+            names.Add(name).Should().BeTrue($"display name '{name}' must be unique");
+        }
     }
 }

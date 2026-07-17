@@ -14,12 +14,13 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Submissions;
 /// <summary>
 /// CSV exporter for submission data, optimized for streaming and low memory usage.
 /// </summary>
-public sealed class SubmissionCsvExporter(
+public class SubmissionCsvExporter(
     ILogger<SubmissionCsvExporter> logger,
     IEnumerable<IValueTransformer> globalTransformers) : SubmissionExporterBase(logger, globalTransformers)
 {
     public override string Format => "csv";
     public override string ContentType => "text/csv";
+    public override string FileExtension => "csv";
 
     public override async Task<Result<FileExport>> StreamExportAsync(
         IAsyncEnumerable<SubmissionExportRow> records,
@@ -55,13 +56,14 @@ public sealed class SubmissionCsvExporter(
                     }
 
                     var context = new TransformationContext<SubmissionExportRow>(row, doc, _logger);
+                    var formatter = ResolveFormatter(options);
                     foreach (var col in columns)
                     {
                         try
                         {
                             var value = col.GetValue(context);
 
-                            csv.WriteField(new DefaultCsvFormatter().Format(value, context));
+                            csv.WriteField(formatter.Format(value, context));
                         }
                         catch (Exception ex)
                         {
@@ -83,5 +85,28 @@ public sealed class SubmissionCsvExporter(
             _logger.LogError(ex, "Error exporting submissions to CSV");
             return Result<FileExport>.Error($"Failed to export submissions: {ex.Message}");
         }
+    }
+
+    private DefaultCsvFormatter ResolveFormatter(ExportOptions? options)
+    {
+        if (UsesCategoryIdBooleans(options))
+        {
+            return new DefaultCsvFormatter(encodeBooleansAsCategoryIds: true);
+        }
+
+        return new DefaultCsvFormatter();
+    }
+
+    private bool UsesCategoryIdBooleans(ExportOptions? options)
+    {
+        if (string.Equals(Format, "csv-shoji", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return options?.Metadata is not null &&
+            options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
+            settingsObject is SubmissionExportExecutionSettings executionSettings &&
+            executionSettings.EncodeBooleansAsCategoryIds;
     }
 }

@@ -20,7 +20,13 @@ public sealed record SubmissionExportExecutionSettings(
     string? SettingsJson = null,
     bool? IncludeTestSubmissions = null,
     IReadOnlyList<string>? ColumnScope = null,
-    string? Locale = null);
+    string? Locale = null,
+
+    /// <summary>
+    /// When true, CSV writers emit boolean values as category ids <c>0</c>/<c>1</c>
+    /// (Crunch/Shoji). When false, booleans stay lowercase <c>true</c>/<c>false</c>.
+    /// </summary>
+    bool EncodeBooleansAsCategoryIds = false);
 
 /// <summary>
 /// Serialized <see cref="SubmissionExportColumnPlanEntry.Source"/> values.

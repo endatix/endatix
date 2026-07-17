@@ -47,6 +47,34 @@ public class DefaultCsvFormatterTests
         Assert.Equal(expected, result);
     }
 
+    [Theory]
+    [InlineData(true, "1")]
+    [InlineData(false, "0")]
+    public void Format_WithCategoryIdBooleans_ReturnsIntegerIds(bool input, string expected)
+    {
+        // Arrange
+        DefaultCsvFormatter formatter = new(encodeBooleansAsCategoryIds: true);
+
+        // Act
+        var result = formatter.Format(input, _context);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void Format_WithCategoryIdBooleans_FormatsJsonBooleanElementsAsIds()
+    {
+        // Arrange
+        DefaultCsvFormatter formatter = new(encodeBooleansAsCategoryIds: true);
+        using JsonDocument trueDocument = JsonDocument.Parse("true");
+        using JsonDocument falseDocument = JsonDocument.Parse("false");
+
+        // Act & Assert
+        Assert.Equal("1", formatter.Format(trueDocument.RootElement, _context));
+        Assert.Equal("0", formatter.Format(falseDocument.RootElement, _context));
+    }
+
     // --- Data Generators ---
 
     public static IEnumerable<object?[]> GetPrimitiveTestCases()
