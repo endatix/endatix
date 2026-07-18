@@ -23,6 +23,9 @@ internal sealed record FormSchemaCodebookExportShape
     public static readonly FormSchemaCodebookExportShape LoopPanel = new("loop_panel");
     public static readonly FormSchemaCodebookExportShape PanelDynamic = new("panel_dynamic");
     public static readonly FormSchemaCodebookExportShape CategoricalArray = new("categorical_array");
+    /// <summary>Single-select choice question (one column / category id).</summary>
+    public static readonly FormSchemaCodebookExportShape Categorical = new("categorical");
+    /// <summary>Multi-select choice question (one indicator column per choice).</summary>
     public static readonly FormSchemaCodebookExportShape MultipleResponse = new("multiple_response");
     public static readonly FormSchemaCodebookExportShape Ranking = new("ranking");
     public static readonly FormSchemaCodebookExportShape MultipleText = new("multiple_text");
@@ -61,9 +64,14 @@ internal sealed record FormSchemaCodebookExportShape
             return CategoricalArray;
         }
 
-        if (SurveyJsElementType.ResolveFlattening(type) == SurveyJsFlattening.ChoiceIndicators)
+        if (questionElement.IsMultiSelectBaseSelect())
         {
             return MultipleResponse;
+        }
+
+        if (questionElement.IsSingleSelectBaseSelect())
+        {
+            return Categorical;
         }
 
         if (SurveyJsElementType.Ranking.Matches(type))

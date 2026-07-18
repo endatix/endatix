@@ -33,6 +33,50 @@ public sealed class ShojiCodebookGeneratorTests
     }
 
     [Fact]
+    public void Generate_Order_FollowsSystemColumnsThenSurveyAppearance()
+    {
+        // Arrange
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+
+        // Act
+        using JsonDocument document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+        List<string> order = document.RootElement
+            .GetProperty("body")
+            .GetProperty("table")
+            .GetProperty("order")
+            .EnumerateArray()
+            .Select(element => element.GetString()!)
+            .ToList();
+
+        // Assert — definition walk, not alphabetical / writer-phase order
+        order.Take(8).Should().Equal(
+            "FormId",
+            "Id",
+            "IsComplete",
+            "CreatedAt",
+            "ModifiedAt",
+            "CompletedAt",
+            "SubmitterId",
+            "SubmitterDisplayId");
+        order.Skip(8).Take(6).Should().Equal(
+            "qRadioGroup",
+            "qRating",
+            "qSlider",
+            "qRangeSlider--min",
+            "qRangeSlider--max",
+            "qDropdown");
+        order.Should().Contain("qLoop--qLoopColor");
+        order.IndexOf("qLoop--adidas--qLoopBoolean").Should().BeLessThan(order.IndexOf("qLoop--qLoopColor"));
+        order.IndexOf("qLoop--qLoopColor").Should().BeLessThan(order.IndexOf("qLoop--adidas--qLoopColor--other_text"));
+    }
+
+    [Fact]
     public void Generate_EmitsNativeCrunchEnvelopeWithFlatMetadataAndUniqueStringNames()
     {
         // Arrange

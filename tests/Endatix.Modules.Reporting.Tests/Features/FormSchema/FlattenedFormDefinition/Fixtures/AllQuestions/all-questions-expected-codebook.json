@@ -31,7 +31,7 @@
         "default": "This is a standard dropdown question",
         "es": "Esta es una pregunta est\u00E1ndar desplegable"
       },
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "choices": [
         {
           "value": "axe",
@@ -81,7 +81,7 @@
         "default": "Choose a mascot",
         "es": "Elige una mascota"
       },
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "choices": [
         {
           "value": "lion",
@@ -122,6 +122,7 @@
         "default": "Do you still like {panel.itemText}?",
         "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
       },
+      "parentPanelTitle": "Loop Question (Based on Brands)",
       "exportShape": "scalar"
     },
     "qLoopColor": {
@@ -134,7 +135,8 @@
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
       },
-      "exportShape": "multiple_response",
+      "parentPanelTitle": "Loop Question (Based on Brands)",
+      "exportShape": "categorical",
       "choices": [
         {
           "value": "1",
@@ -200,6 +202,7 @@
         "default": "How much do you like it?",
         "es": "\u00BFCu\u00E1nto te gusta?"
       },
+      "parentPanelTitle": "Loop Question (Based on Brands)",
       "exportShape": "scalar"
     },
     "qMatrix": {
@@ -430,6 +433,7 @@
         "default": "Text inside panel",
         "es": "Texto dentro del panel"
       },
+      "parentPanelTitle": "Internal Panel Group",
       "exportShape": "scalar"
     },
     "qRadioGroup": {
@@ -438,7 +442,7 @@
         "default": "Select your preferred contact method",
         "es": "Seleccione su m\u00E9todo de contacto preferido"
       },
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "choices": [
         {
           "value": "email",
@@ -465,6 +469,19 @@
           }
         }
       ]
+    },
+    "qRangeSlider": {
+      "surveyJsType": "slider",
+      "title": {
+        "default": "Select your sweet spot for protein intake?",
+        "es": "\u00BFCu\u00E1l es tu nivel ideal de ingesta de prote\u00EDnas?"
+      },
+      "description": {
+        "default": "Provide data in grams min/max",
+        "es": "Proporcione los datos en gramos (m\u00EDn./m\u00E1x.)"
+      },
+      "exportShape": "scalar",
+      "sliderType": "range"
     },
     "qRanking": {
       "surveyJsType": "ranking",
@@ -681,10 +698,10 @@
         "es": "Comentarios adicionales"
       }
     },
-    "qDropdown__axe": {
+    "qDropdown": {
       "parentKey": "qDropdown",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "Pick your primary weapon",
         "es": "Elige tu arma principal"
@@ -692,47 +709,6 @@
       "description": {
         "default": "This is a standard dropdown question",
         "es": "Esta es una pregunta est\u00E1ndar desplegable"
-      },
-      "choiceValue": "axe",
-      "choiceLabel": {
-        "default": "Axe",
-        "es": "Hacha"
-      }
-    },
-    "qDropdown__hammer": {
-      "parentKey": "qDropdown",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Pick your primary weapon",
-        "es": "Elige tu arma principal"
-      },
-      "description": {
-        "default": "This is a standard dropdown question",
-        "es": "Esta es una pregunta est\u00E1ndar desplegable"
-      },
-      "choiceValue": "hammer",
-      "choiceLabel": {
-        "default": "Hammer",
-        "es": "Martillo"
-      }
-    },
-    "qDropdown__sword": {
-      "parentKey": "qDropdown",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Pick your primary weapon",
-        "es": "Elige tu arma principal"
-      },
-      "description": {
-        "default": "This is a standard dropdown question",
-        "es": "Esta es una pregunta est\u00E1ndar desplegable"
-      },
-      "choiceValue": "sword",
-      "choiceLabel": {
-        "default": "Sword",
-        "es": "Espada"
       }
     },
     "qExpression": {
@@ -753,30 +729,13 @@
         "es": "Sube tu avatar"
       }
     },
-    "qImagePicker__giraffe": {
+    "qImagePicker": {
       "parentKey": "qImagePicker",
       "surveyJsType": "imagepicker",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "Choose a mascot",
         "es": "Elige una mascota"
-      },
-      "choiceValue": "giraffe",
-      "choiceLabel": {
-        "default": "giraffe"
-      }
-    },
-    "qImagePicker__lion": {
-      "parentKey": "qImagePicker",
-      "surveyJsType": "imagepicker",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "Choose a mascot",
-        "es": "Elige una mascota"
-      },
-      "choiceValue": "lion",
-      "choiceLabel": {
-        "default": "lion"
       }
     },
     "qLoop__1__qLoopBoolean": {
@@ -795,10 +754,10 @@
         }
       ]
     },
-    "qLoop__1__qLoopColor__1": {
+    "qLoop__1__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -806,161 +765,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "1"
-        }
-      ]
-    },
-    "qLoop__1__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "1"
-        }
-      ]
-    },
-    "qLoop__1__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "1"
-        }
-      ]
-    },
-    "qLoop__1__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "1"
-        }
-      ]
-    },
-    "qLoop__1__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "1"
-        }
-      ]
-    },
-    "qLoop__1__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "1"
-        }
-      ]
-    },
-    "qLoop__1__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -1022,10 +826,10 @@
         }
       ]
     },
-    "qLoop__2__qLoopColor__1": {
+    "qLoop__2__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -1033,161 +837,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "2"
-        }
-      ]
-    },
-    "qLoop__2__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "2"
-        }
-      ]
-    },
-    "qLoop__2__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "2"
-        }
-      ]
-    },
-    "qLoop__2__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "2"
-        }
-      ]
-    },
-    "qLoop__2__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "2"
-        }
-      ]
-    },
-    "qLoop__2__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "2"
-        }
-      ]
-    },
-    "qLoop__2__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -1249,10 +898,10 @@
         }
       ]
     },
-    "qLoop__3__qLoopColor__1": {
+    "qLoop__3__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -1260,161 +909,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "3"
-        }
-      ]
-    },
-    "qLoop__3__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "3"
-        }
-      ]
-    },
-    "qLoop__3__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "3"
-        }
-      ]
-    },
-    "qLoop__3__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "3"
-        }
-      ]
-    },
-    "qLoop__3__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "3"
-        }
-      ]
-    },
-    "qLoop__3__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "3"
-        }
-      ]
-    },
-    "qLoop__3__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -1476,10 +970,10 @@
         }
       ]
     },
-    "qLoop__4__qLoopColor__1": {
+    "qLoop__4__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -1487,161 +981,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "4"
-        }
-      ]
-    },
-    "qLoop__4__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "4"
-        }
-      ]
-    },
-    "qLoop__4__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "4"
-        }
-      ]
-    },
-    "qLoop__4__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "4"
-        }
-      ]
-    },
-    "qLoop__4__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "4"
-        }
-      ]
-    },
-    "qLoop__4__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "4"
-        }
-      ]
-    },
-    "qLoop__4__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -1703,10 +1042,10 @@
         }
       ]
     },
-    "qLoop__5__qLoopColor__1": {
+    "qLoop__5__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -1714,161 +1053,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "5"
-        }
-      ]
-    },
-    "qLoop__5__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "5"
-        }
-      ]
-    },
-    "qLoop__5__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "5"
-        }
-      ]
-    },
-    "qLoop__5__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "5"
-        }
-      ]
-    },
-    "qLoop__5__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "5"
-        }
-      ]
-    },
-    "qLoop__5__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "5"
-        }
-      ]
-    },
-    "qLoop__5__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -1930,10 +1114,10 @@
         }
       ]
     },
-    "qLoop__adidas__qLoopColor__1": {
+    "qLoop__adidas__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -1941,161 +1125,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "adidas"
-        }
-      ]
-    },
-    "qLoop__adidas__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "adidas"
-        }
-      ]
-    },
-    "qLoop__adidas__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "adidas"
-        }
-      ]
-    },
-    "qLoop__adidas__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "adidas"
-        }
-      ]
-    },
-    "qLoop__adidas__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "adidas"
-        }
-      ]
-    },
-    "qLoop__adidas__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "adidas"
-        }
-      ]
-    },
-    "qLoop__adidas__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -2157,10 +1186,10 @@
         }
       ]
     },
-    "qLoop__axe__qLoopColor__1": {
+    "qLoop__axe__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -2168,161 +1197,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "axe"
-        }
-      ]
-    },
-    "qLoop__axe__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "axe"
-        }
-      ]
-    },
-    "qLoop__axe__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "axe"
-        }
-      ]
-    },
-    "qLoop__axe__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "axe"
-        }
-      ]
-    },
-    "qLoop__axe__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "axe"
-        }
-      ]
-    },
-    "qLoop__axe__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "axe"
-        }
-      ]
-    },
-    "qLoop__axe__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -2384,10 +1258,10 @@
         }
       ]
     },
-    "qLoop__hammer__qLoopColor__1": {
+    "qLoop__hammer__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -2395,161 +1269,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "hammer"
-        }
-      ]
-    },
-    "qLoop__hammer__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "hammer"
-        }
-      ]
-    },
-    "qLoop__hammer__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "hammer"
-        }
-      ]
-    },
-    "qLoop__hammer__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "hammer"
-        }
-      ]
-    },
-    "qLoop__hammer__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "hammer"
-        }
-      ]
-    },
-    "qLoop__hammer__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "hammer"
-        }
-      ]
-    },
-    "qLoop__hammer__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -2611,10 +1330,10 @@
         }
       ]
     },
-    "qLoop__nike__qLoopColor__1": {
+    "qLoop__nike__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -2622,161 +1341,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "nike"
-        }
-      ]
-    },
-    "qLoop__nike__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "nike"
-        }
-      ]
-    },
-    "qLoop__nike__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "nike"
-        }
-      ]
-    },
-    "qLoop__nike__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "nike"
-        }
-      ]
-    },
-    "qLoop__nike__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "nike"
-        }
-      ]
-    },
-    "qLoop__nike__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "nike"
-        }
-      ]
-    },
-    "qLoop__nike__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -2838,10 +1402,10 @@
         }
       ]
     },
-    "qLoop__other__qLoopColor__1": {
+    "qLoop__other__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -2849,161 +1413,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "other"
-        }
-      ]
-    },
-    "qLoop__other__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "other"
-        }
-      ]
-    },
-    "qLoop__other__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "other"
-        }
-      ]
-    },
-    "qLoop__other__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "other"
-        }
-      ]
-    },
-    "qLoop__other__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "other"
-        }
-      ]
-    },
-    "qLoop__other__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "other"
-        }
-      ]
-    },
-    "qLoop__other__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -3065,10 +1474,10 @@
         }
       ]
     },
-    "qLoop__puma__qLoopColor__1": {
+    "qLoop__puma__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -3076,161 +1485,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "puma"
-        }
-      ]
-    },
-    "qLoop__puma__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "puma"
-        }
-      ]
-    },
-    "qLoop__puma__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "puma"
-        }
-      ]
-    },
-    "qLoop__puma__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "puma"
-        }
-      ]
-    },
-    "qLoop__puma__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "puma"
-        }
-      ]
-    },
-    "qLoop__puma__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "puma"
-        }
-      ]
-    },
-    "qLoop__puma__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -3292,10 +1546,10 @@
         }
       ]
     },
-    "qLoop__reebok__qLoopColor__1": {
+    "qLoop__reebok__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -3303,161 +1557,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "reebok"
-        }
-      ]
-    },
-    "qLoop__reebok__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "reebok"
-        }
-      ]
-    },
-    "qLoop__reebok__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "reebok"
-        }
-      ]
-    },
-    "qLoop__reebok__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "reebok"
-        }
-      ]
-    },
-    "qLoop__reebok__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "reebok"
-        }
-      ]
-    },
-    "qLoop__reebok__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "reebok"
-        }
-      ]
-    },
-    "qLoop__reebok__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -3519,10 +1618,10 @@
         }
       ]
     },
-    "qLoop__sword__qLoopColor__1": {
+    "qLoop__sword__qLoopColor": {
       "parentKey": "qLoopColor",
       "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "What color was the {panel.itemText}?",
         "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
@@ -3530,161 +1629,6 @@
       "description": {
         "default": "Select which color was the {panel.itemText}",
         "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "1",
-      "choiceLabel": {
-        "default": "Red",
-        "es": "Rojo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "sword"
-        }
-      ]
-    },
-    "qLoop__sword__qLoopColor__2": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "2",
-      "choiceLabel": {
-        "default": "Blue",
-        "es": "Azul"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "sword"
-        }
-      ]
-    },
-    "qLoop__sword__qLoopColor__3": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "3",
-      "choiceLabel": {
-        "default": "Green",
-        "es": "Verde"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "sword"
-        }
-      ]
-    },
-    "qLoop__sword__qLoopColor__4": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "4",
-      "choiceLabel": {
-        "default": "Yellow",
-        "es": "Amarillo"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "sword"
-        }
-      ]
-    },
-    "qLoop__sword__qLoopColor__5": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "5",
-      "choiceLabel": {
-        "default": "White",
-        "es": "Blanco"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "sword"
-        }
-      ]
-    },
-    "qLoop__sword__qLoopColor__6": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "6",
-      "choiceLabel": {
-        "default": "Black",
-        "es": "Negro"
-      },
-      "loopPath": [
-        {
-          "panelValueName": "qLoop",
-          "propertyName": "itemValue",
-          "choiceValue": "sword"
-        }
-      ]
-    },
-    "qLoop__sword__qLoopColor__other": {
-      "parentKey": "qLoopColor",
-      "surveyJsType": "dropdown",
-      "exportShape": "multiple_response",
-      "title": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "description": {
-        "default": "Select which color was the {panel.itemText}",
-        "es": "Seleccione de qu\u00E9 color era {panel.itemText}"
-      },
-      "choiceValue": "other",
-      "choiceLabel": {
-        "default": "Other",
-        "es": "Otro"
       },
       "loopPath": [
         {
@@ -3917,46 +1861,47 @@
         "es": "Texto dentro del panel"
       }
     },
-    "qRadioGroup__email": {
+    "qRadioGroup": {
       "parentKey": "qRadioGroup",
       "surveyJsType": "radiogroup",
-      "exportShape": "multiple_response",
+      "exportShape": "categorical",
       "title": {
         "default": "Select your preferred contact method",
         "es": "Seleccione su m\u00E9todo de contacto preferido"
-      },
-      "choiceValue": "email",
-      "choiceLabel": {
-        "default": "Email",
-        "es": "Correo electr\u00F3nico"
       }
     },
-    "qRadioGroup__mail": {
-      "parentKey": "qRadioGroup",
-      "surveyJsType": "radiogroup",
-      "exportShape": "multiple_response",
+    "qRangeSlider__max": {
+      "parentKey": "qRangeSlider",
+      "surveyJsType": "slider",
+      "exportShape": "scalar",
       "title": {
-        "default": "Select your preferred contact method",
-        "es": "Seleccione su m\u00E9todo de contacto preferido"
+        "default": "Select your sweet spot for protein intake?",
+        "es": "\u00BFCu\u00E1l es tu nivel ideal de ingesta de prote\u00EDnas?"
       },
-      "choiceValue": "mail",
+      "description": {
+        "default": "Provide data in grams min/max",
+        "es": "Proporcione los datos en gramos (m\u00EDn./m\u00E1x.)"
+      },
+      "choiceValue": "max",
       "choiceLabel": {
-        "default": "Mail",
-        "es": "Correo postal"
+        "default": "max"
       }
     },
-    "qRadioGroup__phone": {
-      "parentKey": "qRadioGroup",
-      "surveyJsType": "radiogroup",
-      "exportShape": "multiple_response",
+    "qRangeSlider__min": {
+      "parentKey": "qRangeSlider",
+      "surveyJsType": "slider",
+      "exportShape": "scalar",
       "title": {
-        "default": "Select your preferred contact method",
-        "es": "Seleccione su m\u00E9todo de contacto preferido"
+        "default": "Select your sweet spot for protein intake?",
+        "es": "\u00BFCu\u00E1l es tu nivel ideal de ingesta de prote\u00EDnas?"
       },
-      "choiceValue": "phone",
+      "description": {
+        "default": "Provide data in grams min/max",
+        "es": "Proporcione los datos en gramos (m\u00EDn./m\u00E1x.)"
+      },
+      "choiceValue": "min",
       "choiceLabel": {
-        "default": "Phone",
-        "es": "Tel\u00E9fono"
+        "default": "min"
       }
     },
     "qRanking__apple": {

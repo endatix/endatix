@@ -55,8 +55,8 @@ public sealed class ExportColumnPlanBuilderTests
 
         IExportColumnPlan plan = ExportColumnPlanBuilder.Build(schema, keySeparator: "--");
 
-        plan.Columns.First(column => column.CanonicalKey == "qDropdown__axe").ExportKey
-            .Should().Be("qDropdown--axe");
+        plan.Columns.First(column => column.CanonicalKey == "qTagBox__adidas").ExportKey
+            .Should().Be("qTagBox--adidas");
     }
 
     [Fact]
@@ -116,10 +116,10 @@ public sealed class ExportColumnPlanBuilderTests
         IExportColumnPlan plan = ExportColumnPlanBuilder.Build(schema, locale: "default");
 
         // Assert
-        ExportColumnDefinition? axeColumn = plan.Columns.FirstOrDefault(column => column.CanonicalKey == "qDropdown__axe");
-        axeColumn.Should().NotBeNull();
-        axeColumn!.HeaderLabel.Should().Be("Pick your primary weapon (Axe)");
-        axeColumn.Source.Should().Be(ExportColumnSource.DataJson);
+        ExportColumnDefinition? adidasColumn = plan.Columns.FirstOrDefault(column => column.CanonicalKey == "qTagBox__adidas");
+        adidasColumn.Should().NotBeNull();
+        adidasColumn!.HeaderLabel.Should().Be("Select Sport Brands (Adidas)");
+        adidasColumn.Source.Should().Be(ExportColumnSource.DataJson);
     }
 
     [Fact]

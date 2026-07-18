@@ -46,6 +46,7 @@
   "qMatrix": { "speed": "excellent", "quality": "average" },
   "qRating": 4,
   "qSlider": 50,
+  "qRangeSlider": [80, 120],
   "qTagBox": ["adidas", "nike"],
   "qBoolean": true,
   "qComment": "Lorem Ipsum",

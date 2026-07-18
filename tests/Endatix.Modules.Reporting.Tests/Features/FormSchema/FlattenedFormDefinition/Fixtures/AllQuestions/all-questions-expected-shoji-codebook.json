@@ -10,19 +10,19 @@
           "type": "numeric",
           "alias": "FormId",
           "name": "Form ID",
-          "description": "Form ID"
+          "description": ""
         },
         "Id": {
           "type": "numeric",
           "alias": "Id",
           "name": "Submission ID",
-          "description": "Submission ID"
+          "description": ""
         },
         "IsComplete": {
           "type": "categorical",
           "alias": "IsComplete",
           "name": "Is Complete",
-          "description": "Is Complete",
+          "description": "",
           "categories": [
             {
               "name": "False",
@@ -42,101 +42,40 @@
           "type": "datetime",
           "alias": "CreatedAt",
           "name": "Created At",
-          "description": "Created At",
+          "description": "",
           "resolution": "s"
         },
         "ModifiedAt": {
           "type": "datetime",
           "alias": "ModifiedAt",
           "name": "Modified At",
-          "description": "Modified At",
+          "description": "",
           "resolution": "s"
         },
         "CompletedAt": {
           "type": "datetime",
           "alias": "CompletedAt",
           "name": "Completed At",
-          "description": "Completed At",
+          "description": "",
           "resolution": "s"
         },
         "SubmitterId": {
           "type": "numeric",
           "alias": "SubmitterId",
           "name": "Submitter ID",
-          "description": "Submitter ID"
+          "description": ""
         },
         "SubmitterDisplayId": {
           "type": "text",
           "alias": "SubmitterDisplayId",
           "name": "Submitter Display ID",
-          "description": "Submitter Display ID"
-        },
-        "qDropdown": {
-          "type": "multiple_response",
-          "alias": "qDropdown",
-          "name": "Pick your primary weapon",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qDropdown--axe",
-              "name": "Axe"
-            },
-            {
-              "alias": "qDropdown--sword",
-              "name": "Sword"
-            },
-            {
-              "alias": "qDropdown--hammer",
-              "name": "Hammer"
-            }
-          ]
-        },
-        "qImagePicker": {
-          "type": "multiple_response",
-          "alias": "qImagePicker",
-          "name": "Choose a mascot",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qImagePicker--lion",
-              "name": "lion"
-            },
-            {
-              "alias": "qImagePicker--giraffe",
-              "name": "giraffe"
-            }
-          ]
+          "description": ""
         },
         "qMatrix": {
           "type": "categorical_array",
           "alias": "qMatrix",
           "name": "Rate the following aspects of our service",
+          "description": "",
           "categories": [
             {
               "name": "Poor",
@@ -168,55 +107,25 @@
             }
           ]
         },
-        "qRadioGroup": {
-          "type": "multiple_response",
-          "alias": "qRadioGroup",
-          "name": "Select your preferred contact method",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qRadioGroup--email",
-              "name": "Email"
-            },
-            {
-              "alias": "qRadioGroup--phone",
-              "name": "Phone"
-            },
-            {
-              "alias": "qRadioGroup--mail",
-              "name": "Mail"
-            }
-          ]
-        },
         "qTagBox": {
           "type": "multiple_response",
           "alias": "qTagBox",
           "name": "Select Sport Brands",
+          "description": "You can select multiple options",
           "categories": [
             {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
             },
             {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
             }
           ],
           "subvariables": [
@@ -242,18 +151,21 @@
           "type": "multiple_response",
           "alias": "questionSongs",
           "name": "Pick a song",
+          "description": "This is a question for picking a song",
           "categories": [
             {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
             },
             {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
             }
           ],
           "subvariables": [
@@ -283,10 +195,83 @@
             }
           ]
         },
+        "qDropdown": {
+          "type": "categorical",
+          "alias": "qDropdown",
+          "name": "Pick your primary weapon",
+          "description": "This is a standard dropdown question",
+          "categories": [
+            {
+              "name": "Axe",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Sword",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Hammer",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "qImagePicker": {
+          "type": "categorical",
+          "alias": "qImagePicker",
+          "name": "Choose a mascot",
+          "description": "",
+          "categories": [
+            {
+              "name": "lion",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "giraffe",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ]
+        },
+        "qRadioGroup": {
+          "type": "categorical",
+          "alias": "qRadioGroup",
+          "name": "Select your preferred contact method",
+          "description": "",
+          "categories": [
+            {
+              "name": "Email",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Phone",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Mail",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
         "qBoolean": {
           "type": "categorical",
           "alias": "qBoolean",
           "name": "Do you agree to the terms?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -305,127 +290,269 @@
         "qComment": {
           "type": "text",
           "alias": "qComment",
-          "name": "Additional Feedback"
+          "name": "Additional Feedback",
+          "description": ""
         },
         "qExpression": {
           "type": "text",
           "alias": "qExpression",
-          "name": "Calculated Total Age (From Q11)"
+          "name": "Calculated Total Age (From Q11)",
+          "description": ""
         },
         "qPanelText": {
           "type": "text",
           "alias": "qPanelText",
-          "name": "Text inside panel"
+          "name": "Internal Panel Group -- Text inside panel",
+          "description": ""
+        },
+        "qRangeSlider--min": {
+          "type": "numeric",
+          "alias": "qRangeSlider--min",
+          "name": "Select your sweet spot for protein intake? \u2014 Min",
+          "description": "Provide data in grams min/max"
+        },
+        "qRangeSlider--max": {
+          "type": "numeric",
+          "alias": "qRangeSlider--max",
+          "name": "Select your sweet spot for protein intake? \u2014 Max",
+          "description": "Provide data in grams min/max"
         },
         "qRating": {
           "type": "numeric",
           "alias": "qRating",
-          "name": "Rate your overall experience"
+          "name": "Rate your overall experience",
+          "description": "Scale from 1 to 5"
         },
         "qSignaturePad": {
           "type": "text",
           "alias": "qSignaturePad",
-          "name": "Please sign here"
+          "name": "Please sign here",
+          "description": ""
         },
         "qSlider": {
-          "type": "text",
+          "type": "numeric",
           "alias": "qSlider",
-          "name": "How likely are you to recommend us?"
+          "name": "How likely are you to recommend us?",
+          "description": ""
         },
         "qText": {
           "type": "text",
           "alias": "qText",
-          "name": "Full Name"
+          "name": "Full Name",
+          "description": ""
         },
         "qTextDate": {
-          "type": "text",
+          "type": "datetime",
           "alias": "qTextDate",
-          "name": "Birth Date"
+          "name": "Birth Date",
+          "description": "",
+          "resolution": "s"
         },
         "qTextNumber": {
           "type": "numeric",
           "alias": "qTextNumber",
-          "name": "Your Age"
+          "name": "Your Age",
+          "description": ""
         },
         "qFile": {
           "type": "text",
           "alias": "qFile",
-          "name": "Upload your avatar"
+          "name": "Upload your avatar",
+          "description": ""
         },
         "qMatrixDropdown--alice--punctuality": {
           "type": "text",
           "alias": "qMatrixDropdown--alice--punctuality",
-          "name": "Evaluate your team -- alice--punctuality"
+          "name": "Evaluate your team -- alice--punctuality",
+          "description": ""
         },
         "qMatrixDropdown--alice--teamwork": {
           "type": "text",
           "alias": "qMatrixDropdown--alice--teamwork",
-          "name": "Evaluate your team -- alice--teamwork"
+          "name": "Evaluate your team -- alice--teamwork",
+          "description": ""
         },
         "qMatrixDropdown--bob--punctuality": {
           "type": "text",
           "alias": "qMatrixDropdown--bob--punctuality",
-          "name": "Evaluate your team -- bob--punctuality"
+          "name": "Evaluate your team -- bob--punctuality",
+          "description": ""
         },
         "qMatrixDropdown--bob--teamwork": {
           "type": "text",
           "alias": "qMatrixDropdown--bob--teamwork",
-          "name": "Evaluate your team -- bob--teamwork"
+          "name": "Evaluate your team -- bob--teamwork",
+          "description": ""
         },
         "qMatrixDynamic--0--company": {
           "type": "text",
           "alias": "qMatrixDynamic--0--company",
-          "name": "List your previous employers -- 0--company"
+          "name": "List your previous employers -- 0--company",
+          "description": ""
         },
         "qMatrixDynamic--0--years": {
           "type": "numeric",
           "alias": "qMatrixDynamic--0--years",
-          "name": "List your previous employers -- 0--years"
+          "name": "List your previous employers -- 0--years",
+          "description": ""
         },
         "qMatrixDynamic--1--company": {
           "type": "text",
           "alias": "qMatrixDynamic--1--company",
-          "name": "List your previous employers -- 1--company"
+          "name": "List your previous employers -- 1--company",
+          "description": ""
         },
         "qMatrixDynamic--1--years": {
           "type": "numeric",
           "alias": "qMatrixDynamic--1--years",
-          "name": "List your previous employers -- 1--years"
+          "name": "List your previous employers -- 1--years",
+          "description": ""
         },
         "qMultipleText--emergency": {
           "type": "text",
           "alias": "qMultipleText--emergency",
-          "name": "Contact Information -- emergency"
+          "name": "Contact Information -- emergency",
+          "description": ""
         },
         "qMultipleText--phone": {
           "type": "text",
           "alias": "qMultipleText--phone",
-          "name": "Contact Information -- phone"
+          "name": "Contact Information -- phone",
+          "description": ""
         },
         "qRanking--apple": {
           "type": "numeric",
           "alias": "qRanking--apple",
-          "name": "Rank these fruits from best to worst -- apple"
+          "name": "Rank these fruits from best to worst -- apple",
+          "description": ""
         },
         "qRanking--banana": {
           "type": "numeric",
           "alias": "qRanking--banana",
-          "name": "Rank these fruits from best to worst -- banana"
+          "name": "Rank these fruits from best to worst -- banana",
+          "description": ""
         },
         "qRanking--orange": {
           "type": "numeric",
           "alias": "qRanking--orange",
-          "name": "Rank these fruits from best to worst -- orange"
+          "name": "Rank these fruits from best to worst -- orange",
+          "description": ""
         },
         "questionSongs--other_text": {
           "type": "text",
           "alias": "questionSongs--other_text",
-          "name": "Pick a song -- Other"
+          "name": "Pick a song -- Other",
+          "description": ""
+        },
+        "qLoop--qLoopColor": {
+          "type": "categorical_array",
+          "alias": "qLoop--qLoopColor",
+          "name": "What color was the ?",
+          "description": "Select which color was the",
+          "categories": [
+            {
+              "name": "Red",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Blue",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Green",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            },
+            {
+              "name": "Yellow",
+              "id": 4,
+              "numeric_value": 4,
+              "missing": false
+            },
+            {
+              "name": "White",
+              "id": 5,
+              "numeric_value": 5,
+              "missing": false
+            },
+            {
+              "name": "Black",
+              "id": 6,
+              "numeric_value": 6,
+              "missing": false
+            },
+            {
+              "name": "Other",
+              "id": 7,
+              "numeric_value": 7,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "qLoop--1--qLoopColor",
+              "name": "Song for me"
+            },
+            {
+              "alias": "qLoop--2--qLoopColor",
+              "name": "Song for you"
+            },
+            {
+              "alias": "qLoop--3--qLoopColor",
+              "name": "We will rock you"
+            },
+            {
+              "alias": "qLoop--4--qLoopColor",
+              "name": "No time for this"
+            },
+            {
+              "alias": "qLoop--5--qLoopColor",
+              "name": "I have waited"
+            },
+            {
+              "alias": "qLoop--adidas--qLoopColor",
+              "name": "Adidas"
+            },
+            {
+              "alias": "qLoop--axe--qLoopColor",
+              "name": "Axe"
+            },
+            {
+              "alias": "qLoop--hammer--qLoopColor",
+              "name": "Hammer"
+            },
+            {
+              "alias": "qLoop--nike--qLoopColor",
+              "name": "Nike"
+            },
+            {
+              "alias": "qLoop--other--qLoopColor",
+              "name": "Other (pick)"
+            },
+            {
+              "alias": "qLoop--puma--qLoopColor",
+              "name": "Puma"
+            },
+            {
+              "alias": "qLoop--reebok--qLoopColor",
+              "name": "Reebok"
+            },
+            {
+              "alias": "qLoop--sword--qLoopColor",
+              "name": "Sword"
+            }
+          ]
         },
         "qLoop--1--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--1--qLoopBoolean",
-          "name": "Do you still like 1?",
+          "name": "Loop Question (Based on Brands) -- Do you still like Song for me?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -444,17 +571,20 @@
         "qLoop--1--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--1--qLoopColor--other_text",
-          "name": "What color was the 1? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the Song for me? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--1--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--1--qLoopRating",
-          "name": "How much do you like it? -- 1"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Song for me",
+          "description": ""
         },
         "qLoop--2--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--2--qLoopBoolean",
-          "name": "Do you still like 2?",
+          "name": "Loop Question (Based on Brands) -- Do you still like Song for you?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -473,17 +603,20 @@
         "qLoop--2--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--2--qLoopColor--other_text",
-          "name": "What color was the 2? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the Song for you? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--2--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--2--qLoopRating",
-          "name": "How much do you like it? -- 2"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Song for you",
+          "description": ""
         },
         "qLoop--3--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--3--qLoopBoolean",
-          "name": "Do you still like 3?",
+          "name": "Loop Question (Based on Brands) -- Do you still like We will rock you?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -502,17 +635,20 @@
         "qLoop--3--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--3--qLoopColor--other_text",
-          "name": "What color was the 3? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the We will rock you? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--3--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--3--qLoopRating",
-          "name": "How much do you like it? -- 3"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- We will rock you",
+          "description": ""
         },
         "qLoop--4--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--4--qLoopBoolean",
-          "name": "Do you still like 4?",
+          "name": "Loop Question (Based on Brands) -- Do you still like No time for this?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -531,17 +667,20 @@
         "qLoop--4--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--4--qLoopColor--other_text",
-          "name": "What color was the 4? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the No time for this? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--4--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--4--qLoopRating",
-          "name": "How much do you like it? -- 4"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- No time for this",
+          "description": ""
         },
         "qLoop--5--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--5--qLoopBoolean",
-          "name": "Do you still like 5?",
+          "name": "Loop Question (Based on Brands) -- Do you still like I have waited?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -560,17 +699,20 @@
         "qLoop--5--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--5--qLoopColor--other_text",
-          "name": "What color was the 5? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the I have waited? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--5--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--5--qLoopRating",
-          "name": "How much do you like it? -- 5"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- I have waited",
+          "description": ""
         },
         "qLoop--adidas--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--adidas--qLoopBoolean",
-          "name": "Do you still like adidas?",
+          "name": "Loop Question (Based on Brands) -- Do you still like Adidas?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -589,17 +731,20 @@
         "qLoop--adidas--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--adidas--qLoopColor--other_text",
-          "name": "What color was the adidas? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the Adidas? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--adidas--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--adidas--qLoopRating",
-          "name": "How much do you like it? -- adidas"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Adidas",
+          "description": ""
         },
         "qLoop--axe--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--axe--qLoopBoolean",
-          "name": "Do you still like axe?",
+          "name": "Loop Question (Based on Brands) -- Do you still like Axe?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -618,17 +763,20 @@
         "qLoop--axe--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--axe--qLoopColor--other_text",
-          "name": "What color was the axe? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the Axe? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--axe--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--axe--qLoopRating",
-          "name": "How much do you like it? -- axe"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Axe",
+          "description": ""
         },
         "qLoop--hammer--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--hammer--qLoopBoolean",
-          "name": "Do you still like hammer?",
+          "name": "Loop Question (Based on Brands) -- Do you still like Hammer?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -647,17 +795,20 @@
         "qLoop--hammer--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--hammer--qLoopColor--other_text",
-          "name": "What color was the hammer? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the Hammer? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--hammer--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--hammer--qLoopRating",
-          "name": "How much do you like it? -- hammer"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Hammer",
+          "description": ""
         },
         "qLoop--nike--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--nike--qLoopBoolean",
-          "name": "Do you still like nike?",
+          "name": "Loop Question (Based on Brands) -- Do you still like Nike?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -676,17 +827,20 @@
         "qLoop--nike--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--nike--qLoopColor--other_text",
-          "name": "What color was the nike? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the Nike? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--nike--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--nike--qLoopRating",
-          "name": "How much do you like it? -- nike"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Nike",
+          "description": ""
         },
         "qLoop--other--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--other--qLoopBoolean",
-          "name": "Do you still like other?",
+          "name": "Loop Question (Based on Brands) -- Do you still like Other (pick)?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -705,17 +859,20 @@
         "qLoop--other--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--other--qLoopColor--other_text",
-          "name": "What color was the other? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the Other (pick)? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--other--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--other--qLoopRating",
-          "name": "How much do you like it? -- other"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Other (pick)",
+          "description": ""
         },
         "qLoop--puma--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--puma--qLoopBoolean",
-          "name": "Do you still like puma?",
+          "name": "Loop Question (Based on Brands) -- Do you still like Puma?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -734,17 +891,20 @@
         "qLoop--puma--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--puma--qLoopColor--other_text",
-          "name": "What color was the puma? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the Puma? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--puma--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--puma--qLoopRating",
-          "name": "How much do you like it? -- puma"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Puma",
+          "description": ""
         },
         "qLoop--reebok--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--reebok--qLoopBoolean",
-          "name": "Do you still like reebok?",
+          "name": "Loop Question (Based on Brands) -- Do you still like Reebok?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -763,17 +923,20 @@
         "qLoop--reebok--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--reebok--qLoopColor--other_text",
-          "name": "What color was the reebok? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the Reebok? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--reebok--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--reebok--qLoopRating",
-          "name": "How much do you like it? -- reebok"
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Reebok",
+          "description": ""
         },
         "qLoop--sword--qLoopBoolean": {
           "type": "categorical",
           "alias": "qLoop--sword--qLoopBoolean",
-          "name": "Do you still like sword?",
+          "name": "Loop Question (Based on Brands) -- Do you still like Sword?",
+          "description": "",
           "categories": [
             {
               "name": "No",
@@ -792,651 +955,99 @@
         "qLoop--sword--qLoopColor--other_text": {
           "type": "text",
           "alias": "qLoop--sword--qLoopColor--other_text",
-          "name": "What color was the sword? -- Other"
+          "name": "Loop Question (Based on Brands) -- What color was the Sword? -- Other",
+          "description": "Select which color was the {panel.itemText}"
         },
         "qLoop--sword--qLoopRating": {
           "type": "numeric",
           "alias": "qLoop--sword--qLoopRating",
-          "name": "How much do you like it? -- sword"
-        },
-        "qLoop--1--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--1--qLoopColor",
-          "name": "What color was the 1?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--1--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--1--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--1--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--1--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--1--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--1--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--1--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--2--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--2--qLoopColor",
-          "name": "What color was the 2?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--2--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--2--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--2--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--2--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--2--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--2--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--2--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--3--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--3--qLoopColor",
-          "name": "What color was the 3?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--3--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--3--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--3--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--3--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--3--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--3--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--3--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--4--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--4--qLoopColor",
-          "name": "What color was the 4?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--4--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--4--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--4--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--4--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--4--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--4--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--4--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--5--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--5--qLoopColor",
-          "name": "What color was the 5?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--5--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--5--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--5--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--5--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--5--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--5--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--5--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--adidas--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--adidas--qLoopColor",
-          "name": "What color was the adidas?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--adidas--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--adidas--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--adidas--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--adidas--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--adidas--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--adidas--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--adidas--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--axe--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--axe--qLoopColor",
-          "name": "What color was the axe?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--axe--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--axe--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--axe--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--axe--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--axe--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--axe--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--axe--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--hammer--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--hammer--qLoopColor",
-          "name": "What color was the hammer?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--hammer--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--hammer--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--hammer--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--hammer--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--hammer--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--hammer--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--hammer--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--nike--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--nike--qLoopColor",
-          "name": "What color was the nike?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--nike--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--nike--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--nike--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--nike--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--nike--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--nike--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--nike--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--other--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--other--qLoopColor",
-          "name": "What color was the other?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--other--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--other--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--other--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--other--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--other--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--other--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--other--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--puma--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--puma--qLoopColor",
-          "name": "What color was the puma?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--puma--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--puma--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--puma--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--puma--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--puma--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--puma--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--puma--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--reebok--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--reebok--qLoopColor",
-          "name": "What color was the reebok?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--reebok--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--reebok--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--reebok--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--reebok--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--reebok--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--reebok--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--reebok--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
-        },
-        "qLoop--sword--qLoopColor": {
-          "type": "multiple_response",
-          "alias": "qLoop--sword--qLoopColor",
-          "name": "What color was the sword?",
-          "categories": [
-            {
-              "name": "Selected",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            },
-            {
-              "name": "Not selected",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            }
-          ],
-          "subvariables": [
-            {
-              "alias": "qLoop--sword--qLoopColor--1",
-              "name": "Red"
-            },
-            {
-              "alias": "qLoop--sword--qLoopColor--2",
-              "name": "Blue"
-            },
-            {
-              "alias": "qLoop--sword--qLoopColor--3",
-              "name": "Green"
-            },
-            {
-              "alias": "qLoop--sword--qLoopColor--4",
-              "name": "Yellow"
-            },
-            {
-              "alias": "qLoop--sword--qLoopColor--5",
-              "name": "White"
-            },
-            {
-              "alias": "qLoop--sword--qLoopColor--6",
-              "name": "Black"
-            },
-            {
-              "alias": "qLoop--sword--qLoopColor--other",
-              "name": "Other"
-            }
-          ]
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Sword",
+          "description": ""
         }
-      }
+      },
+      "order": [
+        "FormId",
+        "Id",
+        "IsComplete",
+        "CreatedAt",
+        "ModifiedAt",
+        "CompletedAt",
+        "SubmitterId",
+        "SubmitterDisplayId",
+        "qRadioGroup",
+        "qRating",
+        "qSlider",
+        "qRangeSlider--min",
+        "qRangeSlider--max",
+        "qDropdown",
+        "questionSongs",
+        "questionSongs--other_text",
+        "qTagBox",
+        "qBoolean",
+        "qFile",
+        "qImagePicker",
+        "qRanking--apple",
+        "qRanking--banana",
+        "qRanking--orange",
+        "qText",
+        "qTextNumber",
+        "qTextDate",
+        "qComment",
+        "qMultipleText--phone",
+        "qMultipleText--emergency",
+        "qMatrix",
+        "qMatrixDropdown--alice--punctuality",
+        "qMatrixDropdown--alice--teamwork",
+        "qMatrixDropdown--bob--punctuality",
+        "qMatrixDropdown--bob--teamwork",
+        "qMatrixDynamic--0--company",
+        "qMatrixDynamic--0--years",
+        "qMatrixDynamic--1--company",
+        "qMatrixDynamic--1--years",
+        "qSignaturePad",
+        "qExpression",
+        "qPanelText",
+        "qLoop--adidas--qLoopBoolean",
+        "qLoop--adidas--qLoopRating",
+        "qLoop--qLoopColor",
+        "qLoop--adidas--qLoopColor--other_text",
+        "qLoop--puma--qLoopBoolean",
+        "qLoop--puma--qLoopRating",
+        "qLoop--puma--qLoopColor--other_text",
+        "qLoop--nike--qLoopBoolean",
+        "qLoop--nike--qLoopRating",
+        "qLoop--nike--qLoopColor--other_text",
+        "qLoop--reebok--qLoopBoolean",
+        "qLoop--reebok--qLoopRating",
+        "qLoop--reebok--qLoopColor--other_text",
+        "qLoop--axe--qLoopBoolean",
+        "qLoop--axe--qLoopRating",
+        "qLoop--axe--qLoopColor--other_text",
+        "qLoop--sword--qLoopBoolean",
+        "qLoop--sword--qLoopRating",
+        "qLoop--sword--qLoopColor--other_text",
+        "qLoop--hammer--qLoopBoolean",
+        "qLoop--hammer--qLoopRating",
+        "qLoop--hammer--qLoopColor--other_text",
+        "qLoop--1--qLoopBoolean",
+        "qLoop--1--qLoopRating",
+        "qLoop--1--qLoopColor--other_text",
+        "qLoop--2--qLoopBoolean",
+        "qLoop--2--qLoopRating",
+        "qLoop--2--qLoopColor--other_text",
+        "qLoop--3--qLoopBoolean",
+        "qLoop--3--qLoopRating",
+        "qLoop--3--qLoopColor--other_text",
+        "qLoop--4--qLoopBoolean",
+        "qLoop--4--qLoopRating",
+        "qLoop--4--qLoopColor--other_text",
+        "qLoop--5--qLoopBoolean",
+        "qLoop--5--qLoopRating",
+        "qLoop--5--qLoopColor--other_text",
+        "qLoop--other--qLoopBoolean",
+        "qLoop--other--qLoopRating",
+        "qLoop--other--qLoopColor--other_text"
+      ]
     }
   }
 }

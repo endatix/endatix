@@ -1,9 +1,56 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Domain.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Shared.SurveyJs;
 
 internal static class SurveyJsJsonElementExtensions
 {
+    /// <summary>
+    /// Resolves flattening for an element, honoring <c>imagepicker.multiSelect</c>.
+    /// </summary>
+    public static SurveyJsFlattening ResolveSurveyJsFlattening(this JsonElement element)
+    {
+        if (SurveyJsElementType.ImagePicker.Matches(element.GetSurveyJsType()) &&
+            element.GetBooleanProperty(SurveyJsPropertyNames.MultiSelect))
+        {
+            return SurveyJsFlattening.ChoiceIndicators;
+        }
+
+        return SurveyJsElementType.ResolveFlattening(element.GetSurveyJsType());
+    }
+
+    public static bool IsMultiSelectBaseSelect(this JsonElement element)
+    {
+        var type = element.GetSurveyJsType();
+        if (SurveyJsElementType.Checkbox.Matches(type) || SurveyJsElementType.Tagbox.Matches(type))
+        {
+            return true;
+        }
+
+        return SurveyJsElementType.ImagePicker.Matches(type) &&
+               element.GetBooleanProperty(SurveyJsPropertyNames.MultiSelect);
+    }
+
+    public static bool IsSingleSelectBaseSelect(this JsonElement element) =>
+        SurveyJsElementType.TryResolve(element.GetSurveyJsType()) is
+            { Category: SurveyJsElementCategory.BaseSelect } &&
+        !element.IsMultiSelectBaseSelect();
+
+    public static bool IsRangeSlider(this JsonElement element) =>
+        SurveyJsElementType.Slider.Matches(element.GetSurveyJsType()) &&
+        string.Equals(
+            element.GetStringProperty(SurveyJsPropertyNames.SliderType),
+            SurveyJsPropertyNames.SliderTypeRange,
+            StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsDateInputType(this JsonElement element)
+    {
+        var inputType = element.GetStringProperty(SurveyJsPropertyNames.InputType);
+        return string.Equals(inputType, "date", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(inputType, "datetime", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(inputType, "datetime-local", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Gets a string property, or <c>null</c> if the property is missing or not a string.
     /// </summary>

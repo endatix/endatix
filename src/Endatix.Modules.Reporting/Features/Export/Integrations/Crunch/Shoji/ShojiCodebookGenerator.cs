@@ -13,12 +13,6 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// </summary>
 internal static class ShojiCodebookGenerator
 {
-    private static readonly (string Name, int Id, int NumericValue)[] _multipleResponseCategories =
-    [
-        (ShojiCodebookPropertyNames.SelectedCategoryName, ShojiCodebookPropertyNames.SelectedCategoryId, ShojiCodebookPropertyNames.SelectedCategoryNumericValue),
-        (ShojiCodebookPropertyNames.NotSelectedCategoryName, ShojiCodebookPropertyNames.NotSelectedCategoryId, ShojiCodebookPropertyNames.NotSelectedCategoryNumericValue),
-    ];
-
     private static readonly (string Name, int Id, int NumericValue)[] _booleanCategories =
     [
         ("No", 0, 0),
@@ -78,17 +72,118 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Element, ShojiCodebookPropertyNames.CrunchTable);
         writer.WritePropertyName(ShojiCodebookPropertyNames.Metadata);
         writer.WriteStartObject();
+        List<string> writtenAliases = [];
         WriteShojiVariables(
             writer,
             flatteningMap,
             questions,
             groupedColumnKeys,
             codebookColumns,
-            keySeparator);
+            keySeparator,
+            writtenAliases);
+        writer.WriteEndObject();
+        WriteOrder(writer, BuildAppearanceOrder(flatteningMap, writtenAliases, keySeparator));
         writer.WriteEndObject();
         writer.WriteEndObject();
         writer.WriteEndObject();
-        writer.WriteEndObject();
+    }
+
+    /// <summary>
+    /// Survey-definition appearance order: system columns, then first Shoji alias for each
+    /// flattening-map column in compile order (page/element walk). Not SurveyJS visibleIndex.
+    /// </summary>
+    private static List<string> BuildAppearanceOrder(
+        MergedFormSchema flatteningMap,
+        IReadOnlyList<string> writtenAliases,
+        string keySeparator)
+    {
+        HashSet<string> written = new(writtenAliases, StringComparer.Ordinal);
+        List<string> order = [];
+        HashSet<string> seen = new(StringComparer.Ordinal);
+
+        foreach (var alias in _systemColumnOrder)
+        {
+            if (written.Contains(alias) && seen.Add(alias))
+            {
+                order.Add(alias);
+            }
+        }
+
+        foreach (var column in flatteningMap.Columns)
+        {
+            var alias = ResolveShojiOrderAlias(column, keySeparator);
+            if (alias is null || !written.Contains(alias) || !seen.Add(alias))
+            {
+                continue;
+            }
+
+            order.Add(alias);
+        }
+
+        foreach (var alias in writtenAliases)
+        {
+            if (seen.Add(alias))
+            {
+                order.Add(alias);
+            }
+        }
+
+        return order;
+    }
+
+    private static string? ResolveShojiOrderAlias(FormSchemaColumn column, string keySeparator)
+    {
+        if (column.LoopPath is { Count: > 0 } &&
+            column.Kind is FormSchemaColumnKind.LoopSource &&
+            column.MatrixColumnChoices is { Count: > 0 } &&
+            !string.IsNullOrWhiteSpace(column.SourceQuestion))
+        {
+            return ExportKeyTransformer.Transform(
+                ExportPathBuilder.Join(column.LoopPath[0].PanelValueName, column.SourceQuestion),
+                keySeparator);
+        }
+
+        if (column.LoopPath is { Count: > 0 } &&
+            column.Kind is FormSchemaColumnKind.ChoiceIndicator)
+        {
+            return ExportKeyTransformer.Transform(
+                ExportKeyTransformer.RemoveLastSegment(column.Key),
+                keySeparator);
+        }
+
+        if (column.LoopPath is null &&
+            column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.MatrixRow &&
+            !string.IsNullOrWhiteSpace(column.SourceQuestion))
+        {
+            // Top-level MR / matrix arrays are tracked under the raw question name.
+            return column.SourceQuestion;
+        }
+
+        return ExportKeyTransformer.Transform(column.Key, keySeparator);
+    }
+
+    private static readonly string[] _systemColumnOrder =
+    [
+        SubmissionExportRow.SystemColumns.FormId,
+        SubmissionExportRow.SystemColumns.Id,
+        SubmissionExportRow.SystemColumns.IsComplete,
+        SubmissionExportRow.SystemColumns.CreatedAt,
+        SubmissionExportRow.SystemColumns.ModifiedAt,
+        SubmissionExportRow.SystemColumns.CompletedAt,
+        SubmissionExportRow.SystemColumns.SubmitterId,
+        SubmissionExportRow.SystemColumns.SubmitterDisplayId,
+    ];
+
+    private static void WriteOrder(Utf8JsonWriter writer, IReadOnlyList<string> orderAliases)
+    {
+        writer.WritePropertyName(ShojiCodebookPropertyNames.Order);
+        writer.WriteStartArray();
+        foreach (var alias in orderAliases)
+        {
+            writer.WriteStringValue(alias);
+        }
+
+        writer.WriteEndArray();
     }
 
     private static void WriteShojiVariables(
@@ -97,38 +192,56 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> questions,
         IReadOnlyDictionary<string, List<string>> groupedColumnKeys,
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
-        string keySeparator)
+        string keySeparator,
+        List<string> orderAliases)
     {
         HashSet<string> writtenVariables = new(StringComparer.Ordinal);
         HashSet<string> usedDisplayNames = new(StringComparer.Ordinal);
 
-        WriteSystemVariables(writer, writtenVariables, usedDisplayNames);
-        WriteGroupedVariables(writer, questions, groupedColumnKeys, codebookColumns, writtenVariables, usedDisplayNames, keySeparator);
-        WriteScalarVariables(writer, flatteningMap, questions, writtenVariables, usedDisplayNames, keySeparator);
-        WriteGapLeafVariables(writer, flatteningMap, questions, codebookColumns, writtenVariables, usedDisplayNames, keySeparator);
-        WriteCheckboxOtherTextVariables(writer, flatteningMap, codebookColumns, writtenVariables, usedDisplayNames, keySeparator);
-        WriteLoopExpandedVariables(writer, flatteningMap, questions, codebookColumns, writtenVariables, usedDisplayNames, keySeparator);
+        WriteSystemVariables(writer, writtenVariables, usedDisplayNames, orderAliases);
+        WriteGroupedVariables(writer, questions, groupedColumnKeys, codebookColumns, writtenVariables, usedDisplayNames, keySeparator, orderAliases);
+        WriteTopLevelCategoricalVariables(writer, flatteningMap, questions, writtenVariables, usedDisplayNames, keySeparator, orderAliases);
+        WriteScalarVariables(writer, flatteningMap, questions, writtenVariables, usedDisplayNames, keySeparator, orderAliases);
+        WriteGapLeafVariables(writer, flatteningMap, questions, codebookColumns, writtenVariables, usedDisplayNames, keySeparator, orderAliases);
+        WriteCheckboxOtherTextVariables(writer, flatteningMap, codebookColumns, writtenVariables, usedDisplayNames, keySeparator, orderAliases);
+        WriteLoopExpandedVariables(writer, flatteningMap, questions, codebookColumns, writtenVariables, usedDisplayNames, keySeparator, orderAliases);
     }
 
     private static void WriteSystemVariables(
         Utf8JsonWriter writer,
         HashSet<string> writtenVariables,
-        HashSet<string> usedDisplayNames)
+        HashSet<string> usedDisplayNames,
+        List<string> orderAliases)
     {
-        WriteSystemNumeric(writer, SubmissionExportRow.SystemColumns.FormId, "Form ID", writtenVariables, usedDisplayNames);
-        WriteSystemNumeric(writer, SubmissionExportRow.SystemColumns.Id, "Submission ID", writtenVariables, usedDisplayNames);
+        WriteSystemNumeric(writer, SubmissionExportRow.SystemColumns.FormId, "Form ID", writtenVariables, usedDisplayNames, orderAliases);
+        WriteSystemNumeric(writer, SubmissionExportRow.SystemColumns.Id, "Submission ID", writtenVariables, usedDisplayNames, orderAliases);
         WriteSystemCategorical(
             writer,
             SubmissionExportRow.SystemColumns.IsComplete,
             "Is Complete",
             _isCompleteCategories,
             writtenVariables,
-            usedDisplayNames);
-        WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.CreatedAt, "Created At", writtenVariables, usedDisplayNames);
-        WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.ModifiedAt, "Modified At", writtenVariables, usedDisplayNames);
-        WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.CompletedAt, "Completed At", writtenVariables, usedDisplayNames);
-        WriteSystemNumeric(writer, SubmissionExportRow.SystemColumns.SubmitterId, "Submitter ID", writtenVariables, usedDisplayNames);
-        WriteSystemText(writer, SubmissionExportRow.SystemColumns.SubmitterDisplayId, "Submitter Display ID", writtenVariables, usedDisplayNames);
+            usedDisplayNames,
+            orderAliases);
+        WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.CreatedAt, "Created At", writtenVariables, usedDisplayNames, orderAliases);
+        WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.ModifiedAt, "Modified At", writtenVariables, usedDisplayNames, orderAliases);
+        WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.CompletedAt, "Completed At", writtenVariables, usedDisplayNames, orderAliases);
+        WriteSystemNumeric(writer, SubmissionExportRow.SystemColumns.SubmitterId, "Submitter ID", writtenVariables, usedDisplayNames, orderAliases);
+        WriteSystemText(writer, SubmissionExportRow.SystemColumns.SubmitterDisplayId, "Submitter Display ID", writtenVariables, usedDisplayNames, orderAliases);
+    }
+
+    private static bool TryTrackVariable(
+        HashSet<string> writtenVariables,
+        List<string> orderAliases,
+        string alias)
+    {
+        if (!writtenVariables.Add(alias))
+        {
+            return false;
+        }
+
+        orderAliases.Add(alias);
+        return true;
     }
 
     private static void WriteSystemNumeric(
@@ -136,9 +249,10 @@ internal static class ShojiCodebookGenerator
         string alias,
         string displayName,
         HashSet<string> writtenVariables,
-        HashSet<string> usedDisplayNames)
+        HashSet<string> usedDisplayNames,
+        List<string> orderAliases)
     {
-        if (!writtenVariables.Add(alias))
+        if (!TryTrackVariable(writtenVariables, orderAliases, alias))
         {
             return;
         }
@@ -148,7 +262,7 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeNumeric);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteUniqueName(writer, displayName, alias, usedDisplayNames);
-        writer.WriteString(ShojiCodebookPropertyNames.Description, displayName);
+        writer.WriteString(ShojiCodebookPropertyNames.Description, string.Empty);
         writer.WriteEndObject();
     }
 
@@ -157,9 +271,10 @@ internal static class ShojiCodebookGenerator
         string alias,
         string displayName,
         HashSet<string> writtenVariables,
-        HashSet<string> usedDisplayNames)
+        HashSet<string> usedDisplayNames,
+        List<string> orderAliases)
     {
-        if (!writtenVariables.Add(alias))
+        if (!TryTrackVariable(writtenVariables, orderAliases, alias))
         {
             return;
         }
@@ -169,7 +284,7 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeText);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteUniqueName(writer, displayName, alias, usedDisplayNames);
-        writer.WriteString(ShojiCodebookPropertyNames.Description, displayName);
+        writer.WriteString(ShojiCodebookPropertyNames.Description, string.Empty);
         writer.WriteEndObject();
     }
 
@@ -178,9 +293,10 @@ internal static class ShojiCodebookGenerator
         string alias,
         string displayName,
         HashSet<string> writtenVariables,
-        HashSet<string> usedDisplayNames)
+        HashSet<string> usedDisplayNames,
+        List<string> orderAliases)
     {
-        if (!writtenVariables.Add(alias))
+        if (!TryTrackVariable(writtenVariables, orderAliases, alias))
         {
             return;
         }
@@ -190,7 +306,7 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeDatetime);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteUniqueName(writer, displayName, alias, usedDisplayNames);
-        writer.WriteString(ShojiCodebookPropertyNames.Description, displayName);
+        writer.WriteString(ShojiCodebookPropertyNames.Description, string.Empty);
         writer.WriteString(ShojiCodebookPropertyNames.Resolution, ShojiCodebookPropertyNames.DatetimeResolutionSeconds);
         writer.WriteEndObject();
     }
@@ -201,9 +317,10 @@ internal static class ShojiCodebookGenerator
         string displayName,
         (string Name, int Id, int NumericValue)[] categories,
         HashSet<string> writtenVariables,
-        HashSet<string> usedDisplayNames)
+        HashSet<string> usedDisplayNames,
+        List<string> orderAliases)
     {
-        if (!writtenVariables.Add(alias))
+        if (!TryTrackVariable(writtenVariables, orderAliases, alias))
         {
             return;
         }
@@ -213,7 +330,7 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeCategorical);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteUniqueName(writer, displayName, alias, usedDisplayNames);
-        writer.WriteString(ShojiCodebookPropertyNames.Description, displayName);
+        writer.WriteString(ShojiCodebookPropertyNames.Description, string.Empty);
         WriteCategories(writer, categories);
         writer.WriteEndObject();
     }
@@ -225,7 +342,8 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
         HashSet<string> writtenVariables,
         HashSet<string> usedDisplayNames,
-        string keySeparator)
+        string keySeparator,
+        List<string> orderAliases)
     {
         foreach (var questionEntry in OrderedQuestions(questions))
         {
@@ -245,7 +363,8 @@ internal static class ShojiCodebookGenerator
                     codebookColumns,
                     writtenVariables,
                     usedDisplayNames,
-                    keySeparator);
+                    keySeparator,
+                    orderAliases);
                 continue;
             }
 
@@ -259,8 +378,43 @@ internal static class ShojiCodebookGenerator
                     codebookColumns,
                     writtenVariables,
                     usedDisplayNames,
-                    keySeparator);
+                    keySeparator,
+                    orderAliases);
             }
+        }
+    }
+
+    private static void WriteTopLevelCategoricalVariables(
+        Utf8JsonWriter writer,
+        MergedFormSchema flatteningMap,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        HashSet<string> writtenVariables,
+        HashSet<string> usedDisplayNames,
+        string keySeparator,
+        List<string> orderAliases)
+    {
+        foreach (var questionEntry in OrderedQuestions(questions))
+        {
+            if (writtenVariables.Contains(questionEntry.Key) ||
+                !TryGetExportShape(questionEntry.Value, out var exportShape) ||
+                exportShape != FormSchemaCodebookExportShape.Categorical.Name ||
+                !HasScalarFlatteningColumn(flatteningMap, questionEntry.Key))
+            {
+                continue;
+            }
+
+            if (!TryTrackVariable(writtenVariables, orderAliases, questionEntry.Key))
+            {
+                continue;
+            }
+
+            WriteCategoricalVariable(
+                writer,
+                questionEntry.Key,
+                ExportKeyTransformer.Transform(questionEntry.Key, keySeparator),
+                questionEntry.Value,
+                BuildPrefixedDisplayName(questionEntry.Value),
+                usedDisplayNames);
         }
     }
 
@@ -270,14 +424,35 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> questions,
         HashSet<string> writtenVariables,
         HashSet<string> usedDisplayNames,
-        string keySeparator)
+        string keySeparator,
+        List<string> orderAliases)
     {
         foreach (var questionEntry in OrderedQuestions(questions))
         {
             if (writtenVariables.Contains(questionEntry.Key) ||
                 !TryGetExportShape(questionEntry.Value, out var exportShape) ||
-                exportShape != FormSchemaCodebookExportShape.Scalar.Name ||
-                !HasScalarFlatteningColumn(flatteningMap, questionEntry.Key))
+                exportShape != FormSchemaCodebookExportShape.Scalar.Name)
+            {
+                continue;
+            }
+
+            // Range sliders emit qName__min/max columns, not qName itself
+            if (IsRangeSliderQuestion(flatteningMap, questionEntry.Key))
+            {
+                WriteRangeSliderVariables(
+                    writer,
+                    flatteningMap,
+                    questionEntry.Key,
+                    questionEntry.Value,
+                    writtenVariables,
+                    usedDisplayNames,
+                    keySeparator,
+                    orderAliases);
+                continue;
+            }
+
+            if (!HasScalarFlatteningColumn(flatteningMap, questionEntry.Key) ||
+                !TryTrackVariable(writtenVariables, orderAliases, questionEntry.Key))
             {
                 continue;
             }
@@ -289,15 +464,58 @@ internal static class ShojiCodebookGenerator
                     questionEntry.Key,
                     ExportKeyTransformer.Transform(questionEntry.Key, keySeparator),
                     questionEntry.Value,
-                    preferredName: ReadQuestionTitle(questionEntry.Value),
+                    preferredName: BuildPrefixedDisplayName(questionEntry.Value),
                     usedDisplayNames: usedDisplayNames);
             }
             else
             {
                 WriteScalarVariable(writer, questionEntry.Key, questionEntry.Value, usedDisplayNames, keySeparator);
             }
+        }
+    }
 
-            writtenVariables.Add(questionEntry.Key);
+    private static bool IsRangeSliderQuestion(
+        MergedFormSchema flatteningMap,
+        string questionName) =>
+        flatteningMap.Columns.Any(column =>
+            string.Equals(column.SourceQuestion, questionName, StringComparison.Ordinal) &&
+            column.ChoiceValue is "min" or "max");
+
+    private static void WriteRangeSliderVariables(
+        Utf8JsonWriter writer,
+        MergedFormSchema flatteningMap,
+        string questionName,
+        JsonElement question,
+        HashSet<string> writtenVariables,
+        HashSet<string> usedDisplayNames,
+        string keySeparator,
+        List<string> orderAliases)
+    {
+        foreach (var column in flatteningMap.Columns
+                     .Where(entry =>
+                         string.Equals(entry.SourceQuestion, questionName, StringComparison.Ordinal) &&
+                         entry.ChoiceValue is "min" or "max" &&
+                         entry.LoopPath is null)
+                     .OrderBy(entry => entry.ChoiceValue == "min" ? 0 : 1))
+        {
+            var exportKey = ExportKeyTransformer.Transform(column.Key, keySeparator);
+            if (!TryTrackVariable(writtenVariables, orderAliases, exportKey))
+            {
+                continue;
+            }
+
+            var suffix = string.Equals(column.ChoiceValue, "max", StringComparison.Ordinal) ? "Max" : "Min";
+            writer.WritePropertyName(exportKey);
+            writer.WriteStartObject();
+            writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeNumeric);
+            writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
+            WriteUniqueName(
+                writer,
+                $"{BuildPrefixedDisplayName(question)} — {suffix}",
+                exportKey,
+                usedDisplayNames);
+            WriteQuestionDescription(writer, question);
+            writer.WriteEndObject();
         }
     }
 
@@ -308,14 +526,15 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
         HashSet<string> writtenVariables,
         HashSet<string> usedDisplayNames,
-        string keySeparator)
+        string keySeparator,
+        List<string> orderAliases)
     {
         foreach (var column in flatteningMap.Columns
                      .Where(IsTopLevelGapLeafColumn)
                      .OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             var exportKey = ExportKeyTransformer.Transform(column.Key, keySeparator);
-            if (!writtenVariables.Add(exportKey))
+            if (!TryTrackVariable(writtenVariables, orderAliases, exportKey))
             {
                 continue;
             }
@@ -330,6 +549,7 @@ internal static class ShojiCodebookGenerator
             writer.WriteString(ShojiCodebookPropertyNames.Type, shojiType);
             writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
             WriteUniqueName(writer, preferredName, exportKey, usedDisplayNames);
+            WriteQuestionDescription(writer, question);
             writer.WriteEndObject();
         }
     }
@@ -348,14 +568,15 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
         HashSet<string> writtenVariables,
         HashSet<string> usedDisplayNames,
-        string keySeparator)
+        string keySeparator,
+        List<string> orderAliases)
     {
         foreach (var column in flatteningMap.Columns
                      .Where(entry => entry.Kind is FormSchemaColumnKind.CheckboxOtherText && entry.LoopPath is null)
                      .OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             var exportKey = ExportKeyTransformer.Transform(column.Key, keySeparator);
-            if (!writtenVariables.Add(exportKey))
+            if (!TryTrackVariable(writtenVariables, orderAliases, exportKey))
             {
                 continue;
             }
@@ -368,6 +589,7 @@ internal static class ShojiCodebookGenerator
             writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeText);
             writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
             WriteUniqueName(writer, preferredName, exportKey, usedDisplayNames);
+            writer.WriteString(ShojiCodebookPropertyNames.Description, string.Empty);
             writer.WriteEndObject();
         }
     }
@@ -379,9 +601,19 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
         HashSet<string> writtenVariables,
         HashSet<string> usedDisplayNames,
-        string keySeparator)
+        string keySeparator,
+        List<string> orderAliases)
     {
         var loopColumns = ClassifyLoopExpandedColumns(flatteningMap);
+
+        WriteLoopCategoricalArrayVariables(
+            writer,
+            loopColumns.CategoricalGroups,
+            questions,
+            writtenVariables,
+            usedDisplayNames,
+            keySeparator,
+            orderAliases);
 
         WriteLoopExpandedScalarVariables(
             writer,
@@ -390,7 +622,8 @@ internal static class ShojiCodebookGenerator
             codebookColumns,
             writtenVariables,
             usedDisplayNames,
-            keySeparator);
+            keySeparator,
+            orderAliases);
 
         WriteLoopExpandedChoiceVariables(
             writer,
@@ -399,12 +632,14 @@ internal static class ShojiCodebookGenerator
             codebookColumns,
             writtenVariables,
             usedDisplayNames,
-            keySeparator);
+            keySeparator,
+            orderAliases);
     }
 
     private static LoopExpandedColumnGroups ClassifyLoopExpandedColumns(MergedFormSchema flatteningMap)
     {
         Dictionary<string, List<FormSchemaColumn>> loopChoiceGroups = new(StringComparer.Ordinal);
+        Dictionary<string, List<FormSchemaColumn>> loopCategoricalGroups = new(StringComparer.Ordinal);
         List<FormSchemaColumn> loopScalarColumns = [];
 
         foreach (var column in flatteningMap.Columns)
@@ -427,6 +662,24 @@ internal static class ShojiCodebookGenerator
                 continue;
             }
 
+            if (column.Kind is FormSchemaColumnKind.LoopSource &&
+                column.MatrixColumnChoices is { Count: > 0 } &&
+                !string.IsNullOrWhiteSpace(column.SourceQuestion) &&
+                column.LoopPath.Count > 0)
+            {
+                var arrayKey = ExportPathBuilder.Join(
+                    column.LoopPath[0].PanelValueName,
+                    column.SourceQuestion);
+                if (!loopCategoricalGroups.TryGetValue(arrayKey, out var categoricalMembers))
+                {
+                    categoricalMembers = [];
+                    loopCategoricalGroups[arrayKey] = categoricalMembers;
+                }
+
+                categoricalMembers.Add(column);
+                continue;
+            }
+
             if (column.Kind is FormSchemaColumnKind.LoopSource
                 or FormSchemaColumnKind.FileUpload
                 or FormSchemaColumnKind.RankingChoice
@@ -440,7 +693,171 @@ internal static class ShojiCodebookGenerator
             }
         }
 
-        return new LoopExpandedColumnGroups(loopChoiceGroups, loopScalarColumns);
+        return new LoopExpandedColumnGroups(loopChoiceGroups, loopCategoricalGroups, loopScalarColumns);
+    }
+
+    private static void WriteLoopCategoricalArrayVariables(
+        Utf8JsonWriter writer,
+        IReadOnlyDictionary<string, List<FormSchemaColumn>> categoricalGroups,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        HashSet<string> writtenVariables,
+        HashSet<string> usedDisplayNames,
+        string keySeparator,
+        List<string> orderAliases)
+    {
+        foreach (var groupEntry in categoricalGroups.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        {
+            var exportKey = ExportKeyTransformer.Transform(groupEntry.Key, keySeparator);
+            if (!TryTrackVariable(writtenVariables, orderAliases, exportKey))
+            {
+                continue;
+            }
+
+            var members = groupEntry.Value
+                .OrderBy(column => column.Key, StringComparer.Ordinal)
+                .ToList();
+            var sourceQuestion = members[0].SourceQuestion ?? string.Empty;
+            questions.TryGetValue(sourceQuestion, out var question);
+
+            // Mark iteration columns as written so they are not re-emitted as scalars
+            foreach (var member in members)
+            {
+                writtenVariables.Add(ExportKeyTransformer.Transform(member.Key, keySeparator));
+            }
+
+            writer.WritePropertyName(exportKey);
+            writer.WriteStartObject();
+            writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeCategoricalArray);
+            writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
+            WriteUniqueName(
+                writer,
+                ClearPanelItemPlaceholder(ReadQuestionTitle(question)),
+                exportKey,
+                usedDisplayNames);
+            writer.WriteString(
+                ShojiCodebookPropertyNames.Description,
+                ClearPanelItemPlaceholder(ReadQuestionDescription(question)));
+            WriteChoiceCategories(writer, question);
+            WriteLoopCategoricalSubvariables(writer, members, questions, keySeparator);
+            writer.WriteEndObject();
+        }
+    }
+
+    private static void WriteLoopCategoricalSubvariables(
+        Utf8JsonWriter writer,
+        IReadOnlyList<FormSchemaColumn> members,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        string keySeparator)
+    {
+        writer.WritePropertyName(ShojiCodebookPropertyNames.Subvariables);
+        writer.WriteStartArray();
+
+        foreach (var column in members)
+        {
+            var alias = ExportKeyTransformer.Transform(column.Key, keySeparator);
+            writer.WriteStartObject();
+            writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
+            writer.WriteString(
+                ShojiCodebookPropertyNames.Name,
+                ResolveLoopDriverChoiceText(column, questions, keySeparator));
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static string ResolveLoopDriverChoiceText(
+        FormSchemaColumn column,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        string keySeparator)
+    {
+        if (column.LoopPath is not { Count: > 0 })
+        {
+            return ExportKeyTransformer.Transform(column.Key, keySeparator);
+        }
+
+        var driverValue = column.LoopPath[^1].ChoiceValue;
+        var panelName = column.LoopPath[0].PanelValueName;
+        if (questions.TryGetValue(panelName, out var panelQuestion) &&
+            TryFindChoiceTextInLoopSources(panelQuestion, questions, driverValue, out var label))
+        {
+            return label;
+        }
+
+        return driverValue;
+    }
+
+    private static bool TryFindChoiceTextInLoopSources(
+        JsonElement panelQuestion,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        string choiceValue,
+        out string label)
+    {
+        label = string.Empty;
+        if (!panelQuestion.TryGetProperty(SurveyJsPropertyNames.LoopSource, out var loopSource) ||
+            loopSource.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var source in loopSource.EnumerateArray())
+        {
+            if (!TryReadLoopSourceName(source, out var driverQuestionName) ||
+                !questions.TryGetValue(driverQuestionName, out var driverQuestion) ||
+                !TryFindChoiceText(driverQuestion, choiceValue, out label))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryReadLoopSourceName(JsonElement source, out string driverName)
+    {
+        driverName = string.Empty;
+        if (source.ValueKind == JsonValueKind.String)
+        {
+            driverName = source.GetString() ?? string.Empty;
+            return !string.IsNullOrWhiteSpace(driverName);
+        }
+
+        if (source.ValueKind == JsonValueKind.Object &&
+            source.TryGetProperty(SurveyJsPropertyNames.Name, out var name) &&
+            name.ValueKind == JsonValueKind.String)
+        {
+            driverName = name.GetString() ?? string.Empty;
+            return !string.IsNullOrWhiteSpace(driverName);
+        }
+
+        return false;
+    }
+
+    private static bool TryFindChoiceText(JsonElement question, string choiceValue, out string label)
+    {
+        label = string.Empty;
+        if (!question.TryGetProperty(SurveyJsPropertyNames.Choices, out var choices) ||
+            choices.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var choice in choices.EnumerateArray())
+        {
+            if (!choice.TryGetProperty(SurveyJsPropertyNames.Value, out var value) ||
+                value.ValueKind != JsonValueKind.String ||
+                !string.Equals(value.GetString(), choiceValue, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            label = ReadDefaultLocalizedText(choice, ShojiCodebookPropertyNames.Text);
+            return !string.IsNullOrWhiteSpace(label);
+        }
+
+        return false;
     }
 
     private static void WriteLoopExpandedScalarVariables(
@@ -450,19 +867,20 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
         HashSet<string> writtenVariables,
         HashSet<string> usedDisplayNames,
-        string keySeparator)
+        string keySeparator,
+        List<string> orderAliases)
     {
         foreach (var column in loopScalarColumns.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             var exportKey = ExportKeyTransformer.Transform(column.Key, keySeparator);
-            if (!writtenVariables.Add(exportKey))
+            if (!TryTrackVariable(writtenVariables, orderAliases, exportKey))
             {
                 continue;
             }
 
             questions.TryGetValue(column.SourceQuestion ?? string.Empty, out var question);
             codebookColumns.TryGetValue(column.Key, out var columnMetadata);
-            var preferredName = BuildLoopDisplayName(exportKey, column, question, columnMetadata, keySeparator);
+            var preferredName = BuildLoopDisplayName(exportKey, column, question, questions, columnMetadata, keySeparator);
 
             if (column.Kind is FormSchemaColumnKind.CheckboxOtherText)
             {
@@ -471,6 +889,7 @@ internal static class ShojiCodebookGenerator
                     exportKey,
                     ShojiCodebookPropertyNames.VariableTypeText,
                     AppendOtherSuffix(preferredName),
+                    question,
                     usedDisplayNames);
                 continue;
             }
@@ -490,7 +909,7 @@ internal static class ShojiCodebookGenerator
             }
 
             var shojiType = ResolveLoopScalarShojiType(column, question);
-            WriteLoopScalarVariable(writer, exportKey, shojiType, preferredName, usedDisplayNames);
+            WriteLoopScalarVariable(writer, exportKey, shojiType, preferredName, question, usedDisplayNames);
         }
     }
 
@@ -501,12 +920,13 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
         HashSet<string> writtenVariables,
         HashSet<string> usedDisplayNames,
-        string keySeparator)
+        string keySeparator,
+        List<string> orderAliases)
     {
         foreach (var groupEntry in loopChoiceGroups.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             var exportKey = ExportKeyTransformer.Transform(groupEntry.Key, keySeparator);
-            if (!writtenVariables.Add(exportKey))
+            if (!TryTrackVariable(writtenVariables, orderAliases, exportKey))
             {
                 continue;
             }
@@ -517,7 +937,7 @@ internal static class ShojiCodebookGenerator
                 .Select(column => column.Key)
                 .OrderBy(key => key, StringComparer.Ordinal)
                 .ToList();
-            var preferredName = BuildLoopGroupDisplayName(exportKey, question, keySeparator);
+            var preferredName = BuildLoopGroupDisplayName(exportKey, question, questions, keySeparator);
 
             WriteMultipleResponseVariableForKeys(
                 writer,
@@ -534,6 +954,7 @@ internal static class ShojiCodebookGenerator
 
     private sealed record LoopExpandedColumnGroups(
         Dictionary<string, List<FormSchemaColumn>> ChoiceGroups,
+        Dictionary<string, List<FormSchemaColumn>> CategoricalGroups,
         List<FormSchemaColumn> ScalarColumns);
 
     private static IEnumerable<KeyValuePair<string, JsonElement>> OrderedQuestions(
@@ -614,9 +1035,10 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
         HashSet<string> writtenVariables,
         HashSet<string> usedDisplayNames,
-        string keySeparator)
+        string keySeparator,
+        List<string> orderAliases)
     {
-        if (!writtenVariables.Add(questionName))
+        if (!TryTrackVariable(writtenVariables, orderAliases, questionName))
         {
             return;
         }
@@ -627,7 +1049,7 @@ internal static class ShojiCodebookGenerator
             questionName,
             ExportKeyTransformer.Transform(questionName, keySeparator),
             question,
-            ReadQuestionTitle(question),
+            BuildPrefixedDisplayName(question),
             columnKeys ?? [],
             codebookColumns,
             usedDisplayNames,
@@ -650,8 +1072,27 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeMultipleResponse);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteUniqueName(writer, preferredName, alias, usedDisplayNames);
+        WriteQuestionDescription(writer, question);
         WriteMultipleResponseCategories(writer);
         WriteSubvariablesForKeys(writer, columnKeys, codebookColumns, FormSchemaCodebookPropertyNames.ChoiceLabel, keySeparator);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteCategoricalVariable(
+        Utf8JsonWriter writer,
+        string variableName,
+        string alias,
+        JsonElement question,
+        string preferredName,
+        HashSet<string> usedDisplayNames)
+    {
+        writer.WritePropertyName(variableName);
+        writer.WriteStartObject();
+        writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeCategorical);
+        writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
+        WriteUniqueName(writer, preferredName, alias, usedDisplayNames);
+        WriteQuestionDescription(writer, question);
+        WriteChoiceCategories(writer, question);
         writer.WriteEndObject();
     }
 
@@ -663,9 +1104,10 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
         HashSet<string> writtenVariables,
         HashSet<string> usedDisplayNames,
-        string keySeparator)
+        string keySeparator,
+        List<string> orderAliases)
     {
-        if (!writtenVariables.Add(questionName))
+        if (!TryTrackVariable(writtenVariables, orderAliases, questionName))
         {
             return;
         }
@@ -674,7 +1116,8 @@ internal static class ShojiCodebookGenerator
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeCategoricalArray);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, ExportKeyTransformer.Transform(questionName, keySeparator));
-        WriteUniqueName(writer, ReadQuestionTitle(question), questionName, usedDisplayNames);
+        WriteUniqueName(writer, BuildPrefixedDisplayName(question), questionName, usedDisplayNames);
+        WriteQuestionDescription(writer, question);
         WriteMatrixCategories(writer, question);
         WriteSubvariables(
             writer,
@@ -699,7 +1142,13 @@ internal static class ShojiCodebookGenerator
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Type, shojiType);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, ExportKeyTransformer.Transform(questionName, keySeparator));
-        WriteUniqueName(writer, ReadQuestionTitle(question), questionName, usedDisplayNames);
+        WriteUniqueName(writer, BuildPrefixedDisplayName(question), questionName, usedDisplayNames);
+        WriteQuestionDescription(writer, question);
+        if (shojiType == ShojiCodebookPropertyNames.VariableTypeDatetime)
+        {
+            writer.WriteString(ShojiCodebookPropertyNames.Resolution, ShojiCodebookPropertyNames.DatetimeResolutionSeconds);
+        }
+
         writer.WriteEndObject();
     }
 
@@ -708,6 +1157,7 @@ internal static class ShojiCodebookGenerator
         string exportKey,
         string shojiType,
         string preferredName,
+        JsonElement question,
         HashSet<string> usedDisplayNames)
     {
         writer.WritePropertyName(exportKey);
@@ -715,6 +1165,12 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Type, shojiType);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
         WriteUniqueName(writer, preferredName, exportKey, usedDisplayNames);
+        WriteQuestionDescription(writer, question);
+        if (shojiType == ShojiCodebookPropertyNames.VariableTypeDatetime)
+        {
+            writer.WriteString(ShojiCodebookPropertyNames.Resolution, ShojiCodebookPropertyNames.DatetimeResolutionSeconds);
+        }
+
         writer.WriteEndObject();
     }
 
@@ -735,7 +1191,7 @@ internal static class ShojiCodebookGenerator
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            name = ReadQuestionTitle(question);
+            name = BuildPrefixedDisplayName(question);
         }
 
         writer.WritePropertyName(variableName);
@@ -743,6 +1199,7 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeCategorical);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteUniqueName(writer, name, alias, usedDisplayNames);
+        WriteQuestionDescription(writer, question);
         WriteBooleanCategories(writer, question);
         writer.WriteEndObject();
     }
@@ -776,17 +1233,31 @@ internal static class ShojiCodebookGenerator
     private static string ResolveScalarShojiType(JsonElement question)
     {
         if (question.TryGetProperty(FormSchemaCodebookPropertyNames.SurveyJsType, out var surveyJsType) &&
-            surveyJsType.ValueKind == JsonValueKind.String &&
-            string.Equals(surveyJsType.GetString(), SurveyJsElementType.Rating.Name, StringComparison.OrdinalIgnoreCase))
+            surveyJsType.ValueKind == JsonValueKind.String)
         {
-            return ShojiCodebookPropertyNames.VariableTypeNumeric;
+            var typeName = surveyJsType.GetString();
+            if (SurveyJsElementType.Rating.Matches(typeName) ||
+                SurveyJsElementType.Slider.Matches(typeName))
+            {
+                return ShojiCodebookPropertyNames.VariableTypeNumeric;
+            }
         }
 
         if (question.TryGetProperty(SurveyJsPropertyNames.InputType, out var inputType) &&
-            inputType.ValueKind == JsonValueKind.String &&
-            string.Equals(inputType.GetString(), ShojiCodebookPropertyNames.InputTypeNumber, StringComparison.OrdinalIgnoreCase))
+            inputType.ValueKind == JsonValueKind.String)
         {
-            return ShojiCodebookPropertyNames.VariableTypeNumeric;
+            var inputTypeValue = inputType.GetString();
+            if (string.Equals(inputTypeValue, ShojiCodebookPropertyNames.InputTypeNumber, StringComparison.OrdinalIgnoreCase))
+            {
+                return ShojiCodebookPropertyNames.VariableTypeNumeric;
+            }
+
+            if (string.Equals(inputTypeValue, "date", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(inputTypeValue, "datetime", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(inputTypeValue, "datetime-local", StringComparison.OrdinalIgnoreCase))
+            {
+                return ShojiCodebookPropertyNames.VariableTypeDatetime;
+            }
         }
 
         return ShojiCodebookPropertyNames.VariableTypeText;
@@ -795,9 +1266,16 @@ internal static class ShojiCodebookGenerator
     private static string ResolveLoopScalarShojiType(FormSchemaColumn column, JsonElement question)
     {
         if (string.Equals(column.DataType, "number", StringComparison.OrdinalIgnoreCase) ||
-            (question.ValueKind == JsonValueKind.Object && SurveyJsElementType.Rating.Matches(question.GetSurveyJsType())))
+            (question.ValueKind == JsonValueKind.Object &&
+             (SurveyJsElementType.Rating.Matches(question.GetSurveyJsType()) ||
+              SurveyJsElementType.Slider.Matches(question.GetSurveyJsType()))))
         {
             return ShojiCodebookPropertyNames.VariableTypeNumeric;
+        }
+
+        if (question.ValueKind == JsonValueKind.Object && question.IsDateInputType())
+        {
+            return ShojiCodebookPropertyNames.VariableTypeDatetime;
         }
 
         return ShojiCodebookPropertyNames.VariableTypeText;
@@ -864,8 +1342,58 @@ internal static class ShojiCodebookGenerator
         writer.WriteEndArray();
     }
 
-    private static void WriteMultipleResponseCategories(Utf8JsonWriter writer) =>
-        WriteCategories(writer, _multipleResponseCategories);
+    private static void WriteMultipleResponseCategories(Utf8JsonWriter writer)
+    {
+        writer.WritePropertyName(ShojiCodebookPropertyNames.Categories);
+        writer.WriteStartArray();
+
+        writer.WriteStartObject();
+        writer.WriteString(ShojiCodebookPropertyNames.Name, ShojiCodebookPropertyNames.NotSelectedCategoryName);
+        writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, ShojiCodebookPropertyNames.NotSelectedCategoryId);
+        writer.WriteNull(ShojiCodebookPropertyNames.NumericValue);
+        writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, false);
+        writer.WriteBoolean(ShojiCodebookPropertyNames.Selected, false);
+        writer.WriteEndObject();
+
+        writer.WriteStartObject();
+        writer.WriteString(ShojiCodebookPropertyNames.Name, ShojiCodebookPropertyNames.SelectedCategoryName);
+        writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, ShojiCodebookPropertyNames.SelectedCategoryId);
+        writer.WriteNull(ShojiCodebookPropertyNames.NumericValue);
+        writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, false);
+        writer.WriteBoolean(ShojiCodebookPropertyNames.Selected, true);
+        writer.WriteEndObject();
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteChoiceCategories(Utf8JsonWriter writer, JsonElement question)
+    {
+        writer.WritePropertyName(ShojiCodebookPropertyNames.Categories);
+        writer.WriteStartArray();
+
+        if (question.ValueKind == JsonValueKind.Object &&
+            question.TryGetProperty(SurveyJsPropertyNames.Choices, out var choices) &&
+            choices.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var choice in choices.EnumerateArray())
+            {
+                if (!choice.TryGetProperty(FormSchemaCodebookPropertyNames.Id, out var idElement) ||
+                    idElement.ValueKind != JsonValueKind.Number)
+                {
+                    continue;
+                }
+
+                writer.WriteStartObject();
+                writer.WriteString(ShojiCodebookPropertyNames.Name, ReadDefaultLocalizedText(choice, ShojiCodebookPropertyNames.Text));
+                writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, idElement.GetInt32());
+                writer.WriteNumber(ShojiCodebookPropertyNames.NumericValue, idElement.GetInt32());
+                writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, false);
+                writer.WriteEndObject();
+            }
+        }
+
+        writer.WriteEndArray();
+    }
 
     private static void WriteCategories(
         Utf8JsonWriter writer,
@@ -974,6 +1502,7 @@ internal static class ShojiCodebookGenerator
         string exportKey,
         FormSchemaColumn column,
         JsonElement question,
+        IReadOnlyDictionary<string, JsonElement> questions,
         JsonElement columnMetadata,
         string keySeparator)
     {
@@ -983,54 +1512,135 @@ internal static class ShojiCodebookGenerator
             title = ReadQuestionTitle(question);
         }
 
-        title = SubstitutePanelItemText(title, exportKey, keySeparator);
+        var driverText = ResolveLoopDriverChoiceText(column, questions, keySeparator);
+        title = SubstitutePanelItemText(title, driverText);
 
         if (column.Kind is FormSchemaColumnKind.CheckboxOtherText)
         {
-            return title;
+            return PrefixPanelTitle(question, title);
         }
 
         if (title.Contains("{panel.itemText}", StringComparison.Ordinal))
         {
-            return SubstitutePanelItemText(title, exportKey, keySeparator);
+            return PrefixPanelTitle(question, SubstitutePanelItemText(title, driverText));
         }
 
-        if (TryGetLoopDriver(exportKey, keySeparator, out var driver) &&
-            !title.Contains(driver, StringComparison.Ordinal))
+        if (!string.IsNullOrWhiteSpace(driverText) &&
+            !title.Contains(driverText, StringComparison.Ordinal))
         {
-            return $"{title} -- {driver}";
+            return PrefixPanelTitle(question, $"{title} -- {driverText}");
         }
 
-        return string.IsNullOrWhiteSpace(title) ? exportKey : title;
+        return PrefixPanelTitle(question, string.IsNullOrWhiteSpace(title) ? exportKey : title);
     }
 
     private static string BuildLoopGroupDisplayName(
         string exportKey,
         JsonElement question,
+        IReadOnlyDictionary<string, JsonElement> questions,
         string keySeparator)
     {
-        var title = SubstitutePanelItemText(ReadQuestionTitle(question), exportKey, keySeparator);
-        if (TryGetLoopDriver(exportKey, keySeparator, out var driver) &&
-            !string.IsNullOrWhiteSpace(title) &&
-            !title.Contains(driver, StringComparison.Ordinal) &&
+        if (!TryGetLoopDriver(exportKey, keySeparator, out var driverValue))
+        {
+            return ClearPanelItemPlaceholder(ReadQuestionTitle(question));
+        }
+
+        var driverText = driverValue;
+        if (TryGetLoopDriverPanelName(exportKey, keySeparator, out var panelName) &&
+            questions.TryGetValue(panelName, out var panelQuestion) &&
+            TryFindChoiceTextInLoopSources(panelQuestion, questions, driverValue, out var resolved))
+        {
+            driverText = resolved;
+        }
+
+        var title = SubstitutePanelItemText(ReadQuestionTitle(question), driverText);
+        if (!string.IsNullOrWhiteSpace(title) &&
+            !title.Contains(driverText, StringComparison.Ordinal) &&
             !title.Contains("{panel.itemText}", StringComparison.Ordinal))
         {
-            return $"{title} -- {driver}";
+            return $"{title} -- {driverText}";
         }
 
         return string.IsNullOrWhiteSpace(title) ? exportKey : title;
     }
 
-    private static string SubstitutePanelItemText(string title, string exportKey, string keySeparator)
+    private static string SubstitutePanelItemText(string title, string driverText)
     {
         if (string.IsNullOrWhiteSpace(title) ||
-            !title.Contains("{panel.itemText}", StringComparison.Ordinal) ||
-            !TryGetLoopDriver(exportKey, keySeparator, out var driver))
+            !title.Contains("{panel.itemText}", StringComparison.Ordinal))
         {
             return title;
         }
 
-        return title.Replace("{panel.itemText}", driver, StringComparison.Ordinal);
+        return title.Replace("{panel.itemText}", driverText, StringComparison.Ordinal);
+    }
+
+    private static string ClearPanelItemPlaceholder(string title) =>
+        string.IsNullOrWhiteSpace(title)
+            ? title
+            : title.Replace("{panel.itemText}", string.Empty, StringComparison.Ordinal)
+                .Replace("  ", " ", StringComparison.Ordinal)
+                .Trim();
+
+    private static string BuildPrefixedDisplayName(JsonElement question) =>
+        PrefixPanelTitle(question, ReadQuestionTitle(question));
+
+    private static string PrefixPanelTitle(JsonElement question, string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            title = string.Empty;
+        }
+
+        var panelTitle = ReadParentPanelTitle(question);
+        if (string.IsNullOrWhiteSpace(panelTitle))
+        {
+            return title;
+        }
+
+        if (title.StartsWith($"{panelTitle} -- ", StringComparison.Ordinal))
+        {
+            return title;
+        }
+
+        return string.IsNullOrWhiteSpace(title)
+            ? panelTitle
+            : $"{panelTitle} -- {title}";
+    }
+
+    private static string ReadParentPanelTitle(JsonElement question) =>
+        question.ValueKind == JsonValueKind.Object &&
+        question.TryGetProperty(FormSchemaCodebookPropertyNames.ParentPanelTitle, out var panelTitle) &&
+        panelTitle.ValueKind == JsonValueKind.String
+            ? panelTitle.GetString() ?? string.Empty
+            : string.Empty;
+
+    private static void WriteQuestionDescription(Utf8JsonWriter writer, JsonElement question)
+    {
+        writer.WriteString(ShojiCodebookPropertyNames.Description, ReadQuestionDescription(question));
+    }
+
+    private static string ReadQuestionDescription(JsonElement question)
+    {
+        if (question.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        return ReadDefaultLocalizedText(question, SurveyJsPropertyNames.Description);
+    }
+
+    private static bool TryGetLoopDriverPanelName(string exportKey, string keySeparator, out string panelName)
+    {
+        panelName = string.Empty;
+        var parts = exportKey.Split(keySeparator, StringSplitOptions.None);
+        if (parts.Length < 3)
+        {
+            return false;
+        }
+
+        panelName = parts[0];
+        return !string.IsNullOrWhiteSpace(panelName);
     }
 
     private static bool TryGetLoopDriver(string exportKey, string keySeparator, out string driver)
@@ -1144,12 +1754,12 @@ internal static class ShojiCodebookGenerator
         public const string VariableTypeDatetime = "datetime";
 
         public const string InputTypeNumber = "number";
+        public const string Order = "order";
+        public const string Selected = "selected";
 
-        public const string SelectedCategoryName = "Selected";
-        public const string NotSelectedCategoryName = "Not selected";
+        public const string SelectedCategoryName = "selected";
+        public const string NotSelectedCategoryName = "not selected";
         public const int SelectedCategoryId = 1;
-        public const int SelectedCategoryNumericValue = 1;
         public const int NotSelectedCategoryId = 0;
-        public const int NotSelectedCategoryNumericValue = 0;
     }
 }
