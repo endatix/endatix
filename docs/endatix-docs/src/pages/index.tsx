@@ -159,7 +159,7 @@ export default function Home(): React.ReactNode {
   return (
     <Layout
       title="Endatix Documentation Portal"
-      description="Endatix makes it easy to launch your own form management platform, packed with features that rival popular SaaS tools such as Qualtrics, Typeform, Formstack, and others."
+      description="Technical and end-user guides for the Endatix API and Hub form management applications. Find tutorials, API references, and integration steps."
     >
       <HomepageHeader />
       <main>
