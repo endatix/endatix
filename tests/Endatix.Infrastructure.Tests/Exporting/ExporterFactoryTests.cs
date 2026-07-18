@@ -47,9 +47,9 @@ public sealed class ExporterFactoryTests
         var exporter = factory.GetExporter<SubmissionExportRow>("csv-shoji");
 
         // Assert
-        Assert.IsType<SubmissionShojiCsvExporter>(exporter);
-        Assert.Equal("csv-shoji", exporter.Format);
-        Assert.Equal("csv", exporter.FileExtension);
+        var shojiExporter = Assert.IsType<SubmissionShojiCsvExporter>(exporter);
+        Assert.Equal("csv-shoji", shojiExporter.Format);
+        Assert.Equal("csv", shojiExporter.FileExtension);
     }
 
     [Fact]
