@@ -102,13 +102,7 @@ internal static class ShojiCodebookGenerator
         List<string> order = [];
         HashSet<string> seen = new(StringComparer.Ordinal);
 
-        foreach (var alias in _systemColumnOrder)
-        {
-            if (written.Contains(alias) && seen.Add(alias))
-            {
-                order.Add(alias);
-            }
-        }
+        order.AddRange(_systemColumnOrder.Where(alias => written.Contains(alias) && seen.Add(alias)));
 
         foreach (var column in flatteningMap.Columns)
         {
@@ -126,13 +120,7 @@ internal static class ShojiCodebookGenerator
             order.Add(alias);
         }
 
-        foreach (var alias in writtenAliases)
-        {
-            if (seen.Add(alias))
-            {
-                order.Add(alias);
-            }
-        }
+        order.AddRange(writtenAliases.Where(seen.Add));
 
         return order;
     }
@@ -644,17 +632,18 @@ internal static class ShojiCodebookGenerator
         string keySeparator,
         List<string> orderAliases)
     {
-        foreach (var column in flatteningMap.Columns
+        foreach (var columnKey in flatteningMap.Columns
                      .Where(entry => entry.Kind is FormSchemaColumnKind.CheckboxOtherText && entry.LoopPath is null)
-                     .OrderBy(entry => entry.Key, StringComparer.Ordinal))
+                     .Select(column => column.Key)
+                     .OrderBy(key => key, StringComparer.Ordinal))
         {
-            var exportKey = ExportKeyTransformer.Transform(column.Key, keySeparator);
+            var exportKey = ExportKeyTransformer.Transform(columnKey, keySeparator);
             if (!TryTrackVariable(writtenVariables, orderAliases, exportKey))
             {
                 continue;
             }
 
-            codebookColumns.TryGetValue(column.Key, out var columnMetadata);
+            codebookColumns.TryGetValue(columnKey, out var columnMetadata);
             var preferredName = AppendOtherSuffix(ReadColumnTitle(columnMetadata, exportKey));
 
             writer.WritePropertyName(exportKey);
@@ -1688,7 +1677,7 @@ internal static class ShojiCodebookGenerator
         {
             return PrefixPanelTitle(question, title);
         }
-                                    
+
         if (!string.IsNullOrWhiteSpace(driverText) &&
             !title.Contains(driverText, StringComparison.Ordinal))
         {
