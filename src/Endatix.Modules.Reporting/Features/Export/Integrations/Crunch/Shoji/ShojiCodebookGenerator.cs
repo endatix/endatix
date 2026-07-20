@@ -719,57 +719,93 @@ internal static class ShojiCodebookGenerator
 
         foreach (var column in flatteningMap.Columns)
         {
-            if (column.LoopPath is null || column.LoopPath.Count == 0)
-            {
-                continue;
-            }
-
-            if (column.Kind is FormSchemaColumnKind.ChoiceIndicator)
-            {
-                var groupKey = ExportKeyTransformer.RemoveLastSegment(column.Key);
-                if (!loopChoiceGroups.TryGetValue(groupKey, out var members))
-                {
-                    members = [];
-                    loopChoiceGroups[groupKey] = members;
-                }
-
-                members.Add(column);
-                continue;
-            }
-
-            if (column.Kind is FormSchemaColumnKind.LoopSource &&
-                IsCategoricalQuestion(questions, column.SourceQuestion) &&
-                !string.IsNullOrWhiteSpace(column.SourceQuestion) &&
-                column.LoopPath.Count > 0)
-            {
-                var arrayKey = ExportPathBuilder.Join(
-                    column.LoopPath[0].PanelValueName,
-                    column.SourceQuestion);
-                if (!loopCategoricalGroups.TryGetValue(arrayKey, out var categoricalMembers))
-                {
-                    categoricalMembers = [];
-                    loopCategoricalGroups[arrayKey] = categoricalMembers;
-                }
-
-                categoricalMembers.Add(column);
-                continue;
-            }
-
-            if (column.Kind is FormSchemaColumnKind.LoopSource
-                or FormSchemaColumnKind.FileUpload
-                or FormSchemaColumnKind.RankingChoice
-                or FormSchemaColumnKind.MultipleTextItem
-                or FormSchemaColumnKind.MatrixCell
-                or FormSchemaColumnKind.CheckboxOtherText
-                or FormSchemaColumnKind.Simple
-                or FormSchemaColumnKind.Calculated)
-            {
-                loopScalarColumns.Add(column);
-            }
+            ClassifyLoopExpandedColumn(
+                column,
+                questions,
+                loopChoiceGroups,
+                loopCategoricalGroups,
+                loopScalarColumns);
         }
 
         return new LoopExpandedColumnGroups(loopChoiceGroups, loopCategoricalGroups, loopScalarColumns);
     }
+
+    private static void ClassifyLoopExpandedColumn(
+        FormSchemaColumn column,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        Dictionary<string, List<FormSchemaColumn>> loopChoiceGroups,
+        Dictionary<string, List<FormSchemaColumn>> loopCategoricalGroups,
+        List<FormSchemaColumn> loopScalarColumns)
+    {
+        if (column.LoopPath is null || column.LoopPath.Count == 0)
+        {
+            return;
+        }
+
+        if (column.Kind is FormSchemaColumnKind.ChoiceIndicator)
+        {
+            AddToLoopGroup(
+                loopChoiceGroups,
+                ExportKeyTransformer.RemoveLastSegment(column.Key),
+                column);
+            return;
+        }
+
+        if (TryClassifyLoopCategoricalColumn(column, questions, loopCategoricalGroups))
+        {
+            return;
+        }
+
+        if (IsLoopScalarColumnKind(column.Kind))
+        {
+            loopScalarColumns.Add(column);
+        }
+    }
+
+    private static bool TryClassifyLoopCategoricalColumn(
+        FormSchemaColumn column,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        Dictionary<string, List<FormSchemaColumn>> loopCategoricalGroups)
+    {
+        if (column.Kind is not FormSchemaColumnKind.LoopSource ||
+            string.IsNullOrWhiteSpace(column.SourceQuestion) ||
+            !IsCategoricalQuestion(questions, column.SourceQuestion) ||
+            column.LoopPath is null ||
+            column.LoopPath.Count == 0)
+        {
+            return false;
+        }
+
+        var arrayKey = ExportPathBuilder.Join(
+            column.LoopPath[0].PanelValueName,
+            column.SourceQuestion);
+        AddToLoopGroup(loopCategoricalGroups, arrayKey, column);
+        return true;
+    }
+
+    private static void AddToLoopGroup(
+        Dictionary<string, List<FormSchemaColumn>> groups,
+        string groupKey,
+        FormSchemaColumn column)
+    {
+        if (!groups.TryGetValue(groupKey, out var members))
+        {
+            members = [];
+            groups[groupKey] = members;
+        }
+
+        members.Add(column);
+    }
+
+    private static bool IsLoopScalarColumnKind(FormSchemaColumnKind kind) =>
+        kind is FormSchemaColumnKind.LoopSource
+            or FormSchemaColumnKind.FileUpload
+            or FormSchemaColumnKind.RankingChoice
+            or FormSchemaColumnKind.MultipleTextItem
+            or FormSchemaColumnKind.MatrixCell
+            or FormSchemaColumnKind.CheckboxOtherText
+            or FormSchemaColumnKind.Simple
+            or FormSchemaColumnKind.Calculated;
 
     private static void WriteLoopCategoricalArrayVariables(
         Utf8JsonWriter writer,
@@ -1652,12 +1688,7 @@ internal static class ShojiCodebookGenerator
         {
             return PrefixPanelTitle(question, title);
         }
-
-        if (title.Contains("{panel.itemText}", StringComparison.Ordinal))
-        {
-            return PrefixPanelTitle(question, SubstitutePanelItemText(title, driverText));
-        }
-
+                                    
         if (!string.IsNullOrWhiteSpace(driverText) &&
             !title.Contains(driverText, StringComparison.Ordinal))
         {
@@ -1688,8 +1719,7 @@ internal static class ShojiCodebookGenerator
 
         var title = SubstitutePanelItemText(ReadQuestionTitle(question), driverText);
         if (!string.IsNullOrWhiteSpace(title) &&
-            !title.Contains(driverText, StringComparison.Ordinal) &&
-            !title.Contains("{panel.itemText}", StringComparison.Ordinal))
+            !title.Contains(driverText, StringComparison.Ordinal))
         {
             return $"{title} -- {driverText}";
         }
@@ -1700,12 +1730,15 @@ internal static class ShojiCodebookGenerator
     private static string SubstitutePanelItemText(string title, string driverText)
     {
         if (string.IsNullOrWhiteSpace(title) ||
-            !title.Contains("{panel.itemText}", StringComparison.Ordinal))
+            !title.Contains(ShojiCodebookPropertyNames.PanelItemTextPlaceholder, StringComparison.Ordinal))
         {
             return title;
         }
 
-        return title.Replace("{panel.itemText}", driverText, StringComparison.Ordinal);
+        return title.Replace(
+            ShojiCodebookPropertyNames.PanelItemTextPlaceholder,
+            driverText,
+            StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -1802,15 +1835,15 @@ internal static class ShojiCodebookGenerator
     {
         if (string.IsNullOrWhiteSpace(title))
         {
-            return "Other";
+            return ShojiCodebookPropertyNames.OtherLabel;
         }
 
-        if (title.EndsWith(" -- Other", StringComparison.Ordinal))
+        if (title.EndsWith(ShojiCodebookPropertyNames.OtherNameSuffix, StringComparison.Ordinal))
         {
             return title;
         }
 
-        return $"{title} -- Other";
+        return $"{title}{ShojiCodebookPropertyNames.OtherNameSuffix}";
     }
 
     private static string ReadQuestionTitle(JsonElement question) =>
@@ -1891,6 +1924,9 @@ internal static class ShojiCodebookGenerator
         public const string Resolution = "resolution";
         public const string DatetimeResolutionSeconds = "s";
         public const string NeutralPanelItemLabel = "…";
+        public const string PanelItemTextPlaceholder = "{panel.itemText}";
+        public const string OtherLabel = "Other";
+        public const string OtherNameSuffix = " -- Other";
         public const string Subvariables = "subvariables";
         public const string Categories = "categories";
         public const string NumericValue = "numeric_value";
