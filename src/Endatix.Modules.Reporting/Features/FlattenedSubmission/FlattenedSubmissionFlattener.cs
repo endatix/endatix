@@ -225,11 +225,6 @@ internal static class FlattenedSubmissionFlattener
             return answer;
         }
 
-        if (answer.ValueKind == JsonValueKind.Number)
-        {
-            return answer;
-        }
-
         var selectedValue = answer.GetScalarStringValue();
         if (selectedValue is null)
         {
