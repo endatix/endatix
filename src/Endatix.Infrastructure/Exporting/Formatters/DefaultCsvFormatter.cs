@@ -131,10 +131,15 @@ public class DefaultCsvFormatter : IValueFormatter
     }
 
 
-    private string FormatBoolean(bool boolean) =>
-        _encodeBooleansAsCategoryIds
-            ? boolean ? "1" : "0"
-            : boolean.ToString().ToLowerInvariant();
+    private string FormatBoolean(bool boolean)
+    {
+        if (_encodeBooleansAsCategoryIds)
+        {
+            return boolean ? "1" : "0";
+        }
+
+        return boolean.ToString().ToLowerInvariant();
+    }
 
     private static string FormatDateTime(DateTime dateTime) => dateTime.ToString(DATE_TIME_FORMAT);
 }
