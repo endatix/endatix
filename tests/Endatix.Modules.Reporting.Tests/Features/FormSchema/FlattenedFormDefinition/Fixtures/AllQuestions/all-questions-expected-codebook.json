@@ -1772,7 +1772,8 @@
       "columnLabel": {
         "default": "Years Worked",
         "es": "A\u00F1os trabajados"
-      }
+      },
+      "inputType": "number"
     },
     "qMatrixDynamic__1__company": {
       "parentKey": "qMatrixDynamic",
@@ -1800,7 +1801,8 @@
       "columnLabel": {
         "default": "Years Worked",
         "es": "A\u00F1os trabajados"
-      }
+      },
+      "inputType": "number"
     },
     "qMatrix__quality": {
       "parentKey": "qMatrix",

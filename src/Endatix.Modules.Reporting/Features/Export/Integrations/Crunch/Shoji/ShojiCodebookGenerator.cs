@@ -542,7 +542,7 @@ internal static class ShojiCodebookGenerator
             questions.TryGetValue(column.SourceQuestion ?? string.Empty, out var question);
             codebookColumns.TryGetValue(column.Key, out var columnMetadata);
             var preferredName = BuildLeafDisplayName(exportKey, column, question, columnMetadata, keySeparator);
-            var shojiType = ResolveGapLeafShojiType(column, question);
+            var shojiType = ResolveGapLeafShojiType(column, question, columnMetadata);
 
             writer.WritePropertyName(exportKey);
             writer.WriteStartObject();
@@ -550,6 +550,13 @@ internal static class ShojiCodebookGenerator
             writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
             WriteUniqueName(writer, preferredName, exportKey, usedDisplayNames);
             WriteQuestionDescription(writer, question);
+            if (shojiType == ShojiCodebookPropertyNames.VariableTypeDatetime)
+            {
+                writer.WriteString(
+                    ShojiCodebookPropertyNames.Resolution,
+                    ShojiCodebookPropertyNames.DatetimeResolutionSeconds);
+            }
+
             writer.WriteEndObject();
         }
     }
@@ -908,7 +915,7 @@ internal static class ShojiCodebookGenerator
                 continue;
             }
 
-            var shojiType = ResolveLoopScalarShojiType(column, question);
+            var shojiType = ResolveLoopScalarShojiType(column, question, columnMetadata);
             WriteLoopScalarVariable(writer, exportKey, shojiType, preferredName, question, usedDisplayNames);
         }
     }
@@ -1263,7 +1270,10 @@ internal static class ShojiCodebookGenerator
         return ShojiCodebookPropertyNames.VariableTypeText;
     }
 
-    private static string ResolveLoopScalarShojiType(FormSchemaColumn column, JsonElement question)
+    private static string ResolveLoopScalarShojiType(
+        FormSchemaColumn column,
+        JsonElement question,
+        JsonElement columnMetadata)
     {
         if (string.Equals(column.DataType, "number", StringComparison.OrdinalIgnoreCase) ||
             (question.ValueKind == JsonValueKind.Object &&
@@ -1273,7 +1283,8 @@ internal static class ShojiCodebookGenerator
             return ShojiCodebookPropertyNames.VariableTypeNumeric;
         }
 
-        if (question.ValueKind == JsonValueKind.Object && question.IsDateInputType())
+        if (IsDateValuedGapLeaf(column, columnMetadata) ||
+            (question.ValueKind == JsonValueKind.Object && question.IsDateInputType()))
         {
             return ShojiCodebookPropertyNames.VariableTypeDatetime;
         }
@@ -1281,11 +1292,19 @@ internal static class ShojiCodebookGenerator
         return ShojiCodebookPropertyNames.VariableTypeText;
     }
 
-    private static string ResolveGapLeafShojiType(FormSchemaColumn column, JsonElement question)
+    private static string ResolveGapLeafShojiType(
+        FormSchemaColumn column,
+        JsonElement question,
+        JsonElement columnMetadata)
     {
         if (column.Kind is FormSchemaColumnKind.RankingChoice)
         {
             return ShojiCodebookPropertyNames.VariableTypeNumeric;
+        }
+
+        if (IsDateValuedGapLeaf(column, columnMetadata))
+        {
+            return ShojiCodebookPropertyNames.VariableTypeDatetime;
         }
 
         if (string.Equals(column.DataType, "number", StringComparison.OrdinalIgnoreCase) ||
@@ -1297,6 +1316,11 @@ internal static class ShojiCodebookGenerator
 
         return ShojiCodebookPropertyNames.VariableTypeText;
     }
+
+    private static bool IsDateValuedGapLeaf(FormSchemaColumn column, JsonElement columnMetadata) =>
+        column.Kind is FormSchemaColumnKind.MultipleTextItem or FormSchemaColumnKind.MatrixCell &&
+        columnMetadata.ValueKind == JsonValueKind.Object &&
+        columnMetadata.IsDateInputType();
 
     private static void WriteSubvariables(
         Utf8JsonWriter writer,

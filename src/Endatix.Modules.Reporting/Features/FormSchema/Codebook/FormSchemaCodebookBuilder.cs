@@ -193,10 +193,38 @@ internal static class FormSchemaCodebookBuilder
                 WriteColumnChoiceMetadata(writer, column, hasQuestion, questionElement);
                 WriteColumnMatrixMetadata(writer, column, hasQuestion, questionElement);
                 WriteColumnLoopPathMetadata(writer, column);
+                WriteColumnLeafInputType(writer, column, hasQuestion, questionElement);
             });
         }
 
         return columns;
+    }
+
+    private static void WriteColumnLeafInputType(
+        Utf8JsonWriter writer,
+        FormSchemaColumn column,
+        bool hasQuestion,
+        JsonElement questionElement)
+    {
+        if (!hasQuestion ||
+            column.Kind is not (FormSchemaColumnKind.MultipleTextItem or FormSchemaColumnKind.MatrixCell))
+        {
+            return;
+        }
+
+        JsonElement leafElement = default;
+        if (column.Kind is FormSchemaColumnKind.MultipleTextItem &&
+            !string.IsNullOrWhiteSpace(column.MatrixRowValue))
+        {
+            leafElement = FindMultipleTextItemElement(questionElement, column.MatrixRowValue);
+        }
+        else if (column.Kind is FormSchemaColumnKind.MatrixCell &&
+                 !string.IsNullOrWhiteSpace(column.MatrixColumnValue))
+        {
+            leafElement = FindMatrixColumnElement(questionElement, column.MatrixColumnValue);
+        }
+
+        WriteInputType(writer, leafElement);
     }
 
     private static void WriteColumnChoiceMetadata(
