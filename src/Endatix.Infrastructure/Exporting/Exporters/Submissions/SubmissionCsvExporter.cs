@@ -38,6 +38,7 @@ public class SubmissionCsvExporter(
 
             SubmissionExportRow? firstRow = null;
             var headerWritten = false;
+            var formatter = ResolveFormatter(options);
 
             await foreach ((var row, var doc, var columns) in GetStreamContextAsync(records, options, cancellationToken))
             {
@@ -56,7 +57,6 @@ public class SubmissionCsvExporter(
                     }
 
                     var context = new TransformationContext<SubmissionExportRow>(row, doc, _logger);
-                    var formatter = ResolveFormatter(options);
                     foreach (var col in columns)
                     {
                         try
