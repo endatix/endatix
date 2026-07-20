@@ -18,4 +18,16 @@ public class ExportRequest
     /// Optional codebook label locale for this export run. Overrides format settings.
     /// </summary>
     public string? Locale { get; set; }
+
+    public DateTime? CreatedAfter { get; set; }
+
+    public DateTime? CreatedBefore { get; set; }
+
+    public DateTime? CompletedAfter { get; set; }
+
+    public DateTime? CompletedBefore { get; set; }
+
+    public long? MinSubmissionId { get; set; }
+
+    public long? MaxSubmissionId { get; set; }
 }

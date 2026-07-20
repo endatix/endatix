@@ -267,12 +267,35 @@ public partial class Export : Endpoint<ExportRequest>
                 $"Export format with ID {exportFormat.Id} has an invalid item type."));
         }
 
+        var disallowedFilters = ExportRequestFilterGuard.GetDisallowedWireNames(
+            capability.AllowedFilters,
+            request.IncludeTestSubmissions,
+            request.CreatedAfter,
+            request.CreatedBefore,
+            request.CompletedAfter,
+            request.CompletedBefore,
+            request.MinSubmissionId,
+            request.MaxSubmissionId,
+            request.Locale,
+            NormalizeColumnScope(request.ColumnScope));
+        if (disallowedFilters.Count > 0)
+        {
+            return Result.Invalid(new ValidationError(
+                $"Filter(s) not supported for export capability '{capability.WireKey}': {string.Join(", ", disallowedFilters)}."));
+        }
+
         SubmissionExportExecutionSettings executionSettings = new(
             ExportFormatId: exportFormat.Id,
             SettingsJson: exportFormat.SettingsJson,
             IncludeTestSubmissions: request.IncludeTestSubmissions,
             ColumnScope: NormalizeColumnScope(request.ColumnScope),
-            Locale: NormalizeLocale(request.Locale));
+            Locale: NormalizeLocale(request.Locale),
+            CreatedAfter: request.CreatedAfter,
+            CreatedBefore: request.CreatedBefore,
+            CompletedAfter: request.CompletedAfter,
+            CompletedBefore: request.CompletedBefore,
+            MinSubmissionId: request.MinSubmissionId,
+            MaxSubmissionId: request.MaxSubmissionId);
 
         return Result.Success(new ValidatedExportOperation(
             exportFormat.WireKey,
@@ -286,6 +309,23 @@ public partial class Export : Endpoint<ExportRequest>
         ExportRequest request,
         CancellationToken cancellationToken)
     {
+        var disallowedOnLegacy = ExportRequestFilterGuard.GetDisallowedWireNames(
+            ExportRequestFilterKind.None,
+            request.IncludeTestSubmissions,
+            request.CreatedAfter,
+            request.CreatedBefore,
+            request.CompletedAfter,
+            request.CompletedBefore,
+            request.MinSubmissionId,
+            request.MaxSubmissionId,
+            request.Locale,
+            NormalizeColumnScope(request.ColumnScope));
+        if (disallowedOnLegacy.Count > 0)
+        {
+            return Result.Invalid(new ValidationError(
+                $"Filter(s) are not supported on legacy ExportId exports: {string.Join(", ", disallowedOnLegacy)}. Use ExportFormatId."));
+        }
+
         var exportId = request.ExportId!.Value;
         var spec = new TenantSettingsByTenantIdSpec(_tenantContext.TenantId);
         var tenantSettings = await _tenantSettingsRepository.FirstOrDefaultAsync(spec, cancellationToken);
