@@ -27,16 +27,14 @@ internal sealed class ReportingExportRepository(
         CancellationToken cancellationToken)
     {
         var probeOptions = options with { PageSize = 1, AfterSubmissionId = null };
-        await foreach (var _ in StreamFlattenedSubmissionsAsync(
-                           tenantId,
-                           formId,
-                           probeOptions,
-                           cancellationToken))
-        {
-            return true;
-        }
+        await using var enumerator =
+            StreamFlattenedSubmissionsAsync(
+                tenantId,
+                formId,
+                probeOptions,
+                cancellationToken).GetAsyncEnumerator(cancellationToken);
 
-        return false;
+        return await enumerator.MoveNextAsync();
     }
 
     public async IAsyncEnumerable<FlattenedExportRow> StreamFlattenedSubmissionsAsync(
