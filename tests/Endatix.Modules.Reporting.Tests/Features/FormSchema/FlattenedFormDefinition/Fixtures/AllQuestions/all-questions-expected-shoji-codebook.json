@@ -308,13 +308,13 @@
         "qRangeSlider--min": {
           "type": "numeric",
           "alias": "qRangeSlider--min",
-          "name": "Select your sweet spot for protein intake? \u2014 Min",
+          "name": "Select your sweet spot for protein intake? — Min",
           "description": "Provide data in grams min/max"
         },
         "qRangeSlider--max": {
           "type": "numeric",
           "alias": "qRangeSlider--max",
-          "name": "Select your sweet spot for protein intake? \u2014 Max",
+          "name": "Select your sweet spot for protein intake? — Max",
           "description": "Provide data in grams min/max"
         },
         "qRating": {
@@ -447,8 +447,8 @@
         "qLoop--qLoopColor": {
           "type": "categorical_array",
           "alias": "qLoop--qLoopColor",
-          "name": "What color was the ?",
-          "description": "Select which color was the",
+          "name": "What color was the …?",
+          "description": "Select which color was the …",
           "categories": [
             {
               "name": "Red",
@@ -572,7 +572,7 @@
           "type": "text",
           "alias": "qLoop--1--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the Song for me? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the Song for me"
         },
         "qLoop--1--qLoopRating": {
           "type": "numeric",
@@ -604,7 +604,7 @@
           "type": "text",
           "alias": "qLoop--2--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the Song for you? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the Song for you"
         },
         "qLoop--2--qLoopRating": {
           "type": "numeric",
@@ -636,7 +636,7 @@
           "type": "text",
           "alias": "qLoop--3--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the We will rock you? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the We will rock you"
         },
         "qLoop--3--qLoopRating": {
           "type": "numeric",
@@ -668,7 +668,7 @@
           "type": "text",
           "alias": "qLoop--4--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the No time for this? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the No time for this"
         },
         "qLoop--4--qLoopRating": {
           "type": "numeric",
@@ -700,7 +700,7 @@
           "type": "text",
           "alias": "qLoop--5--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the I have waited? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the I have waited"
         },
         "qLoop--5--qLoopRating": {
           "type": "numeric",
@@ -732,7 +732,7 @@
           "type": "text",
           "alias": "qLoop--adidas--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the Adidas? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the Adidas"
         },
         "qLoop--adidas--qLoopRating": {
           "type": "numeric",
@@ -764,7 +764,7 @@
           "type": "text",
           "alias": "qLoop--axe--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the Axe? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the Axe"
         },
         "qLoop--axe--qLoopRating": {
           "type": "numeric",
@@ -796,7 +796,7 @@
           "type": "text",
           "alias": "qLoop--hammer--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the Hammer? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the Hammer"
         },
         "qLoop--hammer--qLoopRating": {
           "type": "numeric",
@@ -828,7 +828,7 @@
           "type": "text",
           "alias": "qLoop--nike--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the Nike? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the Nike"
         },
         "qLoop--nike--qLoopRating": {
           "type": "numeric",
@@ -860,7 +860,7 @@
           "type": "text",
           "alias": "qLoop--other--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the Other (pick)? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the Other (pick)"
         },
         "qLoop--other--qLoopRating": {
           "type": "numeric",
@@ -892,7 +892,7 @@
           "type": "text",
           "alias": "qLoop--puma--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the Puma? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the Puma"
         },
         "qLoop--puma--qLoopRating": {
           "type": "numeric",
@@ -924,7 +924,7 @@
           "type": "text",
           "alias": "qLoop--reebok--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the Reebok? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the Reebok"
         },
         "qLoop--reebok--qLoopRating": {
           "type": "numeric",
@@ -956,7 +956,7 @@
           "type": "text",
           "alias": "qLoop--sword--qLoopColor--other_text",
           "name": "Loop Question (Based on Brands) -- What color was the Sword? -- Other",
-          "description": "Select which color was the {panel.itemText}"
+          "description": "Select which color was the Sword"
         },
         "qLoop--sword--qLoopRating": {
           "type": "numeric",

@@ -738,12 +738,12 @@ internal static class ShojiCodebookGenerator
             writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
             WriteUniqueName(
                 writer,
-                ClearPanelItemPlaceholder(ReadQuestionTitle(question)),
+                FormatAggregatePanelItemText(ReadQuestionTitle(question)),
                 exportKey,
                 usedDisplayNames);
             writer.WriteString(
                 ShojiCodebookPropertyNames.Description,
-                ClearPanelItemPlaceholder(ReadQuestionDescription(question)));
+                FormatAggregatePanelItemText(ReadQuestionDescription(question)));
             WriteChoiceCategories(writer, question);
             WriteLoopCategoricalSubvariables(writer, members, questions, keySeparator);
             writer.WriteEndObject();
@@ -891,13 +891,15 @@ internal static class ShojiCodebookGenerator
 
             if (column.Kind is FormSchemaColumnKind.CheckboxOtherText)
             {
+                var driverText = ResolveLoopDriverChoiceText(column, questions, keySeparator);
                 WriteLoopScalarVariable(
                     writer,
                     exportKey,
                     ShojiCodebookPropertyNames.VariableTypeText,
                     AppendOtherSuffix(preferredName),
                     question,
-                    usedDisplayNames);
+                    usedDisplayNames,
+                    driverText);
                 continue;
             }
 
@@ -911,12 +913,20 @@ internal static class ShojiCodebookGenerator
                     question,
                     preferredName,
                     usedDisplayNames,
-                    columnMetadata);
+                    columnMetadata,
+                    ResolveLoopDriverChoiceText(column, questions, keySeparator));
                 continue;
             }
 
             var shojiType = ResolveLoopScalarShojiType(column, question, columnMetadata);
-            WriteLoopScalarVariable(writer, exportKey, shojiType, preferredName, question, usedDisplayNames);
+            WriteLoopScalarVariable(
+                writer,
+                exportKey,
+                shojiType,
+                preferredName,
+                question,
+                usedDisplayNames,
+                ResolveLoopDriverChoiceText(column, questions, keySeparator));
         }
     }
 
@@ -945,6 +955,7 @@ internal static class ShojiCodebookGenerator
                 .OrderBy(key => key, StringComparer.Ordinal)
                 .ToList();
             var preferredName = BuildLoopGroupDisplayName(exportKey, question, questions, keySeparator);
+            var driverText = ResolveLoopDriverChoiceText(groupEntry.Value[0], questions, keySeparator);
 
             WriteMultipleResponseVariableForKeys(
                 writer,
@@ -955,7 +966,8 @@ internal static class ShojiCodebookGenerator
                 columnKeys,
                 codebookColumns,
                 usedDisplayNames,
-                keySeparator);
+                keySeparator,
+                driverText);
         }
     }
 
@@ -1072,14 +1084,15 @@ internal static class ShojiCodebookGenerator
         IReadOnlyList<string> columnKeys,
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
         HashSet<string> usedDisplayNames,
-        string keySeparator)
+        string keySeparator,
+        string? panelItemText = null)
     {
         writer.WritePropertyName(variableName);
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeMultipleResponse);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteUniqueName(writer, preferredName, alias, usedDisplayNames);
-        WriteQuestionDescription(writer, question);
+        WriteQuestionDescription(writer, question, panelItemText);
         WriteMultipleResponseCategories(writer);
         WriteSubvariablesForKeys(writer, columnKeys, codebookColumns, FormSchemaCodebookPropertyNames.ChoiceLabel, keySeparator);
         writer.WriteEndObject();
@@ -1165,14 +1178,15 @@ internal static class ShojiCodebookGenerator
         string shojiType,
         string preferredName,
         JsonElement question,
-        HashSet<string> usedDisplayNames)
+        HashSet<string> usedDisplayNames,
+        string panelItemText)
     {
         writer.WritePropertyName(exportKey);
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Type, shojiType);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
         WriteUniqueName(writer, preferredName, exportKey, usedDisplayNames);
-        WriteQuestionDescription(writer, question);
+        WriteQuestionDescription(writer, question, panelItemText);
         if (shojiType == ShojiCodebookPropertyNames.VariableTypeDatetime)
         {
             writer.WriteString(ShojiCodebookPropertyNames.Resolution, ShojiCodebookPropertyNames.DatetimeResolutionSeconds);
@@ -1188,7 +1202,8 @@ internal static class ShojiCodebookGenerator
         JsonElement question,
         string preferredName,
         HashSet<string> usedDisplayNames,
-        JsonElement columnMetadata = default)
+        JsonElement columnMetadata = default,
+        string? panelItemText = null)
     {
         var name = preferredName;
         if (string.IsNullOrWhiteSpace(name))
@@ -1206,7 +1221,7 @@ internal static class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeCategorical);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteUniqueName(writer, name, alias, usedDisplayNames);
-        WriteQuestionDescription(writer, question);
+        WriteQuestionDescription(writer, question, panelItemText);
         WriteBooleanCategories(writer, question);
         writer.WriteEndObject();
     }
@@ -1566,7 +1581,7 @@ internal static class ShojiCodebookGenerator
     {
         if (!TryGetLoopDriver(exportKey, keySeparator, out var driverValue))
         {
-            return ClearPanelItemPlaceholder(ReadQuestionTitle(question));
+            return FormatAggregatePanelItemText(ReadQuestionTitle(question));
         }
 
         var driverText = driverValue;
@@ -1599,12 +1614,12 @@ internal static class ShojiCodebookGenerator
         return title.Replace("{panel.itemText}", driverText, StringComparison.Ordinal);
     }
 
-    private static string ClearPanelItemPlaceholder(string title) =>
-        string.IsNullOrWhiteSpace(title)
-            ? title
-            : title.Replace("{panel.itemText}", string.Empty, StringComparison.Ordinal)
-                .Replace("  ", " ", StringComparison.Ordinal)
-                .Trim();
+    /// <summary>
+    /// Aggregate (cross-iteration) labels cannot resolve a single driver choice.
+    /// Replace the placeholder with a neutral token instead of stripping it into broken grammar.
+    /// </summary>
+    private static string FormatAggregatePanelItemText(string title) =>
+        SubstitutePanelItemText(title, ShojiCodebookPropertyNames.NeutralPanelItemLabel);
 
     private static string BuildPrefixedDisplayName(JsonElement question) =>
         PrefixPanelTitle(question, ReadQuestionTitle(question));
@@ -1639,9 +1654,18 @@ internal static class ShojiCodebookGenerator
             ? panelTitle.GetString() ?? string.Empty
             : string.Empty;
 
-    private static void WriteQuestionDescription(Utf8JsonWriter writer, JsonElement question)
+    private static void WriteQuestionDescription(
+        Utf8JsonWriter writer,
+        JsonElement question,
+        string? panelItemText = null)
     {
-        writer.WriteString(ShojiCodebookPropertyNames.Description, ReadQuestionDescription(question));
+        var description = ReadQuestionDescription(question);
+        if (panelItemText is not null)
+        {
+            description = SubstitutePanelItemText(description, panelItemText);
+        }
+
+        writer.WriteString(ShojiCodebookPropertyNames.Description, description);
     }
 
     private static string ReadQuestionDescription(JsonElement question)
@@ -1764,6 +1788,7 @@ internal static class ShojiCodebookGenerator
         public const string Description = "description";
         public const string Resolution = "resolution";
         public const string DatetimeResolutionSeconds = "s";
+        public const string NeutralPanelItemLabel = "…";
         public const string Subvariables = "subvariables";
         public const string Categories = "categories";
         public const string NumericValue = "numeric_value";
