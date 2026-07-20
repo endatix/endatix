@@ -10,7 +10,7 @@ namespace Endatix.Infrastructure.Tests.Exporting;
 
 public sealed class ExporterFactoryTests
 {
-    private readonly ILogger<SubmissionCsvExporter> _csvLogger;
+    private readonly ILogger<SubmissionShojiCsvExporter> _csvLogger;
     private readonly ILogger<SubmissionJsonExporter> _jsonLogger;
     private readonly ILogger<CodebookJsonExporter> _codebookLogger;
     private readonly IEnumerable<IValueTransformer> _globalTransformers;
@@ -21,7 +21,7 @@ public sealed class ExporterFactoryTests
 
     public ExporterFactoryTests()
     {
-        _csvLogger = Substitute.For<ILogger<SubmissionCsvExporter>>();
+        _csvLogger = Substitute.For<ILogger<SubmissionShojiCsvExporter>>();
         _jsonLogger = Substitute.For<ILogger<SubmissionJsonExporter>>();
         _codebookLogger = Substitute.For<ILogger<CodebookJsonExporter>>();
         var transformer = Substitute.For<IValueTransformer>();
