@@ -29,7 +29,8 @@ public sealed class List(IExportCapabilityRegistry capabilityRegistry)
                 capability.WireKey,
                 capability.Label,
                 capability.ItemTypeName,
-                capability.Description))
+                capability.Description,
+                ExportRequestFilterWireNames.ToWireNames(capability.AllowedFilters)))
             .ToList();
 
         return Send.OkAsync(capabilities, ct);

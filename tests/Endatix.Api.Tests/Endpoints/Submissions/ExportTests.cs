@@ -70,7 +70,8 @@ public class ExportTests
             "csv",
             "CSV",
             typeof(SubmissionExportRow).FullName!,
-            "Tabular CSV export with one row per submission.");
+            "Tabular CSV export with one row per submission.",
+            ExportRequestFilterSets.Submissions);
         ExportCapability json = new(
             ExportTarget.Submissions,
             ExportDeliveryFormat.Json,
@@ -78,26 +79,60 @@ public class ExportTests
             "json",
             "JSON",
             typeof(SubmissionExportRow).FullName!,
-            "Tabular JSON export with one object per submission.");
+            "Tabular JSON export with one object per submission.",
+            ExportRequestFilterSets.Submissions);
+        ExportCapability codebook = new(
+            ExportTarget.Codebook,
+            ExportDeliveryFormat.Json,
+            ExportProfile.Native,
+            "codebook",
+            "Codebook",
+            typeof(DynamicExportRow).FullName!,
+            "Native codebook export.",
+            ExportRequestFilterSets.NativeCodebook);
+        ExportCapability codebookShoji = new(
+            ExportTarget.Codebook,
+            ExportDeliveryFormat.Json,
+            ExportProfile.Shoji,
+            "codebook-shoji",
+            "Codebook (Shoji)",
+            typeof(DynamicExportRow).FullName!,
+            "Shoji codebook export.",
+            ExportRequestFilterSets.ShojiCodebook);
 
-        registry.TryGetByWireKey("csv", out Arg.Any<ExportCapability>())
-            .Returns(callInfo =>
-            {
-                callInfo[1] = csv;
-                return true;
-            });
-        registry.TryGetByWireKey("json", out Arg.Any<ExportCapability>())
-            .Returns(callInfo =>
-            {
-                callInfo[1] = json;
-                return true;
-            });
+        RegisterCapability(registry, "csv", csv);
+        RegisterCapability(registry, "json", json);
+        RegisterCapability(registry, "codebook", codebook);
+        RegisterCapability(registry, "codebook-shoji", codebookShoji);
 
         return registry;
     }
 
+    private static void RegisterCapability(
+        IExportCapabilityRegistry registry,
+        string wireKey,
+        ExportCapability capability)
+    {
+        registry.TryGetByWireKey(wireKey, out Arg.Any<ExportCapability>())
+            .Returns(callInfo =>
+            {
+                callInfo[1] = capability;
+                return true;
+            });
+    }
+
     private static ExportFormatRecord CreateCsvExportFormatRecord(long id, string? settingsJson = null) =>
         new(id, "CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native, "csv", settingsJson);
+
+    private static ExportFormatRecord CreateCodebookExportFormatRecord(long id, string wireKey = "codebook") =>
+        new(
+            id,
+            wireKey == "codebook-shoji" ? "Codebook (Shoji)" : "Codebook",
+            ExportTarget.Codebook,
+            ExportDeliveryFormat.Json,
+            wireKey == "codebook-shoji" ? ExportProfile.Shoji : ExportProfile.Native,
+            wireKey,
+            null);
 
     [Fact]
     public async Task HandleAsync_FormNotFound_ReturnsBadRequest()
@@ -720,6 +755,202 @@ public class ExportTests
                 o.Metadata.ContainsKey("FormId") &&
                 o.Metadata["FormId"].Equals(formId)),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithExportFormatId_ForwardsRequestTimeFilters()
+    {
+        var formId = 1L;
+        var exportFormatId = 200L;
+        var tenantId = SampleData.TENANT_ID;
+        DateTime createdAfter = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime createdBefore = new(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc);
+        DateTime completedAfter = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+        DateTime completedBefore = new(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc);
+        var request = new ExportRequest
+        {
+            FormId = formId,
+            ExportFormatId = exportFormatId,
+            IncludeTestSubmissions = false,
+            Locale = "es",
+            CreatedAfter = createdAfter,
+            CreatedBefore = createdBefore,
+            CompletedAfter = completedAfter,
+            CompletedBefore = completedBefore,
+            MinSubmissionId = 10,
+            MaxSubmissionId = 99,
+            ColumnScope = ["q1"],
+        };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
+        var fileExport = new FileExport("text/csv", "submissions-1.csv");
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+        _exportFormatRepository.GetByIdAsync(tenantId, exportFormatId, Arg.Any<CancellationToken>())
+            .Returns(CreateCsvExportFormatRecord(exportFormatId));
+        _exporterFactory.GetExporter("csv", typeof(SubmissionExportRow)).Returns(exporter);
+        exporter.GetHeadersAsync(Arg.Any<ExportOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+        _mediator.Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+
+        await _reportingEndpoint.HandleAsync(request, CancellationToken.None);
+
+        _reportingEndpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        await _mediator.Received(1).Send(
+            Arg.Is<SubmissionsExportQuery>(q =>
+                ((SubmissionExportExecutionSettings)q.Options.Metadata![SubmissionExportMetadataKeys.ExecutionSettings]).Locale == "es" &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CreatedAfter == createdAfter &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CreatedBefore == createdBefore &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CompletedAfter == completedAfter &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CompletedBefore == completedBefore &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).MinSubmissionId == 10 &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).MaxSubmissionId == 99 &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).IncludeTestSubmissions == false),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithNativeCodebook_RejectsRequestFilters()
+    {
+        var formId = 1L;
+        var exportFormatId = 300L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest
+        {
+            FormId = formId,
+            ExportFormatId = exportFormatId,
+            IncludeTestSubmissions = true,
+            Locale = "es",
+        };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+        _exportFormatRepository.GetByIdAsync(tenantId, exportFormatId, Arg.Any<CancellationToken>())
+            .Returns(CreateCodebookExportFormatRecord(exportFormatId));
+
+        await _reportingEndpoint.HandleAsync(request, CancellationToken.None);
+
+        _reportingEndpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        await _mediator.DidNotReceive().Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithShojiCodebook_AcceptsLocaleAndRejectsRowFilters()
+    {
+        var formId = 1L;
+        var exportFormatId = 301L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest
+        {
+            FormId = formId,
+            ExportFormatId = exportFormatId,
+            Locale = "es",
+            CreatedAfter = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+        _exportFormatRepository.GetByIdAsync(tenantId, exportFormatId, Arg.Any<CancellationToken>())
+            .Returns(CreateCodebookExportFormatRecord(exportFormatId, "codebook-shoji"));
+
+        await _reportingEndpoint.HandleAsync(request, CancellationToken.None);
+
+        _reportingEndpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        await _mediator.DidNotReceive().Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithShojiCodebook_ForwardsLocale()
+    {
+        var formId = 1L;
+        var exportFormatId = 302L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest
+        {
+            FormId = formId,
+            ExportFormatId = exportFormatId,
+            Locale = "es",
+        };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var exporter = CreateMockExporter("codebook-shoji", typeof(DynamicExportRow));
+        var fileExport = new FileExport("application/json", "codebook-1.json");
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+        _exportFormatRepository.GetByIdAsync(tenantId, exportFormatId, Arg.Any<CancellationToken>())
+            .Returns(CreateCodebookExportFormatRecord(exportFormatId, "codebook-shoji"));
+        _exporterFactory.GetExporter("codebook-shoji", typeof(DynamicExportRow)).Returns(exporter);
+        exporter.GetHeadersAsync(Arg.Any<ExportOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+        _mediator.Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+
+        await _reportingEndpoint.HandleAsync(request, CancellationToken.None);
+
+        _reportingEndpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        await _mediator.Received(1).Send(
+            Arg.Is<SubmissionsExportQuery>(q =>
+                ((SubmissionExportExecutionSettings)q.Options.Metadata![SubmissionExportMetadataKeys.ExecutionSettings]).Locale == "es"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithExportId_RejectsRequestFilters()
+    {
+        var formId = 1L;
+        var exportId = 100L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest
+        {
+            FormId = formId,
+            ExportId = exportId,
+            IncludeTestSubmissions = true,
+        };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        _endpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        await _tenantSettingsRepository.DidNotReceive()
+            .FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_ExportHandlerConflict_ReturnsConflict()
+    {
+        var formId = 1L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest { FormId = formId, ExportFormatId = 100L };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
+        var fileExport = new FileExport("text/csv", "submissions-1.csv");
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+        _exportFormatRepository.GetByIdAsync(tenantId, 100L, Arg.Any<CancellationToken>())
+            .Returns(CreateCsvExportFormatRecord(100L));
+        _exporterFactory.GetExporter("csv", typeof(SubmissionExportRow)).Returns(exporter);
+        exporter.GetHeadersAsync(Arg.Any<ExportOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+        _mediator.Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result<FileExport>.Conflict("No submissions matched the export filters."));
+
+        await _reportingEndpoint.HandleAsync(request, CancellationToken.None);
+
+        _reportingEndpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status409Conflict);
     }
 
     private static IExporter CreateMockExporter(string format, Type itemType)

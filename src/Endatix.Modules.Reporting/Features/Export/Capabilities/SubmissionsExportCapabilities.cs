@@ -15,7 +15,8 @@ internal static class SubmissionsExportCapabilities
         WireKey: "csv",
         Label: "CSV",
         ItemTypeName: typeof(SubmissionExportRow).FullName!,
-        Description: "Tabular CSV export with one row per submission.");
+        Description: "Tabular CSV export with one row per submission.",
+        AllowedFilters: ExportRequestFilterSets.Submissions);
 
     internal static readonly ExportCapability _csvShoji = new(
         ExportTarget.Submissions,
@@ -24,7 +25,8 @@ internal static class SubmissionsExportCapabilities
         WireKey: "csv-shoji",
         Label: "CSV (Shoji / Crunch)",
         ItemTypeName: typeof(SubmissionExportRow).FullName!,
-        Description: "Crunch-compatible CSV: -- key separators and boolean category ids 0/1.");
+        Description: "Crunch-compatible CSV: -- key separators and boolean category ids 0/1.",
+        AllowedFilters: ExportRequestFilterSets.Submissions);
 
     internal static readonly ExportCapability _json = new(
         ExportTarget.Submissions,
@@ -33,7 +35,8 @@ internal static class SubmissionsExportCapabilities
         WireKey: "json",
         Label: "JSON",
         ItemTypeName: typeof(SubmissionExportRow).FullName!,
-        Description: "Tabular JSON export with one object per submission.");
+        Description: "Tabular JSON export with one object per submission.",
+        AllowedFilters: ExportRequestFilterSets.Submissions);
 
     internal static IEnumerable<ExportCapability> All => [_csv, _csvShoji, _json];
 }

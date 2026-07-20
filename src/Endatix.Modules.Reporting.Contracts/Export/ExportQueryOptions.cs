@@ -6,5 +6,10 @@ namespace Endatix.Modules.Reporting.Contracts.Export;
 public sealed record ExportQueryOptions(
     int PageSize = 500,
     long? AfterSubmissionId = null,
-    bool IncludeTestSubmissions = false);
-
+    bool IncludeTestSubmissions = false,
+    DateTime? CreatedAfter = null,
+    DateTime? CreatedBefore = null,
+    DateTime? CompletedAfter = null,
+    DateTime? CompletedBefore = null,
+    long? MinSubmissionId = null,
+    long? MaxSubmissionId = null);

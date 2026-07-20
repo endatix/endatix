@@ -15,5 +15,6 @@ internal static class ShojiCodebookExportCapability
         WireKey: "codebook-shoji",
         Label: "Codebook (Shoji)",
         ItemTypeName: typeof(DynamicExportRow).FullName!,
-        Description: "Shoji produces Crunch-compatible codebook JSON.");
+        Description: "Shoji produces Crunch-compatible codebook JSON.",
+        AllowedFilters: ExportRequestFilterSets.ShojiCodebook);
 }

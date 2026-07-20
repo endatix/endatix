@@ -4,6 +4,8 @@
 -- This script performs a bulk insert for public."Submissions" by duplicating
 -- an existing submission multiple times with incremental IDs and timestamps.
 -- Run this to generate test data for submissions.
+--
+-- RestrictionKey is intentionally omitted (unique constraint).
 -- ============================================================================
 
 -- Set these variables as needed:
@@ -15,17 +17,54 @@
 -- CTE to select the base submission data that will be duplicated
 WITH base AS (
     SELECT
-        "IsComplete", "JsonData", "FormId", "FormDefinitionId", "CurrentPage", "Metadata",
-        "CompletedAt", "Token_ExpiresAt", "CreatedAt", "ModifiedAt", "DeletedAt",
-        "IsDeleted", "Status", "TenantId", "SubmittedBy"
+        "IsComplete",
+        "JsonData",
+        "FormId",
+        "FormDefinitionId",
+        "CurrentPage",
+        "Metadata",
+        "CompletedAt",
+        "Token_Value",
+        "Token_ExpiresAt",
+        "CreatedAt",
+        "ModifiedAt",
+        "DeletedAt",
+        "IsDeleted",
+        "Status",
+        "TenantId",
+        "SubmittedBy",
+        "IsTestSubmission",
+        "SubmitterDisplayId",
+        "SubmitterId",
+        "SubmitterProfileSnapshot",
+        "Revision"
     FROM public."Submissions"
     WHERE "Id" = :submission_id
 )
 -- Perform the bulk insert with generated IDs and staggered timestamps
 INSERT INTO public."Submissions" (
-    "Id", "IsComplete", "JsonData", "FormId", "FormDefinitionId", "CurrentPage", "Metadata",
-    "CompletedAt", "Token_ExpiresAt", "CreatedAt", "ModifiedAt", "DeletedAt",
-    "IsDeleted", "Status", "TenantId", "SubmittedBy"
+    "Id",
+    "IsComplete",
+    "JsonData",
+    "FormId",
+    "FormDefinitionId",
+    "CurrentPage",
+    "Metadata",
+    "CompletedAt",
+    "Token_Value",
+    "Token_ExpiresAt",
+    "CreatedAt",
+    "ModifiedAt",
+    "DeletedAt",
+    "IsDeleted",
+    "Status",
+    "TenantId",
+    "SubmittedBy",
+    "IsTestSubmission",
+    "SubmitterDisplayId",
+    "SubmitterId",
+    "SubmitterProfileSnapshot",
+    "Revision"
 )
 SELECT
     :submission_id + gs.i AS "Id",
@@ -36,6 +75,7 @@ SELECT
     b."CurrentPage",
     b."Metadata",
     b."CompletedAt" + (gs.i * INTERVAL '1 minute'),
+    b."Token_Value",
     b."Token_ExpiresAt" + (gs.i * INTERVAL '1 minute'),
     b."CreatedAt" + (gs.i * INTERVAL '1 minute'),
     b."ModifiedAt" + (gs.i * INTERVAL '1 minute'),
@@ -43,6 +83,11 @@ SELECT
     b."IsDeleted",
     b."Status",
     b."TenantId",
-    b."SubmittedBy"
+    b."SubmittedBy",
+    b."IsTestSubmission",
+    b."SubmitterDisplayId",
+    b."SubmitterId",
+    b."SubmitterProfileSnapshot",
+    b."Revision"
 FROM base b
 CROSS JOIN generate_series(1, :num_items) AS gs(i);

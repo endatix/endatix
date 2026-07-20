@@ -26,7 +26,13 @@ public sealed record SubmissionExportExecutionSettings(
     /// When true, CSV writers emit boolean values as category ids <c>0</c>/<c>1</c>
     /// (Crunch/Shoji). When false, booleans stay lowercase <c>true</c>/<c>false</c>.
     /// </summary>
-    bool EncodeBooleansAsCategoryIds = false);
+    bool EncodeBooleansAsCategoryIds = false,
+    DateTime? CreatedAfter = null,
+    DateTime? CreatedBefore = null,
+    DateTime? CompletedAfter = null,
+    DateTime? CompletedBefore = null,
+    long? MinSubmissionId = null,
+    long? MaxSubmissionId = null);
 
 /// <summary>
 /// Serialized <see cref="SubmissionExportColumnPlanEntry.Source"/> values.

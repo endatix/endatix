@@ -10,7 +10,8 @@ public sealed record ExportCapability(
     string WireKey,
     string Label,
     string ItemTypeName,
-    string Description);
+    string Description,
+    ExportRequestFilters AllowedFilters);
 
 /// <summary>
 /// Export capability exposed to admin APIs and Hub.
@@ -22,4 +23,5 @@ public sealed record ExportCapabilityDto(
     string WireKey,
     string Label,
     string ItemTypeName,
-    string Description);
+    string Description,
+    IReadOnlyList<string> AllowedFilters);
