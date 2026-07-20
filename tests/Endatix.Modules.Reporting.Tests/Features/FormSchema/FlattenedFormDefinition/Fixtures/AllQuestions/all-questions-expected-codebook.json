@@ -1872,7 +1872,7 @@
         "es": "Seleccione su m\u00E9todo de contacto preferido"
       }
     },
-    "qRangeSlider__max": {
+    "qRangeSlider": {
       "parentKey": "qRangeSlider",
       "surveyJsType": "slider",
       "exportShape": "scalar",
@@ -1883,27 +1883,6 @@
       "description": {
         "default": "Provide data in grams min/max",
         "es": "Proporcione los datos en gramos (m\u00EDn./m\u00E1x.)"
-      },
-      "choiceValue": "max",
-      "choiceLabel": {
-        "default": "max"
-      }
-    },
-    "qRangeSlider__min": {
-      "parentKey": "qRangeSlider",
-      "surveyJsType": "slider",
-      "exportShape": "scalar",
-      "title": {
-        "default": "Select your sweet spot for protein intake?",
-        "es": "\u00BFCu\u00E1l es tu nivel ideal de ingesta de prote\u00EDnas?"
-      },
-      "description": {
-        "default": "Provide data in grams min/max",
-        "es": "Proporcione los datos en gramos (m\u00EDn./m\u00E1x.)"
-      },
-      "choiceValue": "min",
-      "choiceLabel": {
-        "default": "min"
       }
     },
     "qRanking__apple": {

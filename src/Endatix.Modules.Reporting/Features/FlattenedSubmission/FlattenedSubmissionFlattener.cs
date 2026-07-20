@@ -98,18 +98,13 @@ internal static class FlattenedSubmissionFlattener
 
     private static JsonElement? ExtractSimpleValue(JsonElement submission, FormSchemaColumn column)
     {
-        if (IsRangeSliderBound(column))
-        {
-            return ExtractRangeSliderBound(submission, column, loopPath: null);
-        }
-
         var questionKey = column.SourceQuestion ?? column.Key;
         if (submission.TryGetPropertyValue(questionKey) is not JsonElement answer)
         {
             return null;
         }
 
-        return MapToCategoryIdIfNeeded(answer, column.MatrixColumnChoices);
+        return answer;
     }
 
     private static JsonElement? ExtractChoiceIndicatorValue(JsonElement submission, FormSchemaColumn column)
@@ -162,84 +157,12 @@ internal static class FlattenedSubmissionFlattener
 
     private static JsonElement? ExtractLoopSourceValue(JsonElement submission, FormSchemaColumn column)
     {
-        if (IsRangeSliderBound(column))
-        {
-            return ExtractRangeSliderBound(submission, column, column.LoopPath);
-        }
-
         if (TryGetLoopContextValue(submission, column) is not JsonElement answer)
         {
             return null;
         }
 
-        return MapToCategoryIdIfNeeded(answer, column.MatrixColumnChoices);
-    }
-
-    private static bool IsRangeSliderBound(FormSchemaColumn column) =>
-        column.ChoiceValue is "min" or "max" &&
-        !string.IsNullOrWhiteSpace(column.SourceQuestion);
-
-    private static JsonElement? ExtractRangeSliderBound(
-        JsonElement submission,
-        FormSchemaColumn column,
-        IReadOnlyList<LoopSegment>? loopPath)
-    {
-        JsonElement context = submission;
-        if (loopPath is not null)
-        {
-            if (TryResolveLoopContext(submission, loopPath) is not JsonElement loopContext)
-            {
-                return null;
-            }
-
-            context = loopContext;
-        }
-
-        if (context.TryGetPropertyValue(column.SourceQuestion!) is not JsonElement answer ||
-            answer.ValueKind != JsonValueKind.Array)
-        {
-            return null;
-        }
-
-        var index = string.Equals(column.ChoiceValue, "max", StringComparison.Ordinal) ? 1 : 0;
-        var boundIndex = 0;
-        foreach (var item in answer.EnumerateArray())
-        {
-            if (boundIndex == index)
-            {
-                return item.Clone();
-            }
-
-            boundIndex++;
-        }
-
-        return null;
-    }
-
-    private static JsonElement? MapToCategoryIdIfNeeded(
-        JsonElement answer,
-        IReadOnlyList<string>? categoryChoices)
-    {
-        if (categoryChoices is null || categoryChoices.Count == 0)
-        {
-            return answer;
-        }
-
-        var selectedValue = answer.GetScalarStringValue();
-        if (selectedValue is null)
-        {
-            return null;
-        }
-
-        for (var index = 0; index < categoryChoices.Count; index++)
-        {
-            if (string.Equals(categoryChoices[index], selectedValue, StringComparison.Ordinal))
-            {
-                return ToRankJson(index + 1);
-            }
-        }
-
-        return null;
+        return answer;
     }
 
     private static JsonElement? ExtractMatrixCellValue(JsonElement submission, FormSchemaColumn column) =>

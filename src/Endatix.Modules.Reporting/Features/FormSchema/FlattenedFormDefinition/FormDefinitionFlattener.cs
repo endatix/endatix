@@ -500,12 +500,6 @@ internal static class FormDefinitionFlattener
             return;
         }
 
-        if (collected.Element.IsRangeSlider())
-        {
-            EmitRangeSliderColumns(collected, columns, seenKeys, limits);
-            return;
-        }
-
         if (collected.Element.IsSingleSelectBaseSelect())
         {
             EmitSingleSelectColumn(collected, columns, seenKeys, limits);
@@ -526,15 +520,15 @@ internal static class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         var name = collected.Name!;
-        var choiceValues = CollectSelectChoiceValues(collected.Element, name, limits);
 
+        // Neutral shape: one string column with the original SurveyJS choice value.
+        // Crunch category-id projection happens in the export plan / Shoji path.
         AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
             name,
             FormSchemaColumnKind.Simple,
             collected.Element.GetSurveyJsTitle(name),
-            "number",
-            SourceQuestion: name,
-            MatrixColumnChoices: choiceValues));
+            "string",
+            SourceQuestion: name));
 
         if (collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
         {
@@ -545,81 +539,6 @@ internal static class FormDefinitionFlattener
                 "string",
                 SourceQuestion: name));
         }
-    }
-
-    private static void EmitRangeSliderColumns(
-        CollectedElement collected,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
-    {
-        var name = collected.Name!;
-        var title = ResolveElementTitle(collected.Element, name);
-
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-            ExportPathBuilder.Join(name, "min"),
-            FormSchemaColumnKind.Simple,
-            $"{title} — Min",
-            "number",
-            SourceQuestion: name,
-            ChoiceValue: "min"));
-
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-            ExportPathBuilder.Join(name, "max"),
-            FormSchemaColumnKind.Simple,
-            $"{title} — Max",
-            "number",
-            SourceQuestion: name,
-            ChoiceValue: "max"));
-    }
-
-    private static string ResolveElementTitle(JsonElement element, string fallback)
-    {
-        var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(element, SurveyJsPropertyNames.Title);
-        if (localized.TryGetValue(SurveyJsPropertyNames.DefaultLocale, out var defaultTitle) &&
-            !string.IsNullOrWhiteSpace(defaultTitle))
-        {
-            return defaultTitle;
-        }
-
-        foreach (var value in localized.Values)
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                return value;
-            }
-        }
-
-        return element.GetSurveyJsTitle(fallback);
-    }
-
-    private static IReadOnlyList<string> CollectSelectChoiceValues(
-        JsonElement element,
-        string questionName,
-        SchemaCompilationLimits limits)
-    {
-        List<string> choiceValues = [];
-        var choiceCount = 0;
-        foreach ((var value, _) in SurveyJsChoiceHelper.EnumerateChoices(element))
-        {
-            if (++choiceCount > limits.MaxChoicesPerQuestion)
-            {
-                ThrowLimitExceeded(
-                    SchemaCompilationLimitKind.MaxChoicesPerQuestion,
-                    limits.MaxChoicesPerQuestion,
-                    actual: choiceCount,
-                    context: questionName);
-            }
-
-            choiceValues.Add(value);
-        }
-
-        if (element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
-        {
-            choiceValues.Add(SurveyJsPropertyNames.Other);
-        }
-
-        return choiceValues;
     }
 
     private static void EmitChoiceIndicatorColumns(
@@ -1349,16 +1268,6 @@ internal static class FormDefinitionFlattener
                     seenKeys,
                     limits);
                 break;
-            case SurveyJsFlattening.Simple when template.IsRangeSlider():
-                EmitLoopSourceRangeSliderColumns(
-                    template,
-                    childName,
-                    keyPrefix,
-                    loopPath,
-                    columns,
-                    seenKeys,
-                    limits);
-                break;
             case SurveyJsFlattening.Simple when template.IsSingleSelectBaseSelect():
                 EmitLoopSourceSingleSelectColumn(
                     template,
@@ -1408,16 +1317,13 @@ internal static class FormDefinitionFlattener
         HashSet<string> seenKeys,
         SchemaCompilationLimits limits)
     {
-        var choiceValues = CollectSelectChoiceValues(template, childName, limits);
-
         AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
             ExportPathBuilder.Join([.. keyPrefix, childName]),
             FormSchemaColumnKind.LoopSource,
             template.GetSurveyJsTitle(childName),
-            "number",
+            "string",
             SourceQuestion: childName,
-            LoopPath: loopPath,
-            MatrixColumnChoices: choiceValues));
+            LoopPath: loopPath));
 
         if (template.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
         {
@@ -1429,36 +1335,6 @@ internal static class FormDefinitionFlattener
                 SourceQuestion: childName,
                 LoopPath: loopPath));
         }
-    }
-
-    private static void EmitLoopSourceRangeSliderColumns(
-        JsonElement template,
-        string childName,
-        IReadOnlyList<string> keyPrefix,
-        IReadOnlyList<LoopSegment> loopPath,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
-    {
-        var title = template.GetSurveyJsTitle(childName);
-
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-            ExportPathBuilder.Join([.. keyPrefix, childName, "min"]),
-            FormSchemaColumnKind.LoopSource,
-            $"{title} — Min",
-            "number",
-            SourceQuestion: childName,
-            ChoiceValue: "min",
-            LoopPath: loopPath));
-
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-            ExportPathBuilder.Join([.. keyPrefix, childName, "max"]),
-            FormSchemaColumnKind.LoopSource,
-            $"{title} — Max",
-            "number",
-            SourceQuestion: childName,
-            ChoiceValue: "max",
-            LoopPath: loopPath));
     }
 
     private static void EmitLoopSourceChoiceIndicatorColumns(

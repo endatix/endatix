@@ -1,5 +1,4 @@
 [
   "qSlider",
-  "qRangeSlider__min",
-  "qRangeSlider__max"
+  "qRangeSlider"
 ]

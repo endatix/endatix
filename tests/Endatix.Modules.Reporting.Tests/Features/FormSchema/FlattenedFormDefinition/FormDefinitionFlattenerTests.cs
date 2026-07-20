@@ -217,7 +217,7 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
-  public void Flatten_Radiogroup_EmitsSingleCategoricalColumn()
+  public void Flatten_Radiogroup_EmitsSingleNeutralColumn()
   {
     // Arrange
     JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("radiogroup-definition.json");
@@ -230,7 +230,8 @@ public class FormDefinitionFlattenerTests
     FormSchemaColumn column = columns[0];
     column.Kind.Should().Be(FormSchemaColumnKind.Simple);
     column.Key.Should().Be("carColor");
-    column.MatrixColumnChoices.Should().Equal("red", "blue", "green");
+    column.DataType.Should().Be("string");
+    column.MatrixColumnChoices.Should().BeNull();
   }
 
   [Fact]

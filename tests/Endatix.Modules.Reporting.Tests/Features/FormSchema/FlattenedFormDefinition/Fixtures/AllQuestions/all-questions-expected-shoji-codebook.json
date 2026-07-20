@@ -308,13 +308,13 @@
         "qRangeSlider--min": {
           "type": "numeric",
           "alias": "qRangeSlider--min",
-          "name": "Select your sweet spot for protein intake? — Min",
+          "name": "Select your sweet spot for protein intake? \u2014 Min",
           "description": "Provide data in grams min/max"
         },
         "qRangeSlider--max": {
           "type": "numeric",
           "alias": "qRangeSlider--max",
-          "name": "Select your sweet spot for protein intake? — Max",
+          "name": "Select your sweet spot for protein intake? \u2014 Max",
           "description": "Provide data in grams min/max"
         },
         "qRating": {
@@ -447,8 +447,8 @@
         "qLoop--qLoopColor": {
           "type": "categorical_array",
           "alias": "qLoop--qLoopColor",
-          "name": "What color was the …?",
-          "description": "Select which color was the …",
+          "name": "What color was the \u2026?",
+          "description": "Select which color was the \u2026",
           "categories": [
             {
               "name": "Red",

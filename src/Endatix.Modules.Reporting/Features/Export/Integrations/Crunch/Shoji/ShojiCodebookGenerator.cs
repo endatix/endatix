@@ -82,7 +82,7 @@ internal static class ShojiCodebookGenerator
             keySeparator,
             writtenAliases);
         writer.WriteEndObject();
-        WriteOrder(writer, BuildAppearanceOrder(flatteningMap, writtenAliases, keySeparator));
+        WriteOrder(writer, BuildAppearanceOrder(flatteningMap, questions, writtenAliases, keySeparator));
         writer.WriteEndObject();
         writer.WriteEndObject();
         writer.WriteEndObject();
@@ -94,6 +94,7 @@ internal static class ShojiCodebookGenerator
     /// </summary>
     private static List<string> BuildAppearanceOrder(
         MergedFormSchema flatteningMap,
+        IReadOnlyDictionary<string, JsonElement> questions,
         IReadOnlyList<string> writtenAliases,
         string keySeparator)
     {
@@ -111,7 +112,12 @@ internal static class ShojiCodebookGenerator
 
         foreach (var column in flatteningMap.Columns)
         {
-            var alias = ResolveShojiOrderAlias(column, keySeparator);
+            if (TryAddRangeSliderOrderAliases(column, questions, written, seen, order, keySeparator))
+            {
+                continue;
+            }
+
+            var alias = ResolveShojiOrderAlias(column, questions, keySeparator);
             if (alias is null || !written.Contains(alias) || !seen.Add(alias))
             {
                 continue;
@@ -131,11 +137,41 @@ internal static class ShojiCodebookGenerator
         return order;
     }
 
-    private static string? ResolveShojiOrderAlias(FormSchemaColumn column, string keySeparator)
+    private static bool TryAddRangeSliderOrderAliases(
+        FormSchemaColumn column,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        HashSet<string> written,
+        HashSet<string> seen,
+        List<string> order,
+        string keySeparator)
+    {
+        if (!IsNeutralRangeSliderColumn(column, questions))
+        {
+            return false;
+        }
+
+        foreach (var bound in (string[])["min", "max"])
+        {
+            var alias = ExportKeyTransformer.Transform(
+                ExportPathBuilder.Join(column.Key, bound),
+                keySeparator);
+            if (written.Contains(alias) && seen.Add(alias))
+            {
+                order.Add(alias);
+            }
+        }
+
+        return true;
+    }
+
+    private static string? ResolveShojiOrderAlias(
+        FormSchemaColumn column,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        string keySeparator)
     {
         if (column.LoopPath is { Count: > 0 } &&
             column.Kind is FormSchemaColumnKind.LoopSource &&
-            column.MatrixColumnChoices is { Count: > 0 } &&
+            IsCategoricalQuestion(questions, column.SourceQuestion) &&
             !string.IsNullOrWhiteSpace(column.SourceQuestion))
         {
             return ExportKeyTransformer.Transform(
@@ -436,8 +472,8 @@ internal static class ShojiCodebookGenerator
                 continue;
             }
 
-            // Range sliders emit qName__min/max columns, not qName itself
-            if (IsRangeSliderQuestion(flatteningMap, questionEntry.Key))
+            // Range sliders project to qName__min/max at export time
+            if (IsRangeSliderQuestion(flatteningMap, questions, questionEntry.Key))
             {
                 WriteRangeSliderVariables(
                     writer,
@@ -476,10 +512,23 @@ internal static class ShojiCodebookGenerator
 
     private static bool IsRangeSliderQuestion(
         MergedFormSchema flatteningMap,
-        string questionName) =>
-        flatteningMap.Columns.Any(column =>
+        IReadOnlyDictionary<string, JsonElement> questions,
+        string questionName)
+    {
+        if (questions.TryGetValue(questionName, out var question) &&
+            string.Equals(
+                question.GetStringProperty(SurveyJsPropertyNames.SliderType),
+                SurveyJsPropertyNames.SliderTypeRange,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Backward-compatible: older flattening maps already split min/max columns.
+        return flatteningMap.Columns.Any(column =>
             string.Equals(column.SourceQuestion, questionName, StringComparison.Ordinal) &&
             column.ChoiceValue is "min" or "max");
+    }
 
     private static void WriteRangeSliderVariables(
         Utf8JsonWriter writer,
@@ -491,20 +540,33 @@ internal static class ShojiCodebookGenerator
         string keySeparator,
         List<string> orderAliases)
     {
-        foreach (var column in flatteningMap.Columns
-                     .Where(entry =>
-                         string.Equals(entry.SourceQuestion, questionName, StringComparison.Ordinal) &&
-                         entry.ChoiceValue is "min" or "max" &&
-                         entry.LoopPath is null)
-                     .OrderBy(entry => entry.ChoiceValue == "min" ? 0 : 1))
+        List<(string CanonicalKey, string Bound)> bounds = flatteningMap.Columns
+            .Where(entry =>
+                string.Equals(entry.SourceQuestion, questionName, StringComparison.Ordinal) &&
+                entry.ChoiceValue is "min" or "max" &&
+                entry.LoopPath is null)
+            .OrderBy(entry => entry.ChoiceValue == "min" ? 0 : 1)
+            .Select(entry => (entry.Key, entry.ChoiceValue!))
+            .ToList();
+
+        if (bounds.Count == 0)
         {
-            var exportKey = ExportKeyTransformer.Transform(column.Key, keySeparator);
+            bounds =
+            [
+                (ExportPathBuilder.Join(questionName, "min"), "min"),
+                (ExportPathBuilder.Join(questionName, "max"), "max"),
+            ];
+        }
+
+        foreach (var (canonicalKey, bound) in bounds)
+        {
+            var exportKey = ExportKeyTransformer.Transform(canonicalKey, keySeparator);
             if (!TryTrackVariable(writtenVariables, orderAliases, exportKey))
             {
                 continue;
             }
 
-            var suffix = string.Equals(column.ChoiceValue, "max", StringComparison.Ordinal) ? "Max" : "Min";
+            var suffix = string.Equals(bound, "max", StringComparison.Ordinal) ? "Max" : "Min";
             writer.WritePropertyName(exportKey);
             writer.WriteStartObject();
             writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeNumeric);
@@ -517,6 +579,10 @@ internal static class ShojiCodebookGenerator
             WriteQuestionDescription(writer, question);
             writer.WriteEndObject();
         }
+
+        // Neutral flattening keeps a single qName column; mark it written so scalar emit skips it.
+        writtenVariables.Add(questionName);
+        writtenVariables.Add(ExportKeyTransformer.Transform(questionName, keySeparator));
     }
 
     private static void WriteGapLeafVariables(
@@ -611,7 +677,7 @@ internal static class ShojiCodebookGenerator
         string keySeparator,
         List<string> orderAliases)
     {
-        var loopColumns = ClassifyLoopExpandedColumns(flatteningMap);
+        var loopColumns = ClassifyLoopExpandedColumns(flatteningMap, questions);
 
         WriteLoopCategoricalArrayVariables(
             writer,
@@ -643,7 +709,9 @@ internal static class ShojiCodebookGenerator
             orderAliases);
     }
 
-    private static LoopExpandedColumnGroups ClassifyLoopExpandedColumns(MergedFormSchema flatteningMap)
+    private static LoopExpandedColumnGroups ClassifyLoopExpandedColumns(
+        MergedFormSchema flatteningMap,
+        IReadOnlyDictionary<string, JsonElement> questions)
     {
         Dictionary<string, List<FormSchemaColumn>> loopChoiceGroups = new(StringComparer.Ordinal);
         Dictionary<string, List<FormSchemaColumn>> loopCategoricalGroups = new(StringComparer.Ordinal);
@@ -670,7 +738,7 @@ internal static class ShojiCodebookGenerator
             }
 
             if (column.Kind is FormSchemaColumnKind.LoopSource &&
-                column.MatrixColumnChoices is { Count: > 0 } &&
+                IsCategoricalQuestion(questions, column.SourceQuestion) &&
                 !string.IsNullOrWhiteSpace(column.SourceQuestion) &&
                 column.LoopPath.Count > 0)
             {
@@ -992,6 +1060,32 @@ internal static class ShojiCodebookGenerator
 
         exportShape = exportShapeElement.GetString()!;
         return true;
+    }
+
+    private static bool IsCategoricalQuestion(
+        IReadOnlyDictionary<string, JsonElement> questions,
+        string? questionName) =>
+        !string.IsNullOrWhiteSpace(questionName) &&
+        questions.TryGetValue(questionName, out var question) &&
+        TryGetExportShape(question, out var exportShape) &&
+        exportShape == FormSchemaCodebookExportShape.Categorical.Name;
+
+    private static bool IsNeutralRangeSliderColumn(
+        FormSchemaColumn column,
+        IReadOnlyDictionary<string, JsonElement> questions)
+    {
+        if (column.ChoiceValue is "min" or "max" ||
+            column.Kind is not (FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource))
+        {
+            return false;
+        }
+
+        var questionName = column.SourceQuestion ?? column.Key;
+        return questions.TryGetValue(questionName, out var question) &&
+               string.Equals(
+                   question.GetStringProperty(SurveyJsPropertyNames.SliderType),
+                   SurveyJsPropertyNames.SliderTypeRange,
+                   StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsBooleanQuestion(JsonElement question) =>

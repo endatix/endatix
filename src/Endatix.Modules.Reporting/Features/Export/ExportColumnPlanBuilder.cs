@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
-using Endatix.Modules.Reporting.Features.Export.Tabular;
+using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -29,11 +29,13 @@ internal static class ExportColumnPlanBuilder
 
         var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         var codebookColumns = ReadCodebookColumns(schema.Codebook);
+        var codebookQuestions = ReadCodebookQuestions(schema.Codebook);
         var registry = aliasRegistry ?? ColumnAliasTransformerRegistry.Default;
         var aliasTransformer = registry.GetRequired(aliasProfile);
         var scopedKeys = columnScope is null
             ? null
             : new HashSet<string>(columnScope, StringComparer.Ordinal);
+        var projectCrunchShapes = ShouldProjectCrunchShapes(aliasProfile, keySeparator);
 
         List<ExportColumnDefinition> columns = [];
         List<ExportColumnAliasInput> aliasInputs = [];
@@ -51,6 +53,18 @@ internal static class ExportColumnPlanBuilder
         foreach (var column in flatteningMap.Columns)
         {
             if (scopedKeys is not null && !scopedKeys.Contains(column.Key))
+            {
+                continue;
+            }
+
+            if (projectCrunchShapes &&
+                TryExpandRangeSliderColumns(
+                    column,
+                    codebookQuestions,
+                    codebookColumns,
+                    locale,
+                    columns,
+                    aliasInputs))
             {
                 continue;
             }
@@ -87,6 +101,116 @@ internal static class ExportColumnPlanBuilder
         EnsureUniqueExportKeys(aliasedColumns);
 
         return new ExportColumnPlan(aliasedColumns);
+    }
+
+    private static bool ShouldProjectCrunchShapes(ColumnAliasProfile aliasProfile, string keySeparator) =>
+        aliasProfile is ColumnAliasProfile.Crunch ||
+        string.Equals(
+            keySeparator,
+            ExportFormatSettings.InterimCrunchKeySeparator,
+            StringComparison.Ordinal);
+
+    private static bool TryExpandRangeSliderColumns(
+        FormSchemaColumn column,
+        IReadOnlyDictionary<string, JsonElement> codebookQuestions,
+        IReadOnlyDictionary<string, JsonElement> codebookColumns,
+        string locale,
+        List<ExportColumnDefinition> columns,
+        List<ExportColumnAliasInput> aliasInputs)
+    {
+        if (column.ChoiceValue is "min" or "max")
+        {
+            return false;
+        }
+
+        if (column.Kind is not (FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource))
+        {
+            return false;
+        }
+
+        var questionName = column.SourceQuestion ?? column.Key;
+        if (!codebookQuestions.TryGetValue(questionName, out var question) ||
+            !IsRangeSliderQuestion(question))
+        {
+            return false;
+        }
+
+        var title = string.IsNullOrWhiteSpace(column.Label) ? questionName : column.Label;
+        AddProjectedBoundColumn(
+            columns,
+            aliasInputs,
+            codebookColumns,
+            locale,
+            column,
+            bound: "min",
+            headerFallback: $"{title} — Min");
+        AddProjectedBoundColumn(
+            columns,
+            aliasInputs,
+            codebookColumns,
+            locale,
+            column,
+            bound: "max",
+            headerFallback: $"{title} — Max");
+        return true;
+    }
+
+    private static void AddProjectedBoundColumn(
+        List<ExportColumnDefinition> columns,
+        List<ExportColumnAliasInput> aliasInputs,
+        IReadOnlyDictionary<string, JsonElement> codebookColumns,
+        string locale,
+        FormSchemaColumn sourceColumn,
+        string bound,
+        string headerFallback)
+    {
+        var canonicalKey = ExportPathBuilder.Join(sourceColumn.Key, bound);
+        var headerLabel = ResolveHeaderLabel(codebookColumns, canonicalKey, locale) ?? headerFallback;
+        var sourceQuestion = sourceColumn.SourceQuestion ?? sourceColumn.Key;
+
+        aliasInputs.Add(new ExportColumnAliasInput(
+            canonicalKey,
+            sourceQuestion,
+            bound,
+            sourceColumn.MatrixRowValue,
+            sourceColumn.Kind.ToString()));
+
+        columns.Add(new ExportColumnDefinition(
+            CanonicalKey: canonicalKey,
+            ExportKey: canonicalKey,
+            Source: ExportColumnSource.DataJson,
+            HeaderLabel: headerLabel,
+            DataType: "number"));
+    }
+
+    private static bool IsRangeSliderQuestion(JsonElement question) =>
+        string.Equals(
+            question.GetStringProperty(SurveyJsPropertyNames.SliderType),
+            SurveyJsPropertyNames.SliderTypeRange,
+            StringComparison.OrdinalIgnoreCase);
+
+    private static Dictionary<string, JsonElement> ReadCodebookQuestions(string codebookJson)
+    {
+        Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
+
+        if (string.IsNullOrWhiteSpace(codebookJson))
+        {
+            return questions;
+        }
+
+        using var document = JsonDocument.Parse(codebookJson);
+        if (!document.RootElement.TryGetProperty(FormSchemaCodebookPropertyNames.Questions, out var questionsElement) ||
+            questionsElement.ValueKind != JsonValueKind.Object)
+        {
+            return questions;
+        }
+
+        foreach (var property in questionsElement.EnumerateObject())
+        {
+            questions[property.Name] = property.Value.Clone();
+        }
+
+        return questions;
     }
 
     private static void EnsureUniqueExportKeys(IReadOnlyList<ExportColumnDefinition> columns)
