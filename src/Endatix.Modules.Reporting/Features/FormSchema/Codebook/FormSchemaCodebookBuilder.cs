@@ -112,12 +112,11 @@ internal static class FormSchemaCodebookBuilder
             return defaultTitle;
         }
 
-        foreach (var value in localized.Values)
+        var localizedTitle = localized.Values
+            .FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value));
+        if (localizedTitle is not null)
         {
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                return value;
-            }
+            return localizedTitle;
         }
 
         return string.IsNullOrWhiteSpace(fallbackName) ? null : fallbackName;
