@@ -269,15 +269,7 @@ public partial class Export : Endpoint<ExportRequest>
 
         var disallowedFilters = ExportRequestFilterGuard.GetDisallowedWireNames(
             capability.AllowedFilters,
-            request.IncludeTestSubmissions,
-            request.CreatedAfter,
-            request.CreatedBefore,
-            request.CompletedAfter,
-            request.CompletedBefore,
-            request.MinSubmissionId,
-            request.MaxSubmissionId,
-            request.Locale,
-            NormalizeColumnScope(request.ColumnScope));
+            CreateExportFilterContext(request));
         if (disallowedFilters.Count > 0)
         {
             return Result.Invalid(new ValidationError(
@@ -310,16 +302,8 @@ public partial class Export : Endpoint<ExportRequest>
         CancellationToken cancellationToken)
     {
         var disallowedOnLegacy = ExportRequestFilterGuard.GetDisallowedWireNames(
-            ExportRequestFilterKind.None,
-            request.IncludeTestSubmissions,
-            request.CreatedAfter,
-            request.CreatedBefore,
-            request.CompletedAfter,
-            request.CompletedBefore,
-            request.MinSubmissionId,
-            request.MaxSubmissionId,
-            request.Locale,
-            NormalizeColumnScope(request.ColumnScope));
+            ExportRequestFilters.None,
+            CreateExportFilterContext(request));
         if (disallowedOnLegacy.Count > 0)
         {
             return Result.Invalid(new ValidationError(
@@ -369,6 +353,18 @@ public partial class Export : Endpoint<ExportRequest>
             exportConfig.SqlFunctionName,
             exportConfig.ExportPageSize));
     }
+
+    private static ExportFilterContext CreateExportFilterContext(ExportRequest request) =>
+        new(
+            IncludeTestSubmissions: request.IncludeTestSubmissions,
+            CreatedAfter: request.CreatedAfter,
+            CreatedBefore: request.CreatedBefore,
+            CompletedAfter: request.CompletedAfter,
+            CompletedBefore: request.CompletedBefore,
+            MinSubmissionId: request.MinSubmissionId,
+            MaxSubmissionId: request.MaxSubmissionId,
+            Locale: request.Locale,
+            ColumnScope: NormalizeColumnScope(request.ColumnScope));
 
     private static string[]? NormalizeColumnScope(string[]? columnScope) =>
         columnScope is { Length: > 0 } ? columnScope : null;

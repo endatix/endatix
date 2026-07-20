@@ -8,7 +8,7 @@ namespace Endatix.Modules.Reporting.Contracts.Export;
 /// </summary>
 [Flags]
 [JsonConverter(typeof(JsonStringEnumConverter))]
-public enum ExportRequestFilterKind
+public enum ExportRequestFilters
 {
     None = 0,
     IncludeTestSubmissions = 1 << 0,
@@ -20,31 +20,31 @@ public enum ExportRequestFilterKind
 }
 
 /// <summary>
-/// Common <see cref="ExportRequestFilterKind"/> sets for built-in capabilities.
+/// Common <see cref="ExportRequestFilters"/> sets for built-in capabilities.
 /// </summary>
 public static class ExportRequestFilterSets
 {
-    public const ExportRequestFilterKind Submissions =
-        ExportRequestFilterKind.IncludeTestSubmissions |
-        ExportRequestFilterKind.CreatedAtRange |
-        ExportRequestFilterKind.CompletedAtRange |
-        ExportRequestFilterKind.SubmissionIdRange |
-        ExportRequestFilterKind.Locale |
-        ExportRequestFilterKind.ColumnScope;
+    public const ExportRequestFilters Submissions =
+        ExportRequestFilters.IncludeTestSubmissions |
+        ExportRequestFilters.CreatedAtRange |
+        ExportRequestFilters.CompletedAtRange |
+        ExportRequestFilters.SubmissionIdRange |
+        ExportRequestFilters.Locale |
+        ExportRequestFilters.ColumnScope;
 
     /// <summary>
     /// Native codebook streams persisted FormSchema codebook JSON as-is (no request filters applied).
     /// </summary>
-    public const ExportRequestFilterKind NativeCodebook = ExportRequestFilterKind.None;
+    public const ExportRequestFilters NativeCodebook = ExportRequestFilters.None;
 
     /// <summary>
     /// Shoji codebook applies request locale to display strings; columnScope is not applied.
     /// </summary>
-    public const ExportRequestFilterKind ShojiCodebook = ExportRequestFilterKind.Locale;
+    public const ExportRequestFilters ShojiCodebook = ExportRequestFilters.Locale;
 }
 
 /// <summary>
-/// Wire names and helpers for <see cref="ExportRequestFilterKind"/>.
+/// Wire names and helpers for <see cref="ExportRequestFilters"/>.
 /// </summary>
 public static class ExportRequestFilterWireNames
 {
@@ -55,19 +55,19 @@ public static class ExportRequestFilterWireNames
     public const string Locale = "locale";
     public const string ColumnScope = "columnScope";
 
-    private static readonly (ExportRequestFilterKind Kind, string Name)[] _all =
+    private static readonly (ExportRequestFilters Filter, string Name)[] _all =
     [
-        (ExportRequestFilterKind.IncludeTestSubmissions, IncludeTestSubmissions),
-        (ExportRequestFilterKind.CreatedAtRange, CreatedAtRange),
-        (ExportRequestFilterKind.CompletedAtRange, CompletedAtRange),
-        (ExportRequestFilterKind.SubmissionIdRange, SubmissionIdRange),
-        (ExportRequestFilterKind.Locale, Locale),
-        (ExportRequestFilterKind.ColumnScope, ColumnScope),
+        (ExportRequestFilters.IncludeTestSubmissions, IncludeTestSubmissions),
+        (ExportRequestFilters.CreatedAtRange, CreatedAtRange),
+        (ExportRequestFilters.CompletedAtRange, CompletedAtRange),
+        (ExportRequestFilters.SubmissionIdRange, SubmissionIdRange),
+        (ExportRequestFilters.Locale, Locale),
+        (ExportRequestFilters.ColumnScope, ColumnScope),
     ];
 
-    public static IReadOnlyList<string> ToWireNames(ExportRequestFilterKind allowed) =>
+    public static IReadOnlyList<string> ToWireNames(ExportRequestFilters allowed) =>
         _all
-            .Where(entry => allowed.HasFlag(entry.Kind))
+            .Where(entry => allowed.HasFlag(entry.Filter))
             .Select(entry => entry.Name)
             .ToList();
 }

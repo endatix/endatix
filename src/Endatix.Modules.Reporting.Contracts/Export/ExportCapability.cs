@@ -11,7 +11,7 @@ public sealed record ExportCapability(
     string Label,
     string ItemTypeName,
     string Description,
-    ExportRequestFilterKind AllowedFilters);
+    ExportRequestFilters AllowedFilters);
 
 /// <summary>
 /// Export capability exposed to admin APIs and Hub.

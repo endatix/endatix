@@ -6,51 +6,43 @@ namespace Endatix.Modules.Reporting.Contracts.Export;
 public static class ExportRequestFilterGuard
 {
     public static IReadOnlyList<string> GetDisallowedWireNames(
-        ExportRequestFilterKind allowed,
-        bool? includeTestSubmissions,
-        DateTime? createdAfter,
-        DateTime? createdBefore,
-        DateTime? completedAfter,
-        DateTime? completedBefore,
-        long? minSubmissionId,
-        long? maxSubmissionId,
-        string? locale,
-        IReadOnlyList<string>? columnScope)
+        ExportRequestFilters allowed,
+        ExportFilterContext filters)
     {
         List<string> disallowed = [];
 
-        if (includeTestSubmissions.HasValue &&
-            !allowed.HasFlag(ExportRequestFilterKind.IncludeTestSubmissions))
+        if (filters.IncludeTestSubmissions.HasValue &&
+            !allowed.HasFlag(ExportRequestFilters.IncludeTestSubmissions))
         {
             disallowed.Add(ExportRequestFilterWireNames.IncludeTestSubmissions);
         }
 
-        if ((createdAfter.HasValue || createdBefore.HasValue) &&
-            !allowed.HasFlag(ExportRequestFilterKind.CreatedAtRange))
+        if ((filters.CreatedAfter.HasValue || filters.CreatedBefore.HasValue) &&
+            !allowed.HasFlag(ExportRequestFilters.CreatedAtRange))
         {
             disallowed.Add(ExportRequestFilterWireNames.CreatedAtRange);
         }
 
-        if ((completedAfter.HasValue || completedBefore.HasValue) &&
-            !allowed.HasFlag(ExportRequestFilterKind.CompletedAtRange))
+        if ((filters.CompletedAfter.HasValue || filters.CompletedBefore.HasValue) &&
+            !allowed.HasFlag(ExportRequestFilters.CompletedAtRange))
         {
             disallowed.Add(ExportRequestFilterWireNames.CompletedAtRange);
         }
 
-        if ((minSubmissionId.HasValue || maxSubmissionId.HasValue) &&
-            !allowed.HasFlag(ExportRequestFilterKind.SubmissionIdRange))
+        if ((filters.MinSubmissionId.HasValue || filters.MaxSubmissionId.HasValue) &&
+            !allowed.HasFlag(ExportRequestFilters.SubmissionIdRange))
         {
             disallowed.Add(ExportRequestFilterWireNames.SubmissionIdRange);
         }
 
-        if (!string.IsNullOrWhiteSpace(locale) &&
-            !allowed.HasFlag(ExportRequestFilterKind.Locale))
+        if (!string.IsNullOrWhiteSpace(filters.Locale) &&
+            !allowed.HasFlag(ExportRequestFilters.Locale))
         {
             disallowed.Add(ExportRequestFilterWireNames.Locale);
         }
 
-        if (columnScope is { Count: > 0 } &&
-            !allowed.HasFlag(ExportRequestFilterKind.ColumnScope))
+        if (filters.ColumnScope is { Count: > 0 } &&
+            !allowed.HasFlag(ExportRequestFilters.ColumnScope))
         {
             disallowed.Add(ExportRequestFilterWireNames.ColumnScope);
         }

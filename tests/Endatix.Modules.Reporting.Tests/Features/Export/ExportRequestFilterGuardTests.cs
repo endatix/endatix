@@ -10,15 +10,16 @@ public sealed class ExportRequestFilterGuardTests
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilterSets.ShojiCodebook,
-            includeTestSubmissions: true,
-            createdAfter: DateTime.UtcNow.AddDays(-1),
-            createdBefore: null,
-            completedAfter: null,
-            completedBefore: null,
-            minSubmissionId: 10,
-            maxSubmissionId: null,
-            locale: "es",
-            columnScope: null);
+            new ExportFilterContext(
+                IncludeTestSubmissions: true,
+                CreatedAfter: DateTime.UtcNow.AddDays(-1),
+                CreatedBefore: null,
+                CompletedAfter: null,
+                CompletedBefore: null,
+                MinSubmissionId: 10,
+                MaxSubmissionId: null,
+                Locale: "es",
+                ColumnScope: null));
 
         disallowed.Should().BeEquivalentTo(
         [
@@ -33,15 +34,16 @@ public sealed class ExportRequestFilterGuardTests
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilterSets.NativeCodebook,
-            includeTestSubmissions: null,
-            createdAfter: null,
-            createdBefore: null,
-            completedAfter: null,
-            completedBefore: null,
-            minSubmissionId: null,
-            maxSubmissionId: null,
-            locale: "es",
-            columnScope: null);
+            new ExportFilterContext(
+                IncludeTestSubmissions: null,
+                CreatedAfter: null,
+                CreatedBefore: null,
+                CompletedAfter: null,
+                CompletedBefore: null,
+                MinSubmissionId: null,
+                MaxSubmissionId: null,
+                Locale: "es",
+                ColumnScope: null));
 
         disallowed.Should().Equal(ExportRequestFilterWireNames.Locale);
     }
@@ -51,15 +53,16 @@ public sealed class ExportRequestFilterGuardTests
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilterSets.Submissions,
-            includeTestSubmissions: false,
-            createdAfter: DateTime.UtcNow.AddDays(-7),
-            createdBefore: DateTime.UtcNow,
-            completedAfter: DateTime.UtcNow.AddDays(-7),
-            completedBefore: DateTime.UtcNow,
-            minSubmissionId: 1,
-            maxSubmissionId: 100,
-            locale: "es",
-            columnScope: ["q1"]);
+            new ExportFilterContext(
+                IncludeTestSubmissions: false,
+                CreatedAfter: DateTime.UtcNow.AddDays(-7),
+                CreatedBefore: DateTime.UtcNow,
+                CompletedAfter: DateTime.UtcNow.AddDays(-7),
+                CompletedBefore: DateTime.UtcNow,
+                MinSubmissionId: 1,
+                MaxSubmissionId: 100,
+                Locale: "es",
+                ColumnScope: ["q1"]));
 
         disallowed.Should().BeEmpty();
     }
