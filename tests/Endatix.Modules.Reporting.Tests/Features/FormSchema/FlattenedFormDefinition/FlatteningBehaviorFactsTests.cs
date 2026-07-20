@@ -27,6 +27,7 @@ public class FlatteningBehaviorFactsTests
             { "D-07", "multipletext-definition.json", "multipletext-expected-keys.json" },
             { "D-08", "file-definition.json", "file-expected-keys.json" },
             { "D-09", "boolean-expression-definition.json", "boolean-expression-expected-keys.json" },
+            { "D-09b", "slider-definition.json", "slider-expected-keys.json" },
             { "D-10", "calculated-values-definition.json", "calculated-values-expected-keys.json" },
             { "D-11", "nested-panels-definition.json", "nested-panels-expected-keys.json" },
             { "D-12", "CustomerExcerpts/f1-radiogroup-page-definition.json", "CustomerExcerpts/f1-radiogroup-page-expected-keys.json" },
@@ -45,6 +46,7 @@ public class FlatteningBehaviorFactsTests
             { "S-06", "matrixdropdown-definition.json", "matrixdropdown-submission.json", "matrixdropdown-expected-flat.json" },
             { "S-07", "matrixdynamic-definition.json", "matrixdynamic-submission.json", "matrixdynamic-expected-flat.json" },
             { "S-08", "multipletext-definition.json", "multipletext-submission.json", "multipletext-expected-flat.json" },
+            { "S-09", "slider-definition.json", "slider-submission.json", "slider-expected-flat.json" },
             { "S-10", "paneldynamic-definition.json", "paneldynamic-submission.json", "paneldynamic-expected-flat.json" },
             { "S-11", "nested-loop-definition.json", "nested-loop-submission.json", "nested-loop-expected-flat.json" },
         };

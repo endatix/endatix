@@ -14,6 +14,12 @@ public class DefaultCsvFormatter : IValueFormatter
 {
     private const string DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
+    private readonly bool _encodeBooleansAsCategoryIds;
+
+    public DefaultCsvFormatter(bool encodeBooleansAsCategoryIds = false)
+    {
+        _encodeBooleansAsCategoryIds = encodeBooleansAsCategoryIds;
+    }
 
     public object? Format<T>(object? value, TransformationContext<T> context)
     {
@@ -63,7 +69,7 @@ public class DefaultCsvFormatter : IValueFormatter
         return node?.ToString();
     }
 
-    private static object? FormatJsonValue(JsonValue value)
+    private object? FormatJsonValue(JsonValue value)
     {
         if (value.TryGetValue<DateTime>(out var dateTime))
         {
@@ -83,7 +89,7 @@ public class DefaultCsvFormatter : IValueFormatter
         return value.ToString();
     }
 
-    private static object? FormatJsonElement(JsonElement element)
+    private object? FormatJsonElement(JsonElement element)
     {
         return element.ValueKind switch
         {
@@ -125,6 +131,15 @@ public class DefaultCsvFormatter : IValueFormatter
     }
 
 
-    private static string FormatBoolean(bool boolean) => boolean.ToString().ToLowerInvariant();
+    private string FormatBoolean(bool boolean)
+    {
+        if (_encodeBooleansAsCategoryIds)
+        {
+            return boolean ? "1" : "0";
+        }
+
+        return boolean.ToString().ToLowerInvariant();
+    }
+
     private static string FormatDateTime(DateTime dateTime) => dateTime.ToString(DATE_TIME_FORMAT);
 }

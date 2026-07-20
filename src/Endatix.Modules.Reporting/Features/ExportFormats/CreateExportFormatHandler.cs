@@ -96,17 +96,12 @@ internal sealed class CreateExportFormatHandler(
 
     private static ExportFormatSettingsInput CreateDefaultSettings(CreateExportFormatCommand request)
     {
-        if (request.ExportTarget == ExportTarget.Codebook)
-        {
-            return new ExportFormatSettingsInput(
-                AliasProfile: ColumnAliasProfile.Native,
-                KeySeparator: request.Profile == ExportProfile.Shoji
-                    ? ExportFormatSettings.InterimCrunchKeySeparator
-                    : ExportFormatSettings.DefaultKeySeparator);
-        }
+        var keySeparator = request.Profile == ExportProfile.Shoji
+            ? ExportFormatSettings.InterimCrunchKeySeparator
+            : ExportFormatSettings.DefaultKeySeparator;
 
         return new ExportFormatSettingsInput(
             AliasProfile: ColumnAliasProfile.Native,
-            KeySeparator: ExportFormatSettings.DefaultKeySeparator);
+            KeySeparator: keySeparator);
     }
 }

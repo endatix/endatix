@@ -1,0 +1,23 @@
+{
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "slider",
+          "name": "qSlider",
+          "title": "How likely are you to recommend us?"
+        },
+        {
+          "type": "slider",
+          "name": "qRangeSlider",
+          "title": "Select your sweet spot for protein intake?",
+          "description": "Provide data in grams min/max",
+          "sliderType": "range",
+          "max": 200,
+          "step": 10
+        }
+      ]
+    }
+  ]
+}

@@ -67,10 +67,19 @@ public class SurveyJsElementTypeTests
     }
 
     [Fact]
-    public void ResolveFlattening_ImagePicker_UsesChoiceIndicators()
+    public void ResolveFlattening_SingleSelectTypes_UseSimple()
     {
-        SurveyJsElementType.ResolveFlattening("imagepicker")
-            .Should().Be(SurveyJsFlattening.ChoiceIndicators);
+        SurveyJsElementType.ResolveFlattening("imagepicker").Should().Be(SurveyJsFlattening.Simple);
+        SurveyJsElementType.ResolveFlattening("dropdown").Should().Be(SurveyJsFlattening.Simple);
+        SurveyJsElementType.ResolveFlattening("radiogroup").Should().Be(SurveyJsFlattening.Simple);
+        SurveyJsElementType.ResolveFlattening("buttongroup").Should().Be(SurveyJsFlattening.Simple);
+    }
+
+    [Fact]
+    public void ResolveFlattening_MultiSelectTypes_UseChoiceIndicators()
+    {
+        SurveyJsElementType.ResolveFlattening("checkbox").Should().Be(SurveyJsFlattening.ChoiceIndicators);
+        SurveyJsElementType.ResolveFlattening("tagbox").Should().Be(SurveyJsFlattening.ChoiceIndicators);
     }
 
     [Fact]

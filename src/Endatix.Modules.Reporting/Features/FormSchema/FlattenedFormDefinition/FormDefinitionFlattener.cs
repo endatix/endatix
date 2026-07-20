@@ -449,7 +449,7 @@ internal static class FormDefinitionFlattener
                 continue;
             }
 
-            var flattening = SurveyJsElementType.ResolveFlattening(collected.Type);
+            var flattening = collected.Element.ResolveSurveyJsFlattening();
 
             switch (flattening)
             {
@@ -500,11 +500,45 @@ internal static class FormDefinitionFlattener
             return;
         }
 
+        if (collected.Element.IsSingleSelectBaseSelect())
+        {
+            EmitSingleSelectColumn(collected, columns, seenKeys, limits);
+            return;
+        }
+
         AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
             name,
             FormSchemaColumnKind.Simple,
             collected.Element.GetSurveyJsTitle(name),
             MapDataType(collected.Element, type)));
+    }
+
+    private static void EmitSingleSelectColumn(
+        CollectedElement collected,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        var name = collected.Name!;
+
+        // Neutral shape: one string column with the original SurveyJS choice value.
+        // Crunch category-id projection happens in the export plan / Shoji path.
+        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            name,
+            FormSchemaColumnKind.Simple,
+            collected.Element.GetSurveyJsTitle(name),
+            "string",
+            SourceQuestion: name));
+
+        if (collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        {
+            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                ExportPathBuilder.ChoiceOtherTextKey(name),
+                FormSchemaColumnKind.CheckboxOtherText,
+                $"{collected.Element.GetSurveyJsTitle(name)} — Other text",
+                "string",
+                SourceQuestion: name));
+        }
     }
 
     private static void EmitChoiceIndicatorColumns(
@@ -1220,12 +1254,22 @@ internal static class FormDefinitionFlattener
         }
 
         List<string> keyPrefix = [keyPanelName, .. driverChoices];
-        var flattening = SurveyJsElementType.ResolveFlattening(childType);
+        var flattening = template.ResolveSurveyJsFlattening();
 
         switch (flattening)
         {
             case SurveyJsFlattening.ChoiceIndicators:
                 EmitLoopSourceChoiceIndicatorColumns(
+                    template,
+                    childName,
+                    keyPrefix,
+                    loopPath,
+                    columns,
+                    seenKeys,
+                    limits);
+                break;
+            case SurveyJsFlattening.Simple when template.IsSingleSelectBaseSelect():
+                EmitLoopSourceSingleSelectColumn(
                     template,
                     childName,
                     keyPrefix,
@@ -1261,6 +1305,35 @@ internal static class FormDefinitionFlattener
                     SourceQuestion: childName,
                     LoopPath: loopPath));
                 break;
+        }
+    }
+
+    private static void EmitLoopSourceSingleSelectColumn(
+        JsonElement template,
+        string childName,
+        IReadOnlyList<string> keyPrefix,
+        IReadOnlyList<LoopSegment> loopPath,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits)
+    {
+        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            ExportPathBuilder.Join([.. keyPrefix, childName]),
+            FormSchemaColumnKind.LoopSource,
+            template.GetSurveyJsTitle(childName),
+            "string",
+            SourceQuestion: childName,
+            LoopPath: loopPath));
+
+        if (template.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        {
+            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                ExportPathBuilder.Join([.. keyPrefix, childName, "other_text"]),
+                FormSchemaColumnKind.CheckboxOtherText,
+                $"{template.GetSurveyJsTitle(childName)} — Other text",
+                "string",
+                SourceQuestion: childName,
+                LoopPath: loopPath));
         }
     }
 

@@ -1,1838 +1,1052 @@
 {
-  "version": 1,
-  "format": "shoji",
-  "locales": ["default", "es"],
-  "variables": {
-    "qDropdown": {
-      "type": "multiple_response",
-      "alias": "qDropdown",
-      "name": {
-        "default": "Pick your primary weapon",
-        "es": "Elige tu arma principal"
+  "element": "shoji:entity",
+  "body": {
+    "name": "Form export",
+    "description": "Shoji codebook metadata",
+    "table": {
+      "element": "crunch:table",
+      "metadata": {
+        "FormId": {
+          "type": "numeric",
+          "alias": "FormId",
+          "name": "Form ID",
+          "description": ""
+        },
+        "Id": {
+          "type": "numeric",
+          "alias": "Id",
+          "name": "Submission ID",
+          "description": ""
+        },
+        "IsComplete": {
+          "type": "categorical",
+          "alias": "IsComplete",
+          "name": "Is Complete",
+          "description": "",
+          "categories": [
+            {
+              "name": "False",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "True",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "CreatedAt": {
+          "type": "datetime",
+          "alias": "CreatedAt",
+          "name": "Created At",
+          "description": "",
+          "resolution": "s"
+        },
+        "ModifiedAt": {
+          "type": "datetime",
+          "alias": "ModifiedAt",
+          "name": "Modified At",
+          "description": "",
+          "resolution": "s"
+        },
+        "CompletedAt": {
+          "type": "datetime",
+          "alias": "CompletedAt",
+          "name": "Completed At",
+          "description": "",
+          "resolution": "s"
+        },
+        "SubmitterId": {
+          "type": "numeric",
+          "alias": "SubmitterId",
+          "name": "Submitter ID",
+          "description": ""
+        },
+        "SubmitterDisplayId": {
+          "type": "text",
+          "alias": "SubmitterDisplayId",
+          "name": "Submitter Display ID",
+          "description": ""
+        },
+        "qMatrix": {
+          "type": "categorical_array",
+          "alias": "qMatrix",
+          "name": "Rate the following aspects of our service",
+          "description": "",
+          "categories": [
+            {
+              "name": "Poor",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Average",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Excellent",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "qMatrix--speed",
+              "name": "Speed"
+            },
+            {
+              "alias": "qMatrix--quality",
+              "name": "Quality"
+            }
+          ]
+        },
+        "qTagBox": {
+          "type": "multiple_response",
+          "alias": "qTagBox",
+          "name": "Select Sport Brands",
+          "description": "You can select multiple options",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "qTagBox--adidas",
+              "name": "Adidas"
+            },
+            {
+              "alias": "qTagBox--puma",
+              "name": "Puma"
+            },
+            {
+              "alias": "qTagBox--nike",
+              "name": "Nike"
+            },
+            {
+              "alias": "qTagBox--reebok",
+              "name": "Reebok"
+            }
+          ]
+        },
+        "questionSongs": {
+          "type": "multiple_response",
+          "alias": "questionSongs",
+          "name": "Pick a song",
+          "description": "This is a question for picking a song",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "questionSongs--1",
+              "name": "Song for me"
+            },
+            {
+              "alias": "questionSongs--2",
+              "name": "Song for you"
+            },
+            {
+              "alias": "questionSongs--3",
+              "name": "We will rock you"
+            },
+            {
+              "alias": "questionSongs--4",
+              "name": "No time for this"
+            },
+            {
+              "alias": "questionSongs--5",
+              "name": "I have waited"
+            },
+            {
+              "alias": "questionSongs--other",
+              "name": "Other (pick)"
+            }
+          ]
+        },
+        "qDropdown": {
+          "type": "categorical",
+          "alias": "qDropdown",
+          "name": "Pick your primary weapon",
+          "description": "This is a standard dropdown question",
+          "categories": [
+            {
+              "name": "Axe",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Sword",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Hammer",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "qImagePicker": {
+          "type": "categorical",
+          "alias": "qImagePicker",
+          "name": "Choose a mascot",
+          "description": "",
+          "categories": [
+            {
+              "name": "lion",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "giraffe",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ]
+        },
+        "qRadioGroup": {
+          "type": "categorical",
+          "alias": "qRadioGroup",
+          "name": "Select your preferred contact method",
+          "description": "",
+          "categories": [
+            {
+              "name": "Email",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Phone",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Mail",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "qBoolean": {
+          "type": "categorical",
+          "alias": "qBoolean",
+          "name": "Do you agree to the terms?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qComment": {
+          "type": "text",
+          "alias": "qComment",
+          "name": "Additional Feedback",
+          "description": ""
+        },
+        "qExpression": {
+          "type": "text",
+          "alias": "qExpression",
+          "name": "Calculated Total Age (From Q11)",
+          "description": ""
+        },
+        "qPanelText": {
+          "type": "text",
+          "alias": "qPanelText",
+          "name": "Internal Panel Group -- Text inside panel",
+          "description": ""
+        },
+        "qRangeSlider--min": {
+          "type": "numeric",
+          "alias": "qRangeSlider--min",
+          "name": "Select your sweet spot for protein intake? \u2014 Min",
+          "description": "Provide data in grams min/max"
+        },
+        "qRangeSlider--max": {
+          "type": "numeric",
+          "alias": "qRangeSlider--max",
+          "name": "Select your sweet spot for protein intake? \u2014 Max",
+          "description": "Provide data in grams min/max"
+        },
+        "qRating": {
+          "type": "numeric",
+          "alias": "qRating",
+          "name": "Rate your overall experience",
+          "description": "Scale from 1 to 5"
+        },
+        "qSignaturePad": {
+          "type": "text",
+          "alias": "qSignaturePad",
+          "name": "Please sign here",
+          "description": ""
+        },
+        "qSlider": {
+          "type": "numeric",
+          "alias": "qSlider",
+          "name": "How likely are you to recommend us?",
+          "description": ""
+        },
+        "qText": {
+          "type": "text",
+          "alias": "qText",
+          "name": "Full Name",
+          "description": ""
+        },
+        "qTextDate": {
+          "type": "datetime",
+          "alias": "qTextDate",
+          "name": "Birth Date",
+          "description": "",
+          "resolution": "s"
+        },
+        "qTextNumber": {
+          "type": "numeric",
+          "alias": "qTextNumber",
+          "name": "Your Age",
+          "description": ""
+        },
+        "qFile": {
+          "type": "text",
+          "alias": "qFile",
+          "name": "Upload your avatar",
+          "description": ""
+        },
+        "qMatrixDropdown--alice--punctuality": {
+          "type": "text",
+          "alias": "qMatrixDropdown--alice--punctuality",
+          "name": "Evaluate your team -- alice--punctuality",
+          "description": ""
+        },
+        "qMatrixDropdown--alice--teamwork": {
+          "type": "text",
+          "alias": "qMatrixDropdown--alice--teamwork",
+          "name": "Evaluate your team -- alice--teamwork",
+          "description": ""
+        },
+        "qMatrixDropdown--bob--punctuality": {
+          "type": "text",
+          "alias": "qMatrixDropdown--bob--punctuality",
+          "name": "Evaluate your team -- bob--punctuality",
+          "description": ""
+        },
+        "qMatrixDropdown--bob--teamwork": {
+          "type": "text",
+          "alias": "qMatrixDropdown--bob--teamwork",
+          "name": "Evaluate your team -- bob--teamwork",
+          "description": ""
+        },
+        "qMatrixDynamic--0--company": {
+          "type": "text",
+          "alias": "qMatrixDynamic--0--company",
+          "name": "List your previous employers -- 0--company",
+          "description": ""
+        },
+        "qMatrixDynamic--0--years": {
+          "type": "numeric",
+          "alias": "qMatrixDynamic--0--years",
+          "name": "List your previous employers -- 0--years",
+          "description": ""
+        },
+        "qMatrixDynamic--1--company": {
+          "type": "text",
+          "alias": "qMatrixDynamic--1--company",
+          "name": "List your previous employers -- 1--company",
+          "description": ""
+        },
+        "qMatrixDynamic--1--years": {
+          "type": "numeric",
+          "alias": "qMatrixDynamic--1--years",
+          "name": "List your previous employers -- 1--years",
+          "description": ""
+        },
+        "qMultipleText--emergency": {
+          "type": "text",
+          "alias": "qMultipleText--emergency",
+          "name": "Contact Information -- emergency",
+          "description": ""
+        },
+        "qMultipleText--phone": {
+          "type": "text",
+          "alias": "qMultipleText--phone",
+          "name": "Contact Information -- phone",
+          "description": ""
+        },
+        "qRanking--apple": {
+          "type": "numeric",
+          "alias": "qRanking--apple",
+          "name": "Rank these fruits from best to worst -- apple",
+          "description": ""
+        },
+        "qRanking--banana": {
+          "type": "numeric",
+          "alias": "qRanking--banana",
+          "name": "Rank these fruits from best to worst -- banana",
+          "description": ""
+        },
+        "qRanking--orange": {
+          "type": "numeric",
+          "alias": "qRanking--orange",
+          "name": "Rank these fruits from best to worst -- orange",
+          "description": ""
+        },
+        "questionSongs--other_text": {
+          "type": "text",
+          "alias": "questionSongs--other_text",
+          "name": "Pick a song -- Other",
+          "description": ""
+        },
+        "qLoop--qLoopColor": {
+          "type": "categorical_array",
+          "alias": "qLoop--qLoopColor",
+          "name": "What color was the \u2026?",
+          "description": "Select which color was the \u2026",
+          "categories": [
+            {
+              "name": "Red",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Blue",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Green",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            },
+            {
+              "name": "Yellow",
+              "id": 4,
+              "numeric_value": 4,
+              "missing": false
+            },
+            {
+              "name": "White",
+              "id": 5,
+              "numeric_value": 5,
+              "missing": false
+            },
+            {
+              "name": "Black",
+              "id": 6,
+              "numeric_value": 6,
+              "missing": false
+            },
+            {
+              "name": "Other",
+              "id": 7,
+              "numeric_value": 7,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "qLoop--1--qLoopColor",
+              "name": "Song for me"
+            },
+            {
+              "alias": "qLoop--2--qLoopColor",
+              "name": "Song for you"
+            },
+            {
+              "alias": "qLoop--3--qLoopColor",
+              "name": "We will rock you"
+            },
+            {
+              "alias": "qLoop--4--qLoopColor",
+              "name": "No time for this"
+            },
+            {
+              "alias": "qLoop--5--qLoopColor",
+              "name": "I have waited"
+            },
+            {
+              "alias": "qLoop--adidas--qLoopColor",
+              "name": "Adidas"
+            },
+            {
+              "alias": "qLoop--axe--qLoopColor",
+              "name": "Axe"
+            },
+            {
+              "alias": "qLoop--hammer--qLoopColor",
+              "name": "Hammer"
+            },
+            {
+              "alias": "qLoop--nike--qLoopColor",
+              "name": "Nike"
+            },
+            {
+              "alias": "qLoop--other--qLoopColor",
+              "name": "Other (pick)"
+            },
+            {
+              "alias": "qLoop--puma--qLoopColor",
+              "name": "Puma"
+            },
+            {
+              "alias": "qLoop--reebok--qLoopColor",
+              "name": "Reebok"
+            },
+            {
+              "alias": "qLoop--sword--qLoopColor",
+              "name": "Sword"
+            }
+          ]
+        },
+        "qLoop--1--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--1--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like Song for me?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--1--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--1--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the Song for me? -- Other",
+          "description": "Select which color was the Song for me"
+        },
+        "qLoop--1--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--1--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Song for me",
+          "description": ""
+        },
+        "qLoop--2--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--2--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like Song for you?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--2--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--2--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the Song for you? -- Other",
+          "description": "Select which color was the Song for you"
+        },
+        "qLoop--2--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--2--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Song for you",
+          "description": ""
+        },
+        "qLoop--3--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--3--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like We will rock you?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--3--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--3--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the We will rock you? -- Other",
+          "description": "Select which color was the We will rock you"
+        },
+        "qLoop--3--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--3--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- We will rock you",
+          "description": ""
+        },
+        "qLoop--4--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--4--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like No time for this?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--4--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--4--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the No time for this? -- Other",
+          "description": "Select which color was the No time for this"
+        },
+        "qLoop--4--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--4--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- No time for this",
+          "description": ""
+        },
+        "qLoop--5--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--5--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like I have waited?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--5--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--5--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the I have waited? -- Other",
+          "description": "Select which color was the I have waited"
+        },
+        "qLoop--5--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--5--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- I have waited",
+          "description": ""
+        },
+        "qLoop--adidas--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--adidas--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like Adidas?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--adidas--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--adidas--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the Adidas? -- Other",
+          "description": "Select which color was the Adidas"
+        },
+        "qLoop--adidas--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--adidas--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Adidas",
+          "description": ""
+        },
+        "qLoop--axe--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--axe--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like Axe?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--axe--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--axe--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the Axe? -- Other",
+          "description": "Select which color was the Axe"
+        },
+        "qLoop--axe--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--axe--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Axe",
+          "description": ""
+        },
+        "qLoop--hammer--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--hammer--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like Hammer?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--hammer--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--hammer--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the Hammer? -- Other",
+          "description": "Select which color was the Hammer"
+        },
+        "qLoop--hammer--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--hammer--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Hammer",
+          "description": ""
+        },
+        "qLoop--nike--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--nike--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like Nike?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--nike--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--nike--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the Nike? -- Other",
+          "description": "Select which color was the Nike"
+        },
+        "qLoop--nike--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--nike--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Nike",
+          "description": ""
+        },
+        "qLoop--other--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--other--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like Other (pick)?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--other--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--other--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the Other (pick)? -- Other",
+          "description": "Select which color was the Other (pick)"
+        },
+        "qLoop--other--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--other--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Other (pick)",
+          "description": ""
+        },
+        "qLoop--puma--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--puma--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like Puma?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--puma--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--puma--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the Puma? -- Other",
+          "description": "Select which color was the Puma"
+        },
+        "qLoop--puma--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--puma--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Puma",
+          "description": ""
+        },
+        "qLoop--reebok--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--reebok--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like Reebok?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--reebok--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--reebok--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the Reebok? -- Other",
+          "description": "Select which color was the Reebok"
+        },
+        "qLoop--reebok--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--reebok--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Reebok",
+          "description": ""
+        },
+        "qLoop--sword--qLoopBoolean": {
+          "type": "categorical",
+          "alias": "qLoop--sword--qLoopBoolean",
+          "name": "Loop Question (Based on Brands) -- Do you still like Sword?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "qLoop--sword--qLoopColor--other_text": {
+          "type": "text",
+          "alias": "qLoop--sword--qLoopColor--other_text",
+          "name": "Loop Question (Based on Brands) -- What color was the Sword? -- Other",
+          "description": "Select which color was the Sword"
+        },
+        "qLoop--sword--qLoopRating": {
+          "type": "numeric",
+          "alias": "qLoop--sword--qLoopRating",
+          "name": "Loop Question (Based on Brands) -- How much do you like it? -- Sword",
+          "description": ""
+        }
       },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qDropdown--axe",
-          "name": {
-            "default": "Axe",
-            "es": "Hacha"
-          }
-        },
-        {
-          "alias": "qDropdown--sword",
-          "name": {
-            "default": "Sword",
-            "es": "Espada"
-          }
-        },
-        {
-          "alias": "qDropdown--hammer",
-          "name": {
-            "default": "Hammer",
-            "es": "Martillo"
-          }
-        }
-      ]
-    },
-    "qImagePicker": {
-      "type": "multiple_response",
-      "alias": "qImagePicker",
-      "name": {
-        "default": "Choose a mascot",
-        "es": "Elige una mascota"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qImagePicker--lion",
-          "name": {
-            "default": "lion"
-          }
-        },
-        {
-          "alias": "qImagePicker--giraffe",
-          "name": {
-            "default": "giraffe"
-          }
-        }
-      ]
-    },
-    "qMatrix": {
-      "type": "categorical_array",
-      "alias": "qMatrix",
-      "name": {
-        "default": "Rate the following aspects of our service",
-        "es": "Califique los siguientes aspectos de nuestro servicio"
-      },
-      "categories": [
-        {
-          "name": "Poor",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Average",
-          "id": 2,
-          "numeric_value": 2,
-          "missing": false
-        },
-        {
-          "name": "Excellent",
-          "id": 3,
-          "numeric_value": 3,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qMatrix--speed",
-          "name": {
-            "default": "Speed",
-            "es": "Velocidad"
-          }
-        },
-        {
-          "alias": "qMatrix--quality",
-          "name": {
-            "default": "Quality",
-            "es": "Calidad"
-          }
-        }
-      ]
-    },
-    "qRadioGroup": {
-      "type": "multiple_response",
-      "alias": "qRadioGroup",
-      "name": {
-        "default": "Select your preferred contact method",
-        "es": "Seleccione su m\u00E9todo de contacto preferido"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qRadioGroup--email",
-          "name": {
-            "default": "Email",
-            "es": "Correo electr\u00F3nico"
-          }
-        },
-        {
-          "alias": "qRadioGroup--phone",
-          "name": {
-            "default": "Phone",
-            "es": "Tel\u00E9fono"
-          }
-        },
-        {
-          "alias": "qRadioGroup--mail",
-          "name": {
-            "default": "Mail",
-            "es": "Correo postal"
-          }
-        }
-      ]
-    },
-    "qTagBox": {
-      "type": "multiple_response",
-      "alias": "qTagBox",
-      "name": {
-        "default": "Select Sport Brands",
-        "es": "Seleccione marcas deportivas"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qTagBox--adidas",
-          "name": {
-            "default": "Adidas",
-            "es": "Adidas"
-          }
-        },
-        {
-          "alias": "qTagBox--puma",
-          "name": {
-            "default": "Puma",
-            "es": "Puma"
-          }
-        },
-        {
-          "alias": "qTagBox--nike",
-          "name": {
-            "default": "Nike",
-            "es": "Nike"
-          }
-        },
-        {
-          "alias": "qTagBox--reebok",
-          "name": {
-            "default": "Reebok",
-            "es": "Reebok"
-          }
-        }
-      ]
-    },
-    "questionSongs": {
-      "type": "multiple_response",
-      "alias": "questionSongs",
-      "name": {
-        "default": "Pick a song",
-        "es": "Elige una canci\u00F3n"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "questionSongs--1",
-          "name": {
-            "default": "Song for me",
-            "es": "Una canci\u00F3n para m\u00ED"
-          }
-        },
-        {
-          "alias": "questionSongs--2",
-          "name": {
-            "default": "Song for you",
-            "es": "\nCanci\u00F3n para ti"
-          }
-        },
-        {
-          "alias": "questionSongs--3",
-          "name": {
-            "default": "We will rock you",
-            "es": "Nosotros te rockearemos"
-          }
-        },
-        {
-          "alias": "questionSongs--4",
-          "name": {
-            "default": "No time for this",
-            "es": "No hay tiempo para esto."
-          }
-        },
-        {
-          "alias": "questionSongs--5",
-          "name": {
-            "default": "I have waited",
-            "es": "He esperado"
-          }
-        },
-        {
-          "alias": "questionSongs--other",
-          "name": {
-            "default": "Other (pick)"
-          }
-        }
-      ]
-    },
-    "qBoolean": {
-      "type": "categorical",
-      "alias": "qBoolean",
-      "name": {
-        "default": "Do you agree to the terms?",
-        "es": "\u00BFAcepta los t\u00E9rminos?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qComment": {
-      "type": "text",
-      "alias": "qComment",
-      "name": {
-        "default": "Additional Feedback",
-        "es": "Comentarios adicionales"
-      }
-    },
-    "qExpression": {
-      "type": "text",
-      "alias": "qExpression",
-      "name": {
-        "default": "Calculated Total Age (From Q11)",
-        "es": "Edad total calculada (Desde Q11)"
-      }
-    },
-    "qPanelText": {
-      "type": "text",
-      "alias": "qPanelText",
-      "name": {
-        "default": "Text inside panel",
-        "es": "Texto dentro del panel"
-      }
-    },
-    "qRating": {
-      "type": "numeric",
-      "alias": "qRating",
-      "name": {
-        "default": "Rate your overall experience",
-        "es": "Califique su experiencia general"
-      }
-    },
-    "qSignaturePad": {
-      "type": "text",
-      "alias": "qSignaturePad",
-      "name": {
-        "default": "Please sign here",
-        "es": "Por favor firme aqu\u00ED"
-      }
-    },
-    "qSlider": {
-      "type": "text",
-      "alias": "qSlider",
-      "name": {
-        "default": "How likely are you to recommend us?",
-        "es": "\u00BFQu\u00E9 tan probable es que nos recomiende?"
-      }
-    },
-    "qText": {
-      "type": "text",
-      "alias": "qText",
-      "name": {
-        "default": "Full Name",
-        "es": "Nombre completo"
-      }
-    },
-    "qTextDate": {
-      "type": "text",
-      "alias": "qTextDate",
-      "name": {
-        "default": "Birth Date",
-        "es": "Fecha de nacimiento"
-      }
-    },
-    "qTextNumber": {
-      "type": "numeric",
-      "alias": "qTextNumber",
-      "name": {
-        "default": "Your Age",
-        "es": "Su edad"
-      }
-    },
-    "qLoop--1--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--1--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--2--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--2--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--3--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--3--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--4--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--4--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--5--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--5--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--adidas--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--adidas--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--axe--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--axe--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--hammer--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--hammer--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--nike--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--nike--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--other--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--other--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--puma--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--puma--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--reebok--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--reebok--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "qLoop--sword--qLoopColor--other_text": {
-      "type": "text",
-      "alias": "qLoop--sword--qLoopColor--other_text",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      }
-    },
-    "questionSongs--other_text": {
-      "type": "text",
-      "alias": "questionSongs--other_text",
-      "name": {
-        "default": "Pick a song",
-        "es": "Elige una canci\u00F3n"
-      }
-    },
-    "qLoop--1--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--1--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--1--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--1--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--2--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--2--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--2--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--2--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--3--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--3--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--3--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--3--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--4--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--4--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--4--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--4--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--5--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--5--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--5--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--5--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--adidas--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--adidas--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--adidas--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--adidas--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--axe--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--axe--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--axe--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--axe--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--hammer--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--hammer--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--hammer--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--hammer--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--nike--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--nike--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--nike--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--nike--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--other--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--other--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--other--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--other--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--puma--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--puma--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--puma--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--puma--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--reebok--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--reebok--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--reebok--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--reebok--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--sword--qLoopBoolean": {
-      "type": "categorical",
-      "alias": "qLoop--sword--qLoopBoolean",
-      "name": {
-        "default": "Do you still like {panel.itemText}?",
-        "es": "\u00BFTodav\u00EDa te gusta {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "No",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        },
-        {
-          "name": "Yes",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        }
-      ]
-    },
-    "qLoop--sword--qLoopRating": {
-      "type": "numeric",
-      "alias": "qLoop--sword--qLoopRating",
-      "name": {
-        "default": "How much do you like it?",
-        "es": "\u00BFCu\u00E1nto te gusta?"
-      }
-    },
-    "qLoop--1--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--1--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--1--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--1--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--1--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--1--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--1--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--1--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--1--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--2--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--2--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--2--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--2--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--2--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--2--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--2--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--2--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--2--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--3--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--3--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--3--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--3--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--3--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--3--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--3--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--3--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--3--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--4--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--4--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--4--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--4--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--4--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--4--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--4--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--4--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--4--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--5--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--5--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--5--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--5--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--5--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--5--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--5--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--5--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--5--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--adidas--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--adidas--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--adidas--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--adidas--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--adidas--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--adidas--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--adidas--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--adidas--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--adidas--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--axe--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--axe--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--axe--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--axe--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--axe--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--axe--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--axe--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--axe--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--axe--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--hammer--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--hammer--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--hammer--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--hammer--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--hammer--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--hammer--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--hammer--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--hammer--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--hammer--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--nike--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--nike--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--nike--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--nike--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--nike--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--nike--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--nike--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--nike--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--nike--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--other--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--other--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--other--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--other--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--other--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--other--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--other--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--other--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--other--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--puma--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--puma--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--puma--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--puma--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--puma--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--puma--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--puma--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--puma--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--puma--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--reebok--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--reebok--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--reebok--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--reebok--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--reebok--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--reebok--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--reebok--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--reebok--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--reebok--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
-      ]
-    },
-    "qLoop--sword--qLoopColor": {
-      "type": "multiple_response",
-      "alias": "qLoop--sword--qLoopColor",
-      "name": {
-        "default": "What color was the {panel.itemText}?",
-        "es": "\u00BFDe qu\u00E9 color era {panel.itemText}?"
-      },
-      "categories": [
-        {
-          "name": "Selected",
-          "id": 1,
-          "numeric_value": 1,
-          "missing": false
-        },
-        {
-          "name": "Not selected",
-          "id": 0,
-          "numeric_value": 0,
-          "missing": false
-        }
-      ],
-      "subvariables": [
-        {
-          "alias": "qLoop--sword--qLoopColor--1",
-          "name": {
-            "default": "Red",
-            "es": "Rojo"
-          }
-        },
-        {
-          "alias": "qLoop--sword--qLoopColor--2",
-          "name": {
-            "default": "Blue",
-            "es": "Azul"
-          }
-        },
-        {
-          "alias": "qLoop--sword--qLoopColor--3",
-          "name": {
-            "default": "Green",
-            "es": "Verde"
-          }
-        },
-        {
-          "alias": "qLoop--sword--qLoopColor--4",
-          "name": {
-            "default": "Yellow",
-            "es": "Amarillo"
-          }
-        },
-        {
-          "alias": "qLoop--sword--qLoopColor--5",
-          "name": {
-            "default": "White",
-            "es": "Blanco"
-          }
-        },
-        {
-          "alias": "qLoop--sword--qLoopColor--6",
-          "name": {
-            "default": "Black",
-            "es": "Negro"
-          }
-        },
-        {
-          "alias": "qLoop--sword--qLoopColor--other",
-          "name": {
-            "default": "Other",
-            "es": "Otro"
-          }
-        }
+      "order": [
+        "FormId",
+        "Id",
+        "IsComplete",
+        "CreatedAt",
+        "ModifiedAt",
+        "CompletedAt",
+        "SubmitterId",
+        "SubmitterDisplayId",
+        "qRadioGroup",
+        "qRating",
+        "qSlider",
+        "qRangeSlider--min",
+        "qRangeSlider--max",
+        "qDropdown",
+        "questionSongs",
+        "questionSongs--other_text",
+        "qTagBox",
+        "qBoolean",
+        "qFile",
+        "qImagePicker",
+        "qRanking--apple",
+        "qRanking--banana",
+        "qRanking--orange",
+        "qText",
+        "qTextNumber",
+        "qTextDate",
+        "qComment",
+        "qMultipleText--phone",
+        "qMultipleText--emergency",
+        "qMatrix",
+        "qMatrixDropdown--alice--punctuality",
+        "qMatrixDropdown--alice--teamwork",
+        "qMatrixDropdown--bob--punctuality",
+        "qMatrixDropdown--bob--teamwork",
+        "qMatrixDynamic--0--company",
+        "qMatrixDynamic--0--years",
+        "qMatrixDynamic--1--company",
+        "qMatrixDynamic--1--years",
+        "qSignaturePad",
+        "qExpression",
+        "qPanelText",
+        "qLoop--adidas--qLoopBoolean",
+        "qLoop--adidas--qLoopRating",
+        "qLoop--qLoopColor",
+        "qLoop--adidas--qLoopColor--other_text",
+        "qLoop--puma--qLoopBoolean",
+        "qLoop--puma--qLoopRating",
+        "qLoop--puma--qLoopColor--other_text",
+        "qLoop--nike--qLoopBoolean",
+        "qLoop--nike--qLoopRating",
+        "qLoop--nike--qLoopColor--other_text",
+        "qLoop--reebok--qLoopBoolean",
+        "qLoop--reebok--qLoopRating",
+        "qLoop--reebok--qLoopColor--other_text",
+        "qLoop--axe--qLoopBoolean",
+        "qLoop--axe--qLoopRating",
+        "qLoop--axe--qLoopColor--other_text",
+        "qLoop--sword--qLoopBoolean",
+        "qLoop--sword--qLoopRating",
+        "qLoop--sword--qLoopColor--other_text",
+        "qLoop--hammer--qLoopBoolean",
+        "qLoop--hammer--qLoopRating",
+        "qLoop--hammer--qLoopColor--other_text",
+        "qLoop--1--qLoopBoolean",
+        "qLoop--1--qLoopRating",
+        "qLoop--1--qLoopColor--other_text",
+        "qLoop--2--qLoopBoolean",
+        "qLoop--2--qLoopRating",
+        "qLoop--2--qLoopColor--other_text",
+        "qLoop--3--qLoopBoolean",
+        "qLoop--3--qLoopRating",
+        "qLoop--3--qLoopColor--other_text",
+        "qLoop--4--qLoopBoolean",
+        "qLoop--4--qLoopRating",
+        "qLoop--4--qLoopColor--other_text",
+        "qLoop--5--qLoopBoolean",
+        "qLoop--5--qLoopRating",
+        "qLoop--5--qLoopColor--other_text",
+        "qLoop--other--qLoopBoolean",
+        "qLoop--other--qLoopRating",
+        "qLoop--other--qLoopColor--other_text"
       ]
     }
   }

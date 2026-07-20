@@ -71,6 +71,22 @@
           }
         },
         {
+          "type": "slider",
+          "name": "qRangeSlider",
+          "title": {
+            "es": "¿Cuál es tu nivel ideal de ingesta de proteínas?",
+            "default": "Select your sweet spot for protein intake?"
+          },
+          "description": {
+            "es": "Proporcione los datos en gramos (mín./máx.)",
+            "default": "Provide data in grams min/max"
+          },
+          "sliderType": "range",
+          "max": 200,
+          "step": 10,
+          "tooltipFormat": "{0} grams"
+        },
+        {
           "type": "dropdown",
           "name": "qDropdown",
           "title": {

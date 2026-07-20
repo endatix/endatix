@@ -149,8 +149,8 @@ public sealed class TabularExportDataSourceTests
 
         result.IsSuccess.Should().BeTrue();
         SubmissionExportColumnPlan columnPlan = (SubmissionExportColumnPlan)result.Value.Metadata![SubmissionExportMetadataKeys.ColumnPlan];
-        columnPlan.Columns.First(column => column.CanonicalKey == "qDropdown__axe").ExportKey
-            .Should().Be("qDropdown--axe");
+        columnPlan.Columns.First(column => column.CanonicalKey == "qTagBox__adidas").ExportKey
+            .Should().Be("qTagBox--adidas");
     }
 
     [Fact]
@@ -178,8 +178,8 @@ public sealed class TabularExportDataSourceTests
 
         result.IsSuccess.Should().BeTrue();
         SubmissionExportColumnPlan columnPlan = (SubmissionExportColumnPlan)result.Value.Metadata![SubmissionExportMetadataKeys.ColumnPlan];
-        columnPlan.Columns.First(column => column.CanonicalKey == "qDropdown__axe").ExportKey
-            .Should().Be("qDropdown__axe");
+        columnPlan.Columns.First(column => column.CanonicalKey == "qTagBox__adidas").ExportKey
+            .Should().Be("qTagBox__adidas");
     }
 
     [Fact]

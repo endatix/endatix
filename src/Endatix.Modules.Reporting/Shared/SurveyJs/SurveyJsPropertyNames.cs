@@ -37,5 +37,8 @@ internal static class SurveyJsPropertyNames
     public const string Other = "other";
     public const string CellType = "cellType";
     public const string DefaultCellType = "defaultCellType";
+    public const string MultiSelect = "multiSelect";
+    public const string SliderType = "sliderType";
+    public const string SliderTypeRange = "range";
     public const string DefaultLocale = "default";
 }

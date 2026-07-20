@@ -19,6 +19,7 @@ public class FormDefinitionFlattenerTests
   [InlineData("number-input-definition.json", "number-input-expected-keys.json")]
   [InlineData("nested-panels-definition.json", "nested-panels-expected-keys.json")]
   [InlineData("boolean-expression-definition.json", "boolean-expression-expected-keys.json")]
+  [InlineData("slider-definition.json", "slider-expected-keys.json")]
   [InlineData("tagbox-definition.json", "tagbox-expected-keys.json")]
   [InlineData("matrix-definition.json", "matrix-expected-keys.json")]
   [InlineData("matrixdropdown-definition.json", "matrixdropdown-expected-keys.json")]
@@ -216,7 +217,7 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
-  public void Flatten_Radiogroup_ColumnKindIsChoiceIndicator()
+  public void Flatten_Radiogroup_EmitsSingleNeutralColumn()
   {
     // Arrange
     JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("radiogroup-definition.json");
@@ -225,8 +226,12 @@ public class FormDefinitionFlattenerTests
     IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
-    columns.Should().OnlyContain(column => column.Kind == FormSchemaColumnKind.ChoiceIndicator);
-    columns.Should().HaveCount(3);
+    columns.Should().ContainSingle();
+    FormSchemaColumn column = columns[0];
+    column.Kind.Should().Be(FormSchemaColumnKind.Simple);
+    column.Key.Should().Be("carColor");
+    column.DataType.Should().Be("string");
+    column.MatrixColumnChoices.Should().BeNull();
   }
 
   [Fact]
@@ -370,9 +375,9 @@ public class FormDefinitionFlattenerTests
     IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
-        columns.Single(column => column.Key == "isActive").Kind.Should().Be(FormSchemaColumnKind.Simple);
-        columns.Single(column => column.Key == "isActive").DataType.Should().Be("boolean");
-        columns.Single(column => column.Key == "score").Kind.Should().Be(FormSchemaColumnKind.Simple);
+    columns.Single(column => column.Key == "isActive").Kind.Should().Be(FormSchemaColumnKind.Simple);
+    columns.Single(column => column.Key == "isActive").DataType.Should().Be("boolean");
+    columns.Single(column => column.Key == "score").Kind.Should().Be(FormSchemaColumnKind.Simple);
   }
 
   [Fact]

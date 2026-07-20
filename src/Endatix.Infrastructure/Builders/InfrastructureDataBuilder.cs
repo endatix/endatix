@@ -71,6 +71,7 @@ public class InfrastructureDataBuilder
         Services.AddScoped<IExportDataSource, SqlDefaultSubmissionExportDataSource>();
         Services.AddScoped<ISubmissionFileExtractor, SubmissionFileExtractor>();
         Services.AddExporter<SubmissionExportRow, SubmissionCsvExporter>();
+        Services.AddExporter<SubmissionExportRow, SubmissionShojiCsvExporter>();
         Services.AddExporter<SubmissionExportRow, SubmissionJsonExporter>();
         Services.AddExporter<DynamicExportRow, CodebookJsonExporter>();
         Services.AddExporter<DynamicExportRow, ShojiCodebookJsonExporter>();

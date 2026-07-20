@@ -75,13 +75,13 @@ internal sealed record SurveyJsElementType
     public static readonly SurveyJsElementType FileUpload = new("file", SurveyJsElementCategory.File, SurveyJsFlattening.File);
     public static readonly SurveyJsElementType Video = new("video", SurveyJsElementCategory.File, SurveyJsFlattening.File);
 
-    // Base select
+    // Base select — multi-select explodes to indicators; single-select is one categorical column
     public static readonly SurveyJsElementType Checkbox = new("checkbox", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
     public static readonly SurveyJsElementType Tagbox = new("tagbox", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
-    public static readonly SurveyJsElementType Radiogroup = new("radiogroup", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
-    public static readonly SurveyJsElementType Dropdown = new("dropdown", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
-    public static readonly SurveyJsElementType ImagePicker = new("imagepicker", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
-    public static readonly SurveyJsElementType ButtonGroup = new("buttongroup", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.ChoiceIndicators);
+    public static readonly SurveyJsElementType Radiogroup = new("radiogroup", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
+    public static readonly SurveyJsElementType Dropdown = new("dropdown", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
+    public static readonly SurveyJsElementType ImagePicker = new("imagepicker", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
+    public static readonly SurveyJsElementType ButtonGroup = new("buttongroup", SurveyJsElementCategory.BaseSelect, SurveyJsFlattening.Simple);
 
     // Ranking
     public static readonly SurveyJsElementType Ranking = new("ranking", SurveyJsElementCategory.Ranking, SurveyJsFlattening.Ranking);

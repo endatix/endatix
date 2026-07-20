@@ -96,8 +96,16 @@ internal static class FlattenedSubmissionFlattener
         }
     }
 
-    private static JsonElement? ExtractSimpleValue(JsonElement submission, FormSchemaColumn column) =>
-        submission.TryGetPropertyValue(column.Key);
+    private static JsonElement? ExtractSimpleValue(JsonElement submission, FormSchemaColumn column)
+    {
+        var questionKey = column.SourceQuestion ?? column.Key;
+        if (submission.TryGetPropertyValue(questionKey) is not JsonElement answer)
+        {
+            return null;
+        }
+
+        return answer;
+    }
 
     private static JsonElement? ExtractChoiceIndicatorValue(JsonElement submission, FormSchemaColumn column)
     {
@@ -147,8 +155,15 @@ internal static class FlattenedSubmissionFlattener
     private static JsonElement? ExtractPanelDynamicIndexValue(JsonElement submission, FormSchemaColumn column) =>
         TryGetPanelIndexValue(submission, column);
 
-    private static JsonElement? ExtractLoopSourceValue(JsonElement submission, FormSchemaColumn column) =>
-        TryGetLoopContextValue(submission, column);
+    private static JsonElement? ExtractLoopSourceValue(JsonElement submission, FormSchemaColumn column)
+    {
+        if (TryGetLoopContextValue(submission, column) is not JsonElement answer)
+        {
+            return null;
+        }
+
+        return answer;
+    }
 
     private static JsonElement? ExtractMatrixCellValue(JsonElement submission, FormSchemaColumn column) =>
         TryGetMatrixCellValue(submission, column);

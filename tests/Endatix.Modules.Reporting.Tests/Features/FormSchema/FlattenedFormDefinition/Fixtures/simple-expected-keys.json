@@ -1,6 +1,5 @@
 [
   "firstName",
-  "country__US",
-  "country__UK",
+  "country",
   "totalScore"
 ]

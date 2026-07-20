@@ -9,6 +9,7 @@ public sealed class ExportCapabilityRegistryTests
 
     [Theory]
     [InlineData(ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native, "csv")]
+    [InlineData(ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Shoji, "csv-shoji")]
     [InlineData(ExportTarget.Submissions, ExportDeliveryFormat.Json, ExportProfile.Native, "json")]
     [InlineData(ExportTarget.Codebook, ExportDeliveryFormat.Json, ExportProfile.Native, "codebook")]
     [InlineData(ExportTarget.Codebook, ExportDeliveryFormat.Json, ExportProfile.Shoji, "codebook-shoji")]
@@ -34,7 +35,7 @@ public sealed class ExportCapabilityRegistryTests
     [Fact]
     public void IsValid_RejectsUnsupportedCombinations()
     {
-        _registry.IsValid(ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Shoji).Should().BeFalse();
+        _registry.IsValid(ExportTarget.Submissions, ExportDeliveryFormat.Json, ExportProfile.Shoji).Should().BeFalse();
         _registry.IsValid(ExportTarget.Codebook, ExportDeliveryFormat.Csv, ExportProfile.Native).Should().BeFalse();
     }
 }

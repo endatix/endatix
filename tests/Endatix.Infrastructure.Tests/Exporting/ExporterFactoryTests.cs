@@ -10,7 +10,7 @@ namespace Endatix.Infrastructure.Tests.Exporting;
 
 public sealed class ExporterFactoryTests
 {
-    private readonly ILogger<SubmissionCsvExporter> _csvLogger;
+    private readonly ILogger<SubmissionShojiCsvExporter> _csvLogger;
     private readonly ILogger<SubmissionJsonExporter> _jsonLogger;
     private readonly ILogger<CodebookJsonExporter> _codebookLogger;
     private readonly IEnumerable<IValueTransformer> _globalTransformers;
@@ -21,7 +21,7 @@ public sealed class ExporterFactoryTests
 
     public ExporterFactoryTests()
     {
-        _csvLogger = Substitute.For<ILogger<SubmissionCsvExporter>>();
+        _csvLogger = Substitute.For<ILogger<SubmissionShojiCsvExporter>>();
         _jsonLogger = Substitute.For<ILogger<SubmissionJsonExporter>>();
         _codebookLogger = Substitute.For<ILogger<CodebookJsonExporter>>();
         var transformer = Substitute.For<IValueTransformer>();
@@ -33,6 +33,23 @@ public sealed class ExporterFactoryTests
         _jsonExporter = new SubmissionJsonExporter(_jsonLogger, _globalTransformers);
         _codebookExporter = new CodebookJsonExporter(_codebookLogger);
         _shojiCodebookExporter = new ShojiCodebookJsonExporter(_codebookLogger);
+    }
+
+    [Fact]
+    public void GetExporter_ShouldReturnShojiCsvExporter_WhenFormatIsCsvShoji()
+    {
+        // Arrange
+        var shojiCsvExporter = new SubmissionShojiCsvExporter(_csvLogger, _globalTransformers);
+        var exporters = new IExporter[] { _csvExporter, shojiCsvExporter, _jsonExporter };
+        var factory = new ExporterFactory(exporters);
+
+        // Act
+        var exporter = factory.GetExporter<SubmissionExportRow>("csv-shoji");
+
+        // Assert
+        var shojiExporter = Assert.IsType<SubmissionShojiCsvExporter>(exporter);
+        Assert.Equal("csv-shoji", shojiExporter.Format);
+        Assert.Equal("csv", shojiExporter.FileExtension);
     }
 
     [Fact]
