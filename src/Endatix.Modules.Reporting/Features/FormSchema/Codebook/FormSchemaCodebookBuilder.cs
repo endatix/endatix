@@ -156,48 +156,107 @@ internal static class FormSchemaCodebookBuilder
 
         foreach (var column in merged.Columns)
         {
-            var parentKey = column.SourceQuestion ?? column.Key;
-            var hasQuestion = questionElements.TryGetValue(parentKey, out var collected) &&
-                               collected.Element.ValueKind == JsonValueKind.Object;
-            var questionElement = hasQuestion ? collected!.Element : default;
-
-            if (!hasQuestion &&
-                existingColumns is not null &&
-                existingColumns.TryGetValue(column.Key, out var existingColumn))
+            if (TryReuseExistingColumn(column, questionElements, existingColumns, out var existingColumn))
             {
-                columns[column.Key] = existingColumn.Clone();
+                columns[column.Key] = existingColumn;
                 continue;
             }
 
-            columns[column.Key] = WriteColumnEntry(writer =>
-            {
-                writer.WriteString(FormSchemaCodebookPropertyNames.ParentKey, parentKey);
-                writer.WriteString(
-                    FormSchemaCodebookPropertyNames.SurveyJsType,
-                    hasQuestion
-                        ? questionElement.GetSurveyJsType() ?? FormSchemaCodebookPropertyNames.UnknownSurveyJsType
-                        : FormSchemaCodebookPropertyNames.UnknownSurveyJsType);
-                writer.WriteString(
-                    FormSchemaCodebookPropertyNames.ExportShape,
-                    hasQuestion
-                        ? ResolveColumnExportShape(column, questionElement)
-                        : ResolveColumnExportShapeWithoutQuestion(column));
-
-                if (hasQuestion)
-                {
-                    WriteTitle(writer, questionElement);
-                    WriteDescription(writer, questionElement);
-                }
-
-                WriteColumnChoiceMetadata(writer, column, hasQuestion, questionElement);
-                WriteColumnMatrixMetadata(writer, column, hasQuestion, questionElement);
-                WriteColumnLoopPathMetadata(writer, column);
-                WriteColumnLeafInputType(writer, column, hasQuestion, questionElement);
-            });
+            columns[column.Key] = CreateColumnEntry(column, questionElements);
         }
 
         return columns;
     }
+
+    private static bool TryReuseExistingColumn(
+        FormSchemaColumn column,
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements,
+        IReadOnlyDictionary<string, JsonElement>? existingColumns,
+        out JsonElement existingColumn)
+    {
+        existingColumn = default;
+        if (TryGetQuestionElement(column, questionElements, out _))
+        {
+            return false;
+        }
+
+        if (existingColumns is null ||
+            !existingColumns.TryGetValue(column.Key, out var found))
+        {
+            return false;
+        }
+
+        existingColumn = found.Clone();
+        return true;
+    }
+
+    private static JsonElement CreateColumnEntry(
+        FormSchemaColumn column,
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements)
+    {
+        var parentKey = column.SourceQuestion ?? column.Key;
+        var hasQuestion = TryGetQuestionElement(column, questionElements, out var questionElement);
+
+        return WriteColumnEntry(writer =>
+            WriteColumnMetadata(writer, column, parentKey, hasQuestion, questionElement));
+    }
+
+    private static bool TryGetQuestionElement(
+        FormSchemaColumn column,
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements,
+        out JsonElement questionElement)
+    {
+        questionElement = default;
+        var parentKey = column.SourceQuestion ?? column.Key;
+        if (!questionElements.TryGetValue(parentKey, out var collected) ||
+            collected.Element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        questionElement = collected.Element;
+        return true;
+    }
+
+    private static void WriteColumnMetadata(
+        Utf8JsonWriter writer,
+        FormSchemaColumn column,
+        string parentKey,
+        bool hasQuestion,
+        JsonElement questionElement)
+    {
+        writer.WriteString(FormSchemaCodebookPropertyNames.ParentKey, parentKey);
+        writer.WriteString(
+            FormSchemaCodebookPropertyNames.SurveyJsType,
+            ResolveColumnSurveyJsType(hasQuestion, questionElement));
+        writer.WriteString(
+            FormSchemaCodebookPropertyNames.ExportShape,
+            ResolveColumnExportShapeOrDefault(column, hasQuestion, questionElement));
+
+        if (hasQuestion)
+        {
+            WriteTitle(writer, questionElement);
+            WriteDescription(writer, questionElement);
+        }
+
+        WriteColumnChoiceMetadata(writer, column, hasQuestion, questionElement);
+        WriteColumnMatrixMetadata(writer, column, hasQuestion, questionElement);
+        WriteColumnLoopPathMetadata(writer, column);
+        WriteColumnLeafInputType(writer, column, hasQuestion, questionElement);
+    }
+
+    private static string ResolveColumnSurveyJsType(bool hasQuestion, JsonElement questionElement) =>
+        hasQuestion
+            ? questionElement.GetSurveyJsType() ?? FormSchemaCodebookPropertyNames.UnknownSurveyJsType
+            : FormSchemaCodebookPropertyNames.UnknownSurveyJsType;
+
+    private static string ResolveColumnExportShapeOrDefault(
+        FormSchemaColumn column,
+        bool hasQuestion,
+        JsonElement questionElement) =>
+        hasQuestion
+            ? ResolveColumnExportShape(column, questionElement)
+            : ResolveColumnExportShapeWithoutQuestion(column);
 
     private static void WriteColumnLeafInputType(
         Utf8JsonWriter writer,
@@ -205,25 +264,41 @@ internal static class FormSchemaCodebookBuilder
         bool hasQuestion,
         JsonElement questionElement)
     {
-        if (!hasQuestion ||
-            column.Kind is not (FormSchemaColumnKind.MultipleTextItem or FormSchemaColumnKind.MatrixCell))
+        if (!TryResolveLeafElement(column, hasQuestion, questionElement, out var leafElement))
         {
             return;
         }
 
-        JsonElement leafElement = default;
+        WriteInputType(writer, leafElement);
+    }
+
+    private static bool TryResolveLeafElement(
+        FormSchemaColumn column,
+        bool hasQuestion,
+        JsonElement questionElement,
+        out JsonElement leafElement)
+    {
+        leafElement = default;
+        if (!hasQuestion)
+        {
+            return false;
+        }
+
         if (column.Kind is FormSchemaColumnKind.MultipleTextItem &&
             !string.IsNullOrWhiteSpace(column.MatrixRowValue))
         {
             leafElement = FindMultipleTextItemElement(questionElement, column.MatrixRowValue);
-        }
-        else if (column.Kind is FormSchemaColumnKind.MatrixCell &&
-                 !string.IsNullOrWhiteSpace(column.MatrixColumnValue))
-        {
-            leafElement = FindMatrixColumnElement(questionElement, column.MatrixColumnValue);
+            return true;
         }
 
-        WriteInputType(writer, leafElement);
+        if (column.Kind is FormSchemaColumnKind.MatrixCell &&
+            !string.IsNullOrWhiteSpace(column.MatrixColumnValue))
+        {
+            leafElement = FindMatrixColumnElement(questionElement, column.MatrixColumnValue);
+            return true;
+        }
+
+        return false;
     }
 
     private static void WriteColumnChoiceMetadata(

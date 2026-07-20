@@ -1798,12 +1798,20 @@ internal static class ShojiCodebookGenerator
         return !string.IsNullOrWhiteSpace(driver);
     }
 
-    private static string AppendOtherSuffix(string title) =>
-        string.IsNullOrWhiteSpace(title)
-            ? "Other"
-            : title.EndsWith(" -- Other", StringComparison.Ordinal)
-                ? title
-                : $"{title} -- Other";
+    private static string AppendOtherSuffix(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return "Other";
+        }
+
+        if (title.EndsWith(" -- Other", StringComparison.Ordinal))
+        {
+            return title;
+        }
+
+        return $"{title} -- Other";
+    }
 
     private static string ReadQuestionTitle(JsonElement question) =>
         question.ValueKind == JsonValueKind.Object
