@@ -26,50 +26,17 @@ internal sealed class ReportingExportRepository(
         ExportQueryOptions options,
         CancellationToken cancellationToken)
     {
-        var flattenedRows = BuildExportableRowsQuery(tenantId, formId);
-
-        if (options.IncludeTestSubmissions)
+        var probeOptions = options with { PageSize = 1, AfterSubmissionId = null };
+        await foreach (var _ in StreamFlattenedSubmissionsAsync(
+                           tenantId,
+                           formId,
+                           probeOptions,
+                           cancellationToken))
         {
-            return await flattenedRows.AnyAsync(cancellationToken);
+            return true;
         }
 
-        // Probe flattened rows in bounded batches and require a non-test core submission
-        // for at least one ID. Avoids materializing all IDs or cross-DbContext joins.
-        long? afterSubmissionId = null;
-        while (true)
-        {
-            var batchIds = await flattenedRows
-                .Where(row => afterSubmissionId == null || row.SubmissionId > afterSubmissionId)
-                .OrderBy(row => row.SubmissionId)
-                .Take(DEFAULT_PAGE_SIZE)
-                .Select(row => row.SubmissionId)
-                .ToListAsync(cancellationToken);
-
-            if (batchIds.Count == 0)
-            {
-                return false;
-            }
-
-            var hasExportableRow = await appDbContext.Submissions
-                .AsNoTracking()
-                .AnyAsync(
-                    submission => submission.TenantId == tenantId &&
-                                  submission.FormId == formId &&
-                                  !submission.IsTestSubmission &&
-                                  batchIds.Contains(submission.Id),
-                    cancellationToken);
-            if (hasExportableRow)
-            {
-                return true;
-            }
-
-            if (batchIds.Count < DEFAULT_PAGE_SIZE)
-            {
-                return false;
-            }
-
-            afterSubmissionId = batchIds[^1];
-        }
+        return false;
     }
 
     public async IAsyncEnumerable<FlattenedExportRow> StreamFlattenedSubmissionsAsync(
@@ -83,8 +50,13 @@ internal sealed class ReportingExportRepository(
 
         while (true)
         {
-            var batch = await BuildExportableRowsQuery(tenantId, formId)
-                .Where(row => afterSubmissionId == null || row.SubmissionId > afterSubmissionId)
+            var batchQuery = BuildExportableRowsQuery(tenantId, formId, options);
+            if (afterSubmissionId is not null)
+            {
+                batchQuery = batchQuery.Where(row => row.SubmissionId > afterSubmissionId);
+            }
+
+            var batch = await batchQuery
                 .OrderBy(row => row.SubmissionId)
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
@@ -95,12 +67,15 @@ internal sealed class ReportingExportRepository(
             }
 
             var submissionIds = batch.Select(row => row.SubmissionId).ToList();
-            var submissions = await appDbContext.Submissions
+            var submissionsQuery = appDbContext.Submissions
                 .AsNoTracking()
                 .Where(submission => submission.TenantId == tenantId &&
                                      submission.FormId == formId &&
-                                     (options.IncludeTestSubmissions || !submission.IsTestSubmission) &&
-                                     submissionIds.Contains(submission.Id))
+                                     submissionIds.Contains(submission.Id));
+
+            submissionsQuery = ApplyCoreSubmissionFilters(submissionsQuery, options);
+
+            var submissions = await submissionsQuery
                 .ToDictionaryAsync(submission => submission.Id, cancellationToken);
 
             foreach (var flattened in batch)
@@ -108,7 +83,7 @@ internal sealed class ReportingExportRepository(
                 if (!submissions.TryGetValue(flattened.SubmissionId, out var submission))
                 {
                     logger.LogWarning(
-                        "Skipping flattened submission {SubmissionId} for tenant {TenantId} form {FormId}: core submission row not found.",
+                        "Skipping flattened submission {SubmissionId} for tenant {TenantId} form {FormId}: core submission row not found or filtered out.",
                         flattened.SubmissionId,
                         tenantId,
                         formId);
@@ -136,15 +111,64 @@ internal sealed class ReportingExportRepository(
         }
     }
 
-    private IQueryable<FlattenedSubmission> BuildExportableRowsQuery(long tenantId, long formId)
+    private IQueryable<FlattenedSubmission> BuildExportableRowsQuery(
+        long tenantId,
+        long formId,
+        ExportQueryOptions options)
     {
-        return reportingDbContext.FlattenedSubmissions
+        var query = reportingDbContext.FlattenedSubmissions
             .AsNoTracking()
             .Where(row => row.TenantId == tenantId &&
                           row.FormId == formId &&
                           !row.IsDeleted &&
                           row.Integration.Code == SubmissionIntegrationStatusCodes.Processed &&
                           row.DataJson != null);
+
+        if (options.MinSubmissionId is long minSubmissionId)
+        {
+            query = query.Where(row => row.SubmissionId >= minSubmissionId);
+        }
+
+        if (options.MaxSubmissionId is long maxSubmissionId)
+        {
+            query = query.Where(row => row.SubmissionId <= maxSubmissionId);
+        }
+
+        return query;
+    }
+
+    private static IQueryable<Endatix.Core.Entities.Submission> ApplyCoreSubmissionFilters(
+        IQueryable<Endatix.Core.Entities.Submission> query,
+        ExportQueryOptions options)
+    {
+        if (!options.IncludeTestSubmissions)
+        {
+            query = query.Where(submission => !submission.IsTestSubmission);
+        }
+
+        if (options.CreatedAfter is DateTime createdAfter)
+        {
+            query = query.Where(submission => submission.CreatedAt >= createdAfter);
+        }
+
+        if (options.CreatedBefore is DateTime createdBefore)
+        {
+            query = query.Where(submission => submission.CreatedAt < createdBefore);
+        }
+
+        if (options.CompletedAfter is DateTime completedAfter)
+        {
+            query = query.Where(submission =>
+                submission.CompletedAt != null && submission.CompletedAt >= completedAfter);
+        }
+
+        if (options.CompletedBefore is DateTime completedBefore)
+        {
+            query = query.Where(submission =>
+                submission.CompletedAt != null && submission.CompletedAt < completedBefore);
+        }
+
+        return query;
     }
 
     private static int NormalizePageSize(int pageSize) =>

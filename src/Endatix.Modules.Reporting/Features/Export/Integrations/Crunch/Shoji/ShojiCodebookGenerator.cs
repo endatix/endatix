@@ -13,6 +13,12 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// </summary>
 internal static class ShojiCodebookGenerator
 {
+    /// <summary>
+    /// Locale for the current synchronous <see cref="Generate"/> call only.
+    /// Prefer passing locale through call chains if Generate becomes async.
+    /// </summary>
+    private static readonly AsyncLocal<string?> _activeLocale = new();
+
     private static readonly (string Name, int Id, int NumericValue)[] _booleanCategories =
     [
         ("No", 0, 0),
@@ -25,32 +31,50 @@ internal static class ShojiCodebookGenerator
         ("True", 1, 1),
     ];
 
+    private static string ActiveLocale =>
+        string.IsNullOrWhiteSpace(_activeLocale.Value)
+            ? FormSchemaCodebookPropertyNames.Default
+            : _activeLocale.Value;
+
     internal static string Generate(
         string flatteningMapJson,
         string codebookJson,
-        string keySeparator = ExportFormatSettings.DefaultKeySeparator)
+        string keySeparator = ExportFormatSettings.DefaultKeySeparator,
+        string locale = FormSchemaCodebookPropertyNames.Default)
     {
-        var flatteningMap = FormSchemaFlatteningMap.FromJson(flatteningMapJson);
-        using var codebookDocument = JsonDocument.Parse(codebookJson);
-        var codebook = codebookDocument.RootElement;
+        var previousLocale = _activeLocale.Value;
+        _activeLocale.Value = string.IsNullOrWhiteSpace(locale)
+            ? FormSchemaCodebookPropertyNames.Default
+            : locale.Trim();
 
-        var questions = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Questions);
-        var codebookColumns = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Columns);
-        var groupedColumnKeys = BuildGroupedColumnKeys(flatteningMap);
-
-        System.Buffers.ArrayBufferWriter<byte> buffer = new();
-        using (Utf8JsonWriter writer = new(buffer))
+        try
         {
-            WriteShojiCodebook(
-                writer,
-                flatteningMap,
-                questions,
-                groupedColumnKeys,
-                codebookColumns,
-                keySeparator);
-        }
+            var flatteningMap = FormSchemaFlatteningMap.FromJson(flatteningMapJson);
+            using var codebookDocument = JsonDocument.Parse(codebookJson);
+            var codebook = codebookDocument.RootElement;
 
-        return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
+            var questions = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Questions);
+            var codebookColumns = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Columns);
+            var groupedColumnKeys = BuildGroupedColumnKeys(flatteningMap);
+
+            System.Buffers.ArrayBufferWriter<byte> buffer = new();
+            using (Utf8JsonWriter writer = new(buffer))
+            {
+                WriteShojiCodebook(
+                    writer,
+                    flatteningMap,
+                    questions,
+                    groupedColumnKeys,
+                    codebookColumns,
+                    keySeparator);
+            }
+
+            return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
+        }
+        finally
+        {
+            _activeLocale.Value = previousLocale;
+        }
     }
 
     private static void WriteShojiCodebook(
@@ -1885,11 +1909,25 @@ internal static class ShojiCodebookGenerator
             return resolved.GetString() ?? string.Empty;
         }
 
-        if (resolved.ValueKind == JsonValueKind.Object &&
-            resolved.TryGetProperty(FormSchemaCodebookPropertyNames.Default, out var defaultValue) &&
-            defaultValue.ValueKind == JsonValueKind.String)
+        if (resolved.ValueKind == JsonValueKind.Object)
         {
-            return defaultValue.GetString() ?? string.Empty;
+            var locale = ActiveLocale;
+            if (!string.Equals(locale, FormSchemaCodebookPropertyNames.Default, StringComparison.Ordinal) &&
+                resolved.TryGetProperty(locale, out var localizedValue) &&
+                localizedValue.ValueKind == JsonValueKind.String)
+            {
+                var localizedText = localizedValue.GetString();
+                if (!string.IsNullOrWhiteSpace(localizedText))
+                {
+                    return localizedText;
+                }
+            }
+
+            if (resolved.TryGetProperty(FormSchemaCodebookPropertyNames.Default, out var defaultValue) &&
+                defaultValue.ValueKind == JsonValueKind.String)
+            {
+                return defaultValue.GetString() ?? string.Empty;
+            }
         }
 
         return string.Empty;

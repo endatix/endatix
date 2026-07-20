@@ -21,8 +21,8 @@ public sealed class ListExportCapabilitiesEndpointTests
     {
         List<ExportCapability> capabilities =
         [
-            new(ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native, "csv", "CSV", "type1", "CSV export"),
-            new(ExportTarget.Codebook, ExportDeliveryFormat.Json, ExportProfile.Shoji, "codebook-shoji", "Codebook (Shoji)", "type2", "Shoji codebook"),
+            new(ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native, "csv", "CSV", "type1", "CSV export", ExportRequestFilterSets.Submissions),
+            new(ExportTarget.Codebook, ExportDeliveryFormat.Json, ExportProfile.Shoji, "codebook-shoji", "Codebook (Shoji)", "type2", "Shoji codebook", ExportRequestFilterSets.ShojiCodebook),
         ];
         _registry.GetAll().Returns(capabilities);
 

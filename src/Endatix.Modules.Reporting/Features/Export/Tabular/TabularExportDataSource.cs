@@ -22,6 +22,11 @@ internal sealed class TabularExportDataSource(
     private const string MissingRowsMessage =
         "No processed flattened submissions found for this form. Run admin backfill to populate the reporting read model before exporting.";
 
+    private const string NoMatchingFiltersMessage =
+        "No submissions matched the export filters. Broaden date/id/test filters or clear them and try again.";
+
+    private const string CrunchProjectionArtifactsKey = "ReportingCrunchProjectionArtifacts";
+
     public bool Matches(ExportDataSourceRequest request) =>
         string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
         capabilityRegistry.Matches(request.Format, request.ItemType) &&
@@ -50,7 +55,7 @@ internal sealed class TabularExportDataSource(
         context.Options.Metadata ??= new Dictionary<string, object>();
         context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] = settings;
 
-        ExportQueryOptions queryOptions = new(IncludeTestSubmissions: settings.IncludeTestSubmissions);
+        var queryOptions = CreateQueryOptions(context.Options, settings, pageSize: 1);
 
         var hasRows = await reportingExportRepository.HasExportableRowsAsync(
             context.TenantId,
@@ -59,7 +64,13 @@ internal sealed class TabularExportDataSource(
             cancellationToken);
         if (!hasRows)
         {
-            return Result<ExportOptions>.Conflict(MissingRowsMessage);
+            var hasAnyProcessedRows = await reportingExportRepository.HasExportableRowsAsync(
+                context.TenantId,
+                context.FormId,
+                new ExportQueryOptions(PageSize: 1, IncludeTestSubmissions: true),
+                cancellationToken);
+            return Result<ExportOptions>.Conflict(
+                hasAnyProcessedRows ? NoMatchingFiltersMessage : MissingRowsMessage);
         }
 
         IReadOnlySet<string>? columnScope = settings.ColumnScope is null
@@ -96,9 +107,10 @@ internal sealed class TabularExportDataSource(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var settings = ResolveSettings(context.Request.Format, context.Options);
-        ExportQueryOptions options = new(
-            PageSize: context.ExportPageSize ?? 500,
-            IncludeTestSubmissions: settings.IncludeTestSubmissions);
+        var options = CreateQueryOptions(
+            context.Options,
+            settings,
+            pageSize: context.ExportPageSize ?? 500);
         var projection = TryGetCrunchProjectionArtifacts(context.Options);
 
         await foreach (var row in reportingExportRepository.StreamFlattenedSubmissionsAsync(
@@ -110,8 +122,6 @@ internal sealed class TabularExportDataSource(
             yield return MapSubmissionRow(row, projection);
         }
     }
-
-    private const string CrunchProjectionArtifactsKey = "ReportingCrunchProjectionArtifacts";
 
     private sealed record CrunchProjectionArtifacts(string FlatteningMapJson, string CodebookJson);
 
@@ -140,6 +150,31 @@ internal sealed class TabularExportDataSource(
         }
 
         return null;
+    }
+
+    private static ExportQueryOptions CreateQueryOptions(
+        ExportOptions options,
+        ExportFormatSettings settings,
+        int pageSize)
+    {
+        if (options.Metadata is not null &&
+            options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
+            settingsObject is SubmissionExportExecutionSettings executionSettings)
+        {
+            return new ExportQueryOptions(
+                PageSize: pageSize,
+                IncludeTestSubmissions: settings.IncludeTestSubmissions,
+                CreatedAfter: executionSettings.CreatedAfter,
+                CreatedBefore: executionSettings.CreatedBefore,
+                CompletedAfter: executionSettings.CompletedAfter,
+                CompletedBefore: executionSettings.CompletedBefore,
+                MinSubmissionId: executionSettings.MinSubmissionId,
+                MaxSubmissionId: executionSettings.MaxSubmissionId);
+        }
+
+        return new ExportQueryOptions(
+            PageSize: pageSize,
+            IncludeTestSubmissions: settings.IncludeTestSubmissions);
     }
 
     private ExportFormatSettings ResolveSettings(string format, ExportOptions options)

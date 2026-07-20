@@ -15,5 +15,6 @@ internal static class NativeCodebookExportCapability
         WireKey: "codebook",
         Label: "Codebook",
         ItemTypeName: typeof(DynamicExportRow).FullName!,
-        Description: "Standard Endatix codebook JSON for question metadata.");
+        Description: "Standard Endatix codebook JSON for question metadata.",
+        AllowedFilters: ExportRequestFilterSets.NativeCodebook);
 }

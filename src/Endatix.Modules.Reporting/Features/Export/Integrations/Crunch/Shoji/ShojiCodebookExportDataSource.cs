@@ -60,7 +60,8 @@ internal sealed class ShojiCodebookExportDataSource(
         var codebookJson = ShojiCodebookGenerator.Generate(
             schema.FlatteningMap,
             schema.Codebook,
-            settings.KeySeparator);
+            settings.KeySeparator,
+            settings.Locale);
         yield return new DynamicExportRow { Data = codebookJson };
     }
 
