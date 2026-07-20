@@ -100,13 +100,6 @@ internal sealed class CreateExportFormatHandler(
             ? ExportFormatSettings.InterimCrunchKeySeparator
             : ExportFormatSettings.DefaultKeySeparator;
 
-        if (request.ExportTarget == ExportTarget.Codebook)
-        {
-            return new ExportFormatSettingsInput(
-                AliasProfile: ColumnAliasProfile.Native,
-                KeySeparator: keySeparator);
-        }
-
         return new ExportFormatSettingsInput(
             AliasProfile: ColumnAliasProfile.Native,
             KeySeparator: keySeparator);
