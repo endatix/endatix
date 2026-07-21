@@ -14,43 +14,43 @@ public static class ExportRequestFilterGuard
         if (filters.IncludeTestSubmissions.HasValue &&
             !allowed.HasFlag(ExportRequestFilters.IncludeTestSubmissions))
         {
-            disallowed.Add(ExportRequestFilterWireNames.IncludeTestSubmissions);
+            disallowed.Add(AllowedExportFilters.IncludeTestSubmissions);
         }
 
         if ((filters.CreatedAfter.HasValue || filters.CreatedBefore.HasValue) &&
             !allowed.HasFlag(ExportRequestFilters.CreatedAtRange))
         {
-            disallowed.Add(ExportRequestFilterWireNames.CreatedAtRange);
+            disallowed.Add(AllowedExportFilters.CreatedAtRange);
         }
 
         if ((filters.CompletedAfter.HasValue || filters.CompletedBefore.HasValue) &&
             !allowed.HasFlag(ExportRequestFilters.CompletedAtRange))
         {
-            disallowed.Add(ExportRequestFilterWireNames.CompletedAtRange);
+            disallowed.Add(AllowedExportFilters.CompletedAtRange);
         }
 
         if ((filters.MinSubmissionId.HasValue || filters.MaxSubmissionId.HasValue) &&
             !allowed.HasFlag(ExportRequestFilters.SubmissionIdRange))
         {
-            disallowed.Add(ExportRequestFilterWireNames.SubmissionIdRange);
+            disallowed.Add(AllowedExportFilters.SubmissionIdRange);
         }
 
         if (!string.IsNullOrWhiteSpace(filters.Locale) &&
             !allowed.HasFlag(ExportRequestFilters.Locale))
         {
-            disallowed.Add(ExportRequestFilterWireNames.Locale);
+            disallowed.Add(AllowedExportFilters.Locale);
         }
 
         if (filters.ColumnScope is { Count: > 0 } &&
             !allowed.HasFlag(ExportRequestFilters.ColumnScope))
         {
-            disallowed.Add(ExportRequestFilterWireNames.ColumnScope);
+            disallowed.Add(AllowedExportFilters.ColumnScope);
         }
 
         if (filters.CompletionStatus.HasValue &&
             !allowed.HasFlag(ExportRequestFilters.CompletionStatus))
         {
-            disallowed.Add(ExportRequestFilterWireNames.CompletionStatus);
+            disallowed.Add(AllowedExportFilters.CompletionStatus);
         }
 
         return disallowed;

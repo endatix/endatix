@@ -37,7 +37,8 @@ public sealed class CreateExportFormatEndpointTests
 
         ExportFormatDto format = new(
             1, "CSV Export", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native,
-            "csv", "CSV", null, ExportFormatSettings.Default, DateTime.UtcNow, null);
+            "csv", "CSV", null, ExportFormatSettings.Default, DateTime.UtcNow, null,
+            AllowedExportFilters.ToAllowedFilterNames(ExportRequestFilterSets.Submissions));
 
         _mediator.Send(Arg.Any<CreateExportFormatCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<ExportFormatDto>.Created(format));

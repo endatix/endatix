@@ -44,7 +44,8 @@ public sealed class Create(
                 Description: "Standard CSV export format",
                 Settings: new ExportFormatSettings(),
                 CreatedAt: DateTime.UtcNow,
-                ModifiedAt: null);
+                ModifiedAt: null,
+                AllowedFilters: AllowedExportFilters.ToAllowedFilterNames(ExportRequestFilterSets.Submissions));
             summary.Responses[201] = "Export format created.";
             summary.Responses[400] = "Validation failed.";
         });

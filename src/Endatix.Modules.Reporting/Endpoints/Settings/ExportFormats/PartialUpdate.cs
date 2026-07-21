@@ -44,7 +44,8 @@ public sealed class PartialUpdate(
                 Description: "Updated description",
                 Settings: new ExportFormatSettings(),
                 CreatedAt: DateTime.UtcNow,
-                ModifiedAt: DateTime.UtcNow);
+                ModifiedAt: DateTime.UtcNow,
+                AllowedFilters: AllowedExportFilters.ToAllowedFilterNames(ExportRequestFilterSets.Submissions));
             summary.Responses[200] = "Export format updated.";
             summary.Responses[404] = "Export format not found.";
         });

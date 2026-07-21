@@ -49,9 +49,9 @@ public static class ExportRequestFilterSets
 }
 
 /// <summary>
-/// Wire names and helpers for <see cref="ExportRequestFilters"/>.
+/// API names for <see cref="ExportRequestFilters"/> and helpers to project allow-sets onto them.
 /// </summary>
-public static class ExportRequestFilterWireNames
+public static class AllowedExportFilters
 {
     public const string IncludeTestSubmissions = "includeTestSubmissions";
     public const string CreatedAtRange = "createdAtRange";
@@ -72,7 +72,10 @@ public static class ExportRequestFilterWireNames
         (ExportRequestFilters.CompletionStatus, CompletionStatus),
     ];
 
-    public static IReadOnlyList<string> ToWireNames(ExportRequestFilters allowed) =>
+    /// <summary>
+    /// Converts <see cref="ExportRequestFilters"/> flags to the <c>allowedFilters</c> API names.
+    /// </summary>
+    public static IReadOnlyList<string> ToAllowedFilterNames(ExportRequestFilters allowed) =>
         _all
             .Where(entry => allowed.HasFlag(entry.Filter))
             .Select(entry => entry.Name)

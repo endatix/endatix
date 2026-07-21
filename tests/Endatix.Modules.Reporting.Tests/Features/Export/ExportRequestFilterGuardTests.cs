@@ -56,9 +56,9 @@ public sealed class ExportRequestFilterGuardTests
 
         disallowed.Should().BeEquivalentTo(
         [
-            ExportRequestFilterWireNames.IncludeTestSubmissions,
-            ExportRequestFilterWireNames.CreatedAtRange,
-            ExportRequestFilterWireNames.SubmissionIdRange,
+            AllowedExportFilters.IncludeTestSubmissions,
+            AllowedExportFilters.CreatedAtRange,
+            AllowedExportFilters.SubmissionIdRange,
         ]);
     }
 
@@ -69,7 +69,7 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.ShojiCodebook,
             EmptyFilters() with { CompletionStatus = ExportCompletionStatus.Completed });
 
-        disallowed.Should().Equal(ExportRequestFilterWireNames.CompletionStatus);
+        disallowed.Should().Equal(AllowedExportFilters.CompletionStatus);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.NativeCodebook,
             EmptyFilters() with { Locale = "es" });
 
-        disallowed.Should().Equal(ExportRequestFilterWireNames.Locale);
+        disallowed.Should().Equal(AllowedExportFilters.Locale);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.Submissions,
             EmptyFilters() with { Locale = "es" });
 
-        disallowed.Should().Equal(ExportRequestFilterWireNames.Locale);
+        disallowed.Should().Equal(AllowedExportFilters.Locale);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.NativeCodebook,
             EmptyFilters() with { IncludeTestSubmissions = false });
 
-        disallowed.Should().Equal(ExportRequestFilterWireNames.IncludeTestSubmissions);
+        disallowed.Should().Equal(AllowedExportFilters.IncludeTestSubmissions);
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.ShojiCodebook,
             EmptyFilters() with { CreatedBefore = DateTime.UtcNow });
 
-        disallowed.Should().Equal(ExportRequestFilterWireNames.CreatedAtRange);
+        disallowed.Should().Equal(AllowedExportFilters.CreatedAtRange);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.NativeCodebook,
             EmptyFilters() with { CompletedAfter = DateTime.UtcNow.AddDays(-1) });
 
-        disallowed.Should().Equal(ExportRequestFilterWireNames.CompletedAtRange);
+        disallowed.Should().Equal(AllowedExportFilters.CompletedAtRange);
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.ShojiCodebook,
             EmptyFilters() with { MaxSubmissionId = 50 });
 
-        disallowed.Should().Equal(ExportRequestFilterWireNames.SubmissionIdRange);
+        disallowed.Should().Equal(AllowedExportFilters.SubmissionIdRange);
     }
 
     [Fact]
@@ -203,7 +203,7 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.NativeCodebook,
             EmptyFilters() with { ColumnScope = ["q1"] });
 
-        disallowed.Should().Equal(ExportRequestFilterWireNames.ColumnScope);
+        disallowed.Should().Equal(AllowedExportFilters.ColumnScope);
     }
 
     [Fact]
@@ -214,7 +214,7 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.ShojiCodebook,
             EmptyFilters() with { CompletionStatus = ExportCompletionStatus.All });
 
-        disallowed.Should().Equal(ExportRequestFilterWireNames.CompletionStatus);
+        disallowed.Should().Equal(AllowedExportFilters.CompletionStatus);
     }
 
     [Fact]
@@ -235,12 +235,12 @@ public sealed class ExportRequestFilterGuardTests
                 CompletionStatus: ExportCompletionStatus.Completed));
 
         disallowed.Should().Equal(
-            ExportRequestFilterWireNames.IncludeTestSubmissions,
-            ExportRequestFilterWireNames.CreatedAtRange,
-            ExportRequestFilterWireNames.CompletedAtRange,
-            ExportRequestFilterWireNames.SubmissionIdRange,
-            ExportRequestFilterWireNames.Locale,
-            ExportRequestFilterWireNames.ColumnScope,
-            ExportRequestFilterWireNames.CompletionStatus);
+            AllowedExportFilters.IncludeTestSubmissions,
+            AllowedExportFilters.CreatedAtRange,
+            AllowedExportFilters.CompletedAtRange,
+            AllowedExportFilters.SubmissionIdRange,
+            AllowedExportFilters.Locale,
+            AllowedExportFilters.ColumnScope,
+            AllowedExportFilters.CompletionStatus);
     }
 }

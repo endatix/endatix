@@ -38,7 +38,8 @@ public sealed class Get(
                 Description: "Standard CSV export format",
                 Settings: new ExportFormatSettings(),
                 CreatedAt: DateTime.UtcNow,
-                ModifiedAt: null);
+                ModifiedAt: null,
+                AllowedFilters: AllowedExportFilters.ToAllowedFilterNames(ExportRequestFilterSets.Submissions));
             summary.Responses[200] = "Export format retrieved.";
             summary.Responses[404] = "Export format not found.";
         });
