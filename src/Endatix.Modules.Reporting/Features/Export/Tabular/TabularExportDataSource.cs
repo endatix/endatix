@@ -261,7 +261,7 @@ internal sealed class TabularExportDataSource(
         return settings with { KeySeparator = ExportFormatSettings.InterimCrunchKeySeparator };
     }
 
-    private bool ShouldEncodeBooleansAsCategoryIds(string format, ExportFormatSettings settings)
+    private static bool ShouldEncodeBooleansAsCategoryIds(string format, ExportFormatSettings settings)
     {
         if (TryGetCapability(format, out var capability) &&
             capability.Profile == ExportProfile.Shoji)
@@ -277,17 +277,11 @@ internal sealed class TabularExportDataSource(
 
     private static bool TryGetCapability(string format, out ExportCapability capability)
     {
-        foreach (var candidate in Capabilities)
-        {
-            if (string.Equals(candidate.WireKey, format, StringComparison.OrdinalIgnoreCase))
-            {
-                capability = candidate;
-                return true;
-            }
-        }
+        var match = Capabilities.FirstOrDefault(candidate =>
+            string.Equals(candidate.WireKey, format, StringComparison.OrdinalIgnoreCase));
 
-        capability = default!;
-        return false;
+        capability = match!;
+        return match is not null;
     }
 
     private static SubmissionExportExecutionSettings CreateExecutionSettings(
