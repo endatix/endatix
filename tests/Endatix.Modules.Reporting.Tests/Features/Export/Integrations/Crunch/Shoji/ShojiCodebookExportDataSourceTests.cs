@@ -6,7 +6,6 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
-using Endatix.Modules.Reporting.Tests.Features.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -24,7 +23,7 @@ public sealed class ShojiCodebookExportDataSourceTests
         new(NullLogger<ExportFormatSettingsParser>.Instance);
 
     private static ShojiCodebookExportDataSource CreateDataSource(IFormSchemaRepository formSchemaRepository) =>
-        new(formSchemaRepository, ExportFormatSettingsParser, TestExportCapabilityRegistry.Instance);
+        new(formSchemaRepository, ExportFormatSettingsParser);
 
     [Fact]
     public async Task PrepareOptionsAsync_WithMissingSchema_ReturnsMissingSchemaMessage()

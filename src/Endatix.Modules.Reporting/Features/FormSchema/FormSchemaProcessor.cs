@@ -60,11 +60,16 @@ internal sealed class FormSchemaProcessor(
                     formId,
                     revision,
                     compiled.FlatteningMapJson,
-                    compiled.CodebookJson);
+                    compiled.CodebookJson,
+                    compiled.LocalesJson);
             }
             else
             {
-                existingSchema.UpdateSchema(revision, compiled.FlatteningMapJson, compiled.CodebookJson);
+                existingSchema.UpdateSchema(
+                    revision,
+                    compiled.FlatteningMapJson,
+                    compiled.CodebookJson,
+                    compiled.LocalesJson);
             }
 
             await schemaRepository.SaveAsync(existingSchema, cancellationToken);

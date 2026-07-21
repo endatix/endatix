@@ -16,9 +16,39 @@ internal sealed class TabularExportDataSource(
     IFormSchemaRepository formSchemaRepository,
     IReportingExportRepository reportingExportRepository,
     ExportFormatSettingsParser exportFormatSettingsParser,
-    IExportCapabilityRegistry capabilityRegistry,
     IColumnAliasTransformerRegistry aliasTransformerRegistry) : IExportDataSource
 {
+    internal static IReadOnlyList<ExportCapability> Capabilities { get; } =
+    [
+        new(
+            ExportTarget.Submissions,
+            ExportDeliveryFormat.Csv,
+            ExportProfile.Native,
+            WireKey: "csv",
+            Label: "CSV",
+            ItemTypeName: typeof(SubmissionExportRow).FullName!,
+            Description: "Tabular CSV export with one row per submission.",
+            AllowedFilters: ExportRequestFilterSets.Submissions),
+        new(
+            ExportTarget.Submissions,
+            ExportDeliveryFormat.Csv,
+            ExportProfile.Shoji,
+            WireKey: "csv-shoji",
+            Label: "CSV (Shoji / Crunch)",
+            ItemTypeName: typeof(SubmissionExportRow).FullName!,
+            Description: "Crunch-compatible CSV: -- key separators and boolean category ids 0/1.",
+            AllowedFilters: ExportRequestFilterSets.Submissions),
+        new(
+            ExportTarget.Submissions,
+            ExportDeliveryFormat.Json,
+            ExportProfile.Native,
+            WireKey: "json",
+            Label: "JSON",
+            ItemTypeName: typeof(SubmissionExportRow).FullName!,
+            Description: "Tabular JSON export with one object per submission.",
+            AllowedFilters: ExportRequestFilterSets.Submissions),
+    ];
+
     private const string MissingRowsMessage =
         "No processed flattened submissions found for this form. Run admin backfill to populate the reporting read model before exporting.";
 
@@ -29,9 +59,9 @@ internal sealed class TabularExportDataSource(
 
     public bool Matches(ExportDataSourceRequest request) =>
         string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
-        capabilityRegistry.Matches(request.Format, request.ItemType) &&
-        capabilityRegistry.TryGetByWireKey(request.Format, out var capability) &&
-        capability.Target == ExportTarget.Submissions;
+        Capabilities.Any(capability =>
+            string.Equals(capability.WireKey, request.Format, StringComparison.OrdinalIgnoreCase) &&
+            capability.ItemTypeName == request.ItemType.FullName);
 
     public async Task<Result<ExportOptions>> PrepareOptionsAsync(
         ExportDataSourceContext context,
@@ -52,6 +82,13 @@ internal sealed class TabularExportDataSource(
         }
 
         var settings = ResolveSettings(context.Request.Format, context.Options);
+        if (!ReportingExportSchemaHelper.IsLocaleAllowed(schema.Locales, settings.Locale))
+        {
+            return ReportingExportSchemaHelper.InvalidLocaleResult<ExportOptions>(
+                schema.Locales,
+                settings.Locale!);
+        }
+
         context.Options.Metadata ??= new Dictionary<string, object>();
         context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] = settings;
 
@@ -125,9 +162,9 @@ internal sealed class TabularExportDataSource(
 
     private sealed record CrunchProjectionArtifacts(string FlatteningMapJson, string CodebookJson);
 
-    private bool ShouldProjectCrunchShapes(string format, ExportFormatSettings settings)
+    private static bool ShouldProjectCrunchShapes(string format, ExportFormatSettings settings)
     {
-        if (capabilityRegistry.TryGetByWireKey(format, out var capability) &&
+        if (TryGetCapability(format, out var capability) &&
             capability.Profile == ExportProfile.Shoji)
         {
             return true;
@@ -169,7 +206,8 @@ internal sealed class TabularExportDataSource(
                 CompletedAfter: executionSettings.CompletedAfter,
                 CompletedBefore: executionSettings.CompletedBefore,
                 MinSubmissionId: executionSettings.MinSubmissionId,
-                MaxSubmissionId: executionSettings.MaxSubmissionId);
+                MaxSubmissionId: executionSettings.MaxSubmissionId,
+                IsComplete: executionSettings.IsComplete);
         }
 
         return new ExportQueryOptions(
@@ -206,7 +244,7 @@ internal sealed class TabularExportDataSource(
 
     private ExportFormatSettings ApplyShojiCsvDefaults(string format, ExportFormatSettings settings)
     {
-        if (!capabilityRegistry.TryGetByWireKey(format, out var capability) ||
+        if (!TryGetCapability(format, out var capability) ||
             capability.Profile != ExportProfile.Shoji)
         {
             return settings;
@@ -223,9 +261,9 @@ internal sealed class TabularExportDataSource(
         return settings with { KeySeparator = ExportFormatSettings.InterimCrunchKeySeparator };
     }
 
-    private bool ShouldEncodeBooleansAsCategoryIds(string format, ExportFormatSettings settings)
+    private static bool ShouldEncodeBooleansAsCategoryIds(string format, ExportFormatSettings settings)
     {
-        if (capabilityRegistry.TryGetByWireKey(format, out var capability) &&
+        if (TryGetCapability(format, out var capability) &&
             capability.Profile == ExportProfile.Shoji)
         {
             return true;
@@ -235,6 +273,15 @@ internal sealed class TabularExportDataSource(
             settings.KeySeparator,
             ExportFormatSettings.InterimCrunchKeySeparator,
             StringComparison.Ordinal);
+    }
+
+    private static bool TryGetCapability(string format, out ExportCapability capability)
+    {
+        var match = Capabilities.FirstOrDefault(candidate =>
+            string.Equals(candidate.WireKey, format, StringComparison.OrdinalIgnoreCase));
+
+        capability = match!;
+        return match is not null;
     }
 
     private static SubmissionExportExecutionSettings CreateExecutionSettings(

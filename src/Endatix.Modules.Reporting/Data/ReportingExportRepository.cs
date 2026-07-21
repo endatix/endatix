@@ -166,6 +166,11 @@ internal sealed class ReportingExportRepository(
                 submission.CompletedAt != null && submission.CompletedAt < completedBefore);
         }
 
+        if (options.IsComplete is bool isComplete)
+        {
+            query = query.Where(submission => submission.IsComplete == isComplete);
+        }
+
         return query;
     }
 

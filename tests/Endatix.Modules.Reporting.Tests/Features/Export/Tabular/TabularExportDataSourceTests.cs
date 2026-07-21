@@ -5,7 +5,6 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Tabular;
-using Endatix.Modules.Reporting.Tests.Features.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -300,6 +299,42 @@ public sealed class TabularExportDataSourceTests
     }
 
     [Fact]
+    public async Task PrepareOptionsAsync_WithUnknownLocale_ReturnsInvalid()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(
+            TenantId,
+            FormId,
+            1,
+            compiled.FlatteningMapJson,
+            compiled.CodebookJson,
+            compiled.LocalesJson);
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
+
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(
+            CreateContext(
+                settingsJson: null,
+                locale: "zz-not-a-locale"),
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().Contain(error =>
+            error.ErrorMessage.Contains("Locale 'zz-not-a-locale' is not available", StringComparison.Ordinal));
+        await reportingExportRepository.DidNotReceive()
+            .HasExportableRowsAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public void Matches_ReturnsTrueOnlyForTabularSubmissionExportWithoutSqlFunction()
     {
         TabularExportDataSource dataSource = CreateDataSource(
@@ -316,15 +351,16 @@ public sealed class TabularExportDataSourceTests
     private static TabularExportDataSource CreateDataSource(
         IFormSchemaRepository formSchemaRepository,
         IReportingExportRepository reportingExportRepository) =>
-        new(formSchemaRepository, reportingExportRepository, ExportFormatSettingsParser, TestExportCapabilityRegistry.Instance, ColumnAliasTransformerRegistry.Default);
+        new(formSchemaRepository, reportingExportRepository, ExportFormatSettingsParser, ColumnAliasTransformerRegistry.Default);
 
     private static ExportDataSourceContext CreateContext(
         string format = "csv",
         int? exportPageSize = null,
-        string? settingsJson = null)
+        string? settingsJson = null,
+        string? locale = null)
     {
         ExportOptions options = new();
-        if (settingsJson is not null)
+        if (settingsJson is not null || locale is not null)
         {
             options.Metadata = new Dictionary<string, object>
             {
@@ -332,7 +368,8 @@ public sealed class TabularExportDataSourceTests
                     ExportFormatId: 1,
                     SettingsJson: settingsJson,
                     IncludeTestSubmissions: null,
-                    ColumnScope: null),
+                    ColumnScope: null,
+                    Locale: locale),
             };
         }
 

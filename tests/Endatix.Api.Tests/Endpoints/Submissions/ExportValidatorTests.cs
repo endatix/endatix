@@ -1,6 +1,7 @@
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
+using Endatix.Modules.Reporting.Contracts.Export;
 using FluentValidation.TestHelper;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
@@ -111,6 +112,22 @@ public sealed class ExportValidatorTests
     }
 
     [Fact]
+    public async Task Validate_WhenIncompleteWithCompletedAtRange_Fails()
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            CompletionStatus = ExportCompletionStatus.Incomplete,
+            CompletedAfter = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldHaveValidationErrorFor("CompletionStatus");
+    }
+
+    [Fact]
     public async Task Validate_WhenMinSubmissionIdGreaterThanMax_Fails()
     {
         ExportRequest request = new()
@@ -155,5 +172,85 @@ public sealed class ExportValidatorTests
         TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
 
         result.ShouldHaveValidationErrorFor(x => x.ExportFormat);
+    }
+
+    [Fact]
+    public async Task Validate_WhenCompletedAfterEqualsCompletedBefore_Fails()
+    {
+        DateTime stamp = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            CompletedAfter = stamp,
+            CompletedBefore = stamp,
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldHaveValidationErrorFor("CompletedAfter");
+    }
+
+    [Fact]
+    public async Task Validate_WhenMinSubmissionIdEqualsMax_Passes()
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            MinSubmissionId = 42,
+            MaxSubmissionId = 42,
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public async Task Validate_WhenIncompleteWithoutCompletedAtRange_Passes()
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            CompletionStatus = ExportCompletionStatus.Incomplete,
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public async Task Validate_WhenCompletedWithCompletedAtRange_Passes()
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            CompletionStatus = ExportCompletionStatus.Completed,
+            CompletedAfter = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            CompletedBefore = new DateTime(2026, 1, 5, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public async Task Validate_WhenOnlyCreatedBeforePresent_Passes()
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            CreatedBefore = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldNotHaveAnyValidationErrors();
     }
 }

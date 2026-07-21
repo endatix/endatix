@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Infrastructure.Data.Config;
 using Endatix.Modules.Reporting.Domain;
-using Endatix.Modules.Reporting.Persistence;
 
 namespace Endatix.Modules.Reporting.Persistence.Config;
 
@@ -16,6 +15,7 @@ internal sealed class ExportFormatConfiguration : IEntityTypeConfiguration<Expor
 
         builder.Property(x => x.TenantId).IsRequired();
         builder.Property(x => x.Name).IsRequired().HasMaxLength(ExportFormat.NAME_MAX_LENGTH);
+        
         builder.Property(x => x.ExportTarget)
             .IsRequired()
             .HasConversion<string>()
@@ -31,7 +31,5 @@ internal sealed class ExportFormatConfiguration : IEntityTypeConfiguration<Expor
         builder.Property(x => x.Description).HasMaxLength(ExportFormat.DESCRIPTION_MAX_LENGTH);
         builder.Property(x => x.SettingsJson);
         builder.Property(x => x.CreatedAt).IsRequired();
-
-        builder.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
     }
 }

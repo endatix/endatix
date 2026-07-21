@@ -122,7 +122,8 @@ internal sealed class ExportMappingRepository(
             exportFormat.Description,
             settingsParser.Parse(exportFormat.SettingsJson),
             exportFormat.CreatedAt,
-            exportFormat.ModifiedAt);
+            exportFormat.ModifiedAt,
+            AllowedExportFilters.ToAllowedFilterNames(capability.AllowedFilters));
     }
 
     private ExportMappingDto MapDto(SurveyTypeExportMapping mapping) =>

@@ -14,5 +14,7 @@ internal sealed class FormSchemaConfigurationSqlServer : IEntityTypeConfiguratio
             .HasColumnType("json");
         builder.Property(x => x.Codebook)
             .HasColumnType("json");
+        builder.Property(x => x.Locales)
+            .HasColumnType("json");
     }
 }

@@ -12,15 +12,26 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// </summary>
 internal sealed class ShojiCodebookExportDataSource(
     IFormSchemaRepository formSchemaRepository,
-    ExportFormatSettingsParser exportFormatSettingsParser,
-    IExportCapabilityRegistry capabilityRegistry) : IExportDataSource
+    ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
 {
+    internal static IReadOnlyList<ExportCapability> Capabilities { get; } =
+    [
+        new(
+            ExportTarget.Codebook,
+            ExportDeliveryFormat.Json,
+            ExportProfile.Shoji,
+            WireKey: "codebook-shoji",
+            Label: "Codebook (Shoji)",
+            ItemTypeName: typeof(DynamicExportRow).FullName!,
+            Description: "Shoji produces Crunch-compatible codebook JSON.",
+            AllowedFilters: ExportRequestFilterSets.ShojiCodebook),
+    ];
+
     public bool Matches(ExportDataSourceRequest request) =>
         string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
-        capabilityRegistry.Matches(request.Format, request.ItemType) &&
-        capabilityRegistry.TryGetByWireKey(request.Format, out var capability) &&
-        capability.Target == ExportTarget.Codebook &&
-        capability.Profile == ExportProfile.Shoji;
+        Capabilities.Any(capability =>
+            string.Equals(capability.WireKey, request.Format, StringComparison.OrdinalIgnoreCase) &&
+            capability.ItemTypeName == request.ItemType.FullName);
 
     public async Task<Result<ExportOptions>> PrepareOptionsAsync(
         ExportDataSourceContext context,
@@ -41,8 +52,17 @@ internal sealed class ShojiCodebookExportDataSource(
         }
 
         var settings = ResolveSettings(context.Options);
+        var requestLocale = ReportingExportSchemaHelper.ResolveLocaleOrDefault(settings.Locale);
+        if (!ReportingExportSchemaHelper.IsLocaleAllowed(schema.Locales, requestLocale))
+        {
+            return ReportingExportSchemaHelper.InvalidLocaleResult<ExportOptions>(
+                schema.Locales,
+                requestLocale);
+        }
+
         context.Options.Metadata ??= new Dictionary<string, object>();
-        context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] = settings;
+        context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
+            settings with { Locale = requestLocale };
 
         return Result.Success(context.Options);
     }
@@ -57,11 +77,12 @@ internal sealed class ShojiCodebookExportDataSource(
             cancellationToken))!;
 
         var settings = ResolveSettings(context.Options);
+        var requestLocale = ReportingExportSchemaHelper.ResolveLocaleOrDefault(settings.Locale);
         var codebookJson = ShojiCodebookGenerator.Generate(
             schema.FlatteningMap,
             schema.Codebook,
             settings.KeySeparator,
-            settings.Locale);
+            requestLocale);
         yield return new DynamicExportRow { Data = codebookJson };
     }
 

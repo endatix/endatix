@@ -30,7 +30,7 @@ public sealed class ListExportFormatsEndpointTests
     {
         List<ExportFormatDto> formats =
         [
-            new(1, "CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native, "csv", "CSV", null, ExportFormatSettings.Default, DateTime.UtcNow, null),
+            new(1, "CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native, "csv", "CSV", null, ExportFormatSettings.Default, DateTime.UtcNow, null, AllowedExportFilters.ToAllowedFilterNames(ExportRequestFilterSets.Submissions)),
         ];
 
         _mediator.Send(Arg.Any<ListExportFormatsQuery>(), Arg.Any<CancellationToken>())

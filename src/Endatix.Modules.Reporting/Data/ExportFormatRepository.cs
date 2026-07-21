@@ -260,7 +260,8 @@ internal sealed class ExportFormatRepository(
             exportFormat.Description,
             settingsParser.Parse(exportFormat.SettingsJson),
             exportFormat.CreatedAt,
-            exportFormat.ModifiedAt);
+            exportFormat.ModifiedAt,
+            AllowedExportFilters.ToAllowedFilterNames(capability.AllowedFilters));
     }
 
     private ExportFormatRecord MapRecord(ExportFormat exportFormat)

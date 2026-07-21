@@ -30,7 +30,7 @@ public sealed class List(IExportCapabilityRegistry capabilityRegistry)
                 capability.Label,
                 capability.ItemTypeName,
                 capability.Description,
-                ExportRequestFilterWireNames.ToWireNames(capability.AllowedFilters)))
+                AllowedExportFilters.ToAllowedFilterNames(capability.AllowedFilters)))
             .ToList();
 
         return Send.OkAsync(capabilities, ct);

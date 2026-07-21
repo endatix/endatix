@@ -12,5 +12,9 @@ internal sealed class ExportFormatConfigurationSqlServer : IEntityTypeConfigurat
     {
         builder.Property(x => x.SettingsJson)
             .HasColumnType("json");
+
+        builder.HasIndex(x => new { x.TenantId, x.Name })
+            .IsUnique()
+            .HasFilter($"[{nameof(ExportFormat.IsDeleted)}] = 0");
     }
 }

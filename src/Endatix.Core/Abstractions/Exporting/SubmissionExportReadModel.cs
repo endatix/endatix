@@ -32,7 +32,8 @@ public sealed record SubmissionExportExecutionSettings(
     DateTime? CompletedAfter = null,
     DateTime? CompletedBefore = null,
     long? MinSubmissionId = null,
-    long? MaxSubmissionId = null);
+    long? MaxSubmissionId = null,
+    bool? IsComplete = null);
 
 /// <summary>
 /// Serialized <see cref="SubmissionExportColumnPlanEntry.Source"/> values.

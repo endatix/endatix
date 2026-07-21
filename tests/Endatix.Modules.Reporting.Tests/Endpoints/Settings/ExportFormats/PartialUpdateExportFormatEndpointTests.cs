@@ -38,7 +38,8 @@ public sealed class PartialUpdateExportFormatEndpointTests
 
         ExportFormatDto updated = new(
             exportFormatId, "Updated CSV Export", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native,
-            "csv", "CSV", "Updated description", ExportFormatSettings.Default, DateTime.UtcNow, DateTime.UtcNow);
+            "csv", "CSV", "Updated description", ExportFormatSettings.Default, DateTime.UtcNow, DateTime.UtcNow,
+            AllowedExportFilters.ToAllowedFilterNames(ExportRequestFilterSets.Submissions));
 
         _mediator.Send(Arg.Any<UpdateExportFormatCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(updated));

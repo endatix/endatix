@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
+using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
@@ -41,8 +42,10 @@ internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
             definition.RootElement,
             merged,
             existingCodebookJson);
+        var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition.RootElement);
+        var localesJson = JsonSerializer.Serialize(locales);
 
-        return new FormSchemaCompileResult(flatteningMapJson, codebookJson, merged);
+        return new FormSchemaCompileResult(flatteningMapJson, codebookJson, localesJson, merged);
     }
 
     public MergedFormSchema CompileFromPersistedSchema(string definitionJson, string? existingFlatteningMapJson = null)
@@ -54,4 +57,5 @@ internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
 internal sealed record FormSchemaCompileResult(
     string FlatteningMapJson,
     string CodebookJson,
+    string LocalesJson,
     MergedFormSchema FlatteningMap);

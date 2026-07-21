@@ -70,6 +70,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     FormDefinitionRevision = table.Column<long>(type: "bigint", nullable: false),
                     FlatteningMap = table.Column<string>(type: "jsonb", nullable: false),
                     Codebook = table.Column<string>(type: "jsonb", nullable: false),
+                    Locales = table.Column<string>(type: "jsonb", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -112,7 +113,8 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                 schema: "reporting",
                 table: "ExportFormats",
                 columns: new[] { "TenantId", "Name" },
-                unique: true);
+                unique: true,
+                filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
                 name: "IX_FlattenedSubmissions_TenantId_FormId_SubmissionId",

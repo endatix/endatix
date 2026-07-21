@@ -14,7 +14,8 @@ public sealed record ExportFormatDto(
     string? Description,
     ExportFormatSettings Settings,
     DateTime CreatedAt,
-    DateTime? ModifiedAt);
+    DateTime? ModifiedAt,
+    IReadOnlyList<string> AllowedFilters);
 
 /// <summary>
 /// Links a tenant or survey-type scope to an export format.

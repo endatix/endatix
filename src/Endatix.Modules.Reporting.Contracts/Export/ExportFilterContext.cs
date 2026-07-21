@@ -12,4 +12,5 @@ public sealed record ExportFilterContext(
     long? MinSubmissionId,
     long? MaxSubmissionId,
     string? Locale,
-    IReadOnlyList<string>? ColumnScope);
+    IReadOnlyList<string>? ColumnScope,
+    ExportCompletionStatus? CompletionStatus = null);
