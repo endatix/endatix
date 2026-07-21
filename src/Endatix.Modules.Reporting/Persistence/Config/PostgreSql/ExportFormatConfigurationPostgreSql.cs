@@ -12,5 +12,9 @@ internal sealed class ExportFormatConfigurationPostgreSql : IEntityTypeConfigura
     {
         builder.Property(x => x.SettingsJson)
             .HasColumnType("jsonb");
+
+        builder.HasIndex(x => new { x.TenantId, x.Name })
+            .IsUnique()
+            .HasFilter($"\"{nameof(ExportFormat.IsDeleted)}\" = false");
     }
 }

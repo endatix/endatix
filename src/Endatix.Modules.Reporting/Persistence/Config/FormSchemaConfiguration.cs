@@ -20,6 +20,8 @@ internal sealed class FormSchemaConfiguration : IEntityTypeConfiguration<FormSch
             .IsRequired();
         builder.Property(x => x.Codebook)
             .IsRequired();
+        builder.Property(x => x.Locales)
+            .IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
 
         builder.HasIndex(x => new { x.TenantId, x.FormId }).IsUnique();

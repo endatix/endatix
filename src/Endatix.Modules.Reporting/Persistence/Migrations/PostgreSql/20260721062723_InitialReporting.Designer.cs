@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 {
     [DbContext(typeof(ReportingDbContext))]
-    [Migration("20260716091424_InitialReporting")]
+    [Migration("20260721062723_InitialReporting")]
     partial class InitialReporting
     {
         /// <inheritdoc />
@@ -77,7 +77,8 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("ExportFormats", "reporting");
                 });
@@ -160,6 +161,10 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("Locales")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");

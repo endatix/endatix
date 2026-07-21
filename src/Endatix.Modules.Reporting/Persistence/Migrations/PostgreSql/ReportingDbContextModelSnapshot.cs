@@ -74,7 +74,8 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("ExportFormats", "reporting");
                 });
@@ -157,6 +158,10 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("Locales")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
