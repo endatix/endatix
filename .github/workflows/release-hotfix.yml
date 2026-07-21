@@ -1,0 +1,26 @@
+name: Start Hotfix Release
+
+# One-parameter, mistake-proof entry point for releasing from a hotfix line
+# (hotfix/X.Y.x): always a PATCH bump on that line — the version base is the
+# nearest stable ancestor of the branch, so v0.8.0 → v0.8.1 → v0.8.2 …
+# Creates a DRAFT release pinned to the branch head; review/edit the notes,
+# then click "Publish release". Releasing an older line automatically becomes
+# a maintenance release (no "Latest" badge; nuget.org ranks by semver so
+# nothing needs unlisting). For promoting canaries from main, use
+# "Start Stable Release" instead.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Hotfix line branch to release from (e.g. hotfix/0.8.x)"
+        required: true
+
+jobs:
+  draft:
+    permissions:
+      contents: write # create the draft release (no tag exists until a human publishes it)
+    uses: endatix/release-workflows/.github/workflows/release-start.yml@cca02534258a68b196f9295afe9fd855ad9eee83 # v1
+    with:
+      ref: ${{ inputs.branch }}
+      bump: patch

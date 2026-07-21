@@ -1,11 +1,10 @@
 name: Start Stable Release
 
 # Thin consumer of endatix/release-workflows: creates a DRAFT release with
-# aggregated notes pinned to a canary's commit — or, with `ref`, to a hotfix
-# branch head (hotfix/X.Y.x maintenance lines). Review/edit the notes in the
+# aggregated notes pinned to a canary's commit. Review/edit the notes in the
 # GitHub UI, then click "Publish release" — that creates the tag and triggers
 # release-artifacts.yml to publish the stable packages (GitHub Packages +
-# nuget.org).
+# nuget.org). For hotfix lines use "Start Hotfix Release" (release-hotfix.yml).
 
 on:
   workflow_dispatch:
@@ -15,14 +14,10 @@ on:
         required: false
         default: ""
       bump:
-        description: "Version bump relative to the base stable release"
+        description: "Version bump relative to the last stable release"
         type: choice
         options: [minor, patch, major]
         default: minor
-      ref:
-        description: "Hotfix mode: branch or SHA to release from (empty = newest canary flow)"
-        required: false
-        default: ""
 
 jobs:
   draft:
@@ -32,4 +27,3 @@ jobs:
     with:
       canary-tag: ${{ inputs.canary_tag }}
       bump: ${{ inputs.bump }}
-      ref: ${{ inputs.ref }}
