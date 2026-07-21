@@ -28,10 +28,10 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 # Serialize runs per ref so two quick merges to main can't run overlapping
-# releases. Never cancel an in-flight release.
+# releases. Cancel in-flight runs only for pull requests to save CI minutes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Elevated permissions live on the pipeline job only — test jobs run read-only.
 permissions:
