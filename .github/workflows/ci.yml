@@ -18,9 +18,9 @@ name: Build, Test & Release
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, "hotfix/**"] # PRs into maintenance-line branches validate too
   push:
-    branches: [main]
+    branches: [main, "hotfix/**"] # hotfix/X.Y.x pushes publish vX.Y.Z-hotfix.N builds
   workflow_dispatch:
 
 env:
@@ -145,6 +145,6 @@ jobs:
       contents: read # release writes use the App token inside the shared workflow
       packages: write # GitHub Packages push
       id-token: write # OIDC for Infisical inside the shared workflow
-    uses: endatix/release-workflows/.github/workflows/canary.yml@7c17ac843352ae0249d9ea7d799c6b6406ac2809 # v1
+    uses: endatix/release-workflows/.github/workflows/canary.yml@cca02534258a68b196f9295afe9fd855ad9eee83 # v1
     with:
       dotnet-version: "10.x" # global.json rolls forward within 10.0.x
