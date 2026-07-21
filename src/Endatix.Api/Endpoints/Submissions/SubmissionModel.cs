@@ -13,6 +13,7 @@ public class SubmissionModel
     public string? Metadata { get; set; }
     public string? Token { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public DateTime? StartedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ModifiedAt { get; set; }
     public string Status { get; set; } = string.Empty;

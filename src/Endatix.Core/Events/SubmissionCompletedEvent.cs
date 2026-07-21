@@ -53,6 +53,8 @@ public sealed class SubmissionCompletedEvent(Submission submission) : DomainEven
 
         public DateTime? ModifiedAt { get; init; }
 
+        public DateTime? StartedAt { get; init; }
+
         public DateTime? CompletedAt { get; init; }
 
         public long Revision { get; init; }
@@ -76,6 +78,7 @@ public sealed class SubmissionCompletedEvent(Submission submission) : DomainEven
             Status = submission.Status.Code;
             CreatedAt = submission.CreatedAt;
             ModifiedAt = submission.ModifiedAt;
+            StartedAt = submission.StartedAt;
             CompletedAt = submission.CompletedAt;
             Revision = revision;
         }

@@ -29,7 +29,12 @@ public abstract class SubmissionExporterBase(
         [SubmissionExportRow.SystemColumns.IsComplete] = row => row.IsComplete,
         [SubmissionExportRow.SystemColumns.CreatedAt] = row => row.CreatedAt,
         [SubmissionExportRow.SystemColumns.ModifiedAt] = row => row.ModifiedAt,
+        [SubmissionExportRow.SystemColumns.StartedAt] = row => row.StartedAt is null ? NOT_AVAILABLE_VALUE : row.StartedAt,
         [SubmissionExportRow.SystemColumns.CompletedAt] = row => row.CompletedAt is null ? NOT_AVAILABLE_VALUE : row.CompletedAt,
+        [SubmissionExportRow.SystemColumns.DurationSeconds] = row =>
+            SubmissionExportRow.CalculateDurationSeconds(row.StartedAt, row.CompletedAt) is { } seconds
+                ? seconds
+                : NOT_AVAILABLE_VALUE,
         [SubmissionExportRow.SystemColumns.SubmitterId] = row => row.SubmitterId is null ? NOT_AVAILABLE_VALUE : row.SubmitterId,
         [SubmissionExportRow.SystemColumns.SubmitterDisplayId] = row => row.SubmitterDisplayId ?? NOT_AVAILABLE_VALUE
     };
