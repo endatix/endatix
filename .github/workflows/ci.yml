@@ -1,44 +1,59 @@
-name: Build & Test
+name: Build, Test & Release
+
+# Thin consumer of endatix/release-workflows (see its README):
+#   • PR to main → tests (below) + build validation in the shared pipeline
+#     (scripts/release-prepare.sh @ 0.0.0-ci — builds + packs, publishes nothing)
+#   • push main  → tests, then canary vX.Y.Z-canary.N: semantic-release builds
+#     once at the real version and publishes the NuGet packages to GitHub
+#     Packages (canaries NEVER go to nuget.org — it is public and immutable).
+#   • stable releases → MANUAL, human-reviewed: run "Start Stable Release"
+#     (release-start.yml) → edit the draft notes → click "Publish release" →
+#     release-artifacts.yml rebuilds at the tag and publishes to GitHub
+#     Packages + nuget.org.
+#
+# The canary publishes ONLY after unit + integration tests pass (needs: below).
+# Repo-specific release logic lives in scripts/release-prepare.sh and
+# scripts/release-publish.sh (the consumer contract), plus the dormant `stable`
+# branch required by semantic-release's branch validation.
 
 on:
+  pull_request:
+    branches: [main]
   push:
-    branches:
-      - "**"
-    paths:
-      - "src/**"
-      - "tests/**"
-      - ".github/workflows/**"
-      - "global.json"
+    branches: [main]
+  workflow_dispatch:
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
+# Serialize runs per ref so two quick merges to main can't run overlapping
+# releases. Never cancel an in-flight release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+# Elevated permissions live on the pipeline job only — test jobs run read-only.
 permissions:
   contents: read
 
 jobs:
-  dotnet-build:
+  unit-tests:
     name: "Endatix API: Build & Test"
     env:
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
     runs-on: ubuntu-latest
-
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-
       - name: 📦 Setup .NET
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: global.json
-
       - name: Restore dependencies
         run: dotnet restore
-
       - name: Build
         run: dotnet build --no-restore
-
       - name: 🧪 Run unit tests
         run: |
           dotnet test --no-build \
@@ -46,26 +61,20 @@ jobs:
             --collect:"XPlat Code Coverage;Format=cobertura" \
             --results-directory:.coverage \
             --settings coverlet.runsettings
-
       - name: Install DotNet Coverage
         run: dotnet tool update --global dotnet-coverage
-
       - name: 📊 Merge Coverage Reports
         run: dotnet-coverage merge .coverage/endatix-hub/cobertura-coverage.xml .coverage/**/coverage.cobertura.xml -f cobertura -o .coverage/merged.cobertura.xml
-
       - name: 📊 Install DotNet Report Generator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
-
       - name: 📊Add Summary Report
         run: reportgenerator -reports:".coverage/merged.cobertura.xml" -targetdir:".coverage/report" -reporttypes:"MarkdownSummaryGithub"
-
       - name: 📊 Upload to Coveralls
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
         with:
           format: cobertura
           file: .coverage/merged.cobertura.xml
           debug: true
-
       - name: 📝 Output Summary Report
         run: |
           echo ">[!NOTE] " >> $GITHUB_STEP_SUMMARY
@@ -78,16 +87,13 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       ENDATIX_TEST_DB_PROVIDER: PostgreSql
-
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-
       - name: 📦 Setup .NET
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: global.json
-
       - name: Set integration test filter
         env:
           GITHUB_REF_SAFE: ${{ github.ref }}
@@ -98,10 +104,8 @@ jobs:
           else
             echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Priority!=P2&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
           fi
-
       - name: Build integration tests
         run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
-
       - name: Run integration tests
         run: |
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
@@ -113,23 +117,34 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       ENDATIX_TEST_DB_PROVIDER: SqlServer
-
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           persist-credentials: false
-
       - name: 📦 Setup .NET
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: global.json
-
       - name: Build integration tests
         run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
-
       - name: Run SQL Server integration tests
         run: |
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
             -c Release --no-build --verbosity minimal \
             --filter "Category!=Keycloak&DbSpecific!=PostgreSql"
+
+  # Build validation on PRs; canary release on main — publishes only after ALL
+  # tests above pass. No docker-image: this repo ships NuGet packages only.
+  # No secrets are passed: the shared workflow uses the implicit GITHUB_TOKEN
+  # and fetches everything else via Infisical (OIDC, hence id-token).
+  pipeline:
+    name: Pipeline
+    needs: [unit-tests, integration-tests, integration-tests-sqlserver]
+    permissions:
+      contents: read # release writes use the App token inside the shared workflow
+      packages: write # GitHub Packages push
+      id-token: write # OIDC for Infisical inside the shared workflow
+    uses: endatix/release-workflows/.github/workflows/canary.yml@7c17ac843352ae0249d9ea7d799c6b6406ac2809 # v1
+    with:
+      dotnet-version: "10.x" # global.json rolls forward within 10.0.x

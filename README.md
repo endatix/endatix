@@ -4,8 +4,8 @@
 
 # Endatix API
 
-[![Build & Test](https://github.com/endatix/endatix/actions/workflows/build-ci.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/build-ci.yml)
-[![Release](https://github.com/endatix/endatix/actions/workflows/release.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/release.yml)
+[![Build, Test & Release](https://github.com/endatix/endatix/actions/workflows/ci.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/ci.yml)
+[![Publish Stable Artifacts](https://github.com/endatix/endatix/actions/workflows/release-artifacts.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/release-artifacts.yml)
 [![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=main)](https://coveralls.io/github/endatix/endatix?branch=main)
 
 ## What is Endatix?

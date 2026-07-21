@@ -1,0 +1,30 @@
+name: Publish Stable Artifacts
+
+# Thin consumer of endatix/release-workflows: fires when a human publishes the
+# reviewed draft release (that's when GitHub creates the vX.Y.Z tag).
+# promotion: rebuild — NuGet packages bake the version string into the artifact
+# and cannot be retagged, so the stable packages are rebuilt at the tagged
+# commit and pushed to GitHub Packages + nuget.org (release scripts).
+# nuget.org auth is OIDC trusted publishing (nuget-login): a short-lived API
+# key is minted per run — no long-lived key stored anywhere. fetch-secrets
+# provides the nuget.org username (ENDATIX_NUGET_ORG_USERNAME via Infisical).
+# Canary prereleases are filtered out — ci.yml already shipped their packages.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write # GitHub Packages push
+  id-token: write # OIDC for Infisical (fetch-secrets)
+
+jobs:
+  promote:
+    if: ${{ !github.event.release.prerelease }}
+    uses: endatix/release-workflows/.github/workflows/release-artifacts.yml@7c17ac843352ae0249d9ea7d799c6b6406ac2809 # v1
+    with:
+      promotion: rebuild
+      fetch-secrets: true # ENDATIX_NUGET_ORG_USERNAME via Infisical (prod)
+      nuget-login: true # OIDC trusted publishing → short-lived NUGET_API_KEY
+      dotnet-version: "10.x"
