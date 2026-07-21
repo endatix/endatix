@@ -287,7 +287,8 @@ public partial class Export : Endpoint<ExportRequest>
             CompletedAfter: request.CompletedAfter,
             CompletedBefore: request.CompletedBefore,
             MinSubmissionId: request.MinSubmissionId,
-            MaxSubmissionId: request.MaxSubmissionId);
+            MaxSubmissionId: request.MaxSubmissionId,
+            IsComplete: MapCompletionStatusToIsComplete(request.CompletionStatus));
 
         return Result.Success(new ValidatedExportOperation(
             exportFormat.WireKey,
@@ -364,13 +365,22 @@ public partial class Export : Endpoint<ExportRequest>
             MinSubmissionId: request.MinSubmissionId,
             MaxSubmissionId: request.MaxSubmissionId,
             Locale: request.Locale,
-            ColumnScope: NormalizeColumnScope(request.ColumnScope));
+            ColumnScope: NormalizeColumnScope(request.ColumnScope),
+            CompletionStatus: request.CompletionStatus);
 
     private static string[]? NormalizeColumnScope(string[]? columnScope) =>
         columnScope is { Length: > 0 } ? columnScope : null;
 
     private static string? NormalizeLocale(string? locale) =>
         string.IsNullOrWhiteSpace(locale) ? null : locale.Trim();
+
+    private static bool? MapCompletionStatusToIsComplete(ExportCompletionStatus? completionStatus) =>
+        completionStatus switch
+        {
+            ExportCompletionStatus.Completed => true,
+            ExportCompletionStatus.Incomplete => false,
+            _ => null,
+        };
 
     private static Type? ResolveExportItemType(string? typeName)
     {

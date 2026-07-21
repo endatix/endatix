@@ -17,6 +17,7 @@ public enum ExportRequestFilters
     SubmissionIdRange = 1 << 3,
     Locale = 1 << 4,
     ColumnScope = 1 << 5,
+    CompletionStatus = 1 << 6,
 }
 
 /// <summary>
@@ -24,21 +25,25 @@ public enum ExportRequestFilters
 /// </summary>
 public static class ExportRequestFilterSets
 {
+    /// <summary>
+    /// Submission row exports. Locale is omitted: export values use keys, not labels;
+    /// request locale is for codebook label projection.
+    /// </summary>
     public const ExportRequestFilters Submissions =
         ExportRequestFilters.IncludeTestSubmissions |
         ExportRequestFilters.CreatedAtRange |
         ExportRequestFilters.CompletedAtRange |
         ExportRequestFilters.SubmissionIdRange |
-        ExportRequestFilters.Locale |
-        ExportRequestFilters.ColumnScope;
+        ExportRequestFilters.ColumnScope |
+        ExportRequestFilters.CompletionStatus;
 
     /// <summary>
-    /// Native codebook streams persisted FormSchema codebook JSON as-is (no request filters applied).
+    /// Native codebook streams the compiled multi-locale codebook as-is (no request filters).
     /// </summary>
     public const ExportRequestFilters NativeCodebook = ExportRequestFilters.None;
 
     /// <summary>
-    /// Shoji codebook applies request locale to display strings; columnScope is not applied.
+    /// Shoji codebook projects display strings for a single request locale.
     /// </summary>
     public const ExportRequestFilters ShojiCodebook = ExportRequestFilters.Locale;
 }
@@ -54,6 +59,7 @@ public static class ExportRequestFilterWireNames
     public const string SubmissionIdRange = "submissionIdRange";
     public const string Locale = "locale";
     public const string ColumnScope = "columnScope";
+    public const string CompletionStatus = "completionStatus";
 
     private static readonly (ExportRequestFilters Filter, string Name)[] _all =
     [
@@ -63,6 +69,7 @@ public static class ExportRequestFilterWireNames
         (ExportRequestFilters.SubmissionIdRange, SubmissionIdRange),
         (ExportRequestFilters.Locale, Locale),
         (ExportRequestFilters.ColumnScope, ColumnScope),
+        (ExportRequestFilters.CompletionStatus, CompletionStatus),
     ];
 
     public static IReadOnlyList<string> ToWireNames(ExportRequestFilters allowed) =>

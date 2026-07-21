@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
+using Endatix.Modules.Reporting.Contracts.Export;
 using FastEndpoints;
 using FluentValidation;
 
@@ -31,6 +32,10 @@ public class ExportValidator : Validator<ExportRequest>
                .MaximumLength(32)
                .When(x => x.Locale is not null);
 
+          RuleFor(x => x.CompletionStatus)
+               .IsInEnum()
+               .When(x => x.CompletionStatus.HasValue);
+
           // CreatedBefore / CompletedBefore are exclusive upper bounds in the reporting repository.
           RuleFor(x => x)
                .Must(request => !request.CreatedAfter.HasValue ||
@@ -45,6 +50,12 @@ public class ExportValidator : Validator<ExportRequest>
                                 request.CompletedAfter < request.CompletedBefore)
                .WithMessage("CompletedAfter must be earlier than CompletedBefore (exclusive upper bound).")
                .WithName("CompletedAfter");
+
+          RuleFor(x => x)
+               .Must(request => request.CompletionStatus is not ExportCompletionStatus.Incomplete ||
+                                (!request.CompletedAfter.HasValue && !request.CompletedBefore.HasValue))
+               .WithMessage("CompletedAfter/CompletedBefore cannot be used when CompletionStatus is incomplete.")
+               .WithName("CompletionStatus");
 
           RuleFor(x => x)
                .Must(request => !request.MinSubmissionId.HasValue ||

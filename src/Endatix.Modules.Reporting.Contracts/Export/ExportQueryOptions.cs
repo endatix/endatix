@@ -12,4 +12,5 @@ public sealed record ExportQueryOptions(
     DateTime? CompletedAfter = null,
     DateTime? CompletedBefore = null,
     long? MinSubmissionId = null,
-    long? MaxSubmissionId = null);
+    long? MaxSubmissionId = null,
+    bool? IsComplete = null);

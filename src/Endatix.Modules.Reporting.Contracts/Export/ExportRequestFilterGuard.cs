@@ -47,6 +47,12 @@ public static class ExportRequestFilterGuard
             disallowed.Add(ExportRequestFilterWireNames.ColumnScope);
         }
 
+        if (filters.CompletionStatus.HasValue &&
+            !allowed.HasFlag(ExportRequestFilters.CompletionStatus))
+        {
+            disallowed.Add(ExportRequestFilterWireNames.CompletionStatus);
+        }
+
         return disallowed;
     }
 }

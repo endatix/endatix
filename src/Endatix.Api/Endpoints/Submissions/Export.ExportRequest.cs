@@ -1,3 +1,5 @@
+using Endatix.Modules.Reporting.Contracts.Export;
+
 namespace Endatix.Api.Endpoints.Submissions;
 
 public class ExportRequest
@@ -18,6 +20,12 @@ public class ExportRequest
     /// Optional codebook label locale for this export run. Overrides format settings.
     /// </summary>
     public string? Locale { get; set; }
+
+    /// <summary>
+    /// Optional completion filter. Omitted means all completion states.
+    /// Wire: <c>all</c> | <c>completed</c> | <c>incomplete</c>.
+    /// </summary>
+    public ExportCompletionStatus? CompletionStatus { get; set; }
 
     public DateTime? CreatedAfter { get; set; }
 
