@@ -162,7 +162,7 @@ internal sealed class TabularExportDataSource(
 
     private sealed record CrunchProjectionArtifacts(string FlatteningMapJson, string CodebookJson);
 
-    private bool ShouldProjectCrunchShapes(string format, ExportFormatSettings settings)
+    private static bool ShouldProjectCrunchShapes(string format, ExportFormatSettings settings)
     {
         if (TryGetCapability(format, out var capability) &&
             capability.Profile == ExportProfile.Shoji)

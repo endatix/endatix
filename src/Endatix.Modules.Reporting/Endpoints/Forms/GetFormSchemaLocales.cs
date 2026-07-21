@@ -43,12 +43,12 @@ public sealed class GetFormSchemaLocales(
     /// <inheritdoc />
     public override async Task<Results<Ok<GetFormSchemaLocalesResponse>, ProblemHttpResult>> ExecuteAsync(
         GetFormSchemaLocalesRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var schema = await formSchemaRepository.GetByFormIdAsync(
             tenantContext.TenantId,
             request.FormId,
-            cancellationToken);
+            ct);
 
         var result = schema is null
             ? Result.NotFound("Form schema not found. Compile the schema first.")

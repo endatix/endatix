@@ -5,54 +5,86 @@ namespace Endatix.Modules.Reporting.Contracts.Export;
 /// </summary>
 public static class ExportRequestFilterGuard
 {
+    /// <summary>
+    /// Gets the disallowed filters for a given capability.
+    /// </summary>
+    /// <param name="allowed">The allowed filters.</param>
+    /// <param name="filters">The filters to check.</param>
+    /// <returns>The disallowed filters.</returns>
     public static IReadOnlyList<string> GetDisallowedWireNames(
         ExportRequestFilters allowed,
         ExportFilterContext filters)
     {
         List<string> disallowed = [];
 
-        if (filters.IncludeTestSubmissions.HasValue &&
-            !allowed.HasFlag(ExportRequestFilters.IncludeTestSubmissions))
-        {
-            disallowed.Add(AllowedExportFilters.IncludeTestSubmissions);
-        }
+        AddWhenDisallowed(
+            disallowed,
+            allowed,
+            ExportRequestFilters.IncludeTestSubmissions,
+            AllowedExportFilters.IncludeTestSubmissions,
+            filters.IncludeTestSubmissions.HasValue);
 
-        if ((filters.CreatedAfter.HasValue || filters.CreatedBefore.HasValue) &&
-            !allowed.HasFlag(ExportRequestFilters.CreatedAtRange))
-        {
-            disallowed.Add(AllowedExportFilters.CreatedAtRange);
-        }
+        AddWhenDisallowed(
+            disallowed,
+            allowed,
+            ExportRequestFilters.CreatedAtRange,
+            AllowedExportFilters.CreatedAtRange,
+            HasEitherBound(filters.CreatedAfter, filters.CreatedBefore));
 
-        if ((filters.CompletedAfter.HasValue || filters.CompletedBefore.HasValue) &&
-            !allowed.HasFlag(ExportRequestFilters.CompletedAtRange))
-        {
-            disallowed.Add(AllowedExportFilters.CompletedAtRange);
-        }
+        AddWhenDisallowed(
+            disallowed,
+            allowed,
+            ExportRequestFilters.CompletedAtRange,
+            AllowedExportFilters.CompletedAtRange,
+            HasEitherBound(filters.CompletedAfter, filters.CompletedBefore));
 
-        if ((filters.MinSubmissionId.HasValue || filters.MaxSubmissionId.HasValue) &&
-            !allowed.HasFlag(ExportRequestFilters.SubmissionIdRange))
-        {
-            disallowed.Add(AllowedExportFilters.SubmissionIdRange);
-        }
+        AddWhenDisallowed(
+            disallowed,
+            allowed,
+            ExportRequestFilters.SubmissionIdRange,
+            AllowedExportFilters.SubmissionIdRange,
+            HasEitherBound(filters.MinSubmissionId, filters.MaxSubmissionId));
 
-        if (!string.IsNullOrWhiteSpace(filters.Locale) &&
-            !allowed.HasFlag(ExportRequestFilters.Locale))
-        {
-            disallowed.Add(AllowedExportFilters.Locale);
-        }
+        AddWhenDisallowed(
+            disallowed,
+            allowed,
+            ExportRequestFilters.Locale,
+            AllowedExportFilters.Locale,
+            !string.IsNullOrWhiteSpace(filters.Locale));
 
-        if (filters.ColumnScope is { Count: > 0 } &&
-            !allowed.HasFlag(ExportRequestFilters.ColumnScope))
-        {
-            disallowed.Add(AllowedExportFilters.ColumnScope);
-        }
+        AddWhenDisallowed(
+            disallowed,
+            allowed,
+            ExportRequestFilters.ColumnScope,
+            AllowedExportFilters.ColumnScope,
+            filters.ColumnScope is { Count: > 0 });
 
-        if (filters.CompletionStatus.HasValue &&
-            !allowed.HasFlag(ExportRequestFilters.CompletionStatus))
-        {
-            disallowed.Add(AllowedExportFilters.CompletionStatus);
-        }
+        AddWhenDisallowed(
+            disallowed,
+            allowed,
+            ExportRequestFilters.CompletionStatus,
+            AllowedExportFilters.CompletionStatus,
+            filters.CompletionStatus.HasValue);
 
         return disallowed;
     }
+
+    private static void AddWhenDisallowed(
+        List<string> disallowed,
+        ExportRequestFilters allowed,
+        ExportRequestFilters flag,
+        string wireName,
+        bool isPresent)
+    {
+        if (!isPresent || allowed.HasFlag(flag))
+        {
+            return;
+        }
+
+        disallowed.Add(wireName);
+    }
+
+    private static bool HasEitherBound<T>(T? lower, T? upper)
+        where T : struct =>
+        lower.HasValue || upper.HasValue;
 }
