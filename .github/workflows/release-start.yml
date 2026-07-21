@@ -19,11 +19,10 @@ on:
         options: [minor, patch, major]
         default: minor
 
-permissions:
-  contents: write # create the draft release (no tag exists until a human publishes it)
-
 jobs:
   draft:
+    permissions:
+      contents: write # create the draft release (no tag exists until a human publishes it)
     uses: endatix/release-workflows/.github/workflows/release-start.yml@7c17ac843352ae0249d9ea7d799c6b6406ac2809 # v1
     with:
       canary-tag: ${{ inputs.canary_tag }}

@@ -30,7 +30,7 @@ dotnet nuget push "build/packages/nuget/*.${VERSION}.nupkg" \
   -s "$NUGET_SOURCE" \
   --skip-duplicate
 
-if [ "$CHANNEL" = "stable" ]; then
+if [[ "$CHANNEL" = "stable" ]]; then
   : "${NUGET_API_KEY:?NUGET_API_KEY env var is required for stable releases (minted by NuGet/login — is nuget-login: true set?)}"
   echo "──── Pushing NuGet packages to nuget.org ────"
   dotnet nuget push "build/packages/nuget/*.${VERSION}.nupkg" \

@@ -14,14 +14,13 @@ on:
   release:
     types: [published]
 
-permissions:
-  contents: read
-  packages: write # GitHub Packages push
-  id-token: write # OIDC for Infisical (fetch-secrets)
-
 jobs:
   promote:
     if: ${{ !github.event.release.prerelease }}
+    permissions:
+      contents: read
+      packages: write # GitHub Packages push
+      id-token: write # OIDC for Infisical (fetch-secrets)
     uses: endatix/release-workflows/.github/workflows/release-artifacts.yml@7c17ac843352ae0249d9ea7d799c6b6406ac2809 # v1
     with:
       promotion: rebuild
