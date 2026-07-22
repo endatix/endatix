@@ -56,7 +56,8 @@ public sealed class SubmissionStartedAtFlowTests
         Assert.NotNull(created.StartedAt);
         Assert.Null(created.CompletedAt);
         Assert.False(created.IsComplete);
-        DateTime firstStartedAt = created.StartedAt.Value;
+        // Create response may still carry in-memory DateTime ticks; PG/SQL store µs precision.
+        DateTime firstStartedAt = DateTimeTestHelpers.TruncateToMicroseconds(created.StartedAt.Value);
 
         // Act — later update must not change StartedAt
         HttpResponseMessage secondUpdateResponse = await client.PatchAsJsonAsync(
@@ -66,7 +67,7 @@ public sealed class SubmissionStartedAtFlowTests
         secondUpdateResponse.EnsureSuccessStatusCode();
         SubmissionApiModel afterSecondUpdate = await ReadSubmissionAsync(secondUpdateResponse, cancellationToken);
 
-        Assert.Equal(firstStartedAt, afterSecondUpdate.StartedAt);
+        Assert.Equal(firstStartedAt, DateTimeTestHelpers.TruncateToMicroseconds(afterSecondUpdate.StartedAt!.Value));
 
         // Act — complete preserves StartedAt
         HttpResponseMessage completeResponse = await client.PatchAsJsonAsync(
@@ -78,7 +79,7 @@ public sealed class SubmissionStartedAtFlowTests
 
         Assert.True(completed.IsComplete);
         Assert.NotNull(completed.CompletedAt);
-        Assert.Equal(firstStartedAt, completed.StartedAt);
+        Assert.Equal(firstStartedAt, DateTimeTestHelpers.TruncateToMicroseconds(completed.StartedAt!.Value));
         Assert.True(completed.CompletedAt >= completed.StartedAt);
 
         // Act — GET by id still exposes startedAt
@@ -87,7 +88,7 @@ public sealed class SubmissionStartedAtFlowTests
             cancellationToken);
         getResponse.EnsureSuccessStatusCode();
         SubmissionApiModel fetched = await ReadSubmissionAsync(getResponse, cancellationToken);
-        Assert.Equal(firstStartedAt, fetched.StartedAt);
+        Assert.Equal(firstStartedAt, DateTimeTestHelpers.TruncateToMicroseconds(fetched.StartedAt!.Value));
     }
 
     [Fact]
