@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
     <PropertyGroup>
+        <!-- Local-dev fallback only: CI/release builds override with -p:Version=<computed>.
+             InformationalVersion is deliberately NOT set — it defaults to the effective
+             Version (+ source commit SHA via SourceLink). -->
         <Version>0.1.1-beta</Version>
-        <InformationalVersion>This is an alpha prerelease package</InformationalVersion>
     </PropertyGroup>
 
     <PropertyGroup>
