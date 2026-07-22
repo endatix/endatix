@@ -34,6 +34,13 @@ public static class ExportRequestFilterGuard
         AddWhenDisallowed(
             disallowed,
             allowed,
+            ExportRequestFilters.StartedAtRange,
+            AllowedExportFilters.StartedAtRange,
+            HasEitherBound(filters.StartedAfter, filters.StartedBefore));
+
+        AddWhenDisallowed(
+            disallowed,
+            allowed,
             ExportRequestFilters.CompletedAtRange,
             AllowedExportFilters.CompletedAtRange,
             HasEitherBound(filters.CompletedAfter, filters.CompletedBefore));

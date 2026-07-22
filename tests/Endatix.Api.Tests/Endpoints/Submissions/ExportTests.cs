@@ -765,6 +765,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         DateTime createdAfter = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         DateTime createdBefore = new(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc);
+        DateTime startedAfter = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        DateTime startedBefore = new(2026, 1, 3, 12, 0, 0, DateTimeKind.Utc);
         DateTime completedAfter = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
         DateTime completedBefore = new(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc);
         var request = new ExportRequest
@@ -774,6 +776,8 @@ public class ExportTests
             IncludeTestSubmissions = false,
             CreatedAfter = createdAfter,
             CreatedBefore = createdBefore,
+            StartedAfter = startedAfter,
+            StartedBefore = startedBefore,
             CompletedAfter = completedAfter,
             CompletedBefore = completedBefore,
             MinSubmissionId = 10,
@@ -803,6 +807,8 @@ public class ExportTests
                 ((SubmissionExportExecutionSettings)q.Options.Metadata![SubmissionExportMetadataKeys.ExecutionSettings]).Locale == null &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CreatedAfter == createdAfter &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CreatedBefore == createdBefore &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).StartedAfter == startedAfter &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).StartedBefore == startedBefore &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CompletedAfter == completedAfter &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CompletedBefore == completedBefore &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).MinSubmissionId == 10 &&

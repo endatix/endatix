@@ -990,6 +990,121 @@ public class CreateSubmissionHandlerTests
 
     #endregion
 
+    #region StartedAt / RequiredPermission
+
+    /// <summary>
+    /// Locks Create vs CreateOnBehalf → <c>StartSubmission</c> mapping.
+    /// Incomplete create is the discriminating case: complete-on-create always
+    /// stamps StartedAt (= CompletedAt) even for CreateOnBehalf.
+    /// </summary>
+    [Theory]
+    [InlineData(Actions.Submissions.Create, true)]
+    [InlineData(Actions.Submissions.CreateOnBehalf, false)]
+    // Future create-like permissions must opt in explicitly — do not treat as respondent start.
+    [InlineData("submissions.create.future-variant", false)]
+    public async Task Handle_IncompleteCreate_StartedAt_DependsOnCreatePermission(
+        string requiredPermission,
+        bool expectStartedAt)
+    {
+        // Arrange
+        ArrangeSuccessfulCreatePath();
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ \"field\": \"value\" }",
+            IsComplete: false,
+            CurrentPage: 1,
+            Metadata: null,
+            ReCaptchaToken: "test-token",
+            RequiredPermission: requiredPermission);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.IsComplete.Should().BeFalse();
+        result.Value.CompletedAt.Should().BeNull();
+        result.Value.HasStarted.Should().Be(expectStartedAt);
+        if (expectStartedAt)
+        {
+            result.Value.StartedAt.Should().NotBeNull();
+        }
+        else
+        {
+            result.Value.StartedAt.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task Handle_CreateOnBehalfComplete_SetsStartedAtEqualToCompletedAt()
+    {
+        // Arrange — prefill completed in one shot: start was never recorded as engagement
+        ArrangeSuccessfulCreatePath();
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ }",
+            IsComplete: true,
+            CurrentPage: null,
+            Metadata: null,
+            ReCaptchaToken: "test-token",
+            RequiredPermission: Actions.Submissions.CreateOnBehalf);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.IsComplete.Should().BeTrue();
+        result.Value.StartedAt.Should().NotBeNull();
+        result.Value.StartedAt.Should().Be(result.Value.CompletedAt);
+    }
+
+    [Fact]
+    public async Task Handle_CreatePermissionComplete_StampsStartedAt()
+    {
+        // Arrange
+        ArrangeSuccessfulCreatePath();
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ }",
+            IsComplete: true,
+            CurrentPage: null,
+            Metadata: null,
+            ReCaptchaToken: "test-token",
+            RequiredPermission: Actions.Submissions.Create);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.HasStarted.Should().BeTrue();
+        result.Value.StartedAt.Should().NotBeNull();
+        result.Value.CompletedAt.Should().NotBeNull();
+        result.Value.StartedAt.Should().BeOnOrBefore(result.Value.CompletedAt!.Value);
+    }
+
+    #endregion
+
+    private void ArrangeSuccessfulCreatePath()
+    {
+        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+
+        _formsRepository.SingleOrDefaultAsync(
+                Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(form);
+        _recaptchaService.ValidateReCaptchaAsync(
+                Arg.Any<SubmissionVerificationContext>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _authorizationService.ValidateAccessAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+    }
+
     private void SetupSubmitterResolution(long? submitterId, string? profileSnapshot = null)
     {
         _submitterResolver.EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())

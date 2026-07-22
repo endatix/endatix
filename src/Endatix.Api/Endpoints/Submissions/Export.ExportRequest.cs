@@ -31,6 +31,10 @@ public class ExportRequest
 
     public DateTime? CreatedBefore { get; set; }
 
+    public DateTime? StartedAfter { get; set; }
+
+    public DateTime? StartedBefore { get; set; }
+
     public DateTime? CompletedAfter { get; set; }
 
     public DateTime? CompletedBefore { get; set; }

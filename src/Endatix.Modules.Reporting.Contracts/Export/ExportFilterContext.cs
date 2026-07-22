@@ -7,6 +7,8 @@ public sealed record ExportFilterContext(
     bool? IncludeTestSubmissions,
     DateTime? CreatedAfter,
     DateTime? CreatedBefore,
+    DateTime? StartedAfter,
+    DateTime? StartedBefore,
     DateTime? CompletedAfter,
     DateTime? CompletedBefore,
     long? MinSubmissionId,

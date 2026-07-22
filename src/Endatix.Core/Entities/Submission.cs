@@ -29,6 +29,11 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         SetSubmitter(args.SubmitterId, args.SubmitterDisplayId, args.SubmitterProfileSnapshot);
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
         SetCompletionStatus(args.IsComplete);
+
+        if (args.StartSubmission)
+        {
+            EnsureStarted();
+        }
     }
 
     [Obsolete("Use Submission.Create(SubmissionCreateArgs).")]
@@ -93,9 +98,11 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     public long Revision { get; private set; } = 1;
 
     /// <summary>
-    /// First respondent engagement timestamp. Null until the first content <see cref="Update"/>
-    /// (or completion without a prior start). Distinct from <see cref="BaseEntity.CreatedAt"/>,
-    /// which is when the submission row was created (e.g. prefill).
+    /// First respondent engagement timestamp. Null until recorded via respondent create
+    /// (<see cref="SubmissionCreateArgs.StartSubmission"/>), the first content
+    /// <see cref="Update"/>, or completion without a prior start. Distinct from
+    /// <see cref="BaseEntity.CreatedAt"/>, which is when the submission row was created
+    /// (e.g. prefill / create-on-behalf).
     /// </summary>
     public DateTime? StartedAt { get; private set; }
 

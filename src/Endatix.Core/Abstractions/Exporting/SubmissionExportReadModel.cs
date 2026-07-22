@@ -29,6 +29,8 @@ public sealed record SubmissionExportExecutionSettings(
     bool EncodeBooleansAsCategoryIds = false,
     DateTime? CreatedAfter = null,
     DateTime? CreatedBefore = null,
+    DateTime? StartedAfter = null,
+    DateTime? StartedBefore = null,
     DateTime? CompletedAfter = null,
     DateTime? CompletedBefore = null,
     long? MinSubmissionId = null,

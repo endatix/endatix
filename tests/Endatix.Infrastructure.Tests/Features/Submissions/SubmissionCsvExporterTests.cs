@@ -71,6 +71,39 @@ public sealed class SubmissionCsvExporterTests
     }
 
     [Fact]
+    public async Task StreamExportAsync_ShouldIncludeStartedAtAndDurationSeconds()
+    {
+        // Arrange
+        var startedAt = new DateTime(2024, 1, 1, 10, 0, 0, DateTimeKind.Utc);
+        var completedAt = startedAt.AddSeconds(125);
+        var records = CreateTestRecords(
+            new SubmissionExportRow
+            {
+                Id = 1,
+                FormId = 100,
+                IsComplete = true,
+                CreatedAt = startedAt.AddHours(-2),
+                StartedAt = startedAt,
+                CompletedAt = completedAt,
+                AnswersModel = """{"q1":"a"}"""
+            }
+        );
+
+        var pipe = new Pipe();
+
+        // Act
+        var result = await _sut.StreamExportAsync(records, null, CancellationToken.None, pipe.Writer);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        var content = await ReadPipeContent(pipe.Reader);
+        var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("StartedAt", lines[0]);
+        Assert.Contains("DurationSeconds", lines[0]);
+        Assert.Contains("125", lines[1]);
+    }
+
+    [Fact]
     public async Task StreamExportAsync_ShouldExportMultipleRows()
     {
         // Arrange

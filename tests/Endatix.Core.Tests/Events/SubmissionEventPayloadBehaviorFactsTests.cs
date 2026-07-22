@@ -48,6 +48,7 @@ public class SubmissionEventPayloadBehaviorFactsTests
         payload.Status.Should().Be("new");
         payload.Revision.Should().Be(2);
         payload.CompletedAt.Should().NotBeNull();
+        payload.StartedAt.Should().Be(payload.CompletedAt);
     }
 
     [Fact]

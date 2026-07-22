@@ -203,6 +203,8 @@ internal sealed class TabularExportDataSource(
                 IncludeTestSubmissions: settings.IncludeTestSubmissions,
                 CreatedAfter: executionSettings.CreatedAfter,
                 CreatedBefore: executionSettings.CreatedBefore,
+                StartedAfter: executionSettings.StartedAfter,
+                StartedBefore: executionSettings.StartedBefore,
                 CompletedAfter: executionSettings.CompletedAfter,
                 CompletedBefore: executionSettings.CompletedBefore,
                 MinSubmissionId: executionSettings.MinSubmissionId,
