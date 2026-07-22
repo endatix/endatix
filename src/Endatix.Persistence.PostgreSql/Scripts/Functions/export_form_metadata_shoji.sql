@@ -251,6 +251,8 @@ WITH RECURSIVE
         SELECT target_form_id, 'CreatedAt', 'system', 'CreatedAt', 'Created At', 'datetime', NULL
         UNION ALL
         SELECT target_form_id, 'ModifiedAt', 'system', 'ModifiedAt', 'Modified At', 'datetime', NULL
+        UNION ALL
+        SELECT target_form_id, 'StartedAt', 'system', 'StartedAt', 'Started At', 'datetime', NULL
     ),
 
     -- All Final Export Columns

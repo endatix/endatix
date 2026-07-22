@@ -21,6 +21,7 @@ RETURNS TABLE (
     "CompletedAt" timestamptz,
     "CreatedAt" timestamptz,
     "ModifiedAt" timestamptz,
+    "StartedAt" timestamptz,
     "SubmitterId" bigint,
     "SubmitterDisplayId" text,
     "AnswersModel" jsonb
@@ -62,6 +63,7 @@ BEGIN
             s."CompletedAt",
             s."CreatedAt",
             s."ModifiedAt",
+            s."StartedAt",
             s."SubmitterId"::bigint AS "SubmitterId",
             s."SubmitterDisplayId"::text AS "SubmitterDisplayId",
             (
@@ -80,6 +82,7 @@ BEGIN
         sf."CompletedAt",
         sf."CreatedAt",
         sf."ModifiedAt",
+        sf."StartedAt",
         sf."SubmitterId",
         sf."SubmitterDisplayId",
         sf.AnswersModel::jsonb AS "AnswersModel"
