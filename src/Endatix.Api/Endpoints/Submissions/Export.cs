@@ -186,6 +186,14 @@ public partial class Export : Endpoint<ExportRequest>
             return await ResolveExportFormatIdConfigurationAsync(request, cancellationToken);
         }
 
+        // Explicit legacy ExportId must win over tenant default reporting format.
+        // Otherwise Hub legacy custom exports (json/codebook/etc.) silently become CSV
+        // whenever Reporting is registered and a tenant default exists.
+        if (request.ExportId.HasValue)
+        {
+            return await ResolveExportIdConfigurationAsync(request, cancellationToken);
+        }
+
         if (_exportFormatRepository is not null)
         {
             var defaultFormatResult =
@@ -194,11 +202,6 @@ public partial class Export : Endpoint<ExportRequest>
             {
                 return defaultFormatResult;
             }
-        }
-
-        if (request.ExportId.HasValue)
-        {
-            return await ResolveExportIdConfigurationAsync(request, cancellationToken);
         }
 
         if (_exportCapabilityRegistry is not null)

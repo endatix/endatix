@@ -202,6 +202,58 @@ public class ExportTests
     }
 
     [Fact]
+    public async Task HandleAsync_WithExportId_WhenReportingDefaultExists_UsesLegacyExportIdFormat()
+    {
+        // Regression: reporting tenant default must not shadow explicit ExportId
+        // (Hub legacy custom exports with Format=json/codebook would otherwise become CSV).
+        var formId = 1L;
+        var exportId = 1003L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest { FormId = formId, ExportId = exportId };
+
+        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var tenantSettings = new TenantSettingsEntity(tenantId);
+        tenantSettings.CustomExports.Add(new CustomExportConfiguration
+        {
+            Id = exportId,
+            Name = "Loops JSON",
+            Format = "json",
+            SqlFunctionName = "export_form_submissions_nested_loops",
+            ItemTypeName = typeof(SubmissionExportRow).FullName
+        });
+
+        var jsonExporter = CreateMockExporter("json", typeof(SubmissionExportRow));
+        var fileExport = new FileExport("application/json", "submissions-1.json");
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
+            .Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+        _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(tenantSettings);
+        _exportFormatRepository.GetTenantDefaultAsync(tenantId, Arg.Any<CancellationToken>())
+            .Returns(CreateCsvExportFormatRecord(100L));
+        _exporterFactory.GetExporter("json", typeof(SubmissionExportRow))
+            .Returns(jsonExporter);
+        jsonExporter.GetHeadersAsync(Arg.Any<ExportOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+        _mediator.Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+
+        await _reportingEndpoint.HandleAsync(request, CancellationToken.None);
+
+        _reportingEndpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        _reportingEndpoint.HttpContext.Response.ContentType.Should().Be("application/json");
+        await _mediator.Received(1).Send(
+            Arg.Is<SubmissionsExportQuery>(q =>
+                q.FormId == formId &&
+                q.Exporter == jsonExporter &&
+                q.SqlFunctionName == "export_form_submissions_nested_loops"),
+            Arg.Any<CancellationToken>());
+        await _exportFormatRepository.DidNotReceive()
+            .GetTenantDefaultAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task HandleAsync_WithExportId_TenantSettingsNotFound_ReturnsBadRequest()
     {
         // Arrange
