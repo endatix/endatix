@@ -4,7 +4,7 @@ name: Start Stable Release
 # aggregated notes pinned to a canary's commit. Review/edit the notes in the
 # GitHub UI, then click "Publish release" — that creates the tag and triggers
 # release-artifacts.yml to publish the stable packages (GitHub Packages +
-# nuget.org).
+# nuget.org). For hotfix lines use "Start Hotfix Release" (release-hotfix.yml).
 
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ jobs:
   draft:
     permissions:
       contents: write # create the draft release (no tag exists until a human publishes it)
-    uses: endatix/release-workflows/.github/workflows/release-start.yml@7c17ac843352ae0249d9ea7d799c6b6406ac2809 # v1
+    uses: endatix/release-workflows/.github/workflows/release-start.yml@cca02534258a68b196f9295afe9fd855ad9eee83 # v1
     with:
       canary-tag: ${{ inputs.canary_tag }}
       bump: ${{ inputs.bump }}
