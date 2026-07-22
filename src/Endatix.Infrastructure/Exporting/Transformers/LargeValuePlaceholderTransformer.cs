@@ -69,11 +69,14 @@ public sealed class LargeValuePlaceholderTransformer : IValueTransformer
                     ProcessObject(obj);
                     break;
                 case JsonValue val:
+                    // Only replace when TransformValue creates a new node. Re-assigning the
+                    // same JsonValue throws InvalidOperationException ("node already has a parent").
                     var transformed = TransformValue(val);
-                    if (transformed is not null)
+                    if (!ReferenceEquals(transformed, val))
                     {
                         array[i] = transformed;
                     }
+
                     break;
             }
         }
@@ -99,10 +102,11 @@ public sealed class LargeValuePlaceholderTransformer : IValueTransformer
                     break;
                 case JsonValue jsonVal:
                     var transformed = TransformValue(jsonVal);
-                    if (transformed is not null)
+                    if (!ReferenceEquals(transformed, jsonVal))
                     {
                         obj[prop.Key] = transformed;
                     }
+
                     break;
             }
         }
