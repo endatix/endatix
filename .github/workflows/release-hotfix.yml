@@ -17,7 +17,25 @@ on:
         required: true
 
 jobs:
+  # Reject anything that is not a hotfix line branch (hotfix/X.Y.x) BEFORE the
+  # release job runs — e.g. typing `main` here would otherwise draft a patch
+  # release cut from main, bypassing the canary-promotion flow.
+  validate:
+    name: Validate branch name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check hotfix line branch name
+        env:
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          if [[ ! "$BRANCH" =~ ^hotfix/[0-9]+\.[0-9]+\.x$ ]]; then
+            echo "::error::'${BRANCH}' is not a hotfix line branch — expected hotfix/X.Y.x (e.g. hotfix/0.8.x)"
+            exit 1
+          fi
+          echo "Branch name OK: ${BRANCH}"
+
   draft:
+    needs: validate
     permissions:
       contents: write # create the draft release (no tag exists until a human publishes it)
     uses: endatix/release-workflows/.github/workflows/release-start.yml@cca02534258a68b196f9295afe9fd855ad9eee83 # v1
