@@ -343,17 +343,18 @@ public sealed class TabularExportDataSourceTests
     }
 
     [Fact]
-    public void Matches_ReturnsTrueOnlyForTabularSubmissionExportWithoutSqlFunction()
+    public void Matches_ReturnsTrueOnlyForTabularSubmissionExportWithExportFormatId()
     {
         TabularExportDataSource dataSource = CreateDataSource(
             Substitute.For<IFormSchemaRepository>(),
             Substitute.For<IReportingExportRepository>());
 
-        dataSource.Matches(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null)).Should().BeTrue();
-        dataSource.Matches(new ExportDataSourceRequest("json", typeof(SubmissionExportRow), null)).Should().BeTrue();
-        dataSource.Matches(new ExportDataSourceRequest("codebook", typeof(SubmissionExportRow), null)).Should().BeFalse();
-        dataSource.Matches(new ExportDataSourceRequest("xml", typeof(SubmissionExportRow), null)).Should().BeFalse();
-        dataSource.Matches(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), "custom_fn")).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null, 100L)).Should().BeTrue();
+        dataSource.Matches(new ExportDataSourceRequest("json", typeof(SubmissionExportRow), null, 100L)).Should().BeTrue();
+        dataSource.Matches(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("codebook", typeof(SubmissionExportRow), null, 100L)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("xml", typeof(SubmissionExportRow), null, 100L)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), "custom_fn", 100L)).Should().BeFalse();
     }
 
     private static TabularExportDataSource CreateDataSource(

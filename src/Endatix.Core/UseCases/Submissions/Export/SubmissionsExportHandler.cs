@@ -29,7 +29,8 @@ public sealed class SubmissionsExportHandler(
             ExportDataSourceRequest dataSourceRequest = new(
                 request.Exporter.Format,
                 itemType,
-                request.SqlFunctionName);
+                request.SqlFunctionName,
+                TryGetExportFormatId(request.Options));
 
             var dataSource = dataSourceResolver.Resolve(dataSourceRequest);
             ExportDataSourceContext dataSourceContext = new(
@@ -80,6 +81,18 @@ public sealed class SubmissionsExportHandler(
 
             return Result<FileExport>.Error($"Export failed: {ex.Message}");
         }
+    }
+
+    private static long? TryGetExportFormatId(ExportOptions options)
+    {
+        if (options.Metadata is null ||
+            !options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) ||
+            settingsObject is not SubmissionExportExecutionSettings executionSettings)
+        {
+            return null;
+        }
+
+        return executionSettings.ExportFormatId;
     }
 
     private static async IAsyncEnumerable<IExportItem> StreamExportItemsAsync(

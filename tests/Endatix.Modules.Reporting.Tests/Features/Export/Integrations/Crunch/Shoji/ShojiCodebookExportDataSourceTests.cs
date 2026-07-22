@@ -133,13 +133,14 @@ public sealed class ShojiCodebookExportDataSourceTests
     }
 
     [Fact]
-    public void Matches_ReturnsTrueOnlyForCodebookShojiDynamicExportRow()
+    public void Matches_ReturnsTrueOnlyForCodebookShojiDynamicExportRowWithExportFormatId()
     {
         ShojiCodebookExportDataSource dataSource = CreateDataSource(Substitute.For<IFormSchemaRepository>());
 
-        dataSource.Matches(new ExportDataSourceRequest("codebook-shoji", typeof(DynamicExportRow), null)).Should().BeTrue();
-        dataSource.Matches(new ExportDataSourceRequest("json", typeof(DynamicExportRow), null)).Should().BeFalse();
-        dataSource.Matches(new ExportDataSourceRequest("codebook-shoji", typeof(SubmissionExportRow), null)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("codebook-shoji", typeof(DynamicExportRow), null, 100L)).Should().BeTrue();
+        dataSource.Matches(new ExportDataSourceRequest("codebook-shoji", typeof(DynamicExportRow), null)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("json", typeof(DynamicExportRow), null, 100L)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("codebook-shoji", typeof(SubmissionExportRow), null, 100L)).Should().BeFalse();
     }
 
     private static ExportDataSourceContext CreateContext(string? settingsJson = null)
