@@ -12,7 +12,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint);");
-            var addExportFunctionScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions.sql");
+            var addExportFunctionScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v1.sql");
             migrationBuilder.Sql(addExportFunctionScript);
         }
 

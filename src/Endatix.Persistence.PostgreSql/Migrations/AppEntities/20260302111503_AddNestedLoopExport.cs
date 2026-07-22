@@ -14,7 +14,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             var buildColumnPathScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/build_column_path_with_jsonpath.sql");
             migrationBuilder.Sql(buildColumnPathScript);
 
-            var exportNestedLoopsScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops.sql");
+            var exportNestedLoopsScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v1.sql");
             migrationBuilder.Sql(exportNestedLoopsScript);
 
             var exportShojiScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_metadata_shoji.sql");

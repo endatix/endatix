@@ -41,16 +41,18 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 """);
 
             // Return type changed (StartedAt added) — DROP before recreate.
+            // Use a new script version — older migrations still ReadEmbeddedSqlScript(v1)
+            // at runtime; mutating v1 in place breaks empty-DB migrates before StartedAt exists.
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint);");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint, bigint, int);");
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v2.sql"));
 
             // Helper used by nested_loops / metadata_shoji (CREATE OR REPLACE — safe if already present).
             migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/build_column_path_with_jsonpath.sql"));
 
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint);");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint, bigint, int);");
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v2.sql"));
 
             migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_metadata_shoji.sql"));
         }
@@ -62,8 +64,14 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 name: "StartedAt",
                 table: "Submissions");
 
-            // Recreate export functions without StartedAt would require prior script versions;
-            // leave functions as-is on down (column drop is the reversible contract).
+            // Restore pre-StartedAt return shapes (v1) so exports remain executable after rollback.
+            migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint);");
+            migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint, bigint, int);");
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v1.sql"));
+
+            migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint);");
+            migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint, bigint, int);");
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v1.sql"));
         }
     }
 }

@@ -1,5 +1,7 @@
 -- =============================================
--- Function: export_form_submissions_nested_loops
+-- Function: export_form_submissions_nested_loops (v2)
+-- Adds Submissions.StartedAt projection.
+-- Immutable: do not edit in place — add v3+ for further shape changes.
 -- Description: Advanced export function that flattens hierarchical form submissions with nested dynamic panels into tabular format.
 --              Handles nested loops driven by checkboxes/radiogroups, checkbox explosion (binary columns per choice),
 --              simple questions, and calculated values. Uses two-phase approach: calculates column structure once,
