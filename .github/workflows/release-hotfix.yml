@@ -23,6 +23,7 @@ jobs:
   validate:
     name: Validate branch name
     runs-on: ubuntu-latest
+    permissions: {} # needs no token scopes at all
     steps:
       - name: Check hotfix line branch name
         env:
