@@ -108,6 +108,38 @@ public sealed class LargeValuePlaceholderTransformerTests
     }
 
     [Fact]
+    public void Transform_DoesNotThrow_WhenArrayContainsUnchangedValues()
+    {
+        // Regression: range-slider / numeric array answers re-assigned the same JsonValue
+        // into JsonArray and threw "The node already has a parent".
+        var sut = new LargeValuePlaceholderTransformer();
+        var node = JsonNode.Parse("""[10, 90, "ok"]""")!;
+
+        var exception = Record.Exception(() => sut.Transform(node, Ctx()));
+
+        Assert.Null(exception);
+        var arr = node.AsArray();
+        Assert.Equal(10, arr[0]!.GetValue<int>());
+        Assert.Equal(90, arr[1]!.GetValue<int>());
+        Assert.Equal("ok", arr[2]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Transform_DoesNotThrow_WhenObjectContainsUnchangedValues()
+    {
+        var sut = new LargeValuePlaceholderTransformer();
+        var node = JsonNode.Parse("""{"min":0,"max":100,"label":"range"}""")!;
+
+        var exception = Record.Exception(() => sut.Transform(node, Ctx()));
+
+        Assert.Null(exception);
+        var obj = node.AsObject();
+        Assert.Equal(0, obj["min"]!.GetValue<int>());
+        Assert.Equal(100, obj["max"]!.GetValue<int>());
+        Assert.Equal("range", obj["label"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void Transform_ReplacesDataUriInNestedObject()
     {
         var sut = new LargeValuePlaceholderTransformer();

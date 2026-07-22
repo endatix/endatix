@@ -134,14 +134,15 @@ public sealed class FormSchemaCodebookExportDataSourceTests
     }
 
     [Fact]
-    public void Matches_ReturnsTrueOnlyForCodebookNativeDynamicExportRow()
+    public void Matches_ReturnsTrueOnlyForCodebookNativeDynamicExportRowWithExportFormatId()
     {
         FormSchemaCodebookExportDataSource dataSource = CreateDataSource(
             Substitute.For<IFormSchemaRepository>());
 
-        dataSource.Matches(new ExportDataSourceRequest("codebook", typeof(DynamicExportRow), null)).Should().BeTrue();
-        dataSource.Matches(new ExportDataSourceRequest("codebook-shoji", typeof(DynamicExportRow), null)).Should().BeFalse();
-        dataSource.Matches(new ExportDataSourceRequest("codebook", typeof(SubmissionExportRow), null)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("codebook", typeof(DynamicExportRow), null, 100L)).Should().BeTrue();
+        dataSource.Matches(new ExportDataSourceRequest("codebook", typeof(DynamicExportRow), null)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("codebook-shoji", typeof(DynamicExportRow), null, 100L)).Should().BeFalse();
+        dataSource.Matches(new ExportDataSourceRequest("codebook", typeof(SubmissionExportRow), null, 100L)).Should().BeFalse();
     }
 
     private static ExportDataSourceContext CreateContext(ExportOptions? options = null) =>

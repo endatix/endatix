@@ -8,10 +8,11 @@ namespace Endatix.Infrastructure.Tests.Exporting;
 public sealed class ExportDataSourceResolverTests
 {
     [Fact]
-    public void Resolve_PrefersReportingSourceOverSqlDefault()
+    public void Resolve_PrefersReportingSourceOverSqlDefault_WhenExportFormatIdPresent()
     {
         IExportDataSource tabular = Substitute.For<IExportDataSource>();
         tabular.Matches(Arg.Is<ExportDataSourceRequest>(r =>
+                r.ExportFormatId.HasValue &&
                 r.ItemType == typeof(SubmissionExportRow) &&
                 r.SqlFunctionName == null &&
                 (r.Format.Equals("csv", StringComparison.OrdinalIgnoreCase) ||
@@ -22,9 +23,30 @@ public sealed class ExportDataSourceResolverTests
 
         ExportDataSourceResolver resolver = new([tabular, sqlDefault]);
 
-        IExportDataSource resolved = resolver.Resolve(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null));
+        IExportDataSource resolved = resolver.Resolve(
+            new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null, ExportFormatId: 100L));
 
         resolved.Should().BeSameAs(tabular);
+    }
+
+    [Fact]
+    public void Resolve_PrefersSqlDefault_WhenLegacyBuiltInHasNoExportFormatId()
+    {
+        // Regression: TabularExportDataSource used to match SqlFunctionName=null + csv and
+        // beat SqlFallback — Hub legacy Default CSV then required a compiled form schema.
+        IExportDataSource tabular = Substitute.For<IExportDataSource>();
+        tabular.Matches(Arg.Is<ExportDataSourceRequest>(r => r.ExportFormatId.HasValue))
+            .Returns(true);
+
+        IExportDataSource sqlDefault = new SqlDefaultSubmissionExportDataSource(
+            Substitute.For<Core.Abstractions.Repositories.ISubmissionExportRepository>());
+
+        ExportDataSourceResolver resolver = new([tabular, sqlDefault]);
+
+        IExportDataSource resolved = resolver.Resolve(
+            new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null, ExportFormatId: null));
+
+        resolved.Should().BeSameAs(sqlDefault);
     }
 
     [Fact]

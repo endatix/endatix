@@ -5,10 +5,24 @@ namespace Endatix.Core.Abstractions.Exporting;
 /// <summary>
 /// Identifies an export request for data-source resolution.
 /// </summary>
+/// <param name="Format">
+/// The export format to use.
+/// </param>
+/// <param name="ItemType">
+/// The type of item to export.
+/// </param>
+/// <param name="SqlFunctionName">
+/// When set, selects a custom SQL function for export.
+/// </param>
+/// <param name="ExportFormatId">
+/// When set, selects reporting read-model data sources. Legacy SQL default / CustomExports
+/// leave this null so <c>TabularExportDataSource</c> does not steal built-in CSV.
+/// </param>
 public sealed record ExportDataSourceRequest(
     string Format,
     Type ItemType,
-    string? SqlFunctionName);
+    string? SqlFunctionName,
+    long? ExportFormatId = null);
 
 /// <summary>
 /// Runtime context passed to an export data source.

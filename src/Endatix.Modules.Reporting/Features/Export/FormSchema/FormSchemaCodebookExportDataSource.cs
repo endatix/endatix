@@ -28,6 +28,7 @@ internal sealed class FormSchemaCodebookExportDataSource(
     ];
 
     public bool Matches(ExportDataSourceRequest request) =>
+        request.ExportFormatId.HasValue &&
         string.IsNullOrWhiteSpace(request.SqlFunctionName) &&
         Capabilities.Any(capability =>
             string.Equals(capability.WireKey, request.Format, StringComparison.OrdinalIgnoreCase) &&

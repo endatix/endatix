@@ -181,36 +181,23 @@ public partial class Export : Endpoint<ExportRequest>
             return Result.Invalid(new ValidationError($"Form with ID {request.FormId} not found"));
         }
 
+        // Dual-mode: Reporting module may be registered while Hub uses legacy UI.
+        // - ExportFormatId → reporting (Hub reporting always sends this)
+        // - ExportId → tenant CustomExports (legacy named exports)
+        // - neither → classic built-in CSV (Hub "Default CSV Export")
+        // Do not auto-use tenant reporting default when neither id is set — that 409s
+        // forms without a compiled reporting schema.
         if (request.ExportFormatId.HasValue)
         {
             return await ResolveExportFormatIdConfigurationAsync(request, cancellationToken);
         }
 
-        // Explicit legacy ExportId must win over tenant default reporting format.
-        // Otherwise Hub legacy custom exports (json/codebook/etc.) silently become CSV
-        // whenever Reporting is registered and a tenant default exists.
         if (request.ExportId.HasValue)
         {
             return await ResolveExportIdConfigurationAsync(request, cancellationToken);
         }
 
-        if (_exportFormatRepository is not null)
-        {
-            var defaultFormatResult =
-                await ResolveTenantDefaultExportFormatAsync(request, cancellationToken);
-            if (defaultFormatResult is not null)
-            {
-                return defaultFormatResult;
-            }
-        }
-
-        if (_exportCapabilityRegistry is not null)
-        {
-            return Result.Invalid(new ValidationError(
-                "ExportFormatId is required when reporting export formats are enabled."));
-        }
-
-        return Result.Invalid(new ValidationError(ERROR_MESSAGE_COULD_NOT_DETERMINE_EXPORT_FORMAT));
+        return ResolveLegacyBuiltInConfiguration(request);
     }
 
     private async Task<Result<ValidatedExportOperation>> ResolveExportFormatIdConfigurationAsync(
@@ -239,17 +226,22 @@ public partial class Export : Endpoint<ExportRequest>
         return BuildValidatedExportOperation(request, exportFormat);
     }
 
-    private async Task<Result<ValidatedExportOperation>?> ResolveTenantDefaultExportFormatAsync(
-        ExportRequest request,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// Classic exporters without reporting execution settings (default SQL function
+    /// <c>export_form_submissions</c> when <see cref="ValidatedExportOperation.SqlFunctionName"/> is null).
+    /// </summary>
+    private static Result<ValidatedExportOperation> ResolveLegacyBuiltInConfiguration(ExportRequest request)
     {
-        var exportFormat = await _exportFormatRepository!.GetTenantDefaultAsync(
-            _tenantContext.TenantId,
-            cancellationToken);
+        var format = string.IsNullOrWhiteSpace(request.ExportFormat)
+            ? "csv"
+            : request.ExportFormat.Trim();
 
-        return exportFormat is null
-            ? null
-            : BuildValidatedExportOperation(request, exportFormat);
+        return Result.Success(new ValidatedExportOperation(
+            format,
+            typeof(SubmissionExportRow),
+            SqlFunctionName: null,
+            ExportPageSize: null,
+            ExecutionSettings: null));
     }
 
     private Result<ValidatedExportOperation> BuildValidatedExportOperation(
