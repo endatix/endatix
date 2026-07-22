@@ -151,12 +151,15 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                 unique: true,
                 filter: "\"IsDefault\" = true AND \"SurveyTypeId\" IS NOT NULL");
 
+            // Deterministic bigint ids via hashtextextended — do NOT use tenantId * N.
+            // Snowflake tenant ids already use most of the signed 64-bit range; multiplying overflows
+            // (Postgres 22003: bigint out of range) when remigrating against real tenants.
             migrationBuilder.Sql("""
                 INSERT INTO reporting."ExportFormats"
                     ("Id", "TenantId", "Name", "ExportTarget", "DeliveryFormat", "Profile",
                      "Description", "SettingsJson", "CreatedAt", "IsDeleted")
                 SELECT
-                    t."Id" * 100 + 1,
+                    hashtextextended(t."Id"::text || ':csv', 0),
                     t."Id",
                     'CSV',
                     'Submissions',
@@ -174,7 +177,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     ("Id", "TenantId", "Name", "ExportTarget", "DeliveryFormat", "Profile",
                      "Description", "SettingsJson", "CreatedAt", "IsDeleted")
                 SELECT
-                    t."Id" * 100 + 2,
+                    hashtextextended(t."Id"::text || ':json', 0),
                     t."Id",
                     'JSON',
                     'Submissions',
@@ -192,7 +195,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     ("Id", "TenantId", "Name", "ExportTarget", "DeliveryFormat", "Profile",
                      "Description", "SettingsJson", "CreatedAt", "IsDeleted")
                 SELECT
-                    t."Id" * 100 + 3,
+                    hashtextextended(t."Id"::text || ':codebook', 0),
                     t."Id",
                     'Codebook',
                     'Codebook',
@@ -210,10 +213,10 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     ("Id", "TenantId", "SurveyTypeId", "ExportFormatId", "IsDefault",
                      "CreatedAt", "IsDeleted")
                 SELECT
-                    t."Id" * 100 + 10,
+                    hashtextextended(t."Id"::text || ':default-map', 0),
                     t."Id",
                     NULL,
-                    t."Id" * 100 + 1,
+                    hashtextextended(t."Id"::text || ':csv', 0),
                     TRUE,
                     NOW(),
                     FALSE
