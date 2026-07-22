@@ -28,7 +28,7 @@ public sealed class UpdateStatusTests
         const string status = "seen";
 
         var request = new UpdateStatusRequest(submissionId, formId, status);
-        var result = Result.Success(new SubmissionDto(submissionId, false, "{}", formId, 1, null, DateTime.UtcNow, DateTime.UtcNow, null, status, "7", 7, "7", null, false));
+        var result = Result.Success(new SubmissionDto(submissionId, false, "{}", formId, 1, null, DateTime.UtcNow, null, DateTime.UtcNow, null, status, "7", 7, "7", null, false));
 
         _mediator.Send(Arg.Any<UpdateStatusCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -87,7 +87,7 @@ public sealed class UpdateStatusTests
         const string status = "Approved";
 
         var request = new UpdateStatusRequest(submissionId, formId, status);
-        var result = Result.Success(new SubmissionDto(submissionId, false, "{}", formId, 1, null, DateTime.UtcNow, DateTime.UtcNow, null, status, null, null, null, null, false));
+        var result = Result.Success(new SubmissionDto(submissionId, false, "{}", formId, 1, null, DateTime.UtcNow, null, DateTime.UtcNow, null, status, null, null, null, null, false));
 
         _mediator.Send(Arg.Any<UpdateStatusCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

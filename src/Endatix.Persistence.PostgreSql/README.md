@@ -58,7 +58,7 @@ dotnet ef migrations list \
 2. If required update to the migration via `dotnet ef database update`
 
 ```bash
-dotnet ef database update <PreviousMigrationName> \       
+dotnet ef database update <PreviousMigrationName> \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Persistence.PostgreSql \
   --context <AppDbContext|AppIdentityDbContext> 

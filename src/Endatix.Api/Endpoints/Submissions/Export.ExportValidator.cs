@@ -36,13 +36,20 @@ public class ExportValidator : Validator<ExportRequest>
                .IsInEnum()
                .When(x => x.CompletionStatus.HasValue);
 
-          // CreatedBefore / CompletedBefore are exclusive upper bounds in the reporting repository.
+          // CreatedBefore / StartedBefore / CompletedBefore are exclusive upper bounds in the reporting repository.
           RuleFor(x => x)
                .Must(request => !request.CreatedAfter.HasValue ||
                                 !request.CreatedBefore.HasValue ||
                                 request.CreatedAfter < request.CreatedBefore)
                .WithMessage("CreatedAfter must be earlier than CreatedBefore (exclusive upper bound).")
                .WithName("CreatedAfter");
+
+          RuleFor(x => x)
+               .Must(request => !request.StartedAfter.HasValue ||
+                                !request.StartedBefore.HasValue ||
+                                request.StartedAfter < request.StartedBefore)
+               .WithMessage("StartedAfter must be earlier than StartedBefore (exclusive upper bound).")
+               .WithName("StartedAfter");
 
           RuleFor(x => x)
                .Must(request => !request.CompletedAfter.HasValue ||

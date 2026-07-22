@@ -89,6 +89,8 @@ public class SubmissionConstructorTests
         submission.IsComplete.Should().BeFalse();
         submission.CurrentPage.Should().Be(2);
         submission.Metadata.Should().Be("Test");
+        submission.HasStarted.Should().BeFalse();
+        submission.StartedAt.Should().BeNull();
     }
 
     [Fact]
@@ -113,6 +115,39 @@ public class SubmissionConstructorTests
         submission.Should().NotBeNull();
         submission.IsComplete.Should().BeTrue();
         submission.CompletedAt.Should().NotBeNull();
+        submission.HasStarted.Should().BeTrue();
+        submission.StartedAt.Should().Be(submission.CompletedAt);
+    }
+
+    [Fact]
+    public void Create_WhenStartSubmission_StampsStartedAtForIncomplete()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            SampleData.TENANT_ID,
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: SampleData.SUBMISSION_JSON_DATA_1,
+            IsComplete: false,
+            StartSubmission: true));
+
+        submission.HasStarted.Should().BeTrue();
+        submission.StartedAt.Should().NotBeNull();
+        submission.CompletedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_WhenStartSubmissionFalse_LeavesStartedAtNullForIncomplete()
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            SampleData.TENANT_ID,
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: SampleData.SUBMISSION_JSON_DATA_1,
+            IsComplete: false,
+            StartSubmission: false));
+
+        submission.HasStarted.Should().BeFalse();
+        submission.StartedAt.Should().BeNull();
     }
 
     [Fact]

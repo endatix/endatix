@@ -1,5 +1,6 @@
 -- =============================================
--- Function: export_form_submissions
+-- Function: export_form_submissions (v1)
+-- Immutable: do not edit in place — add v3+ for further shape changes.
 -- Description: Exports form submissions with answers structured as a JSON model.
 --              Optimized to use a correlated subquery for aggregation (avoids CROSS JOIN explosion).
 --              Supports keyset pagination for large datasets.

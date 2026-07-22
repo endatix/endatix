@@ -99,10 +99,10 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 onDelete: ReferentialAction.SetNull);
 
 
-            var exportScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions.sql");
+            var exportScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v1.sql");
             migrationBuilder.Sql(exportScript);
 
-            var nestedLoopsExportScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops.sql");
+            var nestedLoopsExportScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v1.sql");
             migrationBuilder.Sql(nestedLoopsExportScript);
         }
 

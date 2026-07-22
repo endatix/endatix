@@ -18,6 +18,7 @@ public enum ExportRequestFilters
     Locale = 1 << 4,
     ColumnScope = 1 << 5,
     CompletionStatus = 1 << 6,
+    StartedAtRange = 1 << 7,
 }
 
 /// <summary>
@@ -32,6 +33,7 @@ public static class ExportRequestFilterSets
     public const ExportRequestFilters Submissions =
         ExportRequestFilters.IncludeTestSubmissions |
         ExportRequestFilters.CreatedAtRange |
+        ExportRequestFilters.StartedAtRange |
         ExportRequestFilters.CompletedAtRange |
         ExportRequestFilters.SubmissionIdRange |
         ExportRequestFilters.ColumnScope |
@@ -55,6 +57,7 @@ public static class AllowedExportFilters
 {
     public const string IncludeTestSubmissions = "includeTestSubmissions";
     public const string CreatedAtRange = "createdAtRange";
+    public const string StartedAtRange = "startedAtRange";
     public const string CompletedAtRange = "completedAtRange";
     public const string SubmissionIdRange = "submissionIdRange";
     public const string Locale = "locale";
@@ -65,6 +68,7 @@ public static class AllowedExportFilters
     [
         (ExportRequestFilters.IncludeTestSubmissions, IncludeTestSubmissions),
         (ExportRequestFilters.CreatedAtRange, CreatedAtRange),
+        (ExportRequestFilters.StartedAtRange, StartedAtRange),
         (ExportRequestFilters.CompletedAtRange, CompletedAtRange),
         (ExportRequestFilters.SubmissionIdRange, SubmissionIdRange),
         (ExportRequestFilters.Locale, Locale),

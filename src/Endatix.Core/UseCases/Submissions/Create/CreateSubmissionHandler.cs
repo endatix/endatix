@@ -114,7 +114,12 @@ public class CreateSubmissionHandler(
             SubmitterDisplayId: submitterResolution.DisplayId,
             SubmitterProfileSnapshot: submitterResolution.ProfileSnapshot,
             IsTestSubmission: canBypassSingleSubmissionLimit,
-            EnforceSingleSubmissionGate: shouldEnforceSingleSubmissionGate));
+            EnforceSingleSubmissionGate: shouldEnforceSingleSubmissionGate,
+            // Public/authenticated Create = respondent engagement; CreateOnBehalf = prefill.
+            StartSubmission: string.Equals(
+                request.RequiredPermission,
+                Actions.Submissions.Create,
+                StringComparison.Ordinal)));
 
         try
         {

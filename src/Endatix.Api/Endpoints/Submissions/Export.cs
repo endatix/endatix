@@ -186,6 +186,14 @@ public partial class Export : Endpoint<ExportRequest>
             return await ResolveExportFormatIdConfigurationAsync(request, cancellationToken);
         }
 
+        // Explicit legacy ExportId must win over tenant default reporting format.
+        // Otherwise Hub legacy custom exports (json/codebook/etc.) silently become CSV
+        // whenever Reporting is registered and a tenant default exists.
+        if (request.ExportId.HasValue)
+        {
+            return await ResolveExportIdConfigurationAsync(request, cancellationToken);
+        }
+
         if (_exportFormatRepository is not null)
         {
             var defaultFormatResult =
@@ -194,11 +202,6 @@ public partial class Export : Endpoint<ExportRequest>
             {
                 return defaultFormatResult;
             }
-        }
-
-        if (request.ExportId.HasValue)
-        {
-            return await ResolveExportIdConfigurationAsync(request, cancellationToken);
         }
 
         if (_exportCapabilityRegistry is not null)
@@ -284,6 +287,8 @@ public partial class Export : Endpoint<ExportRequest>
             Locale: NormalizeLocale(request.Locale),
             CreatedAfter: request.CreatedAfter,
             CreatedBefore: request.CreatedBefore,
+            StartedAfter: request.StartedAfter,
+            StartedBefore: request.StartedBefore,
             CompletedAfter: request.CompletedAfter,
             CompletedBefore: request.CompletedBefore,
             MinSubmissionId: request.MinSubmissionId,
@@ -360,6 +365,8 @@ public partial class Export : Endpoint<ExportRequest>
             IncludeTestSubmissions: request.IncludeTestSubmissions,
             CreatedAfter: request.CreatedAfter,
             CreatedBefore: request.CreatedBefore,
+            StartedAfter: request.StartedAfter,
+            StartedBefore: request.StartedBefore,
             CompletedAfter: request.CompletedAfter,
             CompletedBefore: request.CompletedBefore,
             MinSubmissionId: request.MinSubmissionId,

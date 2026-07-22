@@ -96,6 +96,22 @@ public sealed class ExportValidatorTests
     }
 
     [Fact]
+    public async Task Validate_WhenStartedAfterNotBeforeStartedBefore_Fails()
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            StartedAfter = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc),
+            StartedBefore = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldHaveValidationErrorFor("StartedAfter");
+    }
+
+    [Fact]
     public async Task Validate_WhenCompletedAfterNotBeforeCompletedBefore_Fails()
     {
         ExportRequest request = new()

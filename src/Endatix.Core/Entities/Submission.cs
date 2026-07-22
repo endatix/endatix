@@ -29,6 +29,11 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         SetSubmitter(args.SubmitterId, args.SubmitterDisplayId, args.SubmitterProfileSnapshot);
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
         SetCompletionStatus(args.IsComplete);
+
+        if (args.StartSubmission)
+        {
+            EnsureStarted();
+        }
     }
 
     [Obsolete("Use Submission.Create(SubmissionCreateArgs).")]
@@ -91,9 +96,35 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     /// event-raising work (Phase 5).
     /// </summary>
     public long Revision { get; private set; } = 1;
+
+    /// <summary>
+    /// First respondent engagement timestamp. Null until recorded via respondent create
+    /// (<see cref="SubmissionCreateArgs.StartSubmission"/>), the first content
+    /// <see cref="Update"/>, or completion without a prior start. Distinct from
+    /// <see cref="BaseEntity.CreatedAt"/>, which is when the submission row was created
+    /// (e.g. prefill / create-on-behalf).
+    /// </summary>
+    public DateTime? StartedAt { get; private set; }
+
     public DateTime? CompletedAt { get; private set; }
     public Token? Token { get; private set; }
     public SubmissionStatus Status { get; private set; } = null!;
+
+    /// <summary>True when <see cref="StartedAt"/> has been recorded.</summary>
+    public bool HasStarted => StartedAt is not null;
+
+    /// <summary>
+    /// Records first engagement once. Subsequent calls are no-ops.
+    /// </summary>
+    public void EnsureStarted(DateTime? at = null)
+    {
+        if (HasStarted)
+        {
+            return;
+        }
+
+        StartedAt = at ?? DateTime.UtcNow;
+    }
 
     /// <summary>Updates submission content; the target definition must belong to this submission's form (<see cref="FormId"/>).</summary>
     public void Update(string jsonData, long formDefinitionId, long formDefinitionFormId, bool isComplete = true, int currentPage = 1, string? metadata = null)
@@ -107,6 +138,8 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
             throw new ArgumentException(
                 "The target form definition does not belong to this submission's form", nameof(formDefinitionFormId));
         }
+
+        EnsureStarted();
 
         var changeKind = SubmissionChangeKinds.None;
         if (IsComplete)
@@ -212,6 +245,12 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         {
             IsComplete = true;
             CompletedAt = DateTime.UtcNow;
+            if (!HasStarted)
+            {
+                // Complete without a prior engagement save (e.g. complete-on-create): duration ≈ 0
+                StartedAt = CompletedAt;
+            }
+
             // false→true transition (ctor or Update); captured to outbox → submission.completed webhook
             RegisterRevisedDomainEvent(() => new SubmissionCompletedEvent(this));
         }

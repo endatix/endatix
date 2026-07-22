@@ -78,20 +78,74 @@ public class SubmissionUpdateTests
         submission.CurrentPage.Should().Be(3);
         submission.Metadata.Should().Be("Updated");
         submission.IsComplete.Should().BeFalse();
+        submission.HasStarted.Should().BeTrue();
+        submission.StartedAt.Should().NotBeNull();
     }
 
     [Fact]
-    public void Update_CompleteSubmission_UpdatesCompletedAt()
+    public void Update_FirstCall_SetsStartedAtOnce()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        submission.HasStarted.Should().BeFalse();
 
         // Act
-        submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 123, formDefinitionFormId: 123, isComplete: true);
+        submission.Update(SampleData.SUBMISSION_JSON_DATA_2, formDefinitionId: 456, formDefinitionFormId: 123, isComplete: false);
+        DateTime? firstStartedAt = submission.StartedAt;
+
+        submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 456, formDefinitionFormId: 123, isComplete: false);
 
         // Assert
-        submission.Should().NotBeNull();
+        firstStartedAt.Should().NotBeNull();
+        submission.StartedAt.Should().Be(firstStartedAt);
+    }
+
+    [Fact]
+    public void Update_CompleteWithoutPriorStart_SetsStartedAtEqualToCompletedAt()
+    {
+        // Arrange — create incomplete so StartedAt is null, then complete via Update
+        // (Update always EnsureStarted first, so this path is: EnsureStarted then complete)
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+
+        // Act
+        submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 456, formDefinitionFormId: 123, isComplete: true);
+
+        // Assert
         submission.IsComplete.Should().BeTrue();
+        submission.StartedAt.Should().NotBeNull();
         submission.CompletedAt.Should().NotBeNull();
+        submission.StartedAt.Should().BeOnOrBefore(submission.CompletedAt!.Value);
+    }
+
+    [Fact]
+    public void Update_CompleteAfterStart_PreservesOriginalStartedAt()
+    {
+        // Arrange
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var fixedStart = new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Utc);
+        submission.EnsureStarted(fixedStart);
+
+        // Act
+        submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 456, formDefinitionFormId: 123, isComplete: true);
+
+        // Assert
+        submission.StartedAt.Should().Be(fixedStart);
+        submission.CompletedAt.Should().NotBeNull();
+        submission.CompletedAt.Should().BeOnOrAfter(fixedStart);
+    }
+
+    [Fact]
+    public void EnsureStarted_WhenAlreadyStarted_DoesNotOverwrite()
+    {
+        // Arrange
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var fixedStart = new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Utc);
+        submission.EnsureStarted(fixedStart);
+
+        // Act
+        submission.EnsureStarted(new DateTime(2026, 6, 1, 10, 0, 0, DateTimeKind.Utc));
+
+        // Assert
+        submission.StartedAt.Should().Be(fixedStart);
     }
 }

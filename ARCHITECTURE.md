@@ -409,8 +409,28 @@ Do **not** use EF InMemory in module unit tests for persistence — use `Endatix
 
 ---
 
+## Submission lifecycle timestamps
+
+`Submission` carries three distinct clocks:
+
+| Property | When set | Meaning |
+|----------|----------|---------|
+| `CreatedAt` | EF insert stamp | Row created (includes prefill / create-on-behalf) |
+| `StartedAt` | Respondent `Create` (`StartSubmission`), first content `Update(...)`, or complete-without-prior-start | First respondent engagement recorded by the API |
+| `CompletedAt` | First incomplete→complete transition | Submission finished |
+
+Rules:
+- Respondent `Create` (public submit / `submissions.create`) stamps `StartedAt` via `StartSubmission`.
+- CreateOnBehalf / prefill leave `StartedAt` null until first engagement `Update` (unless completing on create).
+- `Update` calls `EnsureStarted()` once (idempotent).
+- Completing with `StartedAt` still null sets `StartedAt = CompletedAt` (duration ≈ 0).
+- Hub completion time and export `DurationSeconds` use `CompletedAt − StartedAt` (Hub falls back to `CreatedAt` only when `startedAt` is absent on older payloads).
+
+---
+
 ## Decision log
 
 | Date | Decision |
 |------|----------|
+| 2026-07 | Submission `StartedAt` for reliable completion duration (distinct from `CreatedAt`); export includes `StartedAt` + computed `DurationSeconds`. See [Submission lifecycle timestamps](#submission-lifecycle-timestamps). |
 | 2026-07 | Domain events: evaluate-before-mutate on aggregates; reporting triggers (`FormDefinitionUpdatedEvent`, `SubmissionUpdatedEvent`) live on entities, not handlers. Documented in [Domain and integration events](#domain-and-integration-events). |

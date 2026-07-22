@@ -15,6 +15,7 @@ public record SubmissionDto(
     long FormDefinitionId,
     int? CurrentPage,
     DateTime? CompletedAt,
+    DateTime? StartedAt,
     DateTime CreatedAt,
     string? Metadata,
     string Status,
@@ -32,6 +33,7 @@ public record SubmissionDto(
     public long FormDefinitionId { get; init; } = FormDefinitionId;
     public int? CurrentPage { get; init; } = CurrentPage;
     public DateTime? CompletedAt { get; init; } = CompletedAt;
+    public DateTime? StartedAt { get; init; } = StartedAt;
     public DateTime CreatedAt { get; init; } = CreatedAt;
     public string Status { get; init; } = Status;
     public string? SubmittedBy { get; init; } = SubmittedBy;
@@ -52,6 +54,7 @@ public record SubmissionDto(
             FormDefinitionId: submission.FormDefinitionId,
             CurrentPage: submission.CurrentPage,
             CompletedAt: submission.CompletedAt,
+            StartedAt: submission.StartedAt,
             CreatedAt: submission.CreatedAt,
             Metadata: submission.Metadata,
             Status: submission.Status.Code,

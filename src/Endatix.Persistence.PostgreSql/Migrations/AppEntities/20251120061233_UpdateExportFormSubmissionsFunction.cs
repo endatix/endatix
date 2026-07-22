@@ -16,7 +16,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint);");
 
             // Create the function with the new signature
-            var script = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions.sql");
+            var script = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v1.sql");
             migrationBuilder.Sql(script);
         }
 

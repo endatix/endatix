@@ -23,6 +23,13 @@ public sealed class SqlServerMigrationArtifactTests
     [Fact]
     public async Task ApplyDbMigrations_creates_sql_server_specific_artifacts()
     {
+        // Trait DbSpecific=SqlServer should exclude this on the PostgreSQL leg; keep a runtime guard
+        // when --filter accidentally drops the DbSpecific clause.
+        if (_fixture.Provider != TestDatabaseProvider.SqlServer)
+        {
+            Assert.Skip($"Requires SqlServer; current provider is {_fixture.Provider}.");
+        }
+
         var cancellationToken = TestContext.Current.CancellationToken;
 
         var provider = IntegrationCoreMigrationTestHelper.BuildServiceProvider(

@@ -16,7 +16,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             migrationBuilder.Sql(buildColumnPathScript);
 
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint);");
-            var exportNestedLoopsScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops.sql");
+            var exportNestedLoopsScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v1.sql");
             migrationBuilder.Sql(exportNestedLoopsScript);
         }
 

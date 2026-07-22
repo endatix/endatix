@@ -29,10 +29,28 @@ public abstract class SubmissionExporterBase(
         [SubmissionExportRow.SystemColumns.IsComplete] = row => row.IsComplete,
         [SubmissionExportRow.SystemColumns.CreatedAt] = row => row.CreatedAt,
         [SubmissionExportRow.SystemColumns.ModifiedAt] = row => row.ModifiedAt,
+        [SubmissionExportRow.SystemColumns.StartedAt] = row => row.StartedAt is null ? NOT_AVAILABLE_VALUE : row.StartedAt,
         [SubmissionExportRow.SystemColumns.CompletedAt] = row => row.CompletedAt is null ? NOT_AVAILABLE_VALUE : row.CompletedAt,
+        [SubmissionExportRow.SystemColumns.DurationSeconds] = GetDurationSecondsExportValue,
         [SubmissionExportRow.SystemColumns.SubmitterId] = row => row.SubmitterId is null ? NOT_AVAILABLE_VALUE : row.SubmitterId,
         [SubmissionExportRow.SystemColumns.SubmitterDisplayId] = row => row.SubmitterDisplayId ?? NOT_AVAILABLE_VALUE
     };
+
+    private static object GetDurationSecondsExportValue(SubmissionExportRow row)
+    {
+        if (!row.IsComplete)
+        {
+            return NOT_AVAILABLE_VALUE;
+        }
+
+        var durationSeconds = SubmissionExportRow.CalculateDurationSeconds(row.StartedAt, row.CompletedAt);
+        if (durationSeconds is null)
+        {
+            return NOT_AVAILABLE_VALUE;
+        }
+
+        return durationSeconds.Value;
+    }
 
     /// <inheritdoc/>
     public abstract string Format { get; }

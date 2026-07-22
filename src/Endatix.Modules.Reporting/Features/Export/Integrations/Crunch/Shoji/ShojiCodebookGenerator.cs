@@ -217,7 +217,9 @@ internal static class ShojiCodebookGenerator
         SubmissionExportRow.SystemColumns.IsComplete,
         SubmissionExportRow.SystemColumns.CreatedAt,
         SubmissionExportRow.SystemColumns.ModifiedAt,
+        SubmissionExportRow.SystemColumns.StartedAt,
         SubmissionExportRow.SystemColumns.CompletedAt,
+        SubmissionExportRow.SystemColumns.DurationSeconds,
         SubmissionExportRow.SystemColumns.SubmitterId,
         SubmissionExportRow.SystemColumns.SubmitterDisplayId,
     ];
@@ -273,7 +275,9 @@ internal static class ShojiCodebookGenerator
             orderAliases);
         WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.CreatedAt, "Created At", writtenVariables, usedDisplayNames, orderAliases);
         WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.ModifiedAt, "Modified At", writtenVariables, usedDisplayNames, orderAliases);
+        WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.StartedAt, "Started At", writtenVariables, usedDisplayNames, orderAliases);
         WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.CompletedAt, "Completed At", writtenVariables, usedDisplayNames, orderAliases);
+        WriteSystemNumeric(writer, SubmissionExportRow.SystemColumns.DurationSeconds, "Duration Seconds", writtenVariables, usedDisplayNames, orderAliases);
         WriteSystemNumeric(writer, SubmissionExportRow.SystemColumns.SubmitterId, "Submitter ID", writtenVariables, usedDisplayNames, orderAliases);
         WriteSystemText(writer, SubmissionExportRow.SystemColumns.SubmitterDisplayId, "Submitter Display ID", writtenVariables, usedDisplayNames, orderAliases);
     }

@@ -52,12 +52,25 @@
           "description": "",
           "resolution": "s"
         },
+        "StartedAt": {
+          "type": "datetime",
+          "alias": "StartedAt",
+          "name": "Started At",
+          "description": "",
+          "resolution": "s"
+        },
         "CompletedAt": {
           "type": "datetime",
           "alias": "CompletedAt",
           "name": "Completed At",
           "description": "",
           "resolution": "s"
+        },
+        "DurationSeconds": {
+          "type": "numeric",
+          "alias": "DurationSeconds",
+          "name": "Duration Seconds",
+          "description": ""
         },
         "SubmitterId": {
           "type": "numeric",
@@ -971,7 +984,9 @@
         "IsComplete",
         "CreatedAt",
         "ModifiedAt",
+        "StartedAt",
         "CompletedAt",
+        "DurationSeconds",
         "SubmitterId",
         "SubmitterDisplayId",
         "qRadioGroup",

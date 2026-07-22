@@ -94,6 +94,7 @@ internal sealed class ReportingExportRepository(
                     IsComplete: submission.IsComplete,
                     CreatedAt: submission.CreatedAt,
                     ModifiedAt: submission.ModifiedAt,
+                    StartedAt: submission.StartedAt,
                     CompletedAt: submission.CompletedAt,
                     SubmitterId: submission.SubmitterId,
                     SubmitterDisplayId: submission.SubmitterDisplayId,
@@ -152,6 +153,18 @@ internal sealed class ReportingExportRepository(
         if (options.CreatedBefore is DateTime createdBefore)
         {
             query = query.Where(submission => submission.CreatedAt < createdBefore);
+        }
+
+        if (options.StartedAfter is DateTime startedAfter)
+        {
+            query = query.Where(submission =>
+                submission.StartedAt != null && submission.StartedAt >= startedAfter);
+        }
+
+        if (options.StartedBefore is DateTime startedBefore)
+        {
+            query = query.Where(submission =>
+                submission.StartedAt != null && submission.StartedAt < startedBefore);
         }
 
         if (options.CompletedAfter is DateTime completedAfter)

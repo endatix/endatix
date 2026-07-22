@@ -55,16 +55,18 @@ public sealed class ShojiCodebookGeneratorTests
             .ToList();
 
         // Assert — definition walk, not alphabetical / writer-phase order
-        order.Take(8).Should().Equal(
+        order.Take(10).Should().Equal(
             "FormId",
             "Id",
             "IsComplete",
             "CreatedAt",
             "ModifiedAt",
+            "StartedAt",
             "CompletedAt",
+            "DurationSeconds",
             "SubmitterId",
             "SubmitterDisplayId");
-        order.Skip(8).Take(6).Should().Equal(
+        order.Skip(10).Take(6).Should().Equal(
             "qRadioGroup",
             "qRating",
             "qSlider",

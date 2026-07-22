@@ -21,6 +21,7 @@ public class ListByFormIdValidator : Validator<ListByFormIdRequest>
         { "currentPage", typeof(int) },
         { "metadata", typeof(string) },
         { "completedAt", typeof(DateTime) },
+        { "startedAt", typeof(DateTime) },
         { "submitterId", typeof(long) },
         { "submitterDisplayId", typeof(string) },
         { "isTestSubmission", typeof(bool) }

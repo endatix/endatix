@@ -242,6 +242,9 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
 
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
     {
+        // Clear tenants/data first — reporting InitialReporting seeds from "Tenants", and remigrating
+        // with leftover snowflake tenant ids must not overflow (see hashtextextended seed ids).
+        await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
     }
 
