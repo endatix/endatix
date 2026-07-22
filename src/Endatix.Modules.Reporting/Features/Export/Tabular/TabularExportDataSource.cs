@@ -340,7 +340,7 @@ internal sealed class TabularExportDataSource(
             IsComplete = row.IsComplete,
             CreatedAt = row.CreatedAt,
             ModifiedAt = row.ModifiedAt,
-            StartedAt = null,
+            StartedAt = row.StartedAt,
             CompletedAt = row.CompletedAt,
             SubmitterId = row.SubmitterId,
             SubmitterDisplayId = row.SubmitterDisplayId,

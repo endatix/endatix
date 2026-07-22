@@ -94,6 +94,7 @@ internal sealed class ReportingExportRepository(
                     IsComplete: submission.IsComplete,
                     CreatedAt: submission.CreatedAt,
                     ModifiedAt: submission.ModifiedAt,
+                    StartedAt: submission.StartedAt,
                     CompletedAt: submission.CompletedAt,
                     SubmitterId: submission.SubmitterId,
                     SubmitterDisplayId: submission.SubmitterDisplayId,

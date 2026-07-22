@@ -260,6 +260,7 @@ public sealed class TabularExportDataSourceTests
         const int exportPageSize = 42;
         DateTime createdAt = new(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
         DateTime modifiedAt = new(2024, 1, 3, 4, 5, 6, DateTimeKind.Utc);
+        DateTime startedAt = new(2024, 1, 3, 10, 0, 0, DateTimeKind.Utc);
         DateTime completedAt = new(2024, 1, 4, 5, 6, 7, DateTimeKind.Utc);
         FlattenedExportRow sourceRow = new(
             SubmissionId: 10,
@@ -267,6 +268,7 @@ public sealed class TabularExportDataSourceTests
             IsComplete: true,
             CreatedAt: createdAt,
             ModifiedAt: modifiedAt,
+            StartedAt: startedAt,
             CompletedAt: completedAt,
             SubmitterId: 99,
             SubmitterDisplayId: "sub-99",
@@ -295,7 +297,13 @@ public sealed class TabularExportDataSourceTests
         SubmissionExportRow mappedRow = rows[0];
         mappedRow.Id.Should().Be(sourceRow.SubmissionId);
         mappedRow.FormId.Should().Be(sourceRow.FormId);
+        mappedRow.CreatedAt.Should().Be(createdAt);
+        mappedRow.ModifiedAt.Should().Be(modifiedAt);
+        mappedRow.StartedAt.Should().Be(startedAt);
+        mappedRow.CompletedAt.Should().Be(completedAt);
         mappedRow.AnswersModel.Should().Be(sourceRow.DataJson);
+        SubmissionExportRow.CalculateDurationSeconds(mappedRow.StartedAt, mappedRow.CompletedAt)
+            .Should().Be((long)Math.Floor((completedAt - startedAt).TotalSeconds));
     }
 
     [Fact]
