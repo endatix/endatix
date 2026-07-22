@@ -48,12 +48,12 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Restore pre-StartedAt procedure shape before dropping the column.
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v2.sql"));
+
             migrationBuilder.DropColumn(
                 name: "StartedAt",
                 table: "Submissions");
-
-            // Recreate procedure without StartedAt would require prior script versions;
-            // leave procedure as-is on down (column drop is the reversible contract).
         }
     }
 }

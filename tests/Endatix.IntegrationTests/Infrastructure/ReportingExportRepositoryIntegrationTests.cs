@@ -14,7 +14,7 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// PostgreSQL integration coverage for export request-time filters in
-/// <see cref="ReportingExportRepository"/> (date ranges, test inclusion, submission id range).
+/// <see cref="ReportingExportRepository"/> (date ranges including StartedAt, test inclusion, submission id range).
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -341,6 +341,84 @@ public sealed class ReportingExportRepositoryIntegrationTests
         hasRows.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task StreamFlattenedSubmissionsAsync_ProjectsStartedAtFromCoreSubmission()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+
+        await using AppDbContext appDb = CreateAppDbContext();
+        await using ReportingDbContext reportingDb = CreateReportingDbContext();
+        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+
+        List<FlattenedExportRow> rows = [];
+        await foreach (FlattenedExportRow row in repository.StreamFlattenedSubmissionsAsync(
+                           TenantId,
+                           seed.FormId,
+                           new ExportQueryOptions(IncludeTestSubmissions: false),
+                           cancellationToken))
+        {
+            rows.Add(row);
+        }
+
+        rows.Should().HaveCount(3);
+        rows.Single(row => row.SubmissionId == seed.ProductionDay1Id).StartedAt.Should().Be(Day1);
+        rows.Single(row => row.SubmissionId == seed.ProductionDay2Id).StartedAt.Should().Be(Day2);
+        rows.Single(row => row.SubmissionId == seed.ProductionDay3Id).StartedAt.Should().Be(Day3);
+    }
+
+    [Fact]
+    public async Task StreamFlattenedSubmissionsAsync_FiltersByStartedAtRange_ExclusiveBefore()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+
+        await using AppDbContext appDb = CreateAppDbContext();
+        await using ReportingDbContext reportingDb = CreateReportingDbContext();
+        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+
+        // Day2 inclusive lower bound, Day3 exclusive upper bound → only production Day2 row.
+        List<long> ids = await CollectIdsAsync(
+            repository,
+            seed.FormId,
+            new ExportQueryOptions(
+                IncludeTestSubmissions: true,
+                StartedAfter: Day2,
+                StartedBefore: Day3),
+            cancellationToken);
+
+        ids.Should().Equal(seed.ProductionDay2Id);
+    }
+
+    [Fact]
+    public async Task StreamFlattenedSubmissionsAsync_WhenStartedAtNull_ExcludesFromStartedAtRange()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+
+        await using AppDbContext appDb = CreateAppDbContext();
+        // Clear start on incomplete production Day3 — range filters must exclude null StartedAt.
+        await appDb.Submissions
+            .Where(row => row.Id == seed.ProductionDay3Id)
+            .ExecuteUpdateAsync(
+                updates => updates.SetProperty(row => row.StartedAt, (DateTime?)null),
+                cancellationToken);
+
+        await using ReportingDbContext reportingDb = CreateReportingDbContext();
+        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+
+        List<long> ids = await CollectIdsAsync(
+            repository,
+            seed.FormId,
+            new ExportQueryOptions(
+                IncludeTestSubmissions: false,
+                StartedAfter: Day1),
+            cancellationToken);
+
+        ids.Should().Equal(seed.ProductionDay1Id, seed.ProductionDay2Id);
+        ids.Should().NotContain(seed.ProductionDay3Id);
+    }
+
     private async Task<SeededExportFixture> SeedExportFixtureAsync(CancellationToken cancellationToken)
     {
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
@@ -365,18 +443,22 @@ public sealed class ReportingExportRepositoryIntegrationTests
         long formDefinitionId = definition.Id;
 
         // Seed matrix (ids assigned by AppDbContext):
-        // production Day1 / completed Day2
-        // production Day2 / completed Day3
-        // production Day3 / incomplete
-        // test Day3 / completed Day4
+        // production Day1 / started Day1 / completed Day2
+        // production Day2 / started Day2 / completed Day3
+        // production Day3 / started Day3 / incomplete
+        // test Day3 / started Day3 / completed Day4
         long productionDay1Id = await SeedSubmissionAsync(
-            appDb, formId, formDefinitionId, isTest: false, isComplete: true, createdAt: Day1, completedAt: Day2, cancellationToken);
+            appDb, formId, formDefinitionId, isTest: false, isComplete: true,
+            createdAt: Day1, startedAt: Day1, completedAt: Day2, cancellationToken);
         long productionDay2Id = await SeedSubmissionAsync(
-            appDb, formId, formDefinitionId, isTest: false, isComplete: true, createdAt: Day2, completedAt: Day3, cancellationToken);
+            appDb, formId, formDefinitionId, isTest: false, isComplete: true,
+            createdAt: Day2, startedAt: Day2, completedAt: Day3, cancellationToken);
         long productionDay3Id = await SeedSubmissionAsync(
-            appDb, formId, formDefinitionId, isTest: false, isComplete: false, createdAt: Day3, completedAt: null, cancellationToken);
+            appDb, formId, formDefinitionId, isTest: false, isComplete: false,
+            createdAt: Day3, startedAt: Day3, completedAt: null, cancellationToken);
         long testDay3Id = await SeedSubmissionAsync(
-            appDb, formId, formDefinitionId, isTest: true, isComplete: true, createdAt: Day3, completedAt: Day4, cancellationToken);
+            appDb, formId, formDefinitionId, isTest: true, isComplete: true,
+            createdAt: Day3, startedAt: Day3, completedAt: Day4, cancellationToken);
 
         await using ReportingDbContext reportingDb = CreateReportingDbContext();
         foreach (long submissionId in new[] { productionDay1Id, productionDay2Id, productionDay3Id, testDay3Id })
@@ -403,6 +485,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
         bool isTest,
         bool isComplete,
         DateTime createdAt,
+        DateTime? startedAt,
         DateTime? completedAt,
         CancellationToken cancellationToken)
     {
@@ -427,6 +510,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             .ExecuteUpdateAsync(
                 updates => updates
                     .SetProperty(row => row.CreatedAt, createdAt)
+                    .SetProperty(row => row.StartedAt, startedAt)
                     .SetProperty(row => row.CompletedAt, completedAt),
                 cancellationToken);
 
