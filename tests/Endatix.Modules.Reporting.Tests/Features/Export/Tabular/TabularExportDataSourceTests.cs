@@ -64,7 +64,7 @@ public sealed class TabularExportDataSourceTests
     }
 
     [Fact]
-    public async Task PrepareOptionsAsync_WithNoExportableRows_ReturnsMissingRowsMessage()
+    public async Task PrepareOptionsAsync_WithCompletedButNoFlattenedRows_ReturnsMissingRowsMessage()
     {
         string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
         FormSchemaCompiler compiler = new();
@@ -80,6 +80,9 @@ public sealed class TabularExportDataSourceTests
         reportingExportRepository
             .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
             .Returns(false);
+        reportingExportRepository
+            .HasCompletedSubmissionsAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(true);
 
         TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
 
@@ -89,6 +92,69 @@ public sealed class TabularExportDataSourceTests
         result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(error =>
             error.Contains("Run admin backfill", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task PrepareOptionsAsync_WithNoCompletedSubmissions_ReturnsNoCompletedMessage()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
+        reportingExportRepository
+            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+        reportingExportRepository
+            .HasCompletedSubmissionsAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
+
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(CreateContext(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().ContainSingle(error =>
+            error.Contains("No completed submissions are available to export", StringComparison.Ordinal));
+        result.Errors.Should().NotContain(error =>
+            error.Contains("backfill", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task PrepareOptionsAsync_WithProcessedRowsExcludedByFilters_ReturnsFilterMismatchMessage()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
+        reportingExportRepository
+            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
+            .Returns(false, true);
+
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
+
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(CreateContext(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().ContainSingle(error =>
+            error.Contains("No submissions matched the export filters", StringComparison.Ordinal));
+        await reportingExportRepository.DidNotReceive()
+            .HasCompletedSubmissionsAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

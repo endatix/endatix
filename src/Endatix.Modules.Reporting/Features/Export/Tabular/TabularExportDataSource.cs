@@ -52,6 +52,9 @@ internal sealed class TabularExportDataSource(
     private const string MissingRowsMessage =
         "No processed flattened submissions found for this form. Run admin backfill to populate the reporting read model before exporting.";
 
+    private const string NoCompletedSubmissionsMessage =
+        "No completed submissions are available to export for this form. Incomplete drafts are not included in the reporting export.";
+
     private const string NoMatchingFiltersMessage =
         "No submissions matched the export filters. Broaden date/id/test filters or clear them and try again.";
 
@@ -102,13 +105,8 @@ internal sealed class TabularExportDataSource(
             cancellationToken);
         if (!hasRows)
         {
-            var hasAnyProcessedRows = await reportingExportRepository.HasExportableRowsAsync(
-                context.TenantId,
-                context.FormId,
-                new ExportQueryOptions(PageSize: 1, IncludeTestSubmissions: true),
-                cancellationToken);
             return Result<ExportOptions>.Conflict(
-                hasAnyProcessedRows ? NoMatchingFiltersMessage : MissingRowsMessage);
+                await ResolveEmptyExportMessageAsync(context, cancellationToken));
         }
 
         IReadOnlySet<string>? columnScope = settings.ColumnScope is null
@@ -138,6 +136,28 @@ internal sealed class TabularExportDataSource(
         }
 
         return Result.Success(context.Options);
+    }
+
+    private async Task<string> ResolveEmptyExportMessageAsync(
+        ExportDataSourceContext context,
+        CancellationToken cancellationToken)
+    {
+        var hasAnyProcessedRows = await reportingExportRepository.HasExportableRowsAsync(
+            context.TenantId,
+            context.FormId,
+            new ExportQueryOptions(PageSize: 1, IncludeTestSubmissions: true),
+            cancellationToken);
+        if (hasAnyProcessedRows)
+        {
+            return NoMatchingFiltersMessage;
+        }
+
+        var hasCompletedSubmissions = await reportingExportRepository.HasCompletedSubmissionsAsync(
+            context.TenantId,
+            context.FormId,
+            cancellationToken);
+
+        return hasCompletedSubmissions ? MissingRowsMessage : NoCompletedSubmissionsMessage;
     }
 
     public async IAsyncEnumerable<IExportItem> StreamAsync(
