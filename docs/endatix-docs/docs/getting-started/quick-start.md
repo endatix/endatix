@@ -65,7 +65,7 @@ cd src/Endatix.WebHost
 dotnet run
 ```
 
-:::info Configuration
+:::info[Configuration]
 Modify the `appsettings.json` file to configure the database connection string and other settings.
 :::
 

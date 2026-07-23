@@ -30,6 +30,25 @@ Expressions can be used in the following areas of your Endatix forms:
 
 The following functions and operators help you evaluate conditions and check the current state of your form, its containers, or any of its questions. They can be used enforce the conditional visibility of individual questions, panels, or pages, and to control the flow of the form or survey. 
 
+### Type Conversion in Expressions: the `#` Prefix
+
+Whenever you reference a question with `{question_name}` inside an expression, SurveyJS inspects the stored answer and automatically converts it to a number or boolean if it *looks* like one, before the rest of the expression ever sees it. This is what lets `{q1} + {q2}` add two answered numbers together instead of concatenating them as text (`"1" + "2"` becomes `3`, not `"12"`).
+
+The conversion is silent and happens for every function and operator equally, including custom functions like `regexMatch`. It also has an inconsistency worth knowing about: a value with **leading zeros** (`"00351..."`) is protected and kept as a string, but a value with a **leading `+`** (`"+351912345678"`) is not — SurveyJS parses it as the number `351912345678`, and the `+` is gone by the time your expression runs. Trailing formatting, thousands separators, and similar text-shaped-like-a-number cases can be lost the same way.
+
+To reference the raw, unconverted string value instead, prefix the question name with `#`:
+
+```javascript
+{#question_name}
+```
+
+| Reference | Value stored: `"+351912345678"` |
+|-----------|----------------------------------|
+| `{question_name}` | `351912345678` (number — the `+` is stripped) |
+| `{#question_name}` | `"+351912345678"` (string — unchanged) |
+
+Use `{#question_name}` any time an expression depends on the *exact text* of an answer rather than its numeric value — most commonly with `regexMatch` (see below), but the same rule applies to `contains`, string concatenation, or any custom function.
+
 ### `anyAnswered`
 
 The `anyAnswered` function checks a specific, explicit list of questions and returns `true` if at least one of them has a value (is not empty).
@@ -59,7 +78,7 @@ The `anyAnsweredByPrefix` function checks all questions in your form that start 
 anyAnsweredByPrefix('your_prefix_here')
 ```
 
-:::info Use Single Quotes Instead of Curly Braces
+:::info[Use Single Quotes Instead of Curly Braces]
 Unlike expressions that require specific question names, `anyAnsweredByPrefix` requires you to pass the prefix as a string enclosed in single quotes `''`.
 :::
 
@@ -85,15 +104,19 @@ The `regexMatch` function tests whether a question value matches a regular expre
 
 #### Syntax
 ```javascript
-regexMatch({question_name}, '^pattern$')
-regexMatch({question_name}, '^pattern$', 'flags')
+regexMatch({#question_name}, '^pattern$')
+regexMatch({#question_name}, '^pattern$', 'flags')
 ```
 
 | Parameter | Description |
 |-----------|-------------|
-| `value` | The question value to test (passed as `{question_name}`) |
+| `value` | The question value to test — always reference it as `{#question_name}` (see [Type Conversion in Expressions](#type-conversion-in-expressions-the--prefix) above) |
 | `pattern` | Regular expression pattern as a string |
 | `flags` | Optional regex flags (e.g. `'i'` for case-insensitive) |
+
+:::warning[Always Use the Number Sign Prefix]
+Reference the question value as `{#question_name}`, not `{question_name}`. Without the `#`, SurveyJS may silently convert an answer that looks numeric — including anything with a leading `+` — into a JS number before `regexMatch` ever runs, breaking any pattern anchored on that formatting (e.g. `^\+`). This applies even to questions of type `text`; the conversion is based on what the *value* looks like, not the question type.
+:::
 
 #### JSON Examples
 
@@ -103,7 +126,7 @@ Show a follow-up question only when the phone number matches a Korean mobile for
   "type": "text",
   "name": "followUp",
   "title": "Thank you for your valid number",
-  "visibleIf": "regexMatch({phone}, '^01[016789]-?\\d{3,4}-?\\d{4}$') == true"
+  "visibleIf": "regexMatch({#phone}, '^01[016789]-?\\d{3,4}-?\\d{4}$') == true"
 }
 ```
 
@@ -113,7 +136,7 @@ Enable a submit button only when the user enters a valid code:
   "type": "text",
   "name": "refCode",
   "title": "Reference Code",
-  "enableIf": "regexMatch({refCode}, '^[A-Z]{3}-\\d{4}$') == true"
+  "enableIf": "regexMatch({#refCode}, '^[A-Z]{3}-\\d{4}$') == true"
 }
 ```
 
@@ -122,11 +145,20 @@ Case-insensitive yes/no check:
 {
   "type": "text",
   "name": "confirm",
-  "visibleIf": "regexMatch({answer}, '^(yes|no)$', 'i') == true"
+  "visibleIf": "regexMatch({#answer}, '^(yes|no)$', 'i') == true"
 }
 ```
 
-:::info Edge Cases and JSON Escaping
+Match a Portuguese mobile number that may be entered with a leading `+`:
+```json
+{
+  "type": "text",
+  "name": "followUp",
+  "visibleIf": "regexMatch({#phone}, '^((?:\\+|00)351)? ?(?:9[1236]\\d{7}|2\\d{8}|30\\d{7})$') == true"
+}
+```
+
+:::info[Edge Cases and JSON Escaping]
 - Returns `false` (never throws) when the value is empty, `null`, `undefined`, or an empty array (for example, a cleared checkbox).
 - Returns `false` when the pattern is missing, not a string, or invalid regex syntax.
 - Non-string scalar values (e.g. numbers) are coerced to strings before matching; `0` is treated as a valid answer.
@@ -521,7 +553,7 @@ Returns the human-readable display text of a question rather than its underlying
 * **Syntax:** `displayValue(questionName, value?)` 
 * **Example:** `"displayValue('my-dropdown-question', 5)"` 
 
-:::info Dynamic Evaluation Note
+:::info[Dynamic Evaluation Note]
 If you use `displayValue` inside a dynamic value expression (`setValueExpression`), you must also specify a `setValueIf` condition. Because you are passing the question name as a text string, the form won't automatically know to recalculate the expression when that question changes. Providing a `setValueIf` trigger ensures the value updates correctly.
 :::
 
@@ -658,7 +690,7 @@ If you use `displayValue` inside a dynamic value expression (`setValueExpression
     </tr>
     <tr style={{ backgroundColor: 'transparent' }}>
       <td><code>#</code></td>
-      <td>Disables type conversion for a referenced value (e.g., string values "true", "false", "123" won't be converted to corresponding Boolean and numeric values).</td>
+      <td>Disables type conversion for a referenced value (e.g., string values "true", "false", "123", or "+123" won't be converted to corresponding Boolean and numeric values). See <a href="#type-conversion-in-expressions-the--prefix">Type Conversion in Expressions</a>.</td>
       <td><code>"&#123;#q1&#125;"</code></td>
     </tr>
   </tbody>

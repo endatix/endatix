@@ -1,5 +1,5 @@
 {
-  "trailingSlash": "auto",
+  "trailingSlash": "never",
   "routes": [
     {
       "route": "/docs/getting-started/installation",

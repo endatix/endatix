@@ -60,7 +60,7 @@ Configure JWT settings in your `appsettings.json` file:
 }
 ```
 
-:::warning Security Alert
+:::warning[Security Alert]
 
 :lock: Never expose sensitive JWT settings, like the SigningKey, in public configuration files or the client-side code. Exposing these keys is a security vulnerability that can lead to token forgery, data breaches, or unauthorized access. Always store them securely in environment variables or a dedicated secrets manager.
 
@@ -268,7 +268,7 @@ Configure CORS in your `appsettings.json`:
 
 - **PreflightMaxAgeInSeconds:** How long the preflight request can be cached.
 
-:::tip CORS Best Practices
+:::tip[CORS Best Practices]
 
 - **Never** combine `AllowedOrigins: ["*"]` with `AllowCredentials: true` as it creates a security vulnerability
 - Use different policies for development and production environments
