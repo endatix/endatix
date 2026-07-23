@@ -1,19 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Chart.Name }}
+  name: {{ include "endatix-api.fullname" . }}
   labels:
-    app: {{ .Chart.Name }}
+    {{- include "endatix-api.selectorLabels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ .Chart.Name }}
+      {{- include "endatix-api.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Chart.Name }}
+        {{- include "endatix-api.selectorLabels" . | nindent 8 }}
     spec:
+      # The API only talks to Postgres — it never calls the Kubernetes API, so
+      # mounting a service-account token would just park a live credential in
+      # the pod for an attacker to find.
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # 1654 is the non-root `app` user baked into the .NET runtime image;
+        # SDK container publish already sets it, this asserts it at admission.
+        runAsUser: 1654
+        fsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -26,6 +38,12 @@ spec:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.Version }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         ports:
         - containerPort: 8080
         env:
@@ -37,34 +55,45 @@ spec:
         - name: HTTP_PORTS
           value: "8080"
 
-        # Database
+        # Database — see values.yaml for the two supported secret shapes.
+        {{- if .Values.db.connectionStringKey }}
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.db.secretName }}
+              key: {{ .Values.db.connectionStringKey }}
+        {{- else }}
+        # Composed with $(VAR) interpolation, which Kubernetes expands using
+        # env vars defined EARLIER in this same list — so these five must stay
+        # above ConnectionStrings__DefaultConnection.
         - name: DB_HOST
           valueFrom:
             secretKeyRef:
               name: {{ .Values.db.secretName }}
-              key: host
+              key: {{ .Values.db.keys.host }}
         - name: DB_PORT
           valueFrom:
             secretKeyRef:
               name: {{ .Values.db.secretName }}
-              key: port
+              key: {{ .Values.db.keys.port }}
         - name: DB_USER
           valueFrom:
             secretKeyRef:
               name: {{ .Values.db.secretName }}
-              key: user
+              key: {{ .Values.db.keys.user }}
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ .Values.db.secretName }}
-              key: password
+              key: {{ .Values.db.keys.password }}
         - name: DB_NAME
           valueFrom:
             secretKeyRef:
               name: {{ .Values.db.secretName }}
-              key: dbname
+              key: {{ .Values.db.keys.dbname }}
         - name: ConnectionStrings__DefaultConnection
           value: "Host=$(DB_HOST);Port=$(DB_PORT);Username=$(DB_USER);Password=$(DB_PASSWORD);Database=$(DB_NAME)"
+        {{- end }}
         - name: ConnectionStrings__DefaultConnection_DbProvider
           value: {{ .Values.db.provider | quote }}
 
@@ -80,6 +109,10 @@ spec:
           value: {{ .Values.auth.refreshExpiryInDays | quote }}
         - name: Endatix__Auth__Providers__EndatixJwt__Issuer
           value: {{ .Values.auth.issuer | quote }}
+        {{- range $i, $audience := .Values.auth.audiences }}
+        - name: Endatix__Auth__Providers__EndatixJwt__Audiences__{{ $i }}
+          value: {{ $audience | quote }}
+        {{- end }}
 
         # Initial admin user (seeded on first startup)
         - name: Endatix__Data__InitialUser__Email
@@ -141,3 +174,12 @@ spec:
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 30
+        # The only writable path. Startup and /health do not need it, but
+        # ASP.NET Core spills oversized request bodies to Path.GetTempPath()
+        # and the runtime puts its diagnostic socket there.
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}

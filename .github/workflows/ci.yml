@@ -136,8 +136,10 @@ jobs:
 
   # Build validation on PRs; canary release on main — publishes only after ALL
   # tests above pass. docker-image makes the shared workflow log into GHCR and
-  # export DOCKER_IMAGE to the release scripts; canaries stay on GHCR only, the
-  # Docker Hub mirror is stable-only (release-publish.sh).
+  # export DOCKER_IMAGE to the release scripts; canaries stay on GHCR only.
+  # Promoted releases mirror to Docker Hub — both stable AND maintenance (an
+  # older line's hotfix still ships publicly); only stable moves the `latest`
+  # tag, so a maintenance release never drags it backwards (release-publish.sh).
   # No secrets are passed: the shared workflow uses the implicit GITHUB_TOKEN
   # and fetches everything else via Infisical (OIDC, hence id-token).
   pipeline:

@@ -8,10 +8,28 @@ image:
 imagePullSecrets: []
 
 db:
-  # Name of an existing secret with key: connection-string
-  # Example: Host=pg-host;Port=5432;Username=postgres;Password=xxx;Database=endatix
+  # Name of an existing secret holding the database credentials.
   secretName: endatix-db-secret
   provider: postgresql
+
+  # Two supported secret shapes:
+  #
+  # A) One key holding the whole connection string. Set connectionStringKey to
+  #    that key's name; the `keys` map below is then ignored.
+  #    Example value: Host=pg-host;Port=5432;Username=postgres;Password=xxx;Database=endatix
+  #    CloudNativePG publishes exactly this as `uri`.
+  # connectionStringKey: connection-string
+  #
+  # B) Individual keys, composed into the connection string at pod start. This
+  #    is the default, and the shape most database operators emit. The key
+  #    names are configurable because they differ between operators — e.g.
+  #    CloudNativePG uses `username`, not `user`.
+  keys:
+    host: host
+    port: port
+    user: user
+    password: password
+    dbname: dbname
 
 auth:
   # Name of an existing secret with key: signing-key
@@ -19,6 +37,10 @@ auth:
   accessExpiryInMinutes: 90
   refreshExpiryInDays: 7
   issuer: endatix-api
+  # Rendered as indexed env vars (Audiences__0, Audiences__1, ...). Env vars
+  # layer over the image's appsettings.json rather than replacing the array, so
+  # listing FEWER audiences than it ships (endatix-hub, endatix-client) leaves
+  # the surplus trailing entry in effect. Override by index, or keep >= 2.
   audiences:
     - endatix-hub
     - endatix-client
