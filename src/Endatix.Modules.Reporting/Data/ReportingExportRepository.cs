@@ -37,6 +37,18 @@ internal sealed class ReportingExportRepository(
         return await enumerator.MoveNextAsync();
     }
 
+    public Task<bool> HasCompletedSubmissionsAsync(
+        long tenantId,
+        long formId,
+        CancellationToken cancellationToken) =>
+        appDbContext.Submissions
+            .AsNoTracking()
+            .AnyAsync(
+                submission => submission.TenantId == tenantId &&
+                              submission.FormId == formId &&
+                              submission.IsComplete,
+                cancellationToken);
+
     public async IAsyncEnumerable<FlattenedExportRow> StreamFlattenedSubmissionsAsync(
         long tenantId,
         long formId,

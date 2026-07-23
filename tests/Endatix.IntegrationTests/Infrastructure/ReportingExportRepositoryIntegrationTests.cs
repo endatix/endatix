@@ -342,6 +342,24 @@ public sealed class ReportingExportRepositoryIntegrationTests
     }
 
     [Fact]
+    public async Task HasCompletedSubmissionsAsync_WhenCompletedExist_ReturnsTrue()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+
+        await using AppDbContext appDb = CreateAppDbContext();
+        await using ReportingDbContext reportingDb = CreateReportingDbContext();
+        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+
+        bool hasCompleted = await repository.HasCompletedSubmissionsAsync(
+            TenantId,
+            seed.FormId,
+            cancellationToken);
+
+        hasCompleted.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task StreamFlattenedSubmissionsAsync_ProjectsStartedAtFromCoreSubmission()
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
