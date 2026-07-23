@@ -135,7 +135,9 @@ jobs:
             --filter "Category!=Keycloak&DbSpecific!=PostgreSql"
 
   # Build validation on PRs; canary release on main — publishes only after ALL
-  # tests above pass. No docker-image: this repo ships NuGet packages only.
+  # tests above pass. docker-image makes the shared workflow log into GHCR and
+  # export DOCKER_IMAGE to the release scripts; canaries stay on GHCR only, the
+  # Docker Hub mirror is stable-only (release-publish.sh).
   # No secrets are passed: the shared workflow uses the implicit GITHUB_TOKEN
   # and fetches everything else via Infisical (OIDC, hence id-token).
   pipeline:
@@ -143,8 +145,9 @@ jobs:
     needs: [unit-tests, integration-tests, integration-tests-sqlserver]
     permissions:
       contents: read # release writes use the App token inside the shared workflow
-      packages: write # GitHub Packages push
+      packages: write # GitHub Packages push + GHCR image push
       id-token: write # OIDC for Infisical inside the shared workflow
     uses: endatix/release-workflows/.github/workflows/canary.yml@cca02534258a68b196f9295afe9fd855ad9eee83 # v1
     with:
+      docker-image: ghcr.io/endatix/endatix-api
       dotnet-version: "10.x" # global.json rolls forward within 10.0.x
