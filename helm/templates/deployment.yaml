@@ -1,0 +1,185 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "endatix-api.fullname" . }}
+  labels:
+    {{- include "endatix-api.selectorLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "endatix-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "endatix-api.selectorLabels" . | nindent 8 }}
+    spec:
+      # The API only talks to Postgres — it never calls the Kubernetes API, so
+      # mounting a service-account token would just park a live credential in
+      # the pod for an attacker to find.
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # 1654 is the non-root `app` user baked into the .NET runtime image;
+        # SDK container publish already sets it, this asserts it at admission.
+        runAsUser: 1654
+        fsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.Version }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - containerPort: 8080
+        env:
+        # ASP.NET Core
+        - name: ASPNETCORE_ENVIRONMENT
+          value: {{ .Values.aspnetcore.environment | quote }}
+        - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+          value: {{ .Values.aspnetcore.forwardedHeadersEnabled | quote }}
+        - name: HTTP_PORTS
+          value: "8080"
+
+        # Database — see values.yaml for the two supported secret shapes.
+        {{- if .Values.db.connectionStringKey }}
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.db.secretName }}
+              key: {{ .Values.db.connectionStringKey }}
+        {{- else }}
+        # Composed with $(VAR) interpolation, which Kubernetes expands using
+        # env vars defined EARLIER in this same list — so these five must stay
+        # above ConnectionStrings__DefaultConnection.
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.db.secretName }}
+              key: {{ .Values.db.keys.host }}
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.db.secretName }}
+              key: {{ .Values.db.keys.port }}
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.db.secretName }}
+              key: {{ .Values.db.keys.user }}
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.db.secretName }}
+              key: {{ .Values.db.keys.password }}
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.db.secretName }}
+              key: {{ .Values.db.keys.dbname }}
+        - name: ConnectionStrings__DefaultConnection
+          value: "Host=$(DB_HOST);Port=$(DB_PORT);Username=$(DB_USER);Password=$(DB_PASSWORD);Database=$(DB_NAME)"
+        {{- end }}
+        - name: ConnectionStrings__DefaultConnection_DbProvider
+          value: {{ .Values.db.provider | quote }}
+
+        # Auth
+        - name: Endatix__Auth__Providers__EndatixJwt__SigningKey
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.auth.secretName }}
+              key: signing-key
+        - name: Endatix__Auth__Providers__EndatixJwt__AccessExpiryInMinutes
+          value: {{ .Values.auth.accessExpiryInMinutes | quote }}
+        - name: Endatix__Auth__Providers__EndatixJwt__RefreshExpiryInDays
+          value: {{ .Values.auth.refreshExpiryInDays | quote }}
+        - name: Endatix__Auth__Providers__EndatixJwt__Issuer
+          value: {{ .Values.auth.issuer | quote }}
+        {{- range $i, $audience := .Values.auth.audiences }}
+        - name: Endatix__Auth__Providers__EndatixJwt__Audiences__{{ $i }}
+          value: {{ $audience | quote }}
+        {{- end }}
+
+        # Initial admin user (seeded on first startup)
+        - name: Endatix__Data__InitialUser__Email
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.initialUser.secretName }}
+              key: email
+        - name: Endatix__Data__InitialUser__Password
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.initialUser.secretName }}
+              key: password
+
+        # Data
+        - name: Endatix__Data__EnableAutoMigrations
+          value: {{ .Values.data.enableAutoMigrations | quote }}
+        - name: Endatix__Data__SeedSampleData
+          value: {{ .Values.data.seedSampleData | quote }}
+        - name: Endatix__Data__SeedSampleForms
+          value: {{ .Values.data.seedSampleForms | quote }}
+
+        # CORS
+        - name: Endatix__Cors__DefaultPolicyName
+          value: {{ .Values.cors.policyName | quote }}
+
+        {{- if .Values.hub.baseUrl }}
+        # Hub
+        - name: Endatix__Hub__HubBaseUrl
+          value: {{ .Values.hub.baseUrl | quote }}
+        {{- end }}
+
+        {{- if .Values.otel.enabled }}
+        # OpenTelemetry
+        - name: OTEL_SERVICE_NAME
+          value: {{ .Values.otel.serviceName | quote }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.otel.endpoint | quote }}
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: {{ .Values.otel.protocol | quote }}
+        - name: OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES
+          value: "true"
+        - name: OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES
+          value: "true"
+        - name: OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY
+          value: "in_memory"
+        {{- end }}
+
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        # The only writable path. Startup and /health do not need it, but
+        # ASP.NET Core spills oversized request bodies to Path.GetTempPath()
+        # and the runtime puts its diagnostic socket there.
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}

@@ -23,7 +23,8 @@ jobs:
       id-token: write # OIDC for Infisical (fetch-secrets)
     uses: endatix/release-workflows/.github/workflows/release-artifacts.yml@cca02534258a68b196f9295afe9fd855ad9eee83 # v1
     with:
-      promotion: rebuild
-      fetch-secrets: true # ENDATIX_NUGET_ORG_USERNAME via Infisical (prod)
+      docker-image: ghcr.io/endatix/endatix-api
+      promotion: rebuild # NuGet versions are baked in — the image is rebuilt at the tag too
+      fetch-secrets: true # ENDATIX_NUGET_ORG_USERNAME + ENDATIX_DOCKERHUB_* via Infisical (prod)
       nuget-login: true # OIDC trusted publishing → short-lived NUGET_API_KEY
       dotnet-version: "10.x"
