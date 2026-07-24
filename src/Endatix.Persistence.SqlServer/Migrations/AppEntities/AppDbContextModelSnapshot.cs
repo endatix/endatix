@@ -652,7 +652,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasIndex("RestrictionKey")
                         .IsUnique()
                         .HasDatabaseName("UX_Submissions_RestrictionKey")
-                        .HasFilter("[RestrictionKey] IS NOT NULL");
+                        .HasFilter("[RestrictionKey] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.HasIndex("SubmittedBy");
 

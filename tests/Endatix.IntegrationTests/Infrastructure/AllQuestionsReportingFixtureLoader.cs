@@ -13,6 +13,12 @@ internal static class AllQuestionsReportingFixtureLoader
     internal static string LoadSubmissionText() =>
         File.ReadAllText(Path.Combine(FixturesRoot, "all-questions-submission.json"));
 
+    /// <summary>
+    /// Rich AllQuestions submission used for legacy export answer-projection coverage.
+    /// </summary>
+    internal static string LoadExportSubmissionText() =>
+        File.ReadAllText(Path.Combine(FixturesRoot, "all-questions-submission-with-file.json"));
+
     internal static JsonElement LoadExpectedFlat()
     {
         using JsonDocument document = JsonDocument.Parse(

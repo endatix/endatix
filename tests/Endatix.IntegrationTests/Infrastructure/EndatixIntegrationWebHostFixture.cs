@@ -14,6 +14,11 @@ public sealed class EndatixIntegrationWebHostFixture : IAsyncLifetime, IIntegrat
 
     public DatabaseCheckpoint Checkpoint => Database.Checkpoint;
 
+    /// <summary>
+    /// Active test database provider (<c>ENDATIX_TEST_DB_PROVIDER</c>).
+    /// </summary>
+    public TestDatabaseProvider Provider => Database.Provider;
+
     IServiceProvider IIntegrationTestHostFixture.Services => Factory.Services;
 
     public IntegrationSeedBuilder Seed { get; private set; } = null!;

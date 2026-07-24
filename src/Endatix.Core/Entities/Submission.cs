@@ -24,7 +24,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         CurrentPage = args.CurrentPage;
         Metadata = args.Metadata;
         IsTestSubmission = args.IsTestSubmission;
-        Status = SubmissionStatus.New;
+        Status = SubmissionStatus.FromCode(SubmissionStatusCodes.New);
 
         SetSubmitter(args.SubmitterId, args.SubmitterDisplayId, args.SubmitterProfileSnapshot);
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
@@ -188,7 +188,8 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         }
 
         var previousStatus = Status;
-        Status = newStatus;
+        // Clone so callers can pass catalog statics without sharing OwnsOne identity across aggregates
+        Status = newStatus.CreateInstance();
 
         RegisterRevisedDomainEvent(() => new SubmissionStatusChangedEvent(this, previousStatus));
     }
