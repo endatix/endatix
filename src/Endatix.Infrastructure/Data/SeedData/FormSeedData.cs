@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Core.Entities;
 
 namespace Endatix.Infrastructure.Data.SeedData;
 
@@ -43,7 +44,7 @@ internal sealed class SubmissionInfo
     public bool IsComplete { get; init; } = true;
 
     /// <summary>
-    /// The submission status: "new", "read", or "approved". Defaults to "new".
+    /// The submission status code (see <see cref="SubmissionStatus.Codes"/>). Defaults to new.
     /// </summary>
-    public string Status { get; init; } = "new";
+    public string Status { get; init; } = SubmissionStatus.Codes.New;
 }
