@@ -1,7 +1,9 @@
 -- =============================================
 -- Procedure: export_form_submissions (v4)
--- Description: Same as v3 plus soft-delete exclusion (IsDeleted = 0).
--- Immutable: do not edit in place — add v5+ for further changes.
+-- Description: Soft-delete exclusion (IsDeleted = 0) plus scalar+complex
+--              answer projection (JSON_QUERY alone drops scalars).
+-- Note: Edit in place only while SoftDeleteSubmissions is unmerged; after
+--       shipping, further changes require v5+.
 -- Parameters: @form_id - The ID of the form to export
 --             @after_id - Optional cursor (return rows with Id > after_id)
 --             @page_size - Optional limit (NULL = all)
@@ -121,16 +123,36 @@ BEGIN
 
     WHILE @@FETCH_STATUS = 0
                 BEGIN
-        -- Preserve JSON structure: JSON_QUERY returns array/object as JSON fragment (OPENJSON value would stringify).
-        DECLARE @path nvarchar(512) = N'$."' + REPLACE(@name, N'''', N'''''') + N'"';
+        -- JSON_QUERY returns NULL for scalars. Project by OPENJSON type so JSON_MODIFY
+        -- receives a typed SQL value (string/number/bool) or JSON_QUERY for object/array.
+        DECLARE @escapedName nvarchar(255) = REPLACE(@name, N'''', N'''''');
+        DECLARE @jsonPath nvarchar(512) = N'$."' + @escapedName + N'"';
         DECLARE @updateSql nvarchar(max) = N'
                     UPDATE r
-                    SET AnswersJson = JSON_MODIFY(
-                        AnswersJson, 
-                        ''$."' + REPLACE(@name, N'''', N'''''') + N'"'',
-                        ISNULL(JSON_QUERY(r.JsonData, N''' + REPLACE(@path, N'''', N'''''') + N'''), ''""'')
-                    )
-                    FROM #Results r;';
+                    SET AnswersJson = CASE o.[type]
+                        WHEN 1 THEN JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', o.[value])
+                        WHEN 2 THEN CASE
+                            WHEN TRY_CONVERT(bigint, o.[value]) IS NOT NULL
+                                 AND CHARINDEX(N''.'', o.[value]) = 0
+                                 AND CHARINDEX(N''e'', o.[value]) = 0
+                                 AND CHARINDEX(N''E'', o.[value]) = 0
+                                THEN JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', TRY_CONVERT(bigint, o.[value]))
+                            ELSE JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', TRY_CONVERT(float(53), o.[value]))
+                        END
+                        WHEN 3 THEN JSON_MODIFY(
+                            r.AnswersJson,
+                            N''' + @jsonPath + N''',
+                            CONVERT(bit, CASE WHEN o.[value] = N''true'' THEN 1 ELSE 0 END))
+                        WHEN 4 THEN JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', JSON_QUERY(o.[value]))
+                        WHEN 5 THEN JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', JSON_QUERY(o.[value]))
+                        ELSE JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', N'''')
+                    END
+                    FROM #Results r
+                    OUTER APPLY (
+                        SELECT j.[type], j.[value]
+                        FROM OPENJSON(r.JsonData) AS j
+                        WHERE j.[key] = N''' + @escapedName + N'''
+                    ) AS o;';
 
         EXEC sp_executesql @updateSql;
 
