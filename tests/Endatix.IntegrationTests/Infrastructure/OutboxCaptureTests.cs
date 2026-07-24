@@ -139,6 +139,153 @@ public sealed class OutboxCaptureTests
         _tenantContext.TenantId.Returns(AmbientTenantId);
     }
 
+    [Fact]
+    public async Task SaveChanges_WhenSubmissionDeleted_CommitsSubmissionDeletedOutboxRow()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _fixture.Database.Checkpoint.ResetAsync(
+            _fixture.Database.ConnectionString,
+            _fixture.Database.Provider,
+            cancellationToken);
+
+        long submissionId;
+        long formId;
+        long tenantId;
+
+        using (var ctx = CreateContext())
+        {
+            Tenant tenant = new("delete-outbox-tenant");
+            ctx.Set<Tenant>().Add(tenant);
+            await ctx.SaveChangesAsync(cancellationToken);
+            tenantId = tenant.Id;
+
+            Form form = new(tenantId, "delete-outbox-form");
+            ctx.Forms.Add(form);
+            await ctx.SaveChangesAsync(cancellationToken);
+
+            FormDefinition definition = new(tenantId, isDraft: false, jsonData: """{"pages":[]}""");
+            form.AddFormDefinition(definition);
+            ctx.Set<FormDefinition>().Add(definition);
+            await ctx.SaveChangesAsync(cancellationToken);
+            formId = form.Id;
+
+            Submission submission = Submission.Create(new SubmissionCreateArgs(
+                TenantId: tenantId,
+                FormId: formId,
+                FormDefinitionId: definition.Id,
+                JsonData: """{"a":1}""",
+                IsComplete: true));
+            submission.ClearDomainEvents();
+            ctx.Submissions.Add(submission);
+            await ctx.SaveChangesAsync(cancellationToken);
+            submissionId = submission.Id;
+
+            // Clear create-side outbox noise so the assert is only about delete.
+            ctx.OutboxMessages.RemoveRange(ctx.OutboxMessages);
+            await ctx.SaveChangesAsync(cancellationToken);
+
+            submission.Delete();
+            await ctx.SaveChangesAsync(cancellationToken);
+        }
+
+        using var verify = CreateContext();
+        OutboxMessage deleted = (await verify.OutboxMessages.ToListAsync(cancellationToken))
+            .Single(m => m.EventType == "submission.deleted");
+
+        deleted.TenantId.Should().Be(tenantId);
+        deleted.Status.Should().Be(OutboxMessageStatus.Pending);
+
+        using var payload = JsonDocument.Parse(deleted.Payload);
+        payload.RootElement.GetProperty("submissionId").GetString().Should().Be(submissionId.ToString());
+        payload.RootElement.GetProperty("formId").GetString().Should().Be(formId.ToString());
+        payload.RootElement.GetProperty("tenantId").GetString().Should().Be(tenantId.ToString());
+    }
+
+    [Fact]
+    public async Task SaveChanges_AfterSoftDelete_AllowsReuseOfRestrictionKey()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _fixture.Database.Checkpoint.ResetAsync(
+            _fixture.Database.ConnectionString,
+            _fixture.Database.Provider,
+            cancellationToken);
+
+        using var ctx = CreateContext();
+        Tenant tenant = new("restriction-reuse-tenant");
+        ctx.Set<Tenant>().Add(tenant);
+        await ctx.SaveChangesAsync(cancellationToken);
+        // Align ambient tenant with the seeded tenant so query filters see the rows.
+        _tenantContext.TenantId.Returns(tenant.Id);
+
+        Form form = new(tenant.Id, "restriction-reuse-form", isPublic: false, limitOnePerUser: true);
+        ctx.Forms.Add(form);
+        await ctx.SaveChangesAsync(cancellationToken);
+
+        FormDefinition definition = new(tenant.Id, isDraft: false, jsonData: """{"pages":[]}""");
+        form.AddFormDefinition(definition);
+        ctx.Set<FormDefinition>().Add(definition);
+        await ctx.SaveChangesAsync(cancellationToken);
+
+        Submitter submitter = Submitter.Create(
+            tenant.Id,
+            authProvider: "endatix",
+            externalSubjectId: "subject-1",
+            displayId: "subject-1",
+            appUserId: null,
+            profileJson: null,
+            lastSeenAt: DateTimeOffset.UtcNow);
+        ctx.Set<Submitter>().Add(submitter);
+        await ctx.SaveChangesAsync(cancellationToken);
+
+        Submission first = Submission.Create(new SubmissionCreateArgs(
+            TenantId: tenant.Id,
+            FormId: form.Id,
+            FormDefinitionId: definition.Id,
+            JsonData: """{"color":"blue"}""",
+            IsComplete: true,
+            SubmitterId: submitter.Id,
+            EnforceSingleSubmissionGate: true));
+        first.ClearDomainEvents();
+        ctx.Submissions.Add(first);
+        await ctx.SaveChangesAsync(cancellationToken);
+
+        first.RestrictionKey.Should().NotBeNullOrWhiteSpace();
+        string restrictionKey = first.RestrictionKey!;
+
+        first.Delete();
+        await ctx.SaveChangesAsync(cancellationToken);
+
+        // Factory-created Status instances must allow a second Add in the same context
+        // without ChangeTracker.Clear (OwnsOne must not share catalog singletons).
+        Submission second = Submission.Create(new SubmissionCreateArgs(
+            TenantId: tenant.Id,
+            FormId: form.Id,
+            FormDefinitionId: definition.Id,
+            JsonData: """{"color":"red"}""",
+            IsComplete: true,
+            SubmitterId: submitter.Id,
+            EnforceSingleSubmissionGate: true));
+        second.ClearDomainEvents();
+
+        ReferenceEquals(first.Status, second.Status).Should().BeFalse(
+            "each submission must own a distinct Status instance for EF OwnsOne tracking");
+        first.Status.Should().Be(second.Status);
+
+        ctx.Submissions.Add(second);
+
+        Func<Task> act = () => ctx.SaveChangesAsync(cancellationToken);
+
+        await act.Should().NotThrowAsync();
+        second.RestrictionKey.Should().Be(restrictionKey);
+        (await ctx.Submissions.CountAsync(cancellationToken)).Should().Be(1, "soft-deleted row is filtered out");
+        (await ctx.Submissions.IgnoreQueryFilters()
+            .CountAsync(s => s.IsDeleted, cancellationToken)).Should().Be(1);
+        (await ctx.Submissions.IgnoreQueryFilters()
+            .CountAsync(s => !s.IsDeleted, cancellationToken)).Should().Be(1);
+
+        _tenantContext.TenantId.Returns(AmbientTenantId);
+    }
+
     private TestAppDbContext CreateContext()
     {
         // PostgreSQL-only path — see [Trait("DbSpecific", "PostgreSql")]. Loads provider jsonb configs from the PG migrations assembly.
