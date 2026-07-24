@@ -1,7 +1,9 @@
 -- =============================================
 -- Procedure: export_form_submissions (v4)
--- Description: Same as v3 plus soft-delete exclusion (IsDeleted = 0).
--- Immutable: do not edit in place — add v5+ for further changes.
+-- Description: Soft-delete exclusion (IsDeleted = 0) plus scalar+complex
+--              answer projection (JSON_QUERY alone drops scalars).
+-- Note: Edit in place only while SoftDeleteSubmissions is unmerged; after
+--       shipping, further changes require v5+.
 -- Parameters: @form_id - The ID of the form to export
 --             @after_id - Optional cursor (return rows with Id > after_id)
 --             @page_size - Optional limit (NULL = all)
@@ -29,118 +31,108 @@ BEGIN
         StartedAt datetime2,
         SubmitterId bigint,
         SubmitterDisplayId nvarchar(256),
-        JsonData nvarchar(max), -- Store JsonData locally to avoid repeated lookups
+        JsonData nvarchar(max),
         AnswersJson nvarchar(max)
     );
 
-    -- Step 2: Get submissions (with paging)
-    ;WITH BaseSubmissions AS
-    (
-        SELECT
-            FormId,
-            Id,
-            IsComplete,
-            CompletedAt,
-            CreatedAt,
-            ModifiedAt,
-            StartedAt,
-            SubmitterId,
-            SubmitterDisplayId,
-            CONVERT(nvarchar(max), JsonData) AS JsonData,
-            '{}' AS AnswersJson
-        FROM dbo.Submissions
-        WHERE FormId = @form_id
-          AND IsDeleted = 0
-          AND (@after_id IS NULL OR Id > @after_id)
-    )
+    -- Step 2: Get submissions (with paging) directly into the temp table
     INSERT INTO #Results
-        (FormId, Id, IsComplete, CompletedAt, CreatedAt, ModifiedAt, StartedAt, SubmitterId, SubmitterDisplayId, JsonData, AnswersJson)
+        (
+        FormId, Id, IsComplete, CompletedAt, CreatedAt,
+        ModifiedAt, StartedAt, SubmitterId, SubmitterDisplayId,
+        JsonData, AnswersJson
+        )
     SELECT TOP (ISNULL(@page_size, 2147483647))
-        FormId,
-        Id,
-        IsComplete,
-        CompletedAt,
-        CreatedAt,
-        ModifiedAt,
-        StartedAt,
-        SubmitterId,
-        SubmitterDisplayId,
-        JsonData,
-        AnswersJson
-    FROM BaseSubmissions
+        FormId, Id, IsComplete, CompletedAt, CreatedAt,
+        ModifiedAt, StartedAt, SubmitterId, SubmitterDisplayId,
+        CONVERT(nvarchar(max), JsonData), '{}'
+    FROM dbo.Submissions
+    WHERE FormId = @form_id
+        AND IsDeleted = 0
+        AND (@after_id IS NULL OR Id > @after_id)
     ORDER BY Id ASC;
 
-    -- Step 3: Find all question names
-    DECLARE @QuestionNames TABLE (name nvarchar(255));
+    -- Step 3: Find all question names from the Form Definition
+    DECLARE @QuestionNames TABLE (Name nvarchar(255));
 
     ;WITH
         element_tree
         AS
         (
-            -- Base case
-                            SELECT
-                    JSON_QUERY(elem.value, '$') AS element
-                FROM
-                    dbo.FormDefinitions fd
-                        CROSS APPLY OPENJSON(JSON_QUERY(CONVERT(nvarchar(max), fd.JsonData), '$.pages')) AS page
-                        CROSS APPLY OPENJSON(JSON_QUERY(page.value, '$.elements')) AS elem
-                WHERE 
-                        fd.FormId = @form_id
+            -- Base case: Top level elements
+                            SELECT elem.[value] AS element
+                FROM dbo.FormDefinitions fd
+        CROSS APPLY OPENJSON(CONVERT(nvarchar(max), fd.JsonData), '$.pages') AS page
+        CROSS APPLY OPENJSON(page.[value], '$.elements') AS elem
+                WHERE fd.FormId = @form_id
                     AND ISJSON(CONVERT(nvarchar(max), fd.JsonData)) = 1
-                    AND JSON_QUERY(CONVERT(nvarchar(max), fd.JsonData), '$.pages') IS NOT NULL
 
             UNION ALL
 
-                -- Recursive case
-                SELECT
-                    JSON_QUERY(nested_elem.value, '$') AS element
-                FROM
-                    element_tree et
-                        CROSS APPLY OPENJSON(JSON_QUERY(et.element, '$.elements')) AS nested_elem
-                WHERE 
-                        JSON_VALUE(et.element, '$.type') = 'panel'
+                -- Recursive case: Nested elements inside panels
+                SELECT nested_elem.[value] AS element
+                FROM element_tree et
+        CROSS APPLY OPENJSON(et.element, '$.elements') AS nested_elem
+                WHERE JSON_VALUE(et.element, '$.type') = 'panel'
         )
     INSERT INTO @QuestionNames
-    SELECT DISTINCT
-        JSON_VALUE(element, '$.name') AS name
-    FROM
-        element_tree
-    WHERE 
-                    JSON_VALUE(element, '$.type') <> 'panel'
+        (Name)
+    SELECT DISTINCT JSON_VALUE(element, '$.name')
+    FROM element_tree
+    WHERE JSON_VALUE(element, '$.type') <> 'panel'
         AND JSON_VALUE(element, '$.name') IS NOT NULL;
 
-    -- Step 4: Update each result row with question values
-    DECLARE @name nvarchar(255);
+    -- Step 4: Parameterized Dynamic SQL Template (DRY)
+    -- Concatenate (no embedded newlines in literals — Sonar rejects U+000A in N'...').
+    -- Pass @questionName and @jsonPath via sp_executesql.
+    DECLARE @updateSql nvarchar(max) =
+        N'UPDATE r SET AnswersJson = CASE o.[type] '
+        + N'WHEN 1 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, o.[value]) '
+        + N'WHEN 2 THEN CASE '
+        + N'WHEN TRY_CONVERT(bigint, o.[value]) IS NOT NULL '
+        + N'AND CHARINDEX(N''.'', o.[value]) = 0 '
+        + N'AND CHARINDEX(N''e'', o.[value]) = 0 '
+        + N'AND CHARINDEX(N''E'', o.[value]) = 0 '
+        + N'THEN JSON_MODIFY(r.AnswersJson, @jsonPath, TRY_CONVERT(bigint, o.[value])) '
+        + N'ELSE JSON_MODIFY(r.AnswersJson, @jsonPath, TRY_CONVERT(float(53), o.[value])) '
+        + N'END '
+        + N'WHEN 3 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, CAST(CASE WHEN o.[value] = N''true'' THEN 1 ELSE 0 END AS bit)) '
+        + N'WHEN 4 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, JSON_QUERY(o.[value])) '
+        + N'WHEN 5 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, JSON_QUERY(o.[value])) '
+        + N'ELSE JSON_MODIFY(r.AnswersJson, @jsonPath, N'''') '
+        + N'END FROM #Results r OUTER APPLY ( '
+        + N'SELECT j.[type], j.[value] FROM OPENJSON(r.JsonData) AS j '
+        + N'WHERE j.[key] = @questionName) AS o;';
 
-    DECLARE question_cursor CURSOR FOR 
-                SELECT name
+    -- Step 5: Update each result row with question values iteratively
+    DECLARE @questionName nvarchar(255);
+    DECLARE @jsonPath nvarchar(max);
+
+    DECLARE question_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT Name
     FROM @QuestionNames;
 
     OPEN question_cursor;
-    FETCH NEXT FROM question_cursor INTO @name;
+    FETCH NEXT FROM question_cursor INTO @questionName;
 
     WHILE @@FETCH_STATUS = 0
-                BEGIN
-        -- Preserve JSON structure: JSON_QUERY returns array/object as JSON fragment (OPENJSON value would stringify).
-        DECLARE @path nvarchar(512) = N'$."' + REPLACE(@name, N'''', N'''''') + N'"';
-        DECLARE @updateSql nvarchar(max) = N'
-                    UPDATE r
-                    SET AnswersJson = JSON_MODIFY(
-                        AnswersJson, 
-                        ''$."' + REPLACE(@name, N'''', N'''''') + N'"'',
-                        ISNULL(JSON_QUERY(r.JsonData, N''' + REPLACE(@path, N'''', N'''''') + N'''), ''""'')
-                    )
-                    FROM #Results r;';
+    BEGIN
+        -- CHAR(34) = "; keeps double quotes out of N'...' literals for Sonar.
+        SET @jsonPath = CONCAT(N'$.', CHAR(34), STRING_ESCAPE(@questionName, 'json'), CHAR(34));
 
-        EXEC sp_executesql @updateSql;
+        EXEC sp_executesql
+            @stmt = @updateSql,
+            @params = N'@questionName nvarchar(255), @jsonPath nvarchar(max)',
+            @questionName = @questionName,
+            @jsonPath = @jsonPath;
 
-        FETCH NEXT FROM question_cursor INTO @name;
+        FETCH NEXT FROM question_cursor INTO @questionName;
     END;
 
     CLOSE question_cursor;
     DEALLOCATE question_cursor;
 
-    -- Return the results
+    -- Return the final projected results
     SELECT
         FormId,
         Id,
