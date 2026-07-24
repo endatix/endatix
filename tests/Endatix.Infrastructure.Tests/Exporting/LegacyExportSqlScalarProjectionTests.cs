@@ -17,7 +17,8 @@ public sealed class LegacyExportSqlScalarProjectionTests
         script.Should().Contain("OPENJSON(r.JsonData)");
         script.Should().Contain("TRY_CONVERT(bigint");
         script.Should().Contain("TRY_CONVERT(float(53)");
-        script.Should().Contain("STRING_ESCAPE(@name, 'json')");
+        script.Should().Contain("STRING_ESCAPE(@questionName, 'json')");
+        script.Should().Contain("sp_executesql");
         script.Should().NotContain("ISNULL(JSON_QUERY(r.JsonData");
     }
 }

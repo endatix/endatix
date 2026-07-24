@@ -46,9 +46,9 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
         var signingKeyBytes = Encoding.UTF8.GetBytes(_options.SigningKey);
         if (signingKeyBytes.Length < MinSigningKeyUtf8ByteLength)
         {
-            throw new ArgumentException(
-                "Form access token signing key must provide at least 256 bits (32 bytes) of key material when UTF-8 encoded (HS256).",
-                nameof(_options.SigningKey));
+            // InvalidOperationException: SigningKey is options config, not a ctor parameter (CA2208 / Sonar).
+            throw new InvalidOperationException(
+                "EndatixJwtOptions.SigningKey must provide at least 256 bits (32 bytes) of key material when UTF-8 encoded (HS256).");
         }
 
         Guard.Against.NullOrEmpty(_options.Audiences);
