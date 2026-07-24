@@ -76,8 +76,7 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
         await dbContext.Set<Submission>().AddRangeAsync(submissions, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        // Clear the tracker so shared singleton instances (e.g. SubmissionStatus.New)
-        // don't conflict when subsequent forms add their own submissions.
+        // Detach seeded graph so the next form can be tracked independently.
         dbContext.ChangeTracker.Clear();
     }
 
@@ -110,17 +109,7 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
             IsComplete: submissionInfo.IsComplete));
         submission.Id = idGenerator.CreateId();
 
-        // Use 'with {}' to create a fresh owned entity instance per submission.
-        // Sharing the same static SubmissionStatus singleton across multiple Submission
-        // objects causes EF Core to omit the Status column from some INSERTs.
-        var status = submissionInfo.Status switch
-        {
-            "read" => SubmissionStatus.Read with {},
-            "approved" => SubmissionStatus.Approved with {},
-            "declined" => SubmissionStatus.Declined with {},
-            _ => SubmissionStatus.New with {}
-        };
-        submission.UpdateStatus(status);
+        submission.UpdateStatus(SubmissionStatus.FromCode(submissionInfo.Status));
 
         if (submissionInfo.IsComplete)
         {

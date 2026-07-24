@@ -12,7 +12,9 @@ namespace Endatix.Infrastructure.Tests.Features.Outbox;
 internal static class AppDbContextModelInspectionFactory
 {
     private const string PostgresMigrationsAssembly = "Endatix.Persistence.PostgreSql";
-    private const string AppMigrationsNamespace = "Endatix.Persistence.PostgreSql.Migrations.AppEntities";
+    private const string PostgresAppMigrationsNamespace = "Endatix.Persistence.PostgreSql.Migrations.AppEntities";
+    private const string SqlServerMigrationsAssembly = "Endatix.Persistence.SqlServer";
+    private const string SqlServerAppMigrationsNamespace = "Endatix.Persistence.SqlServer.Migrations.AppEntities";
 
     internal static AppDbContext CreatePostgreSqlAppDbContext(
         IIdGenerator<long>? idGenerator = null,
@@ -29,7 +31,36 @@ internal static class AppDbContextModelInspectionFactory
                 npgsql.MigrationsAssembly(PostgresMigrationsAssembly);
                 npgsql.MigrationsHistoryTable(HistoryRepository.DefaultTableName);
             });
-        ModuleDbContextExtensions.ConfigureProviderScopedMigrations(optionsBuilder, AppMigrationsNamespace);
+        ModuleDbContextExtensions.ConfigureProviderScopedMigrations(
+            optionsBuilder,
+            PostgresAppMigrationsNamespace);
+
+        return new AppDbContext(
+            optionsBuilder.Options,
+            resolvedIdGenerator,
+            resolvedTenantContext,
+            new EfCoreValueGeneratorFactory(resolvedIdGenerator),
+            new OutboxIntegrationEventDispatcher());
+    }
+
+    internal static AppDbContext CreateSqlServerAppDbContext(
+        IIdGenerator<long>? idGenerator = null,
+        ITenantContext? tenantContext = null)
+    {
+        var resolvedIdGenerator = idGenerator ?? Substitute.For<IIdGenerator<long>>();
+        var resolvedTenantContext = tenantContext ?? Substitute.For<ITenantContext>();
+
+        DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
+        optionsBuilder.UseSqlServer(
+            "Server=(localdb)\\mssqllocaldb;Database=__ef_model_inspection_not_connected__;Trusted_Connection=True",
+            sqlServer =>
+            {
+                sqlServer.MigrationsAssembly(SqlServerMigrationsAssembly);
+                sqlServer.MigrationsHistoryTable(HistoryRepository.DefaultTableName);
+            });
+        ModuleDbContextExtensions.ConfigureProviderScopedMigrations(
+            optionsBuilder,
+            SqlServerAppMigrationsNamespace);
 
         return new AppDbContext(
             optionsBuilder.Options,
