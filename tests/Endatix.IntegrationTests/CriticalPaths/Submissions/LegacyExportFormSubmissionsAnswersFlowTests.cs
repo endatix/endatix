@@ -57,15 +57,22 @@ public sealed class LegacyExportFormSubmissionsAnswersFlowTests
             cancellationToken);
         createResponse.EnsureSuccessStatusCode();
 
-        // Act
+        // Act — consume TenantSettings.CustomExports (ExportId resolution path), not a pinned name
         await using AsyncServiceScope scope = world.Services.CreateAsyncScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        TenantSettings tenantSettings = await db.TenantSettings
+            .SingleAsync(row => row.TenantId == world.Tenants[0].Id, cancellationToken);
+        string? sqlFunctionName = tenantSettings.CustomExports
+            .Single(item => item.Id == LegacyCsvExportId)
+            .SqlFunctionName;
+
         ISubmissionExportRepository exportRepository =
             scope.ServiceProvider.GetRequiredService<ISubmissionExportRepository>();
 
         List<SubmissionExportRow> rows = [];
         await foreach (SubmissionExportRow row in exportRepository.GetExportRowsAsync<SubmissionExportRow>(
                            long.Parse(formId),
-                           sqlFunctionName: "export_form_submissions",
+                           sqlFunctionName,
                            pageSize: 100,
                            cancellationToken))
         {
