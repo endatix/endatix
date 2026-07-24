@@ -19,10 +19,16 @@
 #   maintenance                   yes                      yes              no
 #   stable                        yes                      yes              yes
 #
+# The Helm chart ships to GHCR on every channel: OCI charts are addressed by
+# exact version with no floating pointer to protect, and the prerelease version
+# already keeps canaries out of `helm upgrade` unless --devel is passed.
+#
 # Usage: scripts/release-publish.sh <version>
 # Expects env vars (exported by the shared workflows):
 #   NUGET_SOURCE       GitHub NuGet feed (nuget.pkg.github.com/endatix)
+#   GH_PACKAGES_USER   actor for the GHCR/Helm registry login
 #   GH_PACKAGES_TOKEN  job token with packages:write
+#   HELM_OCI_REPO      OCI chart repo (oci://ghcr.io/endatix/charts)
 #   DOCKER_IMAGE       GHCR image name, from the caller's docker-image input
 #                      (the shared workflows do the ghcr.io login)
 #   NUGET_API_KEY      short-lived nuget.org key minted per run via OIDC
@@ -35,8 +41,10 @@ set -euo pipefail
 VERSION="${1:?usage: release-publish.sh <version>}"
 CHANNEL="${RELEASE_CHANNEL:-stable}"
 : "${NUGET_SOURCE:?NUGET_SOURCE env var is required}"
+: "${GH_PACKAGES_USER:?GH_PACKAGES_USER env var is required}"
 : "${GH_PACKAGES_TOKEN:?GH_PACKAGES_TOKEN env var is required}"
 : "${DOCKER_IMAGE:?DOCKER_IMAGE env var is required (is docker-image set on the caller workflow?)}"
+: "${HELM_OCI_REPO:?HELM_OCI_REPO env var is required}"
 
 # Public mirror for promoted releases. Not an input on the shared workflows
 # (they model a single image) — mirroring is this repo's own publish concern.
@@ -100,3 +108,10 @@ if [[ "$PUBLISH_PUBLIC" = true ]]; then
   echo "$ENDATIX_DOCKERHUB_TOKEN" | docker login docker.io -u "$ENDATIX_DOCKERHUB_USERNAME" --password-stdin
   docker buildx imagetools create "${DOCKERHUB_TAGS[@]}" "${DOCKER_IMAGE}:${VERSION}"
 fi
+
+# Helm chart. Helm keeps its own registry credentials (~/.config/helm), so the
+# workflow's docker login does not carry over — log in explicitly. The path is
+# pinned to the exact version for the same reason the NuGet globs are.
+echo "──── Pushing Helm chart to ${HELM_OCI_REPO} ────"
+echo "$GH_PACKAGES_TOKEN" | helm registry login ghcr.io -u "$GH_PACKAGES_USER" --password-stdin
+helm push "build/packages/helm/endatix-api-${VERSION}.tgz" "$HELM_OCI_REPO"
