@@ -48,7 +48,7 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
         {
             throw new ArgumentException(
                 "Form access token signing key must provide at least 256 bits (32 bytes) of key material when UTF-8 encoded (HS256).",
-                nameof(options));
+                nameof(_options.SigningKey));
         }
 
         Guard.Against.NullOrEmpty(_options.Audiences);
