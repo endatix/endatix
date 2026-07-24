@@ -40,6 +40,16 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 name: "UX_Submissions_RestrictionKey",
                 table: "Submissions");
 
+            // Soft-deleted rows may share RestrictionKey with a later active submission
+            // (allowed under the filtered unique index). Release those keys before restoring
+            // the unfiltered unique index so rollback does not fail on duplicates.
+            migrationBuilder.Sql("""
+                UPDATE "Submissions"
+                SET "RestrictionKey" = NULL
+                WHERE "IsDeleted" = true
+                  AND "RestrictionKey" IS NOT NULL;
+                """);
+
             migrationBuilder.CreateIndex(
                 name: "UX_Submissions_RestrictionKey",
                 table: "Submissions",
@@ -47,7 +57,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 unique: true,
                 filter: "\"RestrictionKey\" IS NOT NULL");
 
-             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint);");
+            migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint);");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint, bigint, int);");
             migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v2.sql"));
 
