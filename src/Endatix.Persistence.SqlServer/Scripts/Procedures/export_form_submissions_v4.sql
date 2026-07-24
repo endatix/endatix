@@ -125,27 +125,30 @@ BEGIN
                 BEGIN
         -- JSON_QUERY returns NULL for scalars. Project by OPENJSON type so JSON_MODIFY
         -- receives a typed SQL value (string/number/bool) or JSON_QUERY for object/array.
-        DECLARE @escapedName nvarchar(255) = REPLACE(@name, N'''', N'''''');
-        DECLARE @jsonPath nvarchar(512) = N'$."' + @escapedName + N'"';
+        -- Escape once per context: SQL literals for OPENJSON key / dynamic SQL embedding;
+        -- JSON path segment via STRING_ESCAPE so quotes and backslashes are valid.
+        DECLARE @escapedName nvarchar(510) = REPLACE(@name, N'''', N'''''');
+        DECLARE @jsonPath nvarchar(max) = N'$."' + STRING_ESCAPE(@name, 'json') + N'"';
+        DECLARE @escapedJsonPath nvarchar(max) = REPLACE(@jsonPath, N'''', N'''''');
         DECLARE @updateSql nvarchar(max) = N'
                     UPDATE r
                     SET AnswersJson = CASE o.[type]
-                        WHEN 1 THEN JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', o.[value])
+                        WHEN 1 THEN JSON_MODIFY(r.AnswersJson, N''' + @escapedJsonPath + N''', o.[value])
                         WHEN 2 THEN CASE
                             WHEN TRY_CONVERT(bigint, o.[value]) IS NOT NULL
                                  AND CHARINDEX(N''.'', o.[value]) = 0
                                  AND CHARINDEX(N''e'', o.[value]) = 0
                                  AND CHARINDEX(N''E'', o.[value]) = 0
-                                THEN JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', TRY_CONVERT(bigint, o.[value]))
-                            ELSE JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', TRY_CONVERT(float(53), o.[value]))
+                                THEN JSON_MODIFY(r.AnswersJson, N''' + @escapedJsonPath + N''', TRY_CONVERT(bigint, o.[value]))
+                            ELSE JSON_MODIFY(r.AnswersJson, N''' + @escapedJsonPath + N''', TRY_CONVERT(float(53), o.[value]))
                         END
                         WHEN 3 THEN JSON_MODIFY(
                             r.AnswersJson,
-                            N''' + @jsonPath + N''',
+                            N''' + @escapedJsonPath + N''',
                             CONVERT(bit, CASE WHEN o.[value] = N''true'' THEN 1 ELSE 0 END))
-                        WHEN 4 THEN JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', JSON_QUERY(o.[value]))
-                        WHEN 5 THEN JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', JSON_QUERY(o.[value]))
-                        ELSE JSON_MODIFY(r.AnswersJson, N''' + @jsonPath + N''', N'''')
+                        WHEN 4 THEN JSON_MODIFY(r.AnswersJson, N''' + @escapedJsonPath + N''', JSON_QUERY(o.[value]))
+                        WHEN 5 THEN JSON_MODIFY(r.AnswersJson, N''' + @escapedJsonPath + N''', JSON_QUERY(o.[value]))
+                        ELSE JSON_MODIFY(r.AnswersJson, N''' + @escapedJsonPath + N''', N'''')
                     END
                     FROM #Results r
                     OUTER APPLY (
