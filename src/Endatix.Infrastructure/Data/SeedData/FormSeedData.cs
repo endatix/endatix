@@ -44,7 +44,7 @@ internal sealed class SubmissionInfo
     public bool IsComplete { get; init; } = true;
 
     /// <summary>
-    /// The submission status code (see <see cref="SubmissionStatus.Codes"/>). Defaults to new.
+    /// The submission status code (see <see cref="SubmissionStatusCodes"/>). Defaults to new.
     /// </summary>
-    public string Status { get; init; } = SubmissionStatus.Codes.New;
+    public string Status { get; init; } = SubmissionStatusCodes.New;
 }

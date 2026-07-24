@@ -2,18 +2,18 @@ using Ardalis.GuardClauses;
 
 namespace Endatix.Core.Entities;
 
+/// <summary>Wire/persistence codes for built-in submission statuses.</summary>
+public static class SubmissionStatusCodes
+{
+    public const string New = "new";
+    public const string Approved = "approved";
+    public const string Read = "read";
+    public const string Declined = "declined";
+}
+
 public sealed record SubmissionStatus : IComparable<SubmissionStatus>
 {
     public const int STATUS_CODE_MAX_LENGTH = 16;
-
-    /// <summary>Wire/persistence codes for built-in submission statuses.</summary>
-    public static class Codes
-    {
-        public const string New = "new";
-        public const string Approved = "approved";
-        public const string Read = "read";
-        public const string Declined = "declined";
-    }
 
     // Required by EF Core
     private SubmissionStatus()
@@ -27,12 +27,12 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
     /// use <see cref="FromCode(string)"/> / <see cref="CreateInstance"/> so each entity
     /// gets a distinct owned instance for EF tracking.
     /// </summary>
-    public static readonly SubmissionStatus New = new("New", Codes.New);
+    public static readonly SubmissionStatus New = new("New", SubmissionStatusCodes.New);
 
-    public static readonly SubmissionStatus Approved = new("Approved", Codes.Approved);
-    public static readonly SubmissionStatus Read = new("Read", Codes.Read);
+    public static readonly SubmissionStatus Approved = new("Approved", SubmissionStatusCodes.Approved);
+    public static readonly SubmissionStatus Read = new("Read", SubmissionStatusCodes.Read);
 
-    public static readonly SubmissionStatus Declined = new("Declined", Codes.Declined);
+    public static readonly SubmissionStatus Declined = new("Declined", SubmissionStatusCodes.Declined);
 
     public string Name { get; }
     public string Code { get; }
@@ -53,7 +53,7 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
 
     /// <summary>
     /// Resolves a status code to a fresh instance suitable for persistence.
-    /// Prefer <see cref="Codes"/> over raw literals.
+    /// Prefer <see cref="SubmissionStatusCodes"/> over raw literals.
     /// </summary>
     public static SubmissionStatus FromCode(string code)
     {
@@ -61,10 +61,10 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
 
         var catalog = code.ToLowerInvariant() switch
         {
-            Codes.New => New,
-            Codes.Approved => Approved,
-            Codes.Read => Read,
-            Codes.Declined => Declined,
+            SubmissionStatusCodes.New => New,
+            SubmissionStatusCodes.Approved => Approved,
+            SubmissionStatusCodes.Read => Read,
+            SubmissionStatusCodes.Declined => Declined,
             _ => throw new ArgumentException($"Invalid status code: {code}", nameof(code))
         };
 

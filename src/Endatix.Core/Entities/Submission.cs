@@ -24,7 +24,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         CurrentPage = args.CurrentPage;
         Metadata = args.Metadata;
         IsTestSubmission = args.IsTestSubmission;
-        Status = SubmissionStatus.FromCode(SubmissionStatus.Codes.New);
+        Status = SubmissionStatus.FromCode(SubmissionStatusCodes.New);
 
         SetSubmitter(args.SubmitterId, args.SubmitterDisplayId, args.SubmitterProfileSnapshot);
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);

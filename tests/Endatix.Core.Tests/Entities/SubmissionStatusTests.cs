@@ -7,26 +7,26 @@ public sealed class SubmissionStatusTests
     [Fact]
     public void FromCode_WithCodesConst_ReturnsDistinctInstancesWithSameValue()
     {
-        SubmissionStatus first = SubmissionStatus.FromCode(SubmissionStatus.Codes.New);
-        SubmissionStatus second = SubmissionStatus.FromCode(SubmissionStatus.Codes.New);
+        SubmissionStatus first = SubmissionStatus.FromCode(SubmissionStatusCodes.New);
+        SubmissionStatus second = SubmissionStatus.FromCode(SubmissionStatusCodes.New);
 
         ReferenceEquals(first, second).Should().BeFalse();
         ReferenceEquals(first, SubmissionStatus.New).Should().BeFalse();
         first.Should().Be(SubmissionStatus.New);
         second.Should().Be(first);
-        first.Code.Should().Be(SubmissionStatus.Codes.New);
+        first.Code.Should().Be(SubmissionStatusCodes.New);
     }
 
     [Fact]
     public void FromCode_ReturnsDistinctInstancesPerCall()
     {
-        SubmissionStatus first = SubmissionStatus.FromCode(SubmissionStatus.Codes.Approved);
-        SubmissionStatus second = SubmissionStatus.FromCode(SubmissionStatus.Codes.Approved);
+        SubmissionStatus first = SubmissionStatus.FromCode(SubmissionStatusCodes.Approved);
+        SubmissionStatus second = SubmissionStatus.FromCode(SubmissionStatusCodes.Approved);
 
         ReferenceEquals(first, second).Should().BeFalse();
         ReferenceEquals(first, SubmissionStatus.Approved).Should().BeFalse();
         first.Should().Be(SubmissionStatus.Approved);
-        first.Code.Should().Be(SubmissionStatus.Codes.Approved);
+        first.Code.Should().Be(SubmissionStatusCodes.Approved);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public sealed class SubmissionStatusTests
 
         ReferenceEquals(instance, SubmissionStatus.Read).Should().BeFalse();
         instance.Should().Be(SubmissionStatus.Read);
-        instance.Code.Should().Be(SubmissionStatus.Codes.Read);
+        instance.Code.Should().Be(SubmissionStatusCodes.Read);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class SubmissionStatusTests
         ReferenceEquals(first.Status, second.Status).Should().BeFalse();
         first.Status.Should().Be(SubmissionStatus.New);
         second.Status.Should().Be(SubmissionStatus.New);
-        first.Status.Code.Should().Be(SubmissionStatus.Codes.New);
+        first.Status.Code.Should().Be(SubmissionStatusCodes.New);
     }
 
     [Theory]
