@@ -68,7 +68,7 @@ BEGIN
         JsonData,
         AnswersJson
     FROM BaseSubmissions
-    ORDER BY Id;
+    ORDER BY Id ASC;
 
     -- Step 3: Find all question names
     DECLARE @QuestionNames TABLE (name nvarchar(255));
@@ -153,7 +153,7 @@ BEGIN
         SubmitterDisplayId,
         AnswersJson AS AnswersModel
     FROM #Results
-    ORDER BY Id;
+    ORDER BY Id ASC;
 
     -- Clean up
     DROP TABLE #Results;
