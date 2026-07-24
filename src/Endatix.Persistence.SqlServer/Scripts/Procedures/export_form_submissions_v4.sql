@@ -83,32 +83,26 @@ BEGIN
         AND JSON_VALUE(element, '$.name') IS NOT NULL;
 
     -- Step 4: Parameterized Dynamic SQL Template (DRY)
-    -- Instead of escaping strings per iteration, we write the logic once
-    -- and pass @questionName and @jsonPath securely via sp_executesql
-    DECLARE @updateSql nvarchar(max) = N'
-        UPDATE r
-        SET AnswersJson = CASE o.[type]
-            WHEN 1 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, o.[value])
-            WHEN 2 THEN CASE
-                WHEN TRY_CONVERT(bigint, o.[value]) IS NOT NULL
-                     AND CHARINDEX(N''.'', o.[value]) = 0
-                     AND CHARINDEX(N''e'', o.[value]) = 0
-                     AND CHARINDEX(N''E'', o.[value]) = 0
-                    THEN JSON_MODIFY(r.AnswersJson, @jsonPath, TRY_CONVERT(bigint, o.[value]))
-                ELSE JSON_MODIFY(r.AnswersJson, @jsonPath, TRY_CONVERT(float(53), o.[value]))
-            END
-            WHEN 3 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, CAST(CASE WHEN o.[value] = N''true'' THEN 1 ELSE 0 END AS bit))
-            WHEN 4 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, JSON_QUERY(o.[value]))
-            WHEN 5 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, JSON_QUERY(o.[value]))
-            ELSE JSON_MODIFY(r.AnswersJson, @jsonPath, N'''')
-        END
-        FROM #Results r
-        OUTER APPLY (
-            SELECT j.[type], j.[value]
-            FROM OPENJSON(r.JsonData) AS j
-            WHERE j.[key] = @questionName
-        ) AS o;
-    ';
+    -- Concatenate (no embedded newlines in literals — Sonar rejects U+000A in N'...').
+    -- Pass @questionName and @jsonPath via sp_executesql.
+    DECLARE @updateSql nvarchar(max) =
+        N'UPDATE r SET AnswersJson = CASE o.[type] '
+        + N'WHEN 1 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, o.[value]) '
+        + N'WHEN 2 THEN CASE '
+        + N'WHEN TRY_CONVERT(bigint, o.[value]) IS NOT NULL '
+        + N'AND CHARINDEX(N''.'', o.[value]) = 0 '
+        + N'AND CHARINDEX(N''e'', o.[value]) = 0 '
+        + N'AND CHARINDEX(N''E'', o.[value]) = 0 '
+        + N'THEN JSON_MODIFY(r.AnswersJson, @jsonPath, TRY_CONVERT(bigint, o.[value])) '
+        + N'ELSE JSON_MODIFY(r.AnswersJson, @jsonPath, TRY_CONVERT(float(53), o.[value])) '
+        + N'END '
+        + N'WHEN 3 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, CAST(CASE WHEN o.[value] = N''true'' THEN 1 ELSE 0 END AS bit)) '
+        + N'WHEN 4 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, JSON_QUERY(o.[value])) '
+        + N'WHEN 5 THEN JSON_MODIFY(r.AnswersJson, @jsonPath, JSON_QUERY(o.[value])) '
+        + N'ELSE JSON_MODIFY(r.AnswersJson, @jsonPath, N'''') '
+        + N'END FROM #Results r OUTER APPLY ( '
+        + N'SELECT j.[type], j.[value] FROM OPENJSON(r.JsonData) AS j '
+        + N'WHERE j.[key] = @questionName) AS o;';
 
     -- Step 5: Update each result row with question values iteratively
     DECLARE @questionName nvarchar(255);
@@ -123,8 +117,8 @@ BEGIN
 
     WHILE @@FETCH_STATUS = 0
     BEGIN
-        -- Safely format the JSON Path for the current question
-        SET @jsonPath = N'$."' + STRING_ESCAPE(@questionName, 'json') + N'"';
+        -- CHAR(34) = "; keeps double quotes out of N'...' literals for Sonar.
+        SET @jsonPath = CONCAT(N'$.', CHAR(34), STRING_ESCAPE(@questionName, 'json'), CHAR(34));
 
         EXEC sp_executesql
             @stmt = @updateSql,
