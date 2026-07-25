@@ -6,6 +6,117 @@ namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 public class FormSchemaCompilerTests
 {
   [Fact]
+  public void CompilePersisted_ReplaceMode_DropsHistoricalKeysAndChoices()
+  {
+    // Arrange
+    const string initialDefinition = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "dropdown",
+                  "name": "qDropdown",
+                  "choices": [
+                    { "value": "axe", "text": "Axe" },
+                    { "value": "sword", "text": "Sword" },
+                    { "value": "hammer", "text": "Hammer" }
+                  ]
+                },
+                { "type": "text", "name": "orphan" }
+              ]
+            }
+          ]
+        }
+        """;
+
+    const string updatedDefinition = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "dropdown",
+                  "name": "qDropdown",
+                  "choices": [
+                    { "value": "axe", "text": "Battle Axe" },
+                    { "value": "sword", "text": "Sword" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+    FormSchemaCompiler compiler = new();
+    FormSchemaCompileResult initial = compiler.CompilePersisted(initialDefinition);
+
+    // Act
+    FormSchemaCompileResult replaced = compiler.CompilePersisted(
+      updatedDefinition,
+      initial.FlatteningMapJson,
+      initial.CodebookJson,
+      FormSchemaCompileMode.Replace);
+
+    // Assert
+    replaced.FlatteningMap.Columns.Select(column => column.Key).Should().Equal("qDropdown");
+    replaced.FlatteningMapJson.Should().NotContain("orphan");
+
+    using JsonDocument codebook = JsonDocument.Parse(replaced.CodebookJson);
+    codebook.RootElement.GetProperty("questions").TryGetProperty("orphan", out _).Should().BeFalse();
+    List<JsonElement> choiceEntries = codebook.RootElement
+      .GetProperty("choiceCatalogs")
+      .GetProperty("qDropdown")
+      .GetProperty("choices")
+      .EnumerateArray()
+      .ToList();
+    choiceEntries.Should().HaveCount(2);
+    choiceEntries.Select(choice => choice.GetProperty("value").GetString()).Should().Equal("axe", "sword");
+    choiceEntries[0].GetProperty("text").GetProperty("default").GetString().Should().Be("Battle Axe");
+  }
+
+  [Fact]
+  public void CompilePersisted_MergeMode_RetainsHistoricalKeysWhenPassedExistingJson()
+  {
+    // Arrange
+    const string initialDefinition = """
+        {
+          "pages": [
+            {
+              "elements": [
+                { "type": "text", "name": "historical" }
+              ]
+            }
+          ]
+        }
+        """;
+    const string updatedDefinition = """
+        {
+          "pages": [
+            {
+              "elements": [
+                { "type": "text", "name": "current" }
+              ]
+            }
+          ]
+        }
+        """;
+    FormSchemaCompiler compiler = new();
+    FormSchemaCompileResult initial = compiler.CompilePersisted(initialDefinition);
+
+    // Act
+    FormSchemaCompileResult merged = compiler.CompilePersisted(
+      updatedDefinition,
+      initial.FlatteningMapJson,
+      initial.CodebookJson,
+      FormSchemaCompileMode.Merge);
+
+    // Assert
+    merged.FlatteningMap.Columns.Select(column => column.Key).Should().Equal("historical", "current");
+  }
+
+  [Fact]
   public void CompilePersisted_MergeChoiceCatalog_PreservesHistoricalIdsWithCurrentMetadata()
   {
     const string initialDefinition = """

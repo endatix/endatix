@@ -6,7 +6,9 @@ using Endatix.Modules.Reporting.Shared.SurveyJs;
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 /// <summary>
-/// Compiles SurveyJS form definitions into append-only merged form schemas and codebooks.
+/// Compiles SurveyJS form definitions into form schemas and codebooks.
+/// Supports append-only <see cref="FormSchemaCompileMode.Merge"/> and full
+/// <see cref="FormSchemaCompileMode.Replace"/> from the current definition.
 /// </summary>
 internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
 {
@@ -29,19 +31,27 @@ internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
     public FormSchemaCompileResult CompilePersisted(
         string definitionJson,
         string? existingFlatteningMapJson = null,
-        string? existingCodebookJson = null)
+        string? existingCodebookJson = null,
+        FormSchemaCompileMode mode = FormSchemaCompileMode.Merge)
     {
-        using var definition = JsonDocument.Parse(definitionJson);
-        var existingFlatteningMap = string.IsNullOrWhiteSpace(existingFlatteningMapJson)
+        var flatteningMapJsonInput = mode == FormSchemaCompileMode.Replace
             ? null
-            : FormSchemaFlatteningMap.FromJson(existingFlatteningMapJson);
+            : existingFlatteningMapJson;
+        var codebookJsonInput = mode == FormSchemaCompileMode.Replace
+            ? null
+            : existingCodebookJson;
+
+        using var definition = JsonDocument.Parse(definitionJson);
+        var existingFlatteningMap = string.IsNullOrWhiteSpace(flatteningMapJsonInput)
+            ? null
+            : FormSchemaFlatteningMap.FromJson(flatteningMapJsonInput);
 
         var merged = Compile(definition.RootElement, existingFlatteningMap);
         var flatteningMapJson = FormSchemaFlatteningMap.ToJson(merged);
         var codebookJson = FormSchemaCodebookBuilder.Build(
             definition.RootElement,
             merged,
-            existingCodebookJson);
+            codebookJsonInput);
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition.RootElement);
         var localesJson = JsonSerializer.Serialize(locales);
 
