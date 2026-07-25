@@ -2,6 +2,8 @@ using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
@@ -42,13 +44,10 @@ public sealed class FormSchemaProviderIntegrationTests
             .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
             .Returns(CreateFormDefinition());
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using ReportingDbContext dbContext = CreateReportingContext(TenantId);
+        await using AppDbContext appDbContext = CreateAppDbContext();
         FormSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
-        FormSchemaProcessor schemaProcessor = new(
-            formsRepository,
-            schemaRepository,
-            new FormSchemaCompiler(),
-            NullLogger<FormSchemaProcessor>.Instance);
+        FormSchemaProcessor schemaProcessor = CreateProcessor(formsRepository, schemaRepository, appDbContext);
         FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
 
         FormSchema? result = await provider.GetOrCompileAsync(
@@ -83,13 +82,10 @@ public sealed class FormSchemaProviderIntegrationTests
             .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
             .Returns(CreateFormDefinition());
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using ReportingDbContext dbContext = CreateReportingContext(TenantId);
+        await using AppDbContext appDbContext = CreateAppDbContext();
         FormSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
-        FormSchemaProcessor schemaProcessor = new(
-            formsRepository,
-            schemaRepository,
-            new FormSchemaCompiler(),
-            NullLogger<FormSchemaProcessor>.Instance);
+        FormSchemaProcessor schemaProcessor = CreateProcessor(formsRepository, schemaRepository, appDbContext);
         FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
 
         FormSchema? first = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
@@ -108,21 +104,56 @@ public sealed class FormSchemaProviderIntegrationTests
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
     }
 
-    private ReportingDbContext CreateContext(long tenantId)
+    private ReportingDbContext CreateReportingContext(long tenantId)
     {
         ITenantContext tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(tenantId);
 
-        Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
+        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
         return new ReportingDbContext(optionsBuilder.Options, new IncrementingIdGenerator(), tenantContext);
+    }
+
+    private AppDbContext CreateAppDbContext()
+    {
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId);
+
+        IncrementingIdGenerator idGenerator = new();
+        DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
+        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
+
+        return new AppDbContext(
+            optionsBuilder.Options,
+            idGenerator,
+            tenantContext,
+            new EfCoreValueGeneratorFactory(idGenerator),
+            new OutboxIntegrationEventDispatcher());
     }
 
     private static FormSchemaRepository CreateSchemaRepository(ReportingDbContext dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
         return new FormSchemaRepository(dbContext, unitOfWork);
+    }
+
+    private static FormSchemaProcessor CreateProcessor(
+        IFormsRepository formsRepository,
+        FormSchemaRepository schemaRepository,
+        AppDbContext appDbContext)
+    {
+        IFlattenedSubmissionRepository flattenedRepository = Substitute.For<IFlattenedSubmissionRepository>();
+        IReportingUnitOfWork unitOfWork = Substitute.For<IReportingUnitOfWork>();
+
+        return new FormSchemaProcessor(
+            formsRepository,
+            schemaRepository,
+            flattenedRepository,
+            unitOfWork,
+            appDbContext,
+            new FormSchemaCompiler(),
+            NullLogger<FormSchemaProcessor>.Instance);
     }
 
     private static FormDefinition CreateFormDefinition()

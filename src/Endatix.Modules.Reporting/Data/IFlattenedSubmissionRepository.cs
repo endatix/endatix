@@ -37,4 +37,14 @@ public interface IFlattenedSubmissionRepository
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The task.</returns>
     Task SaveAsync(FlattenedSubmission flattenedSubmission, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Hard-deletes all flattened submission rows for a form (including soft-deleted rows).
+    /// Used after a replace-mode FormSchema compile to clear test flatten debris.
+    /// </summary>
+    /// <param name="tenantId">The tenant ID.</param>
+    /// <param name="formId">The form ID.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of rows deleted.</returns>
+    Task<int> DeleteByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken);
 }

@@ -17,10 +17,21 @@ Database schema: `reporting`
 
 | Table | Purpose |
 |-------|---------|
-| `FormSchemas` | Append-only compiled form schema (`FlatteningMap` + `Codebook`) per tenant + form |
+| `FormSchemas` | Compiled form schema (`FlatteningMap` + `Codebook`) per tenant + form |
 | `FlattenedSubmissions` | Flat submission answers aligned to form schema |
 | `ExportFormats` | Export delivery configuration (CSV, JSON, codebook) |
 | `SurveyTypeExportMappings` | Allowed export formats per survey type (with optional default and tenant fallback) |
+
+### FormSchema compile modes
+
+On every compile path (outbox `form.definition.updated`, manual `POST .../reporting/compile-schema`):
+
+| Mode | When | Behavior |
+|------|------|----------|
+| **Replace** | Form has **0 real** submissions (`IsTestSubmission == false`) | Rebuild FlatteningMap + Codebook from the current definition only. After save, hard-delete that form’s `FlattenedSubmissions` rows (test flatten debris). |
+| **Merge** | Form has **≥1 real** submission | Append-only merge: retain historical columns, questions, and choice-catalog values. |
+
+Test submissions alone do **not** force merge. This is a defensive bridge until Form Publish makes publish the controlled compile moment.
 
 ## Registration
 

@@ -149,6 +149,54 @@ public sealed class FlattenedSubmissionRepositoryTests
         filtered.Should().BeNull("deleted rows are excluded by the global IsDeleted query filter");
     }
 
+    [Fact]
+    public async Task DeleteByFormIdAsync_RemovesAllRowsForFormIncludingSoftDeleted()
+    {
+        // Arrange
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        FlattenedSubmissionRepository repository = CreateRepository(dbContext);
+
+        FlattenedSubmission active = await repository.GetOrCreateAsync(
+            TenantId,
+            SubmissionId,
+            FormId,
+            cancellationToken);
+        active.MarkProcessed(ProcessedDataJson);
+        await repository.SaveAsync(active, cancellationToken);
+
+        FlattenedSubmission softDeleted = await repository.GetOrCreateAsync(
+            TenantId,
+            SubmissionId + 1,
+            FormId,
+            cancellationToken);
+        softDeleted.MarkDeleted();
+        await repository.SaveAsync(softDeleted, cancellationToken);
+
+        FlattenedSubmission otherForm = await repository.GetOrCreateAsync(
+            TenantId,
+            SubmissionId + 2,
+            formId: FormId + 1,
+            cancellationToken);
+        await repository.SaveAsync(otherForm, cancellationToken);
+
+        // Act
+        int deleted = await repository.DeleteByFormIdAsync(TenantId, FormId, cancellationToken);
+
+        // Assert
+        deleted.Should().Be(2);
+        (await dbContext.FlattenedSubmissions
+                .IgnoreQueryFilters()
+                .CountAsync(row => row.TenantId == TenantId && row.FormId == FormId, cancellationToken))
+            .Should().Be(0);
+        (await dbContext.FlattenedSubmissions
+                .IgnoreQueryFilters()
+                .CountAsync(row => row.SubmissionId == SubmissionId + 2, cancellationToken))
+            .Should().Be(1);
+    }
+
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
     {
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
