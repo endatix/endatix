@@ -24,7 +24,7 @@ Database schema: `reporting`
 
 ### FormSchema compile modes
 
-On every compile path (outbox `form.definition.updated`, manual `POST .../reporting/compile-schema`, lazy provider compile):
+On every compile path (outbox `form.definition.updated`, manual `POST .../reporting/compile-schema`):
 
 | Mode | When | Behavior |
 |------|------|----------|
