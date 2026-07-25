@@ -264,6 +264,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             formsRepository,
             new FormSchemaRepository(reportingDb, unitOfWork),
             new FlattenedSubmissionRepository(reportingDb, unitOfWork),
+            unitOfWork,
             appDb,
             new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);

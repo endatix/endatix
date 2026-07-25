@@ -144,11 +144,13 @@ public sealed class FormSchemaProviderIntegrationTests
         AppDbContext appDbContext)
     {
         IFlattenedSubmissionRepository flattenedRepository = Substitute.For<IFlattenedSubmissionRepository>();
+        IReportingUnitOfWork unitOfWork = Substitute.For<IReportingUnitOfWork>();
 
         return new FormSchemaProcessor(
             formsRepository,
             schemaRepository,
             flattenedRepository,
+            unitOfWork,
             appDbContext,
             new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);

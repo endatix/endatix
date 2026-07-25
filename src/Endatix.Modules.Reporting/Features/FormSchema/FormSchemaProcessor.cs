@@ -16,6 +16,7 @@ internal sealed class FormSchemaProcessor(
     IFormsRepository formsRepository,
     IFormSchemaRepository schemaRepository,
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
+    IReportingUnitOfWork unitOfWork,
     AppDbContext appDbContext,
     FormSchemaCompiler compiler,
     ILogger<FormSchemaProcessor> logger) : IFormSchemaProcessor
@@ -104,8 +105,26 @@ internal sealed class FormSchemaProcessor(
             definitionJson,
             mode: FormSchemaCompileMode.Replace);
 
-        await PersistAsync(tenantId, formId, formDefinitionId, existingSchema, compiled, cancellationToken);
-        await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await PersistAsync(tenantId, formId, formDefinitionId, existingSchema, compiled, cancellationToken);
+
+            // Count lives on App DB and cannot join this Reporting transaction; re-check
+            // immediately before delete so a concurrent first real submission is not wiped.
+            var realSubmissionCount = await CountRealSubmissionsAsync(tenantId, formId, cancellationToken);
+            if (realSubmissionCount == 0)
+            {
+                await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken);
+            }
+
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+        }
+        catch
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
     }
 
     private async Task MergeAsync(

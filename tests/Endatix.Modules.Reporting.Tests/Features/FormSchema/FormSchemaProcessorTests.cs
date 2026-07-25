@@ -73,6 +73,7 @@ public class FormSchemaProcessorTests
           formsRepository,
           schemaRepository,
           flattenedRepository,
+          Substitute.For<IReportingUnitOfWork>(),
           // Early-exit tests never query submissions.
           Substitute.For<AppDbContext>(),
           new FormSchemaCompiler(),
