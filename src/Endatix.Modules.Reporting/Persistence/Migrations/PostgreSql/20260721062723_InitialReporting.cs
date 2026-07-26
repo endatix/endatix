@@ -154,12 +154,14 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
             // Deterministic bigint ids via hashtextextended — do NOT use tenantId * N.
             // Snowflake tenant ids already use most of the signed 64-bit range; multiplying overflows
             // (Postgres 22003: bigint out of range) when remigrating against real tenants.
+            // Clear the sign bit so seeded ids stay positive (Hub validateEndatixId + domain
+            // Guard.Against.NegativeOrZero reject negatives). Do not use abs() — abs(long.MinValue) overflows.
             migrationBuilder.Sql("""
                 INSERT INTO reporting."ExportFormats"
                     ("Id", "TenantId", "Name", "ExportTarget", "DeliveryFormat", "Profile",
                      "Description", "SettingsJson", "CreatedAt", "IsDeleted")
                 SELECT
-                    hashtextextended(t."Id"::text || ':csv', 0),
+                    GREATEST(1, hashtextextended(t."Id"::text || ':csv', 0) & 9223372036854775807::bigint),
                     t."Id",
                     'CSV',
                     'Submissions',
@@ -177,7 +179,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     ("Id", "TenantId", "Name", "ExportTarget", "DeliveryFormat", "Profile",
                      "Description", "SettingsJson", "CreatedAt", "IsDeleted")
                 SELECT
-                    hashtextextended(t."Id"::text || ':json', 0),
+                    GREATEST(1, hashtextextended(t."Id"::text || ':json', 0) & 9223372036854775807::bigint),
                     t."Id",
                     'JSON',
                     'Submissions',
@@ -195,7 +197,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     ("Id", "TenantId", "Name", "ExportTarget", "DeliveryFormat", "Profile",
                      "Description", "SettingsJson", "CreatedAt", "IsDeleted")
                 SELECT
-                    hashtextextended(t."Id"::text || ':codebook', 0),
+                    GREATEST(1, hashtextextended(t."Id"::text || ':codebook', 0) & 9223372036854775807::bigint),
                     t."Id",
                     'Codebook',
                     'Codebook',
@@ -213,10 +215,10 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     ("Id", "TenantId", "SurveyTypeId", "ExportFormatId", "IsDefault",
                      "CreatedAt", "IsDeleted")
                 SELECT
-                    hashtextextended(t."Id"::text || ':default-map', 0),
+                    GREATEST(1, hashtextextended(t."Id"::text || ':default-map', 0) & 9223372036854775807::bigint),
                     t."Id",
                     NULL,
-                    hashtextextended(t."Id"::text || ':csv', 0),
+                    GREATEST(1, hashtextextended(t."Id"::text || ':csv', 0) & 9223372036854775807::bigint),
                     TRUE,
                     NOW(),
                     FALSE
