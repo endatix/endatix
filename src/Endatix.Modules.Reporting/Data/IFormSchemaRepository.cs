@@ -16,4 +16,9 @@ public interface IFormSchemaRepository
     /// Inserts or updates a compiled form schema.
     /// </summary>
     Task SaveAsync(FormSchema schema, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Hard-deletes the compiled schema for a form (including soft-deleted rows).
+    /// </summary>
+    Task<int> DeleteByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken);
 }

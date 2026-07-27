@@ -9,13 +9,15 @@ namespace Endatix.Core.Events;
 /// </summary>
 public sealed class FormDeletedEvent(Form form) : DomainEventBase, IIntegrationEvent
 {
+    public const string EventTypeName = "form.deleted";
+
     public Form Form { get; init; } = form;
 
     // Revision captured at raise time, so the payload keeps this event's revision (not a later one).
     private readonly long _revision = form.Revision;
 
     /// <inheritdoc />
-    public string EventType => "form.deleted";
+    public string EventType => EventTypeName;
 
     /// <inheritdoc />
     public object GetPayload() => FormEventPayload.Create(Form, revision: _revision);
