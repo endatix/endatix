@@ -32,4 +32,11 @@ internal sealed class FormSchemaRepository(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
+
+    /// <inheritdoc />
+    public Task<int> DeleteByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+        dbContext.FormSchemas
+            .IgnoreQueryFilters()
+            .Where(schema => schema.TenantId == tenantId && schema.FormId == formId)
+            .ExecuteDeleteAsync(cancellationToken);
 }
