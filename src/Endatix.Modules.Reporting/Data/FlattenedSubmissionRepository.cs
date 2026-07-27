@@ -53,4 +53,14 @@ internal sealed class FlattenedSubmissionRepository(
             .IgnoreQueryFilters()
             .Where(row => row.TenantId == tenantId && row.FormId == formId)
             .ExecuteDeleteAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public Task<int> DeleteBySubmissionIdAsync(
+        long tenantId,
+        long submissionId,
+        CancellationToken cancellationToken) =>
+        dbContext.FlattenedSubmissions
+            .IgnoreQueryFilters()
+            .Where(row => row.TenantId == tenantId && row.SubmissionId == submissionId)
+            .ExecuteDeleteAsync(cancellationToken);
 }

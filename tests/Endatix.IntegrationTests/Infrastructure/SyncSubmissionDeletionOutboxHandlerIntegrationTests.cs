@@ -33,44 +33,62 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
     }
 
     [Fact]
-    public async Task HandleAsync_WhenRowExists_MarksDeletedAndExcludesFromQueries()
+    public async Task HandleAsync_WhenRowExists_HardDeletesOnlyTargetSubmission()
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
+        ReportingUnitOfWork unitOfWork = new(dbContext);
+
         await repository.GetOrCreateAsync(TenantId, SubmissionId, FormId, cancellationToken);
+        await repository.GetOrCreateAsync(TenantId, SubmissionId + 1, FormId, cancellationToken);
 
-        Submission submission = Submission.Create(new SubmissionCreateArgs(
-            TenantId: TenantId,
-            FormId: FormId,
-            FormDefinitionId: 1,
-            JsonData: "{}",
-            IsComplete: true));
-        submission.Id = SubmissionId;
-        string payload = JsonSerializer.Serialize(
-            new SubmissionDeletedEvent(submission).GetPayload(),
-            WireOptions);
-        FakeOutboxMessage message = new(
-            Id: 1,
-            EventType: SubmissionDeletedEvent.EventTypeName,
-            Payload: payload,
-            TenantId: TenantId);
+        SyncSubmissionDeletionOutboxHandler handler = new(
+            repository,
+            unitOfWork,
+            NullLogger<SyncSubmissionDeletionOutboxHandler>.Instance);
+        await handler.HandleAsync(CreateMessage(SubmissionId), cancellationToken);
 
-        SyncSubmissionDeletionOutboxHandler handler = new(repository, NullLogger<SyncSubmissionDeletionOutboxHandler>.Instance);
-        await handler.HandleAsync(message, cancellationToken);
+        (await dbContext.FlattenedSubmissions
+                .IgnoreQueryFilters()
+                .CountAsync(row => row.SubmissionId == SubmissionId, cancellationToken))
+            .Should().Be(0);
+        (await dbContext.FlattenedSubmissions
+                .IgnoreQueryFilters()
+                .CountAsync(row => row.SubmissionId == SubmissionId + 1, cancellationToken))
+            .Should().Be(1);
+    }
 
-        FlattenedSubmission? filtered = await repository.GetBySubmissionIdAsync(
+    [Fact]
+    public async Task HandleAsync_WhenRowIsSoftDeleted_StillHardDeletes()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        FlattenedSubmissionRepository repository = CreateRepository(dbContext);
+        ReportingUnitOfWork unitOfWork = new(dbContext);
+
+        FlattenedSubmission softDeleted = await repository.GetOrCreateAsync(
             TenantId,
             SubmissionId,
+            FormId,
             cancellationToken);
-        filtered.Should().BeNull("deleted rows are excluded by the global IsDeleted query filter");
+        softDeleted.MarkDeleted();
+        await repository.SaveAsync(softDeleted, cancellationToken);
 
-        FlattenedSubmission persisted = await dbContext.FlattenedSubmissions
-            .IgnoreQueryFilters()
-            .SingleAsync(row => row.SubmissionId == SubmissionId, cancellationToken);
-        persisted.IsDeleted.Should().BeTrue();
+        SyncSubmissionDeletionOutboxHandler handler = new(
+            repository,
+            unitOfWork,
+            NullLogger<SyncSubmissionDeletionOutboxHandler>.Instance);
+        await handler.HandleAsync(CreateMessage(SubmissionId), cancellationToken);
+
+        (await dbContext.FlattenedSubmissions
+                .IgnoreQueryFilters()
+                .CountAsync(row => row.SubmissionId == SubmissionId, cancellationToken))
+            .Should().Be(0);
     }
 
     [Fact]
@@ -81,29 +99,40 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
 
         await using ReportingDbContext dbContext = CreateContext(TenantId);
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
+        ReportingUnitOfWork unitOfWork = new(dbContext);
 
+        SyncSubmissionDeletionOutboxHandler handler = new(
+            repository,
+            unitOfWork,
+            NullLogger<SyncSubmissionDeletionOutboxHandler>.Instance);
+
+        Func<Task> act = () => handler.HandleAsync(CreateMessage(SubmissionId), cancellationToken);
+
+        await act.Should().NotThrowAsync();
+        (await dbContext.FlattenedSubmissions
+                .IgnoreQueryFilters()
+                .CountAsync(cancellationToken))
+            .Should().Be(0);
+    }
+
+    private static FakeOutboxMessage CreateMessage(long submissionId)
+    {
         Submission submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: TenantId,
             FormId: FormId,
             FormDefinitionId: 1,
             JsonData: "{}",
             IsComplete: true));
-        submission.Id = SubmissionId;
+        submission.Id = submissionId;
         string payload = JsonSerializer.Serialize(
             new SubmissionDeletedEvent(submission).GetPayload(),
             WireOptions);
-        FakeOutboxMessage message = new(
-            Id: 2,
+
+        return new FakeOutboxMessage(
+            Id: 1,
             EventType: SubmissionDeletedEvent.EventTypeName,
             Payload: payload,
             TenantId: TenantId);
-
-        SyncSubmissionDeletionOutboxHandler handler = new(repository, NullLogger<SyncSubmissionDeletionOutboxHandler>.Instance);
-
-        Func<Task> act = () => handler.HandleAsync(message, cancellationToken);
-
-        await act.Should().NotThrowAsync();
-        (await dbContext.FlattenedSubmissions.CountAsync(cancellationToken)).Should().Be(0);
     }
 
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
