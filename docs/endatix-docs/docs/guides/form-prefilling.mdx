@@ -139,7 +139,7 @@ Use the endpoint `POST /api/forms/{formId}/submissions/{submissionId}/access-tok
 ```
 
 **Parameters:**
-- `expiryMinutes` - Token lifetime in minutes (minimum: 1, maximum: 10080 / 1 week)
+- `expiryMinutes` - Token lifetime in minutes (minimum: 1, maximum: 86400 / 60 days)
 - `permissions` - Array of permissions to grant:
   - `"view"` - Read-only access to submission data
   - `"edit"` - Permission to modify submission data
