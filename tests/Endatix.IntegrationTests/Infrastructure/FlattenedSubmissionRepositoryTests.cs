@@ -197,6 +197,46 @@ public sealed class FlattenedSubmissionRepositoryTests
             .Should().Be(1);
     }
 
+    [Fact]
+    public async Task DeleteBySubmissionIdAsync_RemovesTargetIncludingSoftDeleted()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        FlattenedSubmissionRepository repository = CreateRepository(dbContext);
+
+        FlattenedSubmission softDeleted = await repository.GetOrCreateAsync(
+            TenantId,
+            SubmissionId,
+            FormId,
+            cancellationToken);
+        softDeleted.MarkDeleted();
+        await repository.SaveAsync(softDeleted, cancellationToken);
+
+        FlattenedSubmission other = await repository.GetOrCreateAsync(
+            TenantId,
+            SubmissionId + 1,
+            FormId,
+            cancellationToken);
+        await repository.SaveAsync(other, cancellationToken);
+
+        int deleted = await repository.DeleteBySubmissionIdAsync(
+            TenantId,
+            SubmissionId,
+            cancellationToken);
+
+        deleted.Should().Be(1);
+        (await dbContext.FlattenedSubmissions
+                .IgnoreQueryFilters()
+                .CountAsync(row => row.SubmissionId == SubmissionId, cancellationToken))
+            .Should().Be(0);
+        (await dbContext.FlattenedSubmissions
+                .IgnoreQueryFilters()
+                .CountAsync(row => row.SubmissionId == SubmissionId + 1, cancellationToken))
+            .Should().Be(1);
+    }
+
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
     {
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);

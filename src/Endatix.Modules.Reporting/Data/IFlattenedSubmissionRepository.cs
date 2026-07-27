@@ -47,4 +47,14 @@ public interface IFlattenedSubmissionRepository
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The number of rows deleted.</returns>
     Task<int> DeleteByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Hard-deletes the flattened submission row for a submission (including soft-deleted rows).
+    /// Used when a submission is deleted so the reporting read model does not keep orphans.
+    /// </summary>
+    /// <param name="tenantId">The tenant ID.</param>
+    /// <param name="submissionId">The submission ID.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of rows deleted.</returns>
+    Task<int> DeleteBySubmissionIdAsync(long tenantId, long submissionId, CancellationToken cancellationToken);
 }

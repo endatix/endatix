@@ -2,20 +2,20 @@ using System.Text.Json;
 using Endatix.Core.Events;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Domain;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Logging;
-using FlattenedSubmissionRow = Endatix.Modules.Reporting.Domain.FlattenedSubmission;
 
 namespace Endatix.Modules.Reporting.Features.Outbox;
 
 /// <summary>
-/// Handles the submission deleted event by marking the submission as deleted in the reporting flattened read model.
+/// Hard-deletes the reporting flattened submission row when a submission is deleted.
 /// </summary>
 internal sealed class SyncSubmissionDeletionOutboxHandler(
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
+    IReportingUnitOfWork unitOfWork,
     ILogger<SyncSubmissionDeletionOutboxHandler> logger) : IOutboxIntegrationEventHandler
 {
+    /// <inheritdoc />
     public IReadOnlyCollection<string> EventTypes { get; } = [SubmissionDeletedEvent.EventTypeName];
 
     /// <inheritdoc />
@@ -27,24 +27,26 @@ internal sealed class SyncSubmissionDeletionOutboxHandler(
         var tenantId = message.GetRequiredTenantId(payload);
         var submissionId = message.GetRequiredIdProp(payload, "submissionId");
 
-        var row = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
-            tenantId,
-            submissionId,
-            cancellationToken);
-        if (row is null)
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
         {
-            logger.LogDebug(
-                "No flattened submission row for outbox message {OutboxMessageId}; deletion is a no-op",
+            var deleted = await flattenedSubmissionRepository.DeleteBySubmissionIdAsync(
+                tenantId,
+                submissionId,
+                cancellationToken);
+
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            logger.LogInformation(
+                "Cleaned reporting flattened submission {SubmissionId} (deleted={Deleted}, outboxMessageId={OutboxMessageId})",
+                submissionId,
+                deleted,
                 message.Id);
-            return;
         }
-
-        row.MarkDeleted();
-        await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
-
-        logger.LogDebug(
-            "Marked flattened submission {SubmissionId} as deleted for outbox message {OutboxMessageId}",
-            submissionId,
-            message.Id);
+        catch
+        {
+            await unitOfWork.RollbackTransactionAsync(CancellationToken.None);
+            throw;
+        }
     }
 }
