@@ -874,8 +874,8 @@
         "tags": [
           "Forms"
         ],
-        "summary": "Generate short-lived access token for submission",
-        "description": "Creates a temporary signed token for sharing submission access with granular permissions",
+        "summary": "Generate access token for submission",
+        "description": "Creates a signed token for sharing submission access with granular permissions. Expiry is 1–86400 minutes (up to 60 days).",
         "operationId": "EndatixApiEndpointsSubmissionsCreateAccessToken",
         "parameters": [
           {
@@ -4194,7 +4194,7 @@
             "type": "integer",
             "description": "Token expiry time in minutes.",
             "format": "int32",
-            "maximum": 10080.0,
+            "maximum": 86400.0,
             "minimum": 0.0,
             "minLength": 1,
             "nullable": false,
