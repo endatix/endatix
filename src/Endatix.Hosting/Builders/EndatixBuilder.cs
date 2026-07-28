@@ -1,10 +1,10 @@
 using System.Reflection;
 using Ardalis.GuardClauses;
+using Endatix.Api.Infrastructure;
 using Endatix.Framework.Hosting;
 using Endatix.Framework.Modules;
 using Endatix.Hosting.Builders.Logging;
 using Endatix.Infrastructure.Identity;
-using Endatix.Modules.Reporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -138,13 +138,6 @@ public class EndatixBuilder : IBuilderRoot
         // Configure health checks with default settings
         HealthChecks.UseDefaults();
         _logger.LogHealthChecksConfigurationCompleted();
-
-        UseModule(ReportingModule.Instance);
-        if (EndatixModuleRegistration.ShouldRegister(Configuration, ReportingModule.Instance))
-        {
-            // Only wire Reporting serializers and endpoint metadata when the module is active.
-            Api.ConfigureFastEndpoints(ReportingModule.ConfigureFastEndpoints);
-        }
 
         _logger.LogConfigurationCompleted();
         return this;
@@ -293,6 +286,11 @@ public class EndatixBuilder : IBuilderRoot
         _modules.Add(module);
         Infrastructure.Messaging.AddAssembly(module.Assembly);
         Api.ScanAssemblies(module.Assembly);
+
+        if (module is IHasFastEndpointsConfig endpointConfigModule)
+        {
+            Api.ConfigureFastEndpoints(endpointConfigModule.ConfigureFastEndpoints);
+        }
 
         _logger.LogModuleRegistered(module.Assembly.GetName().Name!);
         return this;

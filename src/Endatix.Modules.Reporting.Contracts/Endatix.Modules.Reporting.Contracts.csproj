@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
+    <!-- Published: Endatix.Api's submission export endpoint depends on these contracts, so any
+         Reporting implementation - including one shipped outside this repo - plugs in through them. -->
+    <PackageId>Endatix.Modules.Reporting.Contracts</PackageId>
+    <Description>Extension-point contracts for Endatix reporting and submission export. $(EndatixPlatformDescription)</Description>
     <EnablePackageValidation>false</EnablePackageValidation>
   </PropertyGroup>
 
