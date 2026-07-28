@@ -1,7 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
-    <EnablePackageValidation>false</EnablePackageValidation>
+    <PackageId>Endatix.Modules.Reporting</PackageId>
+    <Title>Endatix - Reporting Module</Title>
+    <Description>
+      This package contains the Reporting module of the Endatix Platform. It provides the reporting bounded context for BI-ready survey exports, including compiled form schemas, flattened submissions and export delivery formats. The module is registered automatically and stays disabled at runtime until the Endatix:FeatureFlags:ReportingModule flag is enabled.
+
+      $(EndatixPlatformDescription)
+    </Description>
   </PropertyGroup>
 
   <PropertyGroup>

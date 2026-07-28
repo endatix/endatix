@@ -1,5 +1,6 @@
 using System.Reflection;
 using Ardalis.GuardClauses;
+using Endatix.Api.Infrastructure;
 using Endatix.Framework.Hosting;
 using Endatix.Framework.Modules;
 using Endatix.Hosting.Builders.Logging;
@@ -139,12 +140,9 @@ public class EndatixBuilder : IBuilderRoot
         HealthChecks.UseDefaults();
         _logger.LogHealthChecksConfigurationCompleted();
 
+        // UseModule honours the module's feature flag and applies its IHasFastEndpointsConfig
+        // (Reporting serializers and endpoint metadata) only when the module actually registers.
         UseModule(ReportingModule.Instance);
-        if (EndatixModuleRegistration.ShouldRegister(Configuration, ReportingModule.Instance))
-        {
-            // Only wire Reporting serializers and endpoint metadata when the module is active.
-            Api.ConfigureFastEndpoints(ReportingModule.ConfigureFastEndpoints);
-        }
 
         _logger.LogConfigurationCompleted();
         return this;
@@ -268,6 +266,8 @@ public class EndatixBuilder : IBuilderRoot
     /// Registers an Endatix module: scans its assembly for MediatR handlers and API endpoints,
     /// and invokes <see cref="IEndatixModule.ConfigureServices"/> during finalization.
     /// Modules implementing <see cref="IHasFeatureFlag"/> are skipped when their flag is disabled.
+    /// Modules implementing <see cref="IHasFastEndpointsConfig"/> contribute their FastEndpoints
+    /// configuration, but only once the module is actually registered.
     /// </summary>
     /// <param name="module">The module to register.</param>
     /// <returns>The builder for chaining.</returns>
@@ -293,6 +293,11 @@ public class EndatixBuilder : IBuilderRoot
         _modules.Add(module);
         Infrastructure.Messaging.AddAssembly(module.Assembly);
         Api.ScanAssemblies(module.Assembly);
+
+        if (module is IHasFastEndpointsConfig endpointConfigModule)
+        {
+            Api.ConfigureFastEndpoints(endpointConfigModule.ConfigureFastEndpoints);
+        }
 
         _logger.LogModuleRegistered(module.Assembly.GetName().Name!);
         return this;

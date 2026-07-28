@@ -23,6 +23,27 @@ dotnet build -c Release --no-restore -p:Version="${VERSION}"
 echo "──── Packing NuGet packages at version ${VERSION} ────"
 dotnet pack -c Release --no-build -p:Version="${VERSION}" -o build/packages/nuget
 
+# A published package must never depend on one of ours that was not packed with
+# it. NuGet turns a ProjectReference into a package dependency even when the
+# referenced project sets IsPackable=false, so the nuspec ends up pointing at an
+# id nobody ever pushed and every external `dotnet add package` dies with NU1101
+# — invisible in this repo (ProjectReferences always resolve) until the release
+# is already public. Only repo-owned ids are checked: a dependency such as
+# Endatix.Outbox.Engine ships from its own repo and is legitimately absent here.
+echo "──── Verifying packed dependencies are self-contained ────"
+UNPACKED_DEPS=0
+for nupkg in build/packages/nuget/*."${VERSION}".nupkg; do
+  pkg_id="$(basename "${nupkg}" ".${VERSION}.nupkg")"
+  while read -r dep; do
+    [[ -n "${dep}" ]] || continue
+    [[ -f "src/${dep}/${dep}.csproj" ]] || continue
+    [[ -f "build/packages/nuget/${dep}.${VERSION}.nupkg" ]] && continue
+    echo "::error::${pkg_id} declares a dependency on ${dep}, which was not packed. Make src/${dep}/${dep}.csproj packable or drop the ProjectReference." >&2
+    UNPACKED_DEPS=1
+  done < <(unzip -p "${nupkg}" '*.nuspec' | grep -o 'dependency id="[^"]*"' | sed 's/^dependency id="//; s/"$//' | sort -u)
+done
+[[ "${UNPACKED_DEPS}" -eq 0 ]] || exit 1
+
 # Container image via the .NET SDK (/t:PublishContainer) — no Dockerfile.
 # One single-arch image per architecture, each loaded into the local Docker
 # daemon: a daemon cannot hold a manifest list, so release-publish.sh stitches

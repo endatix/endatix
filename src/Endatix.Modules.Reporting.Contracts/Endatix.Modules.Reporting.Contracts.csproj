@@ -1,8 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <IsPackable>false</IsPackable>
-    <EnablePackageValidation>false</EnablePackageValidation>
+    <PackageId>Endatix.Modules.Reporting.Contracts</PackageId>
+    <Title>Endatix - Reporting Module Contracts</Title>
+    <Description>
+      This package contains the public contracts of the Endatix Platform Reporting module: export contracts, read DTOs and status codes. It is the extension point the Endatix.Api submission export endpoint binds to, so a reporting implementation can be supplied without depending on the module itself.
+
+      $(EndatixPlatformDescription)
+    </Description>
   </PropertyGroup>
 
   <PropertyGroup>
