@@ -33,7 +33,7 @@ internal static class SurveyJsJsonElementExtensions
 
     public static bool IsSingleSelectBaseSelect(this JsonElement element) =>
         SurveyJsElementType.TryResolve(element.GetSurveyJsType()) is
-            { Category: SurveyJsElementCategory.BaseSelect } &&
+        { Category: SurveyJsElementCategory.BaseSelect } &&
         !element.IsMultiSelectBaseSelect();
 
     public static bool IsRangeSlider(this JsonElement element) =>
@@ -66,17 +66,8 @@ internal static class SurveyJsJsonElementExtensions
     }
 
     /// <summary>
-    /// Gets a non-empty string property, or <c>null</c> if the property is missing or empty.
-    /// </summary>
-    public static string? GetNonEmptyStringProperty(this JsonElement element, string propertyName)
-    {
-        var value = element.GetStringProperty(propertyName);
-
-        return string.IsNullOrWhiteSpace(value) ? null : value;
-    }
-
-    /// <summary>
     /// Gets a non-empty string value, or <c>null</c> if the value is not a string or is empty.
+    /// Trims surrounding whitespace so submission answers match compiled choice keys.
     /// </summary>
     public static string? GetNonEmptyStringValue(this JsonElement element)
     {
@@ -85,7 +76,17 @@ internal static class SurveyJsJsonElementExtensions
             return null;
         }
 
-        var value = element.GetString();
+        var value = element.GetString()?.Trim();
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    /// <summary>
+    /// Gets a non-empty string property, or <c>null</c> if the property is missing or empty.
+    /// </summary>
+    public static string? GetNonEmptyStringProperty(this JsonElement element, string propertyName)
+    {
+        var value = element.GetStringProperty(propertyName)?.Trim();
+
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 

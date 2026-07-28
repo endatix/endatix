@@ -188,6 +188,7 @@ internal static class FlattenedSubmissionFlattener
 
     private static bool ContainsChoice(JsonElement context, string questionName, string choiceValue)
     {
+        var normalizedChoice = choiceValue.Trim();
         if (context.TryGetPropertyValue(questionName) is not JsonElement answer)
         {
             return false;
@@ -196,14 +197,14 @@ internal static class FlattenedSubmissionFlattener
         if (answer.ValueKind is JsonValueKind.True or JsonValueKind.False)
         {
             var boolValue = answer.ValueKind == JsonValueKind.True ? "true" : "false";
-            return string.Equals(boolValue, choiceValue, StringComparison.OrdinalIgnoreCase);
+            return string.Equals(boolValue, normalizedChoice, StringComparison.OrdinalIgnoreCase);
         }
 
         if (answer.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in answer.EnumerateArray())
             {
-                if (string.Equals(item.GetScalarStringValue(), choiceValue, StringComparison.Ordinal))
+                if (string.Equals(item.GetScalarStringValue(), normalizedChoice, StringComparison.Ordinal))
                 {
                     return true;
                 }
@@ -212,7 +213,7 @@ internal static class FlattenedSubmissionFlattener
             return false;
         }
 
-        return string.Equals(answer.GetScalarStringValue(), choiceValue, StringComparison.Ordinal);
+        return string.Equals(answer.GetScalarStringValue(), normalizedChoice, StringComparison.Ordinal);
     }
 
     private static JsonElement ToBooleanJson(bool value)
@@ -223,6 +224,7 @@ internal static class FlattenedSubmissionFlattener
 
     private static int GetRankPosition(JsonElement context, string questionName, string choiceValue)
     {
+        var normalizedChoice = choiceValue.Trim();
         if (context.TryGetPropertyValue(questionName) is not JsonElement answer ||
             answer.ValueKind != JsonValueKind.Array)
         {
@@ -232,7 +234,7 @@ internal static class FlattenedSubmissionFlattener
         var rank = 1;
         foreach (var item in answer.EnumerateArray())
         {
-            if (string.Equals(item.GetScalarStringValue(), choiceValue, StringComparison.Ordinal))
+            if (string.Equals(item.GetScalarStringValue(), normalizedChoice, StringComparison.Ordinal))
             {
                 return rank;
             }

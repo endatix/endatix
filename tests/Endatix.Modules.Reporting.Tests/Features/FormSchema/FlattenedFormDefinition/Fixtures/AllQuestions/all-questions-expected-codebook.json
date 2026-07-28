@@ -1841,7 +1841,9 @@
         "es": "Informaci\u00F3n de contacto"
       },
       "matrixRowValue": "emergency",
-      "rowLabel": {}
+      "rowLabel": {
+        "default": "emergency"
+      }
     },
     "qMultipleText__phone": {
       "parentKey": "qMultipleText",
@@ -1852,7 +1854,9 @@
         "es": "Informaci\u00F3n de contacto"
       },
       "matrixRowValue": "phone",
-      "rowLabel": {}
+      "rowLabel": {
+        "default": "phone"
+      }
     },
     "qPanelText": {
       "parentKey": "qPanelText",

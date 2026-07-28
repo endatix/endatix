@@ -1,0 +1,29 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "matrix",
+          "name": "P7",
+          "title": {
+            "es": "7) Experience by purchase channel"
+          },
+          "isRequired": true,
+          "columns": [
+            "Muy insatisfecho\t",
+            "Neutral\t",
+            "Muy satisfcatoria"
+          ],
+          "rows": [
+            { "value": "Deprati" },
+            { "value": "Etafashion" },
+            { "value": "Sukasa", "text": "" },
+            { "value": "Pycca", "text": "Pycca Stores" },
+            { "value": "Todo Hogar" },
+            { "value": "Tiendas en línea / Páginas web" }
+          ]
+        }
+      ]
+    }
+  ]
+}

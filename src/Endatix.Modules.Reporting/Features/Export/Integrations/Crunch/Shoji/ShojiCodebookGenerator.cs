@@ -1511,21 +1511,47 @@ internal static class ShojiCodebookGenerator
             var alias = ExportKeyTransformer.Transform(columnKey, keySeparator);
             writer.WriteStartObject();
             writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
-
-            if (codebookColumns.TryGetValue(columnKey, out var columnMetadata) &&
-                columnMetadata.TryGetProperty(labelProperty, out var label))
-            {
-                writer.WriteString(ShojiCodebookPropertyNames.Name, ReadDefaultLocalizedText(label));
-            }
-            else
-            {
-                writer.WriteString(ShojiCodebookPropertyNames.Name, alias);
-            }
-
+            writer.WriteString(
+                ShojiCodebookPropertyNames.Name,
+                ResolveSubvariableDisplayName(columnKey, codebookColumns, labelProperty, alias));
             writer.WriteEndObject();
         }
 
         writer.WriteEndArray();
+    }
+
+    private static string ResolveSubvariableDisplayName(
+        string columnKey,
+        IReadOnlyDictionary<string, JsonElement> codebookColumns,
+        string labelProperty,
+        string aliasFallback)
+    {
+        if (!codebookColumns.TryGetValue(columnKey, out var columnMetadata))
+        {
+            return aliasFallback;
+        }
+
+        if (columnMetadata.TryGetProperty(labelProperty, out var label))
+        {
+            var name = ReadDefaultLocalizedText(label).Trim();
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                return name;
+            }
+        }
+
+        // Value-only matrix rows leave rowLabel empty; fall back to the SurveyJS row value.
+        if (columnMetadata.TryGetProperty(FormSchemaPropertyNames.MatrixRowValue, out var rowValue) &&
+            rowValue.ValueKind == JsonValueKind.String)
+        {
+            var matrixRowValue = rowValue.GetString()?.Trim();
+            if (!string.IsNullOrWhiteSpace(matrixRowValue))
+            {
+                return matrixRowValue;
+            }
+        }
+
+        return aliasFallback.Trim();
     }
 
     private static void WriteMultipleResponseCategories(Utf8JsonWriter writer)
@@ -1570,7 +1596,9 @@ internal static class ShojiCodebookGenerator
                 }
 
                 writer.WriteStartObject();
-                writer.WriteString(ShojiCodebookPropertyNames.Name, ReadDefaultLocalizedText(choice, ShojiCodebookPropertyNames.Text));
+                writer.WriteString(
+                    ShojiCodebookPropertyNames.Name,
+                    ReadDefaultLocalizedText(choice, ShojiCodebookPropertyNames.Text).Trim());
                 writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, idElement.GetInt32());
                 writer.WriteNumber(ShojiCodebookPropertyNames.NumericValue, idElement.GetInt32());
                 writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, false);
@@ -1617,7 +1645,9 @@ internal static class ShojiCodebookGenerator
                 }
 
                 writer.WriteStartObject();
-                writer.WriteString(ShojiCodebookPropertyNames.Name, ReadDefaultLocalizedText(column, ShojiCodebookPropertyNames.Text));
+                writer.WriteString(
+                    ShojiCodebookPropertyNames.Name,
+                    ReadDefaultLocalizedText(column, ShojiCodebookPropertyNames.Text).Trim());
                 writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, idElement.GetInt32());
                 writer.WriteNumber(ShojiCodebookPropertyNames.NumericValue, idElement.GetInt32());
                 writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, false);

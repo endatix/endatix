@@ -113,4 +113,177 @@ public sealed class ShojiCodebookGeneratorTests
             names.Add(name).Should().BeTrue($"display name '{name}' must be unique");
         }
     }
+
+    [Fact]
+    public void Generate_MatrixValueOnlyRows_SubvariableNamesFallBackToRowValue()
+    {
+        // Arrange — reproduces endatix#914: value-only / blank-text matrix rows.
+        string definitionJson = FormSchemaFixtureLoader.LoadText("matrix-value-only-rows-definition.json");
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+
+        // Act
+        using JsonDocument document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+        JsonElement p7 = document.RootElement
+            .GetProperty("body")
+            .GetProperty("table")
+            .GetProperty("metadata")
+            .GetProperty("P7");
+
+        // Assert
+        p7.GetProperty("type").GetString().Should().Be("categorical_array");
+        List<(string Alias, string Name)> subvariables = p7
+            .GetProperty("subvariables")
+            .EnumerateArray()
+            .Select(item => (
+                item.GetProperty("alias").GetString()!,
+                item.GetProperty("name").GetString()!))
+            .ToList();
+
+        subvariables.Should().Equal(
+            ("P7--Deprati", "Deprati"),
+            ("P7--Etafashion", "Etafashion"),
+            ("P7--Sukasa", "Sukasa"),
+            ("P7--Pycca", "Pycca Stores"),
+            ("P7--Todo Hogar", "Todo Hogar"),
+            ("P7--Tiendas en línea / Páginas web", "Tiendas en línea / Páginas web"));
+
+        subvariables.Should().OnlyContain(item => !string.IsNullOrWhiteSpace(item.Name));
+    }
+
+    [Fact]
+    public void Generate_MatrixEmptyRowLabel_FallsBackToMatrixRowValue()
+    {
+        // Arrange — defense in depth for pre-fix persisted artifacts with blank rowLabel.
+        string definitionJson = FormSchemaFixtureLoader.LoadText("matrix-value-only-rows-definition.json");
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        System.Text.Json.Nodes.JsonObject root =
+            System.Text.Json.Nodes.JsonNode.Parse(compiled.CodebookJson)!.AsObject();
+        System.Text.Json.Nodes.JsonObject columns = root["columns"]!.AsObject();
+        foreach (KeyValuePair<string, System.Text.Json.Nodes.JsonNode?> column in columns)
+        {
+            System.Text.Json.Nodes.JsonObject columnObject = column.Value!.AsObject();
+            columnObject["rowLabel"] = new System.Text.Json.Nodes.JsonObject
+            {
+                ["default"] = string.Empty,
+            };
+        }
+
+        string mutatedCodebookJson = root.ToJsonString();
+
+        // Act
+        using JsonDocument document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                mutatedCodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+        List<string> names = document.RootElement
+            .GetProperty("body")
+            .GetProperty("table")
+            .GetProperty("metadata")
+            .GetProperty("P7")
+            .GetProperty("subvariables")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("name").GetString()!)
+            .ToList();
+
+        // Assert — ignores blank rowLabel; uses matrixRowValue (not display text).
+        names.Should().Equal(
+            "Deprati",
+            "Etafashion",
+            "Sukasa",
+            "Pycca",
+            "Todo Hogar",
+            "Tiendas en línea / Páginas web");
+    }
+
+    [Fact]
+    public void Generate_TrailingWhitespaceInChoiceValues_StripsFromAliasesAndNames()
+    {
+        // Arrange — Crunch rejects subvariable aliases with trailing spaces
+        // ("Expected column P11--Visitando...  not found" when CSV headers are trimmed).
+        string definitionJson = FormSchemaFixtureLoader.LoadText("trailing-whitespace-choices-definition.json");
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        using JsonDocument document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+        JsonElement metadata = document.RootElement
+            .GetProperty("body")
+            .GetProperty("table")
+            .GetProperty("metadata");
+
+        // Assert — checkbox multiple_response subvariable aliases have no trailing whitespace
+        List<(string Alias, string Name)> p11 = metadata
+            .GetProperty("P11")
+            .GetProperty("subvariables")
+            .EnumerateArray()
+            .Select(item => (
+                item.GetProperty("alias").GetString()!,
+                item.GetProperty("name").GetString()!))
+            .ToList();
+
+        p11.Should().Equal(
+            ("P11--Redes sociales", "Redes sociales"),
+            ("P11--Visitando los centros comerciales", "Visitando los centros comerciales"),
+            ("P11--Otros", "Otros"));
+        p11.Should().OnlyContain(item =>
+            item.Alias == item.Alias.Trim() && item.Name == item.Name.Trim());
+
+        // Assert — matrix row aliases and category names are trimmed
+        List<string> p4Aliases = metadata
+            .GetProperty("P4")
+            .GetProperty("subvariables")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("alias").GetString()!)
+            .ToList();
+        p4Aliases.Should().Equal("P4--Colchones", "P4--Almohadas");
+
+        // Whitespace-valued row must still resolve distinct display text via FindMatrixRowElement.
+        string colchonesLabel = metadata
+            .GetProperty("P4")
+            .GetProperty("subvariables")
+            .EnumerateArray()
+            .Single(item => item.GetProperty("alias").GetString() == "P4--Colchones")
+            .GetProperty("name")
+            .GetString()!;
+        colchonesLabel.Should().Be("Mattresses (display)");
+
+        List<string> p4Categories = metadata
+            .GetProperty("P4")
+            .GetProperty("categories")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("name").GetString()!)
+            .ToList();
+        p4Categories.Should().Equal("Marca", "Precio");
+        p4Categories.Should().OnlyContain(name => name == name.Trim());
+
+        // Assert — FlatteningMap keys are also trimmed (source of truth)
+        compiled.FlatteningMap.Columns.Select(column => column.Key).Should().Contain(
+            "P11__Visitando los centros comerciales",
+            "P11__Otros",
+            "P4__Colchones");
+        compiled.FlatteningMap.Columns.Select(column => column.Key)
+            .Should()
+            .NotContain(key => key != key.Trim());
+
+        // Assert — persisted codebook column rowLabel keeps the distinct SurveyJS text
+        using JsonDocument codebook = JsonDocument.Parse(compiled.CodebookJson);
+        codebook.RootElement
+            .GetProperty("columns")
+            .GetProperty("P4__Colchones")
+            .GetProperty("rowLabel")
+            .GetProperty("default")
+            .GetString()
+            .Should()
+            .Be("Mattresses (display)");
+    }
 }

@@ -1129,20 +1129,13 @@ internal static class FormSchemaCodebookBuilder
             writer.WriteStartObject();
             writer.WriteString(SurveyJsPropertyNames.Value, value);
             writer.WritePropertyName(SurveyJsPropertyNames.Text);
-            var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
-                FindMatrixRowElement(element, value),
-                SurveyJsPropertyNames.Text);
-            if (localized.Count == 0)
-            {
-                writer.WriteStartObject();
-                writer.WriteString(FormSchemaCodebookPropertyNames.Default, text);
-                writer.WriteEndObject();
-            }
-            else
-            {
-                SurveyJsLocalizationHelper.WriteLocalizedStrings(writer, localized);
-            }
-
+            // EnumerateMatrixRows already falls back to value; reuse for blank localized text.
+            WriteLocalizedStringsWithFallback(
+                writer,
+                SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                    FindMatrixRowElement(element, value),
+                    SurveyJsPropertyNames.Text),
+                fallback: text);
             writer.WriteEndObject();
         }
 
@@ -1206,7 +1199,8 @@ internal static class FormSchemaCodebookBuilder
         IReadOnlyDictionary<string, string> localizedText,
         string fallback)
     {
-        if (localizedText.Count == 0)
+        if (localizedText.Count == 0 ||
+            localizedText.Values.All(string.IsNullOrWhiteSpace))
         {
             writer.WriteStartObject();
             writer.WriteString(FormSchemaCodebookPropertyNames.Default, fallback);
@@ -1222,12 +1216,13 @@ internal static class FormSchemaCodebookBuilder
         JsonElement questionElement,
         string rowValue)
     {
+        var rowElement = FindMatrixRowElement(questionElement, rowValue);
+        var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
+            rowElement,
+            SurveyJsPropertyNames.Text);
         writer.WritePropertyName(FormSchemaCodebookPropertyNames.RowLabel);
-        SurveyJsLocalizationHelper.WriteLocalizedStrings(
-            writer,
-            SurveyJsLocalizationHelper.ReadLocalizedStrings(
-                FindMatrixRowElement(questionElement, rowValue),
-                SurveyJsPropertyNames.Text));
+        // SurveyJS allows value-only rows (no text). Mirror WriteChoiceLabel and fall back to value.
+        WriteLocalizedStringsWithFallback(writer, localized, fallback: rowValue);
     }
 
     private static void WriteMatrixColumnLabel(
@@ -1235,12 +1230,20 @@ internal static class FormSchemaCodebookBuilder
         JsonElement questionElement,
         string columnValue)
     {
+        var columnElement = FindMatrixColumnElement(questionElement, columnValue);
+        var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
+            columnElement,
+            SurveyJsPropertyNames.Title);
+        if (localized.Count == 0 ||
+            localized.Values.All(string.IsNullOrWhiteSpace))
+        {
+            localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                columnElement,
+                SurveyJsPropertyNames.Text);
+        }
+
         writer.WritePropertyName(FormSchemaCodebookPropertyNames.ColumnLabel);
-        SurveyJsLocalizationHelper.WriteLocalizedStrings(
-            writer,
-            SurveyJsLocalizationHelper.ReadLocalizedStrings(
-                FindMatrixColumnElement(questionElement, columnValue),
-                SurveyJsPropertyNames.Title));
+        WriteLocalizedStringsWithFallback(writer, localized, fallback: columnValue);
     }
 
     private static JsonElement FindChoiceElement(JsonElement element, string choiceValue)
@@ -1296,17 +1299,25 @@ internal static class FormSchemaCodebookBuilder
             return default;
         }
 
+        // FlatteningMap / MatrixRowValue are trimmed; normalize definition candidates the same way.
+        var target = SurveyJsChoiceHelper.NormalizeChoiceToken(rowValue) ?? rowValue;
         foreach (var row in rows.EnumerateArray())
         {
-            if (row.ValueKind == JsonValueKind.String && row.GetString() == rowValue)
+            if (row.ValueKind == JsonValueKind.String &&
+                string.Equals(
+                    SurveyJsChoiceHelper.NormalizeChoiceToken(row.GetString()),
+                    target,
+                    StringComparison.Ordinal))
             {
                 return row;
             }
 
             if (row.ValueKind == JsonValueKind.Object &&
                 string.Equals(
-                    row.GetStringProperty(SurveyJsPropertyNames.Value) ?? row.GetStringProperty(SurveyJsPropertyNames.Text),
-                    rowValue,
+                    SurveyJsChoiceHelper.NormalizeChoiceToken(
+                        row.GetStringProperty(SurveyJsPropertyNames.Value)
+                        ?? row.GetStringProperty(SurveyJsPropertyNames.Text)),
+                    target,
                     StringComparison.Ordinal))
             {
                 return row;
