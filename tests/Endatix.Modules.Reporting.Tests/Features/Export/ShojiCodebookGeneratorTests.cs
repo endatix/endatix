@@ -247,6 +247,16 @@ public sealed class ShojiCodebookGeneratorTests
             .ToList();
         p4Aliases.Should().Equal("P4--Colchones", "P4--Almohadas");
 
+        // Whitespace-valued row must still resolve distinct display text via FindMatrixRowElement.
+        string colchonesLabel = metadata
+            .GetProperty("P4")
+            .GetProperty("subvariables")
+            .EnumerateArray()
+            .Single(item => item.GetProperty("alias").GetString() == "P4--Colchones")
+            .GetProperty("name")
+            .GetString()!;
+        colchonesLabel.Should().Be("Mattresses (display)");
+
         List<string> p4Categories = metadata
             .GetProperty("P4")
             .GetProperty("categories")
@@ -264,5 +274,16 @@ public sealed class ShojiCodebookGeneratorTests
         compiled.FlatteningMap.Columns.Select(column => column.Key)
             .Should()
             .NotContain(key => key != key.Trim());
+
+        // Assert — persisted codebook column rowLabel keeps the distinct SurveyJS text
+        using JsonDocument codebook = JsonDocument.Parse(compiled.CodebookJson);
+        codebook.RootElement
+            .GetProperty("columns")
+            .GetProperty("P4__Colchones")
+            .GetProperty("rowLabel")
+            .GetProperty("default")
+            .GetString()
+            .Should()
+            .Be("Mattresses (display)");
     }
 }

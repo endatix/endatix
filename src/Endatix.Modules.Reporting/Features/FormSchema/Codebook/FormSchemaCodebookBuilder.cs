@@ -1234,7 +1234,8 @@ internal static class FormSchemaCodebookBuilder
         var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
             columnElement,
             SurveyJsPropertyNames.Title);
-        if (localized.Count == 0)
+        if (localized.Count == 0 ||
+            localized.Values.All(string.IsNullOrWhiteSpace))
         {
             localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
                 columnElement,
@@ -1298,17 +1299,25 @@ internal static class FormSchemaCodebookBuilder
             return default;
         }
 
+        // FlatteningMap / MatrixRowValue are trimmed; normalize definition candidates the same way.
+        var target = SurveyJsChoiceHelper.NormalizeChoiceToken(rowValue) ?? rowValue;
         foreach (var row in rows.EnumerateArray())
         {
-            if (row.ValueKind == JsonValueKind.String && row.GetString() == rowValue)
+            if (row.ValueKind == JsonValueKind.String &&
+                string.Equals(
+                    SurveyJsChoiceHelper.NormalizeChoiceToken(row.GetString()),
+                    target,
+                    StringComparison.Ordinal))
             {
                 return row;
             }
 
             if (row.ValueKind == JsonValueKind.Object &&
                 string.Equals(
-                    row.GetStringProperty(SurveyJsPropertyNames.Value) ?? row.GetStringProperty(SurveyJsPropertyNames.Text),
-                    rowValue,
+                    SurveyJsChoiceHelper.NormalizeChoiceToken(
+                        row.GetStringProperty(SurveyJsPropertyNames.Value)
+                        ?? row.GetStringProperty(SurveyJsPropertyNames.Text)),
+                    target,
                     StringComparison.Ordinal))
             {
                 return row;

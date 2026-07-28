@@ -38,7 +38,7 @@ internal static class SurveyJsChoiceHelper
     /// Trims SurveyJS choice/row tokens so export keys and answer matching stay aligned.
     /// Trailing spaces/tabs in definition values otherwise break Crunch column matching.
     /// </summary>
-    private static string? NormalizeChoiceToken(string? value)
+    internal static string? NormalizeChoiceToken(string? value)
     {
         if (value is null)
         {
@@ -66,11 +66,22 @@ internal static class SurveyJsChoiceHelper
         return choice.GetNonEmptyStringProperty(SurveyJsPropertyNames.Text) ?? value;
     }
 
-    private static string? GetNamedItemValueString(JsonElement element) =>
-        NormalizeChoiceToken(
-            element.GetStringProperty(SurveyJsPropertyNames.Name)
-            ?? element.GetStringProperty(SurveyJsPropertyNames.Value)
-            ?? element.GetStringProperty(SurveyJsPropertyNames.Text));
+    private static string? GetNamedItemValueString(JsonElement element)
+    {
+        var fromName = NormalizeChoiceToken(element.GetStringProperty(SurveyJsPropertyNames.Name));
+        if (fromName is not null)
+        {
+            return fromName;
+        }
+
+        var fromValue = NormalizeChoiceToken(element.GetStringProperty(SurveyJsPropertyNames.Value));
+        if (fromValue is not null)
+        {
+            return fromValue;
+        }
+
+        return NormalizeChoiceToken(element.GetStringProperty(SurveyJsPropertyNames.Text));
+    }
 
     internal static List<string> GetChoiceValues(JsonElement choicesElement)
     {

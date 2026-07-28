@@ -24,7 +24,10 @@
             { "value": "Precio\t", "text": "Precio\t" }
           ],
           "rows": [
-            { "value": "Colchones ", "text": "Colchones " },
+            {
+              "value": "Colchones ",
+              "text": "Mattresses (display)"
+            },
             { "value": "Almohadas", "text": "Almohadas" }
           ]
         }

@@ -412,4 +412,50 @@ public class FormSchemaCompilerTests
       new KeyValuePair<string, string>("Tiendas en línea / Páginas web", "Tiendas en línea / Páginas web"));
     rowLabels.Values.Should().OnlyContain(label => !string.IsNullOrWhiteSpace(label));
   }
+
+  [Fact]
+  public void CompilePersisted_MatrixDropdownBlankTitle_FallsBackToColumnText()
+  {
+    // Arrange — blank localized title must not block usable text before columnValue fallback.
+    const string definitionJson = """
+        {
+          "pages": [
+            {
+              "elements": [
+                {
+                  "type": "matrixdropdown",
+                  "name": "orgCount",
+                  "columns": [
+                    {
+                      "name": "N_org",
+                      "title": { "default": "   " },
+                      "text": { "default": "Count from text" },
+                      "cellType": "text",
+                      "inputType": "number"
+                    }
+                  ],
+                  "rows": [
+                    { "value": "SPO_small", "text": "Small SPO" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+    // Act
+    FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+    using JsonDocument codebook = JsonDocument.Parse(compiled.CodebookJson);
+
+    // Assert
+    codebook.RootElement
+      .GetProperty("columns")
+      .GetProperty("orgCount__SPO_small__N_org")
+      .GetProperty("columnLabel")
+      .GetProperty("default")
+      .GetString()
+      .Should()
+      .Be("Count from text");
+  }
 }
