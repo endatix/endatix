@@ -5,15 +5,41 @@ namespace Endatix.Modules.Reporting.Shared.SurveyJs;
 /// </summary>
 internal static class ExportKeyTransformer
 {
-    internal static string Transform(string canonicalKey, string keySeparator)
+    /// <summary>
+    /// Trims whitespace on each path segment so Crunch/Shoji aliases and CSV headers
+    /// do not retain trailing spaces/tabs from SurveyJS choice values.
+    /// </summary>
+    internal static string Sanitize(string canonicalKey)
     {
-        if (string.IsNullOrEmpty(canonicalKey) ||
-            string.Equals(keySeparator, ExportPathBuilder.SEGMENT_DELIMITER, StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(canonicalKey))
         {
             return canonicalKey;
         }
 
-        return canonicalKey.Replace(
+        if (!canonicalKey.Contains(ExportPathBuilder.SEGMENT_DELIMITER, StringComparison.Ordinal))
+        {
+            return canonicalKey.Trim();
+        }
+
+        var segments = canonicalKey.Split(ExportPathBuilder.SEGMENT_DELIMITER);
+        for (var i = 0; i < segments.Length; i++)
+        {
+            segments[i] = segments[i].Trim();
+        }
+
+        return string.Join(ExportPathBuilder.SEGMENT_DELIMITER, segments);
+    }
+
+    internal static string Transform(string canonicalKey, string keySeparator)
+    {
+        var sanitized = Sanitize(canonicalKey);
+        if (string.IsNullOrEmpty(sanitized) ||
+            string.Equals(keySeparator, ExportPathBuilder.SEGMENT_DELIMITER, StringComparison.Ordinal))
+        {
+            return sanitized;
+        }
+
+        return sanitized.Replace(
             ExportPathBuilder.SEGMENT_DELIMITER,
             keySeparator,
             StringComparison.Ordinal);
@@ -21,10 +47,11 @@ internal static class ExportKeyTransformer
 
     internal static string RemoveLastSegment(string canonicalKey)
     {
-        var separatorIndex = canonicalKey.LastIndexOf(
+        var sanitized = Sanitize(canonicalKey);
+        var separatorIndex = sanitized.LastIndexOf(
             ExportPathBuilder.SEGMENT_DELIMITER,
             StringComparison.Ordinal);
 
-        return separatorIndex < 0 ? canonicalKey : canonicalKey[..separatorIndex];
+        return separatorIndex < 0 ? sanitized : sanitized[..separatorIndex];
     }
 }

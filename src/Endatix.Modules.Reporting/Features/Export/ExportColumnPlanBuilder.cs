@@ -252,7 +252,7 @@ internal static class ExportColumnPlanBuilder
 
         return applyKeySeparator
             ? ExportKeyTransformer.Transform(sourceKey, keySeparator)
-            : sourceKey;
+            : ExportKeyTransformer.Sanitize(sourceKey);
     }
 
     private static Dictionary<string, JsonElement> ReadCodebookColumns(string codebookJson)

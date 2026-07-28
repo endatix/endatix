@@ -8,7 +8,7 @@ internal static class SurveyJsChoiceHelper
     {
         if (choice.ValueKind == JsonValueKind.String)
         {
-            return choice.GetString();
+            return NormalizeChoiceToken(choice.GetString());
         }
 
         if (choice.ValueKind == JsonValueKind.Number)
@@ -25,13 +25,28 @@ internal static class SurveyJsChoiceHelper
         {
             return valueProp.ValueKind switch
             {
-                JsonValueKind.String => valueProp.GetString(),
+                JsonValueKind.String => NormalizeChoiceToken(valueProp.GetString()),
                 JsonValueKind.Number => valueProp.GetRawText(),
                 _ => null,
             };
         }
 
-        return choice.GetStringProperty(SurveyJsPropertyNames.Text);
+        return NormalizeChoiceToken(choice.GetStringProperty(SurveyJsPropertyNames.Text));
+    }
+
+    /// <summary>
+    /// Trims SurveyJS choice/row tokens so export keys and answer matching stay aligned.
+    /// Trailing spaces/tabs in definition values otherwise break Crunch column matching.
+    /// </summary>
+    private static string? NormalizeChoiceToken(string? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.Length == 0 ? null : trimmed;
     }
 
     private static string GetChoiceTextLabel(JsonElement choice, string value)
@@ -42,20 +57,20 @@ internal static class SurveyJsChoiceHelper
             return value;
         }
 
-        var title = choice.GetStringProperty(SurveyJsPropertyNames.Title);
+        var title = choice.GetNonEmptyStringProperty(SurveyJsPropertyNames.Title);
         if (title is not null)
         {
             return title;
         }
 
-        var text = choice.GetStringProperty(SurveyJsPropertyNames.Text);
-        return text ?? value;
+        return choice.GetNonEmptyStringProperty(SurveyJsPropertyNames.Text) ?? value;
     }
 
     private static string? GetNamedItemValueString(JsonElement element) =>
-        element.GetStringProperty(SurveyJsPropertyNames.Name)
-        ?? element.GetStringProperty(SurveyJsPropertyNames.Value)
-        ?? element.GetStringProperty(SurveyJsPropertyNames.Text);
+        NormalizeChoiceToken(
+            element.GetStringProperty(SurveyJsPropertyNames.Name)
+            ?? element.GetStringProperty(SurveyJsPropertyNames.Value)
+            ?? element.GetStringProperty(SurveyJsPropertyNames.Text));
 
     internal static List<string> GetChoiceValues(JsonElement choicesElement)
     {

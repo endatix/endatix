@@ -365,4 +365,51 @@ public class FormSchemaCompilerTests
 
     schema.Columns.Select(column => column.Key).Should().Equal("valid");
   }
+
+  [Fact]
+  public void CompilePersisted_MatrixValueOnlyRows_WritesRowLabelsFromValues()
+  {
+    // Arrange — endatix#914: SurveyJS value-only / blank-text matrix rows.
+    string definitionJson = FormSchemaFixtureLoader.LoadText("matrix-value-only-rows-definition.json");
+    FormSchemaCompiler compiler = new();
+
+    // Act
+    FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+    using JsonDocument codebook = JsonDocument.Parse(compiled.CodebookJson);
+
+    // Assert — question-level rows (default codebook path) keep non-empty text.
+    List<(string Value, string Text)> questionRows = codebook.RootElement
+      .GetProperty("questions")
+      .GetProperty("P7")
+      .GetProperty("rows")
+      .EnumerateArray()
+      .Select(row => (
+        row.GetProperty("value").GetString()!,
+        row.GetProperty("text").GetProperty("default").GetString()!))
+      .ToList();
+
+    questionRows.Should().Equal(
+      ("Deprati", "Deprati"),
+      ("Etafashion", "Etafashion"),
+      ("Sukasa", "Sukasa"),
+      ("Pycca", "Pycca Stores"),
+      ("Todo Hogar", "Todo Hogar"),
+      ("Tiendas en línea / Páginas web", "Tiendas en línea / Páginas web"));
+
+    // Assert — column metadata rowLabel used by Shoji categorical_array subvariables.
+    Dictionary<string, string> rowLabels = codebook.RootElement
+      .GetProperty("columns")
+      .EnumerateObject()
+      .Where(column => column.Name.StartsWith("P7__", StringComparison.Ordinal))
+      .ToDictionary(
+        column => column.Value.GetProperty("matrixRowValue").GetString()!,
+        column => column.Value.GetProperty("rowLabel").GetProperty("default").GetString()!);
+
+    rowLabels.Should().Contain(
+      new KeyValuePair<string, string>("Deprati", "Deprati"),
+      new KeyValuePair<string, string>("Sukasa", "Sukasa"),
+      new KeyValuePair<string, string>("Pycca", "Pycca Stores"),
+      new KeyValuePair<string, string>("Tiendas en línea / Páginas web", "Tiendas en línea / Páginas web"));
+    rowLabels.Values.Should().OnlyContain(label => !string.IsNullOrWhiteSpace(label));
+  }
 }

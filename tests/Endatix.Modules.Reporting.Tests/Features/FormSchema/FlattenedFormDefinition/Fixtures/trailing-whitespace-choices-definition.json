@@ -1,0 +1,34 @@
+{
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "P11",
+          "title": "Where did you look for information?",
+          "choices": [
+            { "value": "Redes sociales", "text": "Redes sociales" },
+            {
+              "value": "Visitando los centros comerciales ",
+              "text": "Visitando los centros comerciales "
+            },
+            { "value": "Otros\t", "text": "Otros\t" }
+          ]
+        },
+        {
+          "type": "matrix",
+          "name": "P4",
+          "title": "Importance by product",
+          "columns": [
+            { "value": "Marca", "text": "Marca" },
+            { "value": "Precio\t", "text": "Precio\t" }
+          ],
+          "rows": [
+            { "value": "Colchones ", "text": "Colchones " },
+            { "value": "Almohadas", "text": "Almohadas" }
+          ]
+        }
+      ]
+    }
+  ]
+}

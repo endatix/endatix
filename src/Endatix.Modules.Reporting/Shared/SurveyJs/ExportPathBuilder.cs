@@ -14,10 +14,18 @@ internal static class ExportPathBuilder
 
         if (segments.Length == 1)
         {
-            return segments[0];
+            return segments[0].Trim();
         }
 
-        return string.Join(SEGMENT_DELIMITER, segments.ToArray());
+        // Trim each segment so trailing spaces in SurveyJS choice/row values do not
+        // leak into FlatteningMap keys (and later Shoji aliases / CSV headers).
+        var trimmed = new string[segments.Length];
+        for (var i = 0; i < segments.Length; i++)
+        {
+            trimmed[i] = segments[i].Trim();
+        }
+
+        return string.Join(SEGMENT_DELIMITER, trimmed);
     }
 
     internal static string ChoiceKey(string questionName, string choiceValue) =>
