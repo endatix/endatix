@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
@@ -35,9 +36,22 @@ public class DefaultCsvFormatter : IValueFormatter
             JsonObject obj => obj.ToJsonString(),
             JsonElement el => FormatJsonElement(el),
 
-            _ => value.ToString()
+            _ => FormatFallback(value)
         };
     }
+
+    /// <summary>
+    /// Renders any value the switch above does not special-case. Formattable values (decimal,
+    /// double, int, TimeSpan, …) are rendered with the invariant culture: the export is written by
+    /// a <c>CsvWriter</c> configured with <see cref="CultureInfo.InvariantCulture"/>, but that
+    /// setting never applies to values the formatter has already turned into strings. Using the
+    /// ambient culture here would emit "12,5" instead of "12.5" on any host whose locale uses a
+    /// decimal comma, silently changing the exported data with the server's regional settings.
+    /// </summary>
+    private static string? FormatFallback(object value) =>
+        value is IFormattable formattable
+            ? formattable.ToString(null, CultureInfo.InvariantCulture)
+            : value.ToString();
 
     private static string FormatJsonArray(JsonArray array)
     {
@@ -141,5 +155,8 @@ public class DefaultCsvFormatter : IValueFormatter
         return boolean.ToString().ToLowerInvariant();
     }
 
-    private static string FormatDateTime(DateTime dateTime) => dateTime.ToString(DATE_TIME_FORMAT);
+    // The ':' in a custom format string is the culture's time separator placeholder, not a
+    // literal, so this pattern is only stable when bound to the invariant culture.
+    private static string FormatDateTime(DateTime dateTime) =>
+        dateTime.ToString(DATE_TIME_FORMAT, CultureInfo.InvariantCulture);
 }

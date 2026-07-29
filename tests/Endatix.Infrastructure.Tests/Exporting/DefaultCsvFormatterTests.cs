@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Exporting;
@@ -73,6 +74,37 @@ public class DefaultCsvFormatterTests
         // Act & Assert
         Assert.Equal("1", formatter.Format(trueDocument.RootElement, _context));
         Assert.Equal("0", formatter.Format(falseDocument.RootElement, _context));
+    }
+
+    [Theory]
+    [InlineData("bg-BG")]
+    [InlineData("de-DE")]
+    [InlineData("fr-FR")]
+    public void Format_UnderCommaDecimalCulture_StillWritesInvariantNumbers(string culture)
+    {
+        // Arrange
+        // The CSV is written by a CsvWriter bound to InvariantCulture, but that never applies to
+        // values the formatter has already stringified. Exported numbers must therefore not drift
+        // with the host's regional settings.
+        var originalCulture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = new CultureInfo(culture);
+
+        try
+        {
+            // Act
+            var decimalResult = _formatter.Format(12.5m, _context);
+            var doubleResult = _formatter.Format(1234.75d, _context);
+            var dateResult = _formatter.Format(new DateTime(2023, 10, 05, 14, 30, 05), _context);
+
+            // Assert
+            decimalResult.Should().Be("12.5");
+            doubleResult.Should().Be("1234.75");
+            dateResult.Should().Be("2023-10-05 14:30:05");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     // --- Data Generators ---
