@@ -179,6 +179,37 @@ public sealed class ShojiCodebookExportDataSourceTests
     }
 
     [Fact]
+    public async Task StreamAsync_WithUnloadedForm_UsesDefaultDatasetNameAndFormIdFallbackDescription()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        formsRepository.GetByIdAsync(FormId, Arg.Any<CancellationToken>()).Returns((Form?)null);
+
+        ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository, formsRepository);
+        ExportDataSourceContext context = CreateContext();
+        await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
+
+        DynamicExportRow row = null!;
+        await foreach (IExportItem item in dataSource.StreamAsync(context, TestContext.Current.CancellationToken))
+        {
+            row = (DynamicExportRow)item;
+        }
+
+        using JsonDocument document = JsonDocument.Parse(row.Data!);
+        JsonElement body = document.RootElement.GetProperty("body");
+        body.GetProperty("name").GetString().Should().Be("Form export");
+        body.GetProperty("description").GetString().Should().Be($"Exported shoji codebook for formID {FormId}");
+    }
+
+    [Fact]
     public async Task StreamAsync_WithNonDefaultLocale_AppendsCultureCodeToDatasetName()
     {
         string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
