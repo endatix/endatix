@@ -54,7 +54,7 @@ Test submissions alone do **not** force merge. This is a defensive bridge until 
 
 ## Registration
 
-Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. The module class implements `IEndatixModule` plus the optional capabilities `IHasFeatureFlag` (runtime gating), `IHasDbMigrations` (migration contributor) and `IHasFastEndpointsConfig` (serializers and OpenAPI tags — applied by the host only when the module actually registers). It is **disabled by default** until enabled in configuration:
+Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. The module class implements `IEndatixModule` plus the optional capabilities `IHasFeatureFlag` (runtime gating), `IHasDbMigrations` (migration contributor) and `IHasFastEndpoints` (endpoint discovery, plus serializers and OpenAPI tags — applied by the host only when the module actually registers). It is **disabled by default** until enabled in configuration:
 
 ```json
 "Endatix": {

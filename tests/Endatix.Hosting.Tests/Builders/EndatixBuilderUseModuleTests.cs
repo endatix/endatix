@@ -99,6 +99,50 @@ public class EndatixBuilderUseModuleTests
         GetConfigureFastEndpoints(builder).Should().BeNull();
     }
 
+    [Fact]
+    public void UseModule_ModuleWithFastEndpoints_ScansTheModuleAssemblyByDefault()
+    {
+        // Arrange
+        var builder = CreateBuilder();
+        var module = new EndpointOwningTestModule();
+
+        // Act
+        builder.UseModule(module);
+
+        // Assert
+        GetScannedAssemblies(builder).Should().Contain(module.Assembly);
+    }
+
+    [Fact]
+    public void UseModule_ModuleDeclaringOwnEndpointAssemblies_ScansThoseInstead()
+    {
+        // Arrange
+        var builder = CreateBuilder();
+        var module = new SatelliteEndpointsTestModule();
+
+        // Act
+        builder.UseModule(module);
+
+        // Assert
+        GetScannedAssemblies(builder).Should().Contain(SatelliteEndpointsTestModule.SatelliteAssembly);
+        GetScannedAssemblies(builder).Should().NotContain(module.Assembly);
+    }
+
+    [Fact]
+    public void UseModule_ModuleWithoutFastEndpoints_ScansNothingForEndpoints()
+    {
+        // Arrange
+        var builder = CreateBuilder();
+
+        // Act
+        builder.UseModule(new TrackingTestModule());
+
+        // Assert
+        // Endpoint discovery follows IHasFastEndpoints, so a plain module must not drag its
+        // assembly into the FastEndpoints scan list.
+        GetScannedAssemblies(builder).Should().BeEmpty();
+    }
+
     private static EndatixBuilder CreateBuilder()
     {
         var configuration = Substitute.For<IConfiguration>();
@@ -141,6 +185,19 @@ public class EndatixBuilderUseModuleTests
     private static void InvokeConfiguredFastEndpoints(EndatixBuilder builder) =>
         GetConfigureFastEndpoints(builder)?.Invoke(new Config());
 
+    /// <summary>
+    /// Reads the assemblies handed to FastEndpoints for endpoint discovery so far. Empty until
+    /// something calls ScanAssemblies, which is what makes the negative cases observable.
+    /// </summary>
+    private static IReadOnlyList<Assembly> GetScannedAssemblies(EndatixBuilder builder)
+    {
+        FieldInfo? apiConfigurationField = typeof(EndatixApiBuilder).GetField("_apiConfigurationBuilder", BindingFlags.Instance | BindingFlags.NonPublic);
+        var apiConfigurationBuilder = apiConfigurationField!.GetValue(builder.Api)!;
+
+        FieldInfo? assembliesField = typeof(ApiConfigurationBuilder).GetField("_endpointAssemblies", BindingFlags.Instance | BindingFlags.NonPublic);
+        return (List<Assembly>)assembliesField!.GetValue(apiConfigurationBuilder)!;
+    }
+
     private sealed class TrackingTestModule : IEndatixModule
     {
         public Assembly Assembly => typeof(TrackingTestModule).Assembly;
@@ -150,7 +207,7 @@ public class EndatixBuilderUseModuleTests
         }
     }
 
-    private sealed class EndpointConfiguringTestModule : IEndatixModule, IHasFeatureFlag, IHasFastEndpointsConfig
+    private sealed class EndpointConfiguringTestModule : IEndatixModule, IHasFeatureFlag, IHasFastEndpoints
     {
         public const string TestFeatureFlag = "UseModuleEndpointConfigTestModule";
 
@@ -161,6 +218,34 @@ public class EndatixBuilderUseModuleTests
         public int ConfigureFastEndpointsCallCount { get; private set; }
 
         public void ConfigureFastEndpoints(Config config) => ConfigureFastEndpointsCallCount++;
+
+        public void ConfigureServices(EndatixModuleBuilder builder)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Takes both IHasFastEndpoints defaults: endpoints in its own assembly, no endpoint config.
+    /// </summary>
+    private sealed class EndpointOwningTestModule : IEndatixModule, IHasFastEndpoints
+    {
+        public Assembly Assembly => typeof(EndpointOwningTestModule).Assembly;
+
+        public void ConfigureServices(EndatixModuleBuilder builder)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Ships its endpoints in an assembly other than the one declaring the module.
+    /// </summary>
+    private sealed class SatelliteEndpointsTestModule : IEndatixModule, IHasFastEndpoints
+    {
+        public static readonly Assembly SatelliteAssembly = typeof(EndatixBuilder).Assembly;
+
+        public Assembly Assembly => typeof(SatelliteEndpointsTestModule).Assembly;
+
+        public IEnumerable<Assembly> EndpointAssemblies => [SatelliteAssembly];
 
         public void ConfigureServices(EndatixModuleBuilder builder)
         {

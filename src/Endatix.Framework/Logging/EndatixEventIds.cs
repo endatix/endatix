@@ -151,6 +151,7 @@ public static class EndatixEventIds
         public const int DataOptionFromDefault = 1215;
         public const int DataOptionFromConfiguration = 1216;
         public const int PersistenceSetupMessage = 1217;
+        public const int ModuleEndpointsNotDiscovered = 1218;
 
         public const int RangeStart = Ranges.HostingStart;
         public const int RangeEnd = Ranges.HostingEnd;
@@ -174,7 +175,8 @@ public static class EndatixEventIds
             ConfigurationFinalized,
             DataOptionFromDefault,
             DataOptionFromConfiguration,
-            PersistenceSetupMessage
+            PersistenceSetupMessage,
+            ModuleEndpointsNotDiscovered
         ];
     }
 

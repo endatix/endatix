@@ -29,7 +29,7 @@ namespace Endatix.Modules.Reporting;
 /// <summary>
 /// Reporting module (export read model, flattening, export configuration).
 /// </summary>
-public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations, IHasFastEndpointsConfig
+public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations, IHasFastEndpoints
 {
     public static readonly ReportingModule Instance = new();
 
@@ -41,7 +41,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
 
     /// <summary>
     /// Applies reporting-specific FastEndpoints configuration (serializers, OpenAPI tags).
-    /// Invoked by the host through <see cref="IHasFastEndpointsConfig"/> when the module registers.
+    /// Invoked by the host through <see cref="IHasFastEndpoints"/> when the module registers.
     /// </summary>
     public void ConfigureFastEndpoints(Config config) =>
         ReportingModuleEndpointConfiguration.Configure(config);
