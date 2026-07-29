@@ -26,7 +26,6 @@ public class ApiConfigurationBuilder
     private readonly ILogger? _logger;
     private readonly IConfiguration? _configuration;
     private readonly IAppEnvironment? _environment;
-    private readonly List<Assembly> _endpointAssemblies = [];
 
     private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
 
@@ -84,7 +83,7 @@ public class ApiConfigurationBuilder
         // Register FastEndpoints for the core API assembly only.
         // Module assemblies are added via ScanAssemblies so feature-flagged modules
         // do not get endpoint discovery without their DI registrations.
-        ScanAssemblies(typeof(ApiConfigurationBuilder).Assembly);
+        RegisterEndpointDiscovery();
 
         // Add Swagger documentation
         AddSwagger();
@@ -206,34 +205,44 @@ public class ApiConfigurationBuilder
     /// <summary>
     /// Adds endpoint discovery from the specified assemblies.
     /// </summary>
+    /// <remarks>
+    /// Accumulates into the discovery set shared by every builder over this service collection.
+    /// FastEndpoints is registered by <see cref="RegisterEndpointDiscovery"/>; calling this after
+    /// that point replaces the existing registration rather than adding a second one.
+    /// </remarks>
     /// <param name="assemblies">The assemblies to scan for endpoints.</param>
     /// <returns>The builder for chaining.</returns>
     public virtual ApiConfigurationBuilder ScanAssemblies(params Assembly[] assemblies)
     {
-        LogSetupInfo($"Scanning {assemblies.Length} assemblies for endpoints");
+        LogSetupInfo($"Adding {assemblies.Length} assemblies to endpoint discovery");
 
-        var apiAssembly = typeof(ApiConfigurationBuilder).Assembly;
-        if (!_endpointAssemblies.Contains(apiAssembly))
+        var registration = EndpointDiscoveryRegistration.GetOrAdd(Services);
+        var added = registration.Add([typeof(ApiConfigurationBuilder).Assembly, .. assemblies]);
+
+        if (added && registration.IsRegistered)
         {
-            _endpointAssemblies.Add(apiAssembly);
+            registration.Register(Services);
         }
 
-        foreach (var assembly in assemblies)
-        {
-            if (!_endpointAssemblies.Contains(assembly))
-            {
-                _endpointAssemblies.Add(assembly);
-            }
-        }
+        LogSetupInfo($"Endpoint discovery covers {registration.Assemblies.Count} assembly(ies)");
+        return this;
+    }
 
-        Assembly[] endpointAssemblies = [.. _endpointAssemblies];
-        Services.AddFastEndpoints(options =>
-        {
-            options.DisableAutoDiscovery = true;
-            options.Assemblies = endpointAssemblies;
-        });
+    /// <summary>
+    /// Registers FastEndpoints for every assembly added through <see cref="ScanAssemblies"/>.
+    /// </summary>
+    /// <remarks>
+    /// Called by <see cref="UseDefaults"/>, so the common paths need not call it. Safe to call
+    /// again: the registration is replaced, never duplicated.
+    /// </remarks>
+    /// <returns>The builder for chaining.</returns>
+    public virtual ApiConfigurationBuilder RegisterEndpointDiscovery()
+    {
+        var registration = EndpointDiscoveryRegistration.GetOrAdd(Services);
+        registration.Add([typeof(ApiConfigurationBuilder).Assembly]);
+        registration.Register(Services);
 
-        LogSetupInfo($"Endpoint discovery limited to {endpointAssemblies.Length} assembly(ies)");
+        LogSetupInfo($"Endpoint discovery registered for {registration.Assemblies.Count} assembly(ies)");
         return this;
     }
 

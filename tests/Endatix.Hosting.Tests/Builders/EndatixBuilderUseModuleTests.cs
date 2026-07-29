@@ -191,11 +191,21 @@ public class EndatixBuilderUseModuleTests
     /// </summary>
     private static IReadOnlyList<Assembly> GetScannedAssemblies(EndatixBuilder builder)
     {
-        FieldInfo? apiConfigurationField = typeof(EndatixApiBuilder).GetField("_apiConfigurationBuilder", BindingFlags.Instance | BindingFlags.NonPublic);
-        var apiConfigurationBuilder = apiConfigurationField!.GetValue(builder.Api)!;
+        var registrationType = typeof(ApiConfigurationBuilder).Assembly
+            .GetType("Endatix.Api.Builders.EndpointDiscoveryRegistration")!;
 
-        FieldInfo? assembliesField = typeof(ApiConfigurationBuilder).GetField("_endpointAssemblies", BindingFlags.Instance | BindingFlags.NonPublic);
-        return (List<Assembly>)assembliesField!.GetValue(apiConfigurationBuilder)!;
+        var registration = builder.Services
+            .FirstOrDefault(descriptor => descriptor.ServiceType == registrationType)?
+            .ImplementationInstance;
+
+        if (registration is null)
+        {
+            return [];
+        }
+
+        return (IReadOnlyList<Assembly>)registrationType
+            .GetProperty("Assemblies", BindingFlags.Instance | BindingFlags.Public)!
+            .GetValue(registration)!;
     }
 
     private sealed class TrackingTestModule : IEndatixModule
