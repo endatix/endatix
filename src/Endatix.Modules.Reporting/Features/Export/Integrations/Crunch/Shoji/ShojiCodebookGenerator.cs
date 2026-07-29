@@ -40,7 +40,9 @@ internal static class ShojiCodebookGenerator
         string flatteningMapJson,
         string codebookJson,
         string keySeparator = ExportFormatSettings.DefaultKeySeparator,
-        string locale = FormSchemaCodebookPropertyNames.Default)
+        string locale = FormSchemaCodebookPropertyNames.Default,
+        string? datasetName = null,
+        string? datasetDescription = null)
     {
         var previousLocale = _activeLocale.Value;
         _activeLocale.Value = string.IsNullOrWhiteSpace(locale)
@@ -66,7 +68,9 @@ internal static class ShojiCodebookGenerator
                     questions,
                     groupedColumnKeys,
                     codebookColumns,
-                    keySeparator);
+                    keySeparator,
+                    datasetName,
+                    datasetDescription);
             }
 
             return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
@@ -83,14 +87,24 @@ internal static class ShojiCodebookGenerator
         IReadOnlyDictionary<string, JsonElement> questions,
         IReadOnlyDictionary<string, List<string>> groupedColumnKeys,
         IReadOnlyDictionary<string, JsonElement> codebookColumns,
-        string keySeparator)
+        string keySeparator,
+        string? datasetName,
+        string? datasetDescription)
     {
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Element, ShojiCodebookPropertyNames.ShojiEntity);
         writer.WritePropertyName(ShojiCodebookPropertyNames.Body);
         writer.WriteStartObject();
-        writer.WriteString(ShojiCodebookPropertyNames.Name, ShojiCodebookPropertyNames.DefaultDatasetName);
-        writer.WriteString(ShojiCodebookPropertyNames.Description, ShojiCodebookPropertyNames.DefaultDatasetDescription);
+        writer.WriteString(
+            ShojiCodebookPropertyNames.Name,
+            string.IsNullOrWhiteSpace(datasetName)
+                ? ShojiCodebookPropertyNames.DefaultDatasetName
+                : datasetName.Trim());
+        writer.WriteString(
+            ShojiCodebookPropertyNames.Description,
+            string.IsNullOrWhiteSpace(datasetDescription)
+                ? ShojiCodebookPropertyNames.DefaultDatasetDescription
+                : datasetDescription.Trim());
         writer.WritePropertyName(ShojiCodebookPropertyNames.Table);
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Element, ShojiCodebookPropertyNames.CrunchTable);

@@ -41,6 +41,7 @@ public class FormSchemaProviderTests
             Arg.Any<long>(),
             Arg.Any<long>(),
             Arg.Any<long>(),
+            Arg.Any<bool>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -74,7 +75,11 @@ public class FormSchemaProviderTests
             TestContext.Current.CancellationToken);
 
         result.Should().BeSameAs(refreshed);
-        await schemaProcessor.Received(1).ProcessAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>());
+        await schemaProcessor.Received(1).ProcessAsync(
+            TenantId,
+            FormId,
+            FormDefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -111,7 +116,7 @@ public class FormSchemaProviderTests
             TenantId,
             FormId,
             HistoricalFormDefinitionId,
-            Arg.Any<CancellationToken>());
+            cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -138,6 +143,10 @@ public class FormSchemaProviderTests
             TestContext.Current.CancellationToken);
 
         result.Should().BeNull();
-        await schemaProcessor.Received(1).ProcessAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>());
+        await schemaProcessor.Received(1).ProcessAsync(
+            TenantId,
+            FormId,
+            FormDefinitionId,
+            cancellationToken: Arg.Any<CancellationToken>());
     }
 }

@@ -43,7 +43,7 @@ public sealed class CompileFormSchemaOutboxHandlerTests
             TenantId,
             FormId,
             FormDefinitionId,
-            Arg.Any<CancellationToken>());
+            cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -64,6 +64,7 @@ public sealed class CompileFormSchemaOutboxHandlerTests
             Arg.Any<long>(),
             Arg.Any<long>(),
             Arg.Any<long>(),
+            Arg.Any<bool>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -85,6 +86,7 @@ public sealed class CompileFormSchemaOutboxHandlerTests
             Arg.Any<long>(),
             Arg.Any<long>(),
             Arg.Any<long>(),
+            Arg.Any<bool>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -101,7 +103,12 @@ public sealed class CompileFormSchemaOutboxHandlerTests
             Payload: payload,
             TenantId: TenantId);
         _schemaProcessor
-            .ProcessAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .ProcessAsync(
+                Arg.Any<long>(),
+                Arg.Any<long>(),
+                Arg.Any<long>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("compile failed")));
 
         Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);

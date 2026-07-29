@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
@@ -22,8 +23,13 @@ public sealed class ShojiCodebookExportDataSourceTests
     private static readonly ExportFormatSettingsParser ExportFormatSettingsParser =
         new(NullLogger<ExportFormatSettingsParser>.Instance);
 
-    private static ShojiCodebookExportDataSource CreateDataSource(IFormSchemaRepository formSchemaRepository) =>
-        new(formSchemaRepository, ExportFormatSettingsParser);
+    private static ShojiCodebookExportDataSource CreateDataSource(
+        IFormSchemaRepository formSchemaRepository,
+        IFormsRepository? formsRepository = null) =>
+        new(
+            formSchemaRepository,
+            formsRepository ?? Substitute.For<IFormsRepository>(),
+            ExportFormatSettingsParser);
 
     [Fact]
     public async Task PrepareOptionsAsync_WithMissingSchema_ReturnsMissingSchemaMessage()
@@ -97,17 +103,24 @@ public sealed class ShojiCodebookExportDataSourceTests
         FormSchemaCompiler compiler = new();
         FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
         FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+        Form form = new(TenantId, "Customer Satisfaction Survey", "Annual wave");
+        form.Id = FormId;
         string expectedCodebookJson = ShojiCodebookGenerator.Generate(
             schema.FlatteningMap,
             schema.Codebook,
-            ExportFormatSettings.InterimCrunchKeySeparator);
+            ExportFormatSettings.InterimCrunchKeySeparator,
+            datasetName: form.Name,
+            datasetDescription: form.Description);
 
         IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
         formSchemaRepository
             .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
             .Returns(schema);
 
-        ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository);
+        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        formsRepository.GetByIdAsync(FormId, Arg.Any<CancellationToken>()).Returns(form);
+
+        ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository, formsRepository);
         ExportDataSourceContext context = CreateContext(
             settingsJson: """{"keySeparator":"--"}""");
 
@@ -130,6 +143,117 @@ public sealed class ShojiCodebookExportDataSourceTests
             actualDocument.RootElement,
             expectedDocument.RootElement,
             because: "Shoji data source should generate codebook from persisted schema artifacts");
+    }
+
+    [Fact]
+    public async Task StreamAsync_WithFormMissingDescription_UsesFormIdFallbackDescription()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+        Form form = new(TenantId, "Datanium Panel");
+        form.Id = FormId;
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        formsRepository.GetByIdAsync(FormId, Arg.Any<CancellationToken>()).Returns(form);
+
+        ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository, formsRepository);
+        ExportDataSourceContext context = CreateContext();
+        await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
+
+        DynamicExportRow row = null!;
+        await foreach (IExportItem item in dataSource.StreamAsync(context, TestContext.Current.CancellationToken))
+        {
+            row = (DynamicExportRow)item;
+        }
+
+        using JsonDocument document = JsonDocument.Parse(row.Data!);
+        JsonElement body = document.RootElement.GetProperty("body");
+        body.GetProperty("name").GetString().Should().Be("Datanium Panel");
+        body.GetProperty("description").GetString().Should().Be($"Exported shoji codebook for formID {FormId}");
+    }
+
+    [Fact]
+    public async Task StreamAsync_WithNonDefaultLocale_AppendsCultureCodeToDatasetName()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(
+            TenantId,
+            FormId,
+            1,
+            compiled.FlatteningMapJson,
+            compiled.CodebookJson,
+            locales: """["default","es"]""");
+        Form form = new(TenantId, "Datanium Panel", "Wave 1");
+        form.Id = FormId;
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        formsRepository.GetByIdAsync(FormId, Arg.Any<CancellationToken>()).Returns(form);
+
+        ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository, formsRepository);
+        ExportDataSourceContext context = CreateContext(
+            settingsJson: """{"locale":"es","keySeparator":"--"}""");
+
+        Result<ExportOptions> prepareResult = await dataSource.PrepareOptionsAsync(
+            context,
+            TestContext.Current.CancellationToken);
+        prepareResult.IsSuccess.Should().BeTrue();
+
+        DynamicExportRow row = null!;
+        await foreach (IExportItem item in dataSource.StreamAsync(context, TestContext.Current.CancellationToken))
+        {
+            row = (DynamicExportRow)item;
+        }
+
+        using JsonDocument document = JsonDocument.Parse(row.Data!);
+        JsonElement body = document.RootElement.GetProperty("body");
+        body.GetProperty("name").GetString().Should().Be("Datanium Panel - es");
+        body.GetProperty("description").GetString().Should().Be("Wave 1");
+    }
+
+    [Fact]
+    public async Task StreamAsync_WithDefaultLocale_DoesNotAppendCultureCodeToDatasetName()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+        Form form = new(TenantId, "Datanium Panel");
+        form.Id = FormId;
+
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(schema);
+
+        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        formsRepository.GetByIdAsync(FormId, Arg.Any<CancellationToken>()).Returns(form);
+
+        ShojiCodebookExportDataSource dataSource = CreateDataSource(formSchemaRepository, formsRepository);
+        ExportDataSourceContext context = CreateContext(
+            settingsJson: """{"locale":"default"}""");
+
+        await dataSource.PrepareOptionsAsync(context, TestContext.Current.CancellationToken);
+
+        DynamicExportRow row = null!;
+        await foreach (IExportItem item in dataSource.StreamAsync(context, TestContext.Current.CancellationToken))
+        {
+            row = (DynamicExportRow)item;
+        }
+
+        using JsonDocument document = JsonDocument.Parse(row.Data!);
+        document.RootElement.GetProperty("body").GetProperty("name").GetString()
+            .Should().Be("Datanium Panel");
     }
 
     [Fact]

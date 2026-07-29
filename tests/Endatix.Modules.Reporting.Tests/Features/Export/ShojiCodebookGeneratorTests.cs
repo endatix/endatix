@@ -33,6 +33,42 @@ public sealed class ShojiCodebookGeneratorTests
     }
 
     [Fact]
+    public void Generate_WithDatasetMetadata_WritesBodyNameAndDescription()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        using JsonDocument document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator,
+                datasetName: "ACME Wave 1",
+                datasetDescription: "Panel export for ACME"));
+        JsonElement body = document.RootElement.GetProperty("body");
+
+        body.GetProperty("name").GetString().Should().Be("ACME Wave 1");
+        body.GetProperty("description").GetString().Should().Be("Panel export for ACME");
+    }
+
+    [Fact]
+    public void Generate_WithoutDatasetMetadata_KeepsDefaultBodyNameAndDescription()
+    {
+        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        using JsonDocument document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+        JsonElement body = document.RootElement.GetProperty("body");
+
+        body.GetProperty("name").GetString().Should().Be("Form export");
+        body.GetProperty("description").GetString().Should().Be("Shoji codebook metadata");
+    }
+
+    [Fact]
     public void Generate_Order_FollowsSystemColumnsThenSurveyAppearance()
     {
         // Arrange

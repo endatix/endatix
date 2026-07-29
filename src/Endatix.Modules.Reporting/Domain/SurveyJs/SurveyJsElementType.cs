@@ -8,6 +8,11 @@ namespace Endatix.Modules.Reporting.Domain.SurveyJs;
 /// </summary>
 internal sealed record SurveyJsElementType
 {
+    /// <summary>
+    /// SurveyJS default locale catalog key (localized title/description objects and form locale lists).
+    /// </summary>
+    public const string DefaultLocale = "default";
+
     private SurveyJsElementType(string name, SurveyJsElementCategory category, SurveyJsFlattening flattening)
     {
         Guard.Against.NullOrWhiteSpace(name);

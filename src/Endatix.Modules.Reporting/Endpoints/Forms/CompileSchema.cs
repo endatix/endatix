@@ -27,7 +27,8 @@ public sealed class CompileSchema(
             summary.Summary = "Compile reporting form schema";
             summary.Description =
                 "Compiles and persists the export schema for the active form definition. " +
-                "Use before exporting when the form predates the reporting pipeline or outbox processing has not run.";
+                "Use before exporting when the form predates the reporting pipeline or outbox processing has not run. " +
+                "Set replace=true to force Replace mode and clear flattened submissions even when real submissions exist.";
             summary.Responses[200] = "Form schema compiled.";
             summary.Responses[404] = "Form or active definition not found.";
         });
@@ -42,7 +43,7 @@ public sealed class CompileSchema(
         CompileFormSchemaRequest request,
         CancellationToken cancellationToken)
     {
-        CompileFormSchemaCommand command = new(request.FormId, tenantContext.TenantId);
+        CompileFormSchemaCommand command = new(request.FormId, tenantContext.TenantId, request.Replace);
 
         var result = await mediator.Send(command, cancellationToken);
 
@@ -73,6 +74,12 @@ public sealed class CompileFormSchemaValidator : Validator<CompileFormSchemaRequ
 public sealed class CompileFormSchemaRequest
 {
     public long FormId { get; init; }
+
+    /// <summary>
+    /// When <c>true</c>, always replace the schema and clear flattened rows.
+    /// Defaults to <c>false</c> (auto Merge vs Replace from real submission count).
+    /// </summary>
+    public bool Replace { get; init; }
 }
 
 /// <summary>

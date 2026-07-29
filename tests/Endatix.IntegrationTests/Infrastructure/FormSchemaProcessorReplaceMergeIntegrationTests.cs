@@ -79,7 +79,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         FormSchemaProcessor processor = CreateProcessor(formsRepository, reportingDb, appDb);
 
         // Act
-        await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken);
+        await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken: cancellationToken);
 
         // Assert
         reportingDb.ChangeTracker.Clear();
@@ -122,7 +122,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         FormSchemaProcessor processor = CreateProcessor(formsRepository, reportingDb, appDb);
 
         // Act
-        await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken);
+        await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken: cancellationToken);
 
         // Assert
         reportingDb.ChangeTracker.Clear();
@@ -156,7 +156,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         FormSchemaProcessor processor = CreateProcessor(formsRepository, reportingDb, appDb);
 
         // Act
-        await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken);
+        await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken: cancellationToken);
 
         // Assert
         reportingDb.ChangeTracker.Clear();
@@ -169,6 +169,50 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             .IgnoreQueryFilters()
             .CountAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
         flattenedForForm.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WithReplaceTrueAndRealSubmissions_ReplacesSchemaAndDeletesFlattenedRows()
+    {
+        // Arrange
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        SeededForm seed = await SeedFormAsync(seedRealSubmission: true, seedTestSubmission: false, cancellationToken);
+        await SeedReportingStateWithOrphanAsync(seed, cancellationToken);
+
+        FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithoutOrphan) { Id = seed.FormDefinitionId };
+        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        formsRepository
+            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
+            .Returns(currentDefinition);
+
+        await using ReportingDbContext reportingDb = CreateReportingDbContext();
+        await using AppDbContext appDb = CreateAppDbContext();
+        FormSchemaProcessor processor = CreateProcessor(formsRepository, reportingDb, appDb);
+
+        // Act
+        await processor.ProcessAsync(
+            TenantId,
+            seed.FormId,
+            seed.FormDefinitionId,
+            replace: true,
+            cancellationToken);
+
+        // Assert
+        reportingDb.ChangeTracker.Clear();
+        FormSchema schema = await reportingDb.FormSchemas
+            .SingleAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
+        schema.FlatteningMap.Should().Contain("keep");
+        schema.FlatteningMap.Should().NotContain("orphan");
+
+        int flattenedForForm = await reportingDb.FlattenedSubmissions
+            .IgnoreQueryFilters()
+            .CountAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
+        flattenedForForm.Should().Be(0);
+
+        int otherFormRows = await reportingDb.FlattenedSubmissions
+            .IgnoreQueryFilters()
+            .CountAsync(row => row.SubmissionId == OtherFormFlattenedSubmissionId, cancellationToken);
+        otherFormRows.Should().Be(1);
     }
 
     private async Task<SeededForm> SeedFormAsync(

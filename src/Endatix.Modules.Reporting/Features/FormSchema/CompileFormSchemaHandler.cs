@@ -36,6 +36,7 @@ public sealed class CompileFormSchemaHandler(
             request.TenantId,
             request.FormId,
             formDefinitionId,
+            request.Replace,
             cancellationToken);
 
         return Result.Success(
