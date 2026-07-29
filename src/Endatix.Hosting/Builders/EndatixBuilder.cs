@@ -1,5 +1,6 @@
 using System.Reflection;
 using Ardalis.GuardClauses;
+using Endatix.Api.Infrastructure;
 using Endatix.Framework.Hosting;
 using Endatix.Framework.Modules;
 using Endatix.Hosting.Builders.Logging;
@@ -139,12 +140,10 @@ public class EndatixBuilder : IBuilderRoot
         HealthChecks.UseDefaults();
         _logger.LogHealthChecksConfigurationCompleted();
 
+        // UseModule honours the module's feature flag, and wires its endpoints and FastEndpoints
+        // configuration (Reporting serializers and endpoint metadata) via IHasFastEndpoints only
+        // when the module actually registers.
         UseModule(ReportingModule.Instance);
-        if (EndatixModuleRegistration.ShouldRegister(Configuration, ReportingModule.Instance))
-        {
-            // Only wire Reporting serializers and endpoint metadata when the module is active.
-            Api.ConfigureFastEndpoints(ReportingModule.ConfigureFastEndpoints);
-        }
 
         _logger.LogConfigurationCompleted();
         return this;
@@ -265,9 +264,12 @@ public class EndatixBuilder : IBuilderRoot
     }
 
     /// <summary>
-    /// Registers an Endatix module: scans its assembly for MediatR handlers and API endpoints,
-    /// and invokes <see cref="IEndatixModule.ConfigureServices"/> during finalization.
+    /// Registers an Endatix module: scans its assembly for MediatR handlers, and invokes
+    /// <see cref="IEndatixModule.ConfigureServices"/> during finalization.
     /// Modules implementing <see cref="IHasFeatureFlag"/> are skipped when their flag is disabled.
+    /// Modules implementing <see cref="IHasFastEndpoints"/> additionally get endpoint discovery for
+    /// their <see cref="IHasFastEndpoints.EndpointAssemblies"/> and contribute their FastEndpoints
+    /// configuration — both only once the module is actually registered.
     /// </summary>
     /// <param name="module">The module to register.</param>
     /// <returns>The builder for chaining.</returns>
@@ -292,11 +294,51 @@ public class EndatixBuilder : IBuilderRoot
 
         _modules.Add(module);
         Infrastructure.Messaging.AddAssembly(module.Assembly);
-        Api.ScanAssemblies(module.Assembly);
+
+        if (module is IHasFastEndpoints endpointsModule)
+        {
+            Assembly[] endpointAssemblies = [.. endpointsModule.EndpointAssemblies];
+            if (endpointAssemblies.Length > 0)
+            {
+                Api.ScanAssemblies(endpointAssemblies);
+            }
+
+            Api.ConfigureFastEndpoints(endpointsModule.ConfigureFastEndpoints);
+        }
+        else if (DeclaresEndpoints(module.Assembly))
+        {
+            // Endpoint discovery follows IHasFastEndpoints, so a module that ships endpoints
+            // without it would serve none of them and give no clue why. Warn instead.
+            _logger.LogModuleEndpointsNotDiscovered(module.Assembly.GetName().Name!);
+        }
 
         _logger.LogModuleRegistered(module.Assembly.GetName().Name!);
         return this;
     }
+
+    /// <summary>
+    /// Whether an assembly declares concrete FastEndpoints endpoints. Only used to warn about a
+    /// module that ships endpoints without implementing <see cref="IHasFastEndpoints"/>; the
+    /// assembly is not scanned otherwise.
+    /// </summary>
+    private static bool DeclaresEndpoints(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes().Any(IsConcreteEndpoint);
+        }
+        catch (ReflectionTypeLoadException exception)
+        {
+            // A module assembly with an unresolvable reference still yields the types that did
+            // load, which is enough to answer the question.
+            return exception.Types.Any(type => type is not null && IsConcreteEndpoint(type));
+        }
+    }
+
+    private static bool IsConcreteEndpoint(Type type) =>
+        !type.IsAbstract &&
+        !type.IsInterface &&
+        typeof(FastEndpoints.IEndpoint).IsAssignableFrom(type);
 
     /// <summary>
     /// Scans the specified assemblies for Entity Framework entity configurations.

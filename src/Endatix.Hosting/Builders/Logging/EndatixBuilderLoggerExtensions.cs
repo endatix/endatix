@@ -84,6 +84,12 @@ internal static partial class EndatixBuilderLoggerExtensions
     public static partial void LogModuleRegistered(this ILogger logger, string assemblyName);
 
     [LoggerMessage(
+        EventId = EndatixEventIds.Hosting.ModuleEndpointsNotDiscovered,
+        Level = LogLevel.Warning,
+        Message = "Module {AssemblyName} declares FastEndpoints endpoints but does not implement IHasFastEndpoints, so they will not be discovered")]
+    public static partial void LogModuleEndpointsNotDiscovered(this ILogger logger, string assemblyName);
+
+    [LoggerMessage(
         EventId = EndatixEventIds.Hosting.FinalizingConfiguration,
         Level = LogLevel.Debug,
         Message = "Finalizing all configurations")]

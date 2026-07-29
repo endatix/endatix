@@ -2,6 +2,25 @@
 
 Reporting bounded context for BI-ready survey exports.
 
+>[!TIP]
+>**[Endatix Platform](https://github.com/endatix/endatix)** is an open-source data collection and management library for .NET. It is designed for building secure, scalable, and integrated form-centric applications that work with SurveyJS. Endatix empowers business users with advanced workflows, automation, and meaningful insights.
+
+## Installation:
+
+```bash
+dotnet add package Endatix.Modules.Reporting
+```
+
+## Recommended Usage:
+
+For running and hosting the Endatix Platform, **Endatix.Api.Host** is the recommended main package as it simplifies the installation and setup process.
+
+```bash
+dotnet add package Endatix.Api.Host
+```
+
+The module is registered automatically by `EndatixBuilder.UseDefaults()` — no host code change is needed to get it, and none is needed to keep it off. Availability is decided at runtime by the feature flag (see [Registration](#registration)), not by whether the package is present.
+
 ## Module layout (Modulith)
 
 | Package | Contents |
@@ -35,7 +54,7 @@ Test submissions alone do **not** force merge. This is a defensive bridge until 
 
 ## Registration
 
-Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. The module class implements `IEndatixModule` and `IHasFeatureFlag`. It is **disabled by default** until enabled in configuration:
+Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. The module class implements `IEndatixModule` plus the optional capabilities `IHasFeatureFlag` (runtime gating), `IHasDbMigrations` (migration contributor) and `IHasFastEndpoints` (endpoint discovery, plus serializers and OpenAPI tags — applied by the host only when the module actually registers). It is **disabled by default** until enabled in configuration:
 
 ```json
 "Endatix": {
