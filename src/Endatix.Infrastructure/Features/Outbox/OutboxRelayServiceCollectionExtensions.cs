@@ -1,8 +1,10 @@
+using Endatix.Infrastructure.FeatureFlags;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenFeature;
+using OpenFeature.Hosting;
 using OpenFeature.Hosting.Providers.Memory;
 using OpenFeature.Providers.Memory;
 
@@ -51,9 +53,10 @@ public static class OutboxRelayServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddEndatixOpenFeature(this IServiceCollection services)
     {
+        // AddOpenFeature registers the hosted lifecycle service itself; calling
+        // AddHostedFeatureLifecycle() as well is obsolete as of OpenFeature 2.14.
         services.AddOpenFeature((OpenFeature.Hosting.OpenFeatureBuilder builder) =>
         {
-            builder.AddHostedFeatureLifecycle();
             builder.AddInMemoryProvider(serviceProvider =>
             {
                 var runInProcess = serviceProvider.GetService<IConfiguration>()?
@@ -68,6 +71,35 @@ public static class OutboxRelayServiceCollectionExtensions
             });
         });
 
+        UseSingleProcessShutdown(services);
+
         return services;
+    }
+
+    /// <summary>
+    /// Decorates OpenFeature's <see cref="IFeatureLifecycleManager"/> with
+    /// <see cref="SingleShutdownFeatureLifecycleManager"/>, so the process-wide
+    /// <c>OpenFeature.Api</c> is shut down at most once no matter how many hosts stop.
+    /// Idempotent: a second call finds the decorator already in place and does nothing.
+    /// </summary>
+    private static void UseSingleProcessShutdown(IServiceCollection services)
+    {
+        var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(IFeatureLifecycleManager));
+
+        // The decorator registers itself through a factory, so a null ImplementationType means
+        // either that it is already installed or that OpenFeature changed how it registers the
+        // manager — in both cases there is nothing safe to wrap.
+        if (descriptor?.ImplementationType is null)
+        {
+            return;
+        }
+
+        var innerType = descriptor.ImplementationType;
+        services.Remove(descriptor);
+        services.Add(ServiceDescriptor.Describe(
+            typeof(IFeatureLifecycleManager),
+            serviceProvider => new SingleShutdownFeatureLifecycleManager(
+                (IFeatureLifecycleManager)ActivatorUtilities.CreateInstance(serviceProvider, innerType)),
+            descriptor.Lifetime));
     }
 }
