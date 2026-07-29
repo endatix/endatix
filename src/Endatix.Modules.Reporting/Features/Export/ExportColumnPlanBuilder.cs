@@ -19,7 +19,7 @@ internal static class ExportColumnPlanBuilder
     /// </summary>
     internal static IExportColumnPlan Build(
         FormSchemaEntity schema,
-        string locale = "default",
+        string locale = FormSchemaCodebookPropertyNames.Default,
         ColumnAliasProfile aliasProfile = ColumnAliasProfile.Native,
         IReadOnlySet<string>? columnScope = null,
         string keySeparator = ExportFormatSettings.DefaultKeySeparator,
@@ -334,7 +334,8 @@ internal static class ExportColumnPlanBuilder
             return localized.GetString();
         }
 
-        if (property.TryGetProperty("default", out var defaultValue) && defaultValue.ValueKind == JsonValueKind.String)
+        if (property.TryGetProperty(FormSchemaCodebookPropertyNames.Default, out var defaultValue) &&
+            defaultValue.ValueKind == JsonValueKind.String)
         {
             return defaultValue.GetString();
         }

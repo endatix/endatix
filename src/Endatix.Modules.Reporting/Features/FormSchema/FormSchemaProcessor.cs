@@ -10,7 +10,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 
 /// <summary>
 /// Compiles and persists the export schema for a form definition.
-/// Uses replace mode when the form has no real (non-test) submissions; otherwise merge.
+/// Uses replace mode when forced via <c>replace</c> or when the form has no real (non-test) submissions; otherwise merge.
 /// </summary>
 internal sealed class FormSchemaProcessor(
     IFormsRepository formsRepository,
@@ -26,7 +26,8 @@ internal sealed class FormSchemaProcessor(
         long tenantId,
         long formId,
         long formDefinitionId,
-        CancellationToken cancellationToken)
+        bool replace = false,
+        CancellationToken cancellationToken = default)
     {
         DefinitionByFormAndDefinitionIdSpec spec = new(formId, formDefinitionId);
         var formDefinition = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
@@ -53,7 +54,7 @@ internal sealed class FormSchemaProcessor(
                 formId,
                 cancellationToken);
             var realSubmissionCount = await CountRealSubmissionsAsync(tenantId, formId, cancellationToken);
-            var compileMode = realSubmissionCount == 0
+            var compileMode = replace || realSubmissionCount == 0
                 ? FormSchemaCompileMode.Replace
                 : FormSchemaCompileMode.Merge;
 
@@ -65,6 +66,7 @@ internal sealed class FormSchemaProcessor(
                     formDefinitionId,
                     formDefinition.JsonData,
                     existingSchema,
+                    forceClearFlattenedRows: replace,
                     cancellationToken);
             }
             else
@@ -79,10 +81,11 @@ internal sealed class FormSchemaProcessor(
             }
 
             logger.LogInformation(
-                "Compiled form schema for form {FormId} (definition {FormDefinitionId}, compileMode={CompileMode}, realSubmissionCount={RealSubmissionCount})",
+                "Compiled form schema for form {FormId} (definition {FormDefinitionId}, compileMode={CompileMode}, replace={Replace}, realSubmissionCount={RealSubmissionCount})",
                 formId,
                 formDefinitionId,
                 compileMode,
+                replace,
                 realSubmissionCount);
         }
         catch (SchemaCompilationLimitExceededException ex)
@@ -99,6 +102,7 @@ internal sealed class FormSchemaProcessor(
         long formDefinitionId,
         string definitionJson,
         FormSchemaEntity? existingSchema,
+        bool forceClearFlattenedRows,
         CancellationToken cancellationToken)
     {
         var compiled = compiler.CompilePersisted(
@@ -110,12 +114,19 @@ internal sealed class FormSchemaProcessor(
         {
             await PersistAsync(tenantId, formId, formDefinitionId, existingSchema, compiled, cancellationToken);
 
-            // Count lives on App DB and cannot join this Reporting transaction; re-check
-            // immediately before delete so a concurrent first real submission is not wiped.
-            var realSubmissionCount = await CountRealSubmissionsAsync(tenantId, formId, cancellationToken);
-            if (realSubmissionCount == 0)
+            if (forceClearFlattenedRows)
             {
                 await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken);
+            }
+            else
+            {
+                // Count lives on App DB and cannot join this Reporting transaction; re-check
+                // immediately before delete so a concurrent first real submission is not wiped.
+                var realSubmissionCount = await CountRealSubmissionsAsync(tenantId, formId, cancellationToken);
+                if (realSubmissionCount == 0)
+                {
+                    await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken);
+                }
             }
 
             await unitOfWork.CommitTransactionAsync(cancellationToken);

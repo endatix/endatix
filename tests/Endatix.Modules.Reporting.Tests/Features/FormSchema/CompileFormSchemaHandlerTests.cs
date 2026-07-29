@@ -30,7 +30,12 @@ public sealed class CompileFormSchemaHandlerTests
 
         result.Status.Should().Be(ResultStatus.NotFound);
         await schemaProcessor.DidNotReceive()
-            .ProcessAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
+            .ProcessAsync(
+                Arg.Any<long>(),
+                Arg.Any<long>(),
+                Arg.Any<long>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -59,6 +64,34 @@ public sealed class CompileFormSchemaHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value!.FormDefinitionId.Should().Be(FormDefinitionId);
         await schemaProcessor.Received(1)
-            .ProcessAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>());
+            .ProcessAsync(TenantId, FormId, FormDefinitionId, replace: false, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenReplaceTrue_PassesReplaceToProcessor()
+    {
+        Form form = new(TenantId, "Test form") { Id = FormId };
+        FormDefinition definition = new(TenantId, isDraft: false, """{"pages":[]}""")
+        {
+            Id = FormDefinitionId,
+        };
+        form.AddFormDefinition(definition);
+        form.SetActiveFormDefinition(definition);
+
+        IRepository<Form> formsRepository = Substitute.For<IRepository<Form>>();
+        formsRepository
+            .SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        IFormSchemaProcessor schemaProcessor = Substitute.For<IFormSchemaProcessor>();
+        CompileFormSchemaHandler handler = new(formsRepository, schemaProcessor);
+
+        Result<CompileFormSchemaResult> result = await handler.Handle(
+            new CompileFormSchemaCommand(FormId, TenantId, Replace: true),
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        await schemaProcessor.Received(1)
+            .ProcessAsync(TenantId, FormId, FormDefinitionId, replace: true, Arg.Any<CancellationToken>());
     }
 }

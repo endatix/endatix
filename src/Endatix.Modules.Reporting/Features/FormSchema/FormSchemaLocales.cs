@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Domain.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema;
 
@@ -7,8 +8,6 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// </summary>
 public static class FormSchemaLocales
 {
-    private const string DEFAULT_LOCALE_KEY = "default";
-
     /// <summary>
     /// Parses the <c>FormSchema.Locales</c> JSON into a list of locale keys.
     /// </summary>
@@ -18,7 +17,7 @@ public static class FormSchemaLocales
     {
         if (string.IsNullOrWhiteSpace(localesJson))
         {
-            return [DEFAULT_LOCALE_KEY];
+            return [SurveyJsElementType.DefaultLocale];
         }
 
         try
@@ -26,7 +25,7 @@ public static class FormSchemaLocales
             using var document = JsonDocument.Parse(localesJson);
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
-                return [DEFAULT_LOCALE_KEY];
+                return [SurveyJsElementType.DefaultLocale];
             }
 
             List<string> locales = [];
@@ -42,11 +41,11 @@ public static class FormSchemaLocales
                 }
             }
 
-            return locales.Count > 0 ? locales : [DEFAULT_LOCALE_KEY];
+            return locales.Count > 0 ? locales : [SurveyJsElementType.DefaultLocale];
         }
         catch (JsonException)
         {
-            return [DEFAULT_LOCALE_KEY];
+            return [SurveyJsElementType.DefaultLocale];
         }
     }
 

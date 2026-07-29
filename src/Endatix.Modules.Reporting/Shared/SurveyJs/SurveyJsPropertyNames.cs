@@ -40,5 +40,7 @@ internal static class SurveyJsPropertyNames
     public const string MultiSelect = "multiSelect";
     public const string SliderType = "sliderType";
     public const string SliderTypeRange = "range";
-    public const string DefaultLocale = "default";
+
+    /// <inheritdoc cref="Domain.SurveyJs.SurveyJsElementType.DefaultLocale"/>
+    public const string DefaultLocale = Domain.SurveyJs.SurveyJsElementType.DefaultLocale;
 }

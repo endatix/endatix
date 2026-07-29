@@ -64,7 +64,32 @@ public sealed class CompileSchemaTests
         await _mediator.Received(1).Send(
             Arg.Is<CompileFormSchemaCommand>(command =>
                 command.FormId == formId &&
-                command.TenantId == SampleData.TENANT_ID),
+                command.TenantId == SampleData.TENANT_ID &&
+                command.Replace == false),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenReplaceTrue_PassesReplaceToCommand()
+    {
+        const long formId = 100;
+        const long formDefinitionId = 200;
+        CompileFormSchemaRequest request = new() { FormId = formId, Replace = true };
+
+        _mediator.Send(Arg.Any<CompileFormSchemaCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new CompileFormSchemaResult(formId, formDefinitionId)));
+
+        Results<Ok<CompileFormSchemaResponse>, ProblemHttpResult> response =
+            await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        Ok<CompileFormSchemaResponse>? ok = response.Result as Ok<CompileFormSchemaResponse>;
+        ok.Should().NotBeNull();
+
+        await _mediator.Received(1).Send(
+            Arg.Is<CompileFormSchemaCommand>(command =>
+                command.FormId == formId &&
+                command.TenantId == SampleData.TENANT_ID &&
+                command.Replace),
             Arg.Any<CancellationToken>());
     }
 }

@@ -24,6 +24,6 @@ internal sealed class CompileFormSchemaOutboxHandler(
         var formId = message.GetRequiredIdProp(payload, "formId");
         var formDefinitionId = message.GetRequiredIdProp(payload, "formDefinitionId");
 
-        await schemaProcessor.ProcessAsync(tenantId, formId, formDefinitionId, cancellationToken);
+        await schemaProcessor.ProcessAsync(tenantId, formId, formDefinitionId, cancellationToken: cancellationToken);
     }
 }

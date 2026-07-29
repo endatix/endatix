@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
@@ -12,8 +13,11 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// </summary>
 internal sealed class ShojiCodebookExportDataSource(
     IFormSchemaRepository formSchemaRepository,
+    IFormsRepository formsRepository,
     ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
 {
+    private const string DefaultDatasetName = "Form export";
+
     internal static IReadOnlyList<ExportCapability> Capabilities { get; } =
     [
         new(
@@ -79,12 +83,41 @@ internal sealed class ShojiCodebookExportDataSource(
 
         var settings = ResolveSettings(context.Options);
         var requestLocale = ReportingExportSchemaHelper.ResolveLocaleOrDefault(settings.Locale);
+        var (datasetName, datasetDescription) = await ResolveDatasetMetadataAsync(
+            context.FormId,
+            requestLocale,
+            cancellationToken);
         var codebookJson = ShojiCodebookGenerator.Generate(
             schema.FlatteningMap,
             schema.Codebook,
             settings.KeySeparator,
-            requestLocale);
+            requestLocale,
+            datasetName,
+            datasetDescription);
         yield return new DynamicExportRow { Data = codebookJson };
+    }
+
+    private async Task<(string? DatasetName, string DatasetDescription)> ResolveDatasetMetadataAsync(
+        long formId,
+        string locale,
+        CancellationToken cancellationToken)
+    {
+        var form = await formsRepository.GetByIdAsync(formId, cancellationToken);
+        var datasetName = form is not null && !string.IsNullOrWhiteSpace(form.Name)
+            ? form.Name.Trim()
+            : null;
+        var datasetDescription = form is not null && !string.IsNullOrWhiteSpace(form.Description)
+            ? form.Description.Trim()
+            : $"Exported shoji codebook for formID {formId}";
+
+        if (!ReportingExportSchemaHelper.IsDefaultLocale(locale))
+        {
+            datasetName = ReportingExportSchemaHelper.FormatTitleWithLocale(
+                datasetName ?? DefaultDatasetName,
+                locale);
+        }
+
+        return (datasetName, datasetDescription);
     }
 
     private ExportFormatSettings ResolveSettings(ExportOptions options)

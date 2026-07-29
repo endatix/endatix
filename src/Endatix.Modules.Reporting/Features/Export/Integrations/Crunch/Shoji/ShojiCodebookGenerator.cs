@@ -40,7 +40,9 @@ internal static class ShojiCodebookGenerator
         string flatteningMapJson,
         string codebookJson,
         string keySeparator = ExportFormatSettings.DefaultKeySeparator,
-        string locale = FormSchemaCodebookPropertyNames.Default)
+        string locale = FormSchemaCodebookPropertyNames.Default,
+        string? datasetName = null,
+        string? datasetDescription = null)
     {
         var previousLocale = _activeLocale.Value;
         _activeLocale.Value = string.IsNullOrWhiteSpace(locale)
@@ -62,11 +64,14 @@ internal static class ShojiCodebookGenerator
             {
                 WriteShojiCodebook(
                     writer,
-                    flatteningMap,
-                    questions,
-                    groupedColumnKeys,
-                    codebookColumns,
-                    keySeparator);
+                    new ShojiCodebookWriteArgs(
+                        flatteningMap,
+                        questions,
+                        groupedColumnKeys,
+                        codebookColumns,
+                        keySeparator,
+                        datasetName,
+                        datasetDescription));
             }
 
             return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
@@ -77,20 +82,31 @@ internal static class ShojiCodebookGenerator
         }
     }
 
-    private static void WriteShojiCodebook(
-        Utf8JsonWriter writer,
-        MergedFormSchema flatteningMap,
-        IReadOnlyDictionary<string, JsonElement> questions,
-        IReadOnlyDictionary<string, List<string>> groupedColumnKeys,
-        IReadOnlyDictionary<string, JsonElement> codebookColumns,
-        string keySeparator)
+    private sealed record ShojiCodebookWriteArgs(
+        MergedFormSchema FlatteningMap,
+        IReadOnlyDictionary<string, JsonElement> Questions,
+        IReadOnlyDictionary<string, List<string>> GroupedColumnKeys,
+        IReadOnlyDictionary<string, JsonElement> CodebookColumns,
+        string KeySeparator,
+        string? DatasetName,
+        string? DatasetDescription);
+
+    private static void WriteShojiCodebook(Utf8JsonWriter writer, ShojiCodebookWriteArgs args)
     {
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Element, ShojiCodebookPropertyNames.ShojiEntity);
         writer.WritePropertyName(ShojiCodebookPropertyNames.Body);
         writer.WriteStartObject();
-        writer.WriteString(ShojiCodebookPropertyNames.Name, ShojiCodebookPropertyNames.DefaultDatasetName);
-        writer.WriteString(ShojiCodebookPropertyNames.Description, ShojiCodebookPropertyNames.DefaultDatasetDescription);
+        writer.WriteString(
+            ShojiCodebookPropertyNames.Name,
+            string.IsNullOrWhiteSpace(args.DatasetName)
+                ? ShojiCodebookPropertyNames.DefaultDatasetName
+                : args.DatasetName.Trim());
+        writer.WriteString(
+            ShojiCodebookPropertyNames.Description,
+            string.IsNullOrWhiteSpace(args.DatasetDescription)
+                ? ShojiCodebookPropertyNames.DefaultDatasetDescription
+                : args.DatasetDescription.Trim());
         writer.WritePropertyName(ShojiCodebookPropertyNames.Table);
         writer.WriteStartObject();
         writer.WriteString(ShojiCodebookPropertyNames.Element, ShojiCodebookPropertyNames.CrunchTable);
@@ -99,14 +115,20 @@ internal static class ShojiCodebookGenerator
         List<string> writtenAliases = [];
         WriteShojiVariables(
             writer,
-            flatteningMap,
-            questions,
-            groupedColumnKeys,
-            codebookColumns,
-            keySeparator,
+            args.FlatteningMap,
+            args.Questions,
+            args.GroupedColumnKeys,
+            args.CodebookColumns,
+            args.KeySeparator,
             writtenAliases);
         writer.WriteEndObject();
-        WriteOrder(writer, BuildAppearanceOrder(flatteningMap, questions, writtenAliases, keySeparator));
+        WriteOrder(
+            writer,
+            BuildAppearanceOrder(
+                args.FlatteningMap,
+                args.Questions,
+                writtenAliases,
+                args.KeySeparator));
         writer.WriteEndObject();
         writer.WriteEndObject();
         writer.WriteEndObject();

@@ -1,4 +1,5 @@
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Modules.Reporting.Domain.SurveyJs;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
@@ -24,7 +25,32 @@ internal static class ReportingExportSchemaHelper
         FormSchemaLocales.Contains(localesJson, locale);
 
     internal static string ResolveLocaleOrDefault(string? locale) =>
-        string.IsNullOrWhiteSpace(locale) ? "default" : locale.Trim();
+        string.IsNullOrWhiteSpace(locale) ? SurveyJsElementType.DefaultLocale : locale.Trim();
+
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="locale"/> resolves to the default catalog key.
+    /// </summary>
+    internal static bool IsDefaultLocale(string? locale) =>
+        string.Equals(
+            ResolveLocaleOrDefault(locale),
+            SurveyJsElementType.DefaultLocale,
+            StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Appends <c> - {locale}</c> to a title when the locale is not the default catalog key.
+    /// </summary>
+    internal static string FormatTitleWithLocale(string title, string? locale)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+
+        var resolvedLocale = ResolveLocaleOrDefault(locale);
+        if (IsDefaultLocale(resolvedLocale))
+        {
+            return title.Trim();
+        }
+
+        return $"{title.Trim()} - {resolvedLocale}";
+    }
 
     internal static Result<T> InvalidLocaleResult<T>(string localesJson, string locale)
     {

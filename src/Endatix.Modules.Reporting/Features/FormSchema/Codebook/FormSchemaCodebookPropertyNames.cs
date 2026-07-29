@@ -22,7 +22,9 @@ internal static class FormSchemaCodebookPropertyNames
     public const string ColumnLabel = "columnLabel";
 
     public const string Id = "id";
-    public const string Default = "default";
+
+    /// <inheritdoc cref="Domain.SurveyJs.SurveyJsElementType.DefaultLocale"/>
+    public const string Default = Domain.SurveyJs.SurveyJsElementType.DefaultLocale;
 
     public const string UnknownSurveyJsType = "unknown";
 }
