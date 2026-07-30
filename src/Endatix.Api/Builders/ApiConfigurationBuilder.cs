@@ -233,14 +233,23 @@ public class ApiConfigurationBuilder
     /// </summary>
     /// <remarks>
     /// Called by <see cref="UseDefaults"/>, so the common paths need not call it. Safe to call
-    /// again: the registration is replaced, never duplicated.
+    /// again: a call that changes nothing is a no-op, and otherwise the registration is replaced
+    /// rather than duplicated.
     /// </remarks>
     /// <returns>The builder for chaining.</returns>
     public virtual ApiConfigurationBuilder RegisterEndpointDiscovery()
     {
         var registration = EndpointDiscoveryRegistration.GetOrAdd(Services);
-        registration.Add([typeof(ApiConfigurationBuilder).Assembly]);
-        registration.Register(Services);
+        var added = registration.Add([typeof(ApiConfigurationBuilder).Assembly]);
+
+        // Re-registering is wasted work only when nothing changed *and* a registration already
+        // exists. "Nothing new was added" alone is not the test: ScanAssemblies may have
+        // accumulated assemblies without registering yet, and this method is the one that has to
+        // register them — it cannot defer to anyone else.
+        if (added || !registration.IsRegistered)
+        {
+            registration.Register(Services);
+        }
 
         LogSetupInfo($"Endpoint discovery registered for {registration.Assemblies.Count} assembly(ies)");
         return this;

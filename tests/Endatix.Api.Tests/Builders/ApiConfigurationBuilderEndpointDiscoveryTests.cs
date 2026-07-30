@@ -94,6 +94,43 @@ public sealed class ApiConfigurationBuilderEndpointDiscoveryTests
     }
 
     [Fact]
+    public void RegisterEndpointDiscovery_CalledAgainWithNothingNew_DoesNotReRegister()
+    {
+        // Arrange
+        // Registration is eager: EndpointData's constructor reflects over every assembly. Repeating
+        // it with an unchanged set is a wasted reflection pass, so the descriptor should survive
+        // untouched rather than being removed and rebuilt.
+        var services = new ServiceCollection();
+        var builder = new ApiConfigurationBuilder(services);
+        builder.UseDefaults();
+        var descriptor = services.Single(d => d.ServiceType.Name == "EndpointData");
+
+        // Act
+        builder.RegisterEndpointDiscovery();
+
+        // Assert
+        services.Single(d => d.ServiceType.Name == "EndpointData").Should().BeSameAs(descriptor);
+    }
+
+    [Fact]
+    public void RegisterEndpointDiscovery_AfterScanAssembliesAccumulated_StillRegisters()
+    {
+        // Arrange
+        // Guards the tempting-but-wrong optimisation of skipping registration whenever no new
+        // assembly was added: ScanAssemblies has already accumulated this assembly, so Add returns
+        // false here, yet nothing is registered yet and this call must do it.
+        var services = new ServiceCollection();
+        var builder = new ApiConfigurationBuilder(services);
+        builder.ScanAssemblies(ApiAssembly);
+
+        // Act
+        builder.RegisterEndpointDiscovery();
+
+        // Assert
+        CountEndpointDataRegistrations(services).Should().Be(1);
+    }
+
+    [Fact]
     public void ScanAssemblies_WithoutRegistering_DoesNotRegisterFastEndpoints()
     {
         // Arrange
