@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 12
     if: github.event.action == 'opened'
     steps:
-      - uses: actions/first-interaction@v1
+      - uses: actions/first-interaction@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           pr-message: |
