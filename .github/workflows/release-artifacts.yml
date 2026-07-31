@@ -28,7 +28,7 @@ jobs:
       contents: read
       packages: write # GitHub Packages push
       id-token: write # OIDC for Infisical (fetch-secrets)
-    uses: endatix/release-workflows/.github/workflows/release-artifacts.yml@7056fe678e52a4a50af23d14cef11a5a2b4dcd27 # v1 + upload-nuget-artifacts
+    uses: endatix/release-workflows/.github/workflows/release-artifacts.yml@8e04473b8951790b94f7a4486e47d4e714dac9a3 # v1
     with:
       docker-image: ghcr.io/endatix/endatix-api
       promotion: rebuild # NuGet versions are baked in — the image is rebuilt at the tag too
