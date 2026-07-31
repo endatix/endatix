@@ -19,6 +19,12 @@
 #   maintenance                   yes                      yes              no
 #   stable                        yes                      yes              yes
 #
+# NOTE: the nuget.org half of that column is no longer this script's job — it is
+# published by the publish-nuget-org job in .github/workflows/release-artifacts.yml,
+# which must run in THIS repo so its OIDC claim matches the trusted publishing
+# policy. This script still BUILDS the packages into build/packages/nuget/, which
+# that job consumes as a workflow artifact. Docker Hub mirroring stays here.
+#
 # The Helm chart ships to GHCR on every channel: OCI charts are addressed by
 # exact version with no floating pointer to protect, and the prerelease version
 # already keeps canaries out of `helm upgrade` unless --devel is passed.
@@ -31,8 +37,6 @@
 #   HELM_OCI_REPO      OCI chart repo (oci://ghcr.io/endatix/charts)
 #   DOCKER_IMAGE       GHCR image name, from the caller's docker-image input
 #                      (the shared workflows do the ghcr.io login)
-#   NUGET_API_KEY      short-lived nuget.org key minted per run via OIDC
-#                      trusted publishing (NuGet/login) — promoted releases only
 #   ENDATIX_DOCKERHUB_USERNAME / ENDATIX_DOCKERHUB_TOKEN
 #                      Docker Hub credentials via Infisical (fetch-secrets:
 #                      true on the caller) — promoted releases only
@@ -69,14 +73,14 @@ dotnet nuget push "build/packages/nuget/*.${VERSION}.nupkg" \
   -s "$NUGET_SOURCE" \
   --skip-duplicate
 
-if [[ "$PUBLISH_PUBLIC" = true ]]; then
-  : "${NUGET_API_KEY:?NUGET_API_KEY env var is required for promoted releases (minted by NuGet/login — is nuget-login: true set?)}"
-  echo "──── Pushing NuGet packages to nuget.org ────"
-  dotnet nuget push "build/packages/nuget/*.${VERSION}.nupkg" \
-    -k "$NUGET_API_KEY" \
-    -s https://api.nuget.org/v3/index.json \
-    --skip-duplicate
-fi
+# nuget.org is deliberately NOT pushed here. It is done by the publish-nuget-org
+# job in .github/workflows/release-artifacts.yml, which runs in this repo so its
+# OIDC job_workflow_ref claim matches the nuget.org trusted publishing policy.
+# A NuGet/login inside the shared reusable workflow presents
+# endatix/release-workflows instead and is rejected; the minted key cannot be
+# passed back to a caller job because GitHub redacts secrets from job outputs.
+# That job consumes build/packages/nuget/*.nupkg via the upload-nuget-artifacts
+# input on the shared workflow — so this script must keep producing them there.
 
 # The per-arch tags are what release-prepare.sh built and loaded into the local
 # daemon; the plain version tag is a manifest list stitched from them once they

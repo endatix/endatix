@@ -4,10 +4,17 @@ name: Publish Stable Artifacts
 # reviewed draft release (that's when GitHub creates the vX.Y.Z tag).
 # promotion: rebuild — NuGet packages bake the version string into the artifact
 # and cannot be retagged, so the stable packages are rebuilt at the tagged
-# commit and pushed to GitHub Packages + nuget.org (release scripts).
-# nuget.org auth is OIDC trusted publishing (nuget-login): a short-lived API
-# key is minted per run — no long-lived key stored anywhere. fetch-secrets
-# provides the nuget.org username (ENDATIX_NUGET_ORG_USERNAME via Infisical).
+# commit and pushed to GitHub Packages (release scripts).
+#
+# nuget.org publishing happens in the SECOND job below, not in the shared
+# workflow. OIDC's job_workflow_ref claim names the workflow where the job is
+# defined, so a NuGet/login inside the reusable workflow presents
+# endatix/release-workflows and a policy scoped to endatix/endatix rejects it.
+# The minted key cannot be handed back to a caller job either — NuGet/login
+# marks it a secret and GitHub redacts secrets from job outputs — so the push
+# moves to the key rather than the key to the push. This keeps the trusted
+# publishing policy scoped to this repo instead of to the shared workflow.
+#
 # Canary prereleases are filtered out — ci.yml already shipped their packages.
 
 on:
@@ -21,10 +28,73 @@ jobs:
       contents: read
       packages: write # GitHub Packages push
       id-token: write # OIDC for Infisical (fetch-secrets)
-    uses: endatix/release-workflows/.github/workflows/release-artifacts.yml@cca02534258a68b196f9295afe9fd855ad9eee83 # v1
+    uses: endatix/release-workflows/.github/workflows/release-artifacts.yml@7056fe678e52a4a50af23d14cef11a5a2b4dcd27 # v1 + upload-nuget-artifacts
     with:
       docker-image: ghcr.io/endatix/endatix-api
       promotion: rebuild # NuGet versions are baked in — the image is rebuilt at the tag too
-      fetch-secrets: true # ENDATIX_NUGET_ORG_USERNAME + ENDATIX_DOCKERHUB_* via Infisical (prod)
-      nuget-login: true # OIDC trusted publishing → short-lived NUGET_API_KEY
+      fetch-secrets: true # ENDATIX_DOCKERHUB_* via Infisical (prod)
+      nuget-login: false # nuget.org auth happens in publish-nuget-org below
+      upload-nuget-artifacts: true # hand the .nupkg files to that job
       dotnet-version: "10.x"
+
+  # Runs in THIS repo, so the OIDC token carries
+  # job_workflow_ref = endatix/endatix/.github/workflows/release-artifacts.yml —
+  # which is what the nuget.org trusted publishing policy is scoped to.
+  # Mirrors the arrangement already proven in endatix/endatix-relay, where the
+  # login runs in the repo's own workflow.
+  publish-nuget-org:
+    name: Publish packages to nuget.org
+    needs: promote
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    environment:
+      name: Production # matches the Infisical OIDC identity binding
+    permissions:
+      contents: read
+      id-token: write # OIDC for Infisical + NuGet trusted publishing
+    steps:
+      - name: 🔐 Fetch secrets (Infisical, OIDC)
+        uses: Infisical/secrets-action@03d3fa38607956c493f53c6633f94006a13c47ae # v1.0.7
+        with:
+          method: "oidc"
+          env-slug: "prod"
+          project-slug: "github-actions-for-endatix"
+          identity-id: "403af1ed-7046-480f-a100-c4482b8a89ac"
+          recursive: true
+
+      # Must run AFTER Infisical: the nuget.org username (an individual profile
+      # name — the policy creator — not an organization) is injected by it.
+      - name: 🔑 NuGet login (OIDC → temp API key)
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ env.ENDATIX_NUGET_ORG_USERNAME }}
+
+      - name: 📥 Download packages built by the promote job
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: nuget-packages-${{ github.event.release.tag_name }}
+          path: packages
+
+      - name: 🚀 Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+
+          # Fail loud rather than "succeeding" with nothing pushed — the failure
+          # mode that left v0.7.1 tagged and announced with no packages anywhere.
+          shopt -s nullglob
+          pkgs=(packages/*."${VERSION}".nupkg)
+          if [ ${#pkgs[@]} -eq 0 ]; then
+            echo "::error::No .nupkg files matching version ${VERSION} in the artifact" >&2
+            exit 1
+          fi
+          echo "Pushing ${#pkgs[@]} package(s) to nuget.org"
+
+          dotnet nuget push "packages/*.${VERSION}.nupkg" \
+            -k "$NUGET_API_KEY" \
+            -s https://api.nuget.org/v3/index.json \
+            --skip-duplicate
