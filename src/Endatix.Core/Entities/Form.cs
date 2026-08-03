@@ -19,9 +19,8 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
 
     private Form() { } // For EF Core
 
-    private Form(FormCreateArgs args) : base(args.TenantId)
+    private Form(FormCreateArgs args) : base(RequireArgs(args).TenantId)
     {
-        Guard.Against.Null(args);
         Guard.Against.NullOrEmpty(args.Name, null, "Form name cannot be null.");
         if (args.SubmissionTokenExpiryHours.HasValue)
         {
@@ -38,6 +37,12 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         Metadata = args.Metadata;
         WebHookSettingsJson = args.WebHookSettingsJson;
         FolderId = args.FolderId;
+    }
+
+    private static FormCreateArgs RequireArgs(FormCreateArgs args)
+    {
+        Guard.Against.Null(args);
+        return args;
     }
 
     /// <summary>

@@ -102,7 +102,7 @@ public class SubmissionTokenServiceObtainTokenTests
         _formRepository.FirstOrDefaultAsync(
             Arg.Any<FormProjections.SessionTokenExpiryDtoSpec>(),
             Arg.Any<CancellationToken>())
-            .Returns(new FormProjections.FormSessionTokenExpiryDto(FORM_ID, 168));
+            .Returns(new FormProjections.FormSessionTokenExpiryDto(FORM_ID, form.SubmissionTokenExpiryHours));
 
         var before = DateTime.UtcNow;
 
