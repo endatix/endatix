@@ -120,9 +120,6 @@ public class UpdateFormHandler(
         return webHookConfig;
     }
 
-    /// <summary>
-    /// TODO: Replace clear+value pair with <c>UpdateOrReset&lt;int&gt;</c> (see docs/todo-use-union-for-partial-updates.md).
-    /// </summary>
     private static int? ResolveSubmissionTokenExpiryHours(
         int? currentHours,
         int? requestedHours,
