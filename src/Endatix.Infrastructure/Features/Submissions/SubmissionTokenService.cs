@@ -82,7 +82,7 @@ public class SubmissionTokenService : ISubmissionTokenService
         var formExpiry = await _formRepository.FirstOrDefaultAsync(
             new FormProjections.SessionTokenExpiryDtoSpec(formId),
             cancellationToken);
-        Guard.Against.Null(formExpiry, "Form must exist for the submission.");
+        Guard.Against.Null(formExpiry);
 
         if (formExpiry.SubmissionTokenExpiryHours.HasValue)
         {

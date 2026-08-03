@@ -35,7 +35,7 @@ public record CreateFormCommand : ICommand<Result<Form>>
         Guard.Against.NullOrWhiteSpace(formDefinitionJsonData);
         if (submissionTokenExpiryHours.HasValue)
         {
-            Guard.Against.NegativeOrZero(submissionTokenExpiryHours.Value, nameof(submissionTokenExpiryHours));
+            Guard.Against.NegativeOrZero(submissionTokenExpiryHours.Value);
         }
 
         Name = name;

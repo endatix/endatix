@@ -37,7 +37,7 @@ public record UpdateFormCommand : ICommand<Result<Form>>
         Guard.Against.NullOrWhiteSpace(name);
         if (submissionTokenExpiryHours.HasValue)
         {
-            Guard.Against.NegativeOrZero(submissionTokenExpiryHours.Value, nameof(submissionTokenExpiryHours));
+            Guard.Against.NegativeOrZero(submissionTokenExpiryHours.Value);
         }
 
         FormId = formId;

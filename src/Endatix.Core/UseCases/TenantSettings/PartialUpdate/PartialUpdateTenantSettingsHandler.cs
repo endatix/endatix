@@ -38,7 +38,6 @@ public sealed class PartialUpdateTenantSettingsHandler(
             hasUpdates = true;
         }
 
-        // TODO(docs/todo-use-union-for-partial-updates.md): replace clear+value ceremony with UpdateOrReset<T>.
         if (request.ClearSubmissionTokenExpiryHours)
         {
             entity.UpdateSubmissionTokenExpiry(null);

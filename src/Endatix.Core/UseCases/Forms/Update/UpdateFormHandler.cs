@@ -21,36 +21,20 @@ public class UpdateFormHandler(
     private const string DISABLE_CONFLICT_MESSAGE = "Single submission gate cannot be disabled after it has been enabled.";
     private const string PUBLIC_CONFLICT_MESSAGE = "A single-submission form cannot be made public.";
 
+    /// <inheritdoc />
     public async Task<Result<Form>> Handle(UpdateFormCommand request, CancellationToken cancellationToken)
     {
         var form = await repository.GetByIdAsync(request.FormId, cancellationToken);
-        if (form == null)
+        if (form is null)
         {
             return Result.NotFound("Form not found.");
         }
 
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
-
-        if (form.LimitOnePerUser && !requestedLimitOnePerUser)
+        var gateCheck = await EnsureSingleSubmissionGateAllowedAsync(form, requestedLimitOnePerUser, cancellationToken);
+        if (!gateCheck.IsSuccess)
         {
-            return Result<Form>.Conflict(DISABLE_CONFLICT_MESSAGE);
-        }
-
-        if (form.IsPublic && requestedLimitOnePerUser)
-        {
-            return Result<Form>.Conflict(PUBLIC_CONFLICT_MESSAGE);
-        }
-
-        if (!form.LimitOnePerUser && requestedLimitOnePerUser)
-        {
-            var hasDuplicateEligibleSubmissions = await HasDuplicateEligibleSubmissionsAsync(
-                form.Id,
-                submissionRepository,
-                cancellationToken);
-            if (hasDuplicateEligibleSubmissions)
-            {
-                return Result<Form>.Conflict(ENABLE_CONFLICT_MESSAGE);
-            }
+            return gateCheck;
         }
 
         form.SetEnabled(request.IsEnabled); // raises form.enabled_state_changed (outbox) on an actual change
@@ -66,33 +50,7 @@ public class UpdateFormHandler(
             return folderCheck.ToErrorResult<Form>();
         }
 
-        WebHookConfiguration? webHookConfig;
-
-        if (string.IsNullOrWhiteSpace(request.WebHookSettingsJson))
-        {
-            webHookConfig = null;
-        }
-        else
-        {
-            webHookConfig = System.Text.Json.JsonSerializer.Deserialize<WebHookConfiguration>(request.WebHookSettingsJson);
-
-            if (webHookConfig?.Events == null || webHookConfig.Events.Count == 0)
-            {
-                webHookConfig = null;
-            }
-        }
-
-        form.UpdateWebHookSettings(webHookConfig);
-
-        var submissionTokenExpiryHours = form.SubmissionTokenExpiryHours;
-        if (request.ClearSubmissionTokenExpiryHours)
-        {
-            submissionTokenExpiryHours = null;
-        }
-        else if (request.SubmissionTokenExpiryHours.HasValue)
-        {
-            submissionTokenExpiryHours = request.SubmissionTokenExpiryHours;
-        }
+        form.UpdateWebHookSettings(ParseWebHookSettings(request.WebHookSettingsJson));
 
         // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
         // before save so the capture is atomic. (UpdateFormCommand doesn't change IsPublic, so it's preserved.)
@@ -102,7 +60,10 @@ public class UpdateFormHandler(
             form.IsPublic,
             requestedLimitOnePerUser,
             request.Metadata,
-            submissionTokenExpiryHours);
+            ResolveSubmissionTokenExpiryHours(
+                form.SubmissionTokenExpiryHours,
+                request.SubmissionTokenExpiryHours,
+                request.ClearSubmissionTokenExpiryHours));
         await repository.UpdateAsync(form, cancellationToken);
 
         // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows
@@ -113,12 +74,65 @@ public class UpdateFormHandler(
         return Result.Success(form);
     }
 
-    private static Task<bool> HasDuplicateEligibleSubmissionsAsync(
-        long formId,
-        IRepository<Submission> submissionRepository,
-        CancellationToken cancellationToken) =>
-        SingleSubmissionGateDuplicateChecker.HasDuplicateEligibleSubmissionsAsync(
-            formId,
-            submissionRepository,
-            cancellationToken);
+    private async Task<Result<Form>> EnsureSingleSubmissionGateAllowedAsync(
+        Form form,
+        bool requestedLimitOnePerUser,
+        CancellationToken cancellationToken)
+    {
+        if (form.LimitOnePerUser && !requestedLimitOnePerUser)
+        {
+            return Result<Form>.Conflict(DISABLE_CONFLICT_MESSAGE);
+        }
+
+        if (form.IsPublic && requestedLimitOnePerUser)
+        {
+            return Result<Form>.Conflict(PUBLIC_CONFLICT_MESSAGE);
+        }
+
+        if (!form.LimitOnePerUser && requestedLimitOnePerUser)
+        {
+            var hasDuplicates = await SingleSubmissionGateDuplicateChecker.HasDuplicateEligibleSubmissionsAsync(
+                form.Id,
+                submissionRepository,
+                cancellationToken);
+            if (hasDuplicates)
+            {
+                return Result<Form>.Conflict(ENABLE_CONFLICT_MESSAGE);
+            }
+        }
+
+        return Result.Success(form);
+    }
+
+    private static WebHookConfiguration? ParseWebHookSettings(string? webHookSettingsJson)
+    {
+        if (string.IsNullOrWhiteSpace(webHookSettingsJson))
+        {
+            return null;
+        }
+
+        var webHookConfig = System.Text.Json.JsonSerializer.Deserialize<WebHookConfiguration>(webHookSettingsJson);
+        if (webHookConfig?.Events is null || webHookConfig.Events.Count == 0)
+        {
+            return null;
+        }
+
+        return webHookConfig;
+    }
+
+    /// <summary>
+    /// TODO: Replace clear+value pair with <c>UpdateOrReset&lt;int&gt;</c> (see docs/todo-use-union-for-partial-updates.md).
+    /// </summary>
+    private static int? ResolveSubmissionTokenExpiryHours(
+        int? currentHours,
+        int? requestedHours,
+        bool clear)
+    {
+        if (clear)
+        {
+            return null;
+        }
+
+        return requestedHours ?? currentHours;
+    }
 }
