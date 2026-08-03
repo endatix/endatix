@@ -26,15 +26,14 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         if (args.SubmissionTokenExpiryHours.HasValue)
         {
             Guard.Against.NegativeOrZero(
-                args.SubmissionTokenExpiryHours.Value,
-                nameof(args.SubmissionTokenExpiryHours));
+                args.SubmissionTokenExpiryHours.Value);
         }
 
         Name = args.Name;
         Description = args.Description;
         IsEnabled = args.IsEnabled;
         IsPublic = args.IsPublic;
-        LimitOnePerUser = args.IsPublic ? false : args.LimitOnePerUser;
+        LimitOnePerUser = !args.IsPublic && args.LimitOnePerUser;
         SubmissionTokenExpiryHours = args.SubmissionTokenExpiryHours;
         Metadata = args.Metadata;
         WebHookSettingsJson = args.WebHookSettingsJson;
@@ -244,7 +243,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
         if (submissionTokenExpiryHours.HasValue)
         {
-            Guard.Against.NegativeOrZero(submissionTokenExpiryHours.Value, nameof(submissionTokenExpiryHours));
+            Guard.Against.NegativeOrZero(submissionTokenExpiryHours.Value);
         }
 
         Name = name;
