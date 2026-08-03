@@ -43,10 +43,12 @@ public class ListByFormIdHandlerTests
     {
         // Arrange
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 1 };
+        var incompleteModifiedAt = DateTime.UtcNow.AddMinutes(-5);
+        var completeModifiedAt = DateTime.UtcNow.AddMinutes(-2);
         var submissions = new List<SubmissionDto>
         {
-            new(3, false, "{}", 1, 2, 5, DateTime.UtcNow, null, DateTime.UtcNow.AddMinutes(-5), "{ }", "new", null, null, null, null, false),
-            new(4, false, "{}", 1, 2, 6, DateTime.UtcNow, null, DateTime.UtcNow.AddMinutes(-10), "{ }", "new", "7", 7, "7", null, true),
+            new(3, false, "{}", 1, 2, 5, null, null, DateTime.UtcNow.AddMinutes(-15), incompleteModifiedAt, "{ }", "new", null, null, null, null, false),
+            new(4, true, "{}", 1, 2, 6, DateTime.UtcNow.AddMinutes(-1), null, DateTime.UtcNow.AddMinutes(-10), completeModifiedAt, "{ }", "new", "7", 7, "7", null, true),
         };
         var request = new ListByFormIdQuery(1, 1, 10, []);
 
@@ -69,6 +71,10 @@ public class ListByFormIdHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
         result.Value.Items.Count.Should().Be(2);
+        result.Value.Items.Should().ContainSingle(s => s.Id == 3 && !s.IsComplete)
+            .Which.ModifiedAt.Should().Be(incompleteModifiedAt);
+        result.Value.Items.Should().ContainSingle(s => s.Id == 4 && s.IsComplete)
+            .Which.ModifiedAt.Should().Be(completeModifiedAt);
         result.Value.TotalRecords.Should().Be(23);
         result.Value.TotalPages.Should().Be(3);
         result.Value.Page.Should().Be(1);

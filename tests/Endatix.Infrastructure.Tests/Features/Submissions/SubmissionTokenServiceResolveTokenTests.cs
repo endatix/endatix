@@ -11,6 +11,7 @@ namespace Endatix.Infrastructure.Tests.Features.Submissions;
 public class SubmissionTokenServiceResolveTokenTests
 {
     private readonly IRepository<Submission> _submissionRepository;
+    private readonly IRepository<Form> _formRepository;
     private readonly IRepository<TenantSettings> _tenantSettingsRepository;
     private readonly SubmissionTokenService _sut;
     private const long TENANT_ID = SampleData.TENANT_ID;
@@ -18,6 +19,7 @@ public class SubmissionTokenServiceResolveTokenTests
     public SubmissionTokenServiceResolveTokenTests()
     {
         _submissionRepository = Substitute.For<IRepository<Submission>>();
+        _formRepository = Substitute.For<IRepository<Form>>();
         _tenantSettingsRepository = Substitute.For<IRepository<TenantSettings>>();
 
         // Set up default tenant settings with 24-hour expiry
@@ -26,7 +28,7 @@ public class SubmissionTokenServiceResolveTokenTests
             Arg.Any<TenantSettingsByTenantIdSpec>(),
             Arg.Any<CancellationToken>()).Returns(tenantSettings);
 
-        _sut = new SubmissionTokenService(_submissionRepository, _tenantSettingsRepository);
+        _sut = new SubmissionTokenService(_submissionRepository, _formRepository, _tenantSettingsRepository);
     }
 
     [Fact]

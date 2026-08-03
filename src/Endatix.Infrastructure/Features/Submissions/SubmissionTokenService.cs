@@ -10,16 +10,20 @@ namespace Endatix.Infrastructure.Features.Submissions;
 public class SubmissionTokenService : ISubmissionTokenService
 {
     private readonly IRepository<Submission> _submissionRepository;
+    private readonly IRepository<Form> _formRepository;
     private readonly IRepository<TenantSettings> _tenantSettingsRepository;
 
     public SubmissionTokenService(
         IRepository<Submission> submissionRepository,
+        IRepository<Form> formRepository,
         IRepository<TenantSettings> tenantSettingsRepository)
     {
         Guard.Against.Null(submissionRepository);
+        Guard.Against.Null(formRepository);
         Guard.Against.Null(tenantSettingsRepository);
 
         _submissionRepository = submissionRepository;
+        _formRepository = formRepository;
         _tenantSettingsRepository = tenantSettingsRepository;
     }
 
@@ -33,7 +37,7 @@ public class SubmissionTokenService : ISubmissionTokenService
             return Result.NotFound("Submission not found");
         }
 
-        var tokenExpiryHours = await GetTokenExpiryHoursAsync(submission.TenantId, cancellationToken);
+        var tokenExpiryHours = await GetTokenExpiryHoursAsync(submission.FormId, submission.TenantId, cancellationToken);
 
         if (submission.Token == null)
         {
@@ -73,8 +77,18 @@ public class SubmissionTokenService : ISubmissionTokenService
         return Result<long>.Success(submission.Id);
     }
 
-    private async Task<int?> GetTokenExpiryHoursAsync(long tenantId, CancellationToken cancellationToken)
+    private async Task<int?> GetTokenExpiryHoursAsync(long formId, long tenantId, CancellationToken cancellationToken)
     {
+        var formExpiry = await _formRepository.FirstOrDefaultAsync(
+            new FormProjections.SessionTokenExpiryDtoSpec(formId),
+            cancellationToken);
+        Guard.Against.Null(formExpiry);
+
+        if (formExpiry.SubmissionTokenExpiryHours.HasValue)
+        {
+            return formExpiry.SubmissionTokenExpiryHours;
+        }
+
         var tenantSettings = await _tenantSettingsRepository
             .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(tenantId), cancellationToken);
         Guard.Against.Null(tenantSettings, "Tenant settings must be configured.");

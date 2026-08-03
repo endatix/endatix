@@ -27,16 +27,17 @@ public class CreateFormHandler(
             return folderCheck.ToErrorResult<Form>();
         }
 
-        var newForm = new Form(
-            tenantId: tenantContext.TenantId,
-            name: request.Name,
-            description: request.Description,
-            isEnabled: request.IsEnabled,
-            isPublic: false,
-            limitOnePerUser: request.LimitOnePerUser,
-            metadata: request.Metadata,
-            webHookSettingsJson: request.WebHookSettingsJson,
-            folderId: request.FolderId);
+        var newForm = Form.Create(new FormCreateArgs(
+            TenantId: tenantContext.TenantId,
+            Name: request.Name,
+            Description: request.Description,
+            IsEnabled: request.IsEnabled,
+            IsPublic: false,
+            LimitOnePerUser: request.LimitOnePerUser,
+            Metadata: request.Metadata,
+            WebHookSettingsJson: request.WebHookSettingsJson,
+            FolderId: request.FolderId,
+            SubmissionTokenExpiryHours: request.SubmissionTokenExpiryHours));
         var newFormDefinition = new FormDefinition(tenantContext.TenantId, isDraft: true, jsonData: request.FormDefinitionJsonData);
 
         // form.created is captured to the outbox (→ webhook) inside CreateFormWithDefinitionAsync via

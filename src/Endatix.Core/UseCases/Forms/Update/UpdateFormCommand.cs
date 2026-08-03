@@ -15,6 +15,8 @@ public record UpdateFormCommand : ICommand<Result<Form>>
     public string? Description { get; init; }
     public bool IsEnabled { get; init; }
     public bool? LimitOnePerUser { get; init; }
+    public int? SubmissionTokenExpiryHours { get; init; }
+    public bool ClearSubmissionTokenExpiryHours { get; init; }
     public string? Metadata { get; init; }
     public string? WebHookSettingsJson { get; init; }
     public long? FolderId { get; init; }
@@ -26,17 +28,25 @@ public record UpdateFormCommand : ICommand<Result<Form>>
         bool isEnabled,
         string? webHookSettingsJson = null,
         bool? limitOnePerUser = null,
+        int? submissionTokenExpiryHours = null,
+        bool clearSubmissionTokenExpiryHours = false,
         string? metadata = null,
         long? folderId = null)
     {
         Guard.Against.NegativeOrZero(formId);
         Guard.Against.NullOrWhiteSpace(name);
+        if (submissionTokenExpiryHours.HasValue)
+        {
+            Guard.Against.NegativeOrZero(submissionTokenExpiryHours.Value);
+        }
 
         FormId = formId;
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
         LimitOnePerUser = limitOnePerUser;
+        SubmissionTokenExpiryHours = submissionTokenExpiryHours;
+        ClearSubmissionTokenExpiryHours = clearSubmissionTokenExpiryHours;
         Metadata = metadata;
         WebHookSettingsJson = webHookSettingsJson;
         FolderId = folderId;

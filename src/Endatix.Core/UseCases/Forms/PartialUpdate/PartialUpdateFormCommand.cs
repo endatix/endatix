@@ -24,6 +24,17 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
     public bool? IsEnabled { get; init; }
     public bool? IsPublic { get; init; }
     public bool? LimitOnePerUser { get; init; }
+
+    /// <summary>
+    /// When set, overrides form session TTL (hours). Ignored when <see cref="ClearSubmissionTokenExpiryHours"/> is true.
+    /// </summary>
+    public int? SubmissionTokenExpiryHours { get; init; }
+
+    /// <summary>
+    /// When true, clears the form override so token TTL inherits the tenant default.
+    /// </summary>
+    public bool ClearSubmissionTokenExpiryHours { get; init; }
+
     public string? Metadata { get; init; }
     public long? ThemeId
     {

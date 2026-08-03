@@ -19,18 +19,66 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
 
     private Form() { } // For EF Core
 
-    public Form(long tenantId, string name, string? description = null, bool isEnabled = false, bool isPublic = true, bool limitOnePerUser = false, string? metadata = null, string? webHookSettingsJson = null, long? folderId = null)
-        : base(tenantId)
+    private Form(FormCreateArgs args) : base(RequireArgs(args).TenantId)
     {
-        Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
-        Name = name;
-        Description = description;
-        IsEnabled = isEnabled;
-        IsPublic = isPublic;
-        LimitOnePerUser = isPublic ? false : limitOnePerUser;
-        Metadata = metadata;
-        WebHookSettingsJson = webHookSettingsJson;
-        FolderId = folderId;
+        Guard.Against.NullOrEmpty(args.Name, message: "Form name cannot be null.");
+        SubmissionGuards.AgainstInvalidSubmissionTokenExpiry(args.SubmissionTokenExpiryHours);
+
+        Name = args.Name;
+        Description = args.Description;
+        IsEnabled = args.IsEnabled;
+        IsPublic = args.IsPublic;
+        LimitOnePerUser = !args.IsPublic && args.LimitOnePerUser;
+        SubmissionTokenExpiryHours = args.SubmissionTokenExpiryHours;
+        Metadata = args.Metadata;
+        WebHookSettingsJson = args.WebHookSettingsJson;
+        FolderId = args.FolderId;
+    }
+
+    private static FormCreateArgs RequireArgs(FormCreateArgs args)
+    {
+        Guard.Against.Null(args);
+        return args;
+    }
+
+    /// <summary>
+    /// Creates a form from named create arguments.
+    /// </summary>
+    public static Form Create(FormCreateArgs args)
+    {
+        Guard.Against.Null(args);
+        return new Form(args);
+    }
+
+    /// <summary>
+    /// Legacy constructor. Prefer <see cref="Create(FormCreateArgs)"/>.
+    /// <paramref name="submissionTokenExpiryHours"/> is last so existing positional/named
+    /// call sites for metadata / webhooks / folder stay binary-compatible.
+    /// </summary>
+    [Obsolete("Use Form.Create(FormCreateArgs).")]
+    public Form(
+        long tenantId,
+        string name,
+        string? description = null,
+        bool isEnabled = false,
+        bool isPublic = true,
+        bool limitOnePerUser = false,
+        string? metadata = null,
+        string? webHookSettingsJson = null,
+        long? folderId = null,
+        int? submissionTokenExpiryHours = null)
+        : this(new FormCreateArgs(
+            TenantId: tenantId,
+            Name: name,
+            Description: description,
+            IsEnabled: isEnabled,
+            IsPublic: isPublic,
+            LimitOnePerUser: limitOnePerUser,
+            Metadata: metadata,
+            WebHookSettingsJson: webHookSettingsJson,
+            FolderId: folderId,
+            SubmissionTokenExpiryHours: submissionTokenExpiryHours))
+    {
     }
 
     public string Name { get; set; } = null!;
@@ -38,6 +86,13 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     public bool IsEnabled { get; set; }
     public bool IsPublic { get; set; }
     public bool LimitOnePerUser { get; set; }
+
+    /// <summary>
+    /// Optional per-form override for submission resume-token TTL in hours.
+    /// <c>null</c> means inherit <see cref="TenantSettings.SubmissionTokenExpiryHours"/>.
+    /// </summary>
+    public int? SubmissionTokenExpiryHours { get; private set; }
+
     public string? Metadata { get; set; }
 
     /// <summary>
@@ -178,14 +233,23 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     /// event (captured to the outbox → webhook) in a single step — so a caller can't mutate the form and forget
     /// the revision bump/event. The enabled-state change has its own method and event (see <see cref="SetEnabled"/>).
     /// </summary>
-    public void UpdateDetails(string name, string? description, bool isPublic, bool limitOnePerUser, string? metadata)
+    public void UpdateDetails(
+        string name,
+        string? description,
+        bool isPublic,
+        bool limitOnePerUser,
+        string? metadata,
+        int? submissionTokenExpiryHours = null)
     {
         Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
+        SubmissionGuards.AgainstInvalidSubmissionTokenExpiry(submissionTokenExpiryHours);
+
         Name = name;
         Description = description;
         IsPublic = isPublic;
         LimitOnePerUser = limitOnePerUser;
         Metadata = metadata;
+        SubmissionTokenExpiryHours = submissionTokenExpiryHours;
         RegisterRevisedDomainEvent(() => new FormUpdatedEvent(this));
     }
 

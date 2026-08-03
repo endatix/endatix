@@ -28,6 +28,11 @@ public class CreateFormRequest
     public bool? LimitOnePerUser { get; set; }
 
     /// <summary>
+    /// Optional per-form submission resume-token TTL in hours. Null inherits the tenant default.
+    /// </summary>
+    public int? SubmissionTokenExpiryHours { get; set; }
+
+    /// <summary>
     /// Additional form-level metadata as raw JSON string.
     /// </summary>
     public string? Metadata { get; set; }

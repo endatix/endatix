@@ -324,6 +324,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasColumnType("bigint")
                         .HasDefaultValue(1L);
 
+                    b.Property<int?>("SubmissionTokenExpiryHours")
+                        .HasColumnType("integer");
+
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 

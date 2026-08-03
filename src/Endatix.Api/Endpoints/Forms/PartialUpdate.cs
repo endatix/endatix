@@ -47,6 +47,8 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormReque
                 ThemeId = request.ThemeId,
                 WebHookSettingsJson = request.WebHookSettingsJson,
                 LimitOnePerUser = request.LimitOnePerUser,
+                SubmissionTokenExpiryHours = request.SubmissionTokenExpiryHours,
+                ClearSubmissionTokenExpiryHours = request.ClearSubmissionTokenExpiryHours,
                 Metadata = request.Metadata,
                 ClearFolderId = request.ClearFolderId,
                 FolderId = folderId,

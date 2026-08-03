@@ -22,6 +22,7 @@ public static class FormProjections
         IsEnabled = form.IsEnabled,
         IsPublic = form.IsPublic,
         LimitOnePerUser = form.LimitOnePerUser,
+        SubmissionTokenExpiryHours = form.SubmissionTokenExpiryHours,
         Metadata = form.Metadata,
         ThemeId = form.ThemeId.HasValue ? form.ThemeId.Value.ToString() : null,
         ActiveDefinitionId = form.ActiveDefinitionId.HasValue ? form.ActiveDefinitionId.Value.ToString() : null,
@@ -36,6 +37,11 @@ public static class FormProjections
     /// Routing projection for public form access checks.
     /// </summary>
     public sealed record FormAccessRoutingDto(bool IsPublic, bool LimitOnePerUser, long Id);
+
+    /// <summary>
+    /// Minimal projection for resolving session token TTL (form override only).
+    /// </summary>
+    public sealed record FormSessionTokenExpiryDto(long FormId, int? SubmissionTokenExpiryHours);
 
     /// <summary>
     /// Permission focused projection for routing public form access checks.
@@ -56,6 +62,24 @@ public static class FormProjections
                 form.IsPublic,
                 form.LimitOnePerUser,
                 form.Id));
+        }
+    }
+
+    /// <summary>
+    /// Lightweight read of <see cref="Form.SubmissionTokenExpiryHours"/> for token obtain/extend.
+    /// </summary>
+    public sealed class SessionTokenExpiryDtoSpec : Specification<Form, FormSessionTokenExpiryDto>
+    {
+        /// <param name="formId">Form whose session TTL override to read.</param>
+        public SessionTokenExpiryDtoSpec(long formId)
+        {
+            Query
+                .Where(form => form.Id == formId)
+                .AsNoTracking();
+
+            Query.Select(form => new FormSessionTokenExpiryDto(
+                form.Id,
+                form.SubmissionTokenExpiryHours));
         }
     }
 }

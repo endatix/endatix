@@ -82,10 +82,12 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
 
     private Form CreateForm(string name, long? id = null)
     {
-        return new Form(tenantId: 1, name, isEnabled: true)
-        {
-            Id = id ?? idGenerator.CreateId()
-        };
+        var form = Form.Create(new FormCreateArgs(
+            TenantId: 1,
+            Name: name,
+            IsEnabled: true));
+        form.Id = id ?? idGenerator.CreateId();
+        return form;
     }
 
     private FormDefinition CreateDefinition(Form form, string jsonData, long? id = null, bool isActive = true)

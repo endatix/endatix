@@ -40,6 +40,7 @@ public class SubmissionsByFormIdSpec : SubmissionsByFormIdFilteredSpecBase<Submi
             s.CompletedAt,
             s.StartedAt,
             s.CreatedAt,
+            s.ModifiedAt,
             s.Metadata,
             s.Status.Code,
             s.SubmittedBy,

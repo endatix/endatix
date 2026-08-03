@@ -14,6 +14,7 @@ public record CreateFormCommand : ICommand<Result<Form>>
     public string? Description { get; init; }
     public bool IsEnabled { get; init; }
     public bool LimitOnePerUser { get; init; }
+    public int? SubmissionTokenExpiryHours { get; init; }
     public string? Metadata { get; init; }
     public string FormDefinitionJsonData { get; init; }
     public string? WebHookSettingsJson { get; init; }
@@ -26,16 +27,19 @@ public record CreateFormCommand : ICommand<Result<Form>>
         string formDefinitionJsonData,
         string? webHookSettingsJson = null,
         bool limitOnePerUser = false,
+        int? submissionTokenExpiryHours = null,
         string? metadata = null,
         long? folderId = null)
     {
         Guard.Against.NullOrWhiteSpace(name);
         Guard.Against.NullOrWhiteSpace(formDefinitionJsonData);
+        SubmissionGuards.AgainstInvalidSubmissionTokenExpiry(submissionTokenExpiryHours);
 
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
         LimitOnePerUser = limitOnePerUser;
+        SubmissionTokenExpiryHours = submissionTokenExpiryHours;
         Metadata = metadata;
         FormDefinitionJsonData = formDefinitionJsonData;
         WebHookSettingsJson = webHookSettingsJson;
