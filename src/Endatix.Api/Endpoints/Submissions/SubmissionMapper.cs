@@ -17,6 +17,7 @@ public class SubmissionMapper
         CompletedAt = dto.CompletedAt,
         StartedAt = dto.StartedAt,
         CreatedAt = dto.CreatedAt,
+        ModifiedAt = dto.ModifiedAt,
         Metadata = dto.Metadata,
         Status = dto.Status,
         SubmittedBy = dto.SubmittedBy,

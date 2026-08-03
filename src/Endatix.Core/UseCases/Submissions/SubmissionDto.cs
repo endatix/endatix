@@ -17,6 +17,7 @@ public record SubmissionDto(
     DateTime? CompletedAt,
     DateTime? StartedAt,
     DateTime CreatedAt,
+    DateTime? ModifiedAt,
     string? Metadata,
     string Status,
     string? SubmittedBy,
@@ -35,6 +36,7 @@ public record SubmissionDto(
     public DateTime? CompletedAt { get; init; } = CompletedAt;
     public DateTime? StartedAt { get; init; } = StartedAt;
     public DateTime CreatedAt { get; init; } = CreatedAt;
+    public DateTime? ModifiedAt { get; init; } = ModifiedAt;
     public string Status { get; init; } = Status;
     public string? SubmittedBy { get; init; } = SubmittedBy;
     public long? SubmitterId { get; init; } = SubmitterId;
@@ -56,6 +58,7 @@ public record SubmissionDto(
             CompletedAt: submission.CompletedAt,
             StartedAt: submission.StartedAt,
             CreatedAt: submission.CreatedAt,
+            ModifiedAt: submission.ModifiedAt,
             Metadata: submission.Metadata,
             Status: submission.Status.Code,
             SubmittedBy: submission.SubmittedBy,

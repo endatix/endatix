@@ -109,7 +109,7 @@ public static class SpecificationHelper
         if (actualType == typeof(DateTime))
         {
             var dateTime = DateTime.Parse(value);
-            return dateTime.Kind == DateTimeKind.Unspecified 
+            return dateTime.Kind == DateTimeKind.Unspecified
                 ? DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
                 : dateTime.ToUniversalTime();
         }
