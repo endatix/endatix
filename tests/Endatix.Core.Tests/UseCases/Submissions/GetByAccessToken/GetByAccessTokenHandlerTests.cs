@@ -23,7 +23,7 @@ public class GetByAccessTokenHandlerTests
 
     private static Submission CreateSubmissionWithForm(long formId, long formDefinitionId, bool isFormEnabled = true)
     {
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: isFormEnabled);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: isFormEnabled));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
         var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
 

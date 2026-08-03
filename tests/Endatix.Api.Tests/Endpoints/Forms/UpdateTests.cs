@@ -32,7 +32,7 @@ public class UpdateTests
             IsEnabled = true
         };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -76,15 +76,17 @@ public class UpdateTests
     {
         // Arrange
         var formId = 1L;
-        var request = new UpdateFormRequest 
-        { 
+        var request = new UpdateFormRequest
+        {
             FormId = formId,
             Name = "Updated Form",
             Description = "Updated Description",
             IsEnabled = true
         };
-        
-        var form = new Form(SampleData.TENANT_ID, request.Name) { Id = formId };
+
+        FormCreateArgs args = new(TenantId: SampleData.TENANT_ID, Name: request.Name);
+        var form = Form.Create(args);
+        form.Id = formId;
         var result = Result.Success(form);
 
         _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
@@ -135,8 +137,9 @@ public class UpdateTests
             Description = "Updated Description",
             IsEnabled = true
         };
-        var result = Result.Success(new Form(SampleData.TENANT_ID, "Updated Form"));
-        
+        FormCreateArgs args = new(TenantId: SampleData.TENANT_ID, Name: "Updated Form");
+        var result = Result.Success(Form.Create(args));
+
         _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -167,7 +170,7 @@ public class UpdateTests
             IsEnabled = true,
             LimitOnePerUser = null
         };
-        var result = Result.Success(new Form(SampleData.TENANT_ID, "Updated Form"));
+        var result = Result.Success(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Updated Form")));
 
         _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

@@ -228,7 +228,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         appDb.Set<Tenant>().Add(tenant);
         await appDb.SaveChangesAsync(cancellationToken);
 
-        Form form = new(TenantId, "Replace/merge form");
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Replace/merge form"));
         appDb.Forms.Add(form);
         await appDb.SaveChangesAsync(cancellationToken);
 

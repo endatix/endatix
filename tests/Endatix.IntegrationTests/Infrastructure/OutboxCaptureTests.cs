@@ -117,7 +117,7 @@ public sealed class OutboxCaptureTests
             await ctx.SaveChangesAsync(cancellationToken);
 
             FormsRepository repository = new(ctx, new AppUnitOfWork(ctx), new EndatixSpecificationEvaluator([]));
-            Form form = new(tenant.Id, "webhook-form", "desc", isEnabled: true);
+            Form form = Form.Create(new FormCreateArgs(TenantId: tenant.Id, Name: "webhook-form", Description: "desc", IsEnabled: true));
             FormDefinition formDefinition = new(tenant.Id);
 
             await repository.CreateFormWithDefinitionAsync(form, formDefinition, cancellationToken);
@@ -159,7 +159,7 @@ public sealed class OutboxCaptureTests
             await ctx.SaveChangesAsync(cancellationToken);
             tenantId = tenant.Id;
 
-            Form form = new(tenantId, "delete-outbox-form");
+            Form form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "delete-outbox-form"));
             ctx.Forms.Add(form);
             await ctx.SaveChangesAsync(cancellationToken);
 
@@ -217,7 +217,7 @@ public sealed class OutboxCaptureTests
         // Align ambient tenant with the seeded tenant so query filters see the rows.
         _tenantContext.TenantId.Returns(tenant.Id);
 
-        Form form = new(tenant.Id, "restriction-reuse-form", isPublic: false, limitOnePerUser: true);
+        Form form = Form.Create(new FormCreateArgs(TenantId: tenant.Id, Name: "restriction-reuse-form", IsPublic: false, LimitOnePerUser: true));
         ctx.Forms.Add(form);
         await ctx.SaveChangesAsync(cancellationToken);
 

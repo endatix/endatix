@@ -68,7 +68,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_ValidRequest_CreatesSubmission()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -117,7 +118,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_ValidRequest_GeneratesAndSetsToken()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -151,7 +153,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_IncompleteSubmission_DoesNotPublishSubmissionCompletedEvent()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -189,7 +192,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_ValidRequestAndSubmissionIsCompleted_PublishesSubmissionCreatedEvent()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -232,7 +236,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         const string DEFAULT_JSON_DATA = "{}";
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -271,7 +276,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         const int DEFAULT_CURRENT_PAGE = 0;
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -309,7 +315,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_ReCaptchaValidationFailed_ReturnsBadRequestResult()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -341,7 +348,8 @@ public class CreateSubmissionHandlerTests
         // Arrange
         const long userId = 123;
         SetupSubmitterResolution(userId);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -395,7 +403,8 @@ public class CreateSubmissionHandlerTests
         const long submitterId = 123;
         const string profileSnapshot = """{"department":"sales"}""";
         SetupSubmitterResolution(submitterId, profileSnapshot);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -438,7 +447,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_AnonymousUser_SetsSubmittedByToNull()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -490,7 +500,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_PrivateFormWithAnonymousUser_ReturnsUnauthorizedResult()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -524,7 +535,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_PrivateFormWithUserWithoutPermission_ReturnsForbiddenResult()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -558,7 +570,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_PrivateFormWithUserWithPermission_CreatesSubmission()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -598,7 +611,8 @@ public class CreateSubmissionHandlerTests
     public async Task Handle_PublicForm_CreatesSubmissionWithoutPermissionCheck()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -639,7 +653,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         SetupSubmitterResolution(123);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -679,7 +694,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         SetupSubmitterResolution(123);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -713,7 +729,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         SetupSubmitterResolution(123);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -770,7 +787,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         SetupSubmitterResolution(123);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -823,7 +841,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         SetupSubmitterResolution(123);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -862,7 +881,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         SetupSubmitterResolution(123);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -895,7 +915,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         SetupSubmitterResolution(123);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: true, limitOnePerUser: false) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: true, LimitOnePerUser: false));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -923,7 +944,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         SetupSubmitterResolution(123);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -965,7 +987,8 @@ public class CreateSubmissionHandlerTests
     {
         // Arrange
         SetupSubmitterResolution(123);
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);
@@ -1088,7 +1111,8 @@ public class CreateSubmissionHandlerTests
 
     private void ArrangeSuccessfulCreatePath()
     {
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
         form.AddFormDefinition(formDefinition);
         form.SetActiveFormDefinition(formDefinition);

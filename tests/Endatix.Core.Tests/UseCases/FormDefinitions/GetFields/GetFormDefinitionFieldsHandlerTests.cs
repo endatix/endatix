@@ -27,8 +27,10 @@ public class GetFormDefinitionFieldsHandlerTests
 
     private void ArrangeFormExists(long formId = 1)
     {
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test form"));
+        form.Id = formId;
         _formsRepository.SingleOrDefaultAsync(Arg.Any<FormSpecifications.ByIdReadOnly>(), Arg.Any<CancellationToken>())
-            .Returns(new Form(SampleData.TENANT_ID, "Test form") { Id = formId });
+            .Returns(form);
     }
 
     [Fact]

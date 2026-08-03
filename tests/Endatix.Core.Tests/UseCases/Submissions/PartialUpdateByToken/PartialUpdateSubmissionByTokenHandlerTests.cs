@@ -92,8 +92,10 @@ public class PartialUpdateSubmissionByTokenHandlerTests
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(tokenResult);
 
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = formId;
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
-            .Returns(new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = formId });
+            .Returns(form);
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -187,8 +189,10 @@ public class PartialUpdateSubmissionByTokenHandlerTests
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(submissionId));
 
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = formId;
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
-            .Returns(new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = formId });
+            .Returns(form);
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),
@@ -241,8 +245,10 @@ public class PartialUpdateSubmissionByTokenHandlerTests
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(submissionId));
 
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = formId;
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
-            .Returns(new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true) { Id = formId });
+            .Returns(form);
 
         _recaptchaService.ValidateReCaptchaAsync(
             Arg.Any<SubmissionVerificationContext>(),

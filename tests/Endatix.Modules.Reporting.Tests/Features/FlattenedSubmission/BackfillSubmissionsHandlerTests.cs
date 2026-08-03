@@ -35,7 +35,8 @@ public sealed class BackfillSubmissionsHandlerTests
     [Fact]
     public async Task Handle_WhenFormBelongsToOtherTenant_ReturnsNotFound()
     {
-        Form form = new(OtherTenantId, "Other tenant form") { Id = FormId };
+        Form form = Form.Create(new FormCreateArgs(TenantId: OtherTenantId, Name: "Other tenant form"));
+        form.Id = FormId;
 
         IRepository<Form> formsRepository = Substitute.For<IRepository<Form>>();
         formsRepository
@@ -57,7 +58,8 @@ public sealed class BackfillSubmissionsHandlerTests
     [Fact]
     public async Task Handle_WhenFormExists_DelegatesToBackfillProcessor()
     {
-        Form form = new(TenantId, "Test form") { Id = FormId };
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Test form"));
+        form.Id = FormId;
         SubmissionBackfillResult backfillResult = new(
             FormId,
             Scanned: 2,

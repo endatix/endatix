@@ -28,7 +28,8 @@ public class SubmissionTokenServiceObtainTokenTests
             Arg.Any<TenantSettingsByTenantIdSpec>(),
             Arg.Any<CancellationToken>()).Returns(tenantSettings);
 
-        var form = new Form(TENANT_ID, "Test form") { Id = FORM_ID };
+        var form = Form.Create(new FormCreateArgs(TenantId: TENANT_ID, Name: "Test form"));
+        form.Id = FORM_ID;
         _formRepository.FirstOrDefaultAsync(
             Arg.Any<FormProjections.SessionTokenExpiryDtoSpec>(),
             Arg.Any<CancellationToken>())

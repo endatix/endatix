@@ -104,7 +104,7 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
             return;
         }
 
-        Form form = new(tenantId, name, isEnabled: isEnabled, isPublic: isPublic);
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: name, IsEnabled: isEnabled, IsPublic: isPublic));
         db.Forms.Add(form);
         await db.SaveChangesAsync(cancellationToken);
     }

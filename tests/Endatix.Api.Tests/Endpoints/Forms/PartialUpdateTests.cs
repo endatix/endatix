@@ -26,7 +26,7 @@ public class PartialUpdateTests
         var formId = 1L;
         var request = new PartialUpdateFormRequest { FormId = formId };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<PartialUpdateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -64,15 +64,17 @@ public class PartialUpdateTests
     {
         // Arrange
         var formId = 1L;
-        var request = new PartialUpdateFormRequest 
-        { 
+        var request = new PartialUpdateFormRequest
+        {
             FormId = formId,
             Name = "Updated Form",
             Description = "Updated Description",
             IsEnabled = true
         };
-        
-        var form = new Form(SampleData.TENANT_ID, request.Name) { Id = formId };
+
+        FormCreateArgs args = new(TenantId: SampleData.TENANT_ID, Name: request.Name);
+        var form = Form.Create(args);
+        form.Id = formId;
         var result = Result.Success(form);
 
         _mediator.Send(Arg.Any<PartialUpdateFormCommand>(), Arg.Any<CancellationToken>())
@@ -118,8 +120,9 @@ public class PartialUpdateTests
             Description = "Updated Description",
             IsEnabled = true
         };
-        var result = Result.Success(new Form(SampleData.TENANT_ID, "Updated Form"));
-        
+        FormCreateArgs args = new(TenantId: SampleData.TENANT_ID, Name: "Updated Form");
+        var result = Result.Success(Form.Create(args));
+
         _mediator.Send(Arg.Any<PartialUpdateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 

@@ -50,13 +50,11 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_ValidRequest_UpdatesForm()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form")
-        {
-            Id = 1,
-            Name = SampleData.FORM_NAME_1,
-            Description = SampleData.FORM_DESCRIPTION_1,
-            IsEnabled = true
-        };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
+        form.Name = SampleData.FORM_NAME_1;
+        form.Description = SampleData.FORM_DESCRIPTION_1;
+        form.IsEnabled = true;
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme", "{ \"background\": \"#FFFFFF\" }") { Id = 4 };
         form.SetTheme(theme);
         var request = new PartialUpdateFormCommand(1)
@@ -86,7 +84,11 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_PartialUpdate_UpdatesOnlySpecifiedFields()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1, Name = SampleData.FORM_NAME_1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
+        form.Name = SampleData.FORM_NAME_1;
+        form.Description = SampleData.FORM_DESCRIPTION_1;
+        form.IsEnabled = true;
         var oldTheme = new Theme(SampleData.TENANT_ID, "Test Theme", "{ \"background\": \"#FFFFFF\" }") { Id = 3 };
         var newTheme = new Theme(SampleData.TENANT_ID, "Test Theme", "{ \"background\": \"#000000\" }") { Id = 4 };
         var request = new PartialUpdateFormCommand(1)
@@ -118,13 +120,11 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_ValidRequest_PublishesFormUpdatedEvent()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form")
-        {
-            Id = 1,
-            Name = SampleData.FORM_NAME_1,
-            Description = SampleData.FORM_DESCRIPTION_1,
-            IsEnabled = true
-        };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
+        form.Name = SampleData.FORM_NAME_1;
+        form.Description = SampleData.FORM_DESCRIPTION_1;
+        form.IsEnabled = true;
         var request = new PartialUpdateFormCommand(1)
         {
             Name = SampleData.FORM_NAME_2,
@@ -146,13 +146,11 @@ public class PartialUpdateFormHandlerTests
     {
         // Arrange — the enabled-state change is now captured to the outbox via the aggregate (SetEnabled),
         // not published in-process.
-        var form = new Form(SampleData.TENANT_ID, "Test Form")
-        {
-            Id = 1,
-            Name = SampleData.FORM_NAME_1,
-            Description = SampleData.FORM_DESCRIPTION_1,
-            IsEnabled = true
-        };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
+        form.Name = SampleData.FORM_NAME_1;
+        form.Description = SampleData.FORM_DESCRIPTION_1;
+        form.IsEnabled = true;
         var request = new PartialUpdateFormCommand(1)
         {
             IsEnabled = false
@@ -174,7 +172,8 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_WithWebHookSettingsJson_UpdatesWebHookConfiguration()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         var webHookJson = """
         {
             "Events": {
@@ -219,7 +218,8 @@ public class PartialUpdateFormHandlerTests
                 ["SubmissionCompleted"] = new WebHookEventConfig { IsEnabled = true }
             }
         };
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         form.UpdateWebHookSettings(webHookConfig);
 
         var request = new PartialUpdateFormCommand(1)
@@ -243,12 +243,10 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_PartialUpdateWithOtherFieldsAndWebHookSettings_UpdatesBothCorrectly()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
-        {
-            Id = 1,
-            Description = SampleData.FORM_DESCRIPTION_1,
-            IsEnabled = true
-        };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
+        form.Description = SampleData.FORM_DESCRIPTION_1;
+        form.IsEnabled = true;
         var webHookJson = """
         {
             "Events": {
@@ -303,7 +301,8 @@ public class PartialUpdateFormHandlerTests
                 }
             }
         };
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         form.UpdateWebHookSettings(webHookConfig);
 
         // Create request with only Name updated, WebHookSettingsJson is null
@@ -343,7 +342,8 @@ public class PartialUpdateFormHandlerTests
                 ["SubmissionCompleted"] = new WebHookEventConfig { IsEnabled = true }
             }
         };
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         form.UpdateWebHookSettings(webHookConfig);
 
         var request = new PartialUpdateFormCommand(1)
@@ -367,7 +367,8 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_DisablingLimitOnePerUserAfterEnabled_ReturnsConflict()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var request = new PartialUpdateFormCommand(1)
         {
             LimitOnePerUser = false
@@ -387,7 +388,8 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_EnablingLimitOnePerUserWithDuplicateEligibleSubmissions_ReturnsConflict()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
+        form.Id = 1;
         var request = new PartialUpdateFormCommand(1)
         {
             LimitOnePerUser = true
@@ -411,7 +413,8 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_EnablingLimitOnePerUserWithWhitespaceSubmittedByValues_Succeeds()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
+        form.Id = 1;
         var request = new PartialUpdateFormCommand(1)
         {
             LimitOnePerUser = true
@@ -435,7 +438,8 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_SettingFormPublicWhileSingleSubmissionEnabled_ReturnsConflict()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var request = new PartialUpdateFormCommand(1)
         {
             IsPublic = true
@@ -474,7 +478,8 @@ public class PartialUpdateFormHandlerTests
             .Returns((TenantSettingsEntity?)null);
 
         var handler = new PartialUpdateFormHandler(_repository, _themeRepository, _submissionRepository, _mediator, helper);
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, folderId: 7) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, FolderId: 7));
+        form.Id = 1;
         var request = new PartialUpdateFormCommand(1) { ClearFolderId = true };
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);

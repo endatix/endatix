@@ -42,7 +42,8 @@ public class PartialUpdateFormDefinitionHandlerTests
     {
         // Arrange
         var nonExistingFormId = 2;
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
         var request = new PartialUpdateFormDefinitionCommand(nonExistingFormId, 1, null, null);
@@ -62,7 +63,8 @@ public class PartialUpdateFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var testForm = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var testForm = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        testForm.Id = 1;
         var formDefinition = FormDefinitionFactory.CreateForTesting(
             jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
             formId: 1,
@@ -95,15 +97,13 @@ public class PartialUpdateFormDefinitionHandlerTests
     public async Task Handle_PartialUpdate_UpdatesOnlySpecifiedFields()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form")
-        {
-            Id = 1
-        };
-         var formDefinition = FormDefinitionFactory.CreateForTesting(
-            jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
-            formId: 1,
-            formDefinitionId: 2
-        );
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
+        var formDefinition = FormDefinitionFactory.CreateForTesting(
+           jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
+           formId: 1,
+           formDefinitionId: 2
+       );
         var request = new PartialUpdateFormDefinitionCommand(1, 1, null, SampleData.FORM_DEFINITION_JSON_DATA_2);
         _repository.GetByIdAsync(
             request.DefinitionId,

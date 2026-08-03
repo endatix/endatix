@@ -66,7 +66,7 @@ public sealed class CreateFormAccessTokenHandlerTests
         policy.GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<ICachedData<PublicFormAccessData>>(cached));
 
-        var form = new Form(formTenantId, "Mint test");
+        var form = Form.Create(new FormCreateArgs(TenantId: formTenantId, Name: "Mint test"));
         form.Id = formId;
         var definition = new FormDefinition(formTenantId, isDraft: false, jsonData: "{}");
         form.AddFormDefinition(definition, isActive: true);

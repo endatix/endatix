@@ -27,7 +27,7 @@ public class PartialUpdateByAccessTokenHandlerTests
 
     private static Submission CreateSubmissionWithForm(long formId, long formDefinitionId, bool isFormEnabled = true)
     {
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: isFormEnabled);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: isFormEnabled));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
         var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
 
@@ -60,7 +60,7 @@ public class PartialUpdateByAccessTokenHandlerTests
             new[] { "edit" },
             DateTime.UtcNow.AddHours(1));
 
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
         var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
 
@@ -128,7 +128,7 @@ public class PartialUpdateByAccessTokenHandlerTests
             new[] { "edit" },
             DateTime.UtcNow.AddHours(1));
 
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: false);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: false));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
         var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
 

@@ -103,7 +103,7 @@ public sealed class ShojiCodebookExportDataSourceTests
         FormSchemaCompiler compiler = new();
         FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
         FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
-        Form form = new(TenantId, "Customer Satisfaction Survey", "Annual wave");
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Customer Satisfaction Survey", Description: "Annual wave"));
         form.Id = FormId;
         string expectedCodebookJson = ShojiCodebookGenerator.Generate(
             schema.FlatteningMap,
@@ -151,7 +151,7 @@ public sealed class ShojiCodebookExportDataSourceTests
         string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
         FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
         FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
-        Form form = new(TenantId, "Datanium Panel");
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Datanium Panel"));
         form.Id = FormId;
 
         IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
@@ -221,7 +221,7 @@ public sealed class ShojiCodebookExportDataSourceTests
             compiled.FlatteningMapJson,
             compiled.CodebookJson,
             locales: """["default","es"]""");
-        Form form = new(TenantId, "Datanium Panel", "Wave 1");
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Datanium Panel", Description: "Wave 1"));
         form.Id = FormId;
 
         IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
@@ -259,7 +259,7 @@ public sealed class ShojiCodebookExportDataSourceTests
         string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
         FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
         FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
-        Form form = new(TenantId, "Datanium Panel");
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Datanium Panel"));
         form.Id = FormId;
 
         IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();

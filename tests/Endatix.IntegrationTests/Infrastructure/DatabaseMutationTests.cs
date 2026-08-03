@@ -42,7 +42,7 @@ public sealed class DatabaseMutationTests
                 Tenant tenant = new("integration-mutation-tenant");
                 db.Set<Tenant>().Add(tenant);
                 await db.SaveChangesAsync(cancellationToken);
-                Form form = new(tenant.Id, "integration-test-form");
+                Form form = Form.Create(new FormCreateArgs(TenantId: tenant.Id, Name: "integration-test-form"));
                 db.Forms.Add(form);
                 await db.SaveChangesAsync(cancellationToken);
             }

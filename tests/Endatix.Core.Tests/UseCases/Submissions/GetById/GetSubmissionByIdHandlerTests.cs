@@ -44,7 +44,7 @@ public class GetSubmissionByIdHandlerTests
         var formDefinitionId = 1L;
         var submissionId = 1L;
 
-        var form = new Form(SampleData.TENANT_ID, "Test Form", isEnabled: true);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
         var submission = new Submission(SampleData.TENANT_ID, "{ }", formId, formDefinitionId) { Id = submissionId };
 
