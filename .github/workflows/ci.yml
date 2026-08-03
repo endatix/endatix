@@ -149,7 +149,7 @@ jobs:
       contents: read # release writes use the App token inside the shared workflow
       packages: write # GitHub Packages push + GHCR image push
       id-token: write # OIDC for Infisical inside the shared workflow
-    uses: endatix/release-workflows/.github/workflows/canary.yml@cca02534258a68b196f9295afe9fd855ad9eee83 # v1
+    uses: endatix/release-workflows/.github/workflows/canary.yml@8e04473b8951790b94f7a4486e47d4e714dac9a3 # v1
     with:
       docker-image: ghcr.io/endatix/endatix-api
       dotnet-version: "10.x" # global.json rolls forward within 10.0.x
