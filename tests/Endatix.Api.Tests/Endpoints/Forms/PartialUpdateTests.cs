@@ -121,7 +121,7 @@ public class PartialUpdateTests
             IsEnabled = true
         };
         FormCreateArgs args = new(TenantId: SampleData.TENANT_ID, Name: "Updated Form");
-        var result = Result.Success(Form.Createargs);
+        var result = Result.Success(Form.Create(args));
 
         _mediator.Send(Arg.Any<PartialUpdateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
