@@ -21,7 +21,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
 
     private Form(FormCreateArgs args) : base(RequireArgs(args).TenantId)
     {
-        Guard.Against.NullOrEmpty(args.Name, nameof(args.Name), "Form name cannot be null.");
+        Guard.Against.NullOrEmpty(args.Name, message: "Form name cannot be null.");
         SubmissionGuards.AgainstInvalidSubmissionTokenExpiry(args.SubmissionTokenExpiryHours);
 
         Name = args.Name;
