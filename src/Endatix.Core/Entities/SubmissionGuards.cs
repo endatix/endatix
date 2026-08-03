@@ -17,8 +17,7 @@ public static class SubmissionGuards
         if (submissionTokenExpiryHours.HasValue)
         {
             Guard.Against.NegativeOrZero(
-                submissionTokenExpiryHours.Value,
-                nameof(submissionTokenExpiryHours));
+                submissionTokenExpiryHours.Value);
         }
     }
 }
