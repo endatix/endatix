@@ -125,6 +125,7 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
         }
 
         SubmissionTokenExpiryHours = hours;
+        ModifiedAt = DateTime.UtcNow;
     }
 
     /// <summary>
